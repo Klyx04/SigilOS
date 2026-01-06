@@ -1,0 +1,296 @@
+# .antigravity - SigilOS (nom de l’application) 
+
+
+# .antigravity - SIGIL-OS (Master Context)
+
+## 0. Project Context & Vision
+
+**Nom :** SigilOS (The Guild Operating System).
+**Concept :** Plateforme de gestion pour guildes sur le MMORPG **Dofus**.
+**Lore :** Inspiré des "Sigils" (sceaux de protection). Design "Dark Fantasy / Space Opera" (couleurs néons, interfaces épurées, ambiance mystique).
+**Cible :** D'abord ma guilde (MVP), puis ouverture SaaS Multi-tenant.
+
+### Les Modules (Roadmap Fonctionnelle)
+Le système est modulaire. Voici les modules prévus (à implémenter progressivement) :
+
+1.  **MISSIONS (Core) :**
+    - Gestion des 12 missions hebdomadaires générées en jeu (Reset chaque Lundi 8h).
+    - Catégories : DONJON (Boss), REGULATION (Mobs), ANOMALIE taper 50 mobs (sous elixir Uchronique), ANOMALIE taper un boss sous anomalie de cette tranche de lvl (sous elixir Uchronique), SONGES (Infini), CONTRAT (Expédition), EVENT.
+    - Workflow : Admin genère les 12 missions de la semaine -> 
+	Membre se dit intéressé via un premier bouton : une liste dispo des gens intéressé  
+	Veut valider une mission : 
+		1. Membre upload un screenshot.
+		2. **Sécurité :** Nettoyage/Conversion serveur (Anti-malware).
+		3. **OCR (Vision) :** Analyse automatique de l'image pour pré-valider (Lecture des logs de combat/chat dans le screen).
+ 		4. **Validation :** Staff confirme (ou Auto-validation si score OCR > 95%).
+    - Catégories : DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT.
+
+Liens communautaire et officiels à analyser : 
+
+https://www.dofuspourlesnoobs.com/guildes.html
+https://www.dofuspourlesnoobs.com/expeditions-de-guilde.html
+https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1766041-refonte-guildes-phase-i-fondations
+
+2.  **PROFIL (Identity) :**
+    - Fiche membre avec Pseudo Dofus, Classe, Niveau, date d'arrivée et dautres possible (scalable)
+    - **Annuaire Métiers :** Liste des métiers niveau 200 (pour l'entraide artisanat).
+    - **Suivi Succès :** Checklist (Duo, Hardi... pour tel ou tel dj) pour trouver des partenaires.
+
+3.  **SONGES (Tactical) :**
+    - Création de "Runs" Songes Infinis.
+    - Paramètres : Difficulté (Rêve, Paradoxe, Cauchemar), Étages visés, Compo d'équipe.
+    - Inscription / File d'attente.
+
+Liens communautaire et officiels à analyser : 
+
+https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1764631-puits-songes-infinis-partie-2
+https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1765997-maj-3-4-evolution-songes-infinis (derniere version)
+https://www.dofuspourlesnoobs.com/songes-infinis.html
+
+
+4.  **DONJON (Tactical) :**
+    - Création d'une demande pour faire une DJ (avec tel succès ou non , si c'est pour une quete, pour une mission ou autres?)
+
+
+5.  **PRÊTS (Inventory) :**
+    - Traçabilité des échanges d'items entre membres.
+    - Contrat de prêt : Item + Caution + Date + Preuve échange.
+
+6. **CALENDRIER** (GAMIFICATION) :**
+    - Calendrier de Guilde gérer par un tel(s) rôle(s) à definir, avec notif et tout ce qui va bien
+    - Création d'event à ajouter au calendrier , type d'event à définir
+
+7.  **LADDER (Gamification) :**
+    - Classement automatique basé sur l'activité (Missions validées, Participation ou autres type de classement).
+
+
+8. **AUTRE MODULES POSSIBLES A L'AVENIR**
+
+
+
+## 1. Core Architecture (NON-NEGOCIABLE) 
+
+**Vision :** SaaS de gestion de guilde Dofus Multi-tenant (SigilOS).  
+**Philosophie :** "Security by Design", UI "Dark Fantasy/Space Opera", UX Optimiste.  
+ 
+
+### A. La Stack Technique (Strict) 
+
+- **Framework :** Next.js 15+ (App Router, Server Actions ). 
+
+- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`). - **Base de Données :** PostgreSQL (via Neon/Supabase/Docker) géré par **Prisma ORM**.  
+
+- **Auth :** Auth.js (Discord Provider). Sessions via Cookies HttpOnly, Secure, SameSite. 
+
+- **Stockage :** Cloudflare R2 (pour les images de preuves) + Tesseract.js (ou API Vision) pour l'analyse.  
+ 
+
+- **UI System :** Tailwind CSS v4 + `shadcn/ui` (Radix UI). Thème sombre par défaut mais au choix 
+
+### B. Security by Design Rules (Lois Absolues)  
+ 
+
+**Règle 1 : Zod Gatekeeping (Validation)** - **Impératif :** AUCUNE donnée externe (API, Form, URL params) n'est traitée sans validation Zod stricte. 
+
+ 
+
+**Règle 2 : Server-Side Authority (RBAC)** 
+
+- **Impératif :** Ne JAMAIS faire confiance au client. Un bouton caché en CSS ou une route "protégée" par un redirect client n'est PAS une sécurité.  
+
+- **Conséquence :** Chaque mutation (écriture BDD) doit explicitement vérifier :  
+
+1. `if (!session) throw new Unauthorized()`  
+
+2. `if (session.user.role !== “TEL ROLE”) throw new Forbidden()` 
+
+3. `if (data.guildId !== session.user.guildId) throw new SecurityAlert()` 
+
+ 
+
+Tout ceci n’est qu’exemple évidemment. 
+
+**Règle 3 : Multi-Tenant Isolation (SaaS Shield)** - **Impératif :** Empêcher les fuites de données entre guildes (IDOR vulnerabilities) 
+
+- **Conséquence :** Toutes les requêtes Prisma (`findMany`, `update`, `delete`) DOIVENT inclure la clause `where: { guildId: session.guildId }`. L'IA doit refuser de générer une requête "globale". 
+
+ 
+
+**Règle 4 : Safe Uploads (Anti-Malware)**  
+
+- **Impératif :** Ne jamais stocker/exécuter un fichier utilisateur sur le serveur d'application.  
+
+- **Workflow :**  
+
+1. Validation magic number (signature fichier) côté serveur.  
+
+2. Upload direct vers R2 (Presigned URL) OU Stream direct sans écriture disque. 	3. Conversion forcée (ex: vers WEBP) pour tuer les scripts cachés dans les métadonnées. 
+
+ 
+
+**Règle 5 : Rate Limiting**  
+
+- **Impératif :** Protéger les routes publiques (Login, Upload) contre le Bruteforce/DDoS.  
+
+- **Outil :** Middleware avec Upstash Redis ou limiteur in-memory strict. 
+
+ 
+
+## 2. Business Logic & Data Model (Dynamic Architecture)
+
+**Philosophie :** SigilOS est un système SaaS Multi-tenant piloté par des permissions granulaires.
+Le système ne fige pas les rôles ("Admin", "Membre") dans le code. Il permet à chaque guilde de mapper ses propres Rôles Discord à des Fonctionnalités SigilOS via une matrice de droits.
+
+### A. Entités "SaaS Core" (Multi-tenant & Config)
+
+Ces entités gèrent l'isolation des guildes et la sécurité.
+
+- **GuildConfig :** L'entité racine d'un client (Une Guilde).
+  - `discordGuildId` (String, Unique, Indexé) : L'ID du serveur Discord.
+  - `name` & `iconUrl` : Infos synchro depuis Discord.
+  - `isActive` : Boolean (pour bannir/désactiver une guilde au niveau plateforme).
+  - `rolesMapping` : **JSONB**. Stocke la matrice de permissions configurée par l'admin.
+    - *Structure :* `Record<DiscordRoleId, PermissionId[]>`
+    - *Exemple :* `{ "123456": ["missions.view", "missions.validate"], "987654": ["*"] }`
+
+- **User :** L'utilisateur final (Global).
+  - `discordId` (Unique) : Identifiant stable.
+  - `username`, `image` : Infos profil Discord mises à jour à la connexion.
+  - *Note :* Un User n'a pas de champ "Role" global. Ses droits sont recalculés à chaque requête.
+
+### B. Entités Métier (Le Gameplay Dofus)
+
+Toutes ces entités doivent obligatoirement être liées à une `GuildConfig` (via `discordGuildId`) pour garantir l'isolation des données.
+
+- **UserProfile (Fiche Agent) :**
+  - Relation : 1-1 avec `User` MAIS scopé par `GuildConfig` (Un user peut avoir un profil différent dans 2 guildes).
+  - `status` : Enum (`ACTIVE`, `ARCHIVED`, `BANNED`). Gère la visibilité.
+  - `pseudoDofus` : String.
+  - `classe` : Enum ou String.
+  - `metiers` : JSONB (Liste des métiers 200 activés).
+  - `succes` : JSONB (Liste des succès validés).
+
+- **Mission :** Une tâche hebdomadaire.
+  - Relation : Appartient à `GuildConfig`.
+  - `category` : Enum (DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT).
+  - `status` : Enum (ACTIVE, ARCHIVED).
+  - `payload` : JSONB (Détails spécifiques : boss, zone, quantité mobs, étage songes).
+  - `weekNumber` / `year` : Pour le tri temporel.
+
+- **Submission (Preuve) :** La participation d'un membre à une mission.
+  - Relation : Appartient à `Mission` et `UserProfile`.
+  - `status` : Enum (PENDING, VALIDATED, REJECTED).
+  - `proofUrl` : String (URL sécurisée vers le stockage R2).
+  - `validatorId` : String (ID de l'user qui a validé, pour audit).
+
+
+
+### C. Le Système de "Module Registry" (Code)
+
+Le code TypeScript définit la liste immuable des fonctionnalités disponibles (Le "Menu" des droits).
+L'application doit exposer un objet de configuration centralisé `MODULE_REGISTRY` avec par exemple : 
+- **MISSIONS :** `view`, `participate`, `validate` (Staff), `manage` (Admin).
+- **PROFILE :** `view_all` (Annuaire), `edit_self`.
+- **ADMIN :** `access` (Accès Config Globale).
+
+
+
+### D. Workflow Admin (L'Interface de Mapping)
+
+L'IA doit générer une page `/admin/roles` dynamique :
+1.  Récupération des rôles Discord du serveur via l'API Bot.
+2.  Affichage d'un tableau croisé (Lignes = Rôles Discord, Colonnes = Permissions Registry).
+3.  L'Admin coche les cases.
+4.  Sauvegarde dans le JSON `rolesMapping`.
+
+
+### E. Cycle de Vie Utilisateur (Retention Policy)
+
+**Synchronisation Discord <-> Dashboard :**
+1.  **Départ (Leave) :** Si un membre quitte le Discord, son `UserProfile` passe en `ARCHIVED`. Il disparaît des annuaires publics mais ses stats (points, historique) sont conservées.
+2.  **Retour (Re-join) :** S'il revient, son `UserProfile` repasse en `ACTIVE`. Il retrouve tout son historique.
+3.  **Ban (Ban) :** Si banni du Discord, `UserProfile` passe en `BANNED`. Accès bloqué définitivement et suppression de toutes ses données.
+4.  **Affichage :** Toutes les requêtes publiques (Ladder, Annuaire) doivent filtrer `where: { status: 'ACTIVE' }`.
+
+**Règle de Rétention des Données (Data Retention Policy) :**
+1.  **Durée de conservation :** Les profils `ARCHIVED` sont conservés **365 jours** après la date de passage en archivage.
+
+2.  **Purge Automatique (Cron Job) :**
+    - Un job tourne chaque nuit.
+    - Il supprime définitivement (Hard Delete) ou anonymise les `UserProfile` dont `updatedAt < NOW - 365 DAYS` ET `status === 'ARCHIVED'`.
+
+3.  **Scénario "Retour Tardif" (> 1 an) :**
+    - Si l'utilisateur revient après la purge (ex: 18 mois plus tard).
+    - Le système ne trouve plus son `UserProfile`.
+    - **Conséquence :** Il est traité comme un **Nouvel Utilisateur** (Onboarding complet, nouveau profil vierge).
+    - C'est un comportement accepté et souhaitable (Reset de sa vie de guilde).
+
+### F. Workflow Sécurité (Access Guard)
+
+Pour protéger une Server Action ou une Page, le code doit :
+1.  Récupérer la session (Rôles Discord de l'user).
+2.  Charger la config de la guilde active (`rolesMapping`).
+3.  Vérifier si un des rôles de l'user possède la permission requise.
+4.  Sinon -> Throw `ForbiddenError`.
+
+## 3. Execution Rules (Coding Guidelines)
+
+**User Profile :** Développeur débutant mais ambitieux. Je veux du code professionnel (Best Practices), mais j'ai besoin d'explications claires étape par étape pour le déploiement et les commandes complexes. Ne suppose aucune connaissance préalable en DevOps.
+
+**Règle d'Or :** Tout code produit doit être "Production Ready" (Pas de "TODO Security").
+
+### A. Frontend Architecture (React/Next.js)
+1.  **Server Components First :** Par défaut, tout est Server Component. Utilise `'use client'` uniquement pour l'interactivité.
+2.  **UI Library :** Utilise **shadcn/ui** pour les composants de base. Utilise **Tailwind CSS v4** pour le style.
+3.  **UX Patterns :**
+    - **Optimistic UI :** Les actions (s'inscrire) doivent être instantanées visuellement.
+    - **Feedback :** Utilise `sonner` (Toasts) pour confirmer chaque action.
+    - **Loading :** Utilise des Skeletons, pas d'écran blanc bloquant.
+
+### B. Backend Architecture (Server Actions)
+1.  **Structure :** Une Action = Un Fichier dans `src/server/actions/`.
+2.  **Pipeline Strict :**
+    - Auth Check -> Permission Check -> Zod Validation -> Logique BDD -> Revalidate.
+3.  **Retour :** Toujours renvoyer `{ success: boolean, error?: string }`. Ne jamais crasher l'app.
+
+### C. Gestion BDD (Prisma Multi-tenant)
+- **Isolation :** TOUTES les requêtes métier (`find`, `update`) DOIVENT avoir `where: { guildId: session.guildId }`. C'est la règle de sécurité n°1.
+
+### D. Testing Strategy (MVP)
+- Pas de tests unitaires complexes (Jest/Vitest) pour l'instant.
+- **Validation :** À la fin de chaque tâche, fournis-moi une **Checklist de Test Manuel** précise (ex: "1. Connecte-toi en Admin, 2. Clique sur X, 3. Vérifie que la BDD contient Y").
+
+### E. Git & Versioning Workflow
+1.  **Branches :**
+    - `main` : Production (Stable).
+    - `dev` : Intégration (Travail).
+    - `feat/nom-feature` : Une branche par tâche.
+2.  **Instruction :** Avant de coder, vérifie que je suis sur la bonne branche `feat/...`.
+
+### F. Documentation Vivante (Live Docs)
+**Règle :** Le projet doit être redéployable de zéro par n'importe qui en moins de 10 minutes.
+1.  **README.md Maître :** Doit contenir les pré-requis, commandes d'installation, et variables d'env (`.env.example`).
+2.  **Mise à jour :** Si tu ajoutes une lib ou une variable d'env, mets à jour le README immédiatement.
+
+### G. Infrastructure & Portabilité (Docker First)
+**Contexte :** Dev Windows -> Prod Linux VPS.
+1.  **Docker Ready :** Le projet doit avoir un `Dockerfile` et un `docker-compose.yml` valides dès le début.
+2.  **Base de Données :** En local, utilise un conteneur PostgreSQL via Docker Compose.
+
+---
+
+## 4. Current Focus (Sprint Backlog)
+
+**Objectif Immédiat :** Mettre en place les fondations (Squelette Scalable).
+
+1.  **Setup Projet :** Initialiser Next.js 15, Tailwind, ESLint.
+2.  **Infrastructure Local :** Créer le `docker-compose.yml` pour la BDD PostgreSQL locale + le `Dockerfile` de l'app.
+3.  **Documentation Initiale :** Rédiger le `README.md` avec les étapes de setup (Clés Discord, Env vars).
+4.  **Base de Données :** Créer le `schema.prisma` avec les entités validées (`GuildConfig`, `User`, `Mission`, `Submission`) et le champ JSON pour les permissions.
+5.  **Authentification :** Configurer Auth.js avec Discord Provider.
+6.  **Middleware :** Créer le guard qui protège les routes `/dashboard`.
+
+*(Ne pas coder les modules ni l'interface Admin pour l'instant. On se concentre sur le socle technique).*
+
+
+

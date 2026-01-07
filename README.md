@@ -53,4 +53,23 @@ docker build -t sigilos .
 
 ## 📜 Licence
 
-Projet privé.
+## 🛑 Maintenance & Arrêt Clean
+
+Pour éteindre proprement l'infrastructure et éviter les processus fantômes :
+
+1.  **Stopper le Serveur de Dev :**
+    - Dans le terminal `npm run dev` : Appuyez sur `CTRL + C` (une ou deux fois).
+
+2.  **Stopper Prisma Studio (si lancé) :**
+    - Dans le terminal `prisma studio` : Appuyez sur `CTRL + C`.
+
+3.  **Éteindre la Base de Données (Docker) :**
+    - Si vous avez lancé via `docker-compose up` :
+    ```bash
+    docker-compose down
+    ```
+    - *Note : Cela éteint le conteneur PostgreSQL proprement.*
+
+4.  **Vérification Ultime (En cas de doute) :**
+    - Vérifiez qu'aucun processus Node ne tourne en fond (via Gestionnaire des tâches ou `netstat -ano | findstr :3000`).
+

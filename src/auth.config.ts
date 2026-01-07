@@ -2,7 +2,11 @@ import type { NextAuthConfig } from "next-auth"
 import Discord from "next-auth/providers/discord"
 
 export const authConfig = {
-    providers: [Discord],
+    providers: [
+        Discord({
+            authorization: { params: { scope: "identify email guilds" } }
+        })
+    ],
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user

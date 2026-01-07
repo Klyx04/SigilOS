@@ -159,6 +159,11 @@ Ces entités gèrent l'isolation des guildes et la sécurité.
   - `username`, `image` : Infos profil Discord mises à jour à la connexion.
   - *Note :* Un User n'a pas de champ "Role" global. Ses droits sont recalculés à chaque requête.
 
+  **Règle d'Affichage des Rôles (Hierarchy) :**
+  1. **Owner Override :** Si `User.discordId === Guild.ownerId` -> Titre **"Empereur"** (Priorité absolue).
+  2. **Admin Override :** Si Permission 0x8 (Administrator) présente mais aucun rôle spécifique mappé -> Titre **"Administrateur"**.
+  3. **Default :** Affiche le nom du plus haut rôle Discord mappé, ou "Membre".
+
 ### B. Entités Métier (Le Gameplay Dofus)
 
 Toutes ces entités doivent obligatoirement être liées à une `GuildConfig` (via `discordGuildId`) pour garantir l'isolation des données.
@@ -291,9 +296,15 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] Middleware Guard Active.
     - [x] Merged to `main` & `dev`.
 
-2.  **Admin Module (IN PROGRESS):**
-    - [x] Permissions Registry (`src/lib/permissions.ts`).
-    - [x] Discord API Client (`src/server/discord.ts`).
-    - [ ] Server Actions: Guild Onboarding & Role Mapping.
-    - [ ] UI: Admin Dashboard (Role Matrix).
+2.  **Phase 1: Multi-Tenant Onboarding (COMPLETE & VERIFIED):**
+    - [x] **Zero Trust Security:** `admin-actions.ts` validates permissions via Discord API (not client).
+    - [x] **Guild Selector:** Handles Active vs Pending guilds.
+    - [x] **Bot Integrity:** Live Connectivity Check (Ping) prevents "Ghost Guilds".
+    - [x] **Smart Onboarding:** Invite Link generation (OAuth2) vs DB Deployment.
+    - [x] **Role Logic:** "Smart Role Display" (Empereur/Admin overrides).
+
+3.  **Phase 2: Missions & Advanced Management (NEXT):**
+    - [ ] Mission Generator (Admin).
+    - [ ] Submission Workflow (User).
+    - [ ] Validation Queue (Staff).
 ```

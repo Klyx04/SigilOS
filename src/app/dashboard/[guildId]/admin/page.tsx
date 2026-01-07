@@ -4,26 +4,30 @@ import { fetchGuildRoles } from "@/server/discord";
 import { PermissionsManager } from "./_components/permissions-manager";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
+import { getUserContext } from "@/server/actions/user-actions";
 import { type PermissionId } from "@/lib/permissions";
 
-export default async function AdminPage() {
+
+export default async function AdminPage({
+    params,
+}: {
+    params: { guildId: string };
+}) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
-    // MVP: Target the guild defined in ENV
-    const targetGuildId = process.env.DISCORD_GUILD_ID;
+    const { guildId } = await params;
+    const targetGuildId = guildId;
+
+    // Secure Access (RBAC)
+    const user = await getUserContext(targetGuildId);
+    if (!user.isAdmin) {
+        return <AccessDenied />;
+    }
 
     if (!targetGuildId) {
-        return (
-            <div className="p-6 flex flex-col gap-4">
-                <h1 className="text-2xl font-bold text-red-500">Configuration Missing</h1>
-                <p className="text-muted-foreground">
-                    Please add <code>DISCORD_GUILD_ID</code> to your <code>.env</code> file.
-                    <br />
-                    This is required for the MVP to know which Guild to manage.
-                </p>
-            </div>
-        );
+        return <div>Invalid Guild ID</div>;
     }
 
     // Get or Create GuildConfig

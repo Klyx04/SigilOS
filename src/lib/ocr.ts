@@ -3,9 +3,10 @@
  * Uses Tesseract.js for text recognition
  * 
  * SMART VALIDATION: Validates screenshots against specific mission requirements
+ * 
+ * NOTE: Tesseract.js is dynamically imported to avoid Next.js App Router issues
  */
 
-import Tesseract from "tesseract.js";
 import { MissionCategory } from "@prisma/client";
 
 // --- Types ---
@@ -104,20 +105,45 @@ export async function analyzeMissionScreenshot(
     try {
         console.log(`[OCR] Starting analysis for ${missionCategory} mission...`);
 
-        // Run OCR with French language
-        const result = await Tesseract.recognize(imageBuffer, "fra", {
-            logger: (m) => {
-                if (m.status === "recognizing text") {
-                    console.log(`[OCR] Progress: ${Math.round((m.progress || 0) * 100)}%`);
-                }
-            },
-        });
+        let rawText = "";
+        let confidence = 0;
 
-        const rawText = result.data.text;
-        const confidence = result.data.confidence;
+        try {
+            // Dynamically import Tesseract to avoid Next.js App Router module issues
+            const Tesseract = await import("tesseract.js");
+
+            // Try to run OCR with Tesseract
+            const result = await Tesseract.default.recognize(imageBuffer, "fra", {
+                logger: (m: any) => {
+                    if (m.status === "recognizing text") {
+                        console.log(`[OCR] Progress: ${Math.round((m.progress || 0) * 100)}%`);
+                    }
+                },
+            });
+
+            rawText = result.data.text;
+            confidence = result.data.confidence;
+            console.log(`[OCR] Text extracted (${rawText.length} chars), confidence: ${confidence}%`);
+        } catch (ocrError) {
+            // Tesseract failed (common in Next.js server environment)
+            console.warn("[OCR] Tesseract failed, using fallback mode:", ocrError);
+            console.log("[OCR] Image uploaded successfully but OCR unavailable - manual validation required");
+
+            // Return a result that requires manual validation
+            return {
+                isValid: false,
+                score: 0,
+                categoryMatch: false,
+                contentMatch: false,
+                victoryDetected: false,
+                matchedElements: [],
+                missingElements: ["OCR indisponible - validation manuelle requise"],
+                rawText: "",
+                confidence: 0,
+            };
+        }
+
         const textLower = rawText.toLowerCase();
-
-        console.log(`[OCR] Text extracted (${rawText.length} chars), confidence: ${confidence}%`);
 
         // Validate based on mission type
         const validation = validateByCategory(
@@ -498,26 +524,37 @@ export async function analyzeScreenshot(
     rawText: string;
     confidence: number;
 }> {
-    // Fallback to basic analysis
-    const result = await Tesseract.recognize(imageBuffer, "fra");
-    const rawText = result.data.text;
-    const confidence = result.data.confidence;
+    try {
+        // Dynamically import Tesseract
+        const Tesseract = await import("tesseract.js");
+        const result = await Tesseract.default.recognize(imageBuffer, "fra");
+        const rawText = result.data.text;
+        const confidence = result.data.confidence;
 
-    const matches: { category: string; patterns: string[] }[] = [];
+        const matches: { category: string; patterns: string[] }[] = [];
 
-    if (VICTORY_PATTERNS.some(p => p.test(rawText))) {
-        matches.push({ category: "victory", patterns: ["Victoire"] });
+        if (VICTORY_PATTERNS.some(p => p.test(rawText))) {
+            matches.push({ category: "victory", patterns: ["Victoire"] });
+        }
+        if (COMBAT_PATTERNS.some(p => p.test(rawText))) {
+            matches.push({ category: "combat", patterns: ["Combat"] });
+        }
+
+        return {
+            score: matches.length > 0 ? 50 : 0,
+            matches,
+            rawText,
+            confidence,
+        };
+    } catch {
+        // Return empty result if Tesseract fails
+        return {
+            score: 0,
+            matches: [],
+            rawText: "",
+            confidence: 0,
+        };
     }
-    if (COMBAT_PATTERNS.some(p => p.test(rawText))) {
-        matches.push({ category: "combat", patterns: ["Combat"] });
-    }
-
-    return {
-        score: matches.length > 0 ? 50 : 0,
-        matches,
-        rawText,
-        confidence,
-    };
 }
 
 /**

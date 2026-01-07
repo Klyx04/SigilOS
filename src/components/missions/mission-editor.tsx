@@ -11,6 +11,14 @@ import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle } from "l
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getWeekNumber } from "@/lib/date-utils";
+import {
+    DungeonForm,
+    RegulationForm,
+    AnomalieForm,
+    SongesForm,
+    ExpeditionForm,
+    EventForm
+} from "./category-forms";
 
 // --- Types ---
 
@@ -47,6 +55,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
     const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
 
     // Fetch Data on Week Change
@@ -143,14 +152,23 @@ export function MissionEditor({ guildId }: { guildId: string }) {
     };
 
     const handleResetWeek = async () => {
-        if (!confirm(" ATTENTION: Tout effacer pour cette semaine ?")) return;
+        if (!confirm("⚠️ ATTENTION: Voulez-vous vraiment TOUT EFFACER pour cette semaine ? Cette action est irréversible.")) return;
 
-        const res = await resetWeek(guildId, weekNumber, year);
-        if (res.success) {
-            setMissions(Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
-            toast.success("Semaine réinitialisée");
-        } else {
-            toast.error("Erreur reset semaine");
+        setIsResetting(true);
+        try {
+            console.log('[ResetWeek Client] Calling resetWeek with:', { guildId, weekNumber, year });
+            const res = await resetWeek(guildId, weekNumber, year);
+            console.log('[ResetWeek Client] Response:', res);
+            if (res.success) {
+                setMissions(Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
+                toast.success("Semaine réinitialisée avec succès");
+            } else {
+                toast.error(res.error || "Erreur lors de la réinitialisation");
+            }
+        } catch (error) {
+            toast.error("Erreur réseau ou serveur");
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -181,8 +199,18 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button variant="destructive" size="sm" onClick={handleResetWeek}>
-                        <Trash2 className="w-4 h-4 mr-2" />
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleResetWeek}
+                        disabled={isResetting || isLoading}
+                    >
+                        {isResetting ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <Trash2 className="w-4 h-4 mr-2" />
+                        )}
                         Reset Semaine
                     </Button>
                     <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white">
@@ -217,7 +245,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 "relative group transition-all duration-300 flex flex-col h-full",
                                 "bg-slate-900", // Lighter base
                                 isEmpty
-                                    ? "border-slate-800 border-dashed hover:border-slate-600 hover:bg-slate-800/50" // No opacity reduction, clear dashed border
+                                    ? "bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-slate-800/60 border-dashed hover:bg-slate-900/80" // Matched MissionCard style
                                     : cn("border hover:shadow-[0_0_25px_-5px_var(--glow-color)]", borderColor)
                             )}
                             style={{ "--glow-color": glowColor } as React.CSSProperties}
@@ -247,11 +275,11 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             <CardContent className="p-4 pt-1 cursor-pointer flex-grow relative z-10" onClick={() => setEditingSlot(mission.slotIndex)}>
                                 <div className="h-full flex flex-col">
                                     {isEmpty ? (
-                                        <div className="flex flex-col items-center justify-center h-20 text-zinc-600 gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <Edit2 className="w-3.5 h-3.5" />
+                                        <div className="flex flex-col items-center justify-center h-20 gap-2.5">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                                                <Edit2 className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
                                             </div>
-                                            <span className="text-xs font-medium">Configurer</span>
+                                            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-200 transition-colors">Configurer</span>
                                         </div>
                                     ) : (
                                         <>
@@ -288,43 +316,39 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
                     {currentMission && (
                         <div className="grid gap-4 py-4">
+                            {/* Category & Tier Row */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-zinc-400">Catégorie</label>
                                     <select
                                         className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
                                         value={currentMission.category}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { category: e.target.value as MissionCategoryType })}
+                                        onChange={(e) => updateMission(currentMission.slotIndex, {
+                                            category: e.target.value as MissionCategoryType,
+                                            title: "",
+                                            payload: {}
+                                        })}
                                     >
                                         {MISSION_CATEGORIES.map(c => (
-                                            <option key={c} value={c}>{c}</option>
+                                            <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
                                         ))}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Palier (1-5)</label>
+                                    <label className="text-xs font-medium text-zinc-400">Rang (Palier)</label>
                                     <select
                                         className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
                                         value={currentMission.tier}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { tier: parseInt(e.target.value) })}
                                     >
                                         {[1, 2, 3, 4, 5].map(t => (
-                                            <option key={t} value={t}>Palier {t}</option>
+                                            <option key={t} value={t}>Rang {t}</option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400">Titre / Boss</label>
-                                <input
-                                    className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white focus:outline-none focus:border-indigo-500"
-                                    value={currentMission.title}
-                                    onChange={(e) => updateMission(currentMission.slotIndex, { title: e.target.value, payload: { ...currentMission.payload, boss: e.target.value } })}
-                                    placeholder="Ex: Tofu Royal"
-                                />
-                            </div>
-
+                            {/* Rewards Row */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-zinc-400">XP Guilde</label>
@@ -332,7 +356,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         type="number"
                                         className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
                                         value={currentMission.xpReward}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) })}
+                                        onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -341,36 +365,59 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         type="number"
                                         className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
                                         value={currentMission.guildatonsReward}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) })}
+                                        onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                             </div>
 
-                            {/* Dynamic Fields */}
-                            <div className="space-y-2 pt-2 border-t border-zinc-800">
-                                <span className="text-xs font-bold text-zinc-500">SPÉCIFIQUE</span>
-                                {(currentMission.category === 'REGULATION') && (
-                                    <input
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
-                                        value={currentMission.payload.zone || ''}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { payload: { ...currentMission.payload, zone: e.target.value } })}
-                                        placeholder="Zone (ex: Cania)"
+                            {/* Category-Specific Form */}
+                            <div className="pt-3 border-t border-zinc-800">
+                                {currentMission.category === 'DONJON' && (
+                                    <DungeonForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
                                     />
                                 )}
-                                {(currentMission.category === 'ANOMALIE') && (
-                                    <input
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
-                                        value={currentMission.payload.elixir || ''}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { payload: { ...currentMission.payload, elixir: e.target.value } })}
-                                        placeholder="Elixir"
+                                {currentMission.category === 'REGULATION' && (
+                                    <RegulationForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
                                     />
                                 )}
-                                {(currentMission.category === 'SONGES') && (
-                                    <input
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
-                                        value={currentMission.payload.etage || ''}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { payload: { ...currentMission.payload, etage: e.target.value } })}
-                                        placeholder="Étage (ex: 200+)"
+                                {currentMission.category === 'ANOMALIE' && (
+                                    <AnomalieForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                    />
+                                )}
+                                {currentMission.category === 'SONGES' && (
+                                    <SongesForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                    />
+                                )}
+                                {currentMission.category === 'EXPEDITION' && (
+                                    <ExpeditionForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                    />
+                                )}
+                                {currentMission.category === 'EVENT' && (
+                                    <EventForm
+                                        payload={currentMission.payload}
+                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
                                     />
                                 )}
                             </div>

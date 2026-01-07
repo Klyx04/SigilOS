@@ -1,13 +1,54 @@
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            const res = await fetch(url, options);
+
+            // If success or client error (4xx) that is not 429, return immediately.
+            // We only retry on server errors (5xx) or rate limits (429).
+            if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
+                return res;
+            }
+
+            // 429 Rate Limit: Wait for retry-after if available, else default delay
+            if (res.status === 429) {
+                const retryAfter = res.headers.get("Retry-After");
+                const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : RETRY_DELAY * Math.pow(2, i);
+                console.warn(`[Discord API] Rate limited. Retrying after ${waitTime}ms...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+            }
+
+            // 5xx Server Error: Standard backoff
+            if (res.status >= 500) {
+                console.warn(`[Discord API] Server error ${res.status}. Retrying (${i + 1}/${MAX_RETRIES})...`);
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, i)));
+                continue;
+            }
+
+        } catch (error) {
+            lastError = error as Error;
+            console.warn(`[Discord API] Network error: ${error}. Retrying (${i + 1}/${MAX_RETRIES})...`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, i)));
+        }
+    }
+
+    throw lastError || new Error(`Failed to fetch ${url} after ${MAX_RETRIES} retries`);
+}
+
 export async function fetchGuildRoles(guildId: string, options: { excludeManaged?: boolean } = { excludeManaged: true }) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    // Discord API v10
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
         headers: {
             Authorization: `Bot ${token}`,
         },
-        next: { revalidate: 30 }, // Cache for 30s (Faster updates for role changes)
+        next: { revalidate: 30 }, // Cache for 30s
     });
 
     if (!res.ok) {
@@ -26,12 +67,11 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
         permissions: string;
     }>;
 
-    // Filter out Managed roles if requested (default: true)
+    // Filter out Managed roles if requested
     if (options.excludeManaged) {
         roles = roles.filter(role => !role.managed);
     }
 
-    // Sort by position descending (like Discord UI)
     return roles.sort((a, b) => b.position - a.position);
 }
 
@@ -39,9 +79,9 @@ export async function fetchGuild(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 3600 }, // Cache for 1h (basic info changes rarely)
+        next: { revalidate: 3600 }, // Cache for 1h
     });
 
     if (!res.ok) {
@@ -60,9 +100,9 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 0 } // No cache for security checks
+        next: { revalidate: 0 }
     });
 
     if (!res.ok) {
@@ -80,11 +120,13 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
-    // Head request or minimal fetch to check access
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
-        headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 0 } // No cache for live check
-    });
-
-    return res.ok;
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+            headers: { Authorization: `Bot ${token}` },
+            next: { revalidate: 0 }
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
 }

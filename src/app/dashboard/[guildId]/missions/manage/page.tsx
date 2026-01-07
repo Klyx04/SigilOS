@@ -5,6 +5,8 @@ import { checkGuildPermission } from "@/server/actions/mission-actions"; // Need
 import { PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 // Note: I need access to checkGuildPermission. 
 // If it's not exported from mission-actions, I should export it or copy check. 
 // It was not exported in my previous code. I should fix that or just duplicate the check logic securely here.

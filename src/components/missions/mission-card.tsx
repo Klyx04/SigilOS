@@ -8,203 +8,391 @@ import {
     Skull,
     Zap,
     Clock,
-    Calendar,
+    MapPin,
+    Sparkles,
     Infinity as InfinityIcon,
-    Coins,
     Star,
-    Upload
+    Upload,
+    Users,
+    ExternalLink,
+    AlertTriangle
 } from "lucide-react";
-import { Mission, MissionCategory, MissionInterest, UserProfile } from "@prisma/client";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toggleMissionInterest } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 // --- Props ---
 
 interface MissionCardProps {
     mission: Mission & {
-        interests: (MissionInterest & { profile: UserProfile })[];
+        interests: (MissionInterest & {
+            profile: UserProfile & {
+                user: User | null
+            }
+        })[];
     };
-    currentUserId: string; // To check interest status
+    currentUserId: string;
+    onInterestClick?: (missionId: string) => void; // For modal trigger
 }
 
-// --- Helpers ---
+// --- Category Config ---
 
-// --- Helpers ---
-
-const CATEGORY_CONFIG: Record<MissionCategory, { icon: any; color: string; bgColor: string; borderColor: string; label: string }> = {
-    DONJON: { icon: Swords, color: "text-rose-400", bgColor: "bg-rose-950/30", borderColor: "border-rose-500/30", label: "Donjon" },
-    REGULATION: { icon: Skull, color: "text-emerald-400", bgColor: "bg-emerald-950/30", borderColor: "border-emerald-500/30", label: "Régulation" },
-    ANOMALIE: { icon: Zap, color: "text-fuchsia-400", bgColor: "bg-fuchsia-950/30", borderColor: "border-fuchsia-500/30", label: "Anomalie" },
-    SONGES: { icon: InfinityIcon, color: "text-cyan-400", bgColor: "bg-cyan-950/30", borderColor: "border-cyan-500/30", label: "Songes" },
-    EXPEDITION: { icon: Clock, color: "text-amber-400", bgColor: "bg-amber-950/30", borderColor: "border-amber-500/30", label: "Expédition" },
-    EVENT: { icon: Calendar, color: "text-yellow-300", bgColor: "bg-yellow-950/30", borderColor: "border-yellow-500/30", label: "Événement" },
+const CATEGORY_CONFIG: Record<MissionCategory, {
+    icon: any;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+    headerGradient: string;
+    glowColor: string;
+    label: string;
+}> = {
+    DONJON: {
+        icon: Swords,
+        color: "text-rose-400",
+        bgColor: "bg-rose-950/40",
+        borderColor: "border-rose-500/40",
+        headerGradient: "from-rose-600/90 to-rose-800/90",
+        glowColor: "rgba(244, 63, 94, 0.4)",
+        label: "Donjon"
+    },
+    REGULATION: {
+        icon: Skull,
+        color: "text-emerald-400",
+        bgColor: "bg-emerald-950/40",
+        borderColor: "border-emerald-500/40",
+        headerGradient: "from-emerald-600/90 to-emerald-800/90",
+        glowColor: "rgba(52, 211, 153, 0.4)",
+        label: "Régulation"
+    },
+    ANOMALIE: {
+        icon: Zap,
+        color: "text-fuchsia-400",
+        bgColor: "bg-fuchsia-950/40",
+        borderColor: "border-fuchsia-500/40",
+        headerGradient: "from-fuchsia-600/90 to-fuchsia-800/90",
+        glowColor: "rgba(217, 70, 239, 0.4)",
+        label: "Anomalie"
+    },
+    SONGES: {
+        icon: InfinityIcon,
+        color: "text-cyan-400",
+        bgColor: "bg-cyan-950/40",
+        borderColor: "border-cyan-500/40",
+        headerGradient: "from-cyan-600/90 to-cyan-800/90",
+        glowColor: "rgba(34, 211, 238, 0.4)",
+        label: "Songes"
+    },
+    EXPEDITION: {
+        icon: Clock,
+        color: "text-amber-400",
+        bgColor: "bg-amber-950/40",
+        borderColor: "border-amber-500/40",
+        headerGradient: "from-amber-600/90 to-amber-800/90",
+        glowColor: "rgba(251, 191, 36, 0.4)",
+        label: "Expédition"
+    },
+    EVENT: {
+        icon: Sparkles,
+        color: "text-yellow-300",
+        bgColor: "bg-yellow-950/40",
+        borderColor: "border-yellow-500/40",
+        headerGradient: "from-yellow-600/90 to-yellow-800/90",
+        glowColor: "rgba(253, 224, 71, 0.4)",
+        label: "Événement"
+    },
 };
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, onInterestClick }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
+    const router = useRouter();
 
-    // Check if user is interested
     const isInterested = mission.interests.some(i => i.profile.userId === currentUserId);
     const interestCount = mission.interests.length;
 
     const config = CATEGORY_CONFIG[mission.category];
     const Icon = config.icon;
+    const payload = mission.payload as any;
 
-    // Derived Data
-    const payload = mission.payload as any; // Typed loosely for display
-    const description = generateDescription(mission.category, payload);
+    // Check if mission is "empty" (not fully configured)
+    const isEmpty = !mission.title && (
+        (mission.category === 'DONJON' && !payload.dungeonName) ||
+        (mission.category === 'REGULATION' && !payload.monsterName) ||
+        (mission.category === 'ANOMALIE' && !payload.levelRange && !payload.type) ||
+        (mission.category === 'SONGES' && !payload.difficulty) ||
+        (mission.category === 'EXPEDITION' && !payload.dungeonName) ||
+        (mission.category === 'EVENT' && !payload.description)
+    );
+
+    if (isEmpty) {
+        return (
+            <Card className="flex flex-col h-full bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-slate-800/60 border-dashed items-center justify-center p-6 text-center space-y-4 hover:bg-slate-900/80 transition-colors group">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Icon className="w-6 h-6 text-slate-500 group-hover:text-slate-300 transition-colors" />
+                </div>
+                <div className="space-y-1.5">
+                    <h3 className="font-semibold text-slate-200 text-sm tracking-wide">Mission en attente</h3>
+                    <p className="text-xs text-slate-500 font-medium">Dévoilée prochainement</p>
+                </div>
+            </Card>
+        );
+    }
+
+    // Get level from payload
+    const displayLevel = payload.level || getDefaultLevel(mission.tier);
 
     const handleToggleInterest = () => {
         startTransition(async () => {
             const result = await toggleMissionInterest(mission.id);
             if (result.success) {
                 toast.success(isInterested ? "Intérêt retiré" : "Intérêt ajouté !");
+                router.refresh();
             } else {
                 toast.error(result.error || "Erreur");
             }
         });
     };
 
+    const handleInterestBadgeClick = () => {
+        if (onInterestClick) {
+            onInterestClick(mission.id);
+        }
+    };
+
     return (
         <Card className={cn(
             "flex flex-col h-full transition-all duration-300 group relative overflow-hidden",
-            "bg-zinc-950 border-zinc-800 hover:border-zinc-600",
-            // Glow effect on hover based on category color
-            `hover:shadow-[0_0_20px_-5px_var(--glow-color)]`,
-            // Apply category-specific glow color variable
-            config.color.replace("text-", "").replace("-400", "-500/20") // Hacky way to derive, but cleaner:
+            "bg-slate-900/95", // Removed backdrop-blur-sm for performance
+            config.borderColor,
+            "hover:shadow-[0_0_20px_-5px_var(--glow-color)] hover:translate-y-[-2px]" // Reduced shadow spread slightly, added translate for clearer localized effect
         )}
-            style={{ "--glow-color": getGlowColor(mission.category) } as React.CSSProperties}
+            style={{ "--glow-color": config.glowColor } as React.CSSProperties}
         >
-            {/* Ambient Background Gradient */}
-            <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-transparent via-transparent to-white/5 pointer-events-none")} />
-
-            {/* Header: Type, Rank & Level */}
-            <CardHeader className="p-4 pb-2 space-y-0 relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className={cn(
-                        "gap-1.5 transition-colors duration-300",
-                        config.color, config.bgColor, config.borderColor
-                    )}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {config.label}
-                    </Badge>
-                    <div className="text-xs font-medium text-zinc-500 flex items-center gap-2">
-                        <span className="text-zinc-400">P{mission.tier}</span>
-                        <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                        <span className="text-zinc-400">Lvl {getTierLevel(mission.tier)}</span>
-                    </div>
+            {/* Header with gradient */}
+            <CardHeader className={cn(
+                "p-3 pb-2 relative z-10 bg-gradient-to-r min-h-[48px] flex items-center",
+                config.headerGradient
+            )}>
+                <div className="flex items-center gap-2 w-full">
+                    <Icon className="w-4 h-4 text-white/90 shrink-0" />
+                    <h3 className="font-bold text-sm text-white flex-1 min-w-0 leading-tight line-clamp-2">
+                        {mission.title || getAutoTitle(mission.category, payload)}
+                    </h3>
                 </div>
-                <h3 className="font-bold text-lg leading-tight text-white line-clamp-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-zinc-400 transition-all">
-                    {mission.title || getAutoTitle(mission.category, payload)}
-                </h3>
             </CardHeader>
 
-            {/* Body: Description */}
-            <CardContent className="p-4 pt-2 flex-grow relative z-10">
-                <p className="text-sm text-zinc-400 line-clamp-3 leading-relaxed">
-                    {description}
-                </p>
-                {/* Visual Payload Details (e.g. Elixir) */}
-                {payload.elixir && (
-                    <div className="mt-3 text-[10px] uppercase tracking-wider font-semibold text-fuchsia-300 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-1 rounded inline-block shadow-[0_0_10px_-3px_rgba(217,70,239,0.3)]">
-                        Elixir: {payload.elixir}
+            {/* Body */}
+            <CardContent className="p-3 pt-1 flex-grow relative z-10 flex flex-col">
+                <div className="flex gap-3 flex-1">
+                    {/* Left: Text Content */}
+                    <div className="flex-1 min-w-0 flex flex-col h-full">
+                        {/* Rank & Level */}
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <Badge variant="outline" className="h-5 px-2 text-xs bg-slate-800/80 border-slate-600 text-slate-200 font-semibold shadow-sm">
+                                RANG {mission.tier}
+                            </Badge>
+                            <span className="text-sm font-medium text-slate-300">Niv. {displayLevel}</span>
+                        </div>
+
+                        {/* Description */}
+                        <div className="text-sm text-slate-200 leading-snug font-medium opacity-90 mb-4">
+                            {generateDescription(mission.category, payload)}
+                        </div>
+
+
+
+                        {/* Anomalie Elixir Tag */}
+                        {mission.category === 'ANOMALIE' && (
+                            <div className="flex items-center gap-2 text-xs text-fuchsia-200 font-bold bg-fuchsia-900/40 border border-fuchsia-500/40 px-2.5 py-1.5 rounded-md mb-3 shadow-sm animate-pulse-slow">
+                                <AlertTriangle className="w-3.5 h-3.5 text-fuchsia-400 flex-shrink-0" />
+                                <span className="tracking-wide uppercase text-[10px]">Elixir Uchronique OBLIGATOIRE</span>
+                            </div>
+                        )}
+
+                        {/* DPLN Link */}
+                        {payload.dpnlUrl && (
+                            <div className="mt-auto pt-2">
+                                <a
+                                    href={payload.dpnlUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 hover:border-indigo-500/40 w-fit"
+                                >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Guide DPLN
+                                </a>
+                            </div>
+                        )}
                     </div>
-                )}
+
+                    {/* Right: Image placeholder */}
+                    <div className={cn(
+                        "w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center border overflow-hidden",
+                        config.bgColor,
+                        config.borderColor
+                    )}>
+                        {payload.imageUrl ? (
+                            <Image
+                                src={payload.imageUrl}
+                                alt={mission.title || "Mission"}
+                                width={64}
+                                height={64}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <Icon className={cn("w-6 h-6", config.color)} />
+                        )}
+                    </div>
+                </div>
             </CardContent>
 
             {/* Footer: Rewards & Actions */}
-            <CardFooter className="p-4 pt-0 flex items-center justify-between gap-2 relative z-10">
-
+            <CardFooter className="p-3 pt-0 flex items-end justify-between gap-2 relative z-10">
                 {/* Rewards */}
-                <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
                     {mission.xpReward && (
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-medium font-mono">
-                            <Star className="w-3 h-3 text-indigo-400 fill-indigo-400/20" />
-                            {mission.xpReward} XP
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950/60 rounded-md border border-slate-800/60 shadow-sm" title="Points d'activité">
+                            <span className="text-slate-300 font-mono text-xs font-semibold">{mission.xpReward}</span>
+                            <div className="w-[16px] h-[16px] relative translate-y-[0.5px]">
+                                <Image
+                                    src="/PA.png"
+                                    alt="Activity"
+                                    width={16}
+                                    height={16}
+                                    className="object-contain"
+                                />
+                            </div>
                         </div>
                     )}
                     {mission.guildatonsReward && (
-                        <div className="flex items-center gap-1.5 text-xs text-amber-300 font-medium font-mono">
-                            <Coins className="w-3 h-3 text-amber-400 fill-amber-400/20" />
-                            {mission.guildatonsReward} G
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950/60 rounded-md border border-slate-800/60 shadow-sm" title="Guildatons">
+                            <span className="text-slate-300 font-mono text-xs font-semibold">{mission.guildatonsReward}</span>
+                            <div className="w-[16px] h-[16px] relative translate-y-[0.5px]">
+                                <Image
+                                    src="/guildaton.png"
+                                    alt="Guildatons"
+                                    width={16}
+                                    height={16}
+                                    className="object-contain"
+                                />
+                            </div>
                         </div>
                     )}
+                    {/* Stars removed as requested */}
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                    {/* Interest Button */}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className={cn(
-                            "h-8 px-2 gap-1.5 transition-all duration-300",
-                            isInterested
-                                ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 hover:text-indigo-200"
-                                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-                        )}
-                        onClick={handleToggleInterest}
-                        disabled={isPending}
-                    >
-                        <Star className={cn("w-4 h-4 transition-transform", isInterested ? "fill-indigo-400 text-indigo-400 scale-110" : "text-zinc-600")} />
-                        {interestCount > 0 && <span className="text-xs font-mono">{interestCount}</span>}
-                    </Button>
-
-                    {/* Submit Button */}
-                    <Button size="sm" className="h-8 gap-1.5 bg-zinc-100 text-black hover:bg-white hover:shadow-[0_0_15px_-3px_rgba(255,255,255,0.5)] border-0 transition-all font-semibold">
-                        <Upload className="w-3.5 h-3.5" />
-                        Valider
-                    </Button>
-                </div>
-
+                {/* Interest Count (clickable for modal) */}
+                <button
+                    onClick={handleInterestBadgeClick}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors bg-slate-800/50 px-2 py-1 rounded-md border border-slate-700/50 hover:border-slate-600"
+                >
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="font-semibold">{interestCount}</span>
+                </button>
             </CardFooter>
-        </Card>
+
+            {/* Bottom Action Bar */}
+            <div className="px-3 pb-3 pt-2 border-t border-slate-800/50 flex items-center gap-2">
+                {/* Interest Toggle */}
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className={cn(
+                        "flex-1 h-8 gap-1.5 transition-all text-xs font-medium border",
+                        isInterested
+                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30"
+                            : "bg-slate-800/40 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-slate-600"
+                    )}
+                    onClick={handleToggleInterest}
+                    disabled={isPending}
+                >
+                    <Star className={cn(
+                        "w-3.5 h-3.5",
+                        isInterested ? "fill-indigo-400 text-indigo-400" : ""
+                    )} />
+                    {isInterested ? "Intéressé" : "Intéressé ?"}
+                </Button>
+
+                {/* Submit Button */}
+                <Button
+                    size="sm"
+                    className="flex-1 h-8 gap-1.5 bg-slate-100 text-black hover:bg-white text-xs font-semibold"
+                >
+                    <Upload className="w-3 h-3" />
+                    Validation
+                </Button>
+            </div>
+        </Card >
     );
 }
 
-// Helper to get glow color based on category for inline style
-function getGlowColor(category: MissionCategory): string {
-    switch (category) {
-        case "DONJON": return "rgba(244, 63, 94, 0.4)"; // Rose
-        case "REGULATION": return "rgba(52, 211, 153, 0.4)"; // Emerald
-        case "ANOMALIE": return "rgba(217, 70, 239, 0.4)"; // Fuchsia
-        case "SONGES": return "rgba(34, 211, 238, 0.4)"; // Cyan
-        case "EXPEDITION": return "rgba(251, 191, 36, 0.4)"; // Amber
-        case "EVENT": return "rgba(253, 224, 71, 0.4)"; // Yellow
-        default: return "rgba(255, 255, 255, 0.2)";
-    }
-}
+// --- Helpers ---
 
-// --- Utils ---
-
-function getTierLevel(tier: number) {
+function getDefaultLevel(tier: number): number {
     switch (tier) {
-        case 1: return "1-10";
-        case 2: return "11-30";
-        case 3: return "31-50";
-        case 4: return "51-100";
-        case 5: return "101+"; // Palier 5 update
-        default: return "???";
+        case 1: return 50;
+        case 2: return 100;
+        case 3: return 150;
+        case 4: return 190;
+        case 5: return 200;
+        default: return 200;
     }
 }
 
-function getAutoTitle(category: MissionCategory, payload: any) {
-    if (payload.boss) return payload.boss;
-    if (payload.zone) return `Zone: ${payload.zone}`;
-    return "Mission Spéciale";
+function getAutoTitle(category: MissionCategory, payload: any): string {
+    switch (category) {
+        case "DONJON":
+            return payload.dungeonName || "Donjon Mystérieux";
+        case "REGULATION":
+            return payload.monsterName ? `Régulation des ${payload.monsterName}` : "Régulation";
+        case "ANOMALIE":
+            return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : "Au cœur de l'anomalie";
+        case "SONGES":
+            return payload.difficulty && payload.level
+                ? `Plongée en ${payload.difficulty} ${payload.level}`
+                : "Songes Infinis";
+        case "EXPEDITION":
+            return payload.dungeonName ? `Expédition de ${payload.dungeonName}` : "Expédition";
+        case "EVENT":
+            return payload.title || "Événement Spécial";
+        default:
+            return "Mission";
+    }
 }
 
-function generateDescription(category: MissionCategory, payload: any) {
+function generateDescription(category: MissionCategory, payload: any): React.ReactNode {
     switch (category) {
-        case "DONJON": return `Vaincre le ${payload.boss} dans son donjon.`;
-        case "ANOMALIE": return `Vaincre un gardien d'anomalie temporelle.`;
-        case "EXPEDITION": return `Vaincre le ${payload.boss} dans son expédition.`;
-        case "REGULATION": return `Vaincre 50 monstres de la famille ${payload.monsterFamily || 'Monstres'} dans la zone ${payload.zone}.`;
-        default: return "Compléter l'objectif demandé.";
+        case "DONJON":
+            return (
+                <>Vaincre <span className="text-rose-400 font-medium">{payload.bossName || "le Boss"}</span> dans son donjon</>
+            );
+        case "REGULATION":
+            return (
+                <>Vaincre <span className="text-emerald-400 font-medium">50 {payload.monsterName || "monstres"}</span> sur leur territoire</>
+            );
+        case "ANOMALIE":
+            if (payload.type === 'BOSS') {
+                return <>Vaincre un gardien d'anomalie temporelle sous l'effet d'un</>;
+            }
+            return <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{payload.levelRange || "200"}</span> sous anomalie</>;
+        case "SONGES":
+            return (
+                <>Démarrer un songe en <span className="text-cyan-400 font-medium">{payload.difficulty || "Paradoxe"} {payload.level || "I"}</span> et terminer le Palier {payload.tier || 2} : les <span className="text-cyan-400">Balades fantastiques</span></>
+            );
+        case "EXPEDITION":
+            const modeText = payload.mode && payload.mode !== 'aucun' ? ` de ${payload.mode}` : '';
+            return (
+                <>Vaincre <span className="text-amber-400 font-medium">{payload.bossName || "le Boss"}</span> dans son expédition{modeText}</>
+            );
+        case "EVENT":
+            return <>{payload.description || "Participer à l'événement."}</>;
+        default:
+            return "Compléter l'objectif demandé.";
     }
 }

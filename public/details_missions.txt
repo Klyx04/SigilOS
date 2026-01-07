@@ -1,0 +1,92 @@
+En fonction de la catégorie de la mission (Donjon , régulation, anomalie , songes infinis, Expéditions, Evènement) il faut afficher ceci Côté gestion admin :
+Je t'ai donné des exemples de missions en image
+Laisse bien le bouton intéressé et code le pour propose au clic d'ajouter le pseudo de la personne intéressé et une fenêtre sympa et optimisé pour voir qui est intéressé sur tel mission
+Laisse pour l'instant le bouton validation qui fera l'objet d'OCR dans une prochaine itération
+Ne rempli pas la base avec nimporte quoi en dj, monstre etc , demande moi quelques echantillons et indique dans les fichiers ou je pourrais aller populer cela plus tard
+
+
+
+DONJON
+
+Titre : Nom du Donjon (liste à implémenter en base , Je dois être en mesure de faire évoluer cette liste facilement) 
+Fonctionnement : Un champ de recherche connecté à une liste de donjons en base de données.
+Je dois être en mesure de faire évoluer cette liste facilement , les donjons serviront aussi dans un futur module "Succès DJ" pour aller chercher tel ou tel DJ associé à tel ou tel succès donc j'anticipe
+
+Il faut faire une UI semblable aux cartes de missions en image en piece jointe , laisse moi une petite place pour afficher une image du boss comme sur la carte en image
+
+Il faut donner le lien de la page dofuspourlesnoobs du donjon automatiquement quand je selectionne tel dj, je remplirai ça pour chaque donjon en bdd, c'est simplement la strat du dj expliqué via dofuspourlesnoobs (site communautaire) qui ressensent à peu près tout sur le jeu
+
+Enfin il faut indiquer dans la carte : Vaincre {Boss_Donjon} dans son donjon (comme la carte en image)
+
+Laisse bien le bouton intéressé et code le pour propose au clic d'ajouter le pseudo de la personne interessé et une fenêtre sympa et optimisé pour voir qui est intéressé sur tel mission
+Laisse pour l'instant le bouton validation qui fera l'objet d'OCR dans une prochaine itération
+
+RÉGULATION
+
+Il faut déjà choisir la zone sur le jeu , par exemple zone Galeries d'Ereboria ne contient que un type de monstre : Marteaux-Aigris mais une zone pourra avoir plusieurs type de monstres
+(liste à implémenter en base , Je dois être en mesure de faire évoluer cette liste facilement) 
+
+donc je choisi la zone et automatiquement le ou les type de monstre associés s'affichent à selectionner (un type max)
+
+Titre : Régulation {type_monstre}  (liste à implémenter en base , Je dois être en mesure de faire évoluer cette liste facilement) 
+
+Enfin il faut indiquer dans la carte : Vaincre 50 {type_monstre} sur leur territoire (comme la carte en image)
+
+ANOMALIE
+
+2 choix distincts via un selecteur : 
+
+Choix 1 (Zone): 
+	- Selecteur : tranche de niveau (50+,100+,150+,190+,200)
+	Template : Vaincre 50 monstre dans un territoire de niveau {tranche_de_niveau} sous anomalie avec un elixir uchronique activé
+
+Choix 2 (Boss): 
+	- Selecteur : Tranche de niveau (50+,100+,150+,190+,200)
+	Template : Vaincre un gardien de donjon sous anomalie de niveau {tranche_de_niveau} avec un elixir uchronique activé
+
+Pas besoin de choisir un DJ : les anomalies apparaissent aléatoirement sur dofus donc on ne sait jamais à l'avance quel dj cela peut etre
+
+
+SONGES INFINIS
+
+Refère toi dans un premier temps à la page d'explication détaillée des songes sur dofus : https://www.dofuspourlesnoobs.com/songes-infinis.html
+
+Fonctionnement : Deux sélecteurs précis.
+
+1. Niveau de songe (Liste fixe) :
+
+
+- Rêve : I, II, III
+- Paradoxe : I, II, III, IV
+- Cauchemar : I, II, III
+
+2. Palier : Choix d'un nombre entre 1 et 5.
+
+Template attendu : Démarrer un songe en {Niveau_Songe} et terminer le palier {Chiffre_Palier}.
+
+
+CONTRAT (Expéditions)
+
+Fonctionnement :Il faut donner le lien de la page dofuspourlesnoobs du donjon automatiquement quand je selectionne tel dj avec l'ancre de la page des explication, je remplirai ça pour chaque donjon en bdd, c'est simplement la strat du dj expliqué via dofuspourlesnoobs (site communautaire) qui ressensent à peu près tout sur le jeu
+
+Fonctionnement :
+
+Sélection du Donjon (via la liste existante).
+
+Choix du mode : Bravoure ou Audace ou Aucun Modificateur
+
+Template attendu : Vaincre {Nom_Donjon} dans son expédition {Mode}.
+
+ÉVÉNEMENT
+
+Titre : champ Libre 
+
+Description : champ libre également
+
+
+Ne rempli pas la base avec nimporte quoi en dj, monstre etc , demande moi quelques echantillons et indique dans les fichiers ou je pourrais aller populer cela plus tard
+
+ 
+
+
+

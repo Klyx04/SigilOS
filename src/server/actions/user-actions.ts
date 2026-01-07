@@ -12,6 +12,8 @@ export type UserContext = {
     roleName?: string;
     roleColor?: number;
     canManageProfile: boolean;
+    canViewMissions: boolean;
+    canViewRoster: boolean;
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
@@ -21,16 +23,16 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false };
+        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false };
+    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
 
     // 1. Get Guild Config for Mappings
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: targetGuildId },
-        select: { rolesMapping: true, name: true }
+        select: { id: true, rolesMapping: true, name: true }
     });
 
     // 2. Fetch User's Roles from Discord
@@ -45,10 +47,36 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false };
+        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
     }
 
     const discordUserId = account.providerAccountId;
+
+    // --- ENSURE USER PROFILE EXISTS ---
+    // If user is logged in and in a valid guild, they should have a profile
+    let profile = await db.userProfile.findUnique({
+        where: {
+            userId_guildId: {
+                userId: session.user.id,
+                guildId: guildConfig?.id || ""
+            }
+        }
+    });
+
+    if (!profile && guildConfig) {
+        console.log(`[UserContext] Auto-creating profile for user ${session.user.id} in guild ${guildConfig.id}`);
+        try {
+            profile = await db.userProfile.create({
+                data: {
+                    userId: session.user.id,
+                    guildId: guildConfig.id,
+                    // Basic defaults
+                }
+            });
+        } catch (e) {
+            console.error("[UserContext] Failed to auto-create profile:", e);
+        }
+    }
 
     // Parallelize Discord API calls for performance
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -114,6 +142,10 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const hasDiscordAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
     const isAdmin = myPerms.has(PERMISSIONS.ADMIN_ACCESS) || hasDiscordAdmin;
 
+    // View Permissions (Admin always sees everything)
+    const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
+    const canViewRoster = myPerms.has(PERMISSIONS.PROFILE_VIEW_ALL) || isAdmin;
+
     return {
         isAuthenticated: true,
         name: session.user.name || "Voyageur",
@@ -121,6 +153,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         roleName,
         roleColor,
         canManageProfile,
+        canViewMissions,
+        canViewRoster,
         isAdmin,
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu"

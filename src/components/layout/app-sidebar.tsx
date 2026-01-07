@@ -26,10 +26,10 @@ export function AppSidebar({ className, user, guildId }: Props) {
 
     // Dynamic Navigation Items
     const NAV_ITEMS = [
-        { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true },
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText },
-        { name: "Effectifs", href: `/dashboard/${guildId}/roster`, icon: Users },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: ClipboardList }, // Added explicit profile link
+        { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, visible: true },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, visible: user.canViewMissions },
+        { name: "Effectifs", href: `/dashboard/${guildId}/roster`, icon: Users, visible: user.canViewRoster },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: ClipboardList, visible: true }, // Always visible
     ];
 
     const NavContent = () => (
@@ -43,7 +43,7 @@ export function AppSidebar({ className, user, guildId }: Props) {
             </div>
 
             <div className="flex-1 px-4 space-y-1">
-                {NAV_ITEMS.map((item) => (
+                {NAV_ITEMS.filter(item => item.visible).map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
                         <Button
                             variant="ghost"

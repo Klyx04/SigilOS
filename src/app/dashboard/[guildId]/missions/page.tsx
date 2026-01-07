@@ -3,6 +3,8 @@ import { getWeekMissions } from "@/server/actions/mission-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect, notFound } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 // Local Helper if not in utils
 function getCurrentWeek() {
     const now = new Date();

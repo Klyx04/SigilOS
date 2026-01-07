@@ -8,19 +8,16 @@
  * 3. Validate file (magic number)
  * 4. Process image (convert to WebP, strip metadata)
  * 5. Upload to R2 (or local storage fallback)
- * 6. Run SMART OCR analysis (validates against mission requirements)
- * 7. Return URLs and OCR result
+ * 6. Return URLs (OCR disabled for now due to Next.js compatibility)
  */
 
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { processImage, MAX_FILE_SIZE } from "@/lib/image-processor";
-import { analyzeMissionScreenshot, type OcrValidation } from "@/lib/ocr";
 import { isR2Configured, getUploadUrl, generateProofKey, getPublicUrl } from "@/lib/r2";
 import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import { MissionCategory } from "@prisma/client";
 
 // Local storage fallback path (when R2 is not configured)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "proofs");
@@ -135,33 +132,26 @@ export async function POST(request: NextRequest) {
             publicUrl = `/uploads/proofs/${guildId}/${missionId}/${fileName}`;
         }
 
-        // 9. Run SMART OCR analysis with mission context
-        console.log("[Upload] Starting smart OCR analysis...");
+        // 9. OCR DISABLED - Tesseract.js has compatibility issues with Next.js App Router
+        // TODO: Re-enable when using external OCR API (Google Vision, etc.)
+        console.log("[Upload] Image stored successfully. OCR disabled - manual validation required");
 
-        const ocrResult: OcrValidation = await analyzeMissionScreenshot(
-            processedBuffer,
-            mission.category as MissionCategory,
-            mission.payload as Record<string, any>
-        );
+        const ocrResult = {
+            isValid: false,
+            score: 0,
+            categoryMatch: false,
+            contentMatch: false,
+            victoryDetected: false,
+            matchedElements: [] as string[],
+            missingElements: ["Validation manuelle requise"],
+            confidence: 0,
+        };
 
-        console.log(`[Upload] OCR complete. Score: ${ocrResult.score}%, Valid: ${ocrResult.isValid}`);
-        console.log(`[Upload] Matched: ${ocrResult.matchedElements.join(", ") || "none"}`);
-        console.log(`[Upload] Missing: ${ocrResult.missingElements.join(", ") || "none"}`);
-
-        // 10. Return success response with detailed OCR results
+        // 10. Return success response
         return NextResponse.json({
             success: true,
             proofUrl: publicUrl,
-            ocr: {
-                score: ocrResult.score,
-                isValid: ocrResult.isValid,
-                categoryMatch: ocrResult.categoryMatch,
-                contentMatch: ocrResult.contentMatch,
-                victoryDetected: ocrResult.victoryDetected,
-                matchedElements: ocrResult.matchedElements,
-                missingElements: ocrResult.missingElements,
-                confidence: ocrResult.confidence,
-            },
+            ocr: ocrResult,
         });
 
     } catch (error) {
@@ -173,9 +163,4 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// Limit request body size
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
+// Note: Request body size is configured in next.config.js

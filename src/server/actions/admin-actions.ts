@@ -13,16 +13,10 @@ export type ActionResponse = {
 
 export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        // 1. Check if guild matches session (Security)
-        // Note: In a real scenario, we'd check if session.user has admin rights on this guildId
-        // For now, we allow any logged in user to onboarding their "Own" guild if we pass it 
-        // via context, but here we just blindly trust the guildId param? 
-        // NO. We should probably only allow onboarding if the user IS in that guild.
-        // But let's stick to the plan: "Creates the GuildConfig entry in DB if missing."
-
+        // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId }
         });
@@ -31,10 +25,45 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             return { success: true };
         }
 
-        // 2. Fetch Guild Info from Discord
+        // 2. SECURITY CHECK: Verify User is Admin of this Guild
+        // We must fetch the User's Discord Account ID first
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (!account) return { success: false, error: "No Discord account linked" };
+
+        const discordUserId = account.providerAccountId;
+
+        // Fetch Guild Info (for Owner check & Name)
         const guildInfo = await fetchGuild(guildId);
 
-        // 3. Create Config
+        // Fetch Member (for Roles)
+        const { fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const member = await fetchGuildMember(guildId, discordUserId);
+
+        if (!member) return { success: false, error: "You are not a member of this guild" };
+
+        let isAdmin = false;
+
+        // Check 1: Is Owner?
+        if (guildInfo.owner_id === discordUserId) {
+            isAdmin = true;
+        } else {
+            // Check 2: Has Administrator Permission (0x8)?
+            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+
+            // Check if any role has the 0x8 bit set
+            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        }
+
+        if (!isAdmin) {
+            return { success: false, error: "Insufficient permissions: Administrator required" };
+        }
+
+        // 3. Create Config (Safe to proceed)
         await db.guildConfig.create({
             data: {
                 discordGuildId: guildId,

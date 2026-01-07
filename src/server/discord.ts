@@ -1,4 +1,4 @@
-export async function fetchGuildRoles(guildId: string) {
+export async function fetchGuildRoles(guildId: string, options: { excludeManaged?: boolean } = { excludeManaged: true }) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
@@ -7,7 +7,7 @@ export async function fetchGuildRoles(guildId: string) {
         headers: {
             Authorization: `Bot ${token}`,
         },
-        next: { revalidate: 300 }, // Cache for 5min
+        next: { revalidate: 30 }, // Cache for 30s (Faster updates for role changes)
     });
 
     if (!res.ok) {
@@ -17,22 +17,22 @@ export async function fetchGuildRoles(guildId: string) {
         throw new Error(`Failed to fetch roles: ${res.statusText}`);
     }
 
-    const roles = (await res.json()) as Array<{
+    let roles = (await res.json()) as Array<{
         id: string;
         name: string;
         color: number;
         position: number;
         managed: boolean;
+        permissions: string;
     }>;
 
-    // Filter out:
-    // 1. Managed roles (Bots/Integrations)
-    // 2. @everyone (optional, but usually good to keep for defaults, but here we can keep it as it's not managed)
-    // Note: @everyone is NOT managed, so it stays.
-    const userRoles = roles.filter(role => !role.managed);
+    // Filter out Managed roles if requested (default: true)
+    if (options.excludeManaged) {
+        roles = roles.filter(role => !role.managed);
+    }
 
     // Sort by position descending (like Discord UI)
-    return userRoles.sort((a, b) => b.position - a.position);
+    return roles.sort((a, b) => b.position - a.position);
 }
 
 export async function fetchGuild(guildId: string) {
@@ -52,5 +52,39 @@ export async function fetchGuild(guildId: string) {
         id: string;
         name: string;
         icon: string | null;
+        owner_id?: string;
     };
+}
+
+export async function fetchGuildMember(guildId: string, userId: string) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 0 } // No cache for security checks
+    });
+
+    if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error(`Failed to fetch member: ${res.statusText}`);
+    }
+
+    return (await res.json()) as {
+        user: { id: string; username: string };
+        roles: string[];
+    };
+}
+
+export async function verifyGuildAccessibility(guildId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    // Head request or minimal fetch to check access
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 0 } // No cache for live check
+    });
+
+    return res.ok;
 }

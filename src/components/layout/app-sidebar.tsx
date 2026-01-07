@@ -1,0 +1,120 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList } from "lucide-react";
+import { UserWidget } from "./user-widget";
+import type { UserContext } from "@/server/actions/user-actions";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState } from "react";
+
+type Props = {
+    className?: string;
+    user: UserContext;
+    guildId: string;
+};
+
+export function AppSidebar({ className, user, guildId }: Props) {
+    const pathname = usePathname();
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    const isActive = (href: string, exact = false) => {
+        return exact ? pathname === href : pathname.startsWith(href);
+    };
+
+    // Dynamic Navigation Items
+    const NAV_ITEMS = [
+        { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText },
+        { name: "Effectifs", href: `/dashboard/${guildId}/roster`, icon: Users },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: ClipboardList }, // Added explicit profile link
+    ];
+
+    const NavContent = () => (
+        <div className="flex flex-col h-full py-6">
+            <div className="px-6 mb-8">
+                <Link href={`/dashboard/${guildId}`} className="flex items-center gap-2">
+                    <span className="text-3xl font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-secondary animate-pulse-slow">
+                        SIGILOS
+                    </span>
+                </Link>
+            </div>
+
+            <div className="flex-1 px-4 space-y-1">
+                {NAV_ITEMS.map((item) => (
+                    <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                "w-full justify-start gap-3 h-12 text-base font-medium",
+                                isActive(item.href, item.exact)
+                                    ? "bg-primary/10 text-primary border-r-2 border-primary rounded-r-none"
+                                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                            )}
+                        >
+                            <item.icon className={cn("h-5 w-5", isActive(item.href, item.exact) ? "text-primary" : "text-muted-foreground")} />
+                            {item.name}
+                        </Button>
+                    </Link>
+                ))}
+
+                {/* Admin Link - Only visible if admin */}
+                {user.isAdmin && (
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                        <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                            Administration
+                        </p>
+                        <Link href={`/dashboard/${guildId}/admin`} onClick={() => setMobileOpen(false)}>
+                            <Button
+                                variant="ghost"
+                                className={cn(
+                                    "w-full justify-start gap-3 h-12 text-base font-medium",
+                                    isActive(`/dashboard/${guildId}/admin`)
+                                        ? "bg-amber-500/10 text-amber-500 border-r-2 border-amber-500 rounded-r-none"
+                                        : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-500"
+                                )}
+                            >
+                                <Shield className="h-5 w-5 text-amber-500" />
+                                Gestion Guilde
+                            </Button>
+                        </Link>
+                    </div>
+                )}
+            </div>
+
+            <div className="px-4 mt-auto">
+                <UserWidget user={user} />
+            </div>
+        </div>
+    );
+
+    return (
+        <>
+            {/* Mobile Trigger */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-background/80 backdrop-blur-md border-b border-border">
+                <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-secondary">
+                        SIGILOS
+                    </span>
+                </div>
+                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <Menu className="h-6 w-6" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="p-0 border-r-white/10 bg-black/90 backdrop-blur-xl">
+                        <NavContent />
+                    </SheetContent>
+                </Sheet>
+            </div>
+
+            {/* Desktop Sidebar */}
+            <div className={cn("hidden md:flex w-72 flex-col border-r border-white/5 bg-black/20 h-screen sticky top-0 backdrop-blur-xl", className)}>
+                <NavContent />
+            </div>
+        </>
+    );
+}

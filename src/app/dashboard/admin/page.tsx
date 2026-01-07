@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { fetchGuildRoles } from "@/server/discord";
-import { RoleMatrix } from "./_components/role-matrix";
+import { PermissionsManager } from "./_components/permissions-manager";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
 import { type PermissionId } from "@/lib/permissions";
@@ -84,7 +84,7 @@ export default async function AdminPage() {
                 )}
             </div>
 
-            <RoleMatrix
+            <PermissionsManager
                 guildId={targetGuildId}
                 roles={roles}
                 currentMapping={currentMapping}

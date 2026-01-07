@@ -16,11 +16,11 @@ export const PERMISSIONS = {
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const PERMISSION_LABELS: Record<PermissionId, string> = {
-    [PERMISSIONS.ADMIN_ACCESS]: "Access Admin Panel",
-    [PERMISSIONS.MISSIONS_VIEW]: "View Missions",
-    [PERMISSIONS.MISSIONS_CREATE]: "Create/Edit Missions",
-    [PERMISSIONS.MISSIONS_DELETE]: "Delete Missions",
-    [PERMISSIONS.MISSIONS_VALIDATE]: "Validate Submissions",
-    [PERMISSIONS.PROFILE_VIEW_ALL]: "View Guild Roster",
-    [PERMISSIONS.PROFILE_UPDATE_SELF]: "Update Own Profile",
+    [PERMISSIONS.ADMIN_ACCESS]: "Arranger le Dashboard",
+    [PERMISSIONS.MISSIONS_VIEW]: "Voir les Missions",
+    [PERMISSIONS.MISSIONS_CREATE]: "Créer/Modifier Missions",
+    [PERMISSIONS.MISSIONS_DELETE]: "Supprimer Missions",
+    [PERMISSIONS.MISSIONS_VALIDATE]: "Valider les Preuves",
+    [PERMISSIONS.PROFILE_VIEW_ALL]: "Voir l'Annuaire",
+    [PERMISSIONS.PROFILE_UPDATE_SELF]: "Modifier son Profil",
 };

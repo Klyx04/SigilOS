@@ -9,6 +9,7 @@
 **Concept :** Plateforme de gestion pour guildes sur le MMORPG **Dofus**.
 **Lore :** Inspiré des "Sigils" (sceaux de protection). Design "Dark Fantasy / Space Opera" (couleurs néons, interfaces épurées, ambiance mystique).
 **Cible :** D'abord ma guilde (MVP), puis ouverture SaaS Multi-tenant.
+**Langue :** Français (par défaut) + Anglais (optionnel).
 
 ### Les Modules (Roadmap Fonctionnelle)
 Le système est modulaire. Voici les modules prévus (à implémenter progressivement) :

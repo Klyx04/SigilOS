@@ -3,8 +3,17 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
 
+import Discord from "next-auth/providers/discord"
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
+    providers: [
+        Discord({
+            clientId: process.env.AUTH_DISCORD_ID,
+            clientSecret: process.env.AUTH_DISCORD_SECRET,
+            authorization: { params: { scope: "identify email guilds" } }
+        })
+    ],
     adapter: PrismaAdapter(prisma),
     session: { strategy: "jwt" },
     callbacks: {
@@ -38,6 +47,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return token;
         },
         async session({ session, token }) {
+            if (session.user && token.sub) {
+                session.user.id = token.sub;
+            }
+            // Also map other fields if needed, like access_token for client use if exposed
+            // But main blocker is ID.
             return session;
         }
     },

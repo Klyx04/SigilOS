@@ -20,13 +20,16 @@ import {
     Sparkles,
     AlertTriangle,
     XCircle,
-    Check
+    Check,
+    Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { submitMissionProof } from "@/server/actions/mission-actions";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useClientOcr, type MissionCategory, type MissionPayload, type OcrResult } from "@/lib/ocr-client";
+import { Progress } from "@/components/ui/progress";
 
 interface ProofUploadDialogProps {
     open: boolean;
@@ -34,48 +37,39 @@ interface ProofUploadDialogProps {
     missionId: string;
     missionTitle: string;
     guildId: string;
+    category: MissionCategory;
+    payload: MissionPayload;
 }
 
-type UploadState = "idle" | "uploading" | "processing" | "success" | "error";
-
-// Updated interface for smart OCR results
-interface OcrResult {
-    score: number;
-    isValid: boolean;
-    categoryMatch: boolean;
-    contentMatch: boolean;
-    victoryDetected: boolean;
-    matchedElements: string[];
-    missingElements: string[];
-    confidence: number;
-}
-
-interface UploadResult {
-    proofUrl: string;
-    ocr: OcrResult;
-}
+type UploadState = "idle" | "analyzing" | "uploading" | "success" | "error";
 
 export function ProofUploadDialog({
     open,
     onOpenChange,
     missionId,
     missionTitle,
-    guildId
+    guildId,
+    category,
+    payload
 }: ProofUploadDialogProps) {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [state, setState] = useState<UploadState>("idle");
-    const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+
+    // Client-side OCR hook
+    const { isAnalyzing, progress, analyze, reset: resetOcr } = useClientOcr();
 
     const resetState = () => {
         setFile(null);
         setPreview(null);
         setState("idle");
-        setUploadResult(null);
+        setOcrResult(null);
         setError(null);
+        resetOcr();
     };
 
     const handleClose = () => {
@@ -103,20 +97,32 @@ export function ProofUploadDialog({
         setFile(selectedFile);
         setPreview(URL.createObjectURL(selectedFile));
         setError(null);
+        setOcrResult(null);
     };
 
     const handleUpload = async () => {
         if (!file) return;
 
-        setState("uploading");
+        setState("analyzing");
         setError(null);
 
         try {
-            // 1. Upload to API for processing + OCR
+            // 1. Run OCR analysis in the browser
+            console.log("[Upload] Starting client-side OCR analysis...");
+            const clientOcrResult = await analyze(file, category, payload);
+            setOcrResult(clientOcrResult);
+
+            console.log(`[Upload] OCR complete. Score: ${clientOcrResult.score}%`);
+
+            // 2. Upload image to server
+            setState("uploading");
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("guildId", guildId);
             formData.append("missionId", missionId);
+            // Send OCR results with the upload
+            formData.append("ocrResult", JSON.stringify(clientOcrResult));
 
             const response = await fetch("/api/upload", {
                 method: "POST",
@@ -129,23 +135,20 @@ export function ProofUploadDialog({
             }
 
             const result = await response.json();
-            setUploadResult(result);
 
-            setState("processing");
-
-            // 2. Create submission in database with OCR results
+            // 3. Create submission in database
             const submitResult = await submitMissionProof(
                 missionId,
                 result.proofUrl,
-                result.ocr.score,
+                clientOcrResult.score,
                 {
-                    matchedElements: result.ocr.matchedElements,
-                    missingElements: result.ocr.missingElements,
-                    isValid: result.ocr.isValid,
-                    categoryMatch: result.ocr.categoryMatch,
-                    contentMatch: result.ocr.contentMatch,
-                    victoryDetected: result.ocr.victoryDetected,
-                    confidence: result.ocr.confidence,
+                    matchedElements: clientOcrResult.matchedElements,
+                    missingElements: clientOcrResult.missingElements,
+                    isValid: clientOcrResult.isValid,
+                    categoryMatch: clientOcrResult.categoryMatch,
+                    contentMatch: clientOcrResult.contentMatch,
+                    victoryDetected: clientOcrResult.victoryDetected,
+                    confidence: clientOcrResult.confidence,
                 }
             );
 
@@ -160,11 +163,11 @@ export function ProofUploadDialog({
                 handleClose();
                 router.refresh();
                 toast.success(
-                    result.ocr.isValid && result.ocr.score >= 95
+                    clientOcrResult.isValid && clientOcrResult.score >= 95
                         ? "Preuve soumise et auto-validée ! 🎉"
                         : "Preuve soumise avec succès !"
                 );
-            }, 2500);
+            }, 2000);
 
         } catch (err) {
             setState("error");
@@ -178,7 +181,6 @@ export function ProofUploadDialog({
         e.preventDefault();
         const droppedFile = e.dataTransfer.files[0];
         if (droppedFile) {
-            // Create a synthetic event
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(droppedFile);
 
@@ -188,6 +190,8 @@ export function ProofUploadDialog({
             }
         }
     };
+
+    const isProcessing = state === "analyzing" || state === "uploading";
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -246,17 +250,29 @@ export function ProofUploadDialog({
                                     <X className="w-4 h-4 text-white" />
                                 </button>
                             )}
-                            {/* Processing overlay */}
-                            {(state === "uploading" || state === "processing") && (
+
+                            {/* Analyzing overlay with progress */}
+                            {state === "analyzing" && (
+                                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3">
+                                    <Eye className="w-8 h-8 text-indigo-400 animate-pulse" />
+                                    <p className="text-sm text-slate-300">Analyse OCR en cours...</p>
+                                    <div className="w-48">
+                                        <Progress value={progress} className="h-2" />
+                                    </div>
+                                    <p className="text-xs text-slate-500">{progress}%</p>
+                                </div>
+                            )}
+
+                            {/* Uploading overlay */}
+                            {state === "uploading" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
                                         <Loader2 className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
-                                        <p className="text-sm text-slate-300">
-                                            {state === "uploading" ? "Upload en cours..." : "Analyse intelligente..."}
-                                        </p>
+                                        <p className="text-sm text-slate-300">Upload en cours...</p>
                                     </div>
                                 </div>
                             )}
+
                             {/* Success overlay */}
                             {state === "success" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
@@ -269,26 +285,26 @@ export function ProofUploadDialog({
                         </div>
                     )}
 
-                    {/* Smart OCR Results */}
-                    {uploadResult && state !== "idle" && (
+                    {/* OCR Results */}
+                    {ocrResult && (state === "uploading" || state === "success" || state === "error") && (
                         <div className="bg-slate-900 rounded-lg p-4 border border-slate-800 space-y-3">
                             {/* Header with Score */}
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-indigo-400" />
-                                    Analyse intelligente
+                                    Analyse OCR
                                 </h4>
                                 <Badge
                                     className={cn(
                                         "font-mono text-xs",
-                                        uploadResult.ocr.isValid && uploadResult.ocr.score >= 95
+                                        ocrResult.isValid && ocrResult.score >= 95
                                             ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                            : uploadResult.ocr.isValid
+                                            : ocrResult.isValid
                                                 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
                                                 : "bg-red-500/20 text-red-400 border-red-500/30"
                                     )}
                                 >
-                                    Score: {uploadResult.ocr.score}%
+                                    Score: {ocrResult.score}%
                                 </Badge>
                             </div>
 
@@ -296,35 +312,35 @@ export function ProofUploadDialog({
                             <div className="grid grid-cols-3 gap-2">
                                 <div className={cn(
                                     "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    uploadResult.ocr.victoryDetected
+                                    ocrResult.victoryDetected
                                         ? "bg-green-500/10 text-green-400"
                                         : "bg-red-500/10 text-red-400"
                                 )}>
-                                    {uploadResult.ocr.victoryDetected ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    {ocrResult.victoryDetected ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                                     Victoire
                                 </div>
                                 <div className={cn(
                                     "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    uploadResult.ocr.categoryMatch
+                                    ocrResult.categoryMatch
                                         ? "bg-green-500/10 text-green-400"
                                         : "bg-red-500/10 text-red-400"
                                 )}>
-                                    {uploadResult.ocr.categoryMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    {ocrResult.categoryMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                                     Catégorie
                                 </div>
                                 <div className={cn(
                                     "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    uploadResult.ocr.contentMatch
+                                    ocrResult.contentMatch
                                         ? "bg-green-500/10 text-green-400"
                                         : "bg-red-500/10 text-red-400"
                                 )}>
-                                    {uploadResult.ocr.contentMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    {ocrResult.contentMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                                     Contenu
                                 </div>
                             </div>
 
                             {/* Auto-validation banner */}
-                            {uploadResult.ocr.isValid && uploadResult.ocr.score >= 95 && (
+                            {ocrResult.isValid && ocrResult.score >= 95 && (
                                 <div className="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-3 py-2 rounded-md border border-green-500/20">
                                     <CheckCircle2 className="w-4 h-4" />
                                     Auto-validation activée !
@@ -332,11 +348,11 @@ export function ProofUploadDialog({
                             )}
 
                             {/* Matched Elements */}
-                            {uploadResult.ocr.matchedElements.length > 0 && (
+                            {ocrResult.matchedElements.length > 0 && (
                                 <div className="space-y-1.5">
                                     <p className="text-xs text-green-400/80 font-medium">✓ Détecté :</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {uploadResult.ocr.matchedElements.map((el, i) => (
+                                        {ocrResult.matchedElements.map((el, i) => (
                                             <Badge
                                                 key={i}
                                                 variant="outline"
@@ -350,11 +366,11 @@ export function ProofUploadDialog({
                             )}
 
                             {/* Missing Elements */}
-                            {uploadResult.ocr.missingElements.length > 0 && !uploadResult.ocr.isValid && (
+                            {ocrResult.missingElements.length > 0 && !ocrResult.isValid && (
                                 <div className="space-y-1.5">
                                     <p className="text-xs text-red-400/80 font-medium">✗ Non trouvé :</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {uploadResult.ocr.missingElements.map((el, i) => (
+                                        {ocrResult.missingElements.map((el, i) => (
                                             <Badge
                                                 key={i}
                                                 variant="outline"
@@ -368,7 +384,7 @@ export function ProofUploadDialog({
                             )}
 
                             {/* Manual validation notice */}
-                            {!uploadResult.ocr.isValid && (
+                            {!ocrResult.isValid && (
                                 <div className="flex items-center gap-2 text-yellow-400 text-xs bg-yellow-500/10 px-3 py-2 rounded-md border border-yellow-500/20">
                                     <AlertTriangle className="w-4 h-4" />
                                     Validation manuelle requise par le staff
@@ -387,23 +403,23 @@ export function ProofUploadDialog({
                 </div>
 
                 <DialogFooter className="gap-2">
-                    <Button variant="ghost" onClick={handleClose} disabled={state === "uploading" || state === "processing"}>
+                    <Button variant="ghost" onClick={handleClose} disabled={isProcessing}>
                         Annuler
                     </Button>
                     <Button
                         onClick={handleUpload}
-                        disabled={!file || state !== "idle"}
+                        disabled={!file || isProcessing || state === "success"}
                         className="bg-indigo-600 hover:bg-indigo-500"
                     >
-                        {state === "uploading" ? (
+                        {state === "analyzing" ? (
+                            <>
+                                <Eye className="w-4 h-4 mr-2 animate-pulse" />
+                                Analyse... {progress}%
+                            </>
+                        ) : state === "uploading" ? (
                             <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                 Upload...
-                            </>
-                        ) : state === "processing" ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Analyse...
                             </>
                         ) : (
                             <>

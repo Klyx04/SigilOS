@@ -398,6 +398,8 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                 missionId={mission.id}
                 missionTitle={mission.title || getAutoTitle(mission.category, payload)}
                 guildId={guildId}
+                category={mission.category}
+                payload={payload}
             />
         </Card>
     );

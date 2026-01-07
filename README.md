@@ -38,6 +38,19 @@
    ```
    Remplissez les clés (DATABASE_URL, DISCORD_ID, etc.).
 
+   **Variables OCR & Upload (optionnelles pour dev) :**
+   ```env
+   # Cloudflare R2 (laisser vide pour stockage local en dev)
+   R2_ACCOUNT_ID=
+   R2_ACCESS_KEY_ID=
+   R2_SECRET_ACCESS_KEY=
+   R2_BUCKET_NAME=sigilos-proofs
+   R2_PUBLIC_URL=
+
+   # OCR Configuration
+   OCR_AUTO_VALIDATE_THRESHOLD=95
+   ```
+
 5. **Lancer le serveur de développement**
    ```bash
    npm run dev

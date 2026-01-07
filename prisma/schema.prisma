@@ -147,6 +147,11 @@ model Submission {
   proofUrl    String
   validatorId String?
   
+  // OCR Analysis Results
+  ocrScore    Float?           // 0-100 confidence score
+  ocrResult   Json?            // { matches: [...], rawText: string }
+  ocrStatus   OcrStatus        @default(PENDING)
+  
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   
@@ -229,4 +234,11 @@ enum ExpeditionMode {
   BRAVOURE
   AUDACE
   AUCUN
+}
+
+enum OcrStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

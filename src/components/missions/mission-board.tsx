@@ -18,6 +18,7 @@ interface MissionBoardProps {
         })[];
     })[];
     currentUserId: string;
+    guildId: string; // Discord Guild ID for uploads
 }
 
 const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: React.ComponentType<{ className?: string }> }[] = [
@@ -29,7 +30,7 @@ const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: React.Com
     { label: "Expédition", value: "EXPEDITION", icon: Clock },
 ];
 
-export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
+export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL'>('ALL');
 
     // Interest Modal State
@@ -91,6 +92,7 @@ export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
                         <MissionCard
                             mission={mission}
                             currentUserId={currentUserId}
+                            guildId={guildId}
                             onInterestClick={handleInterestClick}
                         />
                     </div>

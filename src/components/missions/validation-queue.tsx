@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { validateSubmission } from "@/server/actions/mission-actions";
 import { Submission, Mission, UserProfile, User } from "@prisma/client";
-import { Check, X, ExternalLink, Calendar } from "lucide-react";
+import { Check, X, ExternalLink, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 type ExtendedSubmission = Submission & {
     mission: Mission;
@@ -81,6 +82,22 @@ export function ValidationQueue({ submissions: initialSubmissions }: { submissio
                                 fill
                                 className="object-contain"
                             />
+
+                            {/* OCR Score Badge */}
+                            {item.ocrScore !== null && item.ocrScore !== undefined && (
+                                <div className={cn(
+                                    "absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-bold flex items-center gap-1.5 shadow-lg",
+                                    item.ocrScore >= 95
+                                        ? "bg-green-500/90 text-white"
+                                        : item.ocrScore >= 70
+                                            ? "bg-yellow-500/90 text-black"
+                                            : "bg-red-500/90 text-white"
+                                )}>
+                                    <Sparkles className="w-3 h-3" />
+                                    OCR: {Math.round(item.ocrScore)}%
+                                </div>
+                            )}
+
                             <a
                                 href={item.proofUrl}
                                 target="_blank"

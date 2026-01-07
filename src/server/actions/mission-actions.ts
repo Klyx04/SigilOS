@@ -40,6 +40,7 @@ export async function checkGuildPermission(
     guildId: string,
     permission: PermissionId
 ): Promise<{ allowed: boolean; error?: string }> {
+    console.log(`[PermissionCheck] Checking ${permission} for user ${session?.user?.id} in guild ${guildId}`);
     if (!session?.user?.id) return { allowed: false, error: "Unauthorized" };
 
     // 1. Fetch User Discord Account
@@ -204,15 +205,27 @@ export async function resetWeek(
     year: number
 ): Promise<ActionResponse> {
     const session = await auth();
+    console.log(`[ResetWeek] Attempting reset for Week ${weekNumber}, Year ${year} in Guild ${guildId}`);
+
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
-    if (!guard.allowed) return { success: false, error: guard.error };
+    if (!guard.allowed) {
+        console.error(`[ResetWeek] Permission denied: ${guard.error}`);
+        return { success: false, error: guard.error };
+    }
 
     try {
-        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+        const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId }
         });
 
-        await db.mission.deleteMany({
+        if (!guildConfig) {
+            console.error(`[ResetWeek] Guild config not found for discordId: ${guildId}`);
+            return { success: false, error: "Guilde non configurée" };
+        }
+
+        console.log(`[ResetWeek] Found internal guildId: ${guildConfig.id}. Proceeding to delete missions...`);
+
+        const deleteResult = await db.mission.deleteMany({
             where: {
                 guildId: guildConfig.id,
                 weekNumber,
@@ -220,11 +233,14 @@ export async function resetWeek(
             }
         });
 
+        console.log(`[ResetWeek] Deleted ${deleteResult.count} missions.`);
+
         revalidatePath(`/dashboard/${guildId}/missions`);
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
         return { success: true };
     } catch (error) {
-        console.error("Reset Week Error:", error);
-        return { success: false, error: "Reset Week Failed" };
+        console.error("[ResetWeek] Critical Error:", error);
+        return { success: false, error: "Failed to reset week" };
     }
 }
 
@@ -253,7 +269,11 @@ export async function getWeekMissions(
             },
             include: {
                 interests: {
-                    include: { profile: true } // To show avatars
+                    include: {
+                        profile: {
+                            include: { user: true }
+                        }
+                    } // Include user for Discord name fallback
                 },
                 submissions: {
                     where: { profile: { userId: session!.user!.id } }
@@ -276,6 +296,8 @@ export async function toggleMissionInterest(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
+        console.log(`[DEBUG] ToggleInterest - User: ${session.user.id}, Mission: ${missionId}`);
+
         // 1. Get Mission & Guild (to check permissions)
         const mission = await db.mission.findUnique({
             where: { id: missionId },
@@ -295,7 +317,13 @@ export async function toggleMissionInterest(
                 }
             }
         });
-        if (!profile) return { success: false, error: "Profile not found" };
+
+        if (!profile) {
+            console.error(`[DEBUG] Profile not found for userId: ${session.user.id} and guildId: ${mission.guildId}`);
+            return { success: false, error: "Profile null ou inexistant pour cette guilde." };
+        }
+
+        console.log(`[DEBUG] Profile found: ${profile.id}, attempting toggle...`);
 
         // 3. Toggle
         const existing = await db.missionInterest.findUnique({
@@ -309,6 +337,7 @@ export async function toggleMissionInterest(
 
         if (existing) {
             await db.missionInterest.delete({ where: { id: existing.id } });
+            console.log(`[DEBUG] Interest removed for profile: ${profile.id}`);
         } else {
             await db.missionInterest.create({
                 data: {
@@ -316,6 +345,7 @@ export async function toggleMissionInterest(
                     profileId: profile.id
                 }
             });
+            console.log(`[DEBUG] Interest added for profile: ${profile.id}`);
         }
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);

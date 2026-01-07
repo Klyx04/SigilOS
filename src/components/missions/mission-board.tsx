@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import { MissionCard } from "./mission-card";
+import { InterestModal } from "./interest-modal";
+import { ResetCountdown } from "./reset-countdown";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Mission, MissionCategory, MissionInterest, UserProfile } from "@prisma/client";
-import { Filter, Swords, Skull, Zap, Clock, Calendar, Infinity as InfinityIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User } from "@prisma/client";
+import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon } from "lucide-react";
 
 interface MissionBoardProps {
     missions: (Mission & {
-        interests: (MissionInterest & { profile: UserProfile })[];
+        interests: (MissionInterest & {
+            profile: UserProfile & {
+                user: User | null
+            }
+        })[];
     })[];
     currentUserId: string;
 }
 
-const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: any }[] = [
+const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Tout", value: "ALL" },
     { label: "Donjon", value: "DONJON", icon: Swords },
     { label: "Régulation", value: "REGULATION", icon: Skull },
@@ -25,14 +31,28 @@ const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: any }[] =
 
 export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL'>('ALL');
-    const [selectedTier, setSelectedTier] = useState<number | null>(null);
+
+    // Interest Modal State
+    const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
     // Filter Logic
     const filteredMissions = missions.filter(m => {
         if (selectedCategory !== 'ALL' && m.category !== selectedCategory) return false;
-        if (selectedTier !== null && m.tier !== selectedTier) return false;
         return true;
     });
+
+    // Find selected mission for modal
+    const selectedMission = selectedMissionId
+        ? missions.find(m => m.id === selectedMissionId)
+        : null;
+
+    const handleInterestClick = (missionId: string) => {
+        setSelectedMissionId(missionId);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedMissionId(null);
+    };
 
     return (
         <div className="space-y-6">
@@ -41,34 +61,26 @@ export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
 
                 {/* Visual Category Filters */}
                 <div className="flex flex-wrap gap-2">
-                    {FILTERS.map(f => (
-                        <Button
-                            key={f.value}
-                            variant={selectedCategory === f.value ? "secondary" : "ghost"}
-                            size="sm"
-                            onClick={() => setSelectedCategory(f.value)}
-                            className="h-8 text-xs gap-1.5"
-                        >
-                            {f.icon && <f.icon className="w-3.5 h-3.5" />}
-                            {f.label}
-                        </Button>
-                    ))}
+                    {FILTERS.map(f => {
+                        const IconComponent = f.icon;
+                        return (
+                            <Button
+                                key={f.value}
+                                variant={selectedCategory === f.value ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => setSelectedCategory(f.value)}
+                                className="h-8 text-xs gap-1.5"
+                            >
+                                {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
+                                {f.label}
+                            </Button>
+                        );
+                    })}
                 </div>
 
-                {/* Tier Filter */}
+                {/* Reset Countdown (Replacing Tier Filter) */}
                 <div className="flex items-center gap-2 border-l border-white/10 pl-4">
-                    <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Palier</span>
-                    {[1, 2, 3, 4, 5].map(tier => (
-                        <Button
-                            key={tier}
-                            size="icon"
-                            variant={selectedTier === tier ? "secondary" : "outline"}
-                            className="w-7 h-7 text-xs"
-                            onClick={() => setSelectedTier(selectedTier === tier ? null : tier)}
-                        >
-                            {tier}
-                        </Button>
-                    ))}
+                    <ResetCountdown />
                 </div>
             </div>
 
@@ -76,7 +88,11 @@ export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredMissions.map((mission) => (
                     <div key={mission.id} className="h-full">
-                        <MissionCard mission={mission} currentUserId={currentUserId} />
+                        <MissionCard
+                            mission={mission}
+                            currentUserId={currentUserId}
+                            onInterestClick={handleInterestClick}
+                        />
                     </div>
                 ))}
 
@@ -88,6 +104,18 @@ export function MissionBoard({ missions, currentUserId }: MissionBoardProps) {
                     </div>
                 )}
             </div>
+
+            {/* Interest Modal */}
+            {selectedMission && (
+                <InterestModal
+                    isOpen={!!selectedMissionId}
+                    onClose={handleCloseModal}
+                    missionTitle={selectedMission.title || "Mission"}
+                    missionId={selectedMission.id}
+                    interests={selectedMission.interests}
+                    currentUserId={currentUserId}
+                />
+            )}
         </div>
     );
 }

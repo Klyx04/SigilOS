@@ -68,6 +68,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
             <MissionBoard
                 missions={missions}
                 currentUserId={session.user.id!}
+                guildId={guildId}
             />
         </div>
     );

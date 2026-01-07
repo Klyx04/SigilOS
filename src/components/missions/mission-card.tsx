@@ -25,6 +25,7 @@ import { toggleMissionInterest } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { ProofUploadDialog } from "./proof-upload-dialog";
 
 // --- Props ---
 
@@ -37,6 +38,7 @@ interface MissionCardProps {
         })[];
     };
     currentUserId: string;
+    guildId: string; // Discord Guild ID for upload
     onInterestClick?: (missionId: string) => void; // For modal trigger
 }
 
@@ -109,8 +111,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, onInterestClick }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, guildId, onInterestClick }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
+    const [showUploadDialog, setShowUploadDialog] = useState(false);
     const router = useRouter();
 
     const isInterested = mission.interests.some(i => i.profile.userId === currentUserId);
@@ -323,12 +326,22 @@ export function MissionCard({ mission, currentUserId, onInterestClick }: Mission
                 <Button
                     size="sm"
                     className="flex-1 h-8 gap-1.5 bg-slate-100 text-black hover:bg-white text-xs font-semibold"
+                    onClick={() => setShowUploadDialog(true)}
                 >
                     <Upload className="w-3 h-3" />
                     Validation
                 </Button>
             </div>
-        </Card >
+
+            {/* Proof Upload Dialog */}
+            <ProofUploadDialog
+                open={showUploadDialog}
+                onOpenChange={setShowUploadDialog}
+                missionId={mission.id}
+                missionTitle={mission.title || getAutoTitle(mission.category, payload)}
+                guildId={guildId}
+            />
+        </Card>
     );
 }
 

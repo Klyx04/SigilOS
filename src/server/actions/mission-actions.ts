@@ -359,7 +359,9 @@ export async function toggleMissionInterest(
 
 export async function submitMissionProof(
     missionId: string,
-    proofUrl: string
+    proofUrl: string,
+    ocrScore?: number,
+    ocrResult?: { matches: any[]; confidence: number }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -387,15 +389,26 @@ export async function submitMissionProof(
         });
         if (!profile) return { success: false, error: "Profile not found" };
 
-        // Create Submission
+        // Determine if auto-validation should occur (OCR score >= 95%)
+        const autoValidateThreshold = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || "95", 10);
+        const shouldAutoValidate = ocrScore !== undefined && ocrScore >= autoValidateThreshold;
+
+        // Create Submission with OCR data
         await db.submission.create({
             data: {
                 missionId,
                 profileId: profile.id,
                 proofUrl,
-                status: "PENDING"
+                status: shouldAutoValidate ? "VALIDATED" : "PENDING",
+                ocrScore: ocrScore ?? null,
+                ocrResult: ocrResult ? (ocrResult as Prisma.InputJsonValue) : null,
+                ocrStatus: ocrScore !== undefined ? "COMPLETED" : "PENDING",
+                // If auto-validated, set validator to system
+                validatorId: shouldAutoValidate ? "SYSTEM_OCR" : null
             }
         });
+
+        console.log(`[Submission] Created for mission ${missionId}. OCR Score: ${ocrScore ?? 'N/A'}, Auto-validated: ${shouldAutoValidate}`);
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
         return { success: true };

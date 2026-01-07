@@ -1,12 +1,9 @@
 import type { NextAuthConfig } from "next-auth"
-import Discord from "next-auth/providers/discord"
 
 export const authConfig = {
-    providers: [
-        Discord({
-            authorization: { params: { scope: "identify email guilds" } }
-        })
-    ],
+    providers: [], // Providers are defined in auth.ts to avoid Edge issues
+    secret: process.env.AUTH_SECRET,
+    session: { strategy: "jwt" },
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user
@@ -20,3 +17,4 @@ export const authConfig = {
         },
     },
 } satisfies NextAuthConfig
+

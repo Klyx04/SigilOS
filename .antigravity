@@ -287,8 +287,8 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ## 4. Current Focus (Sprint Backlog)
 
-**Status:** Foundation Sprint Completed & Verified.
-**Current Sprint:** Admin & Role Mapping Module.
+**Status:** Missions Module Completed & Merged.
+**Current Sprint:** User Identity & Profiles (Phase 3).
 
 1.  **Foundation (DONE):**
     - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
@@ -304,8 +304,14 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Role Logic:** "Smart Role Display" (Empereur/Admin overrides).
     - [x] **Theme System:** Light/Dark mode with semantic colors & responsive UI.
 
-3.  **Phase 2: Missions & Advanced Management (NEXT):**
-    - [ ] Mission Generator (Admin).
-    - [ ] Submission Workflow (User).
-    - [ ] Validation Queue (Staff).
+3.  **Phase 2: Missions & Advanced Management (COMPLETE & VERIFIED):**
+    - [x] **Mission Generator (Admin):** 12-slot Editor with "Space Opera" Theme.
+    - [x] **Submission Workflow (User):** Interest Toggle & Validation flow.
+    - [x] **Validation Queue (Staff):** Review interface working.
+    - [x] **Access Control:** Global Layout Guard & Multi-Tenant Routing.
+
+4.  **Phase 3: Identity & Community (NEXT):**
+    - [ ] **User Profiles:** Dofus Class, Jobs (lvl 200), Success Tracking.
+    - [ ] **Directory:** Filterable Member list.
+    - [ ] **Loans (Prêts):** Item lending contracts.
 ```

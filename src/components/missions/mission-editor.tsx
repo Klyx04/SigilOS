@@ -5,22 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { MissionCategory } from "@prisma/client";
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
+import { getWeekNumber } from "@/lib/date-utils";
 
 // --- Types ---
 
 type DraftMission = {
     slotIndex: number; // 0-11
-    category: MissionCategory;
+    category: MissionCategoryType;
     tier: number;
     title: string;
     xpReward: number;
     guildatonsReward: number;
-    payload: any;
+    payload: Record<string, any>;
 };
 
 const DEFAULT_mission_TEMPLATE = (index: number): DraftMission => ({
@@ -196,48 +197,11 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 {missions.map((mission) => {
                     const isEmpty = !mission.title;
 
-                    // Reusing the Space Opera Palette Logic manually here for the editor preview
-                    // Ideally we'd share the config, but for now we duplicate or import.
-                    // Let's keep it simple and consistent:
-                    let borderColor = "border-zinc-800";
-                    let glowColor = "rgba(255,255,255,0.1)";
-                    let badgeVariant = "outline" as const;
-                    let badgeStyle = "";
-
-                    if (!isEmpty) {
-                        switch (mission.category) {
-                            case "DONJON":
-                                borderColor = "border-rose-500/30";
-                                glowColor = "rgba(244, 63, 94, 0.4)";
-                                badgeStyle = "text-rose-400 border-rose-500/30 bg-rose-950/30";
-                                break;
-                            case "REGULATION":
-                                borderColor = "border-emerald-500/30";
-                                glowColor = "rgba(52, 211, 153, 0.4)";
-                                badgeStyle = "text-emerald-400 border-emerald-500/30 bg-emerald-950/30";
-                                break;
-                            case "ANOMALIE":
-                                borderColor = "border-fuchsia-500/30";
-                                glowColor = "rgba(217, 70, 239, 0.4)";
-                                badgeStyle = "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-950/30";
-                                break;
-                            case "SONGES":
-                                borderColor = "border-cyan-500/30";
-                                glowColor = "rgba(34, 211, 238, 0.4)";
-                                badgeStyle = "text-cyan-400 border-cyan-500/30 bg-cyan-950/30";
-                                break;
-                            case "EXPEDITION":
-                                borderColor = "border-amber-500/30";
-                                glowColor = "rgba(251, 191, 36, 0.4)";
-                                badgeStyle = "text-amber-400 border-amber-500/30 bg-amber-950/30";
-                                break;
-                            case "EVENT":
-                                borderColor = "border-yellow-500/30";
-                                glowColor = "rgba(253, 224, 71, 0.4)";
-                                badgeStyle = "text-yellow-300 border-yellow-500/30 bg-yellow-950/30";
-                                break;
-                        }
-                    }
+                    // Use shared config for consistent styling
+                    const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
+                    const borderColor = isEmpty ? "border-slate-800" : config.borderColor;
+                    const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
+                    const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
 
                     const previewText = mission.title ? (
                         Object.entries(mission.payload)
@@ -266,7 +230,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                     )}>
                                         #{mission.slotIndex + 1}
                                     </span>
-                                    <Badge variant={badgeVariant} className={cn("text-[10px] h-5 px-1.5 transition-colors", badgeStyle)}>
+                                    <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 transition-colors", badgeStyle)}>
                                         {mission.category}
                                     </Badge>
                                 </div>
@@ -330,9 +294,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                     <select
                                         className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
                                         value={currentMission.category}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { category: e.target.value as MissionCategory })}
+                                        onChange={(e) => updateMission(currentMission.slotIndex, { category: e.target.value as MissionCategoryType })}
                                     >
-                                        {["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"].map(c => (
+                                        {MISSION_CATEGORIES.map(c => (
                                             <option key={c} value={c}>{c}</option>
                                         ))}
                                     </select>
@@ -443,11 +407,4 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             </Dialog>
         </div >
     );
-}
-
-function getWeekNumber() {
-    const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    return { week, year: now.getFullYear() };
 }

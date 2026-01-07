@@ -50,28 +50,26 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     const discordUserId = account.providerAccountId;
 
-    // Placeholder for Member Fetching (Implementing logic directly here for MVP if discord.ts lacks it, 
-    // ideally should be in discord.ts)
+    // Parallelize Discord API calls for performance
     const token = process.env.DISCORD_BOT_TOKEN;
-    const memberRes = await fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUserId}`, {
-        headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 0 } // No cache for debugging
-    });
+
+    const [memberRes, guildInfo, allRoles] = await Promise.all([
+        fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUserId}`, {
+            headers: { Authorization: `Bot ${token}` },
+            next: { revalidate: 60 } // Cache for 60s
+        }),
+        fetchGuild(targetGuildId).catch(() => null),
+        fetchGuildRoles(targetGuildId, { excludeManaged: false }).catch(() => [])
+    ]);
 
     let memberRoles: string[] = [];
-    let myRoles: any[] = []; // Store full role objects for debug
+    let myRoles: any[] = [];
     let roleColor = 0;
     let roleName = "Membre";
-
-
-    const guildInfo = await fetchGuild(targetGuildId).catch(() => null);
 
     if (memberRes.ok) {
         const member = await memberRes.json();
         memberRoles = member.roles;
-
-        // Show ALL roles for hierarchy display, not just filtered ones
-        const allRoles = await fetchGuildRoles(targetGuildId, { excludeManaged: false });
 
         // Find user's roles in allRoles (which are sorted by position DESC)
         myRoles = allRoles.filter(r => memberRoles.includes(r.id));

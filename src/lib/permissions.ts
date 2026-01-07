@@ -15,12 +15,40 @@ export const PERMISSIONS = {
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export const PERMISSION_LABELS: Record<PermissionId, string> = {
-    [PERMISSIONS.ADMIN_ACCESS]: "Arranger le Dashboard",
-    [PERMISSIONS.MISSIONS_VIEW]: "Voir les Missions",
-    [PERMISSIONS.MISSIONS_CREATE]: "Créer/Modifier Missions",
-    [PERMISSIONS.MISSIONS_DELETE]: "Supprimer Missions",
-    [PERMISSIONS.MISSIONS_VALIDATE]: "Valider les Preuves",
-    [PERMISSIONS.PROFILE_VIEW_ALL]: "Voir l'Annuaire",
-    [PERMISSIONS.PROFILE_UPDATE_SELF]: "Modifier son Profil",
+// Rich metadata for UI
+export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string }> = {
+    [PERMISSIONS.ADMIN_ACCESS]: {
+        label: "Accès Admin",
+        description: "Accès complet au tableau de bord d'administration et à la configuration.",
+    },
+    [PERMISSIONS.MISSIONS_VIEW]: {
+        label: "Voir les Missions",
+        description: "Permet de voir la liste des missions hebdomadaires.",
+    },
+    [PERMISSIONS.MISSIONS_CREATE]: {
+        label: "Gérer les Missions",
+        description: "Créer, modifier et supprimer des missions (Staff).",
+    },
+    [PERMISSIONS.MISSIONS_DELETE]: {
+        label: "Supprimer Missions",
+        description: "Droit spécifique de suppression (souvent réservé Admin).",
+    },
+    [PERMISSIONS.MISSIONS_VALIDATE]: {
+        label: "Valider Preuves",
+        description: "Accepter ou refuser les screenshots des membres.",
+    },
+    [PERMISSIONS.PROFILE_VIEW_ALL]: {
+        label: "Voir l'Annuaire",
+        description: "Consulter la liste de tous les membres de la guilde.",
+    },
+    [PERMISSIONS.PROFILE_UPDATE_SELF]: {
+        label: "Modifier Profil",
+        description: "Mettre à jour ses propres infos (Pseudo, Métiers...).",
+    },
 };
+
+// Deprecated but kept for compatibility if needed (mapped to new structure)
+export const PERMISSION_LABELS: Record<PermissionId, string> =
+    Object.fromEntries(
+        Object.entries(PERMISSION_DETAILS).map(([k, v]) => [k, v.label])
+    ) as Record<PermissionId, string>;

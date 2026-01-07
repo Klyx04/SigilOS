@@ -4,20 +4,23 @@
  * 
  * Flow:
  * 1. Auth check
- * 2. Validate file (magic number)
- * 3. Process image (convert to WebP, strip metadata)
- * 4. Upload to R2 (or local storage fallback)
- * 5. Run OCR analysis
- * 6. Return URLs and OCR result
+ * 2. Fetch mission data (category, payload)
+ * 3. Validate file (magic number)
+ * 4. Process image (convert to WebP, strip metadata)
+ * 5. Upload to R2 (or local storage fallback)
+ * 6. Run SMART OCR analysis (validates against mission requirements)
+ * 7. Return URLs and OCR result
  */
 
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { processImage, MAX_FILE_SIZE } from "@/lib/image-processor";
-import { analyzeScreenshot } from "@/lib/ocr";
+import { analyzeMissionScreenshot, type OcrValidation } from "@/lib/ocr";
 import { isR2Configured, getUploadUrl, generateProofKey, getPublicUrl } from "@/lib/r2";
+import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { MissionCategory } from "@prisma/client";
 
 // Local storage fallback path (when R2 is not configured)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "proofs");
@@ -46,7 +49,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 3. Validate file size
+        // 3. Fetch mission data for smart OCR validation
+        const mission = await db.mission.findUnique({
+            where: { id: missionId },
+            select: {
+                category: true,
+                payload: true,
+                title: true,
+            }
+        });
+
+        if (!mission) {
+            return NextResponse.json(
+                { error: "Mission not found" },
+                { status: 404 }
+            );
+        }
+
+        console.log(`[Upload] Processing proof for ${mission.category} mission: ${mission.title || 'Untitled'}`);
+
+        // 4. Validate file size
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json(
                 { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
@@ -54,11 +76,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 4. Read file buffer
+        // 5. Read file buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // 5. Process image (validate + convert to WebP)
+        // 6. Process image (validate + convert to WebP)
         const processResult = await processImage(buffer);
         if (!processResult.success) {
             return NextResponse.json(
@@ -69,11 +91,11 @@ export async function POST(request: NextRequest) {
 
         const processedBuffer = processResult.data;
 
-        // 6. Generate unique key for this proof
+        // 7. Generate unique key for this proof
         const proofKey = generateProofKey(guildId, missionId, session.user.id);
         let publicUrl: string;
 
-        // 7. Upload to storage
+        // 8. Upload to storage
         if (isR2Configured()) {
             // Production: Upload to Cloudflare R2
             const uploadUrl = await getUploadUrl(proofKey, "image/webp");
@@ -113,18 +135,31 @@ export async function POST(request: NextRequest) {
             publicUrl = `/uploads/proofs/${guildId}/${missionId}/${fileName}`;
         }
 
-        // 8. Run OCR analysis
-        console.log("[Upload] Starting OCR analysis...");
-        const ocrResult = await analyzeScreenshot(processedBuffer);
-        console.log(`[Upload] OCR complete. Score: ${ocrResult.score}%`);
+        // 9. Run SMART OCR analysis with mission context
+        console.log("[Upload] Starting smart OCR analysis...");
 
-        // 9. Return success response
+        const ocrResult: OcrValidation = await analyzeMissionScreenshot(
+            processedBuffer,
+            mission.category as MissionCategory,
+            mission.payload as Record<string, any>
+        );
+
+        console.log(`[Upload] OCR complete. Score: ${ocrResult.score}%, Valid: ${ocrResult.isValid}`);
+        console.log(`[Upload] Matched: ${ocrResult.matchedElements.join(", ") || "none"}`);
+        console.log(`[Upload] Missing: ${ocrResult.missingElements.join(", ") || "none"}`);
+
+        // 10. Return success response with detailed OCR results
         return NextResponse.json({
             success: true,
             proofUrl: publicUrl,
             ocr: {
                 score: ocrResult.score,
-                matches: ocrResult.matches,
+                isValid: ocrResult.isValid,
+                categoryMatch: ocrResult.categoryMatch,
+                contentMatch: ocrResult.contentMatch,
+                victoryDetected: ocrResult.victoryDetected,
+                matchedElements: ocrResult.matchedElements,
+                missingElements: ocrResult.missingElements,
                 confidence: ocrResult.confidence,
             },
         });

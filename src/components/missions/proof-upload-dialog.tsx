@@ -18,7 +18,9 @@ import {
     Loader2,
     ImageIcon,
     Sparkles,
-    AlertTriangle
+    AlertTriangle,
+    XCircle,
+    Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,18 +38,21 @@ interface ProofUploadDialogProps {
 
 type UploadState = "idle" | "uploading" | "processing" | "success" | "error";
 
-interface OcrMatch {
-    category: string;
-    patterns: string[];
+// Updated interface for smart OCR results
+interface OcrResult {
+    score: number;
+    isValid: boolean;
+    categoryMatch: boolean;
+    contentMatch: boolean;
+    victoryDetected: boolean;
+    matchedElements: string[];
+    missingElements: string[];
+    confidence: number;
 }
 
 interface UploadResult {
     proofUrl: string;
-    ocr: {
-        score: number;
-        matches: OcrMatch[];
-        confidence: number;
-    };
+    ocr: OcrResult;
 }
 
 export function ProofUploadDialog({
@@ -128,13 +133,18 @@ export function ProofUploadDialog({
 
             setState("processing");
 
-            // 2. Create submission in database
+            // 2. Create submission in database with OCR results
             const submitResult = await submitMissionProof(
                 missionId,
                 result.proofUrl,
                 result.ocr.score,
                 {
-                    matches: result.ocr.matches,
+                    matchedElements: result.ocr.matchedElements,
+                    missingElements: result.ocr.missingElements,
+                    isValid: result.ocr.isValid,
+                    categoryMatch: result.ocr.categoryMatch,
+                    contentMatch: result.ocr.contentMatch,
+                    victoryDetected: result.ocr.victoryDetected,
                     confidence: result.ocr.confidence,
                 }
             );
@@ -150,11 +160,11 @@ export function ProofUploadDialog({
                 handleClose();
                 router.refresh();
                 toast.success(
-                    result.ocr.score >= 95
+                    result.ocr.isValid && result.ocr.score >= 95
                         ? "Preuve soumise et auto-validée ! 🎉"
                         : "Preuve soumise avec succès !"
                 );
-            }, 2000);
+            }, 2500);
 
         } catch (err) {
             setState("error");
@@ -242,7 +252,7 @@ export function ProofUploadDialog({
                                     <div className="text-center">
                                         <Loader2 className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
                                         <p className="text-sm text-slate-300">
-                                            {state === "uploading" ? "Upload en cours..." : "Analyse OCR..."}
+                                            {state === "uploading" ? "Upload en cours..." : "Analyse intelligente..."}
                                         </p>
                                     </div>
                                 </div>
@@ -259,20 +269,21 @@ export function ProofUploadDialog({
                         </div>
                     )}
 
-                    {/* OCR Results */}
+                    {/* Smart OCR Results */}
                     {uploadResult && state !== "idle" && (
-                        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800 space-y-3">
+                            {/* Header with Score */}
+                            <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-indigo-400" />
-                                    Analyse OCR
+                                    Analyse intelligente
                                 </h4>
                                 <Badge
                                     className={cn(
                                         "font-mono text-xs",
-                                        uploadResult.ocr.score >= 95
+                                        uploadResult.ocr.isValid && uploadResult.ocr.score >= 95
                                             ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                            : uploadResult.ocr.score >= 70
+                                            : uploadResult.ocr.isValid
                                                 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
                                                 : "bg-red-500/20 text-red-400 border-red-500/30"
                                     )}
@@ -281,34 +292,86 @@ export function ProofUploadDialog({
                                 </Badge>
                             </div>
 
-                            {uploadResult.ocr.score >= 95 && (
-                                <div className="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-3 py-2 rounded-md border border-green-500/20 mb-3">
+                            {/* Validation Status Indicators */}
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
+                                    uploadResult.ocr.victoryDetected
+                                        ? "bg-green-500/10 text-green-400"
+                                        : "bg-red-500/10 text-red-400"
+                                )}>
+                                    {uploadResult.ocr.victoryDetected ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    Victoire
+                                </div>
+                                <div className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
+                                    uploadResult.ocr.categoryMatch
+                                        ? "bg-green-500/10 text-green-400"
+                                        : "bg-red-500/10 text-red-400"
+                                )}>
+                                    {uploadResult.ocr.categoryMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    Catégorie
+                                </div>
+                                <div className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
+                                    uploadResult.ocr.contentMatch
+                                        ? "bg-green-500/10 text-green-400"
+                                        : "bg-red-500/10 text-red-400"
+                                )}>
+                                    {uploadResult.ocr.contentMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    Contenu
+                                </div>
+                            </div>
+
+                            {/* Auto-validation banner */}
+                            {uploadResult.ocr.isValid && uploadResult.ocr.score >= 95 && (
+                                <div className="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-3 py-2 rounded-md border border-green-500/20">
                                     <CheckCircle2 className="w-4 h-4" />
                                     Auto-validation activée !
                                 </div>
                             )}
 
-                            {uploadResult.ocr.matches.length > 0 && (
-                                <div className="space-y-2">
-                                    <p className="text-xs text-slate-500">Éléments détectés :</p>
+                            {/* Matched Elements */}
+                            {uploadResult.ocr.matchedElements.length > 0 && (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-green-400/80 font-medium">✓ Détecté :</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {uploadResult.ocr.matches.slice(0, 6).map((match, i) => (
+                                        {uploadResult.ocr.matchedElements.map((el, i) => (
                                             <Badge
                                                 key={i}
                                                 variant="outline"
-                                                className="text-xs bg-slate-800 border-slate-700"
+                                                className="text-xs bg-green-500/10 border-green-500/30 text-green-300"
                                             >
-                                                {match.category}
+                                                {el}
                                             </Badge>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {uploadResult.ocr.matches.length === 0 && (
-                                <div className="flex items-center gap-2 text-yellow-400 text-xs">
+                            {/* Missing Elements */}
+                            {uploadResult.ocr.missingElements.length > 0 && !uploadResult.ocr.isValid && (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-red-400/80 font-medium">✗ Non trouvé :</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {uploadResult.ocr.missingElements.map((el, i) => (
+                                            <Badge
+                                                key={i}
+                                                variant="outline"
+                                                className="text-xs bg-red-500/10 border-red-500/30 text-red-300"
+                                            >
+                                                {el}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Manual validation notice */}
+                            {!uploadResult.ocr.isValid && (
+                                <div className="flex items-center gap-2 text-yellow-400 text-xs bg-yellow-500/10 px-3 py-2 rounded-md border border-yellow-500/20">
                                     <AlertTriangle className="w-4 h-4" />
-                                    Aucun élément Dofus détecté - validation manuelle requise
+                                    Validation manuelle requise par le staff
                                 </div>
                             )}
                         </div>
@@ -316,7 +379,8 @@ export function ProofUploadDialog({
 
                     {/* Error State */}
                     {error && (
-                        <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg border border-red-500/20">
+                        <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg border border-red-500/20 flex items-center gap-2">
+                            <XCircle className="w-4 h-4 shrink-0" />
                             {error}
                         </div>
                     )}

@@ -281,7 +281,18 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ## 4. Current Focus (Sprint Backlog)
 
-- Landing Page (Page d'Accueil / Dashboard) pour avoir une interface web qui fonctionne (même vide) avec la connexion Discord.
+**Status:** Foundation Sprint Completed & Verified.
+**Current Sprint:** Admin & Role Mapping Module.
 
+1.  **Foundation (DONE):**
+    - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
+    - [x] Auth.js (Discord) Verified.
+    - [x] Middleware Guard Active.
+    - [x] Merged to `main` & `dev`.
 
-
+2.  **Admin Module (IN PROGRESS):**
+    - [x] Permissions Registry (`src/lib/permissions.ts`).
+    - [x] Discord API Client (`src/server/discord.ts`).
+    - [ ] Server Actions: Guild Onboarding & Role Mapping.
+    - [ ] UI: Admin Dashboard (Role Matrix).
+```

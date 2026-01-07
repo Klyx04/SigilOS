@@ -78,9 +78,9 @@ export default async function AdminPage({
         <div className="p-6 space-y-8">
             <div className="flex items-center justify-between border-b pb-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Panneau Admin</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Droits</h1>
                     <p className="text-muted-foreground">
-                        Gestion des permissions pour <span className="font-semibold text-foreground">{config.name}</span>
+                        Configuration des permissions pour <span className="font-semibold text-foreground">{config.name}</span>
                     </p>
                 </div>
                 {config.iconUrl && (

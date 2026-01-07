@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // -- Auth.js Models --
@@ -92,6 +91,7 @@ model UserProfile {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   submissions Submission[]
+  interests   MissionInterest[]
 
   @@unique([userId, guildId])
 }
@@ -102,16 +102,40 @@ model Mission {
   
   category    MissionCategory
   status      MissionStatus  @default(ACTIVE)
-  payload     Json           // Mission details
+  tier        Int            // Rank 1-4 (Dofus Levels)
+  
+  xpReward          Int?     // Guild XP (Purple Star)
+  guildatonsReward  Int?     // Personal Currency (Yellow Coin)
+  
+  title       String?        // Optional override title
+  payload     Json           // Mission details (Boss, Zone, etc)
   
   weekNumber  Int
   year        Int
+  slotIndex   Int            @default(0) // 0-11
   
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   
   guild       GuildConfig    @relation(fields: [guildId], references: [id], onDelete: Cascade)
   submissions Submission[]
+  interests   MissionInterest[]
+
+  @@unique([guildId, weekNumber, year, slotIndex])
+  @@index([guildId, weekNumber, year])
+}
+
+model MissionInterest {
+  id        String      @id @default(cuid())
+  missionId String
+  profileId String
+  
+  createdAt DateTime    @default(now())
+  
+  mission   Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([missionId, profileId])
 }
 
 model Submission {
@@ -143,7 +167,7 @@ enum MissionCategory {
   REGULATION
   ANOMALIE
   SONGES
-  CONTRAT
+  EXPEDITION
   EVENT
 }
 

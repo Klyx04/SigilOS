@@ -302,6 +302,7 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Bot Integrity:** Live Connectivity Check (Ping) prevents "Ghost Guilds".
     - [x] **Smart Onboarding:** Invite Link generation (OAuth2) vs DB Deployment.
     - [x] **Role Logic:** "Smart Role Display" (Empereur/Admin overrides).
+    - [x] **Theme System:** Light/Dark mode with semantic colors & responsive UI.
 
 3.  **Phase 2: Missions & Advanced Management (NEXT):**
     - [ ] Mission Generator (Admin).

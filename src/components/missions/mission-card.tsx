@@ -15,9 +15,11 @@ import {
     Upload,
     Users,
     ExternalLink,
-    AlertTriangle
+    AlertTriangle,
+    CheckCircle2,
+    Hourglass
 } from "lucide-react";
-import { Mission, MissionCategory, MissionInterest, UserProfile, User } from "@prisma/client";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -36,6 +38,7 @@ interface MissionCardProps {
                 user: User | null
             }
         })[];
+        submissions?: Submission[]; // User's submissions for this mission
     };
     currentUserId: string;
     guildId: string; // Discord Guild ID for upload
@@ -123,6 +126,11 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
     const Icon = config.icon;
     const payload = mission.payload as any;
 
+    // Check user's submission status for this mission
+    const userSubmission = mission.submissions?.[0];
+    const isValidated = userSubmission?.status === "VALIDATED";
+    const isPendingValidation = userSubmission?.status === "PENDING";
+
     // Check if mission is "empty" (not fully configured)
     const isEmpty = !mission.title && (
         (mission.category === 'DONJON' && !payload.dungeonName) ||
@@ -171,19 +179,50 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
     return (
         <Card className={cn(
             "flex flex-col h-full transition-all duration-300 group relative overflow-hidden",
-            "bg-slate-900/95", // Removed backdrop-blur-sm for performance
-            config.borderColor,
-            "hover:shadow-[0_0_20px_-5px_var(--glow-color)] hover:translate-y-[-2px]" // Reduced shadow spread slightly, added translate for clearer localized effect
+            "bg-slate-900/95",
+            // Validated state: green border and glow
+            isValidated
+                ? "border-2 border-emerald-500/70 shadow-[0_0_25px_-5px_rgb(16,185,129,0.4)]"
+                : isPendingValidation
+                    ? "border-2 border-yellow-500/50"
+                    : config.borderColor,
+            !isValidated && "hover:shadow-[0_0_20px_-5px_var(--glow-color)] hover:translate-y-[-2px]"
         )}
-            style={{ "--glow-color": config.glowColor } as React.CSSProperties}
+            style={{ "--glow-color": isValidated ? "rgb(16,185,129)" : config.glowColor } as React.CSSProperties}
         >
+            {/* Validated Badge Overlay */}
+            {isValidated && (
+                <div className="absolute top-2 right-2 z-20">
+                    <div className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                        <CheckCircle2 className="w-3 h-3" />
+                        VALIDÉ
+                    </div>
+                </div>
+            )}
+
+            {/* Pending Badge Overlay */}
+            {isPendingValidation && (
+                <div className="absolute top-2 right-2 z-20">
+                    <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                        <Hourglass className="w-3 h-3" />
+                        EN ATTENTE
+                    </div>
+                </div>
+            )}
+
             {/* Header with gradient */}
             <CardHeader className={cn(
                 "p-3 pb-2 relative z-10 bg-gradient-to-r min-h-[48px] flex items-center",
-                config.headerGradient
+                isValidated
+                    ? "from-emerald-600/90 to-emerald-700/80"
+                    : config.headerGradient
             )}>
                 <div className="flex items-center gap-2 w-full">
-                    <Icon className="w-4 h-4 text-white/90 shrink-0" />
+                    {isValidated ? (
+                        <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                        <Icon className="w-4 h-4 text-white/90 shrink-0" />
+                    )}
                     <h3 className="font-bold text-sm text-white flex-1 min-w-0 leading-tight line-clamp-2">
                         {mission.title || getAutoTitle(mission.category, payload)}
                     </h3>
@@ -301,36 +340,55 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
             </CardFooter>
 
             {/* Bottom Action Bar */}
-            <div className="px-3 pb-3 pt-2 border-t border-slate-800/50 flex items-center gap-2">
-                {/* Interest Toggle */}
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                        "flex-1 h-8 gap-1.5 transition-all text-xs font-medium border",
-                        isInterested
-                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30"
-                            : "bg-slate-800/40 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-slate-600"
-                    )}
-                    onClick={handleToggleInterest}
-                    disabled={isPending}
-                >
-                    <Star className={cn(
-                        "w-3.5 h-3.5",
-                        isInterested ? "fill-indigo-400 text-indigo-400" : ""
-                    )} />
-                    {isInterested ? "Intéressé" : "Intéressé ?"}
-                </Button>
+            <div className={cn(
+                "px-3 pb-3 pt-2 border-t flex items-center gap-2",
+                isValidated ? "border-emerald-500/30 bg-emerald-500/5" : "border-slate-800/50"
+            )}>
+                {isValidated ? (
+                    // Validated state: show completion message
+                    <div className="flex-1 flex items-center justify-center gap-2 h-8 text-emerald-400 text-xs font-semibold">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Mission validée !
+                    </div>
+                ) : isPendingValidation ? (
+                    // Pending state: show waiting message
+                    <div className="flex-1 flex items-center justify-center gap-2 h-8 text-yellow-400 text-xs font-medium">
+                        <Hourglass className="w-4 h-4" />
+                        En attente de validation...
+                    </div>
+                ) : (
+                    <>
+                        {/* Interest Toggle */}
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className={cn(
+                                "flex-1 h-8 gap-1.5 transition-all text-xs font-medium border",
+                                isInterested
+                                    ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30"
+                                    : "bg-slate-800/40 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-slate-600"
+                            )}
+                            onClick={handleToggleInterest}
+                            disabled={isPending}
+                        >
+                            <Star className={cn(
+                                "w-3.5 h-3.5",
+                                isInterested ? "fill-indigo-400 text-indigo-400" : ""
+                            )} />
+                            {isInterested ? "Intéressé" : "Intéressé ?"}
+                        </Button>
 
-                {/* Submit Button */}
-                <Button
-                    size="sm"
-                    className="flex-1 h-8 gap-1.5 bg-slate-100 text-black hover:bg-white text-xs font-semibold"
-                    onClick={() => setShowUploadDialog(true)}
-                >
-                    <Upload className="w-3 h-3" />
-                    Validation
-                </Button>
+                        {/* Submit Button */}
+                        <Button
+                            size="sm"
+                            className="flex-1 h-8 gap-1.5 bg-slate-100 text-black hover:bg-white text-xs font-semibold"
+                            onClick={() => setShowUploadDialog(true)}
+                        >
+                            <Upload className="w-3 h-3" />
+                            Validation
+                        </Button>
+                    </>
+                )}
             </div>
 
             {/* Proof Upload Dialog */}

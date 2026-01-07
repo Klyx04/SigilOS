@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function UserWidget({ user, collapsed = false }: { user: UserContext, collapsed?: boolean }) {
+export function UserWidget({ user, collapsed = false, guildId }: { user: UserContext, collapsed?: boolean, guildId?: string }) {
     if (!user.isAuthenticated) return null;
 
     const roleColorHex = user.roleColor && user.roleColor !== 0
@@ -26,7 +26,7 @@ export function UserWidget({ user, collapsed = false }: { user: UserContext, col
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <div className={cn(
-                    "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border border-transparent hover:bg-white/5 hover:border-white/10 group",
+                    "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border border-transparent hover:bg-accent/50 hover:border-border group",
                     collapsed ? "justify-center" : ""
                 )}>
                     <div className="relative">
@@ -69,15 +69,15 @@ export function UserWidget({ user, collapsed = false }: { user: UserContext, col
                 )}
                 {user.canManageProfile && (
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/profile" className="cursor-pointer">
+                        <Link href={guildId ? `/dashboard/${guildId}/profile` : "/dashboard/profile"} className="cursor-pointer">
                             <User className="mr-2 h-4 w-4" />
                             <span>Mon Profil</span>
                         </Link>
                     </DropdownMenuItem>
                 )}
-                {user.isAdmin && (
+                {user.isAdmin && guildId && (
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/admin" className="cursor-pointer">
+                        <Link href={`/dashboard/${guildId}/admin`} className="cursor-pointer">
                             <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
                             <span>Administration</span>
                         </Link>

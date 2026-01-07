@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords } from "lucide-react";
 import { UserWidget } from "./user-widget";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -77,7 +77,21 @@ export function AppSidebar({ className, user, guildId }: Props) {
                                 )}
                             >
                                 <Shield className="h-5 w-5 text-amber-500" />
-                                Gestion Guilde
+                                Gestion Droits
+                            </Button>
+                        </Link>
+                        <Link href={`/dashboard/${guildId}/missions/manage`} onClick={() => setMobileOpen(false)}>
+                            <Button
+                                variant="ghost"
+                                className={cn(
+                                    "w-full justify-start gap-3 h-12 text-base font-medium",
+                                    isActive(`/dashboard/${guildId}/missions/manage`)
+                                        ? "bg-amber-500/10 text-amber-500 border-r-2 border-amber-500 rounded-r-none"
+                                        : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-500"
+                                )}
+                            >
+                                <Swords className="h-5 w-5 text-amber-500" />
+                                Gestion Missions
                             </Button>
                         </Link>
                     </div>

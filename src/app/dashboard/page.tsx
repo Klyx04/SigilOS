@@ -75,12 +75,16 @@ async function getGuildsSeparated(userId: string) {
         return { ...g, isBotPresent };
     }));
 
-    // Construct Active list final shape
-    const active: GuildData[] = validatedActive.map(g => ({
-        id: g.discordGuildId,
-        name: g.name,
-        icon: g.iconUrl
-    }));
+    // Construct Active list: Intersection of (DB Active + Bot Accessible) AND (User is Member)
+    const userGuildIds = new Set(userGuilds.map(ug => ug.id));
+
+    const active: GuildData[] = validatedActive
+        .filter(g => userGuildIds.has(g.discordGuildId))
+        .map(g => ({
+            id: g.discordGuildId,
+            name: g.name,
+            icon: g.iconUrl
+        }));
 
     return { active, pending };
 }
@@ -99,6 +103,12 @@ export default async function GuildSelectorPage() {
     // New logic: If 1 active and user isn't looking to setup (assumed), redirect.
     // BUT: Users might want to setup a new one. 
     // Compromise: Only redirect if pending is empty.
+    // Smart Redirects
+    if (active.length === 0 && pending.length === 0) {
+        redirect("/");
+    }
+
+    // Direct access if only one active guild and user has no pending setups
     if (active.length === 1 && pending.length === 0) {
         redirect(`/dashboard/${active[0].id}`);
     }

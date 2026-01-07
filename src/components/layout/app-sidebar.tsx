@@ -84,8 +84,20 @@ export function AppSidebar({ className, user, guildId }: Props) {
                 )}
             </div>
 
-            <div className="px-4 mt-auto">
-                <UserWidget user={user} />
+            <div className="px-4 mt-auto space-y-4">
+                <UserWidget user={user} guildId={guildId} />
+
+                {/* Footer / Legal Section */}
+                <div className="px-2 py-2 border-t border-white/5 flex flex-col gap-1">
+                    <p className="text-[10px] text-muted-foreground/40 font-mono text-center">
+                        v0.1.0-Alpha
+                    </p>
+                    <div className="flex justify-center gap-3 text-[10px] text-muted-foreground/60">
+                        <Link href="#" className="hover:text-primary transition-colors">Légal</Link>
+                        <span>•</span>
+                        <Link href="#" className="hover:text-primary transition-colors">Confidentialité</Link>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -105,14 +117,14 @@ export function AppSidebar({ className, user, guildId }: Props) {
                             <Menu className="h-6 w-6" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 border-r-white/10 bg-black/90 backdrop-blur-xl">
+                    <SheetContent side="left" className="p-0 border-r-border bg-sidebar/95 backdrop-blur-xl">
                         <NavContent />
                     </SheetContent>
                 </Sheet>
             </div>
 
             {/* Desktop Sidebar */}
-            <div className={cn("hidden md:flex w-72 flex-col border-r border-white/5 bg-black/20 h-screen sticky top-0 backdrop-blur-xl", className)}>
+            <div className={cn("hidden md:flex w-72 flex-col border-r border-sidebar-border bg-sidebar/50 h-screen sticky top-0 backdrop-blur-xl", className)}>
                 <NavContent />
             </div>
         </>

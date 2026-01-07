@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { AppFooter } from "@/components/layout/app-footer";
+import { GuildHeader } from "@/components/layout/guild-header";
 import { getUserContext } from "@/server/actions/user-actions";
 
 export default async function DashboardLayout({
@@ -22,12 +22,12 @@ export default async function DashboardLayout({
             <AppSidebar user={user} guildId={guildId} />
 
             <div className="flex-1 flex flex-col relative z-10 h-screen overflow-y-auto">
-                <main className="flex-1 container mx-auto py-8 px-4 md:px-8 max-w-7xl">
+                <main className="flex-1 container mx-auto py-4 px-4 md:px-8 max-w-7xl">
+                    <GuildHeader guildId={guildId} />
                     {children}
                 </main>
 
                 <div className="p-4 md:p-8">
-                    <AppFooter />
                 </div>
             </div>
         </div>

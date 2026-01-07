@@ -361,7 +361,15 @@ export async function submitMissionProof(
     missionId: string,
     proofUrl: string,
     ocrScore?: number,
-    ocrResult?: { matches: any[]; confidence: number }
+    ocrResult?: {
+        matchedElements?: string[];
+        missingElements?: string[];
+        isValid?: boolean;
+        categoryMatch?: boolean;
+        contentMatch?: boolean;
+        victoryDetected?: boolean;
+        confidence?: number;
+    }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -389,9 +397,12 @@ export async function submitMissionProof(
         });
         if (!profile) return { success: false, error: "Profile not found" };
 
-        // Determine if auto-validation should occur (OCR score >= 95%)
+        // Auto-validation requires:
+        // 1. OCR marked as valid (victory + category + content match)
+        // 2. Score >= threshold (default 95%)
         const autoValidateThreshold = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || "95", 10);
-        const shouldAutoValidate = ocrScore !== undefined && ocrScore >= autoValidateThreshold;
+        const ocrIsValid = ocrResult?.isValid ?? false;
+        const shouldAutoValidate = ocrIsValid && ocrScore !== undefined && ocrScore >= autoValidateThreshold;
 
         // Create Submission with OCR data
         await db.submission.create({
@@ -408,7 +419,7 @@ export async function submitMissionProof(
             }
         });
 
-        console.log(`[Submission] Created for mission ${missionId}. OCR Score: ${ocrScore ?? 'N/A'}, Auto-validated: ${shouldAutoValidate}`);
+        console.log(`[Submission] Created for mission ${missionId}. Score: ${ocrScore ?? 'N/A'}, Valid: ${ocrIsValid}, Auto-validated: ${shouldAutoValidate}`);
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
         return { success: true };

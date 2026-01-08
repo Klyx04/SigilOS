@@ -54,6 +54,11 @@ const VICTORY_PATTERNS = [
     /vous\s+avez\s+gagn/i,
     /combat\s+gagn/i,
     /remport/i,
+    // Contextual patterns for mission cards (if user uploads the card itself instead of victory screen)
+    /vaincre/i,
+    /succès/i,
+    /terminer/i,
+    /lanc[eé]r/i,
 ];
 
 const DUNGEON_PATTERNS = [
@@ -61,6 +66,9 @@ const DUNGEON_PATTERNS = [
     /salle\s*\d+/i,
     /boss/i,
     /gardien/i,
+    /vaincre/i, // "Vaincre le Roi Nidas"
+    /palais/i, // "Palais du roi..."
+    /dimensi/i, // "Dimension..."
 ];
 
 const ANOMALY_PATTERNS = [
@@ -68,6 +76,8 @@ const ANOMALY_PATTERNS = [
     /elixir\s*uchronique/i,
     /uchronique/i,
     /faille/i,
+    /zaap/i,
+    /pixel/i,
 ];
 
 const SONGES_PATTERNS = [
@@ -77,12 +87,26 @@ const SONGES_PATTERNS = [
     /paradoxe/i,
     /palier/i,
     /étage/i,
+    /reflet/i,
+    /infini/i,
 ];
 
 const EXPEDITION_PATTERNS = [
     /exp[eé]dition/i,
     /bravoure/i,
     /audace/i,
+    /mercenaire/i,
+];
+
+const LEVEL_PATTERNS = [
+    /niv\.?\s*(\d+)/i, // Niv. 200
+    /niveau\s*(\d+)/i,
+    /lvl\.?\s*(\d+)/i,
+];
+
+const RANK_PATTERNS = [
+    /rang\s*(\d+)/i, // RANG 3
+    /rank\s*(\d+)/i,
 ];
 
 // --- Normalization Helpers ---
@@ -90,27 +114,33 @@ const EXPEDITION_PATTERNS = [
 function normalizeText(text: string): string {
     return text
         .toLowerCase()
-        .normalize('NFD')
+        .normalize('NFD') // Decompose combined graphemes
         .replace(/[\u0300-\u036f]/g, '') // Remove accents
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ') // Replace symbols with space
+        .replace(/\s+/g, ' ') // Collapse spaces
         .trim();
 }
 
-function fuzzyMatch(text: string, target: string, threshold = 0.7): boolean {
+function fuzzyMatch(text: string, target: string, threshold = 0.6): boolean {
+    if (!target) return false;
     const normalizedText = normalizeText(text);
     const normalizedTarget = normalizeText(target);
 
     // Direct inclusion check
     if (normalizedText.includes(normalizedTarget)) return true;
 
-    // Check each word
-    const targetWords = normalizedTarget.split(' ');
+    // Check overlapping words
+    const targetWords = normalizedTarget.split(' ').filter(w => w.length > 2);
+    if (targetWords.length === 0) return false;
+
     const matchedWords = targetWords.filter(word =>
-        word.length > 2 && normalizedText.includes(word)
+        normalizedText.includes(word)
     );
 
-    return matchedWords.length / targetWords.length >= threshold;
+    // Lower threshold for short names vs long sentences
+    const adjustedThreshold = targetWords.length > 3 ? 0.5 : threshold;
+
+    return matchedWords.length / targetWords.length >= adjustedThreshold;
 }
 
 // --- Category Validation Functions ---
@@ -130,7 +160,13 @@ function validateDonjon(
             matched.push(`Boss: ${bossName}`);
             contentMatch = true;
         } else {
-            missing.push(`Boss: ${bossName}`);
+            // Try matching "Vaincre [Boss]" pattern widely
+            if (fuzzyMatch(textLower, `vaincre ${bossName}`)) {
+                matched.push(`Boss: ${bossName}`);
+                contentMatch = true;
+            } else {
+                missing.push(`Boss: ${bossName}`);
+            }
         }
     }
 
@@ -253,6 +289,66 @@ function validateExpedition(
     return { categoryMatch, contentMatch };
 }
 
+// --- Color Analysis ---
+
+interface ColorResult {
+    hasGreenValidation: boolean;
+    greenRatio: number;
+}
+
+// Range for Dofus "Green" validation (approx. #55aa55 or similar bright greens)
+// We look for pixels where Green is dominant and significantly brighter than Red/Blue
+function analyzeColors(imageFile: File): Promise<ColorResult> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                resolve({ hasGreenValidation: false, greenRatio: 0 });
+                return;
+            }
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let greenPixelCount = 0;
+            const totalPixels = data.length / 4;
+
+            // Sample pixels (every 4th pixel for performance)
+            for (let i = 0; i < data.length; i += 16) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                // Check for "Validation Green" - Multiple conditions for different green shades:
+                // 1. Bright Neon Green (Dofus checkmark): High G (>150), G dominates R and B significantly
+                // 2. Muted/Forest Green: G > 100, G dominates by 1.2x ratio
+                const isBrightGreen = g > 150 && g > r * 1.5 && g > b * 1.2;
+                const isMutedGreen = g > 100 && g > r * 1.2 && g > b * 1.2 && (g - r) > 30;
+
+                if (isBrightGreen || isMutedGreen) {
+                    greenPixelCount++;
+                }
+            }
+
+            const greenRatio = (greenPixelCount * 4) / totalPixels;
+            console.log(`[OCR-Client] Color Analysis - Green Ratio: ${(greenRatio * 100).toFixed(2)}%`);
+
+            // Threshold: If > 0.3% of the image is "Validation Green", it's likely a checked card
+            resolve({
+                hasGreenValidation: greenRatio > 0.003,
+                greenRatio
+            });
+        };
+        img.onerror = () => resolve({ hasGreenValidation: false, greenRatio: 0 });
+        img.src = URL.createObjectURL(imageFile);
+    });
+}
+
 // --- Main Analysis Function ---
 
 export async function analyzeScreenshot(
@@ -264,31 +360,50 @@ export async function analyzeScreenshot(
     console.log(`[OCR-Client] Starting analysis for ${category} mission...`);
 
     try {
-        // Run Tesseract OCR
-        const result = await Tesseract.recognize(imageFile, 'fra', {
-            logger: (m) => {
-                if (m.status === 'recognizing text' && onProgress) {
-                    onProgress(Math.round((m.progress || 0) * 100));
-                }
-            },
-        });
+        // Parallel: Run OCR and Color Analysis
+        const [ocrResult, colorResult] = await Promise.all([
+            Tesseract.recognize(imageFile, 'fra', {
+                logger: (m) => {
+                    if (m.status === 'recognizing text' && onProgress) {
+                        onProgress(Math.round((m.progress || 0) * 100));
+                    }
+                },
+            }),
+            analyzeColors(imageFile)
+        ]);
 
-        const rawText = result.data.text;
-        const confidence = result.data.confidence;
+        const rawText = ocrResult.data.text;
+        const confidence = ocrResult.data.confidence;
         const textLower = rawText.toLowerCase();
 
         console.log(`[OCR-Client] Text extracted (${rawText.length} chars), confidence: ${confidence}%`);
 
         // Check for victory
-        const victoryDetected = VICTORY_PATTERNS.some(p => p.test(rawText));
+        let victoryDetected = VICTORY_PATTERNS.some(p => p.test(rawText));
 
         const matchedElements: string[] = [];
         const missingElements: string[] = [];
 
+        // Check for Rank and Level (Metadata)
+        const levelMatch = LEVEL_PATTERNS.some(p => p.test(rawText));
+        const rankMatch = RANK_PATTERNS.some(p => p.test(rawText));
+
+        if (levelMatch) matchedElements.push("Niveau détecté");
+        if (rankMatch) matchedElements.push("Rang détecté");
+
+        // Color Feedback
+        if (colorResult.hasGreenValidation) {
+            matchedElements.push("Indicateur visuel vert (Validation)");
+        }
+
         if (victoryDetected) {
-            matchedElements.push("Victoire détectée");
+            matchedElements.push("Victoire/Succès détecté");
         } else {
-            missingElements.push("Victoire");
+            // If we rely on color, we still want to mention if Victory text is missing
+            // unless we are 100% sure it's a card check
+            if (!colorResult.hasGreenValidation) {
+                missingElements.push("Victoire ou Validation visuelle");
+            }
         }
 
         // Validate by category
@@ -319,17 +434,37 @@ export async function analyzeScreenshot(
 
         // Calculate score
         let score = 0;
+
+        // Base score elements
         if (victoryDetected) score += 30;
-        if (categoryMatch) score += 25;
-        if (contentMatch) score += 35;
+        if (categoryMatch) score += 20;
+        if (contentMatch) score += 30;
+
+        // Metadata bonuses
+        if (levelMatch) score += 5;
+        if (rankMatch) score += 5;
+
+        // Color Bonus (Significant!)
+        if (colorResult.hasGreenValidation) score += 20;
+
+        // Confidence bonus/malus
         score += Math.round(confidence * 0.1);
 
-        const isValid = victoryDetected && categoryMatch && contentMatch;
+        // Smart Validation Logic
+        // Valid if:
+        // 1. Victory Text + Content Match (Classic Victory Screen)
+        // 2. OR: Content Match + Color Validation + (Level OR Rank) (Checked Mission Card)
 
-        console.log(`[OCR-Client] Analysis complete. Score: ${score}%, Valid: ${isValid}`);
+        const isClassicVictory = victoryDetected && contentMatch;
+        const isCheckedCard = contentMatch && colorResult.hasGreenValidation && (levelMatch || rankMatch);
+
+        // Strictly require Victory Text OR Green Validation for "isValid"
+        const isValid = isClassicVictory || isCheckedCard;
+
+        console.log(`[OCR-Client] Analysis complete. Score: ${score}%, Valid: ${isValid} (Victory: ${victoryDetected}, Green: ${colorResult.hasGreenValidation})`);
 
         return {
-            isValid,
+            isValid: isValid && score >= 70, // Require decent score even if logic passes
             score: Math.min(score, 100),
             categoryMatch,
             contentMatch,

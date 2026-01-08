@@ -492,3 +492,53 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
         return { success: false, error: "Database error" };
     }
 }
+
+export async function cancelMissionSubmission(
+    missionId: string
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const mission = await db.mission.findUnique({
+            where: { id: missionId },
+            include: { guild: true }
+        });
+        if (!mission) return { success: false, error: "Mission not found" };
+
+        const profile = await db.userProfile.findUnique({
+            where: {
+                userId_guildId: {
+                    userId: session.user.id,
+                    guildId: mission.guildId
+                }
+            }
+        });
+        if (!profile) return { success: false, error: "Profile not found" };
+
+        // Delete the submission for this user and this mission
+        // We only delete if status is VALIDATED (auto-validation) or PENDING
+        // If it was already manually REJECTED (history), maybe we keep it? 
+        // But for simpler UX: user cancels their "current" state.
+        const deleted = await db.submission.deleteMany({
+            where: {
+                missionId,
+                profileId: profile.id,
+                status: { in: ["PENDING", "VALIDATED"] }
+            }
+        });
+
+        if (deleted.count === 0) {
+            return { success: false, error: "Aucune soumission active trouvée à annuler." };
+        }
+
+        console.log(`[Submission] Cancelled by user ${session.user.id} for mission ${missionId}`);
+
+        revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
+        return { success: true };
+
+    } catch (error) {
+        console.error("Cancel Submission Error:", error);
+        return { success: false, error: "Database error" };
+    }
+}

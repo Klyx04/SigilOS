@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { submitMissionProof } from "@/server/actions/mission-actions";
+import { submitMissionProof, cancelMissionSubmission } from "@/server/actions/mission-actions";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useClientOcr, type MissionCategory, type MissionPayload, type OcrResult } from "@/lib/ocr-client";
@@ -130,8 +130,19 @@ export function ProofUploadDialog({
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Upload failed");
+                let errorMessage = "Upload failed";
+                try {
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        const data = await response.json();
+                        errorMessage = data.error || errorMessage;
+                    } else {
+                        errorMessage = `Server Error (${response.status})`;
+                    }
+                } catch (e) {
+                    errorMessage = `Server Error (${response.status})`;
+                }
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
@@ -158,16 +169,15 @@ export function ProofUploadDialog({
 
             setState("success");
 
-            // Auto-close after success
+            // Wrap in simple timeout to avoid conflicts with state updates/rendering
             setTimeout(() => {
-                handleClose();
                 router.refresh();
                 toast.success(
                     clientOcrResult.isValid && clientOcrResult.score >= 95
                         ? "Preuve soumise et auto-validée ! 🎉"
-                        : "Preuve soumise avec succès !"
+                        : "Preuve soumise ! En attente de validation."
                 );
-            }, 2000);
+            }, 0);
 
         } catch (err) {
             setState("error");
@@ -192,6 +202,9 @@ export function ProofUploadDialog({
     };
 
     const isProcessing = state === "analyzing" || state === "uploading";
+
+    // Determine if auto-validated for UI feedback
+    const isAutoValidated = ocrResult?.isValid && ocrResult.score >= 95;
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -285,109 +298,117 @@ export function ProofUploadDialog({
                         </div>
                     )}
 
-                    {/* OCR Results */}
+                    {/* Vérification automatique Results */}
                     {ocrResult && (state === "uploading" || state === "success" || state === "error") && (
-                        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800 space-y-3">
-                            {/* Header with Score */}
+                        <div className={cn(
+                            "rounded-xl p-4 border space-y-4 transition-colors",
+                            isAutoValidated
+                                ? "bg-green-950/30 border-green-500/30"
+                                : "bg-slate-900/50 border-slate-700/50"
+                        )}>
+                            {/* Header - Confiance */}
                             <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-indigo-400" />
-                                    Analyse OCR
-                                </h4>
-                                <Badge
-                                    className={cn(
-                                        "font-mono text-xs",
-                                        ocrResult.isValid && ocrResult.score >= 95
-                                            ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                            : ocrResult.isValid
-                                                ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                                                : "bg-red-500/20 text-red-400 border-red-500/30"
+                                <div className="flex items-center gap-2">
+                                    {isAutoValidated ? (
+                                        <CheckCircle2 className="w-5 h-5 text-green-400" />
+                                    ) : (
+                                        <Sparkles className="w-5 h-5 text-indigo-400" />
                                     )}
-                                >
-                                    Score: {ocrResult.score}%
-                                </Badge>
-                            </div>
-
-                            {/* Validation Status Indicators */}
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className={cn(
-                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    ocrResult.victoryDetected
-                                        ? "bg-green-500/10 text-green-400"
-                                        : "bg-red-500/10 text-red-400"
-                                )}>
-                                    {ocrResult.victoryDetected ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                                    Victoire
+                                    <span className="text-sm font-medium text-slate-200">
+                                        {isAutoValidated ? "Validé automatiquement" : "Vérification automatique"}
+                                    </span>
                                 </div>
-                                <div className={cn(
-                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    ocrResult.categoryMatch
-                                        ? "bg-green-500/10 text-green-400"
-                                        : "bg-red-500/10 text-red-400"
-                                )}>
-                                    {ocrResult.categoryMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                                    Catégorie
-                                </div>
-                                <div className={cn(
-                                    "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
-                                    ocrResult.contentMatch
-                                        ? "bg-green-500/10 text-green-400"
-                                        : "bg-red-500/10 text-red-400"
-                                )}>
-                                    {ocrResult.contentMatch ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                                    Contenu
+                                <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                        "text-lg font-bold",
+                                        ocrResult.score >= 70 ? "text-green-400"
+                                            : ocrResult.score >= 40 ? "text-yellow-400"
+                                                : "text-red-400"
+                                    )}>
+                                        {ocrResult.score}%
+                                    </span>
                                 </div>
                             </div>
 
-                            {/* Auto-validation banner */}
-                            {ocrResult.isValid && ocrResult.score >= 95 && (
-                                <div className="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-3 py-2 rounded-md border border-green-500/20">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Auto-validation activée !
-                                </div>
-                            )}
+                            {/* Score Bar */}
+                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div
+                                    className={cn(
+                                        "h-full rounded-full transition-all duration-500",
+                                        ocrResult.score >= 70 ? "bg-gradient-to-r from-green-500 to-emerald-400"
+                                            : ocrResult.score >= 40 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
+                                                : "bg-gradient-to-r from-red-500 to-rose-400"
+                                    )}
+                                    style={{ width: `${ocrResult.score}%` }}
+                                />
+                            </div>
 
-                            {/* Matched Elements */}
+                            {/* Quick Status Pills */}
+                            <div className="flex flex-wrap gap-2">
+                                {ocrResult.victoryDetected && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-300 border border-green-500/30">
+                                        <Check className="w-3 h-3" /> Victoire
+                                    </span>
+                                )}
+                                {ocrResult.matchedElements.some(el => el.includes("vert")) && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        <Check className="w-3 h-3" /> Validé visuellement
+                                    </span>
+                                )}
+                                {ocrResult.categoryMatch && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                        <Check className="w-3 h-3" /> Catégorie
+                                    </span>
+                                )}
+                                {ocrResult.contentMatch && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        <Check className="w-3 h-3" /> Contenu
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Éléments détectés (collapsible style) */}
                             {ocrResult.matchedElements.length > 0 && (
-                                <div className="space-y-1.5">
-                                    <p className="text-xs text-green-400/80 font-medium">✓ Détecté :</p>
-                                    <div className="flex flex-wrap gap-1.5">
+                                <details className="group">
+                                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 flex items-center gap-1">
+                                        <span className="text-green-400">✓</span> {ocrResult.matchedElements.length} élément(s) détecté(s)
+                                    </summary>
+                                    <div className="mt-2 flex flex-wrap gap-1.5 pl-4">
                                         {ocrResult.matchedElements.map((el, i) => (
-                                            <Badge
-                                                key={i}
-                                                variant="outline"
-                                                className="text-xs bg-green-500/10 border-green-500/30 text-green-300"
-                                            >
+                                            <span key={i} className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-300/80">
                                                 {el}
-                                            </Badge>
+                                            </span>
                                         ))}
                                     </div>
-                                </div>
+                                </details>
                             )}
 
-                            {/* Missing Elements */}
-                            {ocrResult.missingElements.length > 0 && !ocrResult.isValid && (
-                                <div className="space-y-1.5">
-                                    <p className="text-xs text-red-400/80 font-medium">✗ Non trouvé :</p>
-                                    <div className="flex flex-wrap gap-1.5">
+                            {/* Missing Elements (only if not auto-validated) */}
+                            {ocrResult.missingElements.length > 0 && !isAutoValidated && (
+                                <details className="group" open>
+                                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 flex items-center gap-1">
+                                        <span className="text-red-400">✗</span> {ocrResult.missingElements.length} élément(s) manquant(s)
+                                    </summary>
+                                    <div className="mt-2 flex flex-wrap gap-1.5 pl-4">
                                         {ocrResult.missingElements.map((el, i) => (
-                                            <Badge
-                                                key={i}
-                                                variant="outline"
-                                                className="text-xs bg-red-500/10 border-red-500/30 text-red-300"
-                                            >
+                                            <span key={i} className="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-300/80">
                                                 {el}
-                                            </Badge>
+                                            </span>
                                         ))}
                                     </div>
-                                </div>
+                                </details>
                             )}
 
-                            {/* Manual validation notice */}
-                            {!ocrResult.isValid && (
-                                <div className="flex items-center gap-2 text-yellow-400 text-xs bg-yellow-500/10 px-3 py-2 rounded-md border border-yellow-500/20">
-                                    <AlertTriangle className="w-4 h-4" />
-                                    Validation manuelle requise par le staff
+                            {/* Status Banner */}
+                            {isAutoValidated ? (
+                                <div className="flex items-center gap-2 text-green-300 text-sm bg-green-500/10 px-4 py-2.5 rounded-lg border border-green-500/20">
+                                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                    <span>Cette preuve sera validée automatiquement !</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-amber-300 text-sm bg-amber-500/10 px-4 py-2.5 rounded-lg border border-amber-500/20">
+                                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                                    <span>Un modérateur vérifiera votre preuve</span>
                                 </div>
                             )}
                         </div>
@@ -403,31 +424,62 @@ export function ProofUploadDialog({
                 </div>
 
                 <DialogFooter className="gap-2">
-                    <Button variant="ghost" onClick={handleClose} disabled={isProcessing}>
-                        Annuler
-                    </Button>
-                    <Button
-                        onClick={handleUpload}
-                        disabled={!file || isProcessing || state === "success"}
-                        className="bg-indigo-600 hover:bg-indigo-500"
-                    >
-                        {state === "analyzing" ? (
-                            <>
-                                <Eye className="w-4 h-4 mr-2 animate-pulse" />
-                                Analyse... {progress}%
-                            </>
-                        ) : state === "uploading" ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Upload...
-                            </>
-                        ) : (
-                            <>
-                                <Upload className="w-4 h-4 mr-2" />
-                                Soumettre
-                            </>
-                        )}
-                    </Button>
+                    {state === "success" ? (
+                        <>
+                            <Button variant="ghost" onClick={handleClose}>
+                                Fermer
+                            </Button>
+                            {/* Allow cancelling for simple UX even if validated - user might have made mistake */}
+                            <Button
+                                variant="destructive"
+                                onClick={async () => {
+                                    try {
+                                        const result = await cancelMissionSubmission(missionId);
+                                        if (result.success) {
+                                            toast.success("Soumission annulée.");
+                                            handleClose();
+                                            router.refresh();
+                                        } else {
+                                            toast.error(result.error || "Erreur lors de l'annulation");
+                                        }
+                                    } catch (e) {
+                                        toast.error("Erreur inattendue");
+                                    }
+                                }}
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Annuler la soumission
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="ghost" onClick={handleClose} disabled={isProcessing}>
+                                Annuler
+                            </Button>
+                            <Button
+                                onClick={handleUpload}
+                                disabled={!file || isProcessing}
+                                className="bg-indigo-600 hover:bg-indigo-500"
+                            >
+                                {state === "analyzing" ? (
+                                    <>
+                                        <Eye className="w-4 h-4 mr-2 animate-pulse" />
+                                        Analyse... {progress}%
+                                    </>
+                                ) : state === "uploading" ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Upload...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Soumettre
+                                    </>
+                                )}
+                            </Button>
+                        </>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

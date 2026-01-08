@@ -6,8 +6,8 @@ import { InterestModal } from "./interest-modal";
 import { ResetCountdown } from "./reset-countdown";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Mission, MissionCategory, MissionInterest, UserProfile, User } from "@prisma/client";
-import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon } from "lucide-react";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
+import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles } from "lucide-react";
 
 interface MissionBoardProps {
     missions: (Mission & {
@@ -16,30 +16,44 @@ interface MissionBoardProps {
                 user: User | null
             }
         })[];
+        submissions?: Submission[];
     })[];
     currentUserId: string;
     guildId: string; // Discord Guild ID for uploads
 }
 
-const FILTERS: { label: string; value: MissionCategory | 'ALL'; icon?: React.ComponentType<{ className?: string }> }[] = [
+const FILTERS: { label: string; value: MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Tout", value: "ALL" },
     { label: "Donjon", value: "DONJON", icon: Swords },
     { label: "Régulation", value: "REGULATION", icon: Skull },
     { label: "Anomalie", value: "ANOMALIE", icon: Zap },
     { label: "Songes", value: "SONGES", icon: InfinityIcon },
     { label: "Expédition", value: "EXPEDITION", icon: Clock },
+    { label: "Événement", value: "EVENT", icon: Sparkles },
+    { label: "En attente", value: "PENDING", icon: Hourglass },
+    { label: "Validé", value: "VALIDATED", icon: CheckCircle2 },
 ];
 
 export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
-    const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL'>('ALL');
+    const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
 
     // Interest Modal State
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
     // Filter Logic
     const filteredMissions = missions.filter(m => {
-        if (selectedCategory !== 'ALL' && m.category !== selectedCategory) return false;
-        return true;
+        if (selectedCategory === 'ALL') return true;
+
+        // Status Filters
+        if (selectedCategory === 'PENDING') {
+            return m.submissions?.[0]?.status === 'PENDING';
+        }
+        if (selectedCategory === 'VALIDATED') {
+            return m.submissions?.[0]?.status === 'VALIDATED';
+        }
+
+        // Category Filters
+        return m.category === selectedCategory;
     });
 
     // Find selected mission for modal
@@ -61,7 +75,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-white/5">
 
                 {/* Visual Category Filters */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-nowrap overflow-x-auto gap-1.5 items-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] flex-1 min-w-0 mask-linear-fade pr-4">
                     {FILTERS.map(f => {
                         const IconComponent = f.icon;
                         return (
@@ -70,7 +84,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                                 variant={selectedCategory === f.value ? "secondary" : "ghost"}
                                 size="sm"
                                 onClick={() => setSelectedCategory(f.value)}
-                                className="h-8 text-xs gap-1.5"
+                                className="h-8 text-xs gap-1.5 whitespace-nowrap px-2 flex-shrink-0"
                             >
                                 {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
                                 {f.label}
@@ -80,7 +94,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                 </div>
 
                 {/* Reset Countdown (Replacing Tier Filter) */}
-                <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+                <div className="flex items-center gap-2 border-l border-white/10 pl-4 shrink-0">
                     <ResetCountdown />
                 </div>
             </div>

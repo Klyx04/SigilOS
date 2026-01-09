@@ -12,7 +12,7 @@ import { type PermissionId } from "@/lib/permissions";
 export default async function AdminPage({
     params,
 }: {
-    params: { guildId: string };
+    params: Promise<{ guildId: string }>;
 }) {
     const session = await auth();
     if (!session?.user) redirect("/");

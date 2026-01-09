@@ -320,9 +320,10 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Smart OCR:** Text detection + "Dofus Green" Pixel Analysis.
     - [x] **Proof System:** Secure Upload (R2 Ready) + Auto-validation logic.
     - [x] **UX Polish:** "Vérification Automatique" UI & Filters (Pending/Validated/Event).
+    - [x] **Security Hardening:** Guild Whitelist (Env) & Deep Security (Server Actions).
 
-4.  **Phase 3: Identity & Community (NEXT):**
-    - [ ] **User Profiles:** Dofus Class, Jobs (lvl 200), Success Tracking.
-    - [ ] **Directory:** Filterable Member list.
+4.  **Phase 3: Identity & Community (IN PROGRESS):**
+    - [x] **User Profiles (V1):** Dofus Class, Jobs (lvl 200), Success Tracking.
+    - [x] **Directory (V1):** Filterable Member list.
     - [ ] **Loans (Prêts):** Item lending contracts.
 ```

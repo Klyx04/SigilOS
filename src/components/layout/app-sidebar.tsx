@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords } from "lucide-react";
+import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords, Gavel } from "lucide-react";
 import { UserWidget } from "./user-widget";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -28,8 +28,9 @@ export function AppSidebar({ className, user, guildId }: Props) {
     const NAV_ITEMS = [
         { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, visible: true },
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, visible: user.canViewMissions },
-        { name: "Effectifs", href: `/dashboard/${guildId}/roster`, icon: Users, visible: user.canViewRoster },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: ClipboardList, visible: true }, // Always visible
+        { name: "Validation", href: `/dashboard/${guildId}/missions/validation`, icon: Gavel, visible: user.canValidateMissions },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, visible: true },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: UserCircle, visible: true },
     ];
 
     const NavContent = () => (

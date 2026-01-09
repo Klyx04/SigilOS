@@ -1,5 +1,6 @@
-'use client'
+'use client';
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MissionCard } from "./mission-card";
 import { InterestModal } from "./interest-modal";
@@ -7,7 +8,7 @@ import { ResetCountdown } from "./reset-countdown";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
-import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles } from "lucide-react";
+import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles, RefreshCcw } from "lucide-react";
 
 interface MissionBoardProps {
     missions: (Mission & {
@@ -35,6 +36,7 @@ const FILTERS: { label: string; value: MissionCategory | 'ALL' | 'PENDING' | 'VA
 ];
 
 export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
+    const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
 
     // Interest Modal State
@@ -75,7 +77,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-white/5">
 
                 {/* Visual Category Filters */}
-                <div className="flex flex-nowrap overflow-x-auto gap-1.5 items-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] flex-1 min-w-0 mask-linear-fade pr-4">
+                <div className="flex flex-nowrap overflow-x-auto gap-1.5 items-center flex-1 min-w-0 pr-4 pb-1 -mb-1 scrollbar-hide">
                     {FILTERS.map(f => {
                         const IconComponent = f.icon;
                         return (
@@ -93,8 +95,17 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                     })}
                 </div>
 
-                {/* Reset Countdown (Replacing Tier Filter) */}
+                {/* Right Actions: Countdown + Refresh */}
                 <div className="flex items-center gap-2 border-l border-white/10 pl-4 shrink-0">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-zinc-400 hover:text-white transition-colors"
+                        onClick={() => router.refresh()}
+                        title="Actualiser les données"
+                    >
+                        <RefreshCcw className="w-4 h-4" />
+                    </Button>
                     <ResetCountdown />
                 </div>
             </div>

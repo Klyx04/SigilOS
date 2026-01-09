@@ -54,6 +54,7 @@ model User {
 
   // SigilOS Relations
   profiles      UserProfile[]
+  notifications Notification[]
 }
 
 // -- SigilOS Core Models --
@@ -82,8 +83,11 @@ model UserProfile {
   
   pseudoDofus String?
   classe      String?
-  metiers     Json?       // List of enabled jobs
+  metiers     Json?       // List of enabled jobs (e.g. ["Costumage", "Alchimiste"])
   succes      Json?       // List of validated achievements
+  
+  xp          Int         @default(0) // Experience points
+  guildatons  Int         @default(0) // Currency
   
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -241,4 +245,27 @@ enum OcrStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum NotificationType {
+  MISSION_VALIDATED
+  MISSION_REJECTED
+  NEW_SUBMISSION_PENDING
+  SYSTEM_INFO
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean          @default(false)
+  link      String?          // Optional redirection link
+  
+  createdAt DateTime         @default(now())
+  
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
 }

@@ -17,7 +17,8 @@ import {
     ExternalLink,
     AlertTriangle,
     CheckCircle2,
-    Hourglass
+    Hourglass,
+    XCircle
 } from "lucide-react";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
     const userSubmission = mission.submissions?.[0];
     const isValidated = userSubmission?.status === "VALIDATED";
     const isPendingValidation = userSubmission?.status === "PENDING";
+    const isRejected = userSubmission?.status === "REJECTED"; // New state
 
     // Check if mission is "empty" (not fully configured)
     const isEmpty = !mission.title && (
@@ -188,7 +190,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                     : config.borderColor,
             !isValidated && "hover:shadow-[0_0_20px_-5px_var(--glow-color)] hover:translate-y-[-2px]"
         )}
-            style={{ "--glow-color": isValidated ? "rgb(16,185,129)" : config.glowColor } as React.CSSProperties}
+            style={{ "--glow-color": isValidated ? "rgb(16,185,129)" : isRejected ? "rgb(239,68,68)" : config.glowColor } as React.CSSProperties}
         >
             {/* Validated Badge Overlay */}
             {isValidated && (
@@ -196,6 +198,16 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                     <div className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
                         <CheckCircle2 className="w-3 h-3" />
                         VALIDÉ
+                    </div>
+                </div>
+            )}
+
+            {/* Rejected Badge Overlay */}
+            {isRejected && (
+                <div className="absolute top-2 right-2 z-20">
+                    <div className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                        <XCircle className="w-3 h-3" />
+                        REFUSÉ
                     </div>
                 </div>
             )}
@@ -349,6 +361,22 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                     <div className="flex-1 flex items-center justify-center gap-2 h-8 text-emerald-400 text-xs font-semibold">
                         <CheckCircle2 className="w-4 h-4" />
                         Mission validée !
+                    </div>
+                ) : isRejected ? (
+                    // Rejected state: show message + retry
+                    <div className="flex-1 flex items-center justify-between gap-2 h-8 px-1">
+                        <div className="flex items-center gap-1.5 text-red-400 text-xs font-semibold">
+                            <XCircle className="w-4 h-4" />
+                            Refusé
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-3 text-xs bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20"
+                            onClick={() => setShowUploadDialog(true)}
+                        >
+                            Réessayer
+                        </Button>
                     </div>
                 ) : isPendingValidation ? (
                     // Pending state: show waiting message

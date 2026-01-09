@@ -23,7 +23,11 @@ Le système est modulaire. Voici les modules prévus (à implémenter progressiv
 		1. Membre upload un screenshot.
 		2. **Sécurité :** Nettoyage/Conversion serveur (Anti-malware).
 		3. **OCR (Vision) :** Analyse automatique de l'image pour pré-valider (Lecture des logs de combat/chat dans le screen).
- 		4. **Validation :** Staff confirme (ou Auto-validation si score OCR > 95%).
+        4. **Validation Intelligente :** 
+            - **OCR :** Lecture Textuelle (Tesseract) -> Score de confiance.
+            - **Pixel Analysis :** Détection de la couleur "Vert Dofus" (#39FF14) pour valider visuellement.
+            - **Auto-validation :** Si (Texte "Victoire" OU (Contenu + Marqueur Vert)) -> Validé automatiquement.
+            - **Fallback :** Si incertain -> Validation Manuelle requise.
     - Catégories : DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT.
 
 Liens communautaire et officiels à analyser : 
@@ -62,7 +66,7 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
     - Création d'event à ajouter au calendrier , type d'event à définir
 
 7.  **LADDER (Gamification) :**
-    - Classement automatique basé sur l'activité (Missions validées, Participation ou autres type de classement).
+    - Classement automatique (DEPRIORITISÉ pour l'instant).
 
 
 8. **AUTRE MODULES POSSIBLES A L'AVENIR**
@@ -83,7 +87,8 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
 
 - **Auth :** Auth.js (Discord Provider). Sessions via Cookies HttpOnly, Secure, SameSite. 
 
-- **Stockage :** Cloudflare R2 (pour les images de preuves) + Tesseract.js (ou API Vision) pour l'analyse.  
+- **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
+- **Vision :** Tesseract.js (OCR Client-side) + Algorithme de détection de couleur (Canvas).  
  
 
 - **UI System :** Tailwind CSS v4 + `shadcn/ui` (Radix UI). Thème sombre par défaut mais au choix 
@@ -123,9 +128,11 @@ Tout ceci n’est qu’exemple évidemment.
 
 - **Workflow :**  
 
-1. Validation magic number (signature fichier) côté serveur.  
-
-2. Upload direct vers R2 (Presigned URL) OU Stream direct sans écriture disque. 	3. Conversion forcée (ex: vers WEBP) pour tuer les scripts cachés dans les métadonnées. 
+1. Validation taille/type côté serveur.
+2. Si **Auto-Validation** (OCR success) -> **Aucun stockage disque**.
+3. Si **En Attente** -> Stockage temporaire (`public/uploads/temp`).
+4. À la validation/refus -> **Suppression immédiate**.
+5. Cleanup automatique des preuves > 48h. 
 
  
 
@@ -208,6 +215,7 @@ L'IA doit générer une page `/admin/roles` dynamique :
 2.  Affichage d'un tableau croisé (Lignes = Rôles Discord, Colonnes = Permissions Registry).
 3.  L'Admin coche les cases.
 4.  Sauvegarde dans le JSON `rolesMapping`.
+5.  **Droit Spécial :** `missions.validate` permet d'accéder à la file d'attente `/dashboard/[guildId]/missions/validation`.
 
 
 ### E. Cycle de Vie Utilisateur (Retention Policy)
@@ -309,6 +317,9 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Submission Workflow (User):** Interest Toggle & Validation flow.
     - [x] **Validation Queue (Staff):** Review interface working.
     - [x] **Access Control:** Global Layout Guard & Multi-Tenant Routing.
+    - [x] **Smart OCR:** Text detection + "Dofus Green" Pixel Analysis.
+    - [x] **Proof System:** Secure Upload (R2 Ready) + Auto-validation logic.
+    - [x] **UX Polish:** "Vérification Automatique" UI & Filters (Pending/Validated/Event).
 
 4.  **Phase 3: Identity & Community (NEXT):**
     - [ ] **User Profiles:** Dofus Class, Jobs (lvl 200), Success Tracking.

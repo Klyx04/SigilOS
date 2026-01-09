@@ -94,6 +94,7 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
                         allRoles={roleOptions}
                         selectedRoleIds={permState[permId] || []}
                         onRolesChange={(ids) => handlePermChange(permId, ids)}
+                        onSave={handleSave}
                     />
                 ))}
             </div>

@@ -7,7 +7,7 @@ export default async function DashboardLayout({
     params,
 }: {
     children: React.ReactNode;
-    params: { guildId: string };
+    params: Promise<{ guildId: string }>;
 }) {
     const { guildId } = await params;
     const user = await getUserContext(guildId);

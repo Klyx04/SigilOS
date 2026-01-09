@@ -7,12 +7,14 @@ import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 
 export type UserContext = {
     isAuthenticated: boolean;
+    id?: string;
     name?: string;
     image?: string;
     roleName?: string;
     roleColor?: number;
     canManageProfile: boolean;
     canViewMissions: boolean;
+    canValidateMissions: boolean; // New Permission
     canViewRoster: boolean;
     isAdmin: boolean;
     isMember: boolean;
@@ -23,11 +25,11 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
+        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
+    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false };
 
     // 1. Get Guild Config for Mappings
     const guildConfig = await db.guildConfig.findUnique({
@@ -47,7 +49,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canViewRoster: false };
+        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false };
     }
 
     const discordUserId = account.providerAccountId;
@@ -95,9 +97,20 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     let roleColor = 0;
     let roleName = "Membre";
 
+    let displayName = session.user.name || "Voyageur";
+
     if (memberRes.ok) {
         const member = await memberRes.json();
         memberRoles = member.roles;
+
+        // Prioritize Server Nickname > Global Name > Username
+        if (member.nick) {
+            displayName = member.nick;
+        } else if (member.user?.global_name) {
+            displayName = member.user.global_name;
+        } else if (member.user?.username) {
+            displayName = member.user.username;
+        }
 
         // Find user's roles in allRoles (which are sorted by position DESC)
         myRoles = allRoles.filter(r => memberRoles.includes(r.id));
@@ -144,16 +157,19 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     // View Permissions (Admin always sees everything)
     const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
+    const canValidateMissions = myPerms.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdmin;
     const canViewRoster = myPerms.has(PERMISSIONS.PROFILE_VIEW_ALL) || isAdmin;
 
     return {
         isAuthenticated: true,
-        name: session.user.name || "Voyageur",
+        id: session.user.id, // Add ID
+        name: displayName,
         image: session.user.image || undefined,
         roleName,
         roleColor,
         canManageProfile,
         canViewMissions,
+        canValidateMissions,
         canViewRoster,
         isAdmin,
         isMember: memberRes.ok,

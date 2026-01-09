@@ -9,7 +9,7 @@ import Link from "next/link";
 export default async function DashboardPage({
     params,
 }: {
-    params: { guildId: string };
+    params: Promise<{ guildId: string }>;
 }) {
     const { guildId } = await params;
     const user = await getUserContext(guildId);

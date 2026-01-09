@@ -1,17 +1,20 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Save } from "lucide-react";
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
 import { type PermissionId, PERMISSION_DETAILS } from "@/lib/permissions";
 
 type Props = {
     permissionId: PermissionId;
-    allRoles: Option[]; // Transformed for the select
+    allRoles: Option[];
     selectedRoleIds: string[];
     onRolesChange: (roles: string[]) => void;
+    onSave: () => void;
 };
 
-export function PermissionCard({ permissionId, allRoles, selectedRoleIds, onRolesChange }: Props) {
+export function PermissionCard({ permissionId, allRoles, selectedRoleIds, onRolesChange, onSave }: Props) {
     const details = PERMISSION_DETAILS[permissionId];
 
     return (
@@ -33,6 +36,12 @@ export function PermissionCard({ permissionId, allRoles, selectedRoleIds, onRole
                     />
                 </div>
             </CardContent>
+            <CardFooter className="pt-2">
+                <Button variant="secondary" size="sm" className="w-full" onClick={onSave}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Sauvegarder
+                </Button>
+            </CardFooter>
         </Card>
     );
 }

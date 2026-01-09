@@ -31,6 +31,17 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
     if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false };
 
+    // --- SECURITY: DEEP WHITELIST CHECK ---
+    // Rule: If defined (even empty), enforce strict whitelist.
+    const whitelistVar = process.env.ALLOWED_GUILD_IDS;
+    if (whitelistVar !== undefined) {
+        const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
+        if (!allowedGuilds.includes(targetGuildId)) {
+            console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
+            return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false };
+        }
+    }
+
     // 1. Get Guild Config for Mappings
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: targetGuildId },

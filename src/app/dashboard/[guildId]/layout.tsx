@@ -10,6 +10,35 @@ export default async function DashboardLayout({
     params: Promise<{ guildId: string }>;
 }) {
     const { guildId } = await params;
+
+    // --- SECURITY: GUILD WHITELIST ---
+    // If ALLOWED_GUILD_IDS is set, strict whitelist mode is active.
+    const allowedGuilds = process.env.ALLOWED_GUILD_IDS?.split(",").map(id => id.trim()).filter(Boolean) || [];
+
+    // Authorization Check
+    if (allowedGuilds.length > 0 && !allowedGuilds.includes(guildId)) {
+        return (
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center font-sans">
+                <div className="p-6 rounded-full bg-orange-500/10 mb-6 border border-orange-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                </div>
+                <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Bêta Fermée</h1>
+                <p className="text-zinc-400 max-w-lg text-lg mb-8">
+                    L'accès à SigilOS est actuellement limité aux serveurs partenaires.<br />
+                    Le serveur <span className="text-white font-mono bg-zinc-800 px-1 rounded">{guildId}</span> n'est pas autorisé.
+                </p>
+                <div className="flex gap-4">
+                    <a href="/" className="px-6 py-2 bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors font-bold">
+                        Retour à l'accueil
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     const user = await getUserContext(guildId);
 
     if (!user.isMember) {

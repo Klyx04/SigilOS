@@ -194,18 +194,18 @@ export function ClassDisplay({
             {/* Secondary Classes - Chips */}
             {secondaryClasses.length > 0 && (
                 <div>
-                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-3 pl-1">Classes Secondaires</p>
-                    <div className="flex flex-wrap gap-3">
+                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2 pl-1">Classes Secondaires</p>
+                    <div className="flex flex-wrap gap-1.5">
                         {secondaryClasses.map(classId => {
                             const data = getClass(classId);
                             if (!data) return null;
                             return (
                                 <div
                                     key={classId}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors"
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors"
                                 >
-                                    <span className="text-lg">{data.icon}</span>
-                                    <span className="text-sm font-medium text-zinc-300">{data.name}</span>
+                                    <span className="text-base">{data.icon}</span>
+                                    <span className="text-xs font-medium text-zinc-300">{data.name}</span>
                                 </div>
                             );
                         })}

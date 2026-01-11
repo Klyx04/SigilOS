@@ -1,9 +1,10 @@
-
 import { auth } from "@/auth";
-import { getUserProfile } from "@/server/actions/profile-actions";
-import { ProfileEditor } from "@/components/profile/profile-editor";
+import { getUserProfile, getProfileStats } from "@/server/actions/profile-actions";
+import { getUserContext } from "@/server/actions/user-actions";
+import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import type { AvailabilityMap } from "@/lib/dofus-assets";
 
 export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -11,34 +12,69 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
 
     const { guildId } = await params;
 
-    // Fetch existing profile or error
-    const response = await getUserProfile(guildId);
+    // Fetch user context for Discord info
+    const userContext = await getUserContext(guildId);
 
-    if (!response.success) {
-        // If profile doesn't exist, we might want to auto-create it or show error.
-        // But the middleware/onboarding logic should usually handle this.
-        // Assuming getUserProfile fails only if Guild doesn't exist or serious error.
+    // Fetch profile
+    const profileResponse = await getUserProfile(guildId);
+
+    if (!profileResponse.success || !profileResponse.data) {
         return (
             <div className="p-8 text-center text-red-400">
                 <h2 className="text-xl font-bold">Erreur de chargement</h2>
-                <p>{response.error}</p>
+                <p>{profileResponse.error}</p>
             </div>
         );
     }
 
-    const profile = response.data;
+    const profile = profileResponse.data;
+
+    // Fetch stats
+    const statsResponse = await getProfileStats(guildId);
+    const stats = statsResponse.success && statsResponse.data
+        ? statsResponse.data
+        : {
+            xp: profile.xp || 0,
+            guildatons: profile.guildatons || 0,
+            missionsValidated: 0,
+            lastActivity: null,
+            joinedAt: userContext.discordJoinedAt ? new Date(userContext.discordJoinedAt) : null,
+            isTopContributor: false,
+        };
 
     return (
         <div className="relative min-h-[calc(100vh-4rem)]">
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
-            <div className="relative z-10 p-6 max-w-5xl mx-auto space-y-8">
+            <div className="relative z-10 p-6 max-w-6xl mx-auto space-y-8">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Mon Profil</h1>
                     <p className="text-zinc-400">Gérez votre identité de guilde, votre classe et vos métiers.</p>
                 </div>
 
-                <ProfileEditor profile={profile} guildId={guildId} />
+                <ProfileBentoGrid
+                    profile={{
+                        id: profile.id,
+                        pseudoDofus: profile.pseudoDofus,
+                        classe: profile.classe,
+                        classeSecondaires: (profile.classeSecondaires as string[]) || [],
+                        metiers: (profile.metiers as string[]) || [],
+                        forgemagieStatus: profile.forgemagieStatus,
+                        availability: (profile.availability as AvailabilityMap) || {},
+                        vacationStart: profile.vacationStart ? new Date(profile.vacationStart) : null,
+                        vacationEnd: profile.vacationEnd ? new Date(profile.vacationEnd) : null,
+                        vacationNotify: profile.vacationNotify || false,
+                    }}
+                    user={{
+                        name: profile.user.name,
+                        image: profile.user.image,
+                    }}
+                    stats={stats}
+                    guildId={guildId}
+                    discordNickname={userContext.nickname}
+                    roleColor={userContext.roleColor}
+                    readOnly={false}
+                />
             </div>
         </div>
     );

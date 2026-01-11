@@ -309,8 +309,10 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
 export async function getProfileStats(guildId: string, userId?: string): Promise<ActionResponse<{
     xp: number;
+    weeklyXp: number;
     guildatons: number;
     missionsValidated: number;
+    weeklyMissions: number;
     lastActivity: { description: string; date: Date } | null;
     joinedAt: Date | null;
     isTopContributor: boolean;
@@ -342,23 +344,30 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
 
         if (!profile) return { success: false, error: "Profil introuvable" };
 
-        // Count validated missions
-        const missionsValidated = await db.submission.count({
-            where: { profileId: profile.id, status: "VALIDATED" }
+        // Get Start of Week (Monday)
+        const now = new Date();
+        const day = now.getDay(); // 0 (Sun) - 6 (Sat)
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        // Fetch validated submissions with mission data for XP calculation
+        const allValidatedSubmissions = await db.submission.findMany({
+            where: {
+                profileId: profile.id,
+                status: "VALIDATED"
+            },
+            include: {
+                mission: {
+                    select: { xpReward: true }
+                }
+            }
         });
 
-        // Get Discord joined_at
-        let joinedAt: Date | null = null;
-        const discordAccountId = profile.user.accounts?.[0]?.providerAccountId;
-        if (discordAccountId) {
-            try {
-                const { fetchGuildMember } = await import("@/server/discord");
-                const member = await fetchGuildMember(guildId, discordAccountId);
-                if (member?.joined_at) {
-                    joinedAt = new Date(member.joined_at);
-                }
-            } catch { }
-        }
+        const weeklySubmissions = allValidatedSubmissions.filter(s => s.updatedAt >= startOfWeek);
+
+        const weeklyMissions = weeklySubmissions.length;
+        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission.xpReward || 0), 0);
 
         // Check top contributor (simple: XP > 1000)
         const isTopContributor = profile.xp >= 1000;
@@ -368,7 +377,9 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
             data: {
                 xp: profile.xp,
                 guildatons: profile.guildatons,
-                missionsValidated,
+                missionsValidated: allValidatedSubmissions.length,
+                weeklyXp,
+                weeklyMissions,
                 lastActivity: profile.lastActivityAt
                     ? { description: profile.lastActivityDesc || "Activité", date: profile.lastActivityAt }
                     : null,

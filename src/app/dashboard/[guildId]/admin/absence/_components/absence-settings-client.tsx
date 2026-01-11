@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, AlertTriangle, CheckCircle2, Hash, Info, ArrowLeft } from "lucide-react";
+import { Loader2, Save, AlertTriangle, CheckCircle2, Hash, ArrowLeft, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { getAbsenceConfig, updateAbsenceChannel } from "@/server/actions/admin-actions";
+import { cn } from "@/lib/utils";
 
 interface AbsenceSettingsClientProps {
     guildId: string;
@@ -20,6 +21,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         async function loadConfig() {
@@ -67,104 +69,151 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
     }
 
     return (
-        <div className="p-6 max-w-3xl mx-auto space-y-6">
+        <div className="p-6 max-w-4xl mx-auto space-y-8">
             <div className="flex items-center gap-4">
                 <Link href={`/dashboard/${guildId}/admin`} className="p-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors">
                     <ArrowLeft className="w-5 h-5" />
                 </Link>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Notifications d'Absence</h1>
-                    <p className="text-zinc-400 text-sm">Configurez le salon Discord pour les notifications de mode vacances</p>
+                    <h1 className="text-2xl font-bold text-white">Gestion des Absences</h1>
+                    <p className="text-zinc-400 text-sm">Automatisez le suivi des congés de vos membres via Discord.</p>
                 </div>
             </div>
 
-            <Card className="bg-zinc-900/60 border-white/10">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Hash className="w-5 h-5 text-cyan-400" />
-                                Salon Discord
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Configuration Panel */}
+                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <span className="bg-primary/20 text-primary p-2 rounded-lg">
+                                    <Hash className="w-5 h-5" />
+                                </span>
+                                Configuration du Salon
                             </CardTitle>
-                            <CardDescription>L'ID du salon où seront envoyées les notifications</CardDescription>
+                            {isConfigured ? (
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
+                                    Actif
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-zinc-500">
+                                    Inactif
+                                </Badge>
+                            )}
                         </div>
-                        {isConfigured ? (
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                                Configuré
-                            </Badge>
-                        ) : (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
-                                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                                Non configuré
-                            </Badge>
-                        )}
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="channelId">ID du Salon</Label>
-                        <Input
-                            id="channelId"
-                            value={channelId}
-                            onChange={(e) => setChannelId(e.target.value)}
-                            placeholder="Ex: 1357151089043964124"
-                            className="bg-black/30 border-white/10 font-mono"
-                        />
-                        <p className="text-xs text-zinc-500">Clic droit sur le salon → Copier l'identifiant</p>
-                    </div>
+                        <CardDescription>
+                            Définissez le salon où seront publiées les annonces de départ en vacances.
+                        </CardDescription>
+                    </CardHeader>
 
-                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <div className="flex gap-3">
-                            <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-2 text-sm text-blue-200">
-                                <p className="font-medium">Permissions requises</p>
-                                <ul className="list-disc list-inside text-blue-300/80 space-y-1">
-                                    <li><strong>Envoyer des messages</strong></li>
-                                    <li><strong>Intégrer des liens</strong></li>
-                                </ul>
+                    <CardContent className="space-y-6">
+                        {/* Step 1 */}
+                        <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
+                            <p className="text-xs text-zinc-500 mb-3">
+                                Activez le mode développeur Discord, puis faites <span className="text-zinc-300">Clic Droit</span> sur le salon voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
+                            </p>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div className="relative pl-6 border-l-2 border-primary/50">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-zinc-950 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                            <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
+
+                            <div className="space-y-4">
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={channelId}
+                                        onChange={(e) => setChannelId(e.target.value)}
+                                        placeholder="Ex: 123456789012345678"
+                                        className="font-mono bg-black/20 border-white/10"
+                                    />
+                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px]">
+                                        {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                        Sauvegarder
+                                    </Button>
+                                </div>
+                                {isConfigured && (
+                                    <div className="flex justify-end">
+                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                            Désactiver l'intégration
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    <div className="flex gap-3 pt-2">
-                        <Button onClick={handleSave} disabled={isPending} className="flex-1">
-                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            Sauvegarder
-                        </Button>
-                        {isConfigured && (
-                            <Button variant="outline" onClick={handleClear} disabled={isPending} className="border-white/10 text-zinc-400 hover:text-white">
-                                Désactiver
-                            </Button>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+                {/* Preview Panel */}
+                <div className="space-y-6">
+                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                        <CardHeader className="bg-white/5 pb-4">
+                            <CardTitle className="text-sm text-zinc-300">Aperçu Visuel</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative">
+                            {/* Discord Message Mockup */}
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
+                                    <span className="font-bold text-white text-xs">BOT</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-indigo-400">SigilOS</span>
+                                        <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-1 rounded">BOT</span>
+                                        <span className="text-xs text-zinc-500">Aujourd'hui à 14:30</span>
+                                    </div>
 
-            <Card className="bg-zinc-900/60 border-white/10">
-                <CardHeader>
-                    <CardTitle className="text-lg">Aperçu de l'embed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="bg-[#2f3136] rounded-lg p-4 border-l-4 border-cyan-400">
-                        <h4 className="font-semibold text-white text-sm">🏝️ Notification d'absence</h4>
-                        <p className="text-[#dcddde] text-sm mt-1">
-                            <span className="text-cyan-400 font-medium">Pseudo</span> sera absent(e).
-                        </p>
-                        <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                            <div>
-                                <div className="text-[#b9bbbe] font-medium">📅 Début</div>
-                                <div className="text-[#dcddde]">lundi 6 janvier 2026</div>
+                                    {/* Embed */}
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-cyan-400 p-4 max-w-sm">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-lg">🏝️</span>
+                                            <h4 className="font-semibold text-white text-sm">Notification d'absence</h4>
+                                        </div>
+
+                                        <p className="text-zinc-300 text-sm mb-4">
+                                            <span className="text-cyan-400 font-medium hover:underline cursor-pointer">Wylan</span> sera absent(e).
+                                        </p>
+
+                                        <div className="flex gap-6">
+                                            <div>
+                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Début</div>
+                                                <div className="text-zinc-200 text-sm">21 janv. 2026</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Retour</div>
+                                                <div className="text-zinc-200 text-sm">Pas de date</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
+                                            <div className="w-4 h-4 rounded-full bg-zinc-700" />
+                                            <span className="text-[#949ba4] text-xs">SigilOS • Mode Vacances</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="text-[#b9bbbe] font-medium">📅 Retour</div>
-                                <div className="text-[#dcddde]">Pas de date prévue</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-blue-500/5 border-blue-500/10">
+                        <CardContent className="p-4 flex gap-3">
+                            <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
+                                <AlertTriangle className="w-4 h-4 text-blue-400" />
                             </div>
-                        </div>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-3">Le pseudo est cliquable et redirige vers le profil.</p>
-                </CardContent>
-            </Card>
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-medium text-blue-200">Attention aux permissions</h4>
+                                <p className="text-xs text-blue-300/70 leading-relaxed">
+                                    Assurez-vous que le bot <strong>SigilOS</strong> dispose des droits "Voir le salon" et "Envoyer des messages" dans le salon cible.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }

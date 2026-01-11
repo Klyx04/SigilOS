@@ -30,7 +30,9 @@ interface ProfileBentoGridProps {
     };
     stats: {
         xp: number;
+        weeklyXp: number;
         missionsValidated: number;
+        weeklyMissions: number;
         joinedAt: Date | null;
         lastActivity: { description: string; date: Date } | null;
         isTopContributor: boolean;
@@ -147,9 +149,10 @@ export function ProfileBentoGrid({
 
             <ActivityStats
                 xp={stats.xp}
+                weeklyXp={stats.weeklyXp}
                 missionsValidated={stats.missionsValidated}
+                weeklyMissions={stats.weeklyMissions}
                 joinedAt={stats.joinedAt}
-                lastActivity={stats.lastActivity}
             />
 
             {/* Row 2 */}

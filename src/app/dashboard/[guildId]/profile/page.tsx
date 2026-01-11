@@ -35,10 +35,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
         ? statsResponse.data
         : {
             xp: profile.xp || 0,
+            weeklyXp: 0,
             guildatons: profile.guildatons || 0,
             missionsValidated: 0,
+            weeklyMissions: 0,
             lastActivity: null,
-            joinedAt: userContext.discordJoinedAt ? new Date(userContext.discordJoinedAt) : null,
+            joinedAt: null,
             isTopContributor: false,
         };
 

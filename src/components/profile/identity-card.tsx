@@ -27,7 +27,7 @@ export function IdentityCard({
         : undefined;
 
     return (
-        <div className="flex flex-col items-center gap-4 p-6 bg-zinc-900/60 rounded-2xl border border-white/5">
+        <div className="flex flex-col items-center gap-4 p-6 bg-zinc-900/60 rounded-2xl border border-white/5 h-full">
             {/* Avatar with Role Border */}
             <div className="relative">
                 <Avatar
@@ -58,14 +58,9 @@ export function IdentityCard({
                 )}
             </div>
 
-            {/* Name & Join Date */}
+            {/* Name */}
             <div className="text-center">
                 <h2 className="text-xl font-bold text-white">{displayName}</h2>
-                {joinedAt && (
-                    <p className="text-xs text-zinc-500 mt-1">
-                        Membre depuis {new Date(joinedAt).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                )}
             </div>
 
             {/* Status Badges */}
@@ -83,6 +78,15 @@ export function IdentityCard({
                     </Badge>
                 )}
             </div>
+
+            {/* Join Date Footer */}
+            {joinedAt && (
+                <div className="mt-auto pt-4 border-t border-white/5 w-full text-center">
+                    <p className="text-xs text-zinc-500">
+                        Membre depuis le <span className="text-zinc-400 font-medium">{new Date(joinedAt).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

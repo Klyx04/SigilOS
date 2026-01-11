@@ -537,9 +537,17 @@ export async function validateSubmission(
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
             if (xpReward > 0) {
+                // Fetch current profile to ensure we handle initial null XP correctly
+                const currentProfile = await db.userProfile.findUnique({
+                    where: { id: updatedSubmission.profileId },
+                    select: { xp: true }
+                });
+
+                const currentXp = currentProfile?.xp || 0;
+
                 await db.userProfile.update({
                     where: { id: updatedSubmission.profileId },
-                    data: { xp: { increment: xpReward } }
+                    data: { xp: currentXp + xpReward }
                 });
             }
         }

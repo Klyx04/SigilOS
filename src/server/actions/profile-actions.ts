@@ -372,6 +372,8 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
         // Check top contributor (simple: XP > 1000)
         const isTopContributor = profile.xp >= 1000;
 
+        const joinedAt = null; // Default to null for now, handled by UserContext in UI
+
         return {
             success: true,
             data: {

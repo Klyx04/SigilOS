@@ -130,61 +130,69 @@ export function ProfileBentoGrid({
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Row 1: The Three Pillars (Identity, Class, Jobs) */}
-            <IdentityCard
-                avatarUrl={user.image}
-                displayName={displayName}
-                roleColor={roleColor}
-                isTopContributor={stats.isTopContributor}
-                isOnVacation={isOnVacation}
-                joinedAt={stats.joinedAt}
-            />
+        <div className="flex flex-col gap-6">
+            {/* Top Section: The Three Main Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
 
-            <ClassDisplay
-                mainClass={localProfile.classe}
-                secondaryClasses={localProfile.classeSecondaires || []}
-                onSave={handleClassSave}
-                readOnly={readOnly}
-            />
+                {/* Column 1: Identity & Stats */}
+                <div className="flex flex-col gap-6 h-full">
+                    <div className="flex-1">
+                        <IdentityCard
+                            avatarUrl={user.image}
+                            displayName={displayName}
+                            roleColor={roleColor}
+                            isTopContributor={stats.isTopContributor}
+                            isOnVacation={isOnVacation}
+                            joinedAt={stats.joinedAt}
+                        />
+                    </div>
+                    <ActivityStats
+                        xp={stats.xp}
+                        weeklyXp={stats.weeklyXp}
+                        missionsValidated={stats.missionsValidated}
+                        weeklyMissions={stats.weeklyMissions}
+                    />
+                </div>
 
-            <JobsGrid
-                jobs={localProfile.metiers || []}
-                forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                onSaveJobs={handleJobsSave}
-                onSaveForgemagieStatus={handleForgemagieStatusSave}
-                readOnly={readOnly}
-            />
+                {/* Column 2: Class & Vacation */}
+                <div className="flex flex-col gap-6 h-full">
+                    <ClassDisplay
+                        mainClass={localProfile.classe}
+                        secondaryClasses={localProfile.classeSecondaires || []}
+                        onSave={handleClassSave}
+                        readOnly={readOnly}
+                    />
 
-            {/* Row 2: Availability & Activity */}
+                    <VacationMode
+                        vacationStart={localProfile.vacationStart}
+                        vacationEnd={localProfile.vacationEnd}
+                        vacationNotify={localProfile.vacationNotify}
+                        onSave={handleVacationSave}
+                        readOnly={readOnly}
+                        guildId={guildId}
+                        pseudo={displayName}
+                        profileId={profile.id}
+                    />
+                </div>
 
-            {/* Heatmap takes 2 columns */}
-            <div className="md:col-span-2">
+                {/* Column 3: Jobs (Tall) */}
+                <div className="h-full">
+                    <JobsGrid
+                        jobs={localProfile.metiers || []}
+                        forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                        onSaveJobs={handleJobsSave}
+                        onSaveForgemagieStatus={handleForgemagieStatusSave}
+                        readOnly={readOnly}
+                    />
+                </div>
+            </div>
+
+            {/* Bottom Section: Availability Heatmap */}
+            <div className="w-full">
                 <AvailabilityHeatmap
                     availability={localProfile.availability || {}}
                     onSave={handleAvailabilitySave}
                     readOnly={readOnly}
-                />
-            </div>
-
-            {/* Stats & Vacation stacked in 3rd column */}
-            <div className="flex flex-col gap-6">
-                <ActivityStats
-                    xp={stats.xp}
-                    weeklyXp={stats.weeklyXp}
-                    missionsValidated={stats.missionsValidated}
-                    weeklyMissions={stats.weeklyMissions}
-                />
-
-                <VacationMode
-                    vacationStart={localProfile.vacationStart}
-                    vacationEnd={localProfile.vacationEnd}
-                    vacationNotify={localProfile.vacationNotify}
-                    onSave={handleVacationSave}
-                    readOnly={readOnly}
-                    guildId={guildId}
-                    pseudo={displayName}
-                    profileId={profile.id}
                 />
             </div>
         </div>

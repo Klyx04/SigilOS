@@ -35,7 +35,7 @@ export function getClass(id: string) {
 }
 
 // -----------------------------------------------------------------------------
-// JOBS (MÉTIERS)
+// JOBS (MÉTIERS) - Corrected categories per user specs
 // -----------------------------------------------------------------------------
 
 export const JOB_CATEGORIES = {
@@ -51,33 +51,28 @@ export const DOFUS_JOBS = {
         { id: "chasseur", name: "Chasseur", icon: "🍖" },
         { id: "mineur", name: "Mineur", icon: "⛏️" },
         { id: "paysan", name: "Paysan", icon: "🌾" },
-        { id: "pecheur", name: "Pêcheur", icon: "🎣" },
     ],
     [JOB_CATEGORIES.ARTISANAT]: [
         { id: "bijoutier", name: "Bijoutier", icon: "💍" },
         { id: "bricoleur", name: "Bricoleur", icon: "🔧" },
         { id: "cordonnier", name: "Cordonnier", icon: "👟" },
-        { id: "costumage", name: "Costumage", icon: "👗" },
         { id: "faconneur", name: "Façonneur", icon: "🏺" },
-        { id: "forgeur-bouclier", name: "Forgeur de Boucliers", icon: "🛡️" },
-        { id: "forgeur-dague", name: "Forgeur de Dagues", icon: "🗡️" },
-        { id: "forgeur-epee", name: "Forgeur d'Épées", icon: "⚔️" },
-        { id: "forgeur-hache", name: "Forgeur de Haches", icon: "🪓" },
-        { id: "forgeur-marteau", name: "Forgeur de Marteaux", icon: "🔨" },
-        { id: "forgeur-pelle", name: "Forgeur de Pelles", icon: "⚒️" },
-        { id: "sculpteur-arc", name: "Sculpteur d'Arcs", icon: "🏹" },
-        { id: "sculpteur-baguette", name: "Sculpteur de Baguettes", icon: "🪄" },
-        { id: "sculpteur-baton", name: "Sculpteur de Bâtons", icon: "🏑" },
+        { id: "forgeron", name: "Forgeron", icon: "⚔️" },
+        { id: "sculpteur", name: "Sculpteur", icon: "🪄" },
         { id: "tailleur", name: "Tailleur", icon: "🧵" },
     ],
     [JOB_CATEGORIES.FORGEMAGIE]: [
         { id: "cordomage", name: "Cordomage", icon: "👟✨" },
         { id: "costumage", name: "Costumage", icon: "👗✨" },
+        { id: "forgemage", name: "Forgemage", icon: "⚔️✨" },
         { id: "joaillomage", name: "Joaillomage", icon: "💍✨" },
         { id: "sculptemage", name: "Sculptemage", icon: "🪄✨" },
-        { id: "forgemage", name: "Forgemage", icon: "⚔️✨" },
+        { id: "facomage", name: "Façomage", icon: "🏺✨" },
     ],
 } as const;
+
+// IDs of all Forgemagie jobs for quick checking
+export const FM_JOB_IDS: string[] = DOFUS_JOBS[JOB_CATEGORIES.FORGEMAGIE].map(j => j.id);
 
 export function getJob(id: string) {
     for (const category of Object.values(DOFUS_JOBS)) {
@@ -88,8 +83,7 @@ export function getJob(id: string) {
 }
 
 export function hasAnyForgemagie(jobs: string[]): boolean {
-    const fmJobs = DOFUS_JOBS[JOB_CATEGORIES.FORGEMAGIE].map(j => j.id);
-    return jobs.some(j => fmJobs.includes(j));
+    return jobs.some(j => FM_JOB_IDS.includes(j));
 }
 
 // -----------------------------------------------------------------------------
@@ -108,8 +102,8 @@ export type AvailabilityMap = Partial<Record<DayOfWeek, TimeSlot[]>>;
 // -----------------------------------------------------------------------------
 
 export const FORGEMAGIE_STATUS = {
-    FREE: { id: "FREE", label: "Gratuit", color: "#22c55e", icon: "🆓" },
-    PAID: { id: "PAID", label: "Payant", color: "#eab308", icon: "💰" },
+    FREE: { id: "FREE", label: "Gratuit Guilde", color: "#22c55e", icon: "🟢" },
+    PAID: { id: "PAID", label: "Payant", color: "#eab308", icon: "🟡" },
     UNAVAILABLE: { id: "UNAVAILABLE", label: "Indisponible", color: "#6b7280", icon: "🚫" },
 } as const;
 

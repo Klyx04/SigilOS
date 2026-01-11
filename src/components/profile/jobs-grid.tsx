@@ -4,9 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Pencil, Check, X } from "lucide-react";
-import { DOFUS_JOBS, JOB_CATEGORIES, getForgemagieStatus, type ForgemagieStatusId, FORGEMAGIE_STATUS } from "@/lib/dofus-assets";
+import { DOFUS_JOBS, JOB_CATEGORIES, getForgemagieStatus, type ForgemagieStatusId, FORGEMAGIE_STATUS, hasAnyForgemagie } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
 interface JobsGridProps {
@@ -29,6 +28,9 @@ export function JobsGrid({
 
     const fmStatus = getForgemagieStatus(forgemagieStatus);
 
+    // Only show FM section if user has at least one Forgemagie job
+    const userHasFMJobs = hasAnyForgemagie(jobs);
+
     const toggleJob = (jobId: string) => {
         if (selectedJobs.includes(jobId)) {
             setSelectedJobs(prev => prev.filter(j => j !== jobId));
@@ -47,10 +49,12 @@ export function JobsGrid({
     };
 
     const cycleForgemagieStatus = () => {
-        const statuses: ForgemagieStatusId[] = ["UNAVAILABLE", "FREE", "PAID"];
-        const currentIndex = statuses.indexOf(forgemagieStatus);
-        const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-        onSaveForgemagieStatus?.(nextStatus);
+        // Only cycle between FREE and PAID for people with FM jobs
+        if (forgemagieStatus === "FREE") {
+            onSaveForgemagieStatus?.("PAID");
+        } else {
+            onSaveForgemagieStatus?.("FREE");
+        }
     };
 
     return (
@@ -132,35 +136,37 @@ export function JobsGrid({
                 <p className="text-zinc-500 text-sm mb-4">Aucun métier 200</p>
             )}
 
-            {/* Forgemagie Toggle */}
-            <div className="border-t border-white/5 pt-4 mt-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium">Forgemagie</p>
-                        <p className="text-xs text-zinc-500">Disponibilité craft FM</p>
+            {/* Forgemagie Toggle - ONLY shown if user has FM jobs */}
+            {userHasFMJobs && (
+                <div className="border-t border-white/5 pt-4 mt-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium">Dispo Guilde</p>
+                            <p className="text-xs text-zinc-500">Craft Forgemagie pour la guilde</p>
+                        </div>
+                        {!readOnly ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={cycleForgemagieStatus}
+                                className="gap-2"
+                                style={{ borderColor: fmStatus.color + "40", color: fmStatus.color }}
+                            >
+                                <span>{fmStatus.icon}</span>
+                                {fmStatus.label}
+                            </Button>
+                        ) : (
+                            <Badge
+                                variant="outline"
+                                style={{ borderColor: fmStatus.color + "40", color: fmStatus.color }}
+                            >
+                                <span className="mr-1">{fmStatus.icon}</span>
+                                {fmStatus.label}
+                            </Badge>
+                        )}
                     </div>
-                    {!readOnly ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={cycleForgemagieStatus}
-                            className="gap-2"
-                            style={{ borderColor: fmStatus.color + "40", color: fmStatus.color }}
-                        >
-                            <span>{fmStatus.icon}</span>
-                            {fmStatus.label}
-                        </Button>
-                    ) : (
-                        <Badge
-                            variant="outline"
-                            style={{ borderColor: fmStatus.color + "40", color: fmStatus.color }}
-                        >
-                            <span className="mr-1">{fmStatus.icon}</span>
-                            {fmStatus.label}
-                        </Badge>
-                    )}
                 </div>
-            </div>
+            )}
         </div>
     );
 }

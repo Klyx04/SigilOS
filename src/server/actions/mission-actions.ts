@@ -559,6 +559,7 @@ export async function validateSubmission(
         }
 
         revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/missions`);
+        revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/profile`);
         return { success: true };
     } catch (error) {
         console.error("Validation Error:", error);

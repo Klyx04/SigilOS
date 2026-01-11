@@ -57,9 +57,9 @@ export function ProfileBentoGrid({
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
     const now = new Date();
-    const isOnVacation = localProfile.vacationStart &&
+    const isOnVacation = Boolean(localProfile.vacationStart &&
         localProfile.vacationStart <= now &&
-        (!localProfile.vacationEnd || localProfile.vacationEnd >= now);
+        (!localProfile.vacationEnd || localProfile.vacationEnd >= now));
 
     // Handlers
     const handleClassSave = async (mainClass: string, secondaryClasses: string[]) => {
@@ -138,6 +138,7 @@ export function ProfileBentoGrid({
                 roleColor={roleColor}
                 isTopContributor={stats.isTopContributor}
                 isOnVacation={isOnVacation}
+                joinedAt={stats.joinedAt}
             />
 
             <ClassDisplay
@@ -152,7 +153,6 @@ export function ProfileBentoGrid({
                 weeklyXp={stats.weeklyXp}
                 missionsValidated={stats.missionsValidated}
                 weeklyMissions={stats.weeklyMissions}
-                joinedAt={stats.joinedAt}
             />
 
             {/* Row 2 */}

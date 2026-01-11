@@ -11,6 +11,7 @@ interface IdentityCardProps {
     roleColor?: number;
     isTopContributor?: boolean;
     isOnVacation?: boolean;
+    joinedAt?: Date | null;
 }
 
 export function IdentityCard({
@@ -19,6 +20,7 @@ export function IdentityCard({
     roleColor = 0,
     isTopContributor = false,
     isOnVacation = false,
+    joinedAt,
 }: IdentityCardProps) {
     const borderColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
@@ -56,9 +58,14 @@ export function IdentityCard({
                 )}
             </div>
 
-            {/* Name */}
+            {/* Name & Join Date */}
             <div className="text-center">
                 <h2 className="text-xl font-bold text-white">{displayName}</h2>
+                {joinedAt && (
+                    <p className="text-xs text-zinc-500 mt-1">
+                        Membre depuis {new Date(joinedAt).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                )}
             </div>
 
             {/* Status Badges */}

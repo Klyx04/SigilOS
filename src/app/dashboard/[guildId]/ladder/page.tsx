@@ -1,0 +1,73 @@
+import { Suspense } from "react";
+import { Trophy, Medal, Clock, Star, TrendingUp } from "lucide-react";
+import { LadderTabs } from "./_components/ladder-tabs";
+
+type Props = {
+    params: Promise<{ guildId: string }>;
+};
+
+export default async function LadderPage({ params }: Props) {
+    const { guildId } = await params;
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/20">
+                    <Trophy className="h-8 w-8 text-amber-500" />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-500">
+                        Ladder
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Classements de la guilde
+                    </p>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                        <TrendingUp className="h-5 w-5 text-purple-400" />
+                        <span className="text-sm font-medium text-purple-300">Activité</span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">XP gagnée via les missions</p>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                        <Clock className="h-5 w-5 text-cyan-400" />
+                        <span className="text-sm font-medium text-cyan-300">Ancienneté</span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">Les piliers de la guilde</p>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                        <Star className="h-5 w-5 text-amber-400" />
+                        <span className="text-sm font-medium text-amber-300">Succès</span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">Points de succès Dofus</p>
+                </div>
+            </div>
+
+            {/* Ladder Tabs */}
+            <Suspense fallback={<LadderSkeleton />}>
+                <LadderTabs guildId={guildId} />
+            </Suspense>
+        </div>
+    );
+}
+
+function LadderSkeleton() {
+    return (
+        <div className="space-y-4">
+            <div className="h-12 bg-muted/20 rounded-lg animate-pulse" />
+            <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-muted/10 rounded-lg animate-pulse" />
+                ))}
+            </div>
+        </div>
+    );
+}

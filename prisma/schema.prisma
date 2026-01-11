@@ -96,8 +96,9 @@ model UserProfile {
   succes Json? // List of validated achievements
 
   // Gamification
-  xp         Int @default(0)
-  guildatons Int @default(0)
+  xp                Int @default(0)
+  guildatons        Int @default(0)
+  achievementPoints Int? // Points de succès Dofus (saisie manuelle par l'utilisateur)
 
   // Availability Heatmap
   availability Json? // { "lundi": ["matin", "soir"], ... }

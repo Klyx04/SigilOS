@@ -32,7 +32,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     // Fetch stats
     const statsResponse = await getProfileStats(guildId);
     const stats = statsResponse.success && statsResponse.data
-        ? statsResponse.data
+        ? {
+            ...statsResponse.data,
+            joinedAt: userContext.joinedAt ?? statsResponse.data.joinedAt
+        }
         : {
             xp: profile.xp || 0,
             weeklyXp: 0,

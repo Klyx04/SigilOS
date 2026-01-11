@@ -322,8 +322,16 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **UX Polish:** "Vérification Automatique" UI & Filters (Pending/Validated/Event).
     - [x] **Security Hardening:** Guild Whitelist (Env) & Deep Security (Server Actions).
 
-4.  **Phase 3: Identity & Community (IN PROGRESS):**
-    - [x] **User Profiles (V1):** Dofus Class, Jobs (lvl 200), Success Tracking.
-    - [x] **Directory (V1):** Filterable Member list.
-    - [ ] **Loans (Prêts):** Item lending contracts.
+4.  **Phase 3: Identity & Community (COMPLETE):**
+    - [x] **User Profiles (V1):** Dofus Class, Jobs (lvl 200), Availability Heatmap, Vacation Mode.
+    - [x] **Profile V1.1:** Weekly Stats (XP/Missions), "Member Since" Date, Premium UI (Stacked Bento, JobsGrid Tabs).
+    - [x] **Directory (V1):** Filterable Member list with Role Colors.
+    - [x] **Discord Cache:** Member info (Nickname, Role, Color) cached for performance.
+    - [x] **Absence Notifications:** Vacation Mode -> Discord Embed.
+    - [ ] **Loans (Prêts):** Item lending contracts. (Deprioritized)
+
+5.  **Phase 4: Quêtes Ocre (NEXT):**
+    - [ ] **Dungeon Tracker:** Checklist for Dofus Ocre quest (Donjons/Succès).
+    - [ ] **Profile Integration:** Display progress on user profile.
+    - [ ] **Community Features:** Find partners missing same dungeons.
 ```

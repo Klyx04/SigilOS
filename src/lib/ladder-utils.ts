@@ -17,18 +17,3 @@ export function formatSeniority(totalDays: number): string {
 
     return parts.join(", ");
 }
-
-/**
- * Get achievement tier based on points
- */
-export function getAchievementTier(points: number): {
-    name: string;
-    color: string;
-    icon: string;
-} {
-    if (points >= 25000) return { name: "Légende", color: "#FFD700", icon: "👑" };
-    if (points >= 20000) return { name: "Champion", color: "#FF8C00", icon: "🔶" };
-    if (points >= 15000) return { name: "Aventurier", color: "#9B59B6", icon: "💜" };
-    if (points >= 10000) return { name: "Explorateur", color: "#3498DB", icon: "💙" };
-    return { name: "Novice", color: "#95A5A6", icon: "⚪" };
-}

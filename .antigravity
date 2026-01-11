@@ -330,8 +330,19 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Absence Notifications:** Vacation Mode -> Discord Embed.
     - [ ] **Loans (Prêts):** Item lending contracts. (Deprioritized)
 
-5.  **Phase 4: Quêtes Ocre (NEXT):**
-    - [ ] **Dungeon Tracker:** Checklist for Dofus Ocre quest (Donjons/Succès).
-    - [ ] **Profile Integration:** Display progress on user profile.
-    - [ ] **Community Features:** Find partners missing same dungeons.
-```
+5.  **Phase 4: Archimonstres / Bourse aux Archis (COMPLETE):**
+    - [x] **Metamob Integration:** API client with caching (1h TTL), rate limiting protection.
+    - [x] **Profile Linking:** Users link Metamob pseudo with verification.
+    - [x] **ArchiHub:** Interactive hub showing MANQUANT/POSSÉDÉ/DOUBLON states.
+    - [x] **GuildDoublons Map:** Pre-computed exchange availability for performance.
+    - [x] **Exchange Matching:** Find guild members who can trade archis.
+    - [x] **Zone/Search Filters:** Filter by zone, search by name.
+    - [x] **Exchangeable Toggle:** Show only monsters available for exchange.
+    - [x] **Security:** Permission `archis:view` + guards on all actions.
+    - [x] **Multi-Guild API Key:** Per-guild `metamobApiKey` with global fallback.
+    - [x] **Admin UI:** Config page with tutorial and 90-day expiration warning.
+
+6.  **Phase 5: Ladder (NEXT):**
+    - [ ] **Classement Guilde:** Weekly/Monthly XP ranking.
+    - [ ] **Gamification:** Display ranking on profiles.
+    - [ ] **UI Components:** Leaderboard with medals/animations.

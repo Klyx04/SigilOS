@@ -100,3 +100,80 @@ export async function updateRoleMapping(
         return { success: false, error: "Database error" };
     }
 }
+
+// ============================================================================
+// ABSENCE CONFIGURATION
+// ============================================================================
+
+export async function getAbsenceConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { absenceChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { absenceChannelId: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { absenceChannelId: config.absenceChannelId } };
+    } catch (error) {
+        console.error("Get Absence Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateAbsenceChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        // Security: Verify user is admin of this guild
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (!account) return { success: false, error: "No Discord account linked" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Check admin permission
+        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const guildInfo = await fetchGuild(guildId);
+        const member = await fetchGuildMember(guildId, account.providerAccountId);
+
+        if (!member) return { success: false, error: "Not a member of this guild" };
+
+        let isAdmin = guildInfo.owner_id === account.providerAccountId;
+
+        if (!isAdmin) {
+            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        }
+
+        if (!isAdmin) {
+            return { success: false, error: "Permission refusée: Admin requis" };
+        }
+
+        // Update channel ID
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { absenceChannelId: channelId }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/absence`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Absence Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}

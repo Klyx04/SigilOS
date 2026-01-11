@@ -5,7 +5,7 @@ import { MemberCard } from "./member-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DOFUS_CLASSES, DOFUS_JOBS } from "@/lib/dofus-data";
+import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { Search, Loader2, X } from "lucide-react";
 import { getGuildMembers } from "@/server/actions/profile-actions";
 import { Label } from "@/components/ui/label";
@@ -82,7 +82,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Toutes</SelectItem>
-                            {DOFUS_CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            {DOFUS_CLASSES.map(c => <SelectItem key={c.id} value={c.name}>{c.icon} {c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -95,7 +95,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Tous</SelectItem>
-                            {DOFUS_JOBS.map(j => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                            {Object.values(DOFUS_JOBS).flat().map(j => <SelectItem key={j.id} value={j.id}>{j.icon} {j.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -109,7 +109,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
             {/* RESULTS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredMembers.map(member => (
-                    <MemberCard key={member.id} profile={member} />
+                    <MemberCard key={member.id} profile={member} guildId={guildId} />
                 ))}
             </div>
 

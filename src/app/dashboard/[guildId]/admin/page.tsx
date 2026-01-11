@@ -93,6 +93,37 @@ export default async function AdminPage({
                 roles={roles}
                 currentMapping={currentMapping}
             />
+
+            {/* Feature Settings Section */}
+            <div className="border-t pt-8 mt-8">
+                <h2 className="text-xl font-semibold mb-4">Paramètres des fonctionnalités</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <a
+                        href={`/dashboard/${targetGuildId}/admin/absence`}
+                        className="group block p-6 bg-zinc-900/60 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all"
+                    >
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-cyan-500/10 rounded-lg">
+                                <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <h3 className="font-semibold text-white group-hover:text-cyan-400 transition-colors">
+                                Notifications d'absence
+                            </h3>
+                        </div>
+                        <p className="text-sm text-zinc-400">
+                            Configurez le salon Discord pour les notifications de mode vacances.
+                        </p>
+                        <div className="mt-4 flex items-center text-xs text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span>Configurer</span>
+                            <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
     );
 }

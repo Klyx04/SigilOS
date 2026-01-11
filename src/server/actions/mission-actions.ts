@@ -528,12 +528,32 @@ export async function validateSubmission(
             data: {
                 status,
                 validatorId: session!.user!.id,
-                proofUrl: "" // Clear the URL since file is gone
+                proofUrl: "", // Clear the URL since file is gone
+                updatedAt: new Date() // Force update time for stats
             },
             include: { profile: true }
         });
 
-        // 3. Notify User
+        // 3. If validated, add XP to user profile
+        if (status === "VALIDATED") {
+            const xpReward = submission.mission.xpReward || 0;
+            if (xpReward > 0) {
+                // Fetch current profile to ensure we handle initial null XP correctly
+                const currentProfile = await db.userProfile.findUnique({
+                    where: { id: updatedSubmission.profileId },
+                    select: { xp: true }
+                });
+
+                const currentXp = currentProfile?.xp || 0;
+
+                await db.userProfile.update({
+                    where: { id: updatedSubmission.profileId },
+                    data: { xp: currentXp + xpReward }
+                });
+            }
+        }
+
+        // 4. Notify User
         if (updatedSubmission.profile.userId) {
             const notifType = status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED";
             const resultMsg = status === "VALIDATED" ? "validée !" : "refusée.";
@@ -548,6 +568,7 @@ export async function validateSubmission(
         }
 
         revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/missions`);
+        revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/profile`);
         return { success: true };
     } catch (error) {
         console.error("Validation Error:", error);

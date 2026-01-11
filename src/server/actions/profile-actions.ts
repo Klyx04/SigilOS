@@ -381,8 +381,14 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                 weeklyXp,
                 weeklyMissions,
                 lastActivity: profile.lastActivityAt
-                    ? { description: profile.lastActivityDesc || "Activité", date: profile.lastActivityAt }
-                    : null,
+                    ? {
+                        description: `[DEBUG] Found ${allValidatedSubmissions.length} validated. ProfileID: ${profile.id}`,
+                        date: profile.lastActivityAt
+                    }
+                    : {
+                        description: `[DEBUG] Found ${allValidatedSubmissions.length} validated. ProfileID: ${profile.id}`,
+                        date: new Date()
+                    },
                 joinedAt,
                 isTopContributor,
             }

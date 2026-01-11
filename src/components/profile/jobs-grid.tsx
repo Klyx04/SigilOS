@@ -58,7 +58,7 @@ export function JobsGrid({
     };
 
     return (
-        <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5">
+        <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-zinc-400">Métiers (200)</h3>
                 {!readOnly && (
@@ -138,7 +138,7 @@ export function JobsGrid({
 
             {/* Forgemagie Toggle - ONLY shown if user has FM jobs */}
             {userHasFMJobs && (
-                <div className="border-t border-white/5 pt-4 mt-4">
+                <div className="border-t border-white/5 pt-4 mt-auto">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium">Dispo Guilde</p>

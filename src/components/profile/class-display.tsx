@@ -34,7 +34,7 @@ export function ClassDisplay({
 
         if (selectedSecondary.includes(classId)) {
             setSelectedSecondary(prev => prev.filter(c => c !== classId));
-        } else if (selectedSecondary.length < 3) {
+        } else {
             setSelectedSecondary(prev => [...prev, classId]);
         }
     };
@@ -70,7 +70,7 @@ export function ClassDisplay({
                                 <Tabs defaultValue="main" className="h-full flex flex-col">
                                     <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-900/50">
                                         <TabsTrigger value="main">Classe Principale</TabsTrigger>
-                                        <TabsTrigger value="secondary">Classes Secondaires ({selectedSecondary.length}/3)</TabsTrigger>
+                                        <TabsTrigger value="secondary">Classes Secondaires ({selectedSecondary.length})</TabsTrigger>
                                     </TabsList>
 
                                     <TabsContent value="main" className="flex-1 overflow-hidden mt-0">
@@ -110,7 +110,7 @@ export function ClassDisplay({
                                     <TabsContent value="secondary" className="flex-1 overflow-hidden mt-0">
                                         <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3 text-sm text-blue-300">
                                             <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                            <p>Sélectionnez jusqu'à 3 classes secondaires que vous jouez régulièrement. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name}) n'est pas sélectionnable ici.</p>
+                                            <p>Sélectionnez les classes secondaires que vous jouez régulièrement. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name}) n'est pas sélectionnable ici.</p>
                                         </div>
                                         <ScrollArea className="h-[45vh] pr-4">
                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 pb-4">

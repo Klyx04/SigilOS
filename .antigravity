@@ -342,7 +342,17 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Multi-Guild API Key:** Per-guild `metamobApiKey` with global fallback.
     - [x] **Admin UI:** Config page with tutorial and 90-day expiration warning.
 
-6.  **Phase 5: Ladder (NEXT):**
-    - [ ] **Classement Guilde:** Weekly/Monthly XP ranking.
-    - [ ] **Gamification:** Display ranking on profiles.
-    - [ ] **UI Components:** Leaderboard with medals/animations.
+6.  **Phase 5: Ladder (COMPLETE):**
+    - [x] **UI Redesign:** Compact card layout with rank badges (medals for top 3).
+    - [x] **Succès Removal:** Removed achievements ladder (scraping unfeasible).
+    - [x] **Activity Ladder:** Weekly/Monthly XP ranking from validated missions.
+    - [x] **Seniority Ladder:** Member join date ranking.
+    - [x] **Leaderboard Components:** Modern card design without progress bars.
+
+7.  **Phase 6: Profile UI Redesign (COMPLETE):**
+    - [x] **Hero Header:** Large banner with avatar, role-colored name, status badges.
+    - [x] **Compact Stats:** 4-card grid (Total XP, Weekly XP, Missions, Weekly Missions).
+    - [x] **2-Column Layout:** Restructured from 3-column bento to clearer hierarchy.
+    - [x] **Mobile Responsive:** Stats stack 2x2, columns stack vertically.
+    - [x] **Visual Hierarchy:** Gaming-inspired design (Steam, Discord, LoL).
+

@@ -1,0 +1,41 @@
+Ce module vise à gamifier l'expérience de guilde en valorisant différents types d'investissements (temps, skill, aide).
+
+1. Ladder "Activité" (Le Mérite)
+
+Basé sur les points d'activités gagnés via le module Missions.
+
+Vue "Saisonnière" (Mensuelle) : Remis à zéro chaque 1er du mois. Permet aux nouveaux membres de briller et de gagner le titre de "Champion du Mois".
+
+Vue "Légende" (All-Time) : Cumul historique depuis le début. Récompense la régularité sur le long terme.
+
+2. Ladder "Ancienneté" (La Loyauté)
+Basé sur la date d'arrivée sur le serveur Discord (joinedAt).
+
+Objectif : Valoriser les piliers de la guilde.
+
+Format : Affichage en "Années / Mois / Jours".
+
+3. Le Ladder "Succès" (Données Externes)
+
+Ce classement nécessite de récupérer la donnée officielle Dofus (Points de succès).
+Il va donc finalement falloir ajouter un encart dans les profils perso éditable permettant d'ajouter son pseudo Dofus puisque si cette application est vendu les gens d'autres serveurs n'utilisent peut-être pas leur vrai pseudo sur discord, attention pour l'instant on garde la logique du profil avec l'icone du pseudo discord : cette encart dans le profil perso permet juste d'utiliser le module ladder.
+
+Le pseudo doit être identique majuscule comprise , il ne servira qu'à ce module ladder pour l'instant.
+
+Je ne sais pas comment implémenter un truc sympa qui va récuperer les succès uniquement des membres sur le ladder officiel car pas d'api et il est hors de question de faire des choses illégal , propose une solution avant de valider
+
+en image A:\SigilOS\public\module_ladder ce à quoi ressemble le ladder j'ai filtré sur la catégorie succès et sur mon serveur actuel draconirs , l'url est surement asssocié, à voir comment faire scalable si d'autres guildes jouent sur un autre serv
+
+Les "Paliers" Visuels
+Pour rendre le score plus parlant, associer des grades aux tranches de points (ex : <10k = Novice, >20k = Légende).
+
+Gamification & UI
+
+Gestion des Ex æquo (Ties)
+Règle stricte pour éviter les doublons dans le classement :
+
+Priorité à l'ancienneté : À score égal, le membre le plus ancien dans la guilde est classé devant.
+
+
+
+

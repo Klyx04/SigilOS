@@ -17,6 +17,9 @@ export const PERMISSIONS = {
 
     // Archimonstres / Quête Ocre
     ARCHIS_VIEW: "archis:view", // Accès à la Bourse aux Archis
+
+    // Ladder / Classements
+    LADDER_VIEW: "ladder:view", // Accès aux classements de guilde
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -58,6 +61,10 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.ARCHIS_VIEW]: {
         label: "Bourse aux Archis",
         description: "Accès au module d'échange d'archimonstres (Quête Ocre).",
+    },
+    [PERMISSIONS.LADDER_VIEW]: {
+        label: "Classements",
+        description: "Accès aux ladders de guilde (Activité, Ancienneté, Succès).",
     },
 };
 

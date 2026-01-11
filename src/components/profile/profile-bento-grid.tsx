@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { IdentityCard } from "./identity-card";
+import { HeroHeader } from "./hero-header";
 import { ClassDisplay } from "./class-display";
 import { JobsGrid } from "./jobs-grid";
-import { ActivityStats } from "./activity-stats";
 import { AvailabilityHeatmap } from "./availability-heatmap";
 import { VacationMode } from "./vacation-mode";
 import { MetamobLink } from "./metamob-link";
@@ -135,31 +134,25 @@ export function ProfileBentoGrid({
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Top Section: The Three Main Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+            {/* Hero Header */}
+            <HeroHeader
+                avatarUrl={user.image}
+                displayName={displayName}
+                roleColor={roleColor}
+                isTopContributor={stats.isTopContributor}
+                isOnVacation={isOnVacation}
+                joinedAt={stats.joinedAt}
+                xp={stats.xp}
+                weeklyXp={stats.weeklyXp}
+                missionsValidated={stats.missionsValidated}
+                weeklyMissions={stats.weeklyMissions}
+            />
 
-                {/* Column 1: Identity & Stats */}
-                <div className="flex flex-col gap-6 h-full">
-                    <div className="flex-1">
-                        <IdentityCard
-                            avatarUrl={user.image}
-                            displayName={displayName}
-                            roleColor={roleColor}
-                            isTopContributor={stats.isTopContributor}
-                            isOnVacation={isOnVacation}
-                            joinedAt={stats.joinedAt}
-                        />
-                    </div>
-                    <ActivityStats
-                        xp={stats.xp}
-                        weeklyXp={stats.weeklyXp}
-                        missionsValidated={stats.missionsValidated}
-                        weeklyMissions={stats.weeklyMissions}
-                    />
-                </div>
+            {/* Main Content: 2 Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-                {/* Column 2: Class & Vacation */}
-                <div className="flex flex-col gap-6 h-full">
+                {/* Left Column: Combat & Vacation */}
+                <div className="flex flex-col gap-6">
                     <ClassDisplay
                         mainClass={localProfile.classe}
                         secondaryClasses={localProfile.classeSecondaires || []}
@@ -177,36 +170,32 @@ export function ProfileBentoGrid({
                         pseudo={displayName}
                         profileId={profile.id}
                     />
-
-                    <MetamobLink
-                        guildId={guildId}
-                        metamobPseudo={profile.metamobPseudo}
-                        metamobVerified={profile.metamobVerified}
-                        metamobLastSync={profile.metamobLastSync}
-                        readOnly={readOnly}
-                    />
                 </div>
 
-                {/* Column 3: Jobs (Tall) */}
-                <div className="h-full">
-                    <JobsGrid
-                        jobs={localProfile.metiers || []}
-                        forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                        onSaveJobs={handleJobsSave}
-                        onSaveForgemagieStatus={handleForgemagieStatusSave}
-                        readOnly={readOnly}
-                    />
-                </div>
-            </div>
-
-            {/* Bottom Section: Availability Heatmap */}
-            <div className="w-full">
-                <AvailabilityHeatmap
-                    availability={localProfile.availability || {}}
-                    onSave={handleAvailabilitySave}
+                {/* Right Column: Jobs (Taller) */}
+                <JobsGrid
+                    jobs={localProfile.metiers || []}
+                    forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                    onSaveJobs={handleJobsSave}
+                    onSaveForgemagieStatus={handleForgemagieStatusSave}
                     readOnly={readOnly}
                 />
             </div>
+
+            {/* Full Width Sections */}
+            <MetamobLink
+                guildId={guildId}
+                metamobPseudo={profile.metamobPseudo}
+                metamobVerified={profile.metamobVerified}
+                metamobLastSync={profile.metamobLastSync}
+                readOnly={readOnly}
+            />
+
+            <AvailabilityHeatmap
+                availability={localProfile.availability || {}}
+                onSave={handleAvailabilitySave}
+                readOnly={readOnly}
+            />
         </div>
     );
 }

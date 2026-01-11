@@ -40,7 +40,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
             missionsValidated: 0,
             weeklyMissions: 0,
             lastActivity: null,
-            joinedAt: null,
+            joinedAt: userContext.joinedAt || null,
             isTopContributor: false,
         };
 

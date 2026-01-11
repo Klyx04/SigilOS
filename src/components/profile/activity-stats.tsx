@@ -9,7 +9,6 @@ interface ActivityStatsProps {
     weeklyXp?: number;
     missionsValidated?: number;
     weeklyMissions?: number;
-    joinedAt?: Date | string | null;
 }
 
 export function ActivityStats({
@@ -17,11 +16,8 @@ export function ActivityStats({
     weeklyXp = 0,
     missionsValidated = 0,
     weeklyMissions = 0,
-    joinedAt,
 }: ActivityStatsProps) {
-    const joinedDate = joinedAt
-        ? (typeof joinedAt === "string" ? new Date(joinedAt) : joinedAt)
-        : null;
+
 
     return (
         <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5 h-full flex flex-col">
@@ -65,15 +61,6 @@ export function ActivityStats({
                 </div>
             </div>
 
-            {/* Joined Date Footer */}
-            {joinedDate && (
-                <div className="mt-4 pt-4 border-t border-white/5">
-                    <div className="flex items-center gap-2 text-zinc-500 text-xs">
-                        <Calendar className="w-3 h-3" />
-                        <span>Membre depuis le <span className="text-zinc-400 font-medium">{format(joinedDate, "d MMMM yyyy", { locale: fr })}</span></span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

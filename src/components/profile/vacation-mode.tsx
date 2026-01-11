@@ -211,7 +211,7 @@ export function VacationMode({
                     </div>
 
                     {/* Discord Notification Button */}
-                    {isOnVacation && guildId && profileId && (
+                    {startDate && guildId && profileId && (
                         <Button
                             variant="outline"
                             onClick={handleSendNotification}

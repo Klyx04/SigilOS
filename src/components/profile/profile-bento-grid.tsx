@@ -131,7 +131,7 @@ export function ProfileBentoGrid({
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Row 1 */}
+            {/* Row 1: The Three Pillars (Identity, Class, Jobs) */}
             <IdentityCard
                 avatarUrl={user.image}
                 displayName={displayName}
@@ -148,41 +148,43 @@ export function ProfileBentoGrid({
                 readOnly={readOnly}
             />
 
-            <ActivityStats
-                xp={stats.xp}
-                weeklyXp={stats.weeklyXp}
-                missionsValidated={stats.missionsValidated}
-                weeklyMissions={stats.weeklyMissions}
-            />
-
-            {/* Row 2 */}
-            <div className="md:col-span-2">
-                <JobsGrid
-                    jobs={localProfile.metiers || []}
-                    forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                    onSaveJobs={handleJobsSave}
-                    onSaveForgemagieStatus={handleForgemagieStatusSave}
-                    readOnly={readOnly}
-                />
-            </div>
-
-            <VacationMode
-                vacationStart={localProfile.vacationStart}
-                vacationEnd={localProfile.vacationEnd}
-                vacationNotify={localProfile.vacationNotify}
-                onSave={handleVacationSave}
+            <JobsGrid
+                jobs={localProfile.metiers || []}
+                forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                onSaveJobs={handleJobsSave}
+                onSaveForgemagieStatus={handleForgemagieStatusSave}
                 readOnly={readOnly}
-                guildId={guildId}
-                pseudo={displayName}
-                profileId={profile.id}
             />
 
-            {/* Row 3 */}
-            <div className="md:col-span-2 xl:col-span-3">
+            {/* Row 2: Availability & Activity */}
+
+            {/* Heatmap takes 2 columns */}
+            <div className="md:col-span-2">
                 <AvailabilityHeatmap
                     availability={localProfile.availability || {}}
                     onSave={handleAvailabilitySave}
                     readOnly={readOnly}
+                />
+            </div>
+
+            {/* Stats & Vacation stacked in 3rd column */}
+            <div className="flex flex-col gap-6">
+                <ActivityStats
+                    xp={stats.xp}
+                    weeklyXp={stats.weeklyXp}
+                    missionsValidated={stats.missionsValidated}
+                    weeklyMissions={stats.weeklyMissions}
+                />
+
+                <VacationMode
+                    vacationStart={localProfile.vacationStart}
+                    vacationEnd={localProfile.vacationEnd}
+                    vacationNotify={localProfile.vacationNotify}
+                    onSave={handleVacationSave}
+                    readOnly={readOnly}
+                    guildId={guildId}
+                    pseudo={displayName}
+                    profileId={profile.id}
                 />
             </div>
         </div>

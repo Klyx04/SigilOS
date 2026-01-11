@@ -69,6 +69,10 @@ model GuildConfig {
   absenceChannelId String?       // Discord channel ID for absence notifications
   metamobApiKey    String?       // Per-guild Metamob API key (optional, falls back to global)
   
+  // Dofus Server Configuration (for Ladder scraping)
+  dofusServerId    String?       // Ex: "295" for Draconiros
+  dofusServerName  String?       // Ex: "Draconiros" (display name)
+  
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -98,7 +102,11 @@ model UserProfile {
   // Gamification
   xp                Int @default(0)
   guildatons        Int @default(0)
-  achievementPoints Int? // Points de succès Dofus (saisie manuelle par l'utilisateur)
+  achievementPoints Int? // Points de succès Dofus (manual or scraped)
+  achievementLastSync DateTime? // Last successful sync from dofus.com
+  
+  // Dofus Identity (for Ladder scraping)
+  dofusPseudo       String? // Pseudo EXACT in-game (case-sensitive)
 
   // Availability Heatmap
   availability Json? // { "lundi": ["matin", "soir"], ... }

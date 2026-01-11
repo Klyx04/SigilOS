@@ -2,116 +2,135 @@
 
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
-import { Crown, Medal } from "lucide-react";
+import { Crown, Medal, Trophy } from "lucide-react";
 
 type Props = {
     entry: LadderEntry;
     valueLabel: string;
-    progress: number;
-    accentColor: "purple" | "cyan" | "amber";
+    accentColor: "purple" | "cyan";
 };
 
-export function LeaderboardCard({ entry, valueLabel, progress, accentColor }: Props) {
+export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     const colorClasses = {
         purple: {
-            bg: "from-purple-500/10 to-purple-500/5",
-            border: "border-purple-500/20",
-            progress: "bg-gradient-to-r from-purple-600 to-purple-400",
-            text: "text-purple-300",
-            highlight: "ring-2 ring-purple-500/50 bg-purple-500/10"
+            bg: "from-purple-500/5 via-purple-500/10 to-transparent",
+            border: "border-purple-500/30",
+            rankBg: "bg-purple-500/20",
+            rankText: "text-purple-300",
+            valueBg: "bg-purple-500/10",
+            valueText: "text-purple-200",
+            highlight: "ring-2 ring-purple-400/60 bg-purple-500/15 shadow-purple-500/20"
         },
         cyan: {
-            bg: "from-cyan-500/10 to-cyan-500/5",
-            border: "border-cyan-500/20",
-            progress: "bg-gradient-to-r from-cyan-600 to-cyan-400",
-            text: "text-cyan-300",
-            highlight: "ring-2 ring-cyan-500/50 bg-cyan-500/10"
-        },
-        amber: {
-            bg: "from-amber-500/10 to-amber-500/5",
-            border: "border-amber-500/20",
-            progress: "bg-gradient-to-r from-amber-600 to-amber-400",
-            text: "text-amber-300",
-            highlight: "ring-2 ring-amber-500/50 bg-amber-500/10"
+            bg: "from-cyan-500/5 via-cyan-500/10 to-transparent",
+            border: "border-cyan-500/30",
+            rankBg: "bg-cyan-500/20",
+            rankText: "text-cyan-300",
+            valueBg: "bg-cyan-500/10",
+            valueText: "text-cyan-200",
+            highlight: "ring-2 ring-cyan-400/60 bg-cyan-500/15 shadow-cyan-500/20"
         }
     };
 
     const colors = colorClasses[accentColor];
 
-    const getRankIcon = () => {
-        if (entry.rank === 1) return <Crown className="h-5 w-5 text-yellow-400 animate-pulse" />;
-        if (entry.rank === 2) return <Medal className="h-5 w-5 text-gray-300" />;
-        if (entry.rank === 3) return <Medal className="h-5 w-5 text-amber-600" />;
-        return <span className="text-sm font-mono text-muted-foreground w-5 text-center">{entry.rank}</span>;
+    const getRankDisplay = () => {
+        if (entry.rank === 1) {
+            return {
+                icon: <Crown className="h-5 w-5 text-yellow-400" />,
+                emoji: "🥇",
+                bgClass: "bg-gradient-to-br from-yellow-500/30 to-yellow-600/10 border-yellow-400/40"
+            };
+        }
+        if (entry.rank === 2) {
+            return {
+                icon: <Medal className="h-5 w-5 text-gray-300" />,
+                emoji: "🥈",
+                bgClass: "bg-gradient-to-br from-gray-400/30 to-gray-500/10 border-gray-300/40"
+            };
+        }
+        if (entry.rank === 3) {
+            return {
+                icon: <Medal className="h-5 w-5 text-amber-500" />,
+                emoji: "🥉",
+                bgClass: "bg-gradient-to-br from-amber-600/30 to-amber-700/10 border-amber-500/40"
+            };
+        }
+        return {
+            icon: <Trophy className="h-4 w-4 opacity-50" />,
+            emoji: null,
+            bgClass: colors.rankBg
+        };
     };
 
-    const getRankBadge = () => {
-        if (entry.rank === 1) return "🥇";
-        if (entry.rank === 2) return "🥈";
-        if (entry.rank === 3) return "🥉";
-        return null;
-    };
+    const rankDisplay = getRankDisplay();
 
     return (
         <div
             className={cn(
-                "relative p-4 rounded-xl border backdrop-blur-sm transition-all duration-300",
-                "bg-gradient-to-r",
+                "group relative overflow-hidden rounded-xl border backdrop-blur-sm transition-all duration-300",
+                "bg-gradient-to-br",
                 colors.bg,
                 colors.border,
                 entry.isCurrentUser && colors.highlight,
-                "hover:scale-[1.01] hover:shadow-lg"
+                entry.isCurrentUser && "shadow-lg",
+                "hover:scale-[1.02] hover:shadow-md"
             )}
         >
-            {/* Rank Badge for Top 3 */}
-            {getRankBadge() && (
-                <div className="absolute -top-2 -left-2 text-2xl animate-bounce">
-                    {getRankBadge()}
-                </div>
-            )}
-
-            <div className="flex items-center gap-4">
-                {/* Rank */}
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-black/20">
-                    {getRankIcon()}
+            <div className="p-4 flex items-center gap-4">
+                {/* Rank Badge */}
+                <div className={cn(
+                    "relative flex items-center justify-center w-14 h-14 rounded-xl border-2 shrink-0 transition-transform group-hover:scale-110",
+                    rankDisplay.bgClass
+                )}>
+                    {rankDisplay.emoji ? (
+                        <span className="text-2xl">{rankDisplay.emoji}</span>
+                    ) : (
+                        <>
+                            {rankDisplay.icon}
+                            <span className={cn("absolute bottom-1 right-1 text-xs font-bold", colors.rankText)}>
+                                #{entry.rank}
+                            </span>
+                        </>
+                    )}
                 </div>
 
                 {/* User Info */}
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-1">
                         <span
                             className={cn(
-                                "font-semibold truncate",
-                                entry.isCurrentUser && "text-primary"
+                                "font-semibold text-base truncate",
+                                entry.isCurrentUser && "text-white"
                             )}
                             style={entry.discordRoleColor ? { color: `#${entry.discordRoleColor.toString(16).padStart(6, '0')}` } : undefined}
                         >
                             {entry.discordNickname || "Membre"}
                         </span>
                         {entry.isCurrentUser && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/30 text-primary font-medium shrink-0">
                                 VOUS
                             </span>
                         )}
-                        {entry.classe && (
-                            <span className="text-xs text-muted-foreground">
-                                • {entry.classe}
-                            </span>
-                        )}
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="mt-2 h-2 bg-black/20 rounded-full overflow-hidden">
-                        <div
-                            className={cn("h-full rounded-full transition-all duration-500", colors.progress)}
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                        />
-                    </div>
+                    {(entry.pseudoDofus || entry.classe) && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {entry.pseudoDofus && <span>{entry.pseudoDofus}</span>}
+                            {entry.pseudoDofus && entry.classe && <span>•</span>}
+                            {entry.classe && <span>{entry.classe}</span>}
+                        </div>
+                    )}
                 </div>
 
-                {/* Value */}
-                <div className={cn("text-right font-mono font-bold", colors.text)}>
-                    {valueLabel}
+                {/* Value Badge */}
+                <div className={cn(
+                    "px-4 py-2 rounded-lg border shrink-0",
+                    colors.valueBg,
+                    colors.border
+                )}>
+                    <div className={cn("text-sm font-mono font-bold whitespace-nowrap", colors.valueText)}>
+                        {valueLabel}
+                    </div>
                 </div>
             </div>
         </div>

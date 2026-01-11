@@ -533,7 +533,18 @@ export async function validateSubmission(
             include: { profile: true }
         });
 
-        // 3. Notify User
+        // 3. If validated, add XP to user profile
+        if (status === "VALIDATED") {
+            const xpReward = submission.mission.xpReward || 0;
+            if (xpReward > 0) {
+                await db.userProfile.update({
+                    where: { id: updatedSubmission.profileId },
+                    data: { xp: { increment: xpReward } }
+                });
+            }
+        }
+
+        // 4. Notify User
         if (updatedSubmission.profile.userId) {
             const notifType = status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED";
             const resultMsg = status === "VALIDATED" ? "validée !" : "refusée.";

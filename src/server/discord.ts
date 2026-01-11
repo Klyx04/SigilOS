@@ -111,8 +111,10 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     }
 
     return (await res.json()) as {
-        user: { id: string; username: string };
+        user?: { id: string; username: string; global_name?: string };
+        nick?: string | null;
         roles: string[];
+        joined_at?: string;
     };
 }
 

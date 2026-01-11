@@ -1,0 +1,112 @@
+Module Archimonstre
+
+source : 
+
+https://www.dofuspourlesnoobs.com/dofus-ocre.html : site communautaire sur le dofus ocre
+https://www.metamob.fr/aide/api : site communautaire pour gérer ses archimonstres avec une API dispo
+
+Ceci est une proposition tu adaptera et améliorera en fonction du contexte actuelle de notre application
+
+N'halucine pas et demande si besoin d'eclairissement avant de coder
+N'oublies pas d'implémenter la partie RBAC sur ce module également
+
+📄 Architecture Fonctionnelle : Module Communautaire "Ocre"
+1. Philosophie & Objectifs
+L'objectif est de créer une passerelle intelligente entre ton application de guilde et les données Metamob de tes membres, sans réinventer la roue.
+
+Source de Vérité : Metamob reste la référence. On ne duplique pas la base de données des monstres, on la consulte en temps réel.
+
+Valeur Ajoutée : Le croisement des données. Metamob permet à un joueur de gérer sa collection ; ton module permet à la guilde de savoir qui peut aider qui instantanément.
+
+2. Parcours Utilisateur (User Flow)
+A. Configuration (Page Profil Perso)
+Pour participer au module, le membre doit lier son compte Metamob à son profil de guilde.
+
+Saisie : Sur sa page profil, le membre renseigne son Pseudo Metamob (distinct du pseudo en jeu).
+
+Vérification de Sécurité :
+
+Le système effectue un appel test immédiat vers l'API Metamob.
+
+Si Profil Privé/Inexistant : Le système bloque l'enregistrement et invite l'utilisateur à passer son profil Metamob en "Public" dans ses réglages.
+
+Si Succès : Le pseudo est enregistré en base de données.
+
+Statut : Un indicateur visuel (Badge "Metamob Lié ✅") confirme l'activation sur le profil.
+
+B. Le Hub "Bourse aux Archis" (Page Communautaire)
+Ce module est le cœur du système. Il ne s'agit pas d'une simple liste, mais d'un outil de matching.
+
+Fonctionnalité Principale : Le "Matchmaker"
+L'utilisateur accède à la page et le système croise ses besoins avec les stocks de la guilde.
+
+Vue "Mes Manquants" : Affiche la liste des archimonstres que l'utilisateur ne possède pas (Quantité = 0).
+
+Colonne "Qui peut m'aider ?" : En face de chaque manquant, le système affiche les pseudos des membres possédant ce monstre en doublon (Quantité > 1).
+
+Action Rapide : Un bouton permet de copier une commande MP Dofus pré-formatée (ex: /w Pseudo Est-ce que tu échanges X contre Y ?).
+
+Fonctionnalité Secondaire : Annuaire Global
+Une barre de recherche type "Qui possède Bulbig le Danseur ?".
+
+Résultat : Liste des membres possédant le monstre, avec une distinction visuelle entre ceux qui l'ont en exemplaire unique (collection perso) et ceux qui l'ont en plusieurs exemplaires (disponible à l'échange).
+
+3. Architecture Technique & Data
+Modèle de Données (Base de Données)
+Respect du principe de minimisation des données (GDPR/Sécurité). Nous ne stockons AUCUNE information sur les monstres en local.
+
+Donnée unique stockée : metamob_pseudo (String) dans la table User.
+
+Stratégie "Proxy & Cache" (Backend)
+Le client (navigateur) ne doit jamais appeler Metamob directement pour éviter les problèmes de CORS et protéger les IPs des membres.
+
+Le Proxy Serveur :
+
+Une route API interne agrège les requêtes.
+
+Elle récupère la liste des pseudos Metamob liés.
+
+Elle interroge l'API Metamob uniquement sur les endpoints publics (GET /utilisateurs/{pseudo}/monstres).
+
+Système de Cache (Critique) :
+
+Pour respecter les quotas de l'API Metamob et garantir la rapidité, les données JSON de chaque membre sont mises en cache côté serveur.
+
+Durée de vie (TTL) : ~1 heure.
+
+Logique : Si 10 membres chargent la page en même temps, le serveur ne fait pas 10 appels à Metamob, mais sert la version en mémoire.
+
+Normalisation :
+
+Filtrage strict des données reçues pour ne garder que l'essentiel : id, nom, quantité, image_url.
+
+Calcul des états côté serveur : MANQUANT (0), POSSÉDÉ (1), DOUBLON (>1).
+
+4. Sécurité "By Design"
+Validation des Entrées
+Sanitization : Le champ "Pseudo Metamob" doit être strictement validé (regex alphanumérique) pour empêcher les injections.
+
+Échappement : Les données textuelles renvoyées par l'API externe (noms des monstres) sont traitées comme non sûres et échappées avant affichage.
+
+Rate Limiting & Protection
+Protection de l'IP Serveur : Implémentation d'une file d'attente pour les requêtes sortantes vers Metamob (batching) afin d'éviter le bannissement IP pour "spam API".
+
+Moindre Privilège : On ne demande jamais la clé API privée de l'utilisateur (celle permettant l'édition). On se limite strictement à la lecture publique.
+
+Confidentialité
+Droit à l'oubli : Si un membre supprime son compte ou quitte la guilde, le lien vers son profil Metamob est rompu instantanément.
+
+5. UI / UX & Design
+Pour l'interface, l'objectif est la lisibilité immédiate :
+
+Iconographie : Utilisation des miniatures des archimonstres (récupérées via l'API).
+
+Code Couleur Intuitif :
+
+🔴 Rouge : Manquant (Recherché).
+
+🟢 Vert : Possédé (Validé).
+
+🟡 Or : Doublon (Disponible à l'échange).
+
+Responsive : Sur mobile, le tableau croisé disparaît au profit d'une vue simplifiée "Mes Manquants" avec un bouton d'action pour trouver un vendeur.

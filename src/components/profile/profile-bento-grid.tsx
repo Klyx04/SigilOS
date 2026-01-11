@@ -7,6 +7,7 @@ import { JobsGrid } from "./jobs-grid";
 import { ActivityStats } from "./activity-stats";
 import { AvailabilityHeatmap } from "./availability-heatmap";
 import { VacationMode } from "./vacation-mode";
+import { MetamobLink } from "./metamob-link";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import type { AvailabilityMap, ForgemagieStatusId } from "@/lib/dofus-assets";
@@ -23,6 +24,9 @@ interface ProfileBentoGridProps {
         vacationStart?: Date | null;
         vacationEnd?: Date | null;
         vacationNotify?: boolean;
+        metamobPseudo?: string | null;
+        metamobVerified?: boolean;
+        metamobLastSync?: Date | null;
     };
     user: {
         name?: string | null;
@@ -172,6 +176,14 @@ export function ProfileBentoGrid({
                         guildId={guildId}
                         pseudo={displayName}
                         profileId={profile.id}
+                    />
+
+                    <MetamobLink
+                        guildId={guildId}
+                        metamobPseudo={profile.metamobPseudo}
+                        metamobVerified={profile.metamobVerified}
+                        metamobLastSync={profile.metamobLastSync}
+                        readOnly={readOnly}
                     />
                 </div>
 

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getMemberProfile, getProfileStats } from "@/server/actions/profile-actions";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
+import { ArchiMatchingWidget } from "@/components/profile/archi-matching-widget";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
 
 export default async function MemberProfilePage({
@@ -39,12 +40,13 @@ export default async function MemberProfilePage({
     // Role color from Discord
     const roleColor = profile.discordInfo?.roleColor || 0;
     const discordNickname = profile.discordInfo?.nickname || null;
+    const displayName = discordNickname || profile.pseudoDofus || profile.user.name || "Membre";
 
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Profil de {discordNickname || profile.pseudoDofus || profile.user.name}</h1>
+                    <h1 className="text-2xl font-bold">Profil de {displayName}</h1>
                     <p className="text-sm text-zinc-400">Profil en lecture seule</p>
                 </div>
             </div>
@@ -72,6 +74,14 @@ export default async function MemberProfilePage({
                 roleColor={roleColor}
                 readOnly={true}
             />
+
+            {/* Archi Matching Widget - shows potential exchanges */}
+            <ArchiMatchingWidget
+                guildId={guildId}
+                profileId={profileId}
+                ownerDisplayName={displayName}
+            />
         </div>
     );
 }
+

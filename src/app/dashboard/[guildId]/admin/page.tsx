@@ -122,6 +122,31 @@ export default async function AdminPage({
                             </svg>
                         </div>
                     </a>
+
+                    <a
+                        href={`/dashboard/${targetGuildId}/admin/archimonstres`}
+                        className="group block p-6 bg-zinc-900/60 border border-white/10 rounded-xl hover:border-amber-500/50 hover:bg-amber-500/5 transition-all"
+                    >
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-amber-500/10 rounded-lg">
+                                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                            </div>
+                            <h3 className="font-semibold text-white group-hover:text-amber-400 transition-colors">
+                                Clé API Metamob
+                            </h3>
+                        </div>
+                        <p className="text-sm text-zinc-400">
+                            Configurez une clé API Metamob spécifique à votre guilde.
+                        </p>
+                        <div className="mt-4 flex items-center text-xs text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span>Configurer</span>
+                            <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>

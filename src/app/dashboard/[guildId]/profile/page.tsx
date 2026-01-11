@@ -69,6 +69,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         vacationStart: profile.vacationStart ? new Date(profile.vacationStart) : null,
                         vacationEnd: profile.vacationEnd ? new Date(profile.vacationEnd) : null,
                         vacationNotify: profile.vacationNotify || false,
+                        metamobPseudo: profile.metamobPseudo,
+                        metamobVerified: profile.metamobVerified,
+                        metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                     }}
                     user={{
                         name: profile.user.name,

@@ -14,6 +14,9 @@ export const PERMISSIONS = {
 
     // Absence/Vacation
     ABSENCE_CONFIG: "absence:config", // Configure absence notification channel
+
+    // Archimonstres / Quête Ocre
+    ARCHIS_VIEW: "archis:view", // Accès à la Bourse aux Archis
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -51,6 +54,10 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.ABSENCE_CONFIG]: {
         label: "Configurer Absences",
         description: "Configurer le salon Discord pour les notifications d'absence.",
+    },
+    [PERMISSIONS.ARCHIS_VIEW]: {
+        label: "Bourse aux Archis",
+        description: "Accès au module d'échange d'archimonstres (Quête Ocre).",
     },
 };
 

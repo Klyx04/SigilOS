@@ -67,6 +67,7 @@ model GuildConfig {
   isActive         Boolean       @default(true)
   rolesMapping     Json          @default("{}") // Record<DiscordRoleId, PermissionId[]>
   absenceChannelId String?       // Discord channel ID for absence notifications
+  metamobApiKey    String?       // Per-guild Metamob API key (optional, falls back to global)
   
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -116,6 +117,11 @@ model UserProfile {
   discordRoleColor      Int?
   discordJoinedAt       DateTime?
   discordCacheUpdatedAt DateTime?
+
+  // Metamob Integration (Archimonstres)
+  metamobPseudo     String?   // Pseudo Metamob (peut être différent du pseudo Dofus)
+  metamobVerified   Boolean   @default(false)  // Compte validé via API
+  metamobLastSync   DateTime? // Dernière synchronisation du cache
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

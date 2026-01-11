@@ -23,12 +23,15 @@ export default async function MemberProfilePage({
     const profile = profileResult.data;
 
     // Build stats object
+    // Build stats object
     const stats = {
         xp: profile.xp || 0,
+        weeklyXp: profile.weeklyXp || 0,
         missionsValidated: profile.validatedMissionsCount || 0,
+        weeklyMissions: profile.weeklyMissions || 0,
         joinedAt: profile.discordInfo?.joinedAt ? new Date(profile.discordInfo.joinedAt) : null,
         lastActivity: profile.lastActivityAt
-            ? { description: profile.lastActivityDesc || "Activité", date: new Date(profile.lastActivityAt) }
+            ? { description: "Activité", date: new Date(profile.lastActivityAt) }
             : null,
         isTopContributor: (profile.xp || 0) >= 1000,
     };

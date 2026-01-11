@@ -24,7 +24,7 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string().max(30).optional(),
     classe: z.string().optional(),
-    classeSecondaires: z.array(z.string()).max(3).optional(),
+    classeSecondaires: z.array(z.string()).optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
 });
@@ -149,10 +149,32 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
             }
         }
 
-        // Count validated missions
-        const validatedMissionsCount = await db.submission.count({
-            where: { profileId: profile.id, status: "VALIDATED" }
+        // Get Start of Week (Monday)
+        const now = new Date();
+        const day = now.getDay(); // 0 (Sun) - 6 (Sat)
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        // Fetch validated submissions with mission data for XP calculation (Total & Weekly)
+        const allValidatedSubmissions = await db.submission.findMany({
+            where: {
+                profileId: profile.id,
+                status: "VALIDATED"
+            },
+            include: {
+                mission: {
+                    select: { xpReward: true }
+                }
+            }
         });
+
+        const weeklySubmissions = allValidatedSubmissions.filter(s => s.updatedAt >= startOfWeek);
+        const weeklyMissions = weeklySubmissions.length;
+        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission.xpReward || 0), 0);
+
+        // Count validated missions (Total)
+        const validatedMissionsCount = allValidatedSubmissions.length;
 
         return {
             success: true,
@@ -161,6 +183,8 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
                 discordInfo,
                 validatedMissionsCount,
+                weeklyMissions,
+                weeklyXp
             }
         };
     } catch (error) {

@@ -528,7 +528,8 @@ export async function validateSubmission(
             data: {
                 status,
                 validatorId: session!.user!.id,
-                proofUrl: "" // Clear the URL since file is gone
+                proofUrl: "", // Clear the URL since file is gone
+                updatedAt: new Date() // Force update time for stats
             },
             include: { profile: true }
         });

@@ -19,6 +19,7 @@ export type UserContext = {
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
+    joinedAt?: Date | null;
 };
 
 export async function getUserContext(guildId?: string): Promise<UserContext> {
@@ -109,9 +110,10 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     let roleName = "Membre";
 
     let displayName = session.user.name || "Voyageur";
+    let member: any = null;
 
     if (memberRes.ok) {
-        const member = await memberRes.json();
+        member = await memberRes.json();
         memberRoles = member.roles;
 
         // Prioritize Server Nickname > Global Name > Username
@@ -184,6 +186,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         canViewRoster,
         isAdmin,
         isMember: memberRes.ok,
-        guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu"
+        guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",
+        joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null
     };
 };

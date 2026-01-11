@@ -11,6 +11,9 @@ export const PERMISSIONS = {
     // User Profile
     PROFILE_VIEW_ALL: "profile:view_all", // See full guild roster
     PROFILE_UPDATE_SELF: "profile:update_self", // Edit own profile
+
+    // Absence/Vacation
+    ABSENCE_CONFIG: "absence:config", // Configure absence notification channel
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -44,6 +47,10 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.PROFILE_UPDATE_SELF]: {
         label: "Modifier Profil",
         description: "Mettre à jour ses propres infos (Pseudo, Métiers...).",
+    },
+    [PERMISSIONS.ABSENCE_CONFIG]: {
+        label: "Configurer Absences",
+        description: "Configurer le salon Discord pour les notifications d'absence.",
     },
 };
 

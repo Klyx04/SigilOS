@@ -60,40 +60,68 @@ model User {
 // -- SigilOS Core Models --
 
 model GuildConfig {
-  id             String        @id @default(cuid())
-  discordGuildId String        @unique
-  name           String
-  iconUrl        String?
-  isActive       Boolean       @default(true)
-  rolesMapping   Json          @default("{}") // Record<DiscordRoleId, PermissionId[]>
+  id               String        @id @default(cuid())
+  discordGuildId   String        @unique
+  name             String
+  iconUrl          String?
+  isActive         Boolean       @default(true)
+  rolesMapping     Json          @default("{}") // Record<DiscordRoleId, PermissionId[]>
+  absenceChannelId String?       // Discord channel ID for absence notifications
   
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  profiles       UserProfile[]
-  missions       Mission[]
+  profiles         UserProfile[]
+  missions         Mission[]
 }
 
 model UserProfile {
-  id          String      @id @default(cuid())
-  userId      String
-  guildId     String
-  
-  status      ProfileStatus @default(ACTIVE)
-  
-  pseudoDofus String?
-  classe      String?
-  metiers     Json?       // List of enabled jobs (e.g. ["Costumage", "Alchimiste"])
-  succes      Json?       // List of validated achievements
-  
-  xp          Int         @default(0) // Experience points
-  guildatons  Int         @default(0) // Currency
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  userId  String
+  guildId String
+
+  status ProfileStatus @default(ACTIVE)
+
+  // Identity
+  pseudoDofus       String?
+  classe            String?
+  classeSecondaires Json? // String[] - Up to 3 alt classes
+
+  // Jobs & Crafting
+  metiers          Json? // String[] - List of max-level jobs
+  forgemagieStatus String? @default("UNAVAILABLE") // "FREE" | "PAID" | "UNAVAILABLE"
+
+  // Achievements (V2)
+  succes Json? // List of validated achievements
+
+  // Gamification
+  xp         Int @default(0)
+  guildatons Int @default(0)
+
+  // Availability Heatmap
+  availability Json? // { "lundi": ["matin", "soir"], ... }
+
+  // Vacation Mode
+  vacationStart  DateTime?
+  vacationEnd    DateTime?
+  vacationNotify Boolean   @default(false)
+
+  // Activity Tracking
+  lastActivityAt   DateTime?
+  lastActivityDesc String?
+
+  // Discord Cache (refreshed periodically)
+  discordNickname       String?
+  discordRoleName       String?
+  discordRoleColor      Int?
+  discordJoinedAt       DateTime?
+  discordCacheUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
   submissions Submission[]
   interests   MissionInterest[]
 

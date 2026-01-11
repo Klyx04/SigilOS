@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords, Gavel } from "lucide-react";
+import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords, Gavel, Palmtree } from "lucide-react";
 import { UserWidget } from "./user-widget";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -72,7 +72,7 @@ export function AppSidebar({ className, user, guildId }: Props) {
                                 variant="ghost"
                                 className={cn(
                                     "w-full justify-start gap-3 h-12 text-base font-medium",
-                                    isActive(`/dashboard/${guildId}/admin`)
+                                    isActive(`/dashboard/${guildId}/admin`) && !isActive(`/dashboard/${guildId}/admin/absence`)
                                         ? "bg-amber-500/10 text-amber-500 border-r-2 border-amber-500 rounded-r-none"
                                         : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-500"
                                 )}
@@ -93,6 +93,20 @@ export function AppSidebar({ className, user, guildId }: Props) {
                             >
                                 <Swords className="h-5 w-5 text-amber-500" />
                                 Gestion Missions
+                            </Button>
+                        </Link>
+                        <Link href={`/dashboard/${guildId}/admin/absence`} onClick={() => setMobileOpen(false)}>
+                            <Button
+                                variant="ghost"
+                                className={cn(
+                                    "w-full justify-start gap-3 h-12 text-base font-medium",
+                                    isActive(`/dashboard/${guildId}/admin/absence`)
+                                        ? "bg-cyan-500/10 text-cyan-400 border-r-2 border-cyan-400 rounded-r-none"
+                                        : "text-muted-foreground hover:bg-cyan-500/5 hover:text-cyan-400"
+                                )}
+                            >
+                                <Palmtree className="h-5 w-5 text-cyan-400" />
+                                Gestion Absences
                             </Button>
                         </Link>
                     </div>

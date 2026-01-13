@@ -20,6 +20,11 @@ export const PERMISSIONS = {
 
     // Ladder / Classements
     LADDER_VIEW: "ladder:view", // Accès aux classements de guilde
+
+    // Songes Infinis
+    SONGES_VIEW: "songes:view", // Accès à la page Songes
+    SONGES_CREATE: "songes:create", // Créer une run
+    SONGES_JOIN: "songes:join", // Envoyer une demande pour rejoindre une run
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -65,6 +70,18 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.LADDER_VIEW]: {
         label: "Classements",
         description: "Accès aux ladders de guilde (Activité, Ancienneté, Succès).",
+    },
+    [PERMISSIONS.SONGES_VIEW]: {
+        label: "Songes Infinis",
+        description: "Accès à la page Songes Infinis et visualisation des runs.",
+    },
+    [PERMISSIONS.SONGES_CREATE]: {
+        label: "Créer Runs Songes",
+        description: "Créer et gérer ses propres runs Songes Infinis.",
+    },
+    [PERMISSIONS.SONGES_JOIN]: {
+        label: "Rejoindre Runs Songes",
+        description: "Envoyer des demandes pour rejoindre les runs d'autres joueurs.",
     },
 };
 

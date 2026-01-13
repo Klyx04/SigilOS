@@ -73,6 +73,9 @@ model GuildConfig {
   dofusServerId    String?       // Ex: "295" for Draconiros
   dofusServerName  String?       // Ex: "Draconiros" (display name)
   
+  // Songes Module Configuration
+  songesNotifyChannelId String?  // Discord channel ID for Songes join request notifications
+  
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -295,6 +298,7 @@ enum NotificationType {
   MISSION_REJECTED
   NEW_SUBMISSION_PENDING
   SYSTEM_INFO
+  SONGES_JOIN_REQUEST // New candidature for Songes run
 }
 
 model Notification {
@@ -311,4 +315,156 @@ model Notification {
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
+}
+
+// -- SONGES MODULE --
+
+model DreamRun {
+  id              String           @id @default(cuid())
+  guildId         String           // Multi-tenant isolation
+  leaderId        String           // User who created the run
+  
+  // Configuration
+  difficulty      DreamDifficulty
+  objective       DreamObjective   @default(FUN)
+  
+  // State
+  status          DreamRunStatus   @default(RECRUITING)
+  currentFloor    Int              @default(0)  // 0 = not started, 1-26 = in progress
+  pointsReve      Int              @default(0)  // Accumulated dream points
+  
+  // Timestamps
+  createdAt       DateTime         @default(now())
+  startedAt       DateTime?        // When run actually started
+  completedAt     DateTime?        // When run ended (victory/defeat/abandon)
+  
+  // Notification settings
+  notifyOnJoinRequest Boolean @default(true)
+  
+  // Relations
+  members         DreamRunMember[]
+  waitlist        DreamWaitlist[]
+  floors          DreamFloor[]
+  bonuses         DreamRunBonus[]
+  joinRequests    DreamJoinRequest[]
+  
+  @@index([guildId, status])
+  @@index([leaderId])
+}
+
+model DreamRunMember {
+  id              String   @id @default(cuid())
+  runId           String
+  userId          String   // Reference to User.id
+  slot            Int      // 1-4 (position in team)
+  joinedAt        DateTime @default(now())
+  
+  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@unique([runId, userId])
+  @@unique([runId, slot])
+}
+
+model DreamWaitlist {
+  id              String   @id @default(cuid())
+  runId           String
+  userId          String   // Reference to User.id
+  position        Int      // Position in queue (1 = first)
+  createdAt       DateTime @default(now())
+  
+  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@unique([runId, userId])
+  @@index([runId, position])
+}
+
+model DreamFloor {
+  id              String   @id @default(cuid())
+  runId           String
+  floorNumber     Int      // 1-26
+  
+  // Room info
+  roomType        DreamRoomType
+  difficulty      Int?     // Difficulty score (5-60) for combat rooms
+  
+  // Results
+  pointsReveGained Int     @default(0)
+  completedAt     DateTime @default(now())
+  
+  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@unique([runId, floorNumber])
+}
+
+model DreamRunBonus {
+  id              String   @id @default(cuid())
+  runId           String
+  bonusName       String   // Name from bonus_songes.json
+  bonusType       String   // passif, actif, bonus, consommable
+  bonusRarete     String   // Commun, Rare, Épique, Légendaire
+  cost            Int      // Points de Rêve spent
+  acquiredAt      DateTime @default(now())
+  
+  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@index([runId])
+}
+
+// -- SONGES ENUMS --
+
+enum DreamDifficulty {
+  REVE_I
+  REVE_II
+  REVE_III
+  PARADOXE_I
+  PARADOXE_II
+  PARADOXE_III
+  PARADOXE_IV
+  CAUCHEMAR_I
+  CAUCHEMAR_II
+  CAUCHEMAR_III
+}
+
+enum DreamObjective {
+  MISSION_GUILDE    // Weekly guild mission
+  DROP_LEGENDE      // Farming legendaries
+  SUCCES_NO_ACHAT   // Achievement (no purchases)
+  FUN               // Just for fun
+}
+
+enum DreamRunStatus {
+  RECRUITING        // Looking for members
+  IN_PROGRESS       // Run active
+  COMPLETED         // Victory (floor 26 cleared)
+  FAILED            // Defeat
+  ABANDONED         // Leader left
+}
+
+enum DreamRoomType {
+  COMBAT            // Monster group
+  FONTAINE          // Shop (buy bonuses)
+  FAVEUR            // Free random bonus
+  BOSS              // Final boss (floor 26)
+}
+
+model DreamJoinRequest {
+  id          String            @id @default(cuid())
+  runId       String
+  userId      String            // User requesting to join
+  classe      String            // Dofus class name
+  message     String?           // Optional message ("Cra opti dispo")
+  status      JoinRequestStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  respondedAt DateTime?
+  
+  run         DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@unique([runId, userId])
+  @@index([runId, status])
+}
+
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

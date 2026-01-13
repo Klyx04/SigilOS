@@ -1,0 +1,562 @@
+[
+    {
+        "rarete": "Légendaire",
+        "nom": "Abjuration",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Chaque PA non utilisé à la fin du tour donne 1 PM au tour suivant (jusqu'à 12 PA).",
+        "effets": "Abjuration (infini) | x PM (1 tour dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Acrobate",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "100% Tacle | 100% Fuite",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Acuité de Crâ",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux pour chaque ennemi en ligne de vue au début du tour d'un allié.Augmente également la Portée pour chaque ennemi ne l'étant pas.",
+        "effets": "5% Dommages finaux (1 tour) | 2 Portée (1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Affûtage",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "20% Dommages d'armes",
+        "cout": 15
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Amnésie",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Réduit la durée des effets sur la cible.Le coût en PA du sort est remboursé.",
+        "effets": "Durée des effets -10 | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours",
+        "cout": 15
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Ardeur",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "10% Dégâts",
+        "cout": 10
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Armure",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "25% Vitalité | 5% Résistance",
+        "cout": 10
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Asthénopie",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Retire de la Portée.Le coût en PA du sort est remboursé.",
+        "effets": "-6 Portée (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 2 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Autorité",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "2 Invocations | 20% Vitalité | 50 niveaux de songeur",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Balance de l'Huppermage",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Lorsqu'un allié occasionne des dommages dans un élément, il augmente ses résistances dans les autres éléments.Lorsqu'il subit des dommages dans un élément, il augmente ses caractéristiques dans les autres éléments.",
+        "effets": "1% Résistance Terre (2 tours) | 1% Résistance Feu (2 tours) | 1% Résistance Eau (2 tours) | 1% Résistance Air (2 tours) | 10% Force (2 tours) | 10% Intelligence (2 tours) | 10% Chance (2 tours) | 10% Agilité (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Belliciste",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "20% Dommages mêlée | 30% Tacle",
+        "cout": 10
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Bras de Morphée x3",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Passe le prochain tour de la cible.Le coût en PA du sort est remboursé. Consomme une ressource du sort",
+        "effets": "Tour annulé (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Bravoure d'Iop",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Les dommages en mêlée d'un allié sont augmentés pour chaque ennemi à son contact à la fin de son tour.",
+        "effets": "5% Dommages finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Brume Onirique",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Pose un glyphe de début de tour qui soigne les alliés en zone.Rend les alliés à l'intérieur du glyphe invisibles.Le coût en PA du sort est remboursé.",
+        "effets": "Pose un glyphe de début de tour (1 tour) (zone cercle de taille 4) | Soin : 10% des PV max (zone cercle de taille 4) | Pose un glyphe-aura (1 tour) (zone cercle de taille 4) | Rend la cible invisible (1 tour) (zone cercle de taille 4) | Rembourse 1 PA",
+        "infos": "1PA. Se lance sur soi-même. Relance de 5 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Carambolage",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "80% Dommages Poussée",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Cravache d'Osamodas",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Occasionner des dommages ou soigner avec une invocation augmente les dommages ou les soins finaux de son invocateur, et inversement.",
+        "effets": "2% Dommages finaux (2 tours) | 2% Soins finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Croissance Onirique",
+        "description": "Augmente le niveau du songeur de 100",
+        "effets": "100 niveaux de songeur",
+        "cout": 10
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Déphasage",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Rend la cible Invulnérable et invisible.Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat.",
+        "effets": "État Invulnérable (1 tour) | Rend la cible invisible (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Dés d'Ecaflip",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Applique des bonus aléatoires au début du tour d'un allié :Dommages finaux et PousséeSoins finaux et CritiqueRésistancesPortée et InvocationsPAPMFuite et EsquivesTacle et Retrait",
+        "effets": "25% Dommages finaux (1 tour, aléatoire) | 250 Dommages Poussée (1 tour, aléatoire) | 50% Soins finaux (1 tour, aléatoire) | 777% Critique (1 tour, aléatoire) | 25% Résistance mêlée (1 tour, aléatoire) | 25% Résistance distance (1 tour, aléatoire) | 5 Portée (1 tour, aléatoire) | 5 Invocations (1 tour, aléatoire) | 3 PA (1 tour, aléatoire) | 3 PM (1 tour, aléatoire) | 100 Fuite (1 tour, aléatoire) | 100 Esquive PA (1 tour, aléatoire) | 100 Esquive PM (1 tour, aléatoire) | 100 Tacle (1 tour, aléatoire) | 100 Retrait PA (1 tour, aléatoire) | 100 Retrait PM (1 tour, aléatoire)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Domi Reversi x1",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Change la cible d'équipe jusqu'au début du prochain tour du lanceur.Le coût en PA du sort est remboursé. Consomme une ressource du sort.",
+        "effets": "Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Égide Féca",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Applique un bouclier sur un allié et ceux alignés avec lui à la fin de son tour.",
+        "effets": "Bouclier : 200% du niveau (1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Endurance",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "20% Soins finaux | 40% Vitalité",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Entourloupe du Roublard",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux des alliés après chaque tour de jeu.Les effets se réinitialisent tous les 4 tours en augmentant les dommages reçus par les ennemis en zone autour des alliés.",
+        "effets": "5% Dommages finaux (1 tour) (dans 1 tour) | 10% Dommages finaux (1 tour) (dans 2 tours) | 25% Dommages finaux (1 tour) (dans 3 tours) | Dommages subis x125% (dans 4 tours) (zone de taille 2)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Épargne d'Enutrof",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Utiliser des PM augmente les dommages finaux.Ne pas en dépenser les transfère au tour suivant (jusqu'à 6 PM).",
+        "effets": "1% Dommages finaux (2 tours) | x PM (1 tour dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Errance Eliotrope",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Soigne les alliés et augmente leurs dommages finaux lorsqu'ils échangent de positions ou sont téléportés.",
+        "effets": "Soin : 5% des PV max | 3% Dommages finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Évasion",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "2PM | 50% Fuite",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Éventail de Pandawa",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Chaque PA ou PM non utilisé augmente les dommages et soins finaux aux tours suivants.",
+        "effets": "2% Dommages finaux (2 tours, dans 1 tour) | 2% Soins finaux (2 tours, dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Frénésie d'Ouginak",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente autant les PM d'un allié que de cases d'éloignement entre l'ennemi le plus proche de lui et lui-même (jusqu'à 6 PM) à chaque début de tour.Occasionner des dommages en mêlée augmente également les résistances.",
+        "effets": "x PM (1 tour) zone infinie | 1% Résistance mêlée (2 tours) | 1% Résistance distance (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Hystérie du Zobal",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux sur les tours pairs et applique un bouclier sur les tours impairs.",
+        "effets": "Bouclier : 250% du niveau (1 tour) | 25% Dommages finaux (1 tour, dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Insomnie",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Rend la cible Insoignable.Le coût en PA du sort est remboursé.",
+        "effets": "État Insoignable (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Marchand de Sable",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Réduit tous les temps de relance de 10 tours.Le coût en PA du sort est remboursé. Utilisable une seule fois par combat.",
+        "effets": "??? : -10 tours de relance (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Marteau de Xélor",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux pour chaque tentative de retrait de PA réussie.Chaque PA non utilisé est transféré pour le tour suivant en augmentant le Retrait PA (jusqu'à 12PA).",
+        "effets": "1% Dommages finaux (2 tours) | x PA (1 tour, dans 1 tour) | x % Retrait PA (1 tour, dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Mots d'Eniripsa",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Soigner augmente les dommages finaux et occasionner des dommages augmentent les soins finaux.",
+        "effets": "2% Dommages finaux (2 tours) | 2% Soins finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Narcotique x3",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Applique l'état Pacifiste.Le coût en PA du sort est remboursé. Consomme une ressource du sort.",
+        "effets": "État Pacifiste (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Oblivion x1",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Tue la cible.Le coût en PA du sort est remboursé. Consomme une ressource du sort.",
+        "effets": "Tue la cible | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Omnipotence",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Téléporte le lanceur sur la case ciblée.Le coût en PA du sort est remboursé.",
+        "effets": "Téléporte sur la case ciblée | Rembourse 1 PA",
+        "infos": "1PA. Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Omniscience",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Désactive la ligne de vue de tous les sorts et des armes de tous les alliés.Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat",
+        "effets": "Tous les sorts : ligne de vue désactivée (1 tour) | Toutes les Armes : ligne de vue désactivée (1 tour) | Rembourse 1 PA",
+        "infos": "S'applique à tout le monde. Relance de 5 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Origine du Forgelance",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Invoquer une entité augmente les dommages reçus par les ennemis autour d'elle.Augmente également les dommages finaux de son invocateur à sa mort.",
+        "effets": "Dommages subis x110% (1 tour) (cercle de taille 2) | 3% Dommages finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Pétulance",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "2PA",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Pluie d'Étoiles Filantes",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Augmente les PA des alliés en zone.Le coût en PA du sort est remboursé.",
+        "effets": "3 PA (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Se lance en zone étoile de taille 2. Lançable uniquement à partir du tour 2. Relance de 5 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Poing Météore",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Maximise les effets aléatoires sur la cible et augmente les dégâts qu'elle subit.Le coût en PA du sort est remboursé.",
+        "effets": "Maximise les effets aléatoires sur la cible (1 tour) | Dommages subis x110% (pendant 1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Poupées de Sadida",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux pour chaque tentative de retrait de PM réussie.Chaque PM non utilisé est transféré pour le tour suivant en augmentant le Retrait PM (jusqu'à 6 PM).",
+        "effets": "1% Dommages finaux (2 tours) | x PM (1 tour dans 1 tour) | x % Retrait PM (1 tour dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Précision",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "3 Portée",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Présence Inquiétante",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Applique les effets suivants sur la cible : Ennemie : minimise ses effets aléatoires et réduit ses dégâts occasionnés.Alliée : augmente sa puissance et ses dommages de poussée.Le coût en PA du sort est remboursé.",
+        "effets": "Minimise les effets aléatoires de la cible (1 tour) | -10% Dommages finaux (1 tour) | 500 Puissance (1 tour) | 100 Dommages Poussée (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Refus de la Mort",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Ressuscite le dernier allié mort avec la totalité de sa vie.L'allié ressuscité meurt si le lanceur meurt.Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat.",
+        "effets": "Ressuscite un allié | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue.",
+        "cout": 20
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Résilience de Sacrieur",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Applique un seuil d'un point de vie sur les alliés, les empêchant d'être achevés par la première attaque mortelle subie.Lorsque ce seuil est atteint, il se retire pour soigner et augmente les dommages finaux.",
+        "effets": "Seuil : 1 PV (infini) | Soin : 25% des PV max | 25% Dommages finaux",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Révolution",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Chaque PM non utilisé à la fin du tour donne 1 PA au tour suivant (jusqu'à 6PM).",
+        "effets": "x PA (1 tour dans 1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Sable de Draconiros",
+        "type": "consommable",
+        "type_label": "Consommable",
+        "description": "Vous obtenez 1 x Sable de Draconiros qui permet de retenter une salle après un échec.",
+        "effets": "",
+        "cout": 20
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Sentinelle",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "15% Dommages distance | 30% Fuite",
+        "cout": 15
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Sommeil Écrasant",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Applique l'état Pesanteur sur la cible.Le coût en PA du sort est remboursé.",
+        "effets": "État Pesanteur (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Sommeil Paralysant",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Rend la cible Enraciné.Le coût en PA du sort est remboursé.",
+        "effets": "État Enraciné (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Sommeil Réparateur",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Soigne totalement la cible.Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat",
+        "effets": "Soin : 777% des PV max | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue",
+        "cout": 15
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Somnifère",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Retire des PM non esquivables.Le coût en PA du sort est remboursé.",
+        "effets": "-5 PM (1 tour) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 2 tours.",
+        "cout": 15
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Sournoiserie de Sram",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux de tous les alliés lorsqu'un ennemi est achevé.Rend également un allié invisible s'il achève un ennemi.",
+        "effets": "5% Dommages finaux (infini) | Rend la cible invisible (1 tour)",
+        "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Technomagie du Steamer",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Augmente les dommages finaux pour chaque attirance, poussée, ou échange de position effectué.",
+        "effets": "3% Dommages finaux (2 tours)",
+        "cout": 25
+    },
+    {
+        "rarete": "Rare",
+        "nom": "Tempête Astrale",
+        "type": "consommable",
+        "type_label": "Consommable",
+        "description": "Vous obtenez 1 x Tempête Astrale, qui permet de renouveler les choix de la Fontaine Onirique ou de la Faveur Onirique ou les monstres d'une salle.",
+        "effets": "",
+        "cout": 10
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Trou Blanc",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Rend les alliés intaclable et repousse les cibles depuis le centre en zone.Le coût en PA du sort est remboursé.",
+        "effets": "État intaclable (1 tour) (zone cercle de taille 5) | Repousse de 5 cases (zone cercle de taille 5) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Trou Noir",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Attire les cibles jusqu'au centre et leur applique l'état Pesanteur en zone.Le coût en PA du sort est remboursé.",
+        "effets": "Attire de x cases (cercle de taille 5) | État Pesanteur 1 tour (cercle de taille 5) | Rembourse 1 PA",
+        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "cout": 20
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Veine onirique",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "25% Critique",
+        "cout": 15
+    },
+    {
+        "rarete": "Commun",
+        "nom": "Volonté",
+        "type": "bonus",
+        "type_label": "Bonus",
+        "description": "",
+        "effets": "80% Retrait PA | 50% Retrait PM",
+        "cout": 10
+    }
+]

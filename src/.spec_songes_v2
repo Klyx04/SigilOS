@@ -1,0 +1,46 @@
+Je t'ai poussé dans un concept pour retravailler la 3d 
+Je t'ai poussé le type de salle avec explication
+
+Maintenant les choses qui ne vont pas :
+
+Il faut implémenter la partie rbac avec le bloc de quelles roles ont le droit de voir la page songes infini , qui a le droit de créer une run songes, et qui a le droit de rejoindre une run songe
+
+Page de la vue et création des run : 
+
+Le créateur d'une run songe doit pouvoir détruire sa run si il le souhaites depuis la vue des run 
+La vue d'une RUN doit en plus d'afficher les spots , afficher les pseudos des gens dans la run , ne casse pas tout ajoute ceci
+j'ai créé une run avec un compte , impossible de joindre la run bouton + pas cliquable avec un 2eme compte
+
+Si quelqu'un rejoint la run : il sera validé ou non par le créateur : il ne rejoindra pas la run directement, il pourra selectionner sa classe et écrire un message (cra opti dispo etc) message ecrit sans réelle contrainte, il pourra enregistrer ce message pour envoyer sa demande.
+
+
+
+le créateur sera notifié sur le Dashboard (composant notif déjà existant peut-être à retravailler d'ailleurs) , il aura la possiblité de selectionner une option à la création de la run indiquant : etre notifié quand une personne souhaite rejoindre la run , oui/non , etre notifié également via Discord dans le salon : le salon sera non définissable par le créateur d'une run, il sera défini dans l'administration du Dashboard dans les paramètres des fonctionnalités.
+
+
+
+pas besoin d'afficher bonus et point de reve sur la carte d'une run
+Sinon c'est bien pour cette page
+
+la vue d'une run : 
+
+bien pour le 1er composant en haut
+j'ajouterai encore une fois clairement les pseudos des gens dans la run en plus
+Il est indiqué que j'ai 127 points de rêve tu as haluciné la dessus
+
+Dans la vue, sur le composant à droite: les slots libre pas cliquable
+
+La vue en 3d : les étages ne sont pas bon mais comme indiqué au début de ce document : il faut revoir la vue
+rien n'était éditable niveau étage, il ne faut pas afficher de choses inventés ou aléatoire sur les etages etc
+
+Dans le composant Bonus 
+Ajoute des sous filtres dans les bonus,passif,actif,consommable
+
+dans actif : Épique / Légendaire
+dans passif : pas besoin car uniquement légendaire
+dans bonus : Commun / Rare / Épique
+dans Consommable : Épique / Rare
+
+
+
+

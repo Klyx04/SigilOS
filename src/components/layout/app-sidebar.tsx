@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords, Gavel, Palmtree, Bug, Trophy } from "lucide-react";
+import { LayoutDashboard, Users, UserCircle, Shield, Menu, ScrollText, ClipboardList, Swords, Gavel, Palmtree, Bug, Trophy, InfinityIcon } from "lucide-react";
 import { UserWidget } from "./user-widget";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +29,7 @@ export function AppSidebar({ className, user, guildId }: Props) {
         { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, visible: true },
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, visible: user.canViewMissions },
         { name: "Validation", href: `/dashboard/${guildId}/missions/validation`, icon: Gavel, visible: user.canValidateMissions },
+        { name: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: InfinityIcon, visible: user.canViewSonges },
         { name: "Bourse Archis", href: `/dashboard/${guildId}/archimonstres`, icon: Bug, visible: true },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, visible: true },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, visible: true },

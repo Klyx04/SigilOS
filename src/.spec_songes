@@ -1,0 +1,115 @@
+🌀 Spécifications Fonctionnelles : Module "Run Songes"
+1. Vue d'ensemble (Vision)
+L'objectif est de créer un Hub social et tactique pour la guilde ou autres amis dédié à la feature Songes Infinis. Le module doit permettre la coordination des groupes (LFG), le suivi en temps réel des runs et la visualisation spectaculaire de la progression dans la Fissure Onirique.
+
+Cette page liste toutes les instances de songes créées par les membres de la guilde.
+
+
+Rappel Game Design : Une run se compose de 26 étapes fixes. La difficulté est déterminée par le Niveau de Songe 
+
+Quand vous commencez un nouveau songe, vous pouvez choisir la difficulté. Il y a 10 niveaux de difficultés (également appelés intensités) répartis en 3 catégories.
+Rêve.
+
+Rêve I
+Rêve II
+Rêve III
+
+Paradoxe.
+
+Paradoxe I
+Paradoxe II
+Paradoxe III
+Paradoxe IV
+
+Cauchemar.
+
+Cauchemar I
+Cauchemar II
+Cauchemar III
+
+A. Cartes de Run (Run Cards)
+Chaque instance est affichée sous forme de carte interactive contenant :
+
+Indicateur de Niveau : Le "Niveau de Songe"  avec un badge de couleur selon la difficulté.
+
+Progression : Jauge visuelle [ Étage X / 26 ].
+
+Équipage (Slots) : 4 cercles d'avatars.
+
+Slot occupé : Portrait de classe + Pseudo.
+
+Slot libre : Bouton "+" clignotant avec label "Rejoindre".
+
+Waitlist : Indicateur discret "👤 +X" pour les joueurs en file d'attente.
+
+
+B. Création de Run
+Bouton d'action pour le créateur :
+
+Définition du Niveau de Songe de départ.
+
+Choix de l'objectif (mission de guilde , drop légende , succès no achat
+
+L'initiateur d'une run songes ne peut pas en créer une autre
+Les joueurs qui ne sont pas lead d'un run songes peuvent rejoindrent d'autres run
+Le leader de la run peut acheter des bonus dans le fichier bonus_songes.json
+
+3. L'Instance Onirique (Visualisation 3D)
+C'est le coeur visuel du module. Une fenêtre modale s'ouvre pour "spectate" une run spécifique.
+
+A. La Carte des 26 Dalles
+Une représentation en 3D (isométrique ou spirale) de 26 plateformes suspendues dans le Plan Astral.
+
+Paliers Visuels (Lore-friendly) :
+
+Étages 1-3 (Vert) : Ambiance "Pensées Oniriques".
+
+Étages 4-9 (Bleu) : Ambiance "Balades Fantastiques".
+
+Étages 10-15 (Violet) : Ambiance "Espaces Imaginaires".
+
+Étages 16-21 (Orange) : Ambiance "Concepts Brumeux".
+
+Étage 22-25 (Rouge) : Ambiance "Abstractions Chimériques".
+
+Étage 26 (Or/Noir) : Le Nexus du Boss Final.
+
+Les Jalons (Fontaines) : Les dalles 4, 10, 16 et 25 possèdent un cristal doré. Si le groupe y est, le cristal brille.
+
+Indicateur de Position : Les icônes des 4 joueurs actuels flottent au-dessus de la dalle correspondant à l'étape en cours.
+
+B. HUD de l'Observateur (Panneaux Latéraux)
+Inventaire des Bonus : Panneau listant les bonus accumulés dans le fichier bonus_songes.json
+
+Filtres : Passifs Permanents vs Sorts Actifs.
+
+Tooltips au survol pour voir les effets exacts.
+
+
+4. Systèmes de Coordination (Social)
+A. File d'Attente Intelligente (Waitlist)
+Un joueur peut cliquer sur "Réserver une place" sur une run complète.
+
+Le leader reçoit une notification.
+
+Si un joueur quitte la run (clic sur "Libérer ma place"), le premier de la file reçoit une alerte Push/Discord pour rejoindre.
+
+B. Mode "Lecture Seule" vs "Édition"
+Leader de la run : Peut valider les étages, modifier la compo, ajouter les bonus achetés.
+
+
+
+5. Spécifications Techniques pour l'IA (Assets & Data)
+Data Model : Utiliser le fichier JSON des 60 bonus pour l'inventaire.
+
+Univers Visuel : Style "Dofus Unity" (translucidité, runes, effets de particules magiques).
+
+Performance : Rendu 3D côté client (Three.js/R3F), données temps réel via WebSockets.
+
+Responsive : L'arbre/chemin 3D doit s'adapter sur mobile (passage d'une vue spirale à une vue liste verticale stylisée).
+
+Attentio à bien optimiser le code , perf secu etc avec les meilleures pratiques comme toujours
+
+Ne vas pas trop vite procède par étape que l'on validera
+
+Tu ira creuser sur @web https://www.dofuspourlesnoobs.com/songes-infinis.html pour avoir plus de details sur le fonctionnement de la feature songes

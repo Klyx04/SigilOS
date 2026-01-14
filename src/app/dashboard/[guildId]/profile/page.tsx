@@ -72,6 +72,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         metamobPseudo: profile.metamobPseudo,
                         metamobVerified: profile.metamobVerified,
                         metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
+                        altPseudos: (profile.altPseudos as string[]) || [],
                     }}
                     user={{
                         name: profile.user.name,

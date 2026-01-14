@@ -365,6 +365,18 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Discord Nickname Sync:** Auto-sync at login via fetchGuildMember API.
     - [x] **Performance:** Removed all automatic polling (was causing excessive requests).
 
+9.  **Phase 8: UI/UX Iteration & Permissions Fixes (COMPLETE):**
+    - [x] **Sidebar Redesign:** Collapsible mode, user widget at top, direct logout.
+    - [x] **Permissions Visibility:** Nav items hidden (not "Access Denied") for unauthorized.
+    - [x] **RBAC UI Redesign:** Module filters (Admin/Missions/Songes/Profils/Modules), stats per module.
+    - [x] **Audit Logs Enhanced:** Permission diff (added/removed per role with module names).
+    - [x] **Feature Settings Page:** Unified `/admin/settings` with tabs for Absences/Metamob/Songes.
+    - [x] **Removed `absence:config`:** Feature settings are admin-only, not RBAC-assignable.
+    - [x] **Profile Alt Pseudos:** Up to 5 alternative character names.
+    - [x] **Availability Heatmap:** Color-coded by time slot (morning/afternoon/evening).
+    - [x] **Guild Header Compacted:** Single horizontal layout.
+    - [x] **Dark Theme Forced:** Removed theme toggle.
+
 ---
 
 ## 5. Auth Security Configuration (OWASP Compliant)

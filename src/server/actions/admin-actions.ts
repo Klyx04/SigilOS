@@ -88,9 +88,74 @@ export async function updateRoleMapping(
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
     try {
+        // Get current mapping for audit log
+        const currentConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { rolesMapping: true }
+        });
+
+        const oldMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
+
+        // Calculate permission changes
+        const changes: Array<{
+            roleId: string;
+            added: PermissionId[];
+            removed: PermissionId[];
+        }> = [];
+
+        // All role IDs from both old and new mapping
+        const allRoleIds = new Set([...Object.keys(oldMapping), ...Object.keys(mapping)]);
+
+        for (const roleId of allRoleIds) {
+            const oldPerms = new Set(oldMapping[roleId] || []);
+            const newPerms = new Set(mapping[roleId] || []);
+
+            const added = [...newPerms].filter(p => !oldPerms.has(p)) as PermissionId[];
+            const removed = [...oldPerms].filter(p => !newPerms.has(p)) as PermissionId[];
+
+            if (added.length > 0 || removed.length > 0) {
+                changes.push({ roleId, added, removed });
+            }
+        }
+
+        // Update the mapping
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { rolesMapping: mapping }
+        });
+
+        // Create audit log entry with detailed changes
+        const { createAuditLog } = await import("./audit-actions");
+        const { PERMISSION_DETAILS, PERMISSION_MODULES } = await import("@/lib/permissions");
+
+        // Format changes for human-readable display
+        const formattedChanges = changes.map(change => ({
+            roleId: change.roleId,
+            added: change.added.map(p => ({
+                permission: p,
+                label: PERMISSION_DETAILS[p]?.label || p,
+                module: PERMISSION_DETAILS[p]?.module || "unknown"
+            })),
+            removed: change.removed.map(p => ({
+                permission: p,
+                label: PERMISSION_DETAILS[p]?.label || p,
+                module: PERMISSION_DETAILS[p]?.module || "unknown"
+            }))
+        }));
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id!,
+            actorName: session.user.name || "Unknown",
+            action: "RBAC_UPDATE",
+            targetType: "PERMISSION",
+            oldValue: oldMapping,
+            newValue: mapping,
+            metadata: {
+                rolesAffected: changes.length,
+                changes: formattedChanges,
+                timestamp: new Date().toISOString()
+            }
         });
 
         revalidatePath("/dashboard/admin");

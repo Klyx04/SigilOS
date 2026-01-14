@@ -189,6 +189,7 @@ export const OBJECTIVES = {
     MISSION_GUILDE: { label: "Mission de Guilde", icon: "🎯" },
     DROP_LEGENDE: { label: "Farm Légendes", icon: "💎" },
     SUCCES_NO_ACHAT: { label: "Succès No Achat", icon: "🏆" },
+    FUN: { label: "Fun / Chill", icon: "✨" },
 } as const;
 
 // ============================================

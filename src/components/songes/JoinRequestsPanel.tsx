@@ -31,10 +31,7 @@ export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
     useEffect(() => {
         if (!isLeader) return;
         loadRequests();
-
-        // Polling every 5s for new requests
-        const interval = setInterval(loadRequests, 5000);
-        return () => clearInterval(interval);
+        // No polling - will refresh on actions or manual page reload
     }, [runId, isLeader]);
 
     const loadRequests = async () => {

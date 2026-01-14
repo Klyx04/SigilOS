@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { RunCard } from "./RunCard";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Moon, Sparkles, Flame, Star } from "lucide-react";
@@ -48,20 +47,10 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
 };
 
 export function RunCardGrid({ runs: initialRuns, currentUserId }: RunCardGridProps) {
-    const router = useRouter();
     const [runs, setRuns] = useState(initialRuns);
     const [tierFilter, setTierFilter] = useState<TierFilter>("ALL");
 
-    // Polling for real-time updates (every 30 seconds to avoid rate limits)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            router.refresh();
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [router]);
-
-    // Update runs when initialRuns changes
+    // Update runs when initialRuns changes (after server actions)
     useEffect(() => {
         setRuns(initialRuns);
     }, [initialRuns]);

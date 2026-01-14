@@ -19,8 +19,6 @@ type RunWithRelations = DreamRun & {
     joinRequests?: DreamJoinRequest[];
 };
 
-// Polling interval for auto-refresh (10 seconds)
-const POLL_INTERVAL = 10000;
 
 export default function RunDetailPage() {
     const params = useParams();
@@ -53,20 +51,10 @@ export default function RunDetailPage() {
         setLoading(false);
     }, [runId]);
 
-    // Initial load + polling for auto-refresh
+    // Initial load only - no polling to reduce server load
+    // Data refreshes after user actions (floor select, etc.)
     useEffect(() => {
         loadData();
-
-        // Start polling for updates (candidature acceptances, floor changes, etc.)
-        pollRef.current = setInterval(() => {
-            loadData();
-        }, POLL_INTERVAL);
-
-        return () => {
-            if (pollRef.current) {
-                clearInterval(pollRef.current);
-            }
-        };
     }, [loadData]);
 
     // Handler pour le leader qui sélectionne un étage

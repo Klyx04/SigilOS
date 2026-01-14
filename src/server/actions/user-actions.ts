@@ -20,6 +20,9 @@ export type UserContext = {
     canViewSonges: boolean;
     canCreateSonges: boolean;
     canJoinSonges: boolean;
+    // Module Permissions
+    canViewArchis: boolean;
+    canViewLadder: boolean;
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
@@ -30,11 +33,11 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false };
+        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false };
+    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
 
     // --- SECURITY: DEEP WHITELIST CHECK ---
     // Rule: If defined (even empty), enforce strict whitelist.
@@ -43,7 +46,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
         if (!allowedGuilds.includes(targetGuildId)) {
             console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
-            return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false };
+            return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
         }
     }
 
@@ -65,7 +68,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false };
+        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
     }
 
     const discordUserId = account.providerAccountId;
@@ -81,20 +84,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         }
     });
 
-    if (!profile && guildConfig) {
-        console.log(`[UserContext] Auto-creating profile for user ${session.user.id} in guild ${guildConfig.id}`);
-        try {
-            profile = await db.userProfile.create({
-                data: {
-                    userId: session.user.id,
-                    guildId: guildConfig.id,
-                    // Basic defaults
-                }
-            });
-        } catch (e) {
-            console.error("[UserContext] Failed to auto-create profile:", e);
-        }
-    }
+    // Profile creation/update will happen after we fetch Discord member data
+    // to ensure discordJoinedAt is properly set
 
     // Parallelize Discord API calls for performance
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -155,6 +146,73 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         }
     }
 
+    // --- ENSURE USER PROFILE EXISTS AND IS UP-TO-DATE ---
+    // Now that we have member data, create or update the profile with Discord info
+    if (guildConfig && memberRes.ok && member) {
+        const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
+        const now = new Date();
+
+        if (!profile) {
+            // Create new profile with Discord data
+            console.log(`[UserContext] Auto-creating profile for user ${session.user.id} in guild ${guildConfig.id}`);
+            try {
+                profile = await db.userProfile.create({
+                    data: {
+                        userId: session.user.id,
+                        guildId: guildConfig.id,
+                        discordNickname: displayName,
+                        discordRoleName: roleName,
+                        discordRoleColor: roleColor,
+                        discordJoinedAt: joinedAt,
+                        discordCacheUpdatedAt: now,
+                        lastActivityAt: now, // Track login as activity
+                    }
+                });
+            } catch (e) {
+                console.error("[UserContext] Failed to auto-create profile:", e);
+            }
+        } else {
+            // Update existing profile with fresh Discord data
+            // Only update if cache is older than 1 hour to reduce writes
+            const cacheAge = profile.discordCacheUpdatedAt
+                ? now.getTime() - new Date(profile.discordCacheUpdatedAt).getTime()
+                : Infinity;
+
+            const shouldUpdateCache = cacheAge > 60 * 60 * 1000; // 1 hour
+
+            // Always update lastActivityAt and fix missing discordJoinedAt
+            const needsJoinedAtFix = !profile.discordJoinedAt && joinedAt;
+
+            if (shouldUpdateCache || needsJoinedAtFix) {
+                try {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            discordNickname: displayName,
+                            discordRoleName: roleName,
+                            discordRoleColor: roleColor,
+                            discordJoinedAt: joinedAt || profile.discordJoinedAt, // Don't overwrite with null
+                            discordCacheUpdatedAt: now,
+                            lastActivityAt: now,
+                        }
+                    });
+                } catch (e) {
+                    console.error("[UserContext] Failed to update profile cache:", e);
+                }
+            } else {
+                // Just update lastActivityAt for tracking
+                try {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: { lastActivityAt: now }
+                    });
+                } catch {
+                    // Silent fail for activity tracking
+                }
+            }
+        }
+    }
+
     // 3. Check Permissions
     const mapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
 
@@ -182,6 +240,10 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const canCreateSonges = myPerms.has(PERMISSIONS.SONGES_CREATE) || isAdmin;
     const canJoinSonges = myPerms.has(PERMISSIONS.SONGES_JOIN) || isAdmin;
 
+    // Archis & Ladder Permissions
+    const canViewArchis = myPerms.has(PERMISSIONS.ARCHIS_VIEW) || isAdmin;
+    const canViewLadder = myPerms.has(PERMISSIONS.LADDER_VIEW) || isAdmin;
+
     return {
         isAuthenticated: true,
         id: session.user.id,
@@ -196,6 +258,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         canViewSonges,
         canCreateSonges,
         canJoinSonges,
+        canViewArchis,
+        canViewLadder,
         isAdmin,
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",

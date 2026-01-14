@@ -6,6 +6,7 @@ export type GuildHeaderData = {
     name: string;
     iconUrl: string | null;
     memberCount: number;
+    activeCount: number; // Users active in last 15 minutes
     exists: boolean;
 };
 
@@ -24,13 +25,12 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
             name: "Guilde Inconnue",
             iconUrl: null,
             memberCount: 0,
+            activeCount: 0,
             exists: false
         };
     }
 
     // Count only ACTIVE profiles (excluding bots/archived/banned)
-    // Note: This assumes 'bots' are either not created as profiles or handled via status.
-    // Based on schema, we count profiles with status 'ACTIVE'.
     const memberCount = await db.userProfile.count({
         where: {
             guildId: guildConfig.id,
@@ -38,10 +38,23 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
         }
     });
 
+    // Count recently active users (within last 15 minutes)
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const activeCount = await db.userProfile.count({
+        where: {
+            guildId: guildConfig.id,
+            status: "ACTIVE",
+            lastActivityAt: {
+                gte: fifteenMinutesAgo
+            }
+        }
+    });
+
     return {
         name: guildConfig.name,
         iconUrl: guildConfig.iconUrl,
         memberCount,
+        activeCount,
         exists: true
     };
 }

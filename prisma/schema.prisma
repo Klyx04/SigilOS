@@ -81,6 +81,37 @@ model GuildConfig {
 
   profiles         UserProfile[]
   missions         Mission[]
+  auditLogs        AuditLog[]
+}
+
+// -- Audit Log (Immutable) --
+// Tracks all administrative actions for security and compliance
+// IMPORTANT: This table has NO updatedAt field - logs are immutable
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  guildId     String
+  actorUserId String   // User who performed the action
+  actorName   String   // Actor name at time of action (for historical reference)
+  
+  action      String   // Action type: RBAC_UPDATE, RBAC_ROLE_ADD, RBAC_ROLE_REMOVE, etc.
+  targetType  String   // Target entity type: PERMISSION, ROLE, CONFIG, etc.
+  targetId    String?  // ID of the target if applicable
+  
+  oldValue    Json?    // State before modification
+  newValue    Json?    // State after modification
+  metadata    Json?    // Additional context data
+  
+  createdAt   DateTime @default(now())
+  
+  // Note: NO updatedAt - Logs are immutable and cannot be modified
+  // Note: NO onDelete Cascade from User - Logs persist even if user is deleted
+  
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  
+  @@index([guildId, createdAt])
+  @@index([actorUserId])
+  @@index([action])
 }
 
 model UserProfile {
@@ -134,6 +165,9 @@ model UserProfile {
   metamobPseudo     String?   // Pseudo Metamob (peut être différent du pseudo Dofus)
   metamobVerified   Boolean   @default(false)  // Compte validé via API
   metamobLastSync   DateTime? // Dernière synchronisation du cache
+
+  // Alt Characters (up to 5-6 pseudos for other in-game characters)
+  altPseudos        Json?     // String[] - ["AltName1", "AltName2", ...]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

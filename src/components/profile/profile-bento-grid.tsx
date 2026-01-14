@@ -7,7 +7,8 @@ import { JobsGrid } from "./jobs-grid";
 import { AvailabilityHeatmap } from "./availability-heatmap";
 import { VacationMode } from "./vacation-mode";
 import { MetamobLink } from "./metamob-link";
-import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus } from "@/server/actions/profile-actions";
+import { AltPseudos } from "./alt-pseudos";
+import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import type { AvailabilityMap, ForgemagieStatusId } from "@/lib/dofus-assets";
 
@@ -26,6 +27,7 @@ interface ProfileBentoGridProps {
         metamobPseudo?: string | null;
         metamobVerified?: boolean;
         metamobLastSync?: Date | null;
+        altPseudos?: string[] | null;
     };
     user: {
         name?: string | null;
@@ -132,6 +134,14 @@ export function ProfileBentoGrid({
         }
     };
 
+    const handleAltPseudosSave = async (altPseudos: string[]) => {
+        setLocalProfile(prev => ({ ...prev, altPseudos }));
+        const res = await updateAltPseudos({ guildId, altPseudos });
+        if (!res.success) {
+            toast.error(res.error || "Erreur");
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6">
             {/* Hero Header */}
@@ -169,6 +179,13 @@ export function ProfileBentoGrid({
                         guildId={guildId}
                         pseudo={displayName}
                         profileId={profile.id}
+                    />
+
+                    {/* Alt Pseudos Section */}
+                    <AltPseudos
+                        altPseudos={localProfile.altPseudos || []}
+                        onSave={handleAltPseudosSave}
+                        readOnly={readOnly}
                     />
                 </div>
 

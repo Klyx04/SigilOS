@@ -327,6 +327,44 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
     }
 }
 
+const UpdateAltPseudosSchema = z.object({
+    guildId: z.string(),
+    altPseudos: z.array(z.string().max(24)).max(5),
+});
+
+export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = UpdateAltPseudosSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, altPseudos } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Clean and validate pseudos
+        const cleanedPseudos = altPseudos
+            .map(p => p.trim())
+            .filter(p => p.length > 0)
+            .slice(0, 5); // Max 5 pseudos
+
+        await db.userProfile.update({
+            where: {
+                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+            },
+            data: { altPseudos: cleanedPseudos }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Alt Pseudos Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 // ============================================================================
 // GAMIFICATION
 // ============================================================================

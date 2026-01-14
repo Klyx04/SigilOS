@@ -16,20 +16,7 @@
 ### 🌙 Songes Infinis (v2)
 Module de coordination pour les runs de Songes dans Dofus.
 
-**Fonctionnalités :**
-- 🏃 Création et gestion de runs (difficulté, objectif)
-- 👥 Système d'équipe (4 joueurs max + liste d'attente)
-- 📩 Candidatures avec validation par le leader
-- 🔔 Notifications pour le leader
-- 🎨 Vue 3D spirale interactive (26 étages)
-- 📊 Progression et statistiques
-- ⚙️ Actions : kick, leave, cancel candidature
 
-**Fichiers clés :**
-- `src/app/dashboard/[guildId]/songes/` - Pages
-- `src/components/songes/` - Composants UI
-- `src/server/actions/songes/` - Actions backend
-- `src/lib/songes/types.ts` - Types et constantes
 
 
 ## 🚀 Pré-requis

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock } from "lucide-react";
+import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -27,7 +27,8 @@ import {
     deleteDreamRun,
     getMemberProfiles,
     getMyJoinRequestStatus,
-    cancelJoinRequest
+    cancelJoinRequest,
+    leaveDreamRun
 } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
@@ -35,6 +36,7 @@ import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
     waitlist: DreamWaitlist[];
+    joinRequests?: { id: string; userId: string }[];
     _count: { floors: number; bonuses: number };
 };
 
@@ -80,10 +82,15 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
                 }
             }
             // Check if current user has pending request
-            if (currentUserId && !isMember && !isLeader) {
+            // If user is now a member, reset pending state
+            if (isMember) {
+                setPendingRequest(false);
+            } else if (currentUserId && !isLeader) {
                 const requestStatus = await getMyJoinRequestStatus(run.id);
                 if (requestStatus.success && requestStatus.status === "PENDING") {
                     setPendingRequest(true);
+                } else {
+                    setPendingRequest(false);
                 }
             }
         }
@@ -125,6 +132,13 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
         setLoading(true);
         await deleteDreamRun(run.id);
         setDeleteDialogOpen(false);
+        router.refresh();
+        setLoading(false);
+    };
+
+    const handleLeave = async () => {
+        setLoading(true);
+        await leaveDreamRun(run.id);
         router.refresh();
         setLoading(false);
     };
@@ -179,10 +193,28 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
                     {/* Status Badge */}
                     <div className={`px-2 py-1 rounded text-xs font-medium ${run.status === "RECRUITING"
                         ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                        : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                        : run.status === "COMPLETED"
+                            ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                            : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                         }`}>
-                        {run.status === "RECRUITING" ? "Recrutement" : "En cours"}
+                        {run.status === "RECRUITING" ? "Recrutement" : run.status === "COMPLETED" ? "Terminée" : "En cours"}
                     </div>
+
+                    {/* Pending Candidacy Badge (for applicant) */}
+                    {pendingRequest && (
+                        <div className="px-2 py-1 rounded text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 flex items-center gap-1 animate-pulse">
+                            <Clock className="w-3 h-3" />
+                            Candidature envoyée
+                        </div>
+                    )}
+
+                    {/* Candidature Badge (leader only) */}
+                    {isLeader && run.joinRequests && run.joinRequests.length > 0 && (
+                        <div className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 animate-pulse">
+                            <Bell className="w-3 h-3" />
+                            {run.joinRequests.length} candidature{run.joinRequests.length > 1 ? "s" : ""}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -200,36 +232,43 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
                 </div>
             </div>
 
-            {/* Team Slots with REAL pseudos */}
+            {/* Team Slots with Discord Pseudos */}
             <div className="mb-4">
                 <div className="flex items-center gap-1 text-sm text-purple-200 mb-2">
                     <Users className="w-4 h-4" />
                     Équipe ({run.members.length}/4)
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                     {[1, 2, 3, 4].map((slot) => {
                         const member = run.members.find((m) => m.slot === slot);
                         const memberIsLeader = member?.userId === run.leaderId;
                         const displayName = member ? getDisplayName(member.userId) : "";
+                        const shortName = displayName.length > 8 ? displayName.slice(0, 7) + "…" : displayName;
                         const firstLetter = displayName.charAt(0).toUpperCase();
 
                         return (
-                            <div
-                                key={slot}
-                                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center ${member
-                                    ? "bg-purple-600/50 border-purple-400 text-white"
-                                    : "bg-purple-900/30 border-purple-700/50 border-dashed"
-                                    }`}
-                                title={member ? displayName : "Libre"}
-                            >
-                                {member ? (
-                                    memberIsLeader ? (
-                                        <Crown className="w-4 h-4 text-amber-400" />
-                                    ) : (
-                                        <span className="text-xs font-semibold">{firstLetter}</span>
-                                    )
-                                ) : null}
+                            <div key={slot} className="flex flex-col items-center gap-1 min-w-[50px]">
+                                <div
+                                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center ${member
+                                        ? "bg-purple-600/50 border-purple-400 text-white"
+                                        : "bg-purple-900/30 border-purple-700/50 border-dashed"
+                                        }`}
+                                    title={member ? displayName : "Libre"}
+                                >
+                                    {member ? (
+                                        memberIsLeader ? (
+                                            <Crown className="w-4 h-4 text-amber-400" />
+                                        ) : (
+                                            <span className="text-xs font-semibold">{firstLetter}</span>
+                                        )
+                                    ) : null}
+                                </div>
+                                {member && (
+                                    <span className="text-[10px] text-purple-300/80 truncate max-w-[50px]" title={displayName}>
+                                        {shortName}
+                                    </span>
+                                )}
                             </div>
                         );
                     })}
@@ -313,6 +352,19 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
                         Voir
                     </Button>
                 </Link>
+
+                {/* Leave Button (member, non-leader) */}
+                {isMember && !isLeader && (
+                    <Button
+                        size="sm"
+                        onClick={handleLeave}
+                        disabled={loading}
+                        className="bg-orange-600/80 hover:bg-orange-500 text-white"
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 mr-1" />}
+                        Quitter
+                    </Button>
+                )}
             </div>
         </div>
     );

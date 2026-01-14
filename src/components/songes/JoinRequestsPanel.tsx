@@ -15,6 +15,7 @@ interface JoinRequest {
     classe: string;
     message: string | null;
     createdAt: Date;
+    displayName?: string; // Discord pseudo or Dofus pseudo
 }
 
 interface JoinRequestsPanelProps {
@@ -24,18 +25,19 @@ interface JoinRequestsPanelProps {
 
 export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
     const [requests, setRequests] = useState<JoinRequest[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // Only leaders can see this panel
-    if (!isLeader) return null;
-
     useEffect(() => {
+        if (!isLeader) return;
         loadRequests();
-    }, [runId]);
+
+        // Polling every 5s for new requests
+        const interval = setInterval(loadRequests, 5000);
+        return () => clearInterval(interval);
+    }, [runId, isLeader]);
 
     const loadRequests = async () => {
-        setLoading(true);
         const result = await getPendingJoinRequests(runId);
         if (result.success && result.requests) {
             setRequests(result.requests as JoinRequest[]);
@@ -50,6 +52,9 @@ export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
         await loadRequests();
         setActionLoading(null);
     };
+
+    // Only leaders can see this panel
+    if (!isLeader) return null;
 
     if (loading) {
         return (
@@ -83,6 +88,10 @@ export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
+                                    {/* Candidate Name */}
+                                    <h4 className="font-medium text-white mb-1">
+                                        {request.displayName || "Joueur"}
+                                    </h4>
                                     <div className="flex items-center gap-2 mb-1">
                                         <Badge variant="secondary" className="bg-blue-600/20 text-blue-300 border-blue-500/30">
                                             {request.classe}

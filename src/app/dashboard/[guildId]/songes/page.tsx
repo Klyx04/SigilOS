@@ -6,15 +6,20 @@ import { SongesHeader } from "@/components/songes/SongesHeader";
 import { RunCardGrid } from "@/components/songes/RunCardGrid";
 import { CreateRunButton } from "@/components/songes/CreateRunButton";
 
-export default async function SongesPage() {
-    const userContext = await getUserContext();
+export default async function SongesPage({
+    params,
+}: {
+    params: Promise<{ guildId: string }>;
+}) {
+    const { guildId } = await params;
+    const userContext = await getUserContext(guildId);
 
     // RBAC: Check permission to view Songes
     if (!userContext.canViewSonges && !userContext.isAdmin) {
         notFound();
     }
 
-    const { runs } = await getDreamRuns(["RECRUITING", "IN_PROGRESS"]);
+    const { runs } = await getDreamRuns(["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
     const currentUserId = userContext.isAuthenticated ? userContext.id : undefined;
 
     return (

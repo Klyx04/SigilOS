@@ -20,9 +20,7 @@ export function SongesHeader() {
                         Songes Infinis
                         <Sparkles className="w-5 h-5 text-amber-400" />
                     </h1>
-                    <p className="text-purple-300/80 text-sm">
-                        Hub de coordination pour les runs dans la Fissure Onirique
-                    </p>
+
                 </div>
             </div>
 

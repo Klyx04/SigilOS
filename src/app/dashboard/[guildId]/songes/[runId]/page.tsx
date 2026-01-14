@@ -1,28 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { getDreamRunById, updateCurrentFloor } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { RunDetailHeader } from "@/components/songes/RunDetailHeader";
 import { RunStatsPanel } from "@/components/songes/RunStatsPanel";
 import { BonusInventory } from "@/components/songes/BonusInventory";
 import { JoinRequestsPanel } from "@/components/songes/JoinRequestsPanel";
+import { DreamMap2D } from "@/components/songes/DreamMap2D";
 import type { DreamRun, DreamRunMember, DreamWaitlist, DreamFloor, DreamRunBonus, DreamJoinRequest } from "@prisma/client";
-
-// Dynamic import for 3D (no SSR)
-const DreamTree3D = dynamic(
-    () => import("@/components/songes/DreamTree3D").then((mod) => mod.DreamTree3D),
-    {
-        ssr: false,
-        loading: () => (
-            <div className="h-[500px] rounded-xl bg-gradient-to-b from-[#0a0118] to-[#1a0933] flex items-center justify-center">
-                <div className="text-purple-400 animate-pulse">✨ Chargement de l'Arbre...</div>
-            </div>
-        ),
-    }
-);
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -31,6 +18,9 @@ type RunWithRelations = DreamRun & {
     bonuses: DreamRunBonus[];
     joinRequests?: DreamJoinRequest[];
 };
+
+// Polling interval for auto-refresh (10 seconds)
+const POLL_INTERVAL = 10000;
 
 export default function RunDetailPage() {
     const params = useParams();
@@ -42,6 +32,7 @@ export default function RunDetailPage() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const pollRef = useRef<NodeJS.Timeout | null>(null);
 
     const loadData = useCallback(async () => {
         const [runResult, userContext] = await Promise.all([
@@ -62,8 +53,20 @@ export default function RunDetailPage() {
         setLoading(false);
     }, [runId]);
 
+    // Initial load + polling for auto-refresh
     useEffect(() => {
         loadData();
+
+        // Start polling for updates (candidature acceptances, floor changes, etc.)
+        pollRef.current = setInterval(() => {
+            loadData();
+        }, POLL_INTERVAL);
+
+        return () => {
+            if (pollRef.current) {
+                clearInterval(pollRef.current);
+            }
+        };
     }, [loadData]);
 
     // Handler pour le leader qui sélectionne un étage
@@ -93,31 +96,20 @@ export default function RunDetailPage() {
     }
 
     const isLeader = currentUserId === run.leaderId;
-
-    // Transform floors to the format expected by DreamTree3D
-    const floors = run.floors.map((f) => ({
-        id: f.id,
-        floorNumber: f.floorNumber,
-        roomType: f.roomType.toLowerCase() as "combat" | "fontaine" | "faveur" | "boss",
-        difficulty: f.difficulty ?? undefined,
-        bonus: undefined,
-        pointsReve: f.pointsReveGained,
-    }));
+    const isMember = run.members.some(m => m.userId === currentUserId);
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <RunDetailHeader run={run} guildId={guildId} />
+            {/* Header - with isLeader for close button */}
+            <RunDetailHeader run={run} guildId={guildId} isLeader={isLeader} />
 
             {/* Main Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* 3D Viewer - Takes up 2 columns */}
+                {/* 2D Map Viewer */}
                 <div className="lg:col-span-2">
-                    <DreamTree3D
-                        floors={floors.length > 0 ? floors : undefined}
+                    <DreamMap2D
                         currentFloor={run.currentFloor}
-                        pointsReve={run.pointsReve}
-                        isLeader={isLeader}
+                        isLeader={isLeader && run.status === "IN_PROGRESS"}
                         onFloorSelect={handleFloorSelect}
                     />
                 </div>
@@ -133,7 +125,7 @@ export default function RunDetailPage() {
                     <RunStatsPanel run={run} currentUserId={currentUserId ?? undefined} isLeader={isLeader} />
 
                     {/* Bonus Inventory */}
-                    <BonusInventory bonuses={run.bonuses} runId={run.id} pointsReve={run.pointsReve} />
+                    <BonusInventory bonuses={run.bonuses} runId={run.id} />
                 </div>
             </div>
         </div>

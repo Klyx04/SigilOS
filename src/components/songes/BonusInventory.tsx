@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Package, Plus, Loader2 } from "lucide-react";
+import { Package, Plus, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
     Dialog,
     DialogContent,
@@ -20,7 +21,7 @@ import type { SongesBonus } from "@/lib/songes/types";
 interface BonusInventoryProps {
     bonuses: DreamRunBonus[];
     runId: string;
-    pointsReve: number;
+    pointsReve?: number; // Optional now, not used for purchase restrictions
 }
 
 const RARITY_COLORS = {
@@ -38,10 +39,11 @@ const SUBFILTERS_BY_TYPE: Record<string, string[]> = {
     consommable: ["Rare", "Épique"],
 };
 
-export function BonusInventory({ bonuses, runId, pointsReve }: BonusInventoryProps) {
+export function BonusInventory({ bonuses, runId }: BonusInventoryProps) {
     const [shopOpen, setShopOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
     const [rarityFilter, setRarityFilter] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
 
     const typedBonusData = bonusData as SongesBonus[];
@@ -49,14 +51,15 @@ export function BonusInventory({ bonuses, runId, pointsReve }: BonusInventoryPro
     // Get available rarity subfilters based on type
     const availableRarities = typeFilter ? SUBFILTERS_BY_TYPE[typeFilter] : [];
 
-    // Filter logic
+    // Filter logic with search
     const filteredShop = useMemo(() => {
         return typedBonusData.filter((b) => {
             if (typeFilter && b.type !== typeFilter) return false;
             if (rarityFilter && b.rarete !== rarityFilter) return false;
+            if (searchQuery && !b.nom.toLowerCase().includes(searchQuery.toLowerCase())) return false;
             return true;
         });
-    }, [typedBonusData, typeFilter, rarityFilter]);
+    }, [typedBonusData, typeFilter, rarityFilter, searchQuery]);
 
     const handleTypeFilter = (type: string | null) => {
         setTypeFilter(type);
@@ -64,15 +67,13 @@ export function BonusInventory({ bonuses, runId, pointsReve }: BonusInventoryPro
     };
 
     const handleBuy = async (bonus: SongesBonus) => {
-        if (pointsReve < bonus.cout) return;
-
         setLoading(true);
         await addDreamBonus({
             runId,
             bonusName: bonus.nom,
             bonusType: bonus.type,
             bonusRarete: bonus.rarete,
-            cost: bonus.cout,
+            cost: 0, // No cost system anymore
         });
         setShopOpen(false);
         setLoading(false);
@@ -96,11 +97,21 @@ export function BonusInventory({ bonuses, runId, pointsReve }: BonusInventoryPro
 
                     <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white max-w-2xl max-h-[80vh] overflow-auto">
                         <DialogHeader>
-                            <DialogTitle className="flex items-center justify-between">
-                                <span>🛒 Fontaine Onirique</span>
-                                <span className="text-amber-400">💎 {pointsReve} PR disponibles</span>
+                            <DialogTitle>
+                                🛒 Fontaine Onirique
                             </DialogTitle>
                         </DialogHeader>
+
+                        {/* Search Field */}
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
+                            <Input
+                                placeholder="Rechercher un bonus..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10 bg-purple-900/30 border-purple-500/30 text-white placeholder:text-purple-400/50"
+                            />
+                        </div>
 
                         {/* Type Filters */}
                         <div className="mb-2">
@@ -179,14 +190,11 @@ export function BonusInventory({ bonuses, runId, pointsReve }: BonusInventoryPro
                                     </div>
                                     <Button
                                         size="sm"
-                                        disabled={pointsReve < bonus.cout || loading}
+                                        disabled={loading}
                                         onClick={() => handleBuy(bonus)}
-                                        className={pointsReve >= bonus.cout
-                                            ? "bg-amber-600 hover:bg-amber-500 text-white"
-                                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
-                                        }
+                                        className="bg-purple-600 hover:bg-purple-500 text-white"
                                     >
-                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `${bonus.cout} PR`}
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ajouter"}
                                     </Button>
                                 </div>
                             ))}

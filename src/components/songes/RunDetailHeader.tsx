@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Crown, Users, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { closeDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun, DreamRunMember } from "@prisma/client";
 
 type RunWithMembers = DreamRun & {
@@ -13,9 +23,14 @@ type RunWithMembers = DreamRun & {
 interface RunDetailHeaderProps {
     run: RunWithMembers;
     guildId: string;
+    isLeader?: boolean;
 }
 
-export function RunDetailHeader({ run, guildId }: RunDetailHeaderProps) {
+export function RunDetailHeader({ run, guildId, isLeader }: RunDetailHeaderProps) {
+    const router = useRouter();
+    const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
 
@@ -27,6 +42,16 @@ export function RunDetailHeader({ run, guildId }: RunDetailHeaderProps) {
             hour: "2-digit",
             minute: "2-digit",
         });
+    };
+
+    const handleCloseRun = async () => {
+        setLoading(true);
+        const result = await closeDreamRun(run.id);
+        if (result.success) {
+            setCloseDialogOpen(false);
+            router.refresh();
+        }
+        setLoading(false);
     };
 
     return (
@@ -56,12 +81,12 @@ export function RunDetailHeader({ run, guildId }: RunDetailHeaderProps) {
                             />
                             {difficulty?.label}
                             <span className={`px-2 py-0.5 text-sm rounded ${run.status === "RECRUITING"
-                                    ? "bg-green-500/20 text-green-400"
-                                    : run.status === "IN_PROGRESS"
-                                        ? "bg-blue-500/20 text-blue-400"
-                                        : run.status === "COMPLETED"
-                                            ? "bg-amber-500/20 text-amber-400"
-                                            : "bg-red-500/20 text-red-400"
+                                ? "bg-green-500/20 text-green-400"
+                                : run.status === "IN_PROGRESS"
+                                    ? "bg-blue-500/20 text-blue-400"
+                                    : run.status === "COMPLETED"
+                                        ? "bg-amber-500/20 text-amber-400"
+                                        : "bg-red-500/20 text-red-400"
                                 }`}>
                                 {run.status === "RECRUITING" ? "Recrutement" :
                                     run.status === "IN_PROGRESS" ? "En cours" :
@@ -73,16 +98,46 @@ export function RunDetailHeader({ run, guildId }: RunDetailHeaderProps) {
                         </p>
                     </div>
 
-                    {/* Quick stats */}
-                    <div className="flex gap-6 text-sm">
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-amber-400">{run.currentFloor}</div>
-                            <div className="text-purple-300/70">/ 26 étages</div>
+                    {/* Quick stats + Close button */}
+                    <div className="flex items-center gap-6">
+                        <div className="flex gap-6 text-sm">
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-amber-400">{run.currentFloor}</div>
+                                <div className="text-purple-300/70">/ 26 étages</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-purple-400">{run.pointsReve}</div>
+                                <div className="text-purple-300/70">Points de Rêve</div>
+                            </div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-purple-400">{run.pointsReve}</div>
-                            <div className="text-purple-300/70">Points de Rêve</div>
-                        </div>
+
+                        {/* Close Run Button - Leader only, IN_PROGRESS only */}
+                        {isLeader && run.status === "IN_PROGRESS" && (
+                            <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button className="bg-amber-600 hover:bg-amber-500 text-white">
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Clôturer
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-[#1a0933] border-amber-500/30 text-white">
+                                    <DialogHeader>
+                                        <DialogTitle>Clôturer la Run ?</DialogTitle>
+                                    </DialogHeader>
+                                    <p className="text-purple-200 text-sm">
+                                        Cette action marquera la run comme terminée. L'équipe a atteint l'étage {run.currentFloor}/26.
+                                    </p>
+                                    <div className="flex gap-2 justify-end mt-4">
+                                        <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
+                                            Annuler
+                                        </Button>
+                                        <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500">
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmer"}
+                                        </Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                     </div>
                 </div>
 

@@ -1,9 +1,61 @@
 import type { NextAuthConfig } from "next-auth"
 
+/**
+ * Auth.js Security Configuration
+ * Follows OWASP Session Management Best Practices
+ * https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+ */
 export const authConfig = {
     providers: [], // Providers are defined in auth.ts to avoid Edge issues
     secret: process.env.AUTH_SECRET,
-    session: { strategy: "jwt" },
+
+    // Session Configuration
+    session: {
+        strategy: "jwt",
+        maxAge: 7 * 24 * 60 * 60,      // 7 days - reasonable for a dashboard app
+        updateAge: 24 * 60 * 60,       // Refresh JWT every 24 hours (sliding session)
+    },
+
+    // Cookie Security Settings
+    cookies: {
+        sessionToken: {
+            name: process.env.NODE_ENV === "production"
+                ? "__Secure-authjs.session-token"
+                : "authjs.session-token",
+            options: {
+                httpOnly: true,         // Prevents XSS attacks from accessing token
+                sameSite: "lax",        // CSRF protection while allowing OAuth redirects
+                path: "/",
+                secure: process.env.NODE_ENV === "production", // HTTPS only in production
+            },
+        },
+        callbackUrl: {
+            name: process.env.NODE_ENV === "production"
+                ? "__Secure-authjs.callback-url"
+                : "authjs.callback-url",
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: process.env.NODE_ENV === "production",
+            },
+        },
+        csrfToken: {
+            name: process.env.NODE_ENV === "production"
+                ? "__Host-authjs.csrf-token"
+                : "authjs.csrf-token",
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: process.env.NODE_ENV === "production",
+            },
+        },
+    },
+
+    // Security Options
+    trustHost: true, // Needed for proper domain handling behind proxies/load balancers
+
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user
@@ -17,4 +69,3 @@ export const authConfig = {
         },
     },
 } satisfies NextAuthConfig
-

@@ -70,8 +70,8 @@ export function RunStatsPanel({ run, currentUserId, isLeader = false }: RunStats
     const handleLeave = async () => {
         setLoadingAction("leave");
         await leaveDreamRun(run.id);
-        router.refresh();
-        setLoadingAction(null);
+        // Redirect to songes list after leaving
+        router.push(`/dashboard/${run.guildId}/songes`);
     };
 
     return (

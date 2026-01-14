@@ -9,6 +9,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { sendChannelMessage } from "@/server/discord";
 
 // ============================================
 // HELPER: Get context with guild ID
@@ -126,6 +127,10 @@ export async function getDreamRuns(statusFilter?: string[]) {
             },
             waitlist: {
                 orderBy: { position: "asc" },
+            },
+            joinRequests: {
+                where: { status: "PENDING" },
+                select: { id: true, userId: true },
             },
             _count: {
                 select: { floors: true, bonuses: true },
@@ -449,27 +454,16 @@ export async function addDreamBonus(data: z.infer<typeof AddBonusSchema>) {
         return { success: false, error: "Seul le leader peut acheter des bonus" };
     }
 
-    if (run.pointsReve < validated.data.cost) {
-        return { success: false, error: "Points de Rêve insuffisants" };
-    }
-
-    await db.$transaction([
-        db.dreamRunBonus.create({
-            data: {
-                runId: validated.data.runId,
-                bonusName: validated.data.bonusName,
-                bonusType: validated.data.bonusType,
-                bonusRarete: validated.data.bonusRarete,
-                cost: validated.data.cost,
-            },
-        }),
-        db.dreamRun.update({
-            where: { id: validated.data.runId },
-            data: {
-                pointsReve: { decrement: validated.data.cost },
-            },
-        }),
-    ]);
+    // Simply add the bonus, no PR cost system
+    await db.dreamRunBonus.create({
+        data: {
+            runId: validated.data.runId,
+            bonusName: validated.data.bonusName,
+            bonusType: validated.data.bonusType,
+            bonusRarete: validated.data.bonusRarete,
+            cost: 0,
+        },
+    });
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
@@ -486,17 +480,18 @@ const SendJoinRequestSchema = z.object({
 });
 
 export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+    const ctx = await getUserContext();
+    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié" };
 
     const validated = SendJoinRequestSchema.safeParse(data);
     if (!validated.success) {
         return { success: false, error: "Données invalides" };
     }
 
-    const run = await db.dreamRun.findFirst({
-        where: { id: validated.data.runId, guildId: ctx.guildId },
-        include: { members: true, joinRequests: true },
+    // Find run by ID (unique) - no guildId filter needed
+    const run = await db.dreamRun.findUnique({
+        where: { id: validated.data.runId },
+        include: { members: true },
     });
 
     if (!run) {
@@ -509,20 +504,32 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
     }
 
     // Check if already member
-    if (run.members.some((m: { userId: string }) => m.userId === ctx.userId)) {
+    if (run.members.some((m: { userId: string }) => m.userId === ctx.id)) {
         return { success: false, error: "Vous êtes déjà dans cette run" };
     }
 
-    // Check if request already exists
-    const existingRequest = run.joinRequests.find((r: { userId: string }) => r.userId === ctx.userId);
-    if (existingRequest) {
+    // Check if PENDING request already exists
+    const existingPendingRequest = await db.dreamJoinRequest.findFirst({
+        where: { runId: run.id, userId: ctx.id, status: "PENDING" },
+    });
+    if (existingPendingRequest) {
         return { success: false, error: "Vous avez déjà une demande en cours" };
     }
+
+    // Delete any old ACCEPTED/REJECTED requests to allow re-application
+    // (unique constraint on runId + userId)
+    await db.dreamJoinRequest.deleteMany({
+        where: {
+            runId: run.id,
+            userId: ctx.id,
+            status: { in: ["ACCEPTED", "REJECTED"] }
+        },
+    });
 
     await db.dreamJoinRequest.create({
         data: {
             runId: validated.data.runId,
-            userId: ctx.userId,
+            userId: ctx.id,
             classe: validated.data.classe,
             message: validated.data.message,
         },
@@ -530,27 +537,103 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
 
     // Create notification for leader if enabled
     if (run.notifyOnJoinRequest) {
+        // Get candidate's Discord pseudo for the notification
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: run.guildId },
+            select: { id: true },
+        });
+
+        let candidateName = "Un joueur";
+        if (guildConfig) {
+            const candidateProfile = await db.userProfile.findFirst({
+                where: { userId: ctx.id, guildId: guildConfig.id },
+                select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+            });
+            candidateName = candidateProfile?.discordNickname || candidateProfile?.user?.name || "Un joueur";
+        }
+
         await db.notification.create({
             data: {
                 userId: run.leaderId,
                 title: "Nouvelle candidature Songes",
-                message: `Un joueur (${validated.data.classe}) souhaite rejoindre votre run.`,
-                type: "SONGES_JOIN_REQUEST",
-                link: `/dashboard/${ctx.guildId}/songes/${run.id}`,
+                message: `${candidateName} (${validated.data.classe}) souhaite rejoindre votre run ${run.difficulty}.`,
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${run.guildId}/songes/${run.id}`,
             },
         });
+
+        // Also send Discord notification if channel is configured
+        if (guildConfig) {
+            const fullGuildConfig = await db.guildConfig.findUnique({
+                where: { id: guildConfig.id },
+                select: { songesNotifyChannelId: true },
+            });
+
+            if (fullGuildConfig?.songesNotifyChannelId) {
+                // Get leader's pseudo for the embed
+                const leaderProfile = await db.userProfile.findFirst({
+                    where: { userId: run.leaderId, guildId: guildConfig.id },
+                    select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+                });
+                const leaderName = leaderProfile?.discordNickname || leaderProfile?.user?.name || "Leader";
+
+                // Get leader's Discord ID for mention
+                const leaderAccount = await db.account.findFirst({
+                    where: { userId: run.leaderId, provider: "discord" },
+                    select: { providerAccountId: true },
+                });
+                const leaderMention = leaderAccount?.providerAccountId
+                    ? `<@${leaderAccount.providerAccountId}>`
+                    : leaderName;
+
+                // Determine embed color based on difficulty tier
+                let embedColor = 0x9333ea; // Default purple
+                if (run.difficulty.startsWith("CAUCHEMAR")) embedColor = 0xdc2626; // Red
+                else if (run.difficulty.startsWith("PARADOXE")) embedColor = 0xf59e0b; // Amber
+                else if (run.difficulty.startsWith("REVE")) embedColor = 0x22c55e; // Green
+
+                // Format difficulty for display
+                const difficultyDisplay = run.difficulty.replace("_", " ");
+
+                // Build the dashboard URL
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                const dashboardUrl = `${appUrl}/dashboard/${run.guildId}/songes/${run.id}`;
+
+                await sendChannelMessage(
+                    fullGuildConfig.songesNotifyChannelId,
+                    `Un nouveau joueur souhaite rejoindre votre run. Cliquez sur le titre pour accéder au dashboard et gérer la candidature.`,
+                    {
+                        embedTitle: "🌙 Nouvelle candidature Songes",
+                        embedUrl: dashboardUrl,
+                        embedColor,
+                        embedAuthor: {
+                            name: `Run de ${leaderName}`,
+                        },
+                        fields: [
+                            { name: "👤 Candidat", value: candidateName, inline: true },
+                            { name: "⚔️ Classe", value: validated.data.classe, inline: true },
+                            { name: "🎯 Difficulté", value: difficultyDisplay, inline: true },
+                            { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
+                        ],
+                        embedFooter: "SigilOS • Songes Infinis",
+                        mentionContent: `Bonjour ${leaderMention} ! Nouvelle candidature pour votre run.`,
+                    }
+                );
+            }
+        }
     }
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    revalidatePath(`/dashboard/${run.guildId}/songes`);
     return { success: true };
 }
 
 export async function getPendingJoinRequests(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", requests: [] };
+    const ctx = await getUserContext();
+    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", requests: [] };
 
-    const run = await db.dreamRun.findFirst({
-        where: { id: runId, guildId: ctx.guildId },
+    // Find run by ID only (runId is unique)
+    const run = await db.dreamRun.findUnique({
+        where: { id: runId },
     });
 
     if (!run) {
@@ -558,7 +641,7 @@ export async function getPendingJoinRequests(runId: string) {
     }
 
     // Only leader can see pending requests
-    if (run.leaderId !== ctx.userId) {
+    if (run.leaderId !== ctx.id) {
         return { success: false, error: "Non autorisé", requests: [] };
     }
 
@@ -567,7 +650,29 @@ export async function getPendingJoinRequests(runId: string) {
         orderBy: { createdAt: "asc" },
     });
 
-    return { success: true, requests };
+    // Fetch user profiles for display names
+    // Note: run.guildId is Discord Guild ID, but profile.guildId is internal DB ID
+    const userIds = requests.map(r => r.userId);
+
+    // Get internal guildId from GuildConfig
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: run.guildId },
+        select: { id: true },
+    });
+
+    const profiles = guildConfig ? await db.userProfile.findMany({
+        where: { userId: { in: userIds }, guildId: guildConfig.id },
+        select: { userId: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+    }) : [];
+
+    // Enrich requests with display names
+    const enrichedRequests = requests.map(r => {
+        const profile = profiles.find(p => p.userId === r.userId);
+        const displayName = profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Joueur";
+        return { ...r, displayName };
+    });
+
+    return { success: true, requests: enrichedRequests };
 }
 
 const RespondJoinRequestSchema = z.object({
@@ -626,11 +731,33 @@ export async function respondToJoinRequest(data: z.infer<typeof RespondJoinReque
                 },
             }),
         ]);
+
+        // Notify candidate of acceptance
+        await db.notification.create({
+            data: {
+                userId: request.userId,
+                title: "Candidature acceptée !",
+                message: `Votre candidature pour la run ${request.run.difficulty} a été acceptée. Bienvenue dans l'équipe !`,
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${request.run.guildId}/songes/${request.runId}`,
+            },
+        });
     } else {
         // Reject
         await db.dreamJoinRequest.update({
             where: { id: validated.data.requestId },
             data: { status: "REJECTED", respondedAt: new Date() },
+        });
+
+        // Notify candidate of rejection
+        await db.notification.create({
+            data: {
+                userId: request.userId,
+                title: "Candidature refusée",
+                message: `Votre candidature pour la run ${request.run.difficulty} a été refusée.`,
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${request.run.guildId}/songes`,
+            },
         });
     }
 
@@ -704,6 +831,17 @@ export async function kickMember(runId: string, targetUserId: string) {
     // Remove member
     await db.dreamRunMember.delete({ where: { id: member.id } });
 
+    // Notify kicked member
+    await db.notification.create({
+        data: {
+            userId: targetUserId,
+            title: "Retiré d'une run Songes",
+            message: `Vous avez été retiré de la run ${run.difficulty} par le leader.`,
+            type: "SYSTEM_INFO",
+            link: `/dashboard/${ctx.guildId}/songes`,
+        },
+    });
+
     // Promote first waitlisted user
     const firstWaitlisted = run.waitlist[0];
     if (firstWaitlisted) {
@@ -732,12 +870,12 @@ export async function kickMember(runId: string, targetUserId: string) {
 // ============================================
 
 export async function getMyJoinRequestStatus(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", status: null };
+    const ctx = await getUserContext();
+    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", status: null };
 
+    // Only look for PENDING requests
     const request = await db.dreamJoinRequest.findFirst({
-        where: { runId, userId: ctx.userId },
-        orderBy: { createdAt: "desc" },
+        where: { runId, userId: ctx.id, status: "PENDING" },
     });
 
     if (!request) {
@@ -751,25 +889,89 @@ export async function getMyJoinRequestStatus(runId: string) {
 // GET MEMBER PROFILES (with Dofus pseudos)
 // ============================================
 
-export async function getMemberProfiles(userIds: string[]) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", profiles: [] };
+export async function getMemberProfiles(userIds: string[], guildId?: string) {
+    const ctx = await getUserContext();
+    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", profiles: [] };
 
-    // Get profiles for these user IDs
-    const profiles = await db.userProfile.findMany({
+    // If guildId not provided, try to get from context
+    let targetGuildId = guildId;
+    if (!targetGuildId) {
+        const profile = await db.userProfile.findFirst({
+            where: { userId: ctx.id },
+            select: { guildId: true },
+        });
+        if (profile) {
+            // Need to get the Discord guild ID from GuildConfig
+            const guildConfig = await db.guildConfig.findUnique({
+                where: { id: profile.guildId },
+                select: { discordGuildId: true },
+            });
+            targetGuildId = guildConfig?.discordGuildId;
+        }
+    }
+
+    // Get internal guildId for profile lookup
+    let internalGuildId: string | null = null;
+    if (targetGuildId) {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: targetGuildId },
+            select: { id: true },
+        });
+        internalGuildId = guildConfig?.id || null;
+    }
+
+    // Get profiles for these user IDs with User data for fallback
+    const profiles = internalGuildId ? await db.userProfile.findMany({
         where: {
             userId: { in: userIds },
-            guildId: ctx.guildId,
+            guildId: internalGuildId,
         },
         select: {
             userId: true,
             pseudoDofus: true,
             classe: true,
             discordNickname: true,
+            user: {
+                select: {
+                    name: true,
+                },
+            },
         },
-    });
+    }) : [];
 
-    return { success: true, profiles };
+    // Note: We no longer fetch Discord nicknames from API here to avoid rate limiting
+    // Nicknames should be synced separately (on login, or via background job)
+
+    // Transform to include discordNickname with fallbacks
+    const enrichedProfiles = profiles.map((p) => ({
+        userId: p.userId,
+        pseudoDofus: p.pseudoDofus,
+        classe: p.classe,
+        discordNickname: p.discordNickname || p.user?.name || null,
+    }));
+
+    // For users without profiles, fetch from User table directly
+    const missingUserIds = userIds.filter(
+        (uid) => !profiles.some((p) => p.userId === uid)
+    );
+
+    if (missingUserIds.length > 0) {
+        const users = await db.user.findMany({
+            where: { id: { in: missingUserIds } },
+            select: { id: true, name: true },
+        });
+
+        for (const user of users) {
+            enrichedProfiles.push({
+                userId: user.id,
+                pseudoDofus: null,
+                classe: null,
+                discordNickname: user.name || null,
+            });
+        }
+    }
+
+    return { success: true, profiles: enrichedProfiles };
 }
 
 // ============================================
@@ -808,11 +1010,7 @@ export async function updateCurrentFloor(runId: string, floorNumber: number) {
                 status: "IN_PROGRESS",
                 startedAt: new Date(),
             }),
-            // Auto-complete if reaching floor 26
-            ...(floorNumber === 26 && {
-                status: "COMPLETED",
-                completedAt: new Date(),
-            }),
+            // NO auto-complete at floor 26 - leader must use closeDreamRun action
         },
     });
 
@@ -821,18 +1019,54 @@ export async function updateCurrentFloor(runId: string, floorNumber: number) {
 }
 
 // ============================================
+// CLOSE RUN (Leader manually marks as complete)
+// ============================================
+
+export async function closeDreamRun(runId: string) {
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
+    });
+
+    if (!run) {
+        return { success: false, error: "Run non trouvée" };
+    }
+
+    if (run.leaderId !== ctx.userId) {
+        return { success: false, error: "Seul le leader peut clôturer la run" };
+    }
+
+    if (run.status !== "IN_PROGRESS") {
+        return { success: false, error: "Seule une run en cours peut être clôturée" };
+    }
+
+    await db.dreamRun.update({
+        where: { id: runId },
+        data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+        },
+    });
+
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    return { success: true };
+}
+
+// ============================================
 // CANCEL JOIN REQUEST (User cancels their own)
 // ============================================
 
 export async function cancelJoinRequest(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+    const ctx = await getUserContext();
+    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié" };
 
     // Find user's pending request for this run
     const request = await db.dreamJoinRequest.findFirst({
         where: {
             runId,
-            userId: ctx.userId,
+            userId: ctx.id,
             status: "PENDING",
         },
     });
@@ -846,6 +1080,10 @@ export async function cancelJoinRequest(runId: string) {
         where: { id: request.id },
     });
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Revalidate - get guildId from the run
+    const run = await db.dreamRun.findUnique({ where: { id: runId }, select: { guildId: true } });
+    if (run) {
+        revalidatePath(`/dashboard/${run.guildId}/songes`);
+    }
     return { success: true };
 }

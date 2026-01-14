@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
+import { fetchGuildMember } from "@/server/discord"
 
 import Discord from "next-auth/providers/discord"
 
@@ -15,30 +16,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         })
     ],
     adapter: PrismaAdapter(prisma),
-    session: { strategy: "jwt" },
     callbacks: {
         ...authConfig.callbacks,
-        async signIn({ user, account, profile }) {
-            console.log("[Auth-Debug] SignIn:", {
+        async signIn({ user, account }) {
+            console.log("[Auth] SignIn:", {
                 user: user.id,
                 accountProvider: account?.provider,
                 hasAccessToken: !!account?.access_token,
-                scope: account?.scope
             });
             return true;
         },
         async jwt({ token, account }) {
             if (account) {
-                console.log("[Auth-Debug] JWT Update:", {
-                    sub: token.sub,
-                    hasAccessToken: !!account.access_token,
-                    scope: account.scope
-                });
-                // Wait, adapter is prisma, so 'session.strategy' defaults to 'database' usually unless overriden.
-                // Ah, line 9 says: session: { strategy: "jwt" }.
-                // IF STRATEGY IS JWT, THE DB ACCOUNT MIGHT NOT BE UPDATED AUTOMATICALLY BY ADAPTER ON RE-LOGIN IN SOME VERSIONS?
-                // OR WE NEED TO MANUALLY UPDATE IT?
-                // Let's check if we are using "database" or "jwt" strategy.
                 token.accessToken = account.access_token;
                 token.refreshToken = account.refresh_token;
                 token.expiresAt = account.expires_at;
@@ -50,28 +39,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (session.user && token.sub) {
                 session.user.id = token.sub;
             }
-            // Also map other fields if needed, like access_token for client use if exposed
-            // But main blocker is ID.
             return session;
         }
     },
     events: {
         async signIn({ user, account }) {
-            // FORCE UPDATE ACCOUNT IN DB to ensure fresh tokens/scopes
-            if (account && user.id) {
-                try {
-                    await prisma.account.updateMany({
-                        where: { userId: user.id, provider: "discord" },
-                        data: {
-                            access_token: account.access_token,
-                            refresh_token: account.refresh_token,
-                            expires_at: account.expires_at,
-                            scope: account.scope
+            if (!account || !user.id) return;
+
+            // Update Discord tokens in DB
+            try {
+                await prisma.account.updateMany({
+                    where: { userId: user.id, provider: "discord" },
+                    data: {
+                        access_token: account.access_token,
+                        refresh_token: account.refresh_token,
+                        expires_at: account.expires_at,
+                        scope: account.scope
+                    }
+                });
+            } catch (e) {
+                console.error("[Auth] Failed to update account tokens:", e);
+            }
+
+            // Sync Discord nickname for each guild the user is in
+            try {
+                const userProfiles = await prisma.userProfile.findMany({
+                    where: { userId: user.id },
+                    include: { guild: { select: { discordGuildId: true } } }
+                });
+
+                for (const profile of userProfiles) {
+                    if (!profile.guild?.discordGuildId) continue;
+
+                    try {
+                        const member = await fetchGuildMember(
+                            profile.guild.discordGuildId,
+                            account.providerAccountId
+                        );
+
+                        if (member) {
+                            const nickname = member.nick || member.user?.global_name || member.user?.username;
+                            if (nickname && nickname !== profile.discordNickname) {
+                                await prisma.userProfile.update({
+                                    where: { id: profile.id },
+                                    data: { discordNickname: nickname }
+                                });
+                                console.log(`[Auth] Updated nickname for ${user.id}: ${nickname}`);
+                            }
                         }
-                    });
-                } catch (e) {
-                    // Silent fail or specialized logger
+                    } catch {
+                        // Silent fail for individual guild fetch errors
+                    }
                 }
+            } catch (e) {
+                console.error("[Auth] Failed to sync Discord nicknames:", e);
             }
         }
     }

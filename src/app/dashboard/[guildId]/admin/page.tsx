@@ -147,6 +147,31 @@ export default async function AdminPage({
                             </svg>
                         </div>
                     </a>
+
+                    <a
+                        href={`/dashboard/${targetGuildId}/admin/songes`}
+                        className="group block p-6 bg-zinc-900/60 border border-white/10 rounded-xl hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
+                    >
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-purple-500/10 rounded-lg">
+                                <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            </div>
+                            <h3 className="font-semibold text-white group-hover:text-purple-400 transition-colors">
+                                Notifications Songes
+                            </h3>
+                        </div>
+                        <p className="text-sm text-zinc-400">
+                            Configurez le salon Discord pour les candidatures aux runs Songes.
+                        </p>
+                        <div className="mt-4 flex items-center text-xs text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span>Configurer</span>
+                            <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>

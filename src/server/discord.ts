@@ -132,3 +132,124 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
         return false;
     }
 }
+
+/**
+ * Discord embed field
+ */
+interface EmbedField {
+    name: string;
+    value: string;
+    inline?: boolean;
+}
+
+/**
+ * Enhanced options for Discord embed messages
+ */
+interface SendChannelMessageOptions {
+    embedTitle?: string;
+    embedColor?: number;
+    embedFooter?: string;
+    embedUrl?: string;           // Makes the title clickable
+    embedThumbnail?: string;     // Small image on the right
+    embedImage?: string;         // Large image at bottom
+    embedAuthor?: {              // Author section at top
+        name: string;
+        iconUrl?: string;
+    };
+    fields?: EmbedField[];       // Structured data fields
+    mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
+}
+
+/**
+ * Send a rich embed message to a Discord channel via the bot
+ */
+export async function sendChannelMessage(
+    channelId: string,
+    content: string,
+    options?: SendChannelMessageOptions
+): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) {
+        console.error("[Discord] Missing DISCORD_BOT_TOKEN");
+        return false;
+    }
+
+    const body: Record<string, unknown> = {};
+
+    // Use embed if title is provided, otherwise plain content
+    if (options?.embedTitle) {
+        const embed: Record<string, unknown> = {
+            title: options.embedTitle,
+            description: content,
+            color: options.embedColor ?? 0x9333ea, // Purple by default
+            timestamp: new Date().toISOString(),
+        };
+
+        // Clickable title URL
+        if (options.embedUrl) {
+            embed.url = options.embedUrl;
+        }
+
+        // Footer
+        if (options.embedFooter) {
+            embed.footer = { text: options.embedFooter, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+        }
+
+        // Author section
+        if (options.embedAuthor) {
+            embed.author = {
+                name: options.embedAuthor.name,
+                icon_url: options.embedAuthor.iconUrl,
+            };
+        }
+
+        // Thumbnail (small image on right)
+        if (options.embedThumbnail) {
+            embed.thumbnail = { url: options.embedThumbnail };
+        }
+
+        // Large image at bottom
+        if (options.embedImage) {
+            embed.image = { url: options.embedImage };
+        }
+
+        // Structured fields
+        if (options.fields && options.fields.length > 0) {
+            embed.fields = options.fields.map(f => ({
+                name: f.name,
+                value: f.value,
+                inline: f.inline ?? true,
+            }));
+        }
+
+        body.embeds = [embed];
+
+        // Add content with mentions to trigger pings (outside embed)
+        if (options.mentionContent) {
+            body.content = options.mentionContent;
+        }
+    } else {
+        body.content = content;
+    }
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            console.error(`[Discord] Failed to send message: ${res.status} ${res.statusText}`);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("[Discord] Error sending message:", error);
+        return false;
+    }
+}

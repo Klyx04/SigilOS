@@ -176,6 +176,9 @@ model UserProfile {
   guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
   submissions Submission[]
   interests   MissionInterest[]
+  
+  // DofusBook Integration
+  dofusBookLinks Json?     // [{ id, url, name }]
 
   @@unique([userId, guildId])
 }

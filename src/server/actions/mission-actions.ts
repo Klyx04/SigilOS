@@ -7,8 +7,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { MissionCategory, Prisma, NotificationType } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
-import { unlink } from "fs/promises";
-import { join } from "path";
+import { unlink, rmdir } from "fs/promises";
+import { join, dirname } from "path";
 
 // --- Types & Schemas ---
 
@@ -144,7 +144,6 @@ async function notifyValidators(guildId: string, title: string, message: string,
 }
 
 // --- Helper: Deletion ---
-// --- Helper: Deletion ---
 async function deleteProofFile(proofUrl: string) {
     const isLocalUpload = proofUrl && proofUrl.startsWith("/uploads/proofs/");
 
@@ -155,11 +154,28 @@ async function deleteProofFile(proofUrl: string) {
         const relativePath = proofUrl.replace(/^\//, "");
         const absolutePath = join(process.cwd(), "public", relativePath);
 
+        // 1. Delete the file
         await unlink(absolutePath);
         console.log(`[Cleanup] Deleted file: ${absolutePath}`);
 
-        // Note: Empty directories (guild/mission folders) might remain. 
-        // This is acceptable as they are lightweight and reused.
+        // 2. Safely attempt to delete the parent directory (Mission folder)
+        // This fails silently if the directory is NOT empty (which is exactly what we want)
+        try {
+            const dirPath = dirname(absolutePath);
+            await rmdir(dirPath);
+            console.log(`[Cleanup] Removed empty directory: ${dirPath}`);
+
+            // Optional: Try to remove the grandparent (Guild folder) if also empty
+            const grandParentDirPath = dirname(dirPath);
+            await rmdir(grandParentDirPath);
+            console.log(`[Cleanup] Removed empty guild directory: ${grandParentDirPath}`);
+        } catch (dirError: any) {
+            // Ignore ENOTEMPTY or permissions errors, it just means the folder is still in use.
+            if (dirError.code !== "ENOTEMPTY" && dirError.code !== "EEXIST" && dirError.code !== "EBUSY") {
+                // Only log unexpected errors
+                // console.warn(`[Cleanup] Directory cleanup skipped: ${dirError.message}`);
+            }
+        }
 
     } catch (error: any) {
         // Ignore ENOENT (File not found), warn on others

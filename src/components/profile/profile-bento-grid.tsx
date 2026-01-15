@@ -8,9 +8,11 @@ import { AvailabilityHeatmap } from "./availability-heatmap";
 import { VacationMode } from "./vacation-mode";
 import { MetamobLink } from "./metamob-link";
 import { AltPseudos } from "./alt-pseudos";
+import { BuildsCard } from "./builds-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import type { AvailabilityMap, ForgemagieStatusId } from "@/lib/dofus-assets";
+import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 
 interface ProfileBentoGridProps {
     profile: {
@@ -20,7 +22,7 @@ interface ProfileBentoGridProps {
         classeSecondaires?: string[] | null;
         metiers?: string[] | null;
         forgemagieStatus?: string | null;
-        availability?: AvailabilityMap | null;
+        availability?: GlobalAvailability | AvailabilityMap | null;
         vacationStart?: Date | null;
         vacationEnd?: Date | null;
         vacationNotify?: boolean;
@@ -28,6 +30,7 @@ interface ProfileBentoGridProps {
         metamobVerified?: boolean;
         metamobLastSync?: Date | null;
         altPseudos?: string[] | null;
+        dofusBookLinks?: { id: string; url: string; name: string }[] | null;
     };
     user: {
         name?: string | null;
@@ -106,8 +109,8 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleAvailabilitySave = async (availability: AvailabilityMap) => {
-        setLocalProfile(prev => ({ ...prev, availability }));
+    const handleAvailabilitySave = async (availability: GlobalAvailability) => {
+        setLocalProfile(prev => ({ ...prev, availability: availability as any }));
         const res = await updateAvailability({ guildId, availability });
         if (res.success) {
             toast.success("Disponibilités mises à jour");
@@ -146,76 +149,130 @@ export function ProfileBentoGrid({
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Hero Header */}
-            <HeroHeader
-                avatarUrl={user.image}
-                displayName={displayName}
-                roleColor={roleColor}
-                contributorTier={stats.contributorTier}
-                rank={stats.rank}
-                isOnVacation={isOnVacation}
-                joinedAt={stats.joinedAt}
-                xp={stats.xp}
-                weeklyXp={stats.weeklyXp}
-                missionsValidated={stats.missionsValidated}
-                weeklyMissions={stats.weeklyMissions}
-            />
-
-            {/* Main Content: 2 Columns */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-
-                {/* Left Column: Combat & Vacation */}
-                <div className="flex flex-col gap-6">
-                    <ClassDisplay
-                        mainClass={localProfile.classe}
-                        secondaryClasses={localProfile.classeSecondaires || []}
-                        onSave={handleClassSave}
-                        readOnly={readOnly}
-                    />
-
-                    <VacationMode
-                        vacationStart={localProfile.vacationStart}
-                        vacationEnd={localProfile.vacationEnd}
-                        vacationNotify={localProfile.vacationNotify}
-                        onSave={handleVacationSave}
-                        readOnly={readOnly}
-                        guildId={guildId}
-                        pseudo={displayName}
-                        profileId={profile.id}
-                    />
-
-                    {/* Alt Pseudos Section */}
-                    <AltPseudos
-                        altPseudos={localProfile.altPseudos || []}
-                        onSave={handleAltPseudosSave}
-                        readOnly={readOnly}
-                    />
-                </div>
-
-                {/* Right Column: Jobs (Taller) */}
-                <JobsGrid
-                    jobs={localProfile.metiers || []}
-                    forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                    onSaveJobs={handleJobsSave}
-                    onSaveForgemagieStatus={handleForgemagieStatusSave}
-                    readOnly={readOnly}
+            {/* Hero Header (Glass) */}
+            <div className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/40 backdrop-blur-md">
+                <HeroHeader
+                    avatarUrl={user.image}
+                    displayName={displayName}
+                    roleColor={roleColor}
+                    contributorTier={stats.contributorTier}
+                    rank={stats.rank}
+                    isOnVacation={isOnVacation}
+                    joinedAt={stats.joinedAt}
+                    xp={stats.xp}
+                    weeklyXp={stats.weeklyXp}
+                    missionsValidated={stats.missionsValidated}
+                    weeklyMissions={stats.weeklyMissions}
                 />
             </div>
 
-            {/* Full Width Sections */}
-            <MetamobLink
-                guildId={guildId}
-                metamobPseudo={profile.metamobPseudo}
-                metamobVerified={profile.metamobVerified}
-                metamobLastSync={profile.metamobLastSync}
-                readOnly={readOnly}
-            />
+            {/* Tabs Navigation */}
+            <Tabs defaultValue="overview" className="w-full">
+                <div className="flex items-center justify-center mb-6">
+                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
+                        <TabsTrigger
+                            value="overview"
+                            className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
+                        >
+                            Général
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="combat"
+                            className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
+                        >
+                            Stuffs et Autres Pseudos
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="planning"
+                            className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                        >
+                            Planning
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-            <AvailabilityHeatmap
-                availability={localProfile.availability || {}}
-                onSave={handleAvailabilitySave}
-                readOnly={readOnly}
-            />
+                {/* OVERVIEW TAB */}
+                <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        <div className="flex flex-col gap-6">
+                            {/* Classes */}
+                            {/* Classes */}
+                            <ClassDisplay
+                                mainClass={localProfile.classe}
+                                secondaryClasses={localProfile.classeSecondaires || []}
+                                onSave={handleClassSave}
+                                readOnly={readOnly}
+                            />
+
+                            {/* Metamob */}
+                            <MetamobLink
+                                guildId={guildId}
+                                metamobPseudo={profile.metamobPseudo}
+                                metamobVerified={profile.metamobVerified}
+                                metamobLastSync={profile.metamobLastSync}
+                                readOnly={readOnly}
+                            />
+                        </div>
+
+                        {/* Jobs */}
+                        {/* Jobs */}
+                        <JobsGrid
+                            jobs={localProfile.metiers || []}
+                            forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                            onSaveJobs={handleJobsSave}
+                            onSaveForgemagieStatus={handleForgemagieStatusSave}
+                            readOnly={readOnly}
+                        />
+                    </div>
+                </TabsContent>
+
+                {/* COMBAT TAB */}
+                <TabsContent value="combat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        {/* Builds */}
+                        <BuildsCard
+                            links={localProfile.dofusBookLinks as any || []}
+                            onSave={(links) => setLocalProfile(prev => ({ ...prev, dofusBookLinks: links }))}
+                            readOnly={readOnly}
+                            guildId={guildId}
+                        />
+
+                        {/* Alt Pseudos */}
+                        <AltPseudos
+                            altPseudos={localProfile.altPseudos || []}
+                            onSave={handleAltPseudosSave}
+                            readOnly={readOnly}
+                        />
+                    </div>
+                </TabsContent>
+
+                {/* PLANNING TAB */}
+                <TabsContent value="planning" className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2">
+                            <AvailabilityHeatmap
+                                availability={localProfile.availability || {}}
+                                onSave={handleAvailabilitySave}
+                                readOnly={readOnly}
+                                vacationStart={localProfile.vacationStart}
+                                vacationEnd={localProfile.vacationEnd}
+                            />
+                        </div>
+                        <div>
+                            <VacationMode
+                                vacationStart={localProfile.vacationStart}
+                                vacationEnd={localProfile.vacationEnd}
+                                vacationNotify={localProfile.vacationNotify}
+                                onSave={handleVacationSave}
+                                readOnly={readOnly}
+                                guildId={guildId}
+                                pseudo={displayName}
+                                profileId={profile.id}
+                            />
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

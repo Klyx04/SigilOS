@@ -91,11 +91,18 @@ export function hasAnyForgemagie(jobs: string[]): boolean {
 // -----------------------------------------------------------------------------
 
 export const DAYS_OF_WEEK = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"] as const;
-export const TIME_SLOTS = ["matin", "midi", "soir"] as const;
+export const RAW_TIME_SLOTS = ["matin", "midi", "soir", "nuit"] as const;
+export const TIME_SLOTS = ["matin", "midi", "soir", "nuit"] as const;
 
 export type DayOfWeek = typeof DAYS_OF_WEEK[number];
 export type TimeSlot = typeof TIME_SLOTS[number];
 export type AvailabilityMap = Partial<Record<DayOfWeek, TimeSlot[]>>;
+
+export type GlobalAvailability = {
+    template?: AvailabilityMap;
+    weeks?: Record<string, AvailabilityMap>; // Key format: "YYYY-W#"
+    [key: string]: any; // Allow legacy properties during migration
+};
 
 // -----------------------------------------------------------------------------
 // FORGEMAGIE STATUS

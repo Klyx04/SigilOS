@@ -23,16 +23,19 @@ interface MissionBoardProps {
     guildId: string; // Discord Guild ID for uploads
 }
 
-const FILTERS: { label: string; value: MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
+const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Tout", value: "ALL" },
+    { label: "En attente", value: "PENDING", icon: Hourglass },
+    { label: "Validé", value: "VALIDATED", icon: CheckCircle2 },
+];
+
+const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Donjon", value: "DONJON", icon: Swords },
     { label: "Régulation", value: "REGULATION", icon: Skull },
     { label: "Anomalie", value: "ANOMALIE", icon: Zap },
     { label: "Songes", value: "SONGES", icon: InfinityIcon },
     { label: "Expédition", value: "EXPEDITION", icon: Clock },
     { label: "Événement", value: "EVENT", icon: Sparkles },
-    { label: "En attente", value: "PENDING", icon: Hourglass },
-    { label: "Validé", value: "VALIDATED", icon: CheckCircle2 },
 ];
 
 export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
@@ -74,39 +77,68 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
 
-                {/* Visual Category Filters */}
-                <div className="flex flex-nowrap overflow-x-auto gap-1.5 items-center flex-1 min-w-0 pr-4 pb-1 -mb-1 scrollbar-hide">
-                    {FILTERS.map(f => {
+                    {/* LEFT: Status Filters (Tabs Style) */}
+                    <div className="inline-flex items-center p-1 bg-zinc-900/50 border border-white/5 rounded-lg">
+                        {STATUS_FILTERS.map(f => {
+                            const IconComponent = f.icon;
+                            const isActive = selectedCategory === f.value;
+                            return (
+                                <button
+                                    key={f.value}
+                                    onClick={() => setSelectedCategory(f.value)}
+                                    className={cn(
+                                        "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                        isActive
+                                            ? "bg-zinc-800 text-white shadow-sm"
+                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-primary" : "text-zinc-500")} />}
+                                    {f.label}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* RIGHT: Actions */}
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-zinc-400 hover:text-white transition-colors border border-white/5 bg-zinc-900/50"
+                            onClick={() => router.refresh()}
+                            title="Actualiser les données"
+                        >
+                            <RefreshCcw className="w-4 h-4" />
+                        </Button>
+                        <ResetCountdown />
+                    </div>
+                </div>
+
+                {/* BOTTOM: Category Filters (Pills Style - Wrapped) */}
+                <div className="flex flex-wrap gap-2">
+                    {CATEGORY_FILTERS.map(f => {
                         const IconComponent = f.icon;
+                        const isActive = selectedCategory === f.value;
                         return (
-                            <Button
+                            <button
                                 key={f.value}
-                                variant={selectedCategory === f.value ? "secondary" : "ghost"}
-                                size="sm"
                                 onClick={() => setSelectedCategory(f.value)}
-                                className="h-8 text-xs gap-1.5 whitespace-nowrap px-2 flex-shrink-0"
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full border transition-all",
+                                    isActive
+                                        ? "bg-primary/10 border-primary/20 text-primary"
+                                        : "bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/10 hover:text-zinc-300"
+                                )}
                             >
                                 {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
                                 {f.label}
-                            </Button>
-                        );
+                            </button>
+                        )
                     })}
-                </div>
-
-                {/* Right Actions: Countdown + Refresh */}
-                <div className="flex items-center gap-2 border-l border-white/10 pl-4 shrink-0">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-zinc-400 hover:text-white transition-colors"
-                        onClick={() => router.refresh()}
-                        title="Actualiser les données"
-                    >
-                        <RefreshCcw className="w-4 h-4" />
-                    </Button>
-                    <ResetCountdown />
                 </div>
             </div>
 

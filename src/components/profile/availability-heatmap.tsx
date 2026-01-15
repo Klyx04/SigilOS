@@ -1,33 +1,40 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { DAYS_OF_WEEK, TIME_SLOTS, type AvailabilityMap, type DayOfWeek, type TimeSlot } from "@/lib/dofus-assets";
+import { DAYS_OF_WEEK, TIME_SLOTS, type AvailabilityMap, type DayOfWeek, type TimeSlot, type GlobalAvailability } from "@/lib/dofus-assets";
 import { useDebouncedCallback } from "use-debounce";
-import { Clock, Sunrise, Sun, Moon } from "lucide-react";
+import { Clock, Sunrise, Sun, Moon, ChevronLeft, ChevronRight, CalendarDays, Plane } from "lucide-react";
+import { format, addWeeks, startOfWeek, endOfWeek, isWithinInterval, getISOWeek, getYear } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface AvailabilityHeatmapProps {
-    availability?: AvailabilityMap;
-    onSave?: (availability: AvailabilityMap) => void;
+    availability?: GlobalAvailability | AvailabilityMap; // Accept both for compatibility
+    onSave?: (availability: GlobalAvailability) => void;
     readOnly?: boolean;
+    vacationStart?: Date | null;
+    vacationEnd?: Date | null;
 }
 
 const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
     matin: "Matin",
     midi: "Après-midi",
     soir: "Soir",
+    nuit: "Nuit"
 };
 
 const TIME_SLOT_HOURS: Record<TimeSlot, string> = {
-    matin: "6h-12h",
-    midi: "12h-18h",
-    soir: "18h-00h",
+    matin: "6h - 12h",
+    midi: "12h - 18h",
+    soir: "18h - 00h",
+    nuit: "00h - 6h"
 };
 
 const TIME_SLOT_ICONS: Record<TimeSlot, React.ReactNode> = {
     matin: <Sunrise className="w-4 h-4" />,
     midi: <Sun className="w-4 h-4" />,
     soir: <Moon className="w-4 h-4" />,
+    nuit: <Moon className="w-4 h-4 text-indigo-400" />
 };
 
 const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: string; text: string }> = {
@@ -49,6 +56,12 @@ const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: str
         glow: "shadow-[0_0_10px_rgba(139,92,246,0.3)]",
         text: "text-violet-400",
     },
+    nuit: {
+        bg: "bg-indigo-500/20",
+        border: "border-indigo-500/50",
+        glow: "shadow-[0_0_10px_rgba(99,102,241,0.3)]",
+        text: "text-indigo-400",
+    },
 };
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -61,128 +74,217 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
     dimanche: "Dim",
 };
 
-// Map day names to JavaScript day numbers (0=Sunday, 1=Monday, etc.)
-const DAY_TO_JS_DAY: Record<DayOfWeek, number> = {
-    dimanche: 0,
-    lundi: 1,
-    mardi: 2,
-    mercredi: 3,
-    jeudi: 4,
-    vendredi: 5,
-    samedi: 6,
-};
-
-function getWeekDates(): Record<DayOfWeek, number> {
-    const today = new Date();
-    const currentJsDay = today.getDay(); // 0-6 (Sunday-Saturday)
-
-    // Calculate Monday of current week
-    // If today is Sunday (0), Monday was 6 days ago
-    // Otherwise, Monday was (currentJsDay - 1) days ago
-    const mondayOffset = currentJsDay === 0 ? -6 : (1 - currentJsDay);
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset);
-
-    const dates: Record<DayOfWeek, number> = {} as Record<DayOfWeek, number>;
-
-    DAYS_OF_WEEK.forEach((day, index) => {
-        const date = new Date(monday);
-        date.setDate(monday.getDate() + index);
-        dates[day] = date.getDate();
-    });
-
-    return dates;
-}
-
 export function AvailabilityHeatmap({
     availability = {},
     onSave,
     readOnly = false,
+    vacationStart,
+    vacationEnd
 }: AvailabilityHeatmapProps) {
-    const [localAvailability, setLocalAvailability] = useState<AvailabilityMap>(availability);
+    // -------------------------------------------------------------------------
+    // STATE: MIGRATION & DATA
+    // -------------------------------------------------------------------------
+
+    // Normalize input data to GlobalAvailability structure
+    const initialData: GlobalAvailability = useMemo(() => {
+        // Check if it's legacy data (simple map)
+        const isLegacy = Object.keys(availability).some(k => DAYS_OF_WEEK.includes(k as any));
+
+        if (isLegacy) {
+            return {
+                template: availability as AvailabilityMap,
+                weeks: {}
+            };
+        }
+
+        return (availability as GlobalAvailability).template ? (availability as GlobalAvailability) : { template: {}, weeks: {} };
+    }, [availability]);
+
+    const [globalData, setGlobalData] = useState<GlobalAvailability>(initialData);
+
+    // Week Navigation State (0 = current week)
+    const [weekOffset, setWeekOffset] = useState(0);
     const [hoveredSlot, setHoveredSlot] = useState<{ day: DayOfWeek, slot: TimeSlot } | null>(null);
 
-    // Calculate week dates once
-    const weekDates = useMemo(() => getWeekDates(), []);
+    // -------------------------------------------------------------------------
+    // HELPERS: DATE & KEYS
+    // -------------------------------------------------------------------------
 
-    const debouncedSave = useDebouncedCallback((data: AvailabilityMap) => {
+    // Get current view's reference date (Monday of the selected week)
+    const currentMonday = useMemo(() => {
+        const now = new Date();
+        const start = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+        return addWeeks(start, weekOffset);
+    }, [weekOffset]);
+
+    // Generate Key for current week: "YYYY-W#"
+    const currentWeekKey = useMemo(() => {
+        const year = getYear(currentMonday);
+        const week = getISOWeek(currentMonday);
+        return `${year}-W${week}`;
+    }, [currentMonday]);
+
+    // Get actual dates for headers
+    const weekDates = useMemo(() => {
+        const dates: Record<DayOfWeek, Date> = {} as any;
+        DAYS_OF_WEEK.forEach((day, idx) => {
+            const date = new Date(currentMonday);
+            date.setDate(currentMonday.getDate() + idx);
+            dates[day] = date;
+        });
+        return dates;
+    }, [currentMonday]);
+
+    // -------------------------------------------------------------------------
+    // LOGIC: GET & SET SLOTS
+    // -------------------------------------------------------------------------
+
+    // Get effective availability for current view
+    // Priority: Specific Week > Template > Empty
+    const currentWeekData = useMemo(() => {
+        return globalData.weeks?.[currentWeekKey] || globalData.template || {};
+    }, [globalData, currentWeekKey]);
+
+    const isSlotActive = useCallback((day: DayOfWeek, slot: TimeSlot) => {
+        return currentWeekData[day]?.includes(slot) ?? false;
+    }, [currentWeekData]);
+
+    const isVacation = useCallback((day: DayOfWeek) => {
+        if (!vacationStart || !vacationEnd) return false;
+        const date = weekDates[day];
+        // Normalize time for comparison
+        const d = new Date(date); d.setHours(12, 0, 0, 0);
+        const start = new Date(vacationStart); start.setHours(0, 0, 0, 0);
+        const end = new Date(vacationEnd); end.setHours(23, 59, 59, 999);
+        return d >= start && d <= end;
+    }, [weekDates, vacationStart, vacationEnd]);
+
+    const debouncedSave = useDebouncedCallback((data: GlobalAvailability) => {
         onSave?.(data);
     }, 1000);
 
-    const isSlotActive = useCallback((day: DayOfWeek, slot: TimeSlot) => {
-        return localAvailability[day]?.includes(slot) ?? false;
-    }, [localAvailability]);
-
     const toggleSlot = (day: DayOfWeek, slot: TimeSlot) => {
         if (readOnly) return;
+        if (isVacation(day)) return; // Prevents editing during vacation
 
-        setLocalAvailability(prev => {
-            const daySlots = prev[day] || [];
-            const newSlots = daySlots.includes(slot)
-                ? daySlots.filter(s => s !== slot)
-                : [...daySlots, slot];
+        setGlobalData(prev => {
+            // If we are editing specific week but it was using template, we need to clone template first
+            const existingWeekData = prev.weeks?.[currentWeekKey];
+            const baseData = existingWeekData || prev.template || {};
 
-            const newAvailability = {
-                ...prev,
-                [day]: newSlots,
+            const currentSlots = baseData[day] || [];
+            const newSlots = currentSlots.includes(slot)
+                ? currentSlots.filter(s => s !== slot)
+                : [...currentSlots, slot];
+
+            const newWeekData = {
+                ...baseData,
+                [day]: newSlots
             };
 
-            debouncedSave(newAvailability);
-            return newAvailability;
+            const newData = {
+                ...prev,
+                weeks: {
+                    ...(prev.weeks || {}),
+                    [currentWeekKey]: newWeekData
+                }
+            };
+
+            debouncedSave(newData);
+            return newData;
         });
     };
 
-    // Check if a day is today
-    const isToday = (day: DayOfWeek): boolean => {
+    // -------------------------------------------------------------------------
+    // UI RENDER
+    // -------------------------------------------------------------------------
+
+    const isToday = (day: DayOfWeek) => {
         const today = new Date();
-        return today.getDay() === DAY_TO_JS_DAY[day];
+        const date = weekDates[day];
+        return today.getDate() === date.getDate() &&
+            today.getMonth() === date.getMonth() &&
+            today.getFullYear() === date.getFullYear();
     };
 
     return (
-        <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5 h-full flex flex-col">
-            <div className="flex items-center justify-between mb-6">
+        <div className="p-6 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 h-full flex flex-col relative overflow-hidden">
+
+            {/* Header Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
                 <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-zinc-400" />
-                    <h3 className="text-sm font-medium text-zinc-400">Disponibilités Hebdomadaires</h3>
+                    <div>
+                        <h3 className="text-sm font-medium text-zinc-300">Disponibilités</h3>
+                        <p className="text-xs text-zinc-500">
+                            Semaine {getISOWeek(currentMonday)} • Année {getYear(currentMonday)}
+                        </p>
+                    </div>
                 </div>
-                {!readOnly && (
-                    <span className="text-xs text-zinc-600">Cliquez pour modifier</span>
-                )}
+
+                <div className="flex items-center gap-2 bg-zinc-950/50 p-1 rounded-lg border border-white/5">
+                    <button
+                        onClick={() => setWeekOffset(prev => prev - 1)}
+                        className="p-1.5 hover:bg-white/5 rounded-md text-zinc-400 hover:text-white transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="px-2 text-xs font-medium text-zinc-300 min-w-[140px] text-center flex items-center justify-center gap-2">
+                        <CalendarDays className="w-3.5 h-3.5 opacity-70" />
+                        {weekOffset === 0 ? "Cette semaine" : format(currentMonday, "d MMMM", { locale: fr }) + " - " + format(endOfWeek(currentMonday, { weekStartsOn: 1 }), "d MMMM", { locale: fr })}
+                    </div>
+                    <button
+                        onClick={() => setWeekOffset(prev => prev + 1)}
+                        className="p-1.5 hover:bg-white/5 rounded-md text-zinc-400 hover:text-white transition-colors"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
-            <div className="flex-1 overflow-x-auto min-h-[180px] flex items-center justify-center">
+            {/* Heatmap Grid */}
+            <div className="flex-1 overflow-x-auto min-h-[220px] flex items-center justify-center">
                 <div className="relative">
-                    <table className="w-full border-separate border-spacing-1.5">
+                    <table className="w-full border-separate border-spacing-1.5 ">
                         <thead>
                             <tr>
                                 <th className="w-24"></th>
-                                {DAYS_OF_WEEK.map(day => (
-                                    <th
-                                        key={day}
-                                        className={cn(
-                                            "text-center w-14 pb-2",
-                                            isToday(day) && "relative"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "flex flex-col items-center gap-1 py-1 px-2 rounded-lg transition-colors",
-                                            isToday(day) && "bg-primary/10 border border-primary/30"
-                                        )}>
-                                            <span className={cn(
-                                                "text-xs font-semibold uppercase tracking-wider",
-                                                isToday(day) ? "text-primary" : "text-zinc-500"
+                                {DAYS_OF_WEEK.map(day => {
+                                    const date = weekDates[day];
+                                    const isVacationDay = isVacation(day);
+
+                                    return (
+                                        <th key={day} className="text-center w-14 pb-2 relative group">
+                                            <div className={cn(
+                                                "flex flex-col items-center gap-1 py-1 px-2 rounded-lg transition-colors border",
+                                                isToday(day)
+                                                    ? "bg-primary/10 border-primary/30"
+                                                    : "border-transparent",
+                                                isVacationDay && "opacity-50 grayscale"
                                             )}>
-                                                {DAY_LABELS[day]}
-                                            </span>
-                                            <span className={cn(
-                                                "text-lg font-bold",
-                                                isToday(day) ? "text-primary" : "text-zinc-600"
-                                            )}>
-                                                {weekDates[day]}
-                                            </span>
-                                        </div>
-                                    </th>
-                                ))}
+                                                <span className={cn(
+                                                    "text-xs font-semibold uppercase tracking-wider",
+                                                    isToday(day) ? "text-primary" : "text-zinc-500"
+                                                )}>
+                                                    {DAY_LABELS[day]}
+                                                </span>
+                                                <span className={cn(
+                                                    "text-lg font-bold",
+                                                    isToday(day) ? "text-primary" : "text-zinc-600"
+                                                )}>
+                                                    {date.getDate()}
+                                                </span>
+                                            </div>
+
+                                            {/* Vacation Indicator Badge */}
+                                            {isVacationDay && (
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500/90 text-[9px] text-zinc-950 font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+                                                    <Plane className="w-2.5 h-2.5" />
+                                                </div>
+                                            )}
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>
@@ -207,35 +309,52 @@ export function AvailabilityHeatmap({
                                         </td>
                                         {DAYS_OF_WEEK.map(day => {
                                             const isActive = isSlotActive(day, slot);
+                                            const isVacationDay = isVacation(day);
                                             const isHovered = hoveredSlot?.day === day && hoveredSlot?.slot === slot;
+
                                             return (
-                                                <td key={`${day}-${slot}`} className="p-0">
+                                                <td key={`${day}-${slot}`} className="p-0 relative">
                                                     <button
                                                         onClick={() => toggleSlot(day, slot)}
                                                         onMouseEnter={() => !readOnly && setHoveredSlot({ day, slot })}
                                                         onMouseLeave={() => !readOnly && setHoveredSlot(null)}
-                                                        disabled={readOnly}
+                                                        disabled={readOnly || isVacationDay}
                                                         className={cn(
-                                                            "w-14 h-11 rounded-lg transition-all duration-200 border transform",
-                                                            isActive
-                                                                ? cn(colors.bg, colors.border, colors.glow)
-                                                                : "bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10",
-                                                            !readOnly && isHovered && !isActive && "scale-105 bg-white/10 border-white/20",
-                                                            !readOnly && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
+                                                            "w-14 h-11 rounded-lg transition-all duration-200 border transform relative overflow-hidden",
+                                                            // Normal State (No Vacation)
+                                                            !isVacationDay && isActive
+                                                                ? cn(colors.bg, colors.border, "shadow-sm")
+                                                                : "bg-white/5 border-white/5",
+
+                                                            // Hover States (No Vacation)
+                                                            !readOnly && !isVacationDay && isHovered && !isActive && "scale-105 bg-white/10 border-white/20",
+                                                            !readOnly && !isVacationDay && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
+
+                                                            // Vacation State (High Contrast Fix)
+                                                            isVacationDay && "cursor-not-allowed opacity-70 bg-red-900/10 border-red-500/20 grayscale-0",
                                                             readOnly && "cursor-default"
                                                         )}
                                                     >
+                                                        {/* Active Dot */}
                                                         <div className={cn(
                                                             "w-full h-full flex items-center justify-center transition-all",
-                                                            isActive ? "opacity-100" : "opacity-0"
+                                                            isActive && !isVacationDay ? "opacity-100" : "opacity-0"
                                                         )}>
                                                             <div className={cn(
-                                                                "w-2.5 h-2.5 rounded-full",
-                                                                slot === "matin" && "bg-orange-400 shadow-[0_0_6px_rgba(249,115,22,0.8)]",
-                                                                slot === "midi" && "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]",
-                                                                slot === "soir" && "bg-violet-400 shadow-[0_0_6px_rgba(139,92,246,0.8)]"
+                                                                "w-2.5 h-2.5 rounded-full shadow-sm",
+                                                                slot === "matin" && "bg-orange-400",
+                                                                slot === "midi" && "bg-amber-400",
+                                                                slot === "soir" && "bg-violet-400",
+                                                                slot === "nuit" && "bg-indigo-400"
                                                             )} />
                                                         </div>
+
+                                                        {/* Vacation Strikethrough (Brighter Red) */}
+                                                        {isVacationDay && (
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                <div className="w-[140%] h-[2px] bg-red-500/60 rotate-45 transform shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
+                                                            </div>
+                                                        )}
                                                     </button>
                                                 </td>
                                             );
@@ -248,26 +367,13 @@ export function AvailabilityHeatmap({
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-white/5 text-xs text-zinc-500">
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-                        <span className="text-orange-400/80">Matin</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                        <span className="text-amber-400/80">Après-midi</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-violet-400" />
-                        <span className="text-violet-400/80">Soir</span>
-                    </div>
-                </div>
+            {/* Minimal Legend */}
+            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-white/5 text-[10px] text-zinc-500">
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> Matin</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Midi</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> Soir</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-400" /> Nuit</div>
+                <div className="flex items-center gap-1.5 ml-4 text-cyan-500/50"><Plane className="w-3 h-3" /> Absent (Congés)</div>
             </div>
         </div>
     );

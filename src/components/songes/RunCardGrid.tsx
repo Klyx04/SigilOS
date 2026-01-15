@@ -15,6 +15,7 @@ type RunWithRelations = DreamRun & {
 interface RunCardGridProps {
     runs: RunWithRelations[];
     currentUserId?: string;
+    canJoinSonges?: boolean;
 }
 
 type TierFilter = "ALL" | "REVE" | "PARADOXE" | "CAUCHEMAR";
@@ -46,7 +47,7 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
     },
 };
 
-export function RunCardGrid({ runs: initialRuns, currentUserId }: RunCardGridProps) {
+export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges }: RunCardGridProps) {
     const [runs, setRuns] = useState(initialRuns);
     const [tierFilter, setTierFilter] = useState<TierFilter>("ALL");
 
@@ -117,7 +118,7 @@ export function RunCardGrid({ runs: initialRuns, currentUserId }: RunCardGridPro
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredRuns.map((run) => (
-                        <RunCard key={run.id} run={run} currentUserId={currentUserId} />
+                        <RunCard key={run.id} run={run} currentUserId={currentUserId} canJoinSonges={canJoinSonges} />
                     ))}
                 </div>
             )}

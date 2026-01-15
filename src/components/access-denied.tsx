@@ -12,11 +12,11 @@ export default function AccessDenied() {
 
             <div className="space-y-2">
                 <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl text-red-500 font-serif">
-                    Halte là, voyageur !
+                    Accès Restreint
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-                    Cette zone est réservée aux Empereurs et aux Officiers du Sigil.
-                    Vos accréditations ne vous permettent pas d'entrer.
+                    Vous n'avez pas les permissions nécessaires pour accéder à cette fonctionnalité.
+                    Contactez un administrateur si vous pensez qu'il s'agit d'une erreur.
                 </p>
             </div>
 
@@ -30,3 +30,4 @@ export default function AccessDenied() {
         </div>
     );
 }
+

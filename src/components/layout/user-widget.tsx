@@ -71,7 +71,7 @@ export function UserWidget({ user, collapsed = false, guildId }: { user: UserCon
                             Vous êtes <span className="font-bold" style={{ color: roleColorHex }}>{user.roleName}</span>
                         </div>
                     )}
-                    {user.canManageProfile && (
+                    {user.isMember && (
                         <DropdownMenuItem asChild>
                             <Link href={guildId ? `/dashboard/${guildId}/profile` : "/dashboard/profile"} className="cursor-pointer">
                                 <UserIcon className="mr-2 h-4 w-4" />

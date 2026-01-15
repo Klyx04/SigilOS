@@ -295,8 +295,8 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ## 4. Current Focus (Sprint Backlog)
 
-**Status:** Songes V3 Completed (Candidatures, Notifications, Security).
-**Current Sprint:** Ready for next module or enhancements.
+**Status:** Phase 9 RBAC Granulaire & Audit Logs V2 Completed (2026-01-15).
+**Current Sprint:** Ready for next module or production deployment.
 
 1.  **Foundation (DONE):**
     - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
@@ -376,6 +376,22 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Availability Heatmap:** Color-coded by time slot (morning/afternoon/evening).
     - [x] **Guild Header Compacted:** Single horizontal layout.
     - [x] **Dark Theme Forced:** Removed theme toggle.
+
+10. **Phase 9: RBAC Granulaire & Audit Logs V2 (COMPLETE - 2026-01-15):**
+    - [x] **RBAC Bug Fix (missions:validate):** Fixed `internalCheckPermission` to honor `admin:access` as global fallback.
+    - [x] **Granular Admin Sidebar:** Admin section shows if user has ANY admin-level permission (not just `isAdmin`).
+    - [x] **Per-Link Visibility:** Each admin link respects its specific permission (Gestion Missions → `canManageMissions`).
+    - [x] **Permissions Removed:** `MISSIONS_DELETE`, `PROFILE_UPDATE_SELF` (unused/redundant).
+    - [x] **New Permission:** `canManageMissions` added to UserContext for granular access.
+    - [x] **Songes Join Enforcement:** `canJoinSonges` prop passed to RunCard with explicit error message.
+    - [x] **Unified AccessDenied:** Single component, no variants, consistent UX across all pages.
+    - [x] **Audit Logs Pagination:** 20 logs/page with client-side navigation.
+    - [x] **Audit Logs Filters:** Action type dropdown + search field (prepared for future).
+    - [x] **Role Names in Logs:** Discord role names fetched and displayed instead of raw IDs.
+    - [x] **API Route:** `/api/guild/[guildId]/audit-logs` for client-side log fetching.
+    - [x] **Audit Log Retention:** 30-day cleanup function added.
+    - [x] **Access Denied Logging:** All protected pages log unauthorized access attempts.
+    - [x] **Build Verified:** Exit code 0, all routes functional.
 
 ---
 

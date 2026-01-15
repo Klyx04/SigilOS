@@ -1,15 +1,23 @@
 
 import { auth } from "@/auth";
 import { getGuildMembers } from "@/server/actions/profile-actions";
+import { getUserContext } from "@/server/actions/user-actions";
 import { MemberDirectory } from "@/components/directory/member-directory";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
+import AccessDenied from "@/components/access-denied";
 
 export default async function MembersPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
+
+    // RBAC: Check permission to view Roster
+    const user = await getUserContext(guildId);
+    if (!user.canViewRoster) {
+        return <AccessDenied />;
+    }
 
     const response = await getGuildMembers(guildId);
 

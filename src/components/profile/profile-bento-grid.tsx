@@ -8,7 +8,7 @@ import { AvailabilityHeatmap } from "./availability-heatmap";
 import { VacationMode } from "./vacation-mode";
 import { MetamobLink } from "./metamob-link";
 import { AltPseudos } from "./alt-pseudos";
-import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
+import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import type { AvailabilityMap, ForgemagieStatusId } from "@/lib/dofus-assets";
 
@@ -41,6 +41,8 @@ interface ProfileBentoGridProps {
         joinedAt: Date | null;
         lastActivity: { description: string; date: Date } | null;
         isTopContributor: boolean;
+        contributorTier?: ContributorTier;
+        rank?: number;
     };
     guildId: string;
     discordNickname?: string | null;
@@ -149,7 +151,8 @@ export function ProfileBentoGrid({
                 avatarUrl={user.image}
                 displayName={displayName}
                 roleColor={roleColor}
-                isTopContributor={stats.isTopContributor}
+                contributorTier={stats.contributorTier}
+                rank={stats.rank}
                 isOnVacation={isOnVacation}
                 joinedAt={stats.joinedAt}
                 xp={stats.xp}

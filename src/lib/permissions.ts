@@ -4,14 +4,11 @@ export const PERMISSIONS = {
 
     // Missions
     MISSIONS_VIEW: "missions:view",
-    MISSIONS_CREATE: "missions:create",
-    MISSIONS_DELETE: "missions:delete",
+    MISSIONS_CREATE: "missions:create", // Gérer les missions (création/édition)
     MISSIONS_VALIDATE: "missions:validate", // Validate submissions
 
     // User Profile
     PROFILE_VIEW_ALL: "profile:view_all", // See full guild roster
-    PROFILE_UPDATE_SELF: "profile:update_self", // Edit own profile
-
 
     // Archimonstres / Quête Ocre
     ARCHIS_VIEW: "archis:view", // Accès à la Bourse aux Archis
@@ -41,8 +38,8 @@ export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon:
 // Rich metadata for UI with module categories
 export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule }> = {
     [PERMISSIONS.ADMIN_ACCESS]: {
-        label: "Accès Admin",
-        description: "Accès complet au tableau de bord d'administration et à la configuration.",
+        label: "Accès Admin Complet",
+        description: "Accès total au tableau de bord d'administration et à toutes les configurations.",
         module: "admin",
     },
     [PERMISSIONS.MISSIONS_VIEW]: {
@@ -52,17 +49,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.MISSIONS_CREATE]: {
         label: "Gérer les Missions",
-        description: "Créer, modifier et supprimer des missions (Staff).",
-        module: "missions",
-    },
-    [PERMISSIONS.MISSIONS_DELETE]: {
-        label: "Supprimer Missions",
-        description: "Droit spécifique de suppression (souvent réservé Admin).",
+        description: "Créer et modifier les missions hebdomadaires.",
         module: "missions",
     },
     [PERMISSIONS.MISSIONS_VALIDATE]: {
         label: "Valider Preuves",
-        description: "Accepter ou refuser les screenshots des membres.",
+        description: "Accepter ou refuser les screenshots soumis par les membres.",
         module: "missions",
     },
     [PERMISSIONS.PROFILE_VIEW_ALL]: {
@@ -70,12 +62,6 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Consulter la liste de tous les membres de la guilde.",
         module: "profile",
     },
-    [PERMISSIONS.PROFILE_UPDATE_SELF]: {
-        label: "Modifier Profil",
-        description: "Mettre à jour ses propres infos (Pseudo, Métiers...).",
-        module: "profile",
-    },
-
     [PERMISSIONS.ARCHIS_VIEW]: {
         label: "Bourse aux Archis",
         description: "Accès au module d'échange d'archimonstres (Quête Ocre).",
@@ -83,7 +69,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.LADDER_VIEW]: {
         label: "Classements",
-        description: "Accès aux ladders de guilde (Activité, Ancienneté, Succès).",
+        description: "Accès aux ladders de guilde (Activité, Ancienneté).",
         module: "modules",
     },
     [PERMISSIONS.SONGES_VIEW]: {

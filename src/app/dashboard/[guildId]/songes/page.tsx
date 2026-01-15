@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
 import { getDreamRuns } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { SongesHeader } from "@/components/songes/SongesHeader";
 import { RunCardGrid } from "@/components/songes/RunCardGrid";
 import { CreateRunButton } from "@/components/songes/CreateRunButton";
+import AccessDenied from "@/components/access-denied";
 
 export default async function SongesPage({
     params,
@@ -15,8 +15,8 @@ export default async function SongesPage({
     const userContext = await getUserContext(guildId);
 
     // RBAC: Check permission to view Songes
-    if (!userContext.canViewSonges && !userContext.isAdmin) {
-        notFound();
+    if (!userContext.canViewSonges) {
+        return <AccessDenied />;
     }
 
     const { runs } = await getDreamRuns(["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
@@ -39,6 +39,7 @@ export default async function SongesPage({
                 <RunCardGrid
                     runs={runs}
                     currentUserId={currentUserId}
+                    canJoinSonges={userContext.canJoinSonges}
                 />
             </Suspense>
         </div>

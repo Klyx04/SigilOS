@@ -2,14 +2,47 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Palmtree, TrendingUp, Target } from "lucide-react";
+import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ContributorTier } from "@/server/actions/profile-actions";
+
+// Tier configuration
+const TIER_CONFIG = {
+    LEGENDE: {
+        label: "Légende",
+        icon: Crown,
+        bgColor: "bg-amber-500/15",
+        textColor: "text-amber-400",
+        borderColor: "border-amber-500/30",
+        hoverColor: "hover:bg-amber-500/20",
+        iconFill: "fill-amber-500/20",
+    },
+    CHAMPION: {
+        label: "Champion",
+        icon: Award,
+        bgColor: "bg-slate-400/15",
+        textColor: "text-slate-300",
+        borderColor: "border-slate-400/30",
+        hoverColor: "hover:bg-slate-400/20",
+        iconFill: "fill-slate-400/20",
+    },
+    PILIER: {
+        label: "Pilier",
+        icon: Medal,
+        bgColor: "bg-orange-600/15",
+        textColor: "text-orange-400",
+        borderColor: "border-orange-600/30",
+        hoverColor: "hover:bg-orange-600/20",
+        iconFill: "fill-orange-600/20",
+    },
+} as const;
 
 interface HeroHeaderProps {
     avatarUrl?: string | null;
     displayName: string;
     roleColor?: number;
-    isTopContributor?: boolean;
+    contributorTier?: ContributorTier;
+    rank?: number;
     isOnVacation?: boolean;
     joinedAt?: Date | null;
     xp: number;
@@ -22,7 +55,8 @@ export function HeroHeader({
     avatarUrl,
     displayName,
     roleColor = 0,
-    isTopContributor = false,
+    contributorTier = null,
+    rank,
     isOnVacation = false,
     joinedAt,
     xp,
@@ -33,6 +67,9 @@ export function HeroHeader({
     const roleHexColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
         : "#8b5cf6"; // Default purple
+
+    const tierConfig = contributorTier ? TIER_CONFIG[contributorTier] : null;
+    const TierIcon = tierConfig?.icon || Star;
 
     return (
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl">
@@ -66,9 +103,9 @@ export function HeroHeader({
                         </Avatar>
 
                         {/* Badges on Avatar */}
-                        {isTopContributor && (
-                            <div className="absolute -top-2 -right-2 p-1.5 bg-zinc-900 rounded-full border border-amber-500/40 shadow-lg" title="Top Contributeur">
-                                <Crown className="w-5 h-5 text-amber-500 fill-amber-500/20" />
+                        {tierConfig && (
+                            <div className={cn("absolute -top-2 -right-2 p-1.5 bg-zinc-900 rounded-full shadow-lg", tierConfig.borderColor, "border")} title={tierConfig.label}>
+                                <TierIcon className={cn("w-5 h-5", tierConfig.textColor, tierConfig.iconFill)} />
                             </div>
                         )}
                         {isOnVacation && (
@@ -90,10 +127,11 @@ export function HeroHeader({
 
                         {/* Status Badges */}
                         <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-4">
-                            {isTopContributor && (
-                                <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/20">
-                                    <Crown className="w-3 h-3 mr-1" />
-                                    Top Contributeur
+                            {tierConfig && (
+                                <Badge className={cn(tierConfig.bgColor, tierConfig.textColor, tierConfig.borderColor, tierConfig.hoverColor)}>
+                                    <TierIcon className="w-3 h-3 mr-1" />
+                                    {tierConfig.label}
+                                    {rank && <span className="ml-1 opacity-70">#{rank}</span>}
                                 </Badge>
                             )}
                             {isOnVacation && (

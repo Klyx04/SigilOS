@@ -1,7 +1,9 @@
 import { auth } from "@/auth";
 import { getWeekMissions } from "@/server/actions/mission-actions";
+import { getUserContext } from "@/server/actions/user-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,17 +19,13 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     const session = await auth();
     if (!session?.user) redirect("/");
 
-    // We can resolve params async in Next.js 15 but `params` prop is just an object in standard setup.
-    // In Next 15 `params` is a Promise. Let's assume standard behavior or check Next config.
-    // The user said Next 15+.
-
-    // Quick Fix for Params: 
-    // In strict Next 15, params is a Promise.
     const { guildId } = await params;
 
-    // For now assuming the project setup for Dashboard layout feeds `params` correctly. 
-    // Let's rely on standard Next 14/15 pattern.
-    // const guildId = params.guildId;
+    // RBAC: Check permission to view Missions
+    const user = await getUserContext(guildId);
+    if (!user.canViewMissions) {
+        return <AccessDenied />;
+    }
 
     const { week, year } = getCurrentWeek();
 
@@ -36,14 +34,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     if (!response.success) {
         // Check for specific permission errors
         if (response.error?.includes("Member not found") || response.error?.includes("Insufficient Permissions")) {
-            return (
-                <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-                    <h2 className="text-xl font-bold text-red-500">Accès Refusé</h2>
-                    <p className="text-zinc-400 max-w-md text-center">
-                        Vous ne semblez pas être membre de ce serveur Discord ou vous n'avez pas les droits nécessaires.
-                    </p>
-                </div>
-            );
+            return <AccessDenied />;
         }
 
         return (

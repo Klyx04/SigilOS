@@ -1,12 +1,14 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getMyArchimonsters } from "@/server/actions/metamob-actions";
+import { getUserContext } from "@/server/actions/user-actions";
 import { ArchiHub } from "@/components/archimonstres/archi-hub";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bug, AlertCircle, Link2 } from "lucide-react";
 import Link from "next/link";
+import AccessDenied from "@/components/access-denied";
 
 export default async function ArchimonstresPage({
     params
@@ -17,6 +19,12 @@ export default async function ArchimonstresPage({
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
+
+    // RBAC: Check permission to view Archis
+    const user = await getUserContext(guildId);
+    if (!user.canViewArchis) {
+        return <AccessDenied />;
+    }
 
     // Fetch user's archimonster data
     const archiResponse = await getMyArchimonsters(guildId);

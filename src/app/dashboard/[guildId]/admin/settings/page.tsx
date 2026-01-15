@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
+import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { Settings, Bell, Key, Moon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,9 +19,10 @@ export default async function FeatureSettingsPage({
 
     const { guildId } = await params;
 
-    // Verify admin access
+    // Verify admin access + Audit Log
     const user = await getUserContext(guildId);
     if (!user.isAdmin) {
+        await logAdminAccessDenied(guildId, "/admin/settings");
         return <AccessDenied />;
     }
 

@@ -50,9 +50,10 @@ interface MemberProfile {
 interface RunCardProps {
     run: RunWithRelations;
     currentUserId?: string;
+    canJoinSonges?: boolean;
 }
 
-export function RunCard({ run, currentUserId }: RunCardProps) {
+export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardProps) {
     const params = useParams();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -68,8 +69,11 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
     const progress = (run.currentFloor / 26) * 100;
     const isLeader = currentUserId === run.leaderId;
     const isMember = run.members.some((m) => m.userId === currentUserId);
-    const canApply = (run.status === "RECRUITING" || run.status === "IN_PROGRESS") &&
+
+    // Check if user can apply (includes permission check)
+    const canApplyConditions = (run.status === "RECRUITING" || run.status === "IN_PROGRESS") &&
         !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
+    const canApply = canApplyConditions && canJoinSonges;
 
     // Load member profiles with Dofus pseudos
     useEffect(() => {
@@ -331,6 +335,11 @@ export function RunCard({ run, currentUserId }: RunCardProps) {
                             </div>
                         </DialogContent>
                     </Dialog>
+                ) : canApplyConditions && !canJoinSonges ? (
+                    /* Show message when user lacks permission to join */
+                    <div className="flex-1 px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">
+                        Permission requise pour postuler
+                    </div>
                 ) : null}
 
                 {/* Start Button (leader only, recruiting status) */}

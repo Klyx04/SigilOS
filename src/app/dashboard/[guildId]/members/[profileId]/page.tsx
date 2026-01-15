@@ -4,6 +4,9 @@ import { getMemberProfile, getProfileStats } from "@/server/actions/profile-acti
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { ArchiMatchingWidget } from "@/components/profile/archi-matching-widget";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Palmtree } from "lucide-react";
 
 export default async function MemberProfilePage({
     params,
@@ -42,8 +45,26 @@ export default async function MemberProfilePage({
     const discordNickname = profile.discordInfo?.nickname || null;
     const displayName = discordNickname || profile.pseudoDofus || profile.user.name || "Membre";
 
+    // Vacation status
+    const now = new Date();
+    const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;
+    const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
+    const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+
     return (
         <div className="p-6 space-y-6">
+            {/* Vacation Banner */}
+            {isOnVacation && (
+                <div className="flex items-center gap-3 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-300">
+                    <Palmtree className="h-5 w-5 text-cyan-400 flex-shrink-0" />
+                    <span>
+                        🏖️ <strong>{displayName}</strong> est absent
+                        {vacationStart && ` du ${format(vacationStart, "d MMMM yyyy", { locale: fr })}`}
+                        {vacationEnd ? ` au ${format(vacationEnd, "d MMMM yyyy", { locale: fr })}` : " (date de retour indéfinie)"}
+                    </span>
+                </div>
+            )}
+
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Profil de {displayName}</h1>

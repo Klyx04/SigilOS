@@ -5,6 +5,7 @@ import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
+import AccessDenied from "@/components/access-denied";
 
 export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -12,8 +13,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
 
     const { guildId } = await params;
 
-    // Fetch user context for Discord info
+    // Fetch user context for Discord info + RBAC
     const userContext = await getUserContext(guildId);
+
+    // RBAC: Must be authenticated member of the guild
+    if (!userContext.isAuthenticated || !userContext.isMember) {
+        return <AccessDenied />;
+    }
 
     // Fetch profile
     const profileResponse = await getUserProfile(guildId);

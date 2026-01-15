@@ -8,6 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Hammer, Palmtree, Sparkles } from "lucide-react";
 import { getClass, DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ExtendedProfile extends UserProfile {
     user: User;
@@ -41,9 +49,14 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
     // Check if on vacation
     const now = new Date();
-    const isOnVacation = profile.vacationStart &&
-        new Date(profile.vacationStart) <= now &&
-        (!profile.vacationEnd || new Date(profile.vacationEnd) >= now);
+    const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;
+    const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
+    const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+
+    // Format vacation dates for tooltip
+    const vacationTooltip = isOnVacation
+        ? `Absent du ${format(vacationStart!, "d MMM", { locale: fr })}${vacationEnd ? ` au ${format(vacationEnd, "d MMM", { locale: fr })}` : " (indéfini)"}`
+        : "";
 
     return (
         <Link href={`/dashboard/${guildId}/members/${profile.id}`}>
@@ -67,11 +80,20 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             </AvatarFallback>
                         </Avatar>
 
-                        {/* Vacation Indicator */}
+                        {/* Vacation Indicator with Tooltip */}
                         {isOnVacation && (
-                            <div className="absolute -bottom-1 -right-1 p-1.5 bg-cyan-500/20 rounded-full border border-cyan-500/30">
-                                <Palmtree className="w-3 h-3 text-cyan-400" />
-                            </div>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="absolute -bottom-1 -right-1 p-1.5 bg-cyan-500/20 rounded-full border border-cyan-500/30 cursor-help">
+                                            <Palmtree className="w-3 h-3 text-cyan-400" />
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-zinc-900 border-cyan-500/30 text-cyan-300">
+                                        <p>🏖️ {vacationTooltip}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
                     </div>
 

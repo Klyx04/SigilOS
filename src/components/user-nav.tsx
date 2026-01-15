@@ -56,11 +56,11 @@ export function UserNav({ user }: { user: UserContext }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                    {user.canManageProfile && (
+                    {user.isMember && (
                         <DropdownMenuItem asChild>
                             <Link href="/dashboard/profile" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
-                                <span>Gérer mon Profil</span>
+                                <span>Mon Profil</span>
                             </Link>
                         </DropdownMenuItem>
                     )}

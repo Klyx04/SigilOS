@@ -60,10 +60,19 @@ async function internalCheckPermission(
         if (isDiscordAdmin) return true;
 
         const mapping = guildConfig.rolesMapping as Record<string, PermissionId[]>;
-        return member.roles.some(roleId => {
+
+        // Collect all permissions from all roles  
+        const allPerms = new Set<PermissionId>();
+        member.roles.forEach((roleId: string) => {
             const perms = mapping[roleId];
-            return perms?.includes(permission);
+            if (perms) perms.forEach((p: PermissionId) => allPerms.add(p));
         });
+
+        // ADMIN_ACCESS grants all permissions (fallback)
+        if (allPerms.has(PERMISSIONS.ADMIN_ACCESS)) return true;
+
+        // Check specific permission
+        return allPerms.has(permission);
     } catch (e) {
         console.error(`[InternalPermissionCheck] Error for ${discordUserId}:`, e);
         return false;

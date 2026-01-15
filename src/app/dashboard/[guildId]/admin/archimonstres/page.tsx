@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
+import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { MetamobSettingsClient } from "./_components/metamob-settings-client";
 import Link from "next/link";
 import { ArrowLeft, Bug } from "lucide-react";
@@ -16,9 +17,10 @@ export default async function ArchimonstresAdminPage({
 
     const { guildId } = await params;
 
-    // Secure Access (RBAC)
+    // Secure Access (RBAC) + Audit Log
     const user = await getUserContext(guildId);
     if (!user.isAdmin) {
+        await logAdminAccessDenied(guildId, "/admin/archimonstres");
         return <AccessDenied />;
     }
 

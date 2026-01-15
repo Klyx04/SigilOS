@@ -1,21 +1,27 @@
 import { auth } from "@/auth";
 import { getPendingSubmissions } from "@/server/actions/mission-actions";
+import { getUserContext } from "@/server/actions/user-actions";
+import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { ValidationQueue } from "@/components/missions/validation-queue";
 import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
 
 export default async function ValidationPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
     if (!session?.user) redirect("/");
     const { guildId } = await params;
 
+    // RBAC: Check permission to validate missions
+    const user = await getUserContext(guildId);
+    if (!user.canValidateMissions) {
+        await logAdminAccessDenied(guildId, "/missions/validation");
+        return <AccessDenied />;
+    }
+
     const response = await getPendingSubmissions(guildId);
 
     if (!response.success) {
-        return (
-            <div className="p-8 text-center text-red-500">
-                Accès refusé ou erreur: {response.error}
-            </div>
-        );
+        return <AccessDenied />;
     }
 
     const submissions = response.data || [];

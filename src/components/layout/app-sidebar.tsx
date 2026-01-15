@@ -61,14 +61,17 @@ export function AppSidebar({ className, user, guildId }: Props) {
         { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: UserCircle, visible: true },
     ];
 
-    // Admin Navigation Items (only for admins)
+    // Admin Navigation Items (visible based on granular permissions)
     const ADMIN_ITEMS = [
-        { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, visible: true },
-        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: true },
+        { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, visible: user.isAdmin },
+        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
         { name: "Validation Missions", href: `/dashboard/${guildId}/missions/validation`, icon: Gavel, visible: user.canValidateMissions },
-        { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: true },
-        { name: "Logs Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: true },
+        { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "Logs Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin },
     ];
+
+    // Show admin section if user has ANY admin-level permission
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions;
 
     const roleColorHex = user.roleColor && user.roleColor !== 0
         ? `#${user.roleColor.toString(16).padStart(6, '0')}`
@@ -217,8 +220,8 @@ export function AppSidebar({ className, user, guildId }: Props) {
                         />
                     ))}
 
-                    {/* Admin Section */}
-                    {user.isAdmin && (
+                    {/* Admin Section - Show if user has ANY admin-level permission */}
+                    {hasAnyAdminPermission && (
                         <div className="mt-6 pt-4 border-t border-white/10">
                             {!collapsed && (
                                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">

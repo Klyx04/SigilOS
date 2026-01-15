@@ -15,13 +15,15 @@ export type AuditAction =
     | "RBAC_ROLE_REMOVE"      // Role removed from mapping
     | "CONFIG_UPDATED"        // Guild config changed
     | "API_KEY_UPDATED"       // Metamob API key changed
-    | "CHANNEL_CONFIGURED";   // Discord channel configured
+    | "CHANNEL_CONFIGURED"    // Discord channel configured
+    | "ADMIN_ACCESS_DENIED";  // Unauthorized admin page access attempt
 
 export type AuditTargetType =
     | "PERMISSION"
     | "ROLE"
     | "CONFIG"
-    | "CHANNEL";
+    | "CHANNEL"
+    | "ACCESS_ATTEMPT";
 
 export type AuditLogEntry = {
     id: string;
@@ -110,6 +112,54 @@ export async function createAuditLog({
     } catch (error) {
         console.error("[createAuditLog] Error:", error);
         return { success: false, error: "Failed to create audit log" };
+    }
+}
+
+/**
+ * Log unauthorized admin access attempt
+ * This function can be called WITHOUT admin permissions (since it logs failed access attempts)
+ * It uses internal auth to get user info
+ */
+export async function logAdminAccessDenied(
+    discordGuildId: string,
+    targetPage: string
+): Promise<void> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return; // No session = can't log
+
+        // Get guild config
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true }
+        });
+
+        if (!guildConfig) return;
+
+        // Import Prisma for JsonNull handling
+        const { Prisma } = await import("@prisma/client");
+
+        await db.auditLog.create({
+            data: {
+                guildId: guildConfig.id,
+                actorUserId: session.user.id,
+                actorName: session.user.name || "Unknown",
+                action: "ADMIN_ACCESS_DENIED",
+                targetType: "ACCESS_ATTEMPT",
+                targetId: targetPage,
+                oldValue: Prisma.JsonNull,
+                newValue: Prisma.JsonNull,
+                metadata: {
+                    userAgent: "web",
+                    timestamp: new Date().toISOString(),
+                }
+            }
+        });
+
+        console.log(`[SECURITY] Admin access denied for user ${session.user.id} on page ${targetPage}`);
+    } catch (error) {
+        // Silent fail - logging shouldn't break the app
+        console.error("[logAdminAccessDenied] Error:", error);
     }
 }
 
@@ -263,5 +313,65 @@ export async function getAuditActionTypes(
     } catch (error) {
         console.error("[getAuditActionTypes] Error:", error);
         return { success: false, error: "Erreur" };
+    }
+}
+
+// ============================================================================
+// AUDIT LOG CLEANUP (Retention Policy)
+// ============================================================================
+
+const RETENTION_DAYS = 30;
+
+/**
+ * Cleanup old audit logs for a guild
+ * Removes logs older than RETENTION_DAYS (30 days by default)
+ * Only accessible by admin users
+ */
+export async function cleanupOldAuditLogs(
+    discordGuildId: string
+): Promise<ActionResponse<{ deletedCount: number }>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        // Security: Verify admin access
+        const user = await getUserContext(discordGuildId);
+        if (!user.isAdmin) {
+            return { success: false, error: "Accès non autorisé" };
+        }
+
+        // Get guild config
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guild not found" };
+        }
+
+        // Calculate cutoff date
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
+
+        // Delete old logs
+        const result = await db.auditLog.deleteMany({
+            where: {
+                guildId: guildConfig.id,
+                createdAt: { lt: cutoffDate }
+            }
+        });
+
+        console.log(`[cleanupOldAuditLogs] Deleted ${result.count} logs older than ${RETENTION_DAYS} days for guild ${discordGuildId}`);
+
+        return {
+            success: true,
+            data: { deletedCount: result.count }
+        };
+    } catch (error) {
+        console.error("[cleanupOldAuditLogs] Error:", error);
+        return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }

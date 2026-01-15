@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,11 @@ export function AltPseudos({
     const [isEditing, setIsEditing] = useState(false);
     const [localPseudos, setLocalPseudos] = useState<string[]>(altPseudos);
     const [newPseudo, setNewPseudo] = useState("");
+
+    // Sync local state when props change (after save)
+    useEffect(() => {
+        setLocalPseudos(altPseudos);
+    }, [altPseudos]);
 
     const handleAddPseudo = () => {
         const trimmed = newPseudo.trim();

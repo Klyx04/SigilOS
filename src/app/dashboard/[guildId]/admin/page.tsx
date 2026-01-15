@@ -6,6 +6,7 @@ import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
+import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 
 
@@ -20,9 +21,10 @@ export default async function AdminPage({
     const { guildId } = await params;
     const targetGuildId = guildId;
 
-    // Secure Access (RBAC)
+    // Secure Access (RBAC) + Audit Log
     const user = await getUserContext(targetGuildId);
     if (!user.isAdmin) {
+        await logAdminAccessDenied(targetGuildId, "/admin");
         return <AccessDenied />;
     }
 

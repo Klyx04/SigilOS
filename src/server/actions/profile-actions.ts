@@ -369,6 +369,8 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 // GAMIFICATION
 // ============================================================================
 
+export type ContributorTier = "LEGENDE" | "CHAMPION" | "PILIER" | null;
+
 export async function getProfileStats(guildId: string, userId?: string): Promise<ActionResponse<{
     xp: number;
     weeklyXp: number;
@@ -378,6 +380,8 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     lastActivity: { description: string; date: Date } | null;
     joinedAt: Date | null;
     isTopContributor: boolean;
+    contributorTier: ContributorTier;
+    rank?: number;
 }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -431,8 +435,40 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
         const weeklyMissions = weeklySubmissions.length;
         const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission.xpReward || 0), 0);
 
-        // Check top contributor (simple: XP > 1000)
-        const isTopContributor = profile.xp >= 1000;
+        // Calculate contributor tier based on monthly XP ranking
+        // Tier thresholds:
+        // - Top 1: Légende (gold)
+        // - Top 2-3: Champion (silver) 
+        // - Top 4-10: Pilier (bronze)
+        let contributorTier: ContributorTier = null;
+        let rank: number | undefined;
+
+        // Get all guild members sorted by XP (descending)
+        const guildRanking = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            orderBy: { xp: "desc" },
+            select: { userId: true, xp: true }
+        });
+
+        // Find user's rank
+        const userRankIndex = guildRanking.findIndex(p => p.userId === targetUserId);
+        if (userRankIndex !== -1) {
+            rank = userRankIndex + 1; // 1-indexed rank
+
+            if (rank === 1) {
+                contributorTier = "LEGENDE";
+            } else if (rank <= 3) {
+                contributorTier = "CHAMPION";
+            } else if (rank <= 10) {
+                contributorTier = "PILIER";
+            }
+        }
+
+        // Legacy isTopContributor for backwards compatibility
+        const isTopContributor = contributorTier !== null;
 
         const joinedAt = null; // Default to null for now, handled by UserContext in UI
 
@@ -445,16 +481,12 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                 weeklyXp,
                 weeklyMissions,
                 lastActivity: profile.lastActivityAt
-                    ? {
-                        description: `[DEBUG] Found ${allValidatedSubmissions.length} validated. ProfileID: ${profile.id}`,
-                        date: profile.lastActivityAt
-                    }
-                    : {
-                        description: `[DEBUG] Found ${allValidatedSubmissions.length} validated. ProfileID: ${profile.id}`,
-                        date: new Date()
-                    },
+                    ? { description: "Dernière activité", date: profile.lastActivityAt }
+                    : null,
                 joinedAt,
                 isTopContributor,
+                contributorTier,
+                rank
             }
         };
     } catch (error) {

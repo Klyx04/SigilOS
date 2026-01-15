@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { Trophy, Clock, TrendingUp } from "lucide-react";
 import { LadderTabs } from "./_components/ladder-tabs";
+import { getUserContext } from "@/server/actions/user-actions";
+import AccessDenied from "@/components/access-denied";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -8,6 +10,12 @@ type Props = {
 
 export default async function LadderPage({ params }: Props) {
     const { guildId } = await params;
+
+    // RBAC: Check permission to view Ladder
+    const user = await getUserContext(guildId);
+    if (!user.canViewLadder) {
+        return <AccessDenied />;
+    }
 
     return (
         <div className="space-y-6">

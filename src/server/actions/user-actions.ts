@@ -12,8 +12,8 @@ export type UserContext = {
     image?: string;
     roleName?: string;
     roleColor?: number;
-    canManageProfile: boolean;
     canViewMissions: boolean;
+    canManageMissions: boolean;
     canValidateMissions: boolean;
     canViewRoster: boolean;
     // Songes Permissions
@@ -33,11 +33,11 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
+        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
+    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
 
     // --- SECURITY: DEEP WHITELIST CHECK ---
     // Rule: If defined (even empty), enforce strict whitelist.
@@ -46,7 +46,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
         if (!allowedGuilds.includes(targetGuildId)) {
             console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
-            return { isAuthenticated: false, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
+            return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
         }
     }
 
@@ -68,7 +68,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, canManageProfile: false, isAdmin: false, isMember: false, canViewMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
+        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false };
     }
 
     const discordUserId = account.providerAccountId;
@@ -223,16 +223,18 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         if (perms) perms.forEach(p => myPerms.add(p));
     });
 
-    const canManageProfile = myPerms.has(PERMISSIONS.PROFILE_UPDATE_SELF);
 
     // Fallback: If user has Discord "ADMINISTRATOR" permission (0x8), they are Admin.
     // This prevents lockout before roles are mapped.
     const hasDiscordAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
     const isAdmin = myPerms.has(PERMISSIONS.ADMIN_ACCESS) || hasDiscordAdmin;
 
-    // View Permissions (Admin always sees everything)
+    // Missions Permissions
     const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
+    const canManageMissions = myPerms.has(PERMISSIONS.MISSIONS_CREATE) || isAdmin;
     const canValidateMissions = myPerms.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdmin;
+
+    // Roster Permission
     const canViewRoster = myPerms.has(PERMISSIONS.PROFILE_VIEW_ALL) || isAdmin;
 
     // Songes Permissions
@@ -251,8 +253,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         image: session.user.image || undefined,
         roleName,
         roleColor,
-        canManageProfile,
         canViewMissions,
+        canManageMissions,
         canValidateMissions,
         canViewRoster,
         canViewSonges,

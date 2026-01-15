@@ -177,27 +177,18 @@ export function AppSidebar({ className, user, guildId }: Props) {
 
     const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
         <div className="flex flex-col h-full py-4">
-            {/* Logo */}
+            {/* Logo - REMOVED per user request (Header handles Identity) */}
             <div className={cn(
-                "mb-6 flex items-center",
+                "mb-2 flex items-center",
                 collapsed && !isMobile ? "justify-center px-2" : "justify-between px-4"
             )}>
-                <Link href={`/dashboard/${guildId}`} className="flex items-center gap-2">
-                    <span className={cn(
-                        "font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-secondary",
-                        collapsed && !isMobile ? "text-xl" : "text-2xl"
-                    )}>
-                        {collapsed && !isMobile ? "S" : "SIGILOS"}
-                    </span>
-                </Link>
-
-                {/* Collapse Toggle (Desktop only) */}
+                {/* Collapse Toggle (Desktop only) now serves as the 'top' anchor */}
                 {!isMobile && (
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setCollapsed(!collapsed)}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground ml-auto"
                     >
                         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                     </Button>

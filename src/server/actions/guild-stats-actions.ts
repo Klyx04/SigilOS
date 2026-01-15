@@ -15,6 +15,7 @@ export type GuildStats = {
     activeSongesRuns: number;
     activeMembersThisWeek: number;
     totalMembers: number;
+    activityPointsThisWeek: number;
 };
 
 /**
@@ -64,7 +65,8 @@ export async function getGuildStats(
             missionsValidatedThisWeek,
             activeSongesRuns,
             activeMembersThisWeek,
-            totalMembers
+            totalMembers,
+            activityPointsThisWeek
         ] = await Promise.all([
             // Validated submissions this week (using updatedAt as validation timestamp)
             db.submission.count({
@@ -95,7 +97,22 @@ export async function getGuildStats(
                     guildId: guildConfig.id,
                     status: "ACTIVE"
                 }
-            })
+            }),
+            // Activity points gained this week
+            db.submission.findMany({
+                where: {
+                    mission: { guildId: guildConfig.id },
+                    status: "VALIDATED",
+                    updatedAt: { gte: weekStart }
+                },
+                select: {
+                    mission: {
+                        select: { xpReward: true }
+                    }
+                }
+            }).then(submissions =>
+                submissions.reduce((acc, sub) => acc + (sub.mission.xpReward || 0), 0)
+            )
         ]);
 
         return {
@@ -104,7 +121,8 @@ export async function getGuildStats(
                 missionsValidatedThisWeek,
                 activeSongesRuns,
                 activeMembersThisWeek,
-                totalMembers
+                totalMembers,
+                activityPointsThisWeek
             }
         };
     } catch (error) {

@@ -50,17 +50,20 @@ export function ClassDisplay({
     };
 
     return (
-        <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5 transition-all hover:border-white/10 group">
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-medium text-zinc-400">Identité de Combat</h3>
+        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
+                    Identité de Combat
+                </h3>
                 {!readOnly && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleOpen}>
-                                <Pencil className="w-4 h-4" />
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleOpen}>
+                                <Pencil className="w-3 h-3" />
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
+                            {/* ... Dialog Content ... (Keep existing layout inside dialog as it is fine for modal) */}
                             <DialogHeader className="p-6 pb-2 border-b border-white/5">
                                 <DialogTitle className="text-xl">Choisir votre voie</DialogTitle>
                                 <DialogDescription>Définissez votre classe principale et vos spécialisations secondaires.</DialogDescription>
@@ -163,38 +166,38 @@ export function ClassDisplay({
                 )}
             </div>
 
-            {/* Main Class Display - Premium Card */}
+            {/* Main Class Display - Premium Card COMPACT */}
             {mainClassData ? (
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-6 mb-6 group-hover:border-white/10 transition-colors">
-                    {/* Background Glow */}
-                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] opacity-20 pointer-events-none"
+                <div className="relative overflow-hidden rounded-lg border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-4 mb-3 group-hover:border-white/10 transition-colors">
+                    {/* Background Glow - Reduced blur/size */}
+                    <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-[50px] opacity-15 pointer-events-none"
                         style={{ backgroundColor: mainClassData.color }}
                     />
 
-                    <div className="relative flex items-center gap-5">
-                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-zinc-950 border border-white/10 shadow-xl shrink-0">
-                            <span className="text-5xl drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]">{mainClassData.icon}</span>
-                            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
+                    <div className="relative flex items-center gap-4">
+                        <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-zinc-950 border border-white/10 shadow-lg shrink-0">
+                            <span className="text-3xl drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]">{mainClassData.icon}</span>
+                            <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
                         </div>
 
                         <div>
-                            <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-1">Classe Principale</p>
-                            <h2 className="text-3xl font-bold text-white tracking-tight" style={{ textShadow: `0 0 30px ${mainClassData.color}40` }}>
+                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest mb-0.5">Classe Principale</p>
+                            <h2 className="text-xl font-bold text-white tracking-tight" style={{ textShadow: `0 0 20px ${mainClassData.color}30` }}>
                                 {mainClassData.name}
                             </h2>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="p-8 text-center border-2 border-dashed border-zinc-800 rounded-xl mb-6">
-                    <p className="text-zinc-500">Aucune classe principale définie</p>
+                <div className="p-4 text-center border-2 border-dashed border-zinc-800 rounded-lg mb-4">
+                    <p className="text-xs text-zinc-500">Aucune classe principale définie</p>
                 </div>
             )}
 
             {/* Secondary Classes - Chips */}
             {secondaryClasses.length > 0 && (
                 <div>
-                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2 pl-1">Classes Secondaires</p>
+                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest mb-1.5 pl-1">Classes Secondaires</p>
                     <div className="flex flex-wrap gap-1.5">
                         {secondaryClasses.map(classId => {
                             const data = getClass(classId);
@@ -202,10 +205,10 @@ export function ClassDisplay({
                             return (
                                 <div
                                     key={classId}
-                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors"
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors h-9"
                                 >
-                                    <span className="text-base">{data.icon}</span>
-                                    <span className="text-xs font-medium text-zinc-300">{data.name}</span>
+                                    <span className="text-xl">{data.icon}</span>
+                                    <span className="text-sm font-medium text-zinc-200">{data.name}</span>
                                 </div>
                             );
                         })}

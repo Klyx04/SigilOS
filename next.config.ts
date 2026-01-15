@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "metamob.fr",
       },
+      {
+        protocol: "https",
+        hostname: "api.dofusdu.de",
+      },
     ],
   },
   experimental: {

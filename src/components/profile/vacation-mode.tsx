@@ -87,14 +87,14 @@ export function VacationMode({
     };
 
     return (
-        <div className="p-6 bg-zinc-900/60 rounded-2xl border border-white/5">
-            <div className="flex items-center justify-between mb-4">
+        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-white/10">
+            <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                    <Palmtree className="w-5 h-5 text-cyan-400" />
+                    <Palmtree className="w-4 h-4 text-cyan-400" />
                     <h3 className="text-sm font-medium text-zinc-400">Mode Vacances</h3>
                 </div>
                 {isOnVacation && (
-                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 px-1.5 py-0 h-5 text-[10px]">
                         Actif
                     </Badge>
                 )}
@@ -102,58 +102,96 @@ export function VacationMode({
 
             {readOnly ? (
                 // Read-only display
-                <div className="space-y-2">
+                <div className="space-y-1">
                     {isOnVacation ? (
                         <>
-                            <p className="text-sm text-zinc-300">
-                                En vacances depuis le{" "}
+                            <p className="text-sm text-zinc-300 flex items-center gap-2">
+                                <span className="text-zinc-500 text-xs w-16">Départ :</span>
                                 <span className="font-medium">
-                                    {format(vacationStart!, "d MMMM yyyy", { locale: fr })}
+                                    {format(vacationStart!, "d MMM yyyy", { locale: fr })}
                                 </span>
                             </p>
                             {vacationEnd ? (
-                                <p className="text-sm text-zinc-300">
-                                    Retour prévu le{" "}
+                                <p className="text-sm text-zinc-300 flex items-center gap-2">
+                                    <span className="text-zinc-500 text-xs w-16">Retour :</span>
                                     <span className="font-medium">
-                                        {format(vacationEnd, "d MMMM yyyy", { locale: fr })}
+                                        {format(vacationEnd, "d MMM yyyy", { locale: fr })}
                                     </span>
                                 </p>
                             ) : (
-                                <p className="text-sm text-zinc-500">Pas de date de retour prévue</p>
+                                <p className="text-xs text-zinc-500 italic">Pas de date de retour prévue</p>
                             )}
                         </>
                     ) : (
-                        <p className="text-sm text-zinc-500">Pas de vacances prévues</p>
+                        <p className="text-xs text-zinc-500 italic">Pas de vacances prévues</p>
                     )}
                 </div>
             ) : (
                 // Editable mode
-                <div className="space-y-4">
-                    {/* Start Date */}
-                    <div className="space-y-2">
-                        <Label>Date de début</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className={cn(
-                                        "w-full justify-start text-left font-normal",
-                                        !startDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {startDate ? format(startDate, "PPP", { locale: fr }) : "Sélectionner"}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={startDate}
-                                    onSelect={setStartDate}
-                                    locale={fr}
-                                />
-                            </PopoverContent>
-                        </Popover>
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Start Date */}
+                        <div className="space-y-1">
+                            <Label className="text-xs text-zinc-500">Début</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal h-8 text-xs",
+                                            !startDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-3 w-3" />
+                                        {startDate ? format(startDate, "P", { locale: fr }) : "Choisir"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={startDate}
+                                        onSelect={setStartDate}
+                                        locale={fr}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        {/* End Date */}
+                        <div className="space-y-1">
+                            <Label className="text-xs text-zinc-500">Retour</Label>
+                            {noEndDate ? (
+                                <div className="h-8 flex items-center text-xs text-zinc-600 italic border border-transparent px-3">
+                                    Indéterminé
+                                </div>
+                            ) : (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={cn(
+                                                "w-full justify-start text-left font-normal h-8 text-xs",
+                                                !endDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-3 w-3" />
+                                            {endDate ? format(endDate, "P", { locale: fr }) : "Choisir"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={endDate}
+                                            onSelect={setEndDate}
+                                            locale={fr}
+                                            disabled={(date) => startDate ? date < startDate : false}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            )}
+                        </div>
                     </div>
 
                     {/* No End Date Toggle */}
@@ -162,49 +200,20 @@ export function VacationMode({
                             id="no-end-date"
                             checked={noEndDate}
                             onCheckedChange={setNoEndDate}
+                            className="scale-75 origin-left"
                         />
-                        <Label htmlFor="no-end-date" className="text-sm text-zinc-400">
-                            Pas de date de retour prévue
+                        <Label htmlFor="no-end-date" className="text-xs text-zinc-400">
+                            Durée indéterminée
                         </Label>
                     </div>
 
-                    {/* End Date */}
-                    {!noEndDate && (
-                        <div className="space-y-2">
-                            <Label>Date de retour</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !endDate && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {endDate ? format(endDate, "PPP", { locale: fr }) : "Sélectionner"}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={endDate}
-                                        onSelect={setEndDate}
-                                        locale={fr}
-                                        disabled={(date) => startDate ? date < startDate : false}
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    )}
-
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                        <Button onClick={handleSave} className="flex-1">
+                    <div className="flex gap-2 border-t border-white/5 pt-2">
+                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs">
                             Enregistrer
                         </Button>
                         {(startDate || endDate) && (
-                            <Button variant="outline" onClick={handleClear}>
+                            <Button variant="ghost" size="sm" onClick={handleClear} className="h-7 text-xs">
                                 Effacer
                             </Button>
                         )}
@@ -213,15 +222,16 @@ export function VacationMode({
                     {/* Discord Notification Button */}
                     {startDate && guildId && profileId && (
                         <Button
-                            variant="outline"
+                            variant="ghost"
+                            size="sm"
                             onClick={handleSendNotification}
                             disabled={isSending}
-                            className="w-full mt-2 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+                            className="w-full h-7 text-xs border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
                         >
                             {isSending ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                <Loader2 className="w-3 h-3 mr-2 animate-spin" />
                             ) : (
-                                <Bell className="w-4 h-4 mr-2" />
+                                <Bell className="w-3 h-3 mr-2" />
                             )}
                             Notifier sur Discord
                         </Button>

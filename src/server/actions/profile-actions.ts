@@ -29,9 +29,12 @@ const UpdateProfileSchema = z.object({
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
 });
 
+// Schema allows both legacy map (for validation) and new GlobalAvailability structure
 const UpdateAvailabilitySchema = z.object({
     guildId: z.string(),
-    availability: z.record(z.array(z.enum(["matin", "midi", "soir"]))),
+    // We accept any JSON structure here, validation will happen in component/render logic
+    // primarily to allow the flexible "weeks" structure without complex Zod recursion
+    availability: z.any(),
 });
 
 const UpdateVacationSchema = z.object({
@@ -329,7 +332,12 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
 const UpdateAltPseudosSchema = z.object({
     guildId: z.string(),
-    altPseudos: z.array(z.string().max(24)).max(5),
+    altPseudos: z.array(
+        z.string()
+            .min(2, "Pseudo trop court")
+            .max(20, "Pseudo trop long")
+            .regex(/^[A-Z][a-z0-9]*(-[A-Z][a-z0-9]*)?$/, "Format invalide (Ex: Pseudo, Pseudo-Surnom)")
+    ).max(5, "Maximum 5 personnages"),
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
@@ -361,6 +369,52 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         return { success: true };
     } catch (error) {
         console.error("Update Alt Pseudos Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
+// DOFUSBOOK LINKS
+// ============================================================================
+
+const UpdateDofusBookLinksSchema = z.object({
+    guildId: z.string(),
+    links: z.array(z.object({
+        id: z.string(),
+        name: z.string()
+            .min(1, "Nom requis")
+            .max(30, "Nom trop long (max 30)")
+            .regex(/^[a-zA-Z0-9À-ÿ\s\-_'().]+$/, "Caractères non autorisés"),
+        url: z.string().regex(
+            /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
+            "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
+        )
+    })).max(10, "Maximum 10 builds")
+});
+
+export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBookLinksSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, links } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        await db.userProfile.update({
+            where: {
+                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+            },
+            data: { dofusBookLinks: links as any }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Builds Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

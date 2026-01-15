@@ -84,6 +84,11 @@ export default async function MemberProfilePage({
                     vacationStart: profile.vacationStart ? new Date(profile.vacationStart) : null,
                     vacationEnd: profile.vacationEnd ? new Date(profile.vacationEnd) : null,
                     vacationNotify: profile.vacationNotify || false,
+                    altPseudos: (profile.altPseudos as string[]) || [],
+                    metamobPseudo: profile.metamobPseudo,
+                    metamobVerified: profile.metamobVerified,
+                    metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
+                    dofusBookLinks: (profile.dofusBookLinks as any) || [],
                 }}
                 user={{
                     name: profile.user.name,

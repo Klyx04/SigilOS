@@ -144,6 +144,25 @@ Tout ceci n’est qu’exemple évidemment.
 
  
 
+### C. Auth Security Configuration (OWASP Compliant)
+
+**Session Management:**
+- `maxAge`: 7 days (reasonable for dashboard app)
+- `updateAge`: 24 hours (sliding session refresh)
+- `strategy`: JWT (stateless, scalable)
+
+**Cookie Security:**
+| Cookie | Options |
+|--------|---------|
+| Session Token | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
+| Callback URL | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
+| CSRF Token | `__Host-` prefix (prod), `httpOnly`, `sameSite: lax` |
+
+**Discord Integration:**
+- `sendChannelMessage()`: Rich embeds with URL, fields, author, mention support.
+- Nickname sync at login via `fetchGuildMember` API.
+
+
 ## 2. Business Logic & Data Model (Dynamic Architecture)
 
 **Philosophie :** SigilOS est un système SaaS Multi-tenant piloté par des permissions granulaires.
@@ -393,23 +412,14 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Access Denied Logging:** All protected pages log unauthorized access attempts.
     - [x] **Build Verified:** Exit code 0, all routes functional.
 
----
+11. **Phase 10: Profile Redesign (Glassmorphism & DofusBook) (COMPLETE - 2026-01-15):**
+    - [x] **Tabs System:** Profile split into "Général", "Stuffs et Autres Pseudos", "Planning".
+    - [x] **Glassmorphism UI:** Unified "Premium Gaming" aesthetic (backdrop-blur, amber glows).
+    - [x] **Availability V2:** GlobalAvailability (Weekly schedule + Nuit slot), Vacation Mode button.
+    - [x] **DofusBook Integration:** "Mes Builds" component with secure link validation (d-bk.net/dofusbook.net).
+    - [x] **Alt Pseudos V2:** List layout, "/w" copy-to-clipboard button, max 5 pseudos.
+    - [x] **Metamob Polish:** Flex-wrap fix for overflow on zoom, better responsive layout.
+    - [x] **Security:** DofusBook URL whitelist, Zod validation for all profile updates.
 
-## 5. Auth Security Configuration (OWASP Compliant)
 
-**Session Management:**
-- `maxAge`: 7 days (reasonable for dashboard app)
-- `updateAge`: 24 hours (sliding session refresh)
-- `strategy`: JWT (stateless, scalable)
-
-**Cookie Security:**
-| Cookie | Options |
-|--------|---------|
-| Session Token | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
-| Callback URL | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
-| CSRF Token | `__Host-` prefix (prod), `httpOnly`, `sameSite: lax` |
-
-**Discord Integration:**
-- `sendChannelMessage()`: Rich embeds with URL, fields, author, mention support.
-- Nickname sync at login via `fetchGuildMember` API.
 

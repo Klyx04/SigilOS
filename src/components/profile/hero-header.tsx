@@ -171,7 +171,7 @@ export function HeroHeader({
                             <div className="px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20 backdrop-blur-sm">
                                 <div className="flex items-center gap-2 mb-1">
                                     <Target className="w-4 h-4 text-blue-400" />
-                                    <span className="text-xs text-blue-300 font-medium">Missions</span>
+                                    <span className="text-xs text-blue-300 font-medium">Missions Totales</span>
                                 </div>
                                 <p className="text-xl font-bold text-white">{missionsValidated}</p>
                             </div>
@@ -180,7 +180,7 @@ export function HeroHeader({
                             <div className="px-4 py-3 rounded-lg bg-orange-500/10 border border-orange-500/20 backdrop-blur-sm">
                                 <div className="flex items-center gap-2 mb-1">
                                     <Target className="w-4 h-4 text-orange-400" />
-                                    <span className="text-xs text-orange-300 font-medium">Cette semaine</span>
+                                    <span className="text-xs text-orange-300 font-medium">Missions Semaine</span>
                                 </div>
                                 <p className="text-xl font-bold text-white">{weeklyMissions}</p>
                             </div>

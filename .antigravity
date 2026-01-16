@@ -431,5 +431,42 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Image Consistency:** Synced Banner/Photo logic between Public and Member views.
     - [x] **Security:** `presentation:edit` permission required for Admin access.
 
+13. **Phase 12: Comprehensive Security Audit (COMPLETE - 2026-01-16):**
+    - [x] **OWASP Top 10:2025 Review:** Full audit of 85+ server actions, 4 API routes.
+    - [x] **IDOR Fix #1:** `/api/upload` now verifies guild membership before upload.
+    - [x] **IDOR Fix #2:** `/api/guild/[guildId]/server-config` POST requires admin permission.
+    - [x] **Security Headers:** X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy added to `next.config.ts`.
+    - [x] **Dependabot:** `.github/dependabot.yml` for weekly npm security scans.
+    - [x] **CI Security:** `.github/workflows/security-audit.yml` runs `npm audit` on every push/PR.
+    - [x] **Project Cleanup:** Removed debug scripts, obsolete files, default Next.js assets.
+    - [x] **Documentation:** `SECURITY.md`, `RULES.md` created for SecOps best practices.
+    - [x] **Gitignore 2026:** Updated with IDE, logs, certs, build artifacts patterns.
+    - [x] **README Modernized:** Badges, better structure, documentation links.
 
+---
 
+## 5. Security Implementation Summary (Reference)
+
+**API Routes Protection Pattern:**
+```typescript
+// All API routes MUST use this pattern:
+const session = await auth();
+if (!session?.user?.id) return 401;
+
+const user = await getUserContext(guildId);
+if (!user.isMember) return 403;
+if (!user.isAdmin && routeRequiresAdmin) return 403;
+```
+
+**Server Actions Protection Pattern:**
+```typescript
+// All server actions MUST use this pattern:
+const ctx = await getUserContext(guildId);
+if (!ctx.isAuthenticated) throw new Error("Unauthorized");
+if (!ctx.isMember) throw new Error("Not a member");
+```
+
+**Automated Security:**
+- Dependabot scans every Monday 9 AM (Paris)
+- GitHub Actions run `npm audit` on every push
+- 30-day audit log retention

@@ -1,6 +1,7 @@
 import { auth, signIn, signOut } from "@/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Users } from "lucide-react";
 
 export default async function Home() {
   const session = await auth();
@@ -41,7 +42,16 @@ export default async function Home() {
             </Button>
           </form>
         )}
+
+        {/* Guild Directory Link */}
+        <div className="pt-8 border-t border-white/10 mt-8">
+          <Link href="/guilds" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
+            <Users className="w-4 h-4" />
+            Découvrir les guildes
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
+

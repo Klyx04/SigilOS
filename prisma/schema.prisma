@@ -76,6 +76,26 @@ model GuildConfig {
   // Songes Module Configuration
   songesNotifyChannelId String?  // Discord channel ID for Songes join request notifications
   
+  // === GUILD PRESENTATION MODULE ===
+  presentationEnabled     Boolean   @default(false)  // Visible in public directory
+  presentationHistory     String?   @db.Text  // Guild history (Markdown, emojis allowed)
+  presentationActivities  Json?     // ["Économie", "PVM", "Roleplay", "Kolizéum", "Percepteur"]
+  presentationFounder     String?   // Founder pseudo
+  presentationCoLeaders   Json?     // ["pseudo1", "pseudo2", "pseudo3"] - Up to 3 co-leaders
+  presentationTeam        Json?     // ["pseudo1", "pseudo2", ...] - Up to 10 bras droits (free text)
+  presentationDiscord     String?   // Discord invite link (sanitized)
+  presentationRecruiting  Boolean   @default(false)  // Recruiting status
+  presentationRecruitReq  String?   @db.Text  // Recruitment requirements (Markdown)
+  presentationServer      String?   // Dofus Unity server name
+  presentationFoundedDate DateTime? // Date of guild creation (roleplay/historical)
+  presentationBannerType  String?   @default("discord")  // "discord" | "custom"
+  presentationBannerUrl   String?   // Custom banner URL (if uploaded)
+  presentationPhotoUrl    String?   // Guild photo URL (uploaded)
+  // Recruitment specific fields
+  presentationDiscordReq  Boolean   @default(false)  // Discord required for recruitment
+  presentationMinLevel    Int?      // Min level (0-200)
+  presentationMinSuccesses Int?     // Min successes (0-25000)
+  
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 

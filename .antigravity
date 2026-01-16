@@ -421,5 +421,15 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Metamob Polish:** Flex-wrap fix for overflow on zoom, better responsive layout.
     - [x] **Security:** DofusBook URL whitelist, Zod validation for all profile updates.
 
+12. **Phase 11: Guild Presentation Module V1.2 (COMPLETE):**
+    - [x] **Dual View System:** Public "Landing Page" (External) vs Member Dashboard View (Internal/Mirror).
+    - [x] **Admin Form Redesign:** 5-Tab Layout (General, Direction, Content, Images, Recruit), Contextual Save.
+    - [x] **Foundation Date:** Manual historical date field (independent of Discord), displayed in Header as "Guilde fondée le...".
+    - [x] **UI Polish:** Parallax Hero Banner, Scroll Reveal animations, Glassmorphism cards.
+    - [x] **Team Presentation:** Compact `inline-flex` cards for Founder/Co-leaders/Officers.
+    - [x] **Smart Recruitment:** "Other Requirements" hidden if empty, state badges (Open/Closed).
+    - [x] **Image Consistency:** Synced Banner/Photo logic between Public and Member views.
+    - [x] **Security:** `presentation:edit` permission required for Admin access.
+
 
 

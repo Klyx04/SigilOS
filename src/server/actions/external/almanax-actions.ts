@@ -20,11 +20,39 @@ type AlmanaxData = {
     date: string;
 };
 
-export async function getAlmanaxData(): Promise<{ success: boolean; data?: AlmanaxData; error?: string }> {
+/**
+ * Calculate seconds until midnight in Paris timezone
+ */
+function getSecondsUntilMidnight(): number {
+    const now = new Date();
+    // Get current time in Paris timezone
+    const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    
+    // Calculate midnight Paris time
+    const midnight = new Date(parisTime);
+    midnight.setDate(midnight.getDate() + 1);
+    midnight.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in seconds, add 60s buffer to ensure API has updated
+    const secondsUntilMidnight = Math.floor((midnight.getTime() - parisTime.getTime()) / 1000) + 60;
+    
+    // Minimum 60 seconds, maximum 24 hours
+    return Math.max(60, Math.min(secondsUntilMidnight, 86400));
+}
+
+export async function getAlmanaxData(): Promise<{ 
+    success: boolean; 
+    data?: AlmanaxData; 
+    error?: string;
+    secondsUntilMidnight?: number;
+}> {
     try {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const res = await fetch(`https://api.dofusdu.de/dofus2/fr/almanax/${today}`, {
-            next: { revalidate: 3600 }, // Cache for 1 hour
+        // Use Paris timezone for date to match Dofus game day
+        const parisDate = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" }); // YYYY-MM-DD format
+        const secondsUntilMidnight = getSecondsUntilMidnight();
+        
+        const res = await fetch(`https://api.dofusdu.de/dofus2/fr/almanax/${parisDate}`, {
+            next: { revalidate: secondsUntilMidnight }, // Dynamic cache until midnight
         });
 
         if (!res.ok) {
@@ -32,7 +60,7 @@ export async function getAlmanaxData(): Promise<{ success: boolean; data?: Alman
         }
 
         const data = await res.json();
-        return { success: true, data };
+        return { success: true, data, secondsUntilMidnight };
     } catch (error) {
         console.error("Almanax Fetch Error:", error);
         return { success: false, error: "Impossible de charger l'Almanax" };

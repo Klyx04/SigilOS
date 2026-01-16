@@ -20,6 +20,9 @@ export const PERMISSIONS = {
     SONGES_VIEW: "songes:view", // Accès à la page Songes
     SONGES_CREATE: "songes:create", // Créer une run
     SONGES_JOIN: "songes:join", // Envoyer une demande pour rejoindre une run
+
+    // Guild Presentation
+    PRESENTATION_EDIT: "presentation:edit", // Éditer la page de présentation publique
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -86,6 +89,11 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Rejoindre Runs Songes",
         description: "Envoyer des demandes pour rejoindre les runs d'autres joueurs.",
         module: "songes",
+    },
+    [PERMISSIONS.PRESENTATION_EDIT]: {
+        label: "Éditer Présentation",
+        description: "Modifier la page de présentation publique de la guilde.",
+        module: "admin",
     },
 };
 

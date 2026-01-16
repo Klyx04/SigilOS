@@ -4,6 +4,7 @@ import { processImage, MAX_FILE_SIZE } from "@/lib/image-processor";
 import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { getUserContext } from "@/server/actions/user-actions";
 
 // Local storage fallback path (when R2 is not configured)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "proofs");
@@ -24,6 +25,13 @@ export async function POST(request: NextRequest) {
 
         if (!file || !guildId || !missionId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        // 2.5 SECURITY: Verify user is a member of this specific guild
+        const user = await getUserContext(guildId);
+        if (!user.isMember) {
+            console.warn(`[Security] Upload blocked: User not member of guild ${guildId}`);
+            return NextResponse.json({ error: "Forbidden - Not a guild member" }, { status: 403 });
         }
 
         // 3. Validate file size

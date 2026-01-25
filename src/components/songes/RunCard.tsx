@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -75,7 +76,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
     const canApply = canApplyConditions && canJoinSonges;
 
-    // Load member profiles with Dofus pseudos
+    // Load member profiles
     useEffect(() => {
         async function loadData() {
             const userIds = run.members.map((m) => m.userId);
@@ -85,21 +86,37 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     setProfiles(result.profiles as MemberProfile[]);
                 }
             }
-            // Check if current user has pending request
-            // If user is now a member, reset pending state
+            // Check initial pending status
             if (isMember) {
                 setPendingRequest(false);
             } else if (currentUserId && !isLeader) {
                 const requestStatus = await getMyJoinRequestStatus(run.id);
-                if (requestStatus.success && requestStatus.status === "PENDING") {
-                    setPendingRequest(true);
-                } else {
-                    setPendingRequest(false);
-                }
+                setPendingRequest(requestStatus.success && requestStatus.status === "PENDING");
             }
         }
         loadData();
     }, [run.members, run.id, currentUserId, isMember, isLeader]);
+
+    // POLL STATUS (Auto-Refresh for expiry/accept/reject)
+    useEffect(() => {
+        if (!pendingRequest) return;
+
+        const interval = setInterval(async () => {
+            const result = await getMyJoinRequestStatus(run.id);
+            if (result.success && result.status !== "PENDING") {
+                setPendingRequest(false);
+                router.refresh();
+
+                if (result.status === "REJECTED") {
+                    toast.error("Candidature expirée ou refusée.");
+                } else if (result.status === "ACCEPTED") {
+                    toast.success("Candidature acceptée !");
+                }
+            }
+        }, 5000); // Check every 5s
+
+        return () => clearInterval(interval);
+    }, [pendingRequest, run.id, router]);
 
     const getDisplayName = (userId: string): string => {
         const profile = profiles.find((p) => p.userId === userId);
@@ -110,10 +127,15 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
-        await sendJoinRequest({ runId: run.id, classe: selectedClasse, message: message || undefined });
-        setJoinDialogOpen(false);
-        setPendingRequest(true);
-        router.refresh();
+        const result = await sendJoinRequest({ runId: run.id, classe: selectedClasse, message: message || undefined });
+        if (result.success) {
+            toast.success("Candidature envoyée avec succès !");
+            setJoinDialogOpen(false);
+            setPendingRequest(true);
+            router.refresh();
+        } else {
+            toast.error(result.error || "Une erreur est survenue");
+        }
         setLoading(false);
     };
 
@@ -154,6 +176,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                 className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20"
                 style={{ backgroundColor: difficulty?.couleur }}
             />
+            {/* Completed Watermark - Cleaner and more professional */}
+            {run.status === "COMPLETED" && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center z-0 pointer-events-none opacity-20 rotate-[-10deg]">
+                    <div className="border-4 border-amber-500/50 text-amber-500 font-black text-4xl uppercase px-4 py-1 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] bg-black/40 backdrop-blur-sm tracking-widest">
+                        Terminée
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="relative flex justify-between items-start mb-4">
@@ -300,7 +330,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                 Postuler
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white">
+                        <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white w-[90vw] max-w-[425px] rounded-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
                             <DialogHeader>
                                 <DialogTitle>Candidature Run Songes</DialogTitle>
                             </DialogHeader>
@@ -308,7 +338,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                 <div className="space-y-2">
                                     <Label className="text-purple-200">Classe</Label>
                                     <Select value={selectedClasse} onValueChange={(v) => setSelectedClasse(v as DofusClass)}>
-                                        <SelectTrigger className="bg-purple-900/30 border-purple-500/30">
+                                        <SelectTrigger className="bg-purple-900/30 border-purple-500/30 w-full">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="bg-[#1a0933] border-purple-500/30">
@@ -326,8 +356,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                         placeholder="Ex: Cra opti dispo 21h"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        className="bg-purple-900/30 border-purple-500/30 text-white"
+                                        maxLength={200}
+                                        className="bg-purple-900/30 border-purple-500/30 text-white min-h-[100px] resize-none w-full break-all whitespace-pre-wrap"
                                     />
+                                    <div className="text-right text-xs text-purple-300/50">
+                                        {message.length}/200
+                                    </div>
                                 </div>
                                 <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-green-600 hover:bg-green-500">
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Envoyer ma candidature"}

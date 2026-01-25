@@ -68,7 +68,6 @@ export default async function MemberProfilePage({
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Profil de {displayName}</h1>
-                    <p className="text-sm text-zinc-400">Profil en lecture seule</p>
                 </div>
             </div>
 

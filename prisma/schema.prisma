@@ -383,12 +383,15 @@ model DreamRun {
   
   // Configuration
   difficulty      DreamDifficulty
-  objective       DreamObjective   @default(FUN)
+  objective       DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
+  objectives      DreamObjective[] // New multi-select field
   
   // State
   status          DreamRunStatus   @default(RECRUITING)
   currentFloor    Int              @default(0)  // 0 = not started, 1-26 = in progress
   pointsReve      Int              @default(0)  // Accumulated dream points
+  
+  minorBonuses    Json?            // List of acquired minor bonuses
   
   // Timestamps
   createdAt       DateTime         @default(now())
@@ -487,6 +490,7 @@ enum DreamObjective {
   DROP_LEGENDE      // Farming legendaries
   SUCCES_NO_ACHAT   // Achievement (no purchases)
   FUN               // Just for fun
+  QUETE             // Quest
 }
 
 enum DreamRunStatus {
@@ -502,6 +506,7 @@ enum DreamRoomType {
   FONTAINE          // Shop (buy bonuses)
   FAVEUR            // Free random bonus
   BOSS              // Final boss (floor 26)
+  ENTREE            // Room 0 (New)
 }
 
 model DreamJoinRequest {

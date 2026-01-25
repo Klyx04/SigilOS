@@ -190,13 +190,7 @@ export function RunStatsPanel({ run, currentUserId, isLeader = false }: RunStats
                 </div>
             </div>
 
-            {/* Points de Rêve */}
-            <div className="p-3 rounded-lg bg-amber-900/20 border border-amber-500/30">
-                <div className="flex items-center justify-between">
-                    <span className="text-amber-200">💎 Points de Rêve</span>
-                    <span className="text-2xl font-bold text-amber-400">{run.pointsReve}</span>
-                </div>
-            </div>
+            {/* Points de Rêve (Removed per request) */}
         </div>
     );
 }

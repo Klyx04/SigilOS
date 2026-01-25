@@ -74,7 +74,43 @@ git branch -d feat/my-feature
 
 ---
 
-## 🚫 Forbidden Patterns
+## � Security Patterns (Copy-Paste)
+
+### 1. Server Actions (Standard)
+```typescript
+const ctx = await getUserContext(guildId);
+if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+if (!ctx.isMember) return { success: false, error: "Not a member" };
+
+// Admin action?
+if (!ctx.isAdmin) return { success: false, error: "Admin required" };
+```
+
+### 2. API Routes (Strict)
+```typescript
+import { getUserContext } from "@/server/actions/user-actions";
+
+const session = await auth();
+if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+const user = await getUserContext(guildId);
+if (!user.isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+```
+
+### 3. Database Isolation (Multi-tenant)
+```typescript
+// ALWAY scope requests by guildId
+await db.entity.findMany({
+    where: { 
+        guildId: guildConfig.id, // 👈 MANDATORY
+        ...otherFilters 
+    }
+});
+```
+
+---
+
+## �🚫 Forbidden Patterns
 
 ```typescript
 // ❌ NEVER DO THIS

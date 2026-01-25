@@ -22,13 +22,15 @@ interface BonusInventoryProps {
     bonuses: DreamRunBonus[];
     runId: string;
     pointsReve?: number; // Optional now, not used for purchase restrictions
+    isLeader?: boolean;
+    onUpdate?: () => void;
 }
 
-const RARITY_COLORS = {
-    Commun: "text-gray-300 border-gray-500/30 bg-gray-900/20",
-    Rare: "text-blue-300 border-blue-500/30 bg-blue-900/20",
-    Épique: "text-purple-300 border-purple-500/30 bg-purple-900/20",
-    Légendaire: "text-amber-300 border-amber-500/30 bg-amber-900/20",
+const RARITY_STYLES = {
+    Commun: "border-slate-600 bg-slate-900/40 text-slate-300 shadow-[0_0_10px_rgba(148,163,184,0.1)] hover:border-slate-500",
+    Rare: "border-blue-500/40 bg-blue-950/30 text-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.15)] hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]",
+    Épique: "border-purple-500/40 bg-[#1a0b2e]/60 text-purple-200 shadow-[0_0_15px_rgba(168,85,247,0.15)] hover:border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)]",
+    Légendaire: "border-amber-500/40 bg-[#2e1a0b]/60 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.25)]",
 };
 
 // Sous-filtres par type selon specs V2
@@ -39,7 +41,32 @@ const SUBFILTERS_BY_TYPE: Record<string, string[]> = {
     consommable: ["Rare", "Épique"],
 };
 
-export function BonusInventory({ bonuses, runId }: BonusInventoryProps) {
+// ... imports
+import { deleteDreamBonus } from "@/server/actions/songes/dream-run-actions";
+import { Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import Image from "next/image";
+
+// Minor bonuses list provided by user
+const MINOR_BONUSES = [
+    { name: "5% Dégâts", type: "MINEUR", effet: "+5% Dommages finaux", icon: "⚔️" },
+    { name: "20% Vitalité", type: "MINEUR", effet: "+20% Vitalité", icon: "❤️" },
+    { name: "2 Portée", type: "MINEUR", effet: "+2 Portée", icon: "🏹" },
+    { name: "1 PA", type: "MINEUR", effet: "+1 Point d'Action", icon: "⚡" },
+    { name: "1 PM", type: "MINEUR", effet: "+1 Point de Mouvement", icon: "🦶" },
+    { name: "Sorts : +1 Portée", type: "MINEUR", effet: "Augmente la portée maximale des sorts de 1", icon: "🎯" },
+    { name: "Sorts : -1 Relance", type: "MINEUR", effet: "Réduit l'intervalle de relance des sorts de 1", icon: "🔄" },
+    { name: "Sorts : +1 Lancer/Tour", type: "MINEUR", effet: "Augmente le nombre de lancers par tour de 1", icon: "🔢" },
+    { name: "Sorts : +1 Lancer/Cible", type: "MINEUR", effet: "Augmente le nombre de lancers par cible de 1", icon: "🎯" },
+    { name: "Tempête Astrale", type: "MINEUR", effet: "Invoque une tempête astrale en début de combat", icon: "🌪️" },
+    { name: "5 Points de Rêve", type: "MINEUR", effet: "Gagne instantanément 5 PR (devrait être géré par edit floor normalement)", icon: "✨" },
+    { name: "15 Points de Rêve", type: "MINEUR", effet: "Gagne instantanément 15 PR", icon: "✨" },
+    { name: "Armes : +1 Lancer/Tour", type: "MINEUR", effet: "Augmente le nombre de lancers d'arme par tour de 1", icon: "🗡️" },
+    { name: "Armes : +1 Portée", type: "MINEUR", effet: "Augmente la portée de l'arme de 1", icon: "📏" },
+];
+
+export function BonusInventory({ bonuses, runId, isLeader = false, onUpdate }: BonusInventoryProps) {
     const [shopOpen, setShopOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
     const [rarityFilter, setRarityFilter] = useState<string | null>(null);
@@ -47,11 +74,8 @@ export function BonusInventory({ bonuses, runId }: BonusInventoryProps) {
     const [loading, setLoading] = useState(false);
 
     const typedBonusData = bonusData as SongesBonus[];
-
-    // Get available rarity subfilters based on type
     const availableRarities = typeFilter ? SUBFILTERS_BY_TYPE[typeFilter] : [];
 
-    // Filter logic with search
     const filteredShop = useMemo(() => {
         return typedBonusData.filter((b) => {
             if (typeFilter && b.type !== typeFilter) return false;
@@ -61,167 +85,337 @@ export function BonusInventory({ bonuses, runId }: BonusInventoryProps) {
         });
     }, [typedBonusData, typeFilter, rarityFilter, searchQuery]);
 
+    // Separate grouped bonuses into Major and Minor
+    const { groupedMajor, groupedMinor } = useMemo(() => {
+        const majorGroups: Record<string, { count: number; instances: DreamRunBonus[] }> = {};
+        const minorGroups: Record<string, { count: number; instances: DreamRunBonus[] }> = {};
+
+        for (const b of bonuses) {
+            const key = `${b.bonusName}-${b.bonusType}`;
+            const target = b.bonusType === 'MINEUR' ? minorGroups : majorGroups;
+
+            if (!target[key]) {
+                target[key] = { count: 0, instances: [] };
+            }
+            target[key].count++;
+            target[key].instances.push(b);
+        }
+
+        const toArray = (groups: typeof majorGroups) => Object.values(groups).map(g => ({
+            ...g.instances[0],
+            count: g.count,
+            allIds: g.instances.map(i => i.id)
+        })).sort((a, b) => a.bonusName.localeCompare(b.bonusName));
+
+        return {
+            groupedMajor: toArray(majorGroups),
+            groupedMinor: toArray(minorGroups)
+        };
+    }, [bonuses]);
+
     const handleTypeFilter = (type: string | null) => {
         setTypeFilter(type);
-        setRarityFilter(null); // Reset rarity when type changes
+        setRarityFilter(null);
+    };
+
+    const handleDelete = async (bonusId: string) => {
+        if (!confirm("Supprimer ce bonus ?")) return;
+        setLoading(true);
+        const res = await deleteDreamBonus({ runId, bonusId });
+        setLoading(false);
+        if (res.success) {
+            toast.success("Bonus supprimé");
+            onUpdate?.();
+        } else {
+            toast.error(res.error);
+        }
+    };
+
+    const handleAddMinor = async (bonus: typeof MINOR_BONUSES[0]) => {
+        setLoading(true);
+        const res = await addDreamBonus({
+            runId,
+            bonusName: bonus.name,
+            bonusType: "MINEUR",
+            bonusRarete: "Commun",
+            cost: 0
+        });
+        setLoading(false);
+        if (res.success) {
+            toast.success("Bonus mineur ajouté");
+            onUpdate?.();
+        } else {
+            toast.error(res.error);
+        }
     };
 
     const handleBuy = async (bonus: SongesBonus) => {
         setLoading(true);
-        await addDreamBonus({
+        const res = await addDreamBonus({
             runId,
             bonusName: bonus.nom,
             bonusType: bonus.type,
             bonusRarete: bonus.rarete,
-            cost: 0, // No cost system anymore
+            cost: 0,
         });
-        setShopOpen(false);
         setLoading(false);
+        if (res.success) {
+            toast.success("Bonus acheté !");
+            onUpdate?.();
+        } else {
+            toast.error(res.error || "Erreur lors de l'achat");
+        }
     };
 
-    return (
-        <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Package className="w-5 h-5 text-purple-400" />
-                    Bonus ({bonuses.length})
-                </h3>
+    // Helper to render a bonus item row (Inventory view)
+    const renderBonusRow = (group: typeof groupedMajor[0], isMinor: boolean) => (
+        <div
+            key={group.id}
+            className={`group relative p-3 rounded-lg border text-sm flex justify-between items-center transition-all bg-[#130720] hover:bg-[#1a0e2e]
+                 ${isMinor ? 'border-zinc-800 text-zinc-400' : RARITY_STYLES[group.bonusRarete as keyof typeof RARITY_STYLES] ? RARITY_STYLES[group.bonusRarete as keyof typeof RARITY_STYLES].split(' ')[0] : 'border-gray-500'}
+            `}
+        >
+            <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded flex items-center justify-center bg-black/40 font-bold text-lg border border-white/10
+                    ${group.bonusRarete === 'Légendaire' ? 'text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'text-purple-400'}
+                 `}>
+                    {isMinor ? '✨' : group.bonusName.charAt(0)}
+                </div>
 
-                <Dialog open={shopOpen} onOpenChange={setShopOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-300">
-                            <Plus className="w-4 h-4 mr-1" />
-                            Acheter
-                        </Button>
-                    </DialogTrigger>
-
-                    <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white max-w-2xl max-h-[80vh] overflow-auto">
-                        <DialogHeader>
-                            <DialogTitle>
-                                🛒 Fontaine Onirique
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        {/* Search Field */}
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
-                            <Input
-                                placeholder="Rechercher un bonus..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 bg-purple-900/30 border-purple-500/30 text-white placeholder:text-purple-400/50"
-                            />
-                        </div>
-
-                        {/* Type Filters */}
-                        <div className="mb-2">
-                            <div className="text-xs text-purple-300/70 mb-1">Type</div>
-                            <div className="flex gap-2 flex-wrap">
-                                <Button
-                                    size="sm"
-                                    variant={typeFilter === null ? "default" : "outline"}
-                                    onClick={() => handleTypeFilter(null)}
-                                    className="text-xs"
-                                >
-                                    Tous
-                                </Button>
-                                {["bonus", "passif", "actif", "consommable"].map((type) => (
-                                    <Button
-                                        key={type}
-                                        size="sm"
-                                        variant={typeFilter === type ? "default" : "outline"}
-                                        onClick={() => handleTypeFilter(type)}
-                                        className="text-xs capitalize"
-                                    >
-                                        {type}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Rarity Subfilters (when type is selected and has subfilters) */}
-                        {typeFilter && availableRarities.length > 0 && (
-                            <div className="mb-4">
-                                <div className="text-xs text-purple-300/70 mb-1">Rareté</div>
-                                <div className="flex gap-2 flex-wrap">
-                                    <Button
-                                        size="sm"
-                                        variant={rarityFilter === null ? "default" : "outline"}
-                                        onClick={() => setRarityFilter(null)}
-                                        className="text-xs"
-                                    >
-                                        Toutes
-                                    </Button>
-                                    {availableRarities.map((rarity) => (
-                                        <Button
-                                            key={rarity}
-                                            size="sm"
-                                            variant={rarityFilter === rarity ? "default" : "outline"}
-                                            onClick={() => setRarityFilter(rarity)}
-                                            className={`text-xs ${RARITY_COLORS[rarity as keyof typeof RARITY_COLORS] || ""}`}
-                                        >
-                                            {rarity}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
+                <div>
+                    <div className="font-bold flex items-center gap-2 text-base text-gray-200">
+                        {group.bonusName}
+                        {group.count > 1 && (
+                            <span className="bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 border border-purple-400/50 shadow-sm">
+                                x{group.count}
+                            </span>
                         )}
-
-                        {/* Results count */}
-                        <div className="text-xs text-purple-300/50 mb-2">
-                            {filteredShop.length} bonus trouvés
-                        </div>
-
-                        {/* Bonus Grid */}
-                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                            {filteredShop.slice(0, 50).map((bonus, i) => (
-                                <div
-                                    key={i}
-                                    className={`p-3 rounded-lg border ${RARITY_COLORS[bonus.rarete]} flex justify-between items-start gap-4`}
-                                >
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-sm">{bonus.nom}</div>
-                                        <div className="text-xs opacity-70 line-clamp-2">{bonus.effets}</div>
-                                        <div className="text-xs mt-1 flex gap-2">
-                                            <span className="capitalize">{bonus.type}</span>
-                                            <span>•</span>
-                                            <span>{bonus.rarete}</span>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        size="sm"
-                                        disabled={loading}
-                                        onClick={() => handleBuy(bonus)}
-                                        className="bg-purple-600 hover:bg-purple-500 text-white"
-                                    >
-                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ajouter"}
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                    </div>
+                </div>
             </div>
 
-            {/* Owned Bonuses */}
-            {bonuses.length === 0 ? (
-                <div className="text-center py-6 text-purple-300/50">
-                    <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Aucun bonus acquis</p>
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    {bonuses.map((bonus) => (
-                        <div
-                            key={bonus.id}
-                            className={`p-2 rounded-lg border text-sm ${RARITY_COLORS[bonus.bonusRarete as keyof typeof RARITY_COLORS]}`}
-                        >
-                            <div className="font-medium">{bonus.bonusName}</div>
-                            <div className="text-xs opacity-70 capitalize">{bonus.bonusType}</div>
-                        </div>
-                    ))}
-                </div>
+            {isLeader && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-950/50 transition-all rounded-full"
+                    onClick={() => handleDelete(group.allIds[group.allIds.length - 1])}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </Button>
             )}
+        </div>
+    );
+
+    return (
+        <div className="rounded-xl border border-purple-500/20 bg-[#0a0118]/95 p-6 overflow-hidden relative shadow-2xl">
+            {/* Background Noise */}
+            <div className="absolute inset-0 opacity-5 bg-[url('/noise.png')] mix-blend-overlay pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 relative z-10">
+                <div>
+                    <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-indigo-200 flex items-center gap-3">
+                        <Package className="w-5 h-5 text-purple-400" />
+                        Inventaire Onirique
+                    </h3>
+                    <p className="text-sm text-purple-400/50 mt-1">
+                        Bonus actifs et bénédictions
+                    </p>
+                </div>
+
+                {isLeader && (
+                    <Dialog open={shopOpen} onOpenChange={setShopOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/30 shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all hover:scale-105">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Ouvrir la Fontaine
+                            </Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="bg-[#0f0518] border-purple-500/30 text-white w-full sm:max-w-[1400px] h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl shadow-purple-900/20">
+                            <div className="p-6 border-b border-purple-500/20 bg-[#150a25]">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200">
+                                        Fontaine des Songes
+                                    </DialogTitle>
+                                </DialogHeader>
+                            </div>
+
+                            <Tabs defaultValue="shop" className="flex-1 flex flex-col overflow-hidden">
+                                <div className="px-6 pt-6 pb-6 bg-[#150a25] shadow-lg z-20 relative">
+                                    <TabsList className="bg-purple-900/40 border border-purple-500/20 w-full p-1 h-auto grid grid-cols-2 gap-2">
+                                        <TabsTrigger value="shop" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white py-3 px-4 font-bold uppercase tracking-wider transition-all">Fontaine Majeure</TabsTrigger>
+                                        <TabsTrigger value="minor" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white py-3 px-4 font-bold uppercase tracking-wider transition-all">Bonus Mineurs</TabsTrigger>
+                                    </TabsList>
+                                </div>
+
+                                <TabsContent value="shop" className="flex-1 overflow-hidden flex flex-col gap-4 p-6 bg-[#0a0118] relative">
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-purple-900/10 via-transparent to-transparent pointer-events-none" />
+
+                                    {/* Filters Bar */}
+                                    <div className="flex flex-col gap-4 relative z-10 p-4 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
+                                            <Input
+                                                placeholder="Rechercher un pouvoir..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="pl-10 bg-black/40 border-purple-500/30 text-white placeholder:text-purple-400/30 focus-visible:ring-purple-500/50"
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-4 items-center flex-wrap">
+                                            <div className="flex gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
+                                                {["bonus", "passif", "actif", "consommable"].map((type) => (
+                                                    <Button
+                                                        key={type}
+                                                        size="sm"
+                                                        variant={typeFilter === type ? "secondary" : "ghost"}
+                                                        onClick={() => handleTypeFilter(typeFilter === type ? null : type)}
+                                                        className={`text-xs capitalize ${typeFilter === type ? 'bg-purple-600 text-white hover:bg-purple-500' : 'text-purple-300 hover:text-white hover:bg-white/5'}`}
+                                                    >
+                                                        {type}
+                                                    </Button>
+                                                ))}
+                                            </div>
+
+                                            {typeFilter && availableRarities.length > 0 && (
+                                                <div className="flex gap-1 bg-black/40 p-1 rounded-lg border border-white/5 animate-in fade-in slide-in-from-left-4">
+                                                    {availableRarities.map((rarity) => (
+                                                        <Button
+                                                            key={rarity}
+                                                            size="sm"
+                                                            variant={rarityFilter === rarity ? "secondary" : "ghost"}
+                                                            onClick={() => setRarityFilter(rarityFilter === rarity ? null : rarity)}
+                                                            className={`text-xs ${rarityFilter === rarity
+                                                                ? 'bg-amber-600 text-white hover:bg-amber-500'
+                                                                : 'text-amber-200/70 hover:text-amber-100 hover:bg-amber-900/20'}`}
+                                                        >
+                                                            {rarity}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="ml-auto text-xs text-purple-400/50 italic">
+                                                {filteredShop.length} résultats
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Grid Results */}
+                                    <div className="overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
+                                        {filteredShop.slice(0, 50).map((bonus, i) => {
+                                            // Robust color mapping
+                                            const getRarityColor = (r: string) => {
+                                                if (r === 'Légendaire') return 'bg-amber-500';
+                                                if (r === 'Épique') return 'bg-purple-500';
+                                                if (r === 'Rare') return 'bg-blue-500';
+                                                return 'bg-slate-500';
+                                            };
+                                            const colorClass = getRarityColor(bonus.rarete);
+                                            const textColor = bonus.rarete === 'Légendaire' ? 'text-amber-400' : bonus.rarete === 'Épique' ? 'text-purple-400' : 'text-slate-200';
+                                            const fullEffects = bonus.effets.replace(/\|/g, " • ");
+
+                                            return (
+                                                <div key={`${bonus.nom}-${i}`} title={fullEffects} className="flex rounded-xl border border-white/10 bg-[#120820] overflow-hidden group hover:bg-[#1a0e2e] transition-all h-[130px]">
+                                                    {/* Left Colored Bar */}
+                                                    <div className={`w-2 self-stretch ${colorClass} opacity-80`} />
+
+                                                    {/* Main Content */}
+                                                    <div className="flex-1 p-4 flex gap-3 min-w-0">
+                                                        <div className="flex-1 flex flex-col min-w-0">
+                                                            {/* Header */}
+                                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                                                <div className={`font-bold text-base truncate ${textColor}`}>
+                                                                    {bonus.nom}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Description with Line Clamp */}
+                                                            <div className="text-sm text-gray-300/90 leading-snug font-medium mb-auto line-clamp-3" style={{ wordBreak: 'break-word' }}>
+                                                                {fullEffects}
+                                                            </div>
+
+                                                            {/* Tags Footer */}
+                                                            <div className="flex gap-2 text-[10px] uppercase tracking-wider font-bold opacity-60 text-gray-400 pt-2 shrink-0">
+                                                                <span className="bg-white/5 px-2 py-0.5 rounded border border-white/5 whitespace-nowrap">{bonus.type}</span>
+                                                                <span className={`${textColor} whitespace-nowrap`}>{bonus.rarete}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Button (Right aligned, vertically centered) */}
+                                                        <div className="flex flex-col justify-center shrink-0">
+                                                            <Button
+                                                                disabled={loading}
+                                                                onClick={() => handleBuy(bonus)}
+                                                                className="h-9 w-20 bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600 text-white rounded transition-colors text-xs"
+                                                            >
+                                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ajouter"}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="minor" className="flex-1 overflow-auto p-6 bg-[#0a0118] pb-20">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8 gap-4">
+                                        {MINOR_BONUSES.map((bonus, i) => (
+                                            <div key={i} className="group relative p-4 rounded-xl bg-[#150a25] border border-purple-500/20 hover:border-purple-400/50 hover:bg-[#1f0f35] transition-all duration-300 hover:shadow-xl hover:shadow-purple-900/20 flex flex-col justify-between h-full min-h-[180px]">
+                                                <div className="flex flex-col items-center text-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-purple-900/30 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300 border border-purple-500/20 group-hover:border-purple-400">
+                                                        {bonus.icon}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-sm text-white group-hover:text-purple-200">{bonus.name}</div>
+                                                        <div className="text-xs text-purple-400/70 mt-1 leading-snug">{bonus.effet}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 pt-4 border-t border-white/5 w-full">
+                                                    <Button
+                                                        onClick={() => handleAddMinor(bonus)}
+                                                        disabled={loading}
+                                                        className="w-full bg-purple-600/20 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 transition-all text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ajouter"}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </div>
+
+            {/* Inventory List (Separated) */}
+            <div className="space-y-6 relative z-10">
+                {groupedMajor.length > 0 && (
+                    <div className="space-y-2">
+                        <h4 className="text-xs uppercase tracking-widest text-purple-400/70 font-bold mb-2 pl-1">Bonus Majeurs</h4>
+                        {groupedMajor.map(group => renderBonusRow(group, false))}
+                    </div>
+                )}
+
+                {groupedMinor.length > 0 && (
+                    <div className="space-y-2">
+                        <h4 className="text-xs uppercase tracking-widest text-purple-400/70 font-bold mb-2 pl-1">Bonus Mineurs</h4>
+                        {groupedMinor.map(group => renderBonusRow(group, true))}
+                    </div>
+                )}
+
+                {groupedMajor.length === 0 && groupedMinor.length === 0 && (
+                    <div className="text-center py-12 text-purple-400/30 italic bg-black/20 rounded-xl border border-dashed border-purple-500/20">
+                        Aucun bonus actif.
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

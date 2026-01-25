@@ -443,6 +443,19 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Gitignore 2026:** Updated with IDE, logs, certs, build artifacts patterns.
     - [x] **README Modernized:** Badges, better structure, documentation links.
 
+13. **Phase 13: Songes Optimization & Security Hardening (COMPLETE - 2026-01-25):**
+    - [x] **Auto-Cancel:** 10-minute TTL for pending requests with user notification.
+    - [x] **Real-Time Polling:** 5s interval for status updates, removing manual refresh needs.
+    - [x] **Strict Isolation:** Audit & Fix of 4 actions (`getPendingJoinRequests`, etc.) to enforce strict `guildId` scoping.
+    - [x] **UI Hardening:** Dialog constraints (`max-w`, `break-all`, `resize-none`) preventing layout breakage (Anti-Spam).
+    - [x] **Performance:** `getDreamRuns` pagination (limit 50) and lazy cleanup logic.
+    - [x] **Discord Embed:** Message truncation (200 chars) and optimized layout.
+    - [x] **Leader Name:** Fixed 'RUN DE MENEUR' to display actual Discord Nickname.
+    - [x] **Floor Layout:** Replaced wrapping grid with horizontal scroll to prevent visual bugs on multi-line floors.
+    - [x] **Shop UI:** Optimized grid layout (up to 8 cols on Ultra-Wide) with expanded Dialog width (1400px).
+    - [x] **Shop Interactions:** Implemented real-time inventory refresh on purchase/deletion.
+    - [x] **Shop UX:** Added explicit 'Add' buttons to minor bonuses and improved tab separation.
+
 ---
 
 ## 5. Security Implementation Summary (Reference)

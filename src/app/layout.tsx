@@ -25,19 +25,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>      <body
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-    >
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem
-        disableTransitionOnChange
-      >
-        {children}
-        <Toaster />
-      </ThemeProvider>
-    </body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster
+            position="top-center"
+            richColors
+            closeButton
+            theme="dark"
+            toastOptions={{
+              className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
+              style: {
+                borderRadius: "1rem",
+                padding: "1rem",
+              }
+            }}
+          />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

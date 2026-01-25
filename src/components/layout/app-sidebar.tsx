@@ -20,7 +20,8 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    Settings
+    Settings,
+    BookOpen
 } from "lucide-react";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -52,7 +53,8 @@ export function AppSidebar({ className, user, guildId }: Props) {
 
     // Main Navigation Items (available to members based on permissions)
     const NAV_ITEMS = [
-        { name: "Vue d'ensemble", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, visible: true },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, visible: true },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, visible: true }, // Read-only member view
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, visible: user.canViewMissions },
         { name: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: InfinityIcon, visible: user.canViewSonges },
         { name: "Bourse Archis", href: `/dashboard/${guildId}/archimonstres`, icon: Bug, visible: user.canViewArchis },
@@ -65,13 +67,14 @@ export function AppSidebar({ className, user, guildId }: Props) {
     const ADMIN_ITEMS = [
         { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, visible: user.isAdmin },
         { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
+        { name: "Éditer Présentation", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
         { name: "Validation Missions", href: `/dashboard/${guildId}/missions/validation`, icon: Gavel, visible: user.canValidateMissions },
         { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
         { name: "Logs Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin },
     ];
 
     // Show admin section if user has ANY admin-level permission
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions;
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
 
     const roleColorHex = user.roleColor && user.roleColor !== 0
         ? `#${user.roleColor.toString(16).padStart(6, '0')}`

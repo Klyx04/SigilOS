@@ -12,7 +12,56 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { sendChannelMessage } from "@/server/discord";
 
 // ============================================
-// HELPER: Get context with guild ID
+// CONSTANTS & HELPERS
+// ============================================
+
+const JOIN_REQUEST_TTL_MS = 10 * 60 * 1000; // 10 minutes (PRODUCTION)
+
+/**
+ * Clean up expired join requests (Auto-Reject)
+ * Called lazily when data is accessed
+ */
+async function cleanupExpiredRequests(guildId: string) {
+    const expirationThreshold = new Date(Date.now() - JOIN_REQUEST_TTL_MS);
+
+    // Find expired pending requests
+    const expiredRequests = await db.dreamJoinRequest.findMany({
+        where: {
+            run: { guildId },
+            status: "PENDING",
+            createdAt: { lt: expirationThreshold },
+        },
+        include: { run: true },
+    });
+
+    if (expiredRequests.length === 0) return;
+
+    // Process each expired request
+    for (const req of expiredRequests) {
+        // 1. Mark as REJECTED
+        await db.dreamJoinRequest.update({
+            where: { id: req.id },
+            data: {
+                status: "REJECTED",
+                respondedAt: new Date(),
+            },
+        });
+
+        // 2. Notify the user
+        await db.notification.create({
+            data: {
+                userId: req.userId,
+                title: "Candidature expirée",
+                message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 10 minutes).`,
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${guildId}/songes`, // Redirect to list
+            },
+        });
+    }
+}
+
+// ============================================
+// CONTEXT HELPER
 // ============================================
 
 async function getContextWithGuildId() {
@@ -44,13 +93,28 @@ const CreateRunSchema = z.object({
         "PARADOXE_I", "PARADOXE_II", "PARADOXE_III", "PARADOXE_IV",
         "CAUCHEMAR_I", "CAUCHEMAR_II", "CAUCHEMAR_III"
     ]),
-    objective: z.enum(["MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN"]).default("FUN"),
+    objectives: z.array(z.enum([
+        "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
+    ])).min(1, "Sélectionnez au moins un objectif"),
+}).refine((data) => {
+    // Validate restrictions: DROP_LEGENDE and SUCCES_NO_ACHAT require PARADOXE or CAUCHEMAR
+    const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
+    const restrictedObjectives = ["DROP_LEGENDE", "SUCCES_NO_ACHAT"];
+
+    if (!isParadoxeOrHigher) {
+        const hasRestricted = data.objectives.some(o => restrictedObjectives.includes(o));
+        if (hasRestricted) return false;
+    }
+    return true;
+}, {
+    message: "Certains objectifs nécessitent une difficulté Paradoxe ou plus.",
+    path: ["objectives"]
 });
 
 const AddFloorSchema = z.object({
     runId: z.string(),
-    floorNumber: z.number().min(1).max(26),
-    roomType: z.enum(["COMBAT", "FONTAINE", "FAVEUR", "BOSS"]),
+    floorNumber: z.number().min(0).max(26), // Allow 0 for reset/entry
+    roomType: z.enum(["COMBAT", "FONTAINE", "FAVEUR", "BOSS", "ENTREE"]),
     difficulty: z.number().min(1).max(60).optional(),
     pointsReveGained: z.number().min(0).default(0),
 });
@@ -63,6 +127,16 @@ const AddBonusSchema = z.object({
     cost: z.number().min(0),
 });
 
+const DeleteBonusSchema = z.object({
+    runId: z.string(),
+    bonusId: z.string(),
+});
+
+const SetRoomSchema = z.object({
+    runId: z.string(),
+    roomNumber: z.number().min(0).max(26),
+});
+
 // ============================================
 // CREATE RUN
 // ============================================
@@ -73,7 +147,7 @@ export async function createDreamRun(data: z.infer<typeof CreateRunSchema>) {
 
     const validated = CreateRunSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: "Données invalides" };
+        return { success: false, error: validated.error.errors[0].message };
     }
 
     // Rule: A leader can only have one active run
@@ -94,7 +168,8 @@ export async function createDreamRun(data: z.infer<typeof CreateRunSchema>) {
             guildId: ctx.guildId,
             leaderId: ctx.userId,
             difficulty: validated.data.difficulty,
-            objective: validated.data.objective,
+            objectives: validated.data.objectives,
+            objective: validated.data.objectives[0], // Init legacy field
             members: {
                 create: {
                     userId: ctx.userId,
@@ -115,6 +190,9 @@ export async function createDreamRun(data: z.infer<typeof CreateRunSchema>) {
 export async function getDreamRuns(statusFilter?: string[]) {
     const ctx = await getContextWithGuildId();
     if (!ctx) return { success: false, error: "Non authentifié", runs: [] };
+
+    // Trigger cleanup
+    await cleanupExpiredRequests(ctx.guildId);
 
     const runs = await db.dreamRun.findMany({
         where: {
@@ -137,6 +215,7 @@ export async function getDreamRuns(statusFilter?: string[]) {
             },
         },
         orderBy: { createdAt: "desc" },
+        take: 50, // Limit to last 50 runs for performance
     });
 
     return { success: true, runs };
@@ -145,6 +224,9 @@ export async function getDreamRuns(statusFilter?: string[]) {
 export async function getDreamRunById(runId: string) {
     const ctx = await getContextWithGuildId();
     if (!ctx) return { success: false, error: "Non authentifié", run: null };
+
+    // Trigger cleanup
+    await cleanupExpiredRequests(ctx.guildId);
 
     const run = await db.dreamRun.findFirst({
         where: {
@@ -433,6 +515,32 @@ export async function addDreamFloor(data: z.infer<typeof AddFloorSchema>) {
 // ADD BONUS
 // ============================================
 
+// ============================================
+// ADD BONUS / DELETE BONUS
+// ============================================
+
+export async function deleteDreamBonus(data: z.infer<typeof DeleteBonusSchema>) {
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const validated = DeleteBonusSchema.safeParse(data);
+    if (!validated.success) return { success: false, error: "Données invalides" };
+
+    const run = await db.dreamRun.findFirst({
+        where: { id: validated.data.runId, guildId: ctx.guildId },
+    });
+
+    if (!run) return { success: false, error: "Run non trouvée" };
+    if (run.leaderId !== ctx.userId) return { success: false, error: "Seul le leader peut supprimer des bonus" };
+
+    await db.dreamRunBonus.delete({
+        where: { id: validated.data.bonusId }
+    });
+
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    return { success: true };
+}
+
 export async function addDreamBonus(data: z.infer<typeof AddBonusSchema>) {
     const ctx = await getContextWithGuildId();
     if (!ctx) return { success: false, error: "Non authentifié" };
@@ -479,18 +587,23 @@ const SendJoinRequestSchema = z.object({
     message: z.string().optional(),
 });
 
+// ... imports
+
 export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema>) {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié" };
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié" };
 
     const validated = SendJoinRequestSchema.safeParse(data);
     if (!validated.success) {
         return { success: false, error: "Données invalides" };
     }
 
-    // Find run by ID (unique) - no guildId filter needed
-    const run = await db.dreamRun.findUnique({
-        where: { id: validated.data.runId },
+    // Find run by ID AND Guild ID (Isolation)
+    const run = await db.dreamRun.findFirst({
+        where: {
+            id: validated.data.runId,
+            guildId: ctx.guildId
+        },
         include: { members: true },
     });
 
@@ -516,6 +629,58 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
         return { success: false, error: "Vous avez déjà une demande en cours" };
     }
 
+    // =========================================================================
+    // ANTI-SPAM PROTECTION
+    // Prevent users from spamming cancel/apply to trigger notifications
+    // Check if the LEADER received a notification about THIS USER in the last 5 mins
+    // =========================================================================
+
+    // 1. Get candidate name (needed for the spam check query)
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: run.guildId },
+        select: { id: true, songesNotifyChannelId: true }, // Select channel ID here too for later
+    });
+
+    let candidateName = "Un joueur";
+    let candidateProfileId = "";
+
+    if (guildConfig) {
+        const candidateProfile = await db.userProfile.findFirst({
+            where: { userId: ctx.id, guildId: guildConfig.id },
+            select: { id: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+        });
+        if (candidateProfile) {
+            candidateName = candidateProfile.discordNickname || candidateProfile.pseudoDofus || candidateProfile.user.name || "Un joueur";
+            candidateProfileId = candidateProfile.id;
+        }
+    }
+
+    // 2. Check for recent notifications (Last 5 minutes)
+    // We look for a notification sent to the LEADER, with title "Nouvelle candidature Songes",
+    // and containing the candidate's name.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentSpam = await db.notification.findFirst({
+        where: {
+            userId: run.leaderId,
+            title: "Nouvelle candidature Songes",
+            message: { contains: candidateName },
+            createdAt: { gt: fiveMinutesAgo },
+        },
+    });
+
+    if (recentSpam) {
+        const timeSinceLastSpam = Date.now() - recentSpam.createdAt.getTime();
+        const remainingTimeMs = 5 * 60 * 1000 - timeSinceLastSpam;
+
+        if (remainingTimeMs > 0) {
+            const minutes = Math.floor(remainingTimeMs / 60000);
+            const seconds = Math.floor((remainingTimeMs % 60000) / 1000);
+            return { success: false, error: `Veuillez patienter encore ${minutes}m ${seconds}s avant de candidater.` };
+        }
+    }
+
+    // =========================================================================
+
     // Delete any old ACCEPTED/REJECTED requests to allow re-application
     // (unique constraint on runId + userId)
     await db.dreamJoinRequest.deleteMany({
@@ -529,7 +694,7 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
     await db.dreamJoinRequest.create({
         data: {
             runId: validated.data.runId,
-            userId: ctx.id,
+            userId: ctx.id!,
             classe: validated.data.classe,
             message: validated.data.message,
         },
@@ -537,20 +702,7 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
 
     // Create notification for leader if enabled
     if (run.notifyOnJoinRequest) {
-        // Get candidate's Discord pseudo for the notification
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: run.guildId },
-            select: { id: true },
-        });
-
-        let candidateName = "Un joueur";
-        if (guildConfig) {
-            const candidateProfile = await db.userProfile.findFirst({
-                where: { userId: ctx.id, guildId: guildConfig.id },
-                select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
-            });
-            candidateName = candidateProfile?.discordNickname || candidateProfile?.user?.name || "Un joueur";
-        }
+        // We already fetched candidateName above!
 
         await db.notification.create({
             data: {
@@ -563,63 +715,72 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
         });
 
         // Also send Discord notification if channel is configured
-        if (guildConfig) {
-            const fullGuildConfig = await db.guildConfig.findUnique({
-                where: { id: guildConfig.id },
-                select: { songesNotifyChannelId: true },
+        if (guildConfig && guildConfig.songesNotifyChannelId) {
+            // Get leader's pseudo for the embed
+            const leaderProfile = await db.userProfile.findFirst({
+                where: { userId: run.leaderId, guildId: guildConfig.id },
+                select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
             });
+            const leaderName = leaderProfile?.discordNickname || leaderProfile?.user?.name || "Leader";
 
-            if (fullGuildConfig?.songesNotifyChannelId) {
-                // Get leader's pseudo for the embed
-                const leaderProfile = await db.userProfile.findFirst({
-                    where: { userId: run.leaderId, guildId: guildConfig.id },
-                    select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
-                });
-                const leaderName = leaderProfile?.discordNickname || leaderProfile?.user?.name || "Leader";
+            // Get leader's Discord ID for mention
+            const leaderAccount = await db.account.findFirst({
+                where: { userId: run.leaderId, provider: "discord" },
+                select: { providerAccountId: true },
+            });
+            const leaderMention = leaderAccount?.providerAccountId
+                ? `<@${leaderAccount.providerAccountId}>`
+                : leaderName;
 
-                // Get leader's Discord ID for mention
-                const leaderAccount = await db.account.findFirst({
-                    where: { userId: run.leaderId, provider: "discord" },
-                    select: { providerAccountId: true },
-                });
-                const leaderMention = leaderAccount?.providerAccountId
-                    ? `<@${leaderAccount.providerAccountId}>`
-                    : leaderName;
+            // Determine embed color based on difficulty tier
+            let embedColor = 0x9333ea; // Default purple
+            if (run.difficulty.startsWith("CAUCHEMAR")) embedColor = 0xdc2626; // Red
+            else if (run.difficulty.startsWith("PARADOXE")) embedColor = 0xf59e0b; // Amber
+            else if (run.difficulty.startsWith("REVE")) embedColor = 0x22c55e; // Green
 
-                // Determine embed color based on difficulty tier
-                let embedColor = 0x9333ea; // Default purple
-                if (run.difficulty.startsWith("CAUCHEMAR")) embedColor = 0xdc2626; // Red
-                else if (run.difficulty.startsWith("PARADOXE")) embedColor = 0xf59e0b; // Amber
-                else if (run.difficulty.startsWith("REVE")) embedColor = 0x22c55e; // Green
+            // Format difficulty for display
+            const difficultyDisplay = run.difficulty.replace("_", " ");
 
-                // Format difficulty for display
-                const difficultyDisplay = run.difficulty.replace("_", " ");
+            // Build URLs
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            const dashboardUrl = `${appUrl}/dashboard/${run.guildId}/songes/${run.id}`;
+            const profileUrl = candidateProfileId ? `${appUrl}/dashboard/${run.guildId}/members/${candidateProfileId}` : "";
 
-                // Build the dashboard URL
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-                const dashboardUrl = `${appUrl}/dashboard/${run.guildId}/songes/${run.id}`;
+            // Format candidate link
+            const candidateValue = profileUrl ? `[**${candidateName}**](${profileUrl})` : `**${candidateName}**`;
 
-                await sendChannelMessage(
-                    fullGuildConfig.songesNotifyChannelId,
-                    `Un nouveau joueur souhaite rejoindre votre run. Cliquez sur le titre pour accéder au dashboard et gérer la candidature.`,
-                    {
-                        embedTitle: "🌙 Nouvelle candidature Songes",
-                        embedUrl: dashboardUrl,
-                        embedColor,
-                        embedAuthor: {
-                            name: `Run de ${leaderName}`,
-                        },
-                        fields: [
-                            { name: "👤 Candidat", value: candidateName, inline: true },
-                            { name: "⚔️ Classe", value: validated.data.classe, inline: true },
-                            { name: "🎯 Difficulté", value: difficultyDisplay, inline: true },
-                            { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
-                        ],
-                        embedFooter: "SigilOS • Songes Infinis",
-                        mentionContent: `Bonjour ${leaderMention} ! Nouvelle candidature pour votre run.`,
-                    }
-                );
-            }
+            // Format messsage with blockquote and limit to 200 chars
+            let rawMessage = validated.data.message || "";
+            if (rawMessage.length > 200) rawMessage = rawMessage.slice(0, 200) + "...";
+            const messageValue = rawMessage ? `>>> ${rawMessage}` : "*Aucun message personnalisé.*";
+
+            await sendChannelMessage(
+                guildConfig.songesNotifyChannelId,
+                `Un nouveau joueur souhaite rejoindre votre run.`,
+                {
+                    embedTitle: "📩 Nouvelle candidature Songes",
+                    embedUrl: dashboardUrl,
+                    embedColor,
+                    embedAuthor: {
+                        name: `Run de ${leaderName}`,
+                        // iconUrl: could be leader avatar if we had it easily
+                    },
+                    embedThumbnail: "https://plutonio.fr/i/sigil_songes.png", // Generic or specific icon if available
+                    fields: [
+                        { name: "👤 Candidat", value: candidateValue, inline: true },
+                        { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
+                        { name: "💀 Difficulté", value: `\`${difficultyDisplay}\``, inline: true },
+
+                        { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
+                        { name: "📅 Date", value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+                        { name: "\u200b", value: "\u200b", inline: true }, // Spacer
+
+                        { name: "📝 Message du joueur", value: messageValue, inline: false },
+                    ],
+                    embedFooter: `SigilOS • Gestion des Songes`,
+                    mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
+                }
+            );
         }
     }
 
@@ -628,22 +789,25 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
 }
 
 export async function getPendingJoinRequests(runId: string) {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", requests: [] };
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié", requests: [] };
 
-    // Find run by ID only (runId is unique)
-    const run = await db.dreamRun.findUnique({
-        where: { id: runId },
+    // Find run by ID AND Guild ID (Strict Isolation)
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
     });
 
     if (!run) {
-        return { success: false, error: "Run non trouvée", requests: [] };
+        return { success: false, error: "Run non trouvée ou accès refusé", requests: [] };
     }
 
     // Only leader can see pending requests
     if (run.leaderId !== ctx.id) {
         return { success: false, error: "Non autorisé", requests: [] };
     }
+
+    // Trigger cleanup for this guild
+    await cleanupExpiredRequests(run.guildId);
 
     const requests = await db.dreamJoinRequest.findMany({
         where: { runId, status: "PENDING" },
@@ -696,6 +860,11 @@ export async function respondToJoinRequest(data: z.infer<typeof RespondJoinReque
 
     if (!request) {
         return { success: false, error: "Demande non trouvée" };
+    }
+
+    // Security Check: Ensure request belongs to current guild
+    if (request.run.guildId !== ctx.guildId) {
+        return { success: false, error: "Non autorisé" };
     }
 
     // Only leader can respond
@@ -870,16 +1039,45 @@ export async function kickMember(runId: string, targetUserId: string) {
 // ============================================
 
 export async function getMyJoinRequestStatus(runId: string) {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", status: null };
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié", status: null };
 
-    // Only look for PENDING requests
+    // Only look for PENDING requests in the current guild context
     const request = await db.dreamJoinRequest.findFirst({
-        where: { runId, userId: ctx.id, status: "PENDING" },
+        where: {
+            runId,
+            userId: ctx.id,
+            status: "PENDING",
+            run: { guildId: ctx.guildId } // Strict Scoping
+        },
+        include: { run: { select: { guildId: true } } }
     });
 
     if (!request) {
         return { success: true, status: null };
+    }
+
+    // Check expiration on the fly
+    const expirationThreshold = new Date(Date.now() - JOIN_REQUEST_TTL_MS);
+    if (request.createdAt < expirationThreshold) {
+        // Expire it now
+        await db.dreamJoinRequest.update({
+            where: { id: request.id },
+            data: { status: "REJECTED", respondedAt: new Date() }
+        });
+
+        // Notify
+        await db.notification.create({
+            data: {
+                userId: ctx.id,
+                title: "Candidature expirée",
+                message: "Votre candidature a expiré (délai dépassé).",
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${request.run.guildId}/songes`
+            }
+        });
+
+        return { success: true, status: "REJECTED" };
     }
 
     return { success: true, status: request.status };
@@ -1055,19 +1253,57 @@ export async function closeDreamRun(runId: string) {
 }
 
 // ============================================
+// REOPEN RUN (Leader can reopen a completed run)
+// ============================================
+
+export async function reopenDreamRun(runId: string) {
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
+    });
+
+    if (!run) {
+        return { success: false, error: "Run non trouvée" };
+    }
+
+    if (run.leaderId !== ctx.userId) {
+        return { success: false, error: "Seul le leader peut réouvrir la run" };
+    }
+
+    if (run.status !== "COMPLETED" && run.status !== "FAILED") {
+        return { success: false, error: "Seule une run terminée ou échouée peut être réouverte" };
+    }
+
+    await db.dreamRun.update({
+        where: { id: runId },
+        data: {
+            status: "IN_PROGRESS",
+            completedAt: null, // Clear completion date
+        },
+    });
+
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    revalidatePath(`/dashboard/${ctx.guildId}/songes/${runId}`);
+    return { success: true };
+}
+
+// ============================================
 // CANCEL JOIN REQUEST (User cancels their own)
 // ============================================
 
 export async function cancelJoinRequest(runId: string) {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié" };
+    const ctx = await getContextWithGuildId();
+    if (!ctx) return { success: false, error: "Non authentifié" };
 
-    // Find user's pending request for this run
+    // Find user's pending request for this run (Scoped by Guild)
     const request = await db.dreamJoinRequest.findFirst({
         where: {
             runId,
             userId: ctx.id,
             status: "PENDING",
+            run: { guildId: ctx.guildId }
         },
     });
 
@@ -1080,10 +1316,6 @@ export async function cancelJoinRequest(runId: string) {
         where: { id: request.id },
     });
 
-    // Revalidate - get guildId from the run
-    const run = await db.dreamRun.findUnique({ where: { id: runId }, select: { guildId: true } });
-    if (run) {
-        revalidatePath(`/dashboard/${run.guildId}/songes`);
-    }
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }

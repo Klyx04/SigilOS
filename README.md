@@ -1,96 +1,101 @@
 # SigilOS
 
-**SigilOS** (The Guild Operating System) est une plateforme de gestion pour guildes sur le MMORPG Dofus.
+[![Security](https://img.shields.io/badge/security-OWASP%20Top%2010-green)](./SECURITY.md)
+[![Dependabot](https://img.shields.io/badge/dependabot-enabled-blue)](./.github/dependabot.yml)
+[![License](https://img.shields.io/badge/license-Private-red)](#)
 
-## 🛠 Stack Technique
+> **The Guild Operating System** — Plateforme de gestion pour guildes Dofus.
 
-- **Framework:** Next.js 15+ (App Router)
-- **Langage:** TypeScript 5+
-- **Style:** Tailwind CSS v4 + shadcn/ui
-- **Base de données:** PostgreSQL (via Prisma ORM)
-- **Auth:** Auth.js (Discord)
-- **Infra:** Docker (Local & Prod)
+---
+
+## 🛠️ Stack Technique
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16+ (App Router) |
+| Language | TypeScript 5+ |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Database | PostgreSQL (Prisma ORM) |
+| Auth | Auth.js (Discord OAuth) |
+| Infra | Docker |
+
+---
 
 ## 🎮 Modules
 
-### 🌙 Songes Infinis (v2)
-Module de coordination pour les runs de Songes dans Dofus.
+- **🌙 Songes Infinis** — Coordination des runs de Songes
+- **🎯 Missions** — Système de missions hebdomadaires avec preuves
+- **👹 Archimonstres** — Intégration Metamob pour échanges
+- **👤 Profils** — Gestion des membres et disponibilités
 
+---
 
+## 🚀 Installation
 
-
-## 🚀 Pré-requis
-
-- Node.js 18+
+### Pré-requis
+- Node.js 20+
 - Docker & Docker Compose
-- Un compte Discord / Developer Application
+- Discord Developer Application
 
-## 📦 Installation
+### Setup
 
-1. **Cloner le projet**
+```bash
+# 1. Clone & install
+npm install
 
-2. **Installer les dépendances**
-   ```bash
-   npm install
-   ```
+# 2. Start database
+docker-compose up -d
 
-3. **Lancer l'infrastructure locale (Base de données)**
-   ```bash
-   docker-compose up -d
-   ```
+# 3. Configure environment
+cp .env.example .env
+# → Fill in your keys
 
-4. **Configurer les variables d'environnement**
-   Copiez le fichier `.env.example` en `.env` :
-   ```bash
-   cp .env.example .env
-   ```
-   Remplissez les clés (DATABASE_URL, DISCORD_ID, etc.).
+# 4. Generate Prisma client
+npx prisma generate
 
-   **Variables OCR & Upload (optionnelles pour dev) :**
-   ```env
-   # Cloudflare R2 (laisser vide pour stockage local en dev)
-   R2_ACCOUNT_ID=
-   R2_ACCESS_KEY_ID=
-   R2_SECRET_ACCESS_KEY=
-   R2_BUCKET_NAME=sigilos-proofs
-   R2_PUBLIC_URL=
+# 5. Run migrations
+npx prisma db push
 
-   # OCR Configuration
-   OCR_AUTO_VALIDATE_THRESHOLD=95
-   ```
+# 6. Start dev server
+npm run dev
+```
 
-5. **Lancer le serveur de développement**
-   ```bash
-   npm run dev
-   ```
-   Accédez à [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000)
+
+---
 
 ## 🐳 Docker (Production)
 
-Pour construire l'image de production :
 ```bash
 docker build -t sigilos .
+docker run -p 3000:3000 sigilos
 ```
 
-## 📜 Licence
+---
 
-## 🛑 Maintenance & Arrêt Clean
+## 📖 Documentation
 
-Pour éteindre proprement l'infrastructure et éviter les processus fantômes :
+| File | Description |
+|------|-------------|
+| [RULES.md](./RULES.md) | Development standards |
+| [SECURITY.md](./SECURITY.md) | Security policy |
+| [WORKFLOW.md](./WORKFLOW.md) | Git workflow |
+| [.antigravity](./.antigravity) | Full project context |
 
-1.  **Stopper le Serveur de Dev :**
-    - Dans le terminal `npm run dev` : Appuyez sur `CTRL + C` (une ou deux fois).
+---
 
-2.  **Stopper Prisma Studio (si lancé) :**
-    - Dans le terminal `prisma studio` : Appuyez sur `CTRL + C`.
+## 🛑 Clean Shutdown
 
-3.  **Éteindre la Base de Données (Docker) :**
-    - Si vous avez lancé via `docker-compose up` :
-    ```bash
-    docker-compose down
-    ```
-    - *Note : Cela éteint le conteneur PostgreSQL proprement.*
+```bash
+# 1. Stop dev server: CTRL+C
+# 2. Stop database
+docker-compose down
+```
 
-4.  **Vérification Ultime (En cas de doute) :**
-    - Vérifiez qu'aucun processus Node ne tourne en fond (via Gestionnaire des tâches ou `netstat -ano | findstr :3000`).
+---
+
+## 📜 License
+
+Private — All rights reserved.
+
 

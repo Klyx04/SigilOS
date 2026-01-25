@@ -119,6 +119,7 @@ export async function createAuditLog({
  * Log unauthorized admin access attempt
  * This function can be called WITHOUT admin permissions (since it logs failed access attempts)
  * It uses internal auth to get user info
+ * Differentiates between internal members (with role) and external users
  */
 export async function logAdminAccessDenied(
     discordGuildId: string,
@@ -136,6 +137,18 @@ export async function logAdminAccessDenied(
 
         if (!guildConfig) return;
 
+        // Try to get user context to determine if they're a guild member
+        let isMember = false;
+        let roleName: string | null = null;
+
+        try {
+            const user = await getUserContext(discordGuildId);
+            isMember = user.isMember;
+            roleName = user.roleName || null;
+        } catch {
+            // If we can't get context, they're likely external
+        }
+
         // Import Prisma for JsonNull handling
         const { Prisma } = await import("@prisma/client");
 
@@ -152,11 +165,15 @@ export async function logAdminAccessDenied(
                 metadata: {
                     userAgent: "web",
                     timestamp: new Date().toISOString(),
+                    isMember,
+                    roleName: roleName || "Aucun rôle (externe)",
+                    accessType: isMember ? "internal_member" : "external_user",
                 }
             }
         });
 
-        console.log(`[SECURITY] Admin access denied for user ${session.user.id} on page ${targetPage}`);
+        const memberStatus = isMember ? `membre (${roleName})` : "utilisateur externe";
+        console.log(`[SECURITY] Admin access denied for ${memberStatus} - user ${session.user.id} on page ${targetPage}`);
     } catch (error) {
         // Silent fail - logging shouldn't break the app
         console.error("[logAdminAccessDenied] Error:", error);

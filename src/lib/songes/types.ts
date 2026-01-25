@@ -190,6 +190,7 @@ export const OBJECTIVES = {
     DROP_LEGENDE: { label: "Farm Légendes", icon: "💎" },
     SUCCES_NO_ACHAT: { label: "Succès No Achat", icon: "🏆" },
     FUN: { label: "Fun / Chill", icon: "✨" },
+    QUETE: { label: "Quête", icon: "📜" },
 } as const;
 
 // ============================================

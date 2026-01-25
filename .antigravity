@@ -421,5 +421,65 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Metamob Polish:** Flex-wrap fix for overflow on zoom, better responsive layout.
     - [x] **Security:** DofusBook URL whitelist, Zod validation for all profile updates.
 
+12. **Phase 11: Guild Presentation Module V1.2 (COMPLETE):**
+    - [x] **Dual View System:** Public "Landing Page" (External) vs Member Dashboard View (Internal/Mirror).
+    - [x] **Admin Form Redesign:** 5-Tab Layout (General, Direction, Content, Images, Recruit), Contextual Save.
+    - [x] **Foundation Date:** Manual historical date field (independent of Discord), displayed in Header as "Guilde fondée le...".
+    - [x] **UI Polish:** Parallax Hero Banner, Scroll Reveal animations, Glassmorphism cards.
+    - [x] **Team Presentation:** Compact `inline-flex` cards for Founder/Co-leaders/Officers.
+    - [x] **Smart Recruitment:** "Other Requirements" hidden if empty, state badges (Open/Closed).
+    - [x] **Image Consistency:** Synced Banner/Photo logic between Public and Member views.
+    - [x] **Security:** `presentation:edit` permission required for Admin access.
 
+13. **Phase 12: Comprehensive Security Audit (COMPLETE - 2026-01-16):**
+    - [x] **OWASP Top 10:2025 Review:** Full audit of 85+ server actions, 4 API routes.
+    - [x] **IDOR Fix #1:** `/api/upload` now verifies guild membership before upload.
+    - [x] **IDOR Fix #2:** `/api/guild/[guildId]/server-config` POST requires admin permission.
+    - [x] **Security Headers:** X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy added to `next.config.ts`.
+    - [x] **Dependabot:** `.github/dependabot.yml` for weekly npm security scans.
+    - [x] **CI Security:** `.github/workflows/security-audit.yml` runs `npm audit` on every push/PR.
+    - [x] **Project Cleanup:** Removed debug scripts, obsolete files, default Next.js assets.
+    - [x] **Documentation:** `SECURITY.md`, `RULES.md` created for SecOps best practices.
+    - [x] **Gitignore 2026:** Updated with IDE, logs, certs, build artifacts patterns.
+    - [x] **README Modernized:** Badges, better structure, documentation links.
 
+13. **Phase 13: Songes Optimization & Security Hardening (COMPLETE - 2026-01-25):**
+    - [x] **Auto-Cancel:** 10-minute TTL for pending requests with user notification.
+    - [x] **Real-Time Polling:** 5s interval for status updates, removing manual refresh needs.
+    - [x] **Strict Isolation:** Audit & Fix of 4 actions (`getPendingJoinRequests`, etc.) to enforce strict `guildId` scoping.
+    - [x] **UI Hardening:** Dialog constraints (`max-w`, `break-all`, `resize-none`) preventing layout breakage (Anti-Spam).
+    - [x] **Performance:** `getDreamRuns` pagination (limit 50) and lazy cleanup logic.
+    - [x] **Discord Embed:** Message truncation (200 chars) and optimized layout.
+    - [x] **Leader Name:** Fixed 'RUN DE MENEUR' to display actual Discord Nickname.
+    - [x] **Floor Layout:** Replaced wrapping grid with horizontal scroll to prevent visual bugs on multi-line floors.
+    - [x] **Shop UI:** Optimized grid layout (up to 8 cols on Ultra-Wide) with expanded Dialog width (1400px).
+    - [x] **Shop Interactions:** Implemented real-time inventory refresh on purchase/deletion.
+    - [x] **Shop UX:** Added explicit 'Add' buttons to minor bonuses and improved tab separation.
+
+---
+
+## 5. Security Implementation Summary (Reference)
+
+**API Routes Protection Pattern:**
+```typescript
+// All API routes MUST use this pattern:
+const session = await auth();
+if (!session?.user?.id) return 401;
+
+const user = await getUserContext(guildId);
+if (!user.isMember) return 403;
+if (!user.isAdmin && routeRequiresAdmin) return 403;
+```
+
+**Server Actions Protection Pattern:**
+```typescript
+// All server actions MUST use this pattern:
+const ctx = await getUserContext(guildId);
+if (!ctx.isAuthenticated) throw new Error("Unauthorized");
+if (!ctx.isMember) throw new Error("Not a member");
+```
+
+**Automated Security:**
+- Dependabot scans every Monday 9 AM (Paris)
+- GitHub Actions run `npm audit` on every push
+- 30-day audit log retention

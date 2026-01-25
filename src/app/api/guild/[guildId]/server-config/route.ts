@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getUserContext } from "@/server/actions/user-actions";
 
 type RouteContext = {
     params: Promise<{ guildId: string }>;
@@ -21,6 +22,12 @@ export async function GET(
         }
 
         const { guildId } = await context.params;
+
+        // SECURITY: Verify user is a member of this guild
+        const user = await getUserContext(guildId);
+        if (!user.isMember) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -57,6 +64,14 @@ export async function POST(
         }
 
         const { guildId } = await context.params;
+
+        // SECURITY: Verify user has admin permission for this guild
+        const user = await getUserContext(guildId);
+        if (!user.isAdmin) {
+            console.warn(`[Security] server-config blocked: User is not admin of guild ${guildId}`);
+            return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+        }
+
         const body = await request.json();
         const { serverId, serverName } = body;
 
@@ -67,16 +82,12 @@ export async function POST(
         // Get guild config
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, rolesMapping: true }
+            select: { id: true }
         });
 
         if (!guildConfig) {
             return NextResponse.json({ error: "Guilde non trouvée" }, { status: 404 });
         }
-
-        // TODO: Add proper admin permission check here
-        // For now, we allow any authenticated user to configure
-        // In production, check if user has ADMIN_ACCESS permission
 
         // Update guild config
         await db.guildConfig.update({
@@ -95,3 +106,4 @@ export async function POST(
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
 }
+

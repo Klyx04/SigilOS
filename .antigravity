@@ -314,8 +314,8 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ## 4. Current Focus (Sprint Backlog)
 
-**Status:** Phase 9 RBAC Granulaire & Audit Logs V2 Completed (2026-01-15).
-**Current Sprint:** Ready for next module or production deployment.
+**Status:** Phase 14 Project Stabilization & Build Fixes Completed (2026-01-27).
+**Current Sprint:** Stabilizing CI/CD and preparing for the next functional module.
 
 1.  **Foundation (DONE):**
     - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
@@ -455,6 +455,11 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Shop UI:** Optimized grid layout (up to 8 cols on Ultra-Wide) with expanded Dialog width (1400px).
     - [x] **Shop Interactions:** Implemented real-time inventory refresh on purchase/deletion.
     - [x] **Shop UX:** Added explicit 'Add' buttons to minor bonuses and improved tab separation.
+
+14. **Phase 14: Project Stabilization & Build Fixes (COMPLETE - 2026-01-27):**
+    - [x] **Calendar Build Fix:** Resolved Zod schema mismatches in `event-form.tsx` causing build failures.
+    - [x] **Type Safety Sync:** Aligned frontend data structures with Prisma/Zod validation layers.
+    - [x] **Codebase Cleanup:** Stabilized dev and main branches after mission-logic exploration.
 
 ---
 

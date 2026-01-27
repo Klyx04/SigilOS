@@ -49,10 +49,7 @@ const eventFormSchema = z.object({
     endDate: z.date({ required_error: "Date de fin requise" }),
     endTime: z.string().min(5, "Heure requise"),
     location: z.string().max(100).optional(),
-    maxAttendees: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number().int().min(1).nullable().optional()
-    ),
+    maxAttendees: z.any().optional(),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -99,7 +96,9 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                 startDate: new Date(startStr),
                 endDate: new Date(endStr),
                 location: values.location,
-                maxAttendees: values.maxAttendees,
+                maxAttendees: values.maxAttendees === "" || values.maxAttendees === null || values.maxAttendees === undefined
+                    ? null
+                    : Number(values.maxAttendees),
             };
 
             await onSubmit(submissionData);

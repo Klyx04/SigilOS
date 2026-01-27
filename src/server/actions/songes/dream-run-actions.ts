@@ -1066,7 +1066,7 @@ export async function getMyJoinRequestStatus(guildId: string, runId: string) {
         // Notify
         await db.notification.create({
             data: {
-                userId: ctx.id,
+                userId: request.userId,
                 title: "Candidature expirée",
                 message: "Votre candidature a expiré (délai dépassé).",
                 type: "SYSTEM_INFO",

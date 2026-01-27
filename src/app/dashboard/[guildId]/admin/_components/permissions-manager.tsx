@@ -21,7 +21,7 @@ type Props = {
     currentMapping: Record<string, PermissionId[]>;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "profile", "modules"];
+const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "modules"];
 
 export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
@@ -82,6 +82,7 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
             missions: [],
             profile: [],
             songes: [],
+            calendar: [],
             modules: [],
         };
 
@@ -95,7 +96,7 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     // Filtered permissions based on active module
     const visiblePermissions = useMemo(() => {
         if (activeModule === "all") {
-            return Object.values(PERMISSIONS);
+            return Object.keys(PERMISSION_DETAILS) as PermissionId[];
         }
         return permissionsByModule[activeModule] || [];
     }, [activeModule, permissionsByModule]);
@@ -107,6 +108,7 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
             missions: 0,
             profile: 0,
             songes: 0,
+            calendar: 0,
             modules: 0,
         };
 

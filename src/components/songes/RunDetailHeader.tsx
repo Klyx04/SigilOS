@@ -56,7 +56,7 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
         setLoading(true);
 
         try {
-            const result = await closeDreamRun(run.id);
+            const result = await closeDreamRun(guildId, run.id);
             if (result.success) {
                 router.refresh();
                 // Keep completed state
@@ -78,7 +78,7 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
 
         try {
             const { reopenDreamRun } = await import("@/server/actions/songes/dream-run-actions");
-            const result = await reopenDreamRun(run.id);
+            const result = await reopenDreamRun(guildId, run.id);
             if (result.success) {
                 router.refresh();
             } else {

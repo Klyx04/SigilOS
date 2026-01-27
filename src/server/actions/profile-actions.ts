@@ -628,12 +628,28 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { absenceChannelId: true }
+            select: { id: true, absenceChannelId: true }
         });
 
-        if (!guildConfig?.absenceChannelId) {
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // SECURITY: Verify the profile belongs to the session user to prevent impersonation
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { userId: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } }
+        });
+
+        if (!profile || profile.userId !== session.user.id) {
+            console.warn(`[Security] Impersonation attempt blocked: User ${session.user.id} tried to send notification for profile ${profileId}`);
+            return { success: false, error: "Non autorisé" };
+        }
+
+        if (!guildConfig.absenceChannelId) {
             return { success: false, error: "Aucun salon configuré pour les notifications d'absence" };
         }
+
+        // Use the SECURED pseudo from the database profile, not the provided one
+        const securedPseudo = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
 
         const channelId = guildConfig.absenceChannelId;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

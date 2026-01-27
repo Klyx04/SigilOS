@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
 import { sendChannelMessage } from "@/server/discord";
+import { rateLimit } from "@/lib/ratelimit";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -64,22 +65,14 @@ async function cleanupExpiredRequests(guildId: string) {
 // CONTEXT HELPER
 // ============================================
 
-async function getContextWithGuildId() {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return null;
-
-    // Get the user's guild from their profile
-    const profile = await db.userProfile.findFirst({
-        where: { userId: ctx.id },
-        include: { guild: true },
-    });
-
-    if (!profile) return null;
+async function getGuildUserContext(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.id || !ctx.isMember) return null;
 
     return {
         ...ctx,
         userId: ctx.id,
-        guildId: profile.guild.discordGuildId,
+        guildId: guildId, // This is the Discord Guild ID
     };
 }
 
@@ -141,9 +134,9 @@ const SetRoomSchema = z.object({
 // CREATE RUN
 // ============================================
 
-export async function createDreamRun(data: z.infer<typeof CreateRunSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function createDreamRun(guildId: string, data: z.infer<typeof CreateRunSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const validated = CreateRunSchema.safeParse(data);
     if (!validated.success) {
@@ -187,9 +180,9 @@ export async function createDreamRun(data: z.infer<typeof CreateRunSchema>) {
 // GET RUNS
 // ============================================
 
-export async function getDreamRuns(statusFilter?: string[]) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", runs: [] };
+export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", runs: [] };
 
     // Trigger cleanup
     await cleanupExpiredRequests(ctx.guildId);
@@ -221,9 +214,9 @@ export async function getDreamRuns(statusFilter?: string[]) {
     return { success: true, runs };
 }
 
-export async function getDreamRunById(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", run: null };
+export async function getDreamRunById(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", run: null };
 
     // Trigger cleanup
     await cleanupExpiredRequests(ctx.guildId);
@@ -260,9 +253,9 @@ export async function getDreamRunById(runId: string) {
 // JOIN / LEAVE RUN
 // ============================================
 
-export async function joinDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function joinDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -322,9 +315,9 @@ export async function joinDreamRun(runId: string) {
     return { success: true, waitlisted: false };
 }
 
-export async function leaveDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function leaveDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -397,9 +390,9 @@ export async function leaveDreamRun(runId: string) {
 // START / COMPLETE RUN
 // ============================================
 
-export async function startDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function startDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -430,9 +423,9 @@ export async function startDreamRun(runId: string) {
     return { success: true };
 }
 
-export async function completeDreamRun(runId: string, success: boolean) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function completeDreamRun(guildId: string, runId: string, success: boolean) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -462,9 +455,9 @@ export async function completeDreamRun(runId: string, success: boolean) {
 // ADD FLOOR
 // ============================================
 
-export async function addDreamFloor(data: z.infer<typeof AddFloorSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function addDreamFloor(guildId: string, data: z.infer<typeof AddFloorSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const validated = AddFloorSchema.safeParse(data);
     if (!validated.success) {
@@ -519,9 +512,9 @@ export async function addDreamFloor(data: z.infer<typeof AddFloorSchema>) {
 // ADD BONUS / DELETE BONUS
 // ============================================
 
-export async function deleteDreamBonus(data: z.infer<typeof DeleteBonusSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function deleteDreamBonus(guildId: string, data: z.infer<typeof DeleteBonusSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const validated = DeleteBonusSchema.safeParse(data);
     if (!validated.success) return { success: false, error: "Données invalides" };
@@ -541,9 +534,9 @@ export async function deleteDreamBonus(data: z.infer<typeof DeleteBonusSchema>) 
     return { success: true };
 }
 
-export async function addDreamBonus(data: z.infer<typeof AddBonusSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function addDreamBonus(guildId: string, data: z.infer<typeof AddBonusSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const validated = AddBonusSchema.safeParse(data);
     if (!validated.success) {
@@ -587,11 +580,15 @@ const SendJoinRequestSchema = z.object({
     message: z.string().optional(),
 });
 
-// ... imports
+export async function sendJoinRequest(guildId: string, data: z.infer<typeof SendJoinRequestSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
-export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+    // RATE LIMIT: 5 join requests per 10 minutes per user/guild
+    const limiter = await rateLimit(`join_request:${ctx.userId}:${guildId}`, 5, 10 * 60 * 1000);
+    if (!limiter.success) {
+        return { success: false, error: "Trop de demandes. Veuillez réessayer plus tard." };
+    }
 
     const validated = SendJoinRequestSchema.safeParse(data);
     if (!validated.success) {
@@ -708,9 +705,9 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
             data: {
                 userId: run.leaderId,
                 title: "Nouvelle candidature Songes",
-                message: `${candidateName} (${validated.data.classe}) souhaite rejoindre votre run ${run.difficulty}.`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${run.guildId}/songes/${run.id}`,
+                message: `${candidateName} souhaite rejoindre votre run Songes (Étage ${run.currentFloor})`,
+                type: "SONGES_JOIN_REQUEST",
+                link: `/dashboard/${guildId}/songes/${validated.data.runId}`,
             },
         });
 
@@ -788,9 +785,9 @@ export async function sendJoinRequest(data: z.infer<typeof SendJoinRequestSchema
     return { success: true };
 }
 
-export async function getPendingJoinRequests(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", requests: [] };
+export async function getPendingJoinRequests(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", requests: [] };
 
     // Find run by ID AND Guild ID (Strict Isolation)
     const run = await db.dreamRun.findFirst({
@@ -844,9 +841,9 @@ const RespondJoinRequestSchema = z.object({
     accept: z.boolean(),
 });
 
-export async function respondToJoinRequest(data: z.infer<typeof RespondJoinRequestSchema>) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function respondToJoinRequest(guildId: string, data: z.infer<typeof RespondJoinRequestSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const validated = RespondJoinRequestSchema.safeParse(data);
     if (!validated.success) {
@@ -938,9 +935,9 @@ export async function respondToJoinRequest(data: z.infer<typeof RespondJoinReque
 // DELETE RUN
 // ============================================
 
-export async function deleteDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function deleteDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -968,9 +965,9 @@ export async function deleteDreamRun(runId: string) {
 // KICK MEMBER (Leader only)
 // ============================================
 
-export async function kickMember(runId: string, targetUserId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function kickMember(guildId: string, runId: string, targetUserId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -1038,9 +1035,9 @@ export async function kickMember(runId: string, targetUserId: string) {
 // GET MY JOIN REQUEST STATUS
 // ============================================
 
-export async function getMyJoinRequestStatus(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié", status: null };
+export async function getMyJoinRequestStatus(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", status: null };
 
     // Only look for PENDING requests in the current guild context
     const request = await db.dreamJoinRequest.findFirst({
@@ -1087,36 +1084,13 @@ export async function getMyJoinRequestStatus(runId: string) {
 // GET MEMBER PROFILES (with Dofus pseudos)
 // ============================================
 
-export async function getMemberProfiles(userIds: string[], guildId?: string) {
-    const ctx = await getUserContext();
-    if (!ctx.isAuthenticated || !ctx.id) return { success: false, error: "Non authentifié", profiles: [] };
-
-    // If guildId not provided, try to get from context
-    let targetGuildId = guildId;
-    if (!targetGuildId) {
-        const profile = await db.userProfile.findFirst({
-            where: { userId: ctx.id },
-            select: { guildId: true },
-        });
-        if (profile) {
-            // Need to get the Discord guild ID from GuildConfig
-            const guildConfig = await db.guildConfig.findUnique({
-                where: { id: profile.guildId },
-                select: { discordGuildId: true },
-            });
-            targetGuildId = guildConfig?.discordGuildId;
-        }
-    }
-
-    // Get internal guildId for profile lookup
-    let internalGuildId: string | null = null;
-    if (targetGuildId) {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: targetGuildId },
-            select: { id: true },
-        });
-        internalGuildId = guildConfig?.id || null;
-    }
+export async function getMemberProfiles(guildId: string, userIds: string[]) {
+    // Determine internal guildId for profile lookup
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    const internalGuildId = guildConfig?.id;
 
     // Get profiles for these user IDs with User data for fallback
     const profiles = internalGuildId ? await db.userProfile.findMany({
@@ -1176,9 +1150,9 @@ export async function getMemberProfiles(userIds: string[], guildId?: string) {
 // UPDATE CURRENT FLOOR (Leader only)
 // ============================================
 
-export async function updateCurrentFloor(runId: string, floorNumber: number) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function updateCurrentFloor(guildId: string, runId: string, floorNumber: number) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     // Validate floor number
     if (floorNumber < 0 || floorNumber > 26) {
@@ -1220,9 +1194,9 @@ export async function updateCurrentFloor(runId: string, floorNumber: number) {
 // CLOSE RUN (Leader manually marks as complete)
 // ============================================
 
-export async function closeDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function closeDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -1256,9 +1230,9 @@ export async function closeDreamRun(runId: string) {
 // REOPEN RUN (Leader can reopen a completed run)
 // ============================================
 
-export async function reopenDreamRun(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function reopenDreamRun(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
@@ -1293,9 +1267,9 @@ export async function reopenDreamRun(runId: string) {
 // CANCEL JOIN REQUEST (User cancels their own)
 // ============================================
 
-export async function cancelJoinRequest(runId: string) {
-    const ctx = await getContextWithGuildId();
-    if (!ctx) return { success: false, error: "Non authentifié" };
+export async function cancelJoinRequest(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
     // Find user's pending request for this run (Scoped by Guild)
     const request = await db.dreamJoinRequest.findFirst({

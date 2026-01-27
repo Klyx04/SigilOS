@@ -81,7 +81,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         async function loadData() {
             const userIds = run.members.map((m) => m.userId);
             if (userIds.length > 0) {
-                const result = await getMemberProfiles(userIds);
+                const result = await getMemberProfiles(params.guildId as string, userIds);
                 if (result.success && result.profiles) {
                     setProfiles(result.profiles as MemberProfile[]);
                 }
@@ -90,7 +90,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
             if (isMember) {
                 setPendingRequest(false);
             } else if (currentUserId && !isLeader) {
-                const requestStatus = await getMyJoinRequestStatus(run.id);
+                const requestStatus = await getMyJoinRequestStatus(params.guildId as string, run.id);
                 setPendingRequest(requestStatus.success && requestStatus.status === "PENDING");
             }
         }
@@ -102,7 +102,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         if (!pendingRequest) return;
 
         const interval = setInterval(async () => {
-            const result = await getMyJoinRequestStatus(run.id);
+            const result = await getMyJoinRequestStatus(params.guildId as string, run.id);
             if (result.success && result.status !== "PENDING") {
                 setPendingRequest(false);
                 router.refresh();
@@ -127,7 +127,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
-        const result = await sendJoinRequest({ runId: run.id, classe: selectedClasse, message: message || undefined });
+        const result = await sendJoinRequest(params.guildId as string, { runId: run.id, classe: selectedClasse, message: message || undefined });
         if (result.success) {
             toast.success("Candidature envoyée avec succès !");
             setJoinDialogOpen(false);
@@ -141,7 +141,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     const handleCancelRequest = async () => {
         setLoading(true);
-        await cancelJoinRequest(run.id);
+        await cancelJoinRequest(params.guildId as string, run.id);
         setPendingRequest(false);
         router.refresh();
         setLoading(false);
@@ -149,14 +149,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     const handleStart = async () => {
         setLoading(true);
-        await startDreamRun(run.id);
+        await startDreamRun(params.guildId as string, run.id);
         router.refresh();
         setLoading(false);
     };
 
     const handleDelete = async () => {
         setLoading(true);
-        await deleteDreamRun(run.id);
+        await deleteDreamRun(params.guildId as string, run.id);
         setDeleteDialogOpen(false);
         router.refresh();
         setLoading(false);
@@ -164,7 +164,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     const handleLeave = async () => {
         setLoading(true);
-        await leaveDreamRun(run.id);
+        await leaveDreamRun(params.guildId as string, run.id);
         router.refresh();
         setLoading(false);
     };

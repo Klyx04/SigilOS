@@ -54,6 +54,8 @@ model User {
 
   // SigilOS Relations
   profiles      UserProfile[]
+  guildEvents   GuildEvent[]
+  attendances   EventAttendee[]
   notifications Notification[]
 }
 
@@ -102,6 +104,7 @@ model GuildConfig {
   profiles         UserProfile[]
   missions         Mission[]
   auditLogs        AuditLog[]
+  guildEvents      GuildEvent[]
 }
 
 // -- Audit Log (Immutable) --
@@ -529,4 +532,64 @@ enum JoinRequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+// -- CALENDAR MODELS --
+
+// -- CALENDAR MODELS --
+
+model GuildEvent {
+  id          String            @id @default(cuid())
+  guildId     String
+  creatorId   String            // User who created the event
+  
+  title       String
+  description String?           @db.Text
+  type        CalendarEventType @default(SOCIAL)
+  
+  startDate   DateTime
+  endDate     DateTime
+  
+  location    String?           // In-game location or Discord channel
+  maxAttendees Int?             // Max spots available (null = infinite)
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  attendees   EventAttendee[]
+
+  @@index([guildId, startDate])
+  @@index([creatorId])
+}
+
+model EventAttendee {
+  id        String         @id @default(cuid())
+  eventId   String
+  userId    String
+  status    AttendeeStatus @default(GOING)
+  comment   String?        // Small note from user ("Possible de venir en retard?")
+  
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  
+  event     GuildEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+enum CalendarEventType {
+  GUILD_MISSION
+  SONGES_RUN
+  DUNGEON_FARM
+  SOCIAL
+  OFFICIAL_RESET
+}
+
+enum AttendeeStatus {
+  GOING
+  MAYBE
+  DECLINED
 }

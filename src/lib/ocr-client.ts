@@ -248,6 +248,17 @@ function validateSonges(
         }
     }
 
+    // Check boss name (Many Songes missions are "Kill Boss in Songes")
+    const bossName = payload.bossName || payload.dungeonName;
+    if (bossName) {
+        if (fuzzyMatch(textLower, bossName)) {
+            matched.push(`Boss: ${bossName}`);
+            contentMatch = true;
+        } else {
+            missing.push(`Boss: ${bossName}`);
+        }
+    }
+
     if (categoryMatch) matched.push("Contexte Songes");
 
     return { categoryMatch, contentMatch };
@@ -344,8 +355,16 @@ function analyzeColors(imageFile: File): Promise<ColorResult> {
                 greenRatio
             });
         };
-        img.onerror = () => resolve({ hasGreenValidation: false, greenRatio: 0 });
-        img.src = URL.createObjectURL(imageFile);
+        img.onerror = (err) => {
+            console.error("[OCR-Client] Color Analysis Image Load Error:", err);
+            URL.revokeObjectURL(img.src);
+            resolve({ hasGreenValidation: false, greenRatio: 0 });
+        };
+        const objectUrl = URL.createObjectURL(imageFile);
+        img.src = objectUrl;
+
+        // Ensure we revoke even if it hangs or other issues
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
     });
 }
 
@@ -483,7 +502,7 @@ export async function analyzeScreenshot(
             contentMatch: false,
             victoryDetected: false,
             matchedElements: [],
-            missingElements: ['Erreur OCR - validation manuelle requise'],
+            missingElements: [`Erreur OCR: ${error instanceof Error ? error.message : 'Détails inconnus'} - validation manuelle requise`],
             rawText: '',
             confidence: 0,
         };

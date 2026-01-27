@@ -21,7 +21,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Settings,
-    BookOpen
+    BookOpen,
+    Calendar as CalendarIcon
 } from "lucide-react";
 import type { UserContext } from "@/server/actions/user-actions";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -59,6 +60,7 @@ export function AppSidebar({ className, user, guildId }: Props) {
         { name: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: InfinityIcon, visible: user.canViewSonges },
         { name: "Bourse Archis", href: `/dashboard/${guildId}/archimonstres`, icon: Bug, visible: user.canViewArchis },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, visible: user.canViewLadder },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: CalendarIcon, visible: user.isMember || user.canViewCalendar },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, visible: user.canViewRoster },
         { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: UserCircle, visible: true },
     ];

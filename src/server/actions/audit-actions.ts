@@ -16,14 +16,16 @@ export type AuditAction =
     | "CONFIG_UPDATED"        // Guild config changed
     | "API_KEY_UPDATED"       // Metamob API key changed
     | "CHANNEL_CONFIGURED"    // Discord channel configured
-    | "ADMIN_ACCESS_DENIED";  // Unauthorized admin page access attempt
+    | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
+    | "SECURITY_ALERT";       // NSFW/Safety violation
 
 export type AuditTargetType =
     | "PERMISSION"
     | "ROLE"
     | "CONFIG"
     | "CHANNEL"
-    | "ACCESS_ATTEMPT";
+    | "ACCESS_ATTEMPT"
+    | "CONTENT_SAFETY";
 
 export type AuditLogEntry = {
     id: string;
@@ -43,6 +45,61 @@ type ActionResponse<T = undefined> = {
     error?: string;
     data?: T;
 };
+
+// ============================================================================
+// PUBLIC ACTIONS
+// ============================================================================
+
+/**
+ * Report a security incident (e.g. NSFW upload attempt)
+ * Accessible by authenticated users, but rate-limited + audited
+ */
+export async function reportSecurityIncident(
+    guildId: string,
+    incidentType: string,
+    description: string,
+    metadata: Record<string, any> = {}
+): Promise<ActionResponse> {
+    const session = await auth();
+    console.log("[Security] Reporting incident...", { guildId, incidentType, userId: session?.user?.id });
+
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        // Try to get internal user details, but don't block on it
+        let actorName = session.user.name || "Unknown User";
+        try {
+            const user = await db.user.findUnique({
+                where: { id: session.user.id },
+                select: { name: true }
+            });
+            if (user?.name) actorName = user.name;
+        } catch (e) {
+            console.warn("[Security] User lookup failed, using session name", e);
+        }
+
+        const result = await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName,
+            action: "SECURITY_ALERT",
+            targetType: "CONTENT_SAFETY",
+            targetId: incidentType,
+            metadata: {
+                description,
+                ...metadata,
+                severity: "HIGH"
+            }
+        });
+
+        console.log("[Security] Audit log created:", result.success);
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to report security incident:", error);
+        return { success: false, error: "Internal Error" };
+    }
+}
 
 // ============================================================================
 // AUDIT LOG CREATION (Internal use)
@@ -337,7 +394,7 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = 7;
 
 /**
  * Cleanup old audit logs for a guild

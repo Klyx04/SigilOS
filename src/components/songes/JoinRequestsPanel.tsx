@@ -19,11 +19,12 @@ interface JoinRequest {
 }
 
 interface JoinRequestsPanelProps {
+    guildId: string;
     runId: string;
     isLeader: boolean;
 }
 
-export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
+export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPanelProps) {
     const [requests, setRequests] = useState<JoinRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
     }, [runId, isLeader]);
 
     const loadRequests = async () => {
-        const result = await getPendingJoinRequests(runId);
+        const result = await getPendingJoinRequests(guildId, runId);
         if (result.success && result.requests) {
             setRequests(result.requests as JoinRequest[]);
         }
@@ -44,7 +45,7 @@ export function JoinRequestsPanel({ runId, isLeader }: JoinRequestsPanelProps) {
 
     const handleRespond = async (requestId: string, accept: boolean) => {
         setActionLoading(requestId);
-        await respondToJoinRequest({ requestId, accept });
+        await respondToJoinRequest(guildId, { requestId, accept });
         // Reload to refresh list
         await loadRequests();
         setActionLoading(null);

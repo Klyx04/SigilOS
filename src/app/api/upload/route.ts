@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getUserContext } from "@/server/actions/user-actions";
+import { rateLimit } from "@/lib/ratelimit";
 
 // Local storage fallback path (when R2 is not configured)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "proofs");
@@ -17,11 +18,33 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // 1.1 RATE LIMIT: 5 uploads per minute per user (Prevent DoS/Spam)
+        const limiter = await rateLimit(`upload:${session.user.id}`, 5, 60 * 1000);
+        if (!limiter.success) {
+            console.warn(`[Security] Upload blocked: Rate limit exceeded for user ${session.user.id}`);
+            return NextResponse.json({ error: "Trop d'uploads. Veuillez patienter." }, { status: 429 });
+        }
+
+        // 1.2 FAIL-FAST: Check Content-Type header (Optimization)
+        // We reject obviously wrong types before even parsing the body
+        const contentType = request.headers.get("content-type") || "";
+        if (!contentType.includes("multipart/form-data")) {
+            return NextResponse.json({ error: "Invalid Content-Type" }, { status: 400 });
+        }
+
         // 2. Parse form data
         const formData = await request.formData();
         const file = formData.get("file") as File | null;
+
+        // 2.1 FAIL-FAST: Check File Type (Client-provided MIME check)
+        // Note: Real validation happens later with Magic Numbers, this is just an optimization
+        if (file && !file.type.startsWith("image/")) {
+            return NextResponse.json({ error: "Seules les images sont autorisées." }, { status: 400 });
+        }
+
         const guildId = formData.get("guildId") as string | null;
         const missionId = formData.get("missionId") as string | null;
+
 
         if (!file || !guildId || !missionId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

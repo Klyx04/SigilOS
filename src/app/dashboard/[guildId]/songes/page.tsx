@@ -19,7 +19,7 @@ export default async function SongesPage({
         return <AccessDenied />;
     }
 
-    const { runs } = await getDreamRuns(["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
+    const { runs } = await getDreamRuns(guildId, ["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
     const currentUserId = userContext.isAuthenticated ? userContext.id : undefined;
 
     return (
@@ -30,7 +30,7 @@ export default async function SongesPage({
             {/* Create Button - only if has permission */}
             {(userContext.canCreateSonges || userContext.isAdmin) && (
                 <div className="flex justify-end">
-                    <CreateRunButton />
+                    <CreateRunButton guildId={guildId} />
                 </div>
             )}
 

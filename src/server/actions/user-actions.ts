@@ -25,6 +25,9 @@ export type UserContext = {
     canViewLadder: boolean;
     // Presentation Permission
     canEditPresentation: boolean;
+    // Calendar Permissions
+    canViewCalendar: boolean;
+    canManageCalendar: boolean;
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
@@ -35,11 +38,11 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false };
+        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false };
+    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
 
     // --- SECURITY: DEEP WHITELIST CHECK ---
     // Rule: If defined (even empty), enforce strict whitelist.
@@ -48,7 +51,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
         if (!allowedGuilds.includes(targetGuildId)) {
             console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
-            return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false };
+            return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
         }
     }
 
@@ -70,7 +73,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false };
+        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
     }
 
     const discordUserId = account.providerAccountId;
@@ -251,11 +254,19 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     // Presentation Permission
     const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
 
+    // Calendar Permissions
+    const canViewCalendar = myPerms.has(PERMISSIONS.CALENDAR_VIEW) || isAdmin;
+    const canManageCalendar = myPerms.has(PERMISSIONS.CALENDAR_MANAGE) || isAdmin;
+
     return {
         isAuthenticated: true,
         id: session.user.id,
         name: displayName,
-        image: session.user.image || undefined,
+        image: member?.user?.avatar
+            ? `https://cdn.discordapp.com/avatars/${discordUserId}/${member.user.avatar}.png`
+            : member?.avatar
+                ? `https://cdn.discordapp.com/guilds/${targetGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
+                : session.user.image || undefined,
         roleName,
         roleColor,
         canViewMissions,
@@ -268,6 +279,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         canViewArchis,
         canViewLadder,
         canEditPresentation,
+        canViewCalendar,
+        canManageCalendar,
         isAdmin,
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",

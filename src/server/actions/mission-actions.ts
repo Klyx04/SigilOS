@@ -9,6 +9,7 @@ import { MissionCategory, Prisma, NotificationType } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
 import { unlink, rmdir } from "fs/promises";
 import { join, dirname } from "path";
+import { rateLimit } from "@/lib/ratelimit";
 
 // --- Types & Schemas ---
 
@@ -74,7 +75,7 @@ async function internalCheckPermission(
         // Check specific permission
         return allPerms.has(permission);
     } catch (e) {
-        console.error(`[InternalPermissionCheck] Error for ${discordUserId}:`, e);
+        console.error(`[InternalPermissionCheck] Error for ${discordUserId}: `, e);
         return false;
     }
 }
@@ -114,7 +115,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
             return;
         }
 
-        console.log(`[Notification] Guild Owner ID (Discord): ${guildInfo.owner_id}`);
+        console.log(`[Notification] Guild Owner ID(Discord): ${guildInfo.owner_id} `);
 
         // Find owner user internally
         const account = await db.account.findFirst({
@@ -126,7 +127,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         });
 
         if (account) {
-            console.log(`[Notification] Found internal user ${account.userId} for owner. Creating notification...`);
+            console.log(`[Notification] Found internal user ${account.userId} for owner.Creating notification...`);
             await createNotification(
                 account.userId,
                 "NEW_SUBMISSION_PENDING",
@@ -136,7 +137,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
             );
             console.log(`[Notification] Notification created.`);
         } else {
-            console.warn(`[Notification] Internal account not found for Discord Owner ID ${guildInfo.owner_id}`);
+            console.warn(`[Notification] Internal account not found for Discord Owner ID ${guildInfo.owner_id} `);
         }
     } catch (e) {
         console.error("Notify Validators Error:", e);
@@ -156,31 +157,31 @@ async function deleteProofFile(proofUrl: string) {
 
         // 1. Delete the file
         await unlink(absolutePath);
-        console.log(`[Cleanup] Deleted file: ${absolutePath}`);
+        console.log(`[Cleanup] Deleted file: ${absolutePath} `);
 
         // 2. Safely attempt to delete the parent directory (Mission folder)
         // This fails silently if the directory is NOT empty (which is exactly what we want)
         try {
             const dirPath = dirname(absolutePath);
             await rmdir(dirPath);
-            console.log(`[Cleanup] Removed empty directory: ${dirPath}`);
+            console.log(`[Cleanup] Removed empty directory: ${dirPath} `);
 
             // Optional: Try to remove the grandparent (Guild folder) if also empty
             const grandParentDirPath = dirname(dirPath);
             await rmdir(grandParentDirPath);
-            console.log(`[Cleanup] Removed empty guild directory: ${grandParentDirPath}`);
+            console.log(`[Cleanup] Removed empty guild directory: ${grandParentDirPath} `);
         } catch (dirError: any) {
             // Ignore ENOTEMPTY or permissions errors, it just means the folder is still in use.
             if (dirError.code !== "ENOTEMPTY" && dirError.code !== "EEXIST" && dirError.code !== "EBUSY") {
                 // Only log unexpected errors
-                // console.warn(`[Cleanup] Directory cleanup skipped: ${dirError.message}`);
+                // console.warn(`[Cleanup] Directory cleanup skipped: ${ dirError.message } `);
             }
         }
 
     } catch (error: any) {
         // Ignore ENOENT (File not found), warn on others
         if (error.code !== "ENOENT") {
-            console.warn(`[Cleanup] Failed to delete file ${proofUrl}:`, error);
+            console.warn(`[Cleanup] Failed to delete file ${proofUrl}: `, error);
         }
     }
 }
@@ -247,6 +248,7 @@ export async function createWeekMissions(
         });
 
         revalidatePath(`/dashboard/${data.guildId}/missions`);
+        revalidatePath(`/dashboard/${data.guildId}/missions/manage`);
         return { success: true };
     } catch (error) {
         console.error("Create Missions Error Full:", error);
@@ -279,6 +281,7 @@ export async function resetMission(
         });
 
         revalidatePath(`/dashboard/${guildId}/missions`);
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
         return { success: true };
     } catch (error) {
         console.error("Reset Mission Error:", error);
@@ -530,10 +533,19 @@ export async function submitMissionProof(
 }
 
 export async function validateSubmission(
+    discordGuildId: string,
     submissionId: string,
     status: "VALIDATED" | "REJECTED"
 ): Promise<ActionResponse> {
     const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    // RATE LIMIT: 20 validations per minute per admin (prevent script abuse)
+    const limiter = await rateLimit(`validate_submission:${session.user.id}:${discordGuildId}`, 20, 60 * 1000);
+    if (!limiter.success) {
+        return { success: false, error: "Trop d'actions de validation. Veuillez patienter un instant." };
+    }
+
     try {
         const submission = await db.submission.findUnique({
             where: { id: submissionId },

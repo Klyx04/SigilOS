@@ -34,9 +34,11 @@ export default function RunDetailPage() {
     const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
+        if (!guildId) return;
+
         const [runResult, userContext] = await Promise.all([
-            getDreamRunById(runId),
-            getUserContext(),
+            getDreamRunById(guildId, runId),
+            getUserContext(guildId),
         ]);
 
         if (runResult.success && runResult.run) {
@@ -46,7 +48,7 @@ export default function RunDetailPage() {
             // Fetch profiles for names
             const userIds = runResult.run.members.map((m: any) => m.userId);
             if (userIds.length > 0) {
-                const profilesResult = await getMemberProfiles(userIds);
+                const profilesResult = await getMemberProfiles(guildId, userIds);
                 if (profilesResult.success) {
                     setProfiles(profilesResult.profiles || []);
                 }
@@ -61,7 +63,7 @@ export default function RunDetailPage() {
         }
 
         setLoading(false);
-    }, [runId]);
+    }, [runId, guildId]);
 
     // Initial load only - no polling to reduce server load
     // Data refreshes after user actions (floor select, etc.)
@@ -102,29 +104,6 @@ export default function RunDetailPage() {
 
     const isLeader = currentUserId === run.leaderId;
 
-    // Find leader name for display
-    const leaderMember = run.members.find(m => m.userId === run.leaderId);
-    // Best effort name resolution: Dofus Pseudo > Discord Nick > "Inconnu"
-    // Note: We might need to fetch profiles properly if not populated, but members usually have some info. 
-    // Wait, run.members here mimics the relation. 
-    // In RunCard we fetched profiles separately. Let's see if we have names here.
-    // The type RunWithRelations has members. DreamRunMember has userId. 
-    // We probably need to fetch the profile name or use what we have. 
-    // For now let's pass a placeholder or look if we can get it from context/props if already loaded.
-    // Actually RunDetailHeader doesn't show leader name. 
-    // Let's rely on a helper or just fetch it. 
-    // Since names are needed, let's just pass "Leader" or fetch it.
-    // Better: Helper function or lookup.
-    // Let's check getDreamRunById return type. It returns "members".
-
-    // Quick fix: User wanted "Pseudo du lead". I don't have the profile loaded here yet unless I fetch it.
-    // However, I can use a simple async fetch or just pass "Leader" if I can't find it easily without refactor.
-    // Wait, RunCard loads profiles. Here I don't have profiles loaded in state.
-    // I should add profile loading or just pass the ID for now? No, UI needs text.
-    // I'll grab the user name from the session if it matches, otherwise "Leader".
-    // Actually, let's just use "Meneur" if we can't get the name easily, OR fetch it.
-    // I will fetch profiles like in RunCard to be clean.
-
     return (
         <div className="space-y-6">
             <RunDetailHeader
@@ -138,6 +117,7 @@ export default function RunDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <RunTree
+                        guildId={guildId}
                         currentFloor={run.currentFloor}
                         runId={run.id}
                         isLeader={isLeader}
@@ -152,14 +132,14 @@ export default function RunDetailPage() {
                 <div className="space-y-4">
                     {/* Join Requests Panel - Only for leader, both RECRUITING and IN_PROGRESS */}
                     {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
-                        <JoinRequestsPanel runId={run.id} isLeader={isLeader} />
+                        <JoinRequestsPanel guildId={guildId} runId={run.id} isLeader={isLeader} />
                     )}
 
                     {/* Stats */}
-                    <RunStatsPanel run={run} currentUserId={currentUserId ?? undefined} isLeader={isLeader} />
+                    <RunStatsPanel guildId={guildId} run={run} currentUserId={currentUserId ?? undefined} isLeader={isLeader} />
 
                     {/* Bonus Inventory */}
-                    <BonusInventory bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
+                    <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
                 </div>
             </div>
         </div>

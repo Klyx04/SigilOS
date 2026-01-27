@@ -38,7 +38,7 @@ export default async function ValidationPage({ params }: { params: Promise<{ gui
                 </div>
             </div>
 
-            <ValidationQueue submissions={submissions} />
+            <ValidationQueue submissions={submissions} guildId={guildId} />
         </div>
     );
 }

@@ -29,7 +29,7 @@ const CATEGORIES: { label: string; value: MissionCategory | 'ALL' }[] = [
     { label: "Événement", value: "EVENT" },
 ];
 
-export function ValidationQueue({ submissions: initialSubmissions }: { submissions: ExtendedSubmission[] }) {
+export function ValidationQueue({ submissions: initialSubmissions, guildId }: { submissions: ExtendedSubmission[], guildId: string }) {
     const router = useRouter();
     const [submissions, setSubmissions] = useState(initialSubmissions);
 
@@ -44,7 +44,7 @@ export function ValidationQueue({ submissions: initialSubmissions }: { submissio
 
     const handleDecision = async (id: string, status: "VALIDATED" | "REJECTED") => {
         setProcessingId(id);
-        const result = await validateSubmission(id, status);
+        const result = await validateSubmission(guildId, id, status);
         setProcessingId(null);
 
         if (result.success) {
@@ -143,7 +143,7 @@ export function ValidationQueue({ submissions: initialSubmissions }: { submissio
                                 <div className="flex flex-col min-w-0">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-semibold text-white truncate">
-                                            {item.profile.user.name || "Membre Inconnu"}
+                                            {item.profile.discordNickname || item.profile.user.name || "Membre Inconnu"}
                                         </span>
                                         {item.profile.pseudoDofus && (
                                             <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-zinc-800 text-zinc-400 font-normal">

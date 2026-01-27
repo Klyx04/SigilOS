@@ -14,9 +14,8 @@ const ACTION_COLORS: Record<string, string> = {
     RBAC_ROLE_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     RBAC_ROLE_REMOVE: "bg-red-500/20 text-red-400 border-red-500/30",
     CONFIG_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    API_KEY_UPDATED: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    CHANNEL_CONFIGURED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-    ADMIN_ACCESS_DENIED: "bg-red-600/20 text-red-300 border-red-600/30",
+    SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse", // Alert style
+    ADMIN_ACCESS_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -24,18 +23,16 @@ const ACTION_LABELS: Record<string, string> = {
     RBAC_ROLE_ADD: "Rôle ajouté",
     RBAC_ROLE_REMOVE: "Rôle retiré",
     CONFIG_UPDATED: "Configuration mise à jour",
-    API_KEY_UPDATED: "Clé API modifiée",
-    CHANNEL_CONFIGURED: "Canal configuré",
-    ADMIN_ACCESS_DENIED: "🚨 Accès refusé",
+    SECURITY_ALERT: "🚨 ALERTE SÉCURITÉ",
+    ADMIN_ACCESS_DENIED: "Accès refusé",
 };
 
 const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
+    { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
-    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
-    { value: "API_KEY_UPDATED", label: "Clé API" },
-    { value: "CHANNEL_CONFIGURED", label: "Canal" },
+    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
 ];
 
 type PermissionChange = {
@@ -49,7 +46,14 @@ type AuditMetadata = {
     rolesAffected?: number;
     changes?: PermissionChange[];
     timestamp?: string;
+    description?: string;
+    reason?: string;
+    fileName?: string;
+    missionTitle?: string;
+    scores?: any[];
 };
+
+// ... (inside component render)
 
 type AuditLog = {
     id: string;
@@ -317,6 +321,22 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     <span className="text-red-400">
                                                         Tentative d'accès non autorisé à <code className="bg-red-900/30 px-1 rounded">{log.targetId}</code>
                                                     </span>
+                                                )}
+                                                {log.targetType === "CONTENT_SAFETY" && (
+                                                    <div className="text-red-300 font-medium space-y-1">
+                                                        <div>{metadata.description || "Alerte de sécurité"}</div>
+                                                        {metadata.missionTitle && (
+                                                            <div className="text-xs opacity-80">Mission : {metadata.missionTitle}</div>
+                                                        )}
+                                                        {metadata.fileName && (
+                                                            <div className="text-xs opacity-80">Fichier : {metadata.fileName}</div>
+                                                        )}
+                                                        {metadata.reason && (
+                                                            <div className="text-xs mt-1 bg-red-950/30 p-1.5 rounded border border-red-500/20">
+                                                                Raison : {metadata.reason}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </p>
 

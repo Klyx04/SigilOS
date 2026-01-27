@@ -24,7 +24,7 @@ import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submissio
 import { cn } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toggleMissionInterest } from "@/server/actions/mission-actions";
+import { toggleMissionInterest, cancelMissionSubmission } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
@@ -160,6 +160,20 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
     // Get level from payload
     const displayLevel = payload.level || getDefaultLevel(mission.tier);
 
+    const handleCancel = async () => {
+        if (!confirm("Voulez-vous vraiment annuler cette soumission ?")) return;
+
+        startTransition(async () => {
+            const result = await cancelMissionSubmission(mission.id);
+            if (result.success) {
+                toast.success("Soumission annulée.");
+                router.refresh();
+            } else {
+                toast.error(result.error || "Erreur lors de l'annulation");
+            }
+        });
+    };
+
     const handleToggleInterest = () => {
         startTransition(async () => {
             const result = await toggleMissionInterest(mission.id);
@@ -214,7 +228,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
 
             {/* Pending Badge Overlay */}
             {isPendingValidation && (
-                <div className="absolute top-2 right-2 z-20">
+                <div className="absolute top-2 right-2 z-20 animate-pulse">
                     <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
                         <Hourglass className="w-3 h-3" />
                         EN ATTENTE
@@ -379,10 +393,22 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                         </Button>
                     </div>
                 ) : isPendingValidation ? (
-                    // Pending state: show waiting message
-                    <div className="flex-1 flex items-center justify-center gap-2 h-8 text-yellow-400 text-xs font-medium">
-                        <Hourglass className="w-4 h-4" />
-                        En attente de validation...
+                    // Pending state: show waiting message AND CANCEL BUTTON
+                    <div className="flex-1 flex items-center justify-between gap-2 h-8 px-1">
+                        <div className="flex items-center gap-2 text-yellow-400 text-xs font-medium">
+                            <Hourglass className="w-4 h-4 animate-spin-slow" />
+                            <span>En examen...</span>
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            onClick={handleCancel}
+                            title="Annuler la soumission"
+                            disabled={isPending}
+                        >
+                            {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Annuler"}
+                        </Button>
                     </div>
                 ) : (
                     <>

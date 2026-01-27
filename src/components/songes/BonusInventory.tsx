@@ -19,6 +19,7 @@ import bonusData from "@/../src/bonus_songes.json";
 import type { SongesBonus } from "@/lib/songes/types";
 
 interface BonusInventoryProps {
+    guildId: string;
     bonuses: DreamRunBonus[];
     runId: string;
     pointsReve?: number; // Optional now, not used for purchase restrictions
@@ -66,7 +67,7 @@ const MINOR_BONUSES = [
     { name: "Armes : +1 Portée", type: "MINEUR", effet: "Augmente la portée de l'arme de 1", icon: "📏" },
 ];
 
-export function BonusInventory({ bonuses, runId, isLeader = false, onUpdate }: BonusInventoryProps) {
+export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUpdate }: BonusInventoryProps) {
     const [shopOpen, setShopOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
     const [rarityFilter, setRarityFilter] = useState<string | null>(null);
@@ -121,7 +122,7 @@ export function BonusInventory({ bonuses, runId, isLeader = false, onUpdate }: B
     const handleDelete = async (bonusId: string) => {
         if (!confirm("Supprimer ce bonus ?")) return;
         setLoading(true);
-        const res = await deleteDreamBonus({ runId, bonusId });
+        const res = await deleteDreamBonus(guildId, { runId, bonusId });
         setLoading(false);
         if (res.success) {
             toast.success("Bonus supprimé");
@@ -133,7 +134,7 @@ export function BonusInventory({ bonuses, runId, isLeader = false, onUpdate }: B
 
     const handleAddMinor = async (bonus: typeof MINOR_BONUSES[0]) => {
         setLoading(true);
-        const res = await addDreamBonus({
+        const res = await addDreamBonus(guildId, {
             runId,
             bonusName: bonus.name,
             bonusType: "MINEUR",
@@ -151,7 +152,7 @@ export function BonusInventory({ bonuses, runId, isLeader = false, onUpdate }: B
 
     const handleBuy = async (bonus: SongesBonus) => {
         setLoading(true);
-        const res = await addDreamBonus({
+        const res = await addDreamBonus(guildId, {
             runId,
             bonusName: bonus.nom,
             bonusType: bonus.type,

@@ -23,18 +23,23 @@ export const PERMISSIONS = {
 
     // Guild Presentation
     PRESENTATION_EDIT: "presentation:edit", // Éditer la page de présentation publique
+
+    // Calendrier
+    CALENDAR_VIEW: "calendar:view", // Accès au calendrier
+    CALENDAR_MANAGE: "calendar:manage", // Créer/Editer/Supprimer des events
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 // Module categories for filtering
-export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "modules";
+export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "modules" | "calendar";
 
 export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon: string; color: string }> = {
     admin: { label: "Administration", icon: "🛡️", color: "#f59e0b" },
     missions: { label: "Missions", icon: "📜", color: "#3b82f6" },
     profile: { label: "Profils", icon: "👤", color: "#ec4899" },
     songes: { label: "Songes Infinis", icon: "🌙", color: "#8b5cf6" },
+    calendar: { label: "Calendrier", icon: "📅", color: "#10b981" },
     modules: { label: "Autres Modules", icon: "🧩", color: "#10b981" },
 };
 
@@ -94,6 +99,16 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Éditer Présentation",
         description: "Modifier la page de présentation publique de la guilde.",
         module: "admin",
+    },
+    [PERMISSIONS.CALENDAR_VIEW]: {
+        label: "Voir le Calendrier",
+        description: "Consulter l'agenda de la guilde et s'inscrire aux événements.",
+        module: "calendar",
+    },
+    [PERMISSIONS.CALENDAR_MANAGE]: {
+        label: "Gérer le Calendrier",
+        description: "Créer, modifier et supprimer des événements dans l'agenda.",
+        module: "calendar",
     },
 };
 

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 
 interface RunTreeProps {
+    guildId: string;
     currentFloor: number;
     runId: string;
     isLeader: boolean;
@@ -264,7 +265,7 @@ function FloorNode({ floor, type, isCurrent, isCompleted, isLeader, isLocked, on
     );
 }
 
-export function RunTree({ currentFloor, runId, isLeader, runStatus, leaderName, onStatusChange, onUpdate }: RunTreeProps) {
+export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, leaderName, onStatusChange, onUpdate }: RunTreeProps) {
     const [updating, setUpdating] = useState(false);
     // State to track expanded sections (default to all open or current)
     const [expandedPaliers, setExpandedPaliers] = useState<number[]>([1, 2, 3, 4, 5, 26]);
@@ -283,7 +284,7 @@ export function RunTree({ currentFloor, runId, isLeader, runStatus, leaderName, 
         onStatusChange?.("COMPLETED");
         setUpdating(true);
         const { closeDreamRun } = await import("@/server/actions/songes/dream-run-actions");
-        const result = await closeDreamRun(runId);
+        const result = await closeDreamRun(guildId, runId);
         if (result.success) {
             toast.success("Run clôturée");
             onUpdate?.();
@@ -299,7 +300,7 @@ export function RunTree({ currentFloor, runId, isLeader, runStatus, leaderName, 
         onStatusChange?.("IN_PROGRESS");
         setUpdating(true);
         const { reopenDreamRun } = await import("@/server/actions/songes/dream-run-actions");
-        const result = await reopenDreamRun(runId);
+        const result = await reopenDreamRun(guildId, runId);
         if (result.success) {
             toast.success("Run réouverte");
             onUpdate?.();
@@ -313,7 +314,7 @@ export function RunTree({ currentFloor, runId, isLeader, runStatus, leaderName, 
     const handleNodeClick = async (floor: number) => {
         if (!isLeader) return;
         setUpdating(true);
-        const result = await updateCurrentFloor(runId, floor);
+        const result = await updateCurrentFloor(guildId, runId, floor);
         setUpdating(false);
         if (!result.success) {
             toast.error(result.error);

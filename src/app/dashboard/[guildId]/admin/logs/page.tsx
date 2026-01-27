@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
-import { getAuditLogs, logAdminAccessDenied } from "@/server/actions/audit-actions";
+import { getAuditLogs, logAdminAccessDenied, cleanupOldAuditLogs } from "@/server/actions/audit-actions";
 import { fetchGuildRoles } from "@/server/discord";
 import { FileText, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,12 @@ export default async function AdminLogsPage({ params }: Props) {
         await logAdminAccessDenied(guildId, "/admin/logs");
         return <AccessDenied />;
     }
+
+    // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)
+    // retention policy is now 7 days
+    cleanupOldAuditLogs(guildId).catch(err =>
+        console.error("[LazyCleanup] Failed to clean old logs:", err)
+    );
 
     // Fetch audit logs (initial page)
     const logsResult = await getAuditLogs(guildId, { limit: 20, page: 1 });

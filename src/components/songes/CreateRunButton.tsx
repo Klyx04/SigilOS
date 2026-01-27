@@ -22,7 +22,7 @@ import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
 
-export function CreateRunButton() {
+export function CreateRunButton({ guildId }: { guildId: string }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [difficulty, setDifficulty] = useState<DifficultyKey>("REVE_III");
@@ -40,7 +40,7 @@ export function CreateRunButton() {
         setError(null);
 
         // Send array to server action
-        const result = await createDreamRun({ difficulty, objectives });
+        const result = await createDreamRun(guildId, { difficulty, objectives });
 
         if (result.success) {
             setOpen(false);

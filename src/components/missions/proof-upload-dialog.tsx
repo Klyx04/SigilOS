@@ -26,10 +26,12 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { submitMissionProof, cancelMissionSubmission } from "@/server/actions/mission-actions";
+import { reportSecurityIncident } from "@/server/actions/audit-actions";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useClientOcr, type MissionCategory, type MissionPayload, type OcrResult } from "@/lib/ocr-client";
 import { Progress } from "@/components/ui/progress";
+import { analyzeImageSafety } from "@/lib/safety-client";
 
 interface ProofUploadDialogProps {
     open: boolean;
@@ -57,6 +59,8 @@ export function ProofUploadDialog({
     const [state, setState] = useState<UploadState>("idle");
     const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isCheckingSafety, setIsCheckingSafety] = useState(false);
+    const [safetyDebug, setSafetyDebug] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
@@ -64,6 +68,7 @@ export function ProofUploadDialog({
     const { isAnalyzing, progress, analyze, reset: resetOcr } = useClientOcr();
 
     const resetState = () => {
+        if (preview) URL.revokeObjectURL(preview);
         setFile(null);
         setPreview(null);
         setState("idle");
@@ -77,7 +82,7 @@ export function ProofUploadDialog({
         onOpenChange(false);
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (!selectedFile) return;
 
@@ -93,6 +98,50 @@ export function ProofUploadDialog({
             toast.error("Fichier trop volumineux (max 10MB)");
             return;
         }
+
+        if (preview) URL.revokeObjectURL(preview);
+
+        // --- Added: NSFW/Safety Check ---
+        setIsCheckingSafety(true);
+        try {
+            const safety = await analyzeImageSafety(selectedFile);
+            if (!safety.isSafe) {
+                // Warning message meant to be dissuasive
+                toast.error("INFRACTION DÉTECTÉE : Contenu inapproprié.", {
+                    description: "Ce type de contenu est strictement interdit sur la plateforme. L'incident a été enregistré.",
+                    duration: 8000,
+                    style: {
+                        borderColor: '#ef4444',
+                        backgroundColor: '#450a0a',
+                        color: '#fca5a5'
+                    }
+                });
+
+                // Logging the incident (Fire and forget to not block UI)
+                const description = `Tentative d'upload NSFW par l'utilisateur (Fichier: ${selectedFile.name})`;
+
+                reportSecurityIncident(
+                    guildId,
+                    "NSFW_ATTEMPT",
+                    description,
+                    {
+                        category: category || "Unknown",
+                        reason: safety.reason,
+                        fileName: selectedFile.name,
+                        fileSize: selectedFile.size,
+                        missionTitle: missionTitle,
+                        scores: safety.predictions
+                    }
+                ).catch(e => console.error("Failed to log incident", e));
+
+                resetState();
+                onOpenChange(false);
+                return;
+            }
+        } finally {
+            setIsCheckingSafety(false);
+        }
+        // ------------------------------
 
         setFile(selectedFile);
         setPreview(URL.createObjectURL(selectedFile));
@@ -223,8 +272,11 @@ export function ProofUploadDialog({
                     {/* Drop Zone */}
                     {!preview && state === "idle" && (
                         <div
-                            className="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-colors cursor-pointer"
-                            onClick={() => fileInputRef.current?.click()}
+                            className={cn(
+                                "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors cursor-pointer",
+                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                            )}
+                            onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
                             onDrop={handleDrop}
                             onDragOver={(e) => e.preventDefault()}
                         >
@@ -241,7 +293,14 @@ export function ProofUploadDialog({
                                 accept="image/png,image/jpeg,image/webp,image/gif"
                                 className="hidden"
                                 onChange={handleFileSelect}
+                                disabled={isCheckingSafety}
                             />
+                            {isCheckingSafety && (
+                                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
+                                    <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                                    <p className="text-sm text-slate-300">Vérification de sécurité...</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -254,6 +313,7 @@ export function ProofUploadDialog({
                                 width={500}
                                 height={300}
                                 className="w-full h-auto max-h-64 object-contain"
+                                unoptimized
                             />
                             {state === "idle" && (
                                 <button
@@ -317,6 +377,9 @@ export function ProofUploadDialog({
                                     <span className="text-sm font-medium text-slate-200">
                                         {isAutoValidated ? "Validé automatiquement" : "Vérification automatique"}
                                     </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                                    {safetyDebug && <span className="text-[10px] font-mono opacity-70">{safetyDebug}</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className={cn(

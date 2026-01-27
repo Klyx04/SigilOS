@@ -87,15 +87,23 @@ export function InterestModal({
                                         )}
                                     >
                                         {/* Avatar Placeholder */}
-                                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600">
-                                            <UserIcon className="w-5 h-5 text-slate-400" />
+                                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600 overflow-hidden">
+                                            {interest.profile.user?.image ? (
+                                                <img
+                                                    src={interest.profile.user.image}
+                                                    alt={interest.profile.user.name || "User"}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <UserIcon className="w-5 h-5 text-slate-400" />
+                                            )}
                                         </div>
 
                                         {/* User Info */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium text-white truncate">
-                                                    {interest.profile.pseudoDofus || interest.profile.user?.name || "Agent Anonyme"}
+                                                    {interest.profile.discordNickname || interest.profile.user?.name || interest.profile.pseudoDofus || "Agent Anonyme"}
                                                 </span>
                                                 {interest.profile.userId === currentUserId && (
                                                     <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">

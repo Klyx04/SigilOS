@@ -20,12 +20,13 @@ interface MemberProfile {
 }
 
 interface RunStatsPanelProps {
+    guildId: string;
     run: RunWithMembers;
     currentUserId?: string;
     isLeader?: boolean;
 }
 
-export function RunStatsPanel({ run, currentUserId, isLeader = false }: RunStatsPanelProps) {
+export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }: RunStatsPanelProps) {
     const router = useRouter();
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function RunStatsPanel({ run, currentUserId, isLeader = false }: RunStats
         async function loadProfiles() {
             const userIds = run.members.map((m) => m.userId);
             if (userIds.length > 0) {
-                const result = await getMemberProfiles(userIds);
+                const result = await getMemberProfiles(guildId, userIds);
                 if (result.success && result.profiles) {
                     setProfiles(result.profiles as MemberProfile[]);
                 }
@@ -62,16 +63,16 @@ export function RunStatsPanel({ run, currentUserId, isLeader = false }: RunStats
 
     const handleKick = async (targetUserId: string) => {
         setLoadingAction(targetUserId);
-        await kickMember(run.id, targetUserId);
+        await kickMember(guildId, run.id, targetUserId);
         router.refresh();
         setLoadingAction(null);
     };
 
     const handleLeave = async () => {
         setLoadingAction("leave");
-        await leaveDreamRun(run.id);
+        await leaveDreamRun(guildId, run.id);
         // Redirect to songes list after leaving
-        router.push(`/dashboard/${run.guildId}/songes`);
+        router.push(`/dashboard/${guildId}/songes`);
     };
 
     return (

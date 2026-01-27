@@ -103,19 +103,23 @@ export function MissionEditor({ guildId }: { guildId: string }) {
     // Actions
     const handleSaveSingle = async (slot: number) => {
         const mission = missions[slot];
-        toast.promise(
-            createWeekMissions({
-                guildId,
-                weekNumber,
-                year,
-                missions: [mission]
-            }),
-            {
-                loading: 'Sauvegarde...',
-                success: 'Mission sauvegardée !',
-                error: 'Erreur sauvegarde'
-            }
-        );
+        const promise = createWeekMissions({
+            guildId,
+            weekNumber,
+            year,
+            missions: [mission]
+        });
+
+        toast.promise(promise, {
+            loading: 'Sauvegarde...',
+            success: 'Mission sauvegardée !',
+            error: 'Erreur sauvegarde'
+        });
+
+        const res = await promise;
+        if (res.success) {
+            fetchData();
+        }
     };
 
     const handleResetSingle = async (slot: number) => {

@@ -23,7 +23,8 @@ export default async function LadderPage({ params }: Props) {
             <UnifiedModuleHeader
                 title="Classement de Guilde"
                 description="Découvrez les membres les plus actifs et leur progression en jeu."
-                imageSrc="/assets/ui/icons/ladder.png"
+                icon={Trophy}
+                iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}`}
             />
 

@@ -9,6 +9,7 @@ interface UnifiedModuleHeaderProps {
     title: string;
     description?: string;
     icon?: LucideIcon;
+    iconColor?: string;
     imageSrc?: string;
     backHref?: string;
     backLabel?: string;
@@ -21,6 +22,7 @@ export function UnifiedModuleHeader({
     title,
     description,
     icon: Icon,
+    iconColor = "#fff",
     imageSrc,
     backHref,
     backLabel = "Retour au Dashboard",
@@ -59,8 +61,15 @@ export function UnifiedModuleHeader({
                                 <div className="absolute -inset-2 bg-white/5 rounded-full blur-xl -z-10" />
                             </div>
                         ) : Icon ? (
-                            <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 shadow-2xl">
-                                <Icon className="h-6 w-6 text-primary" />
+                            <div className="relative flex items-center justify-center">
+                                <Icon
+                                    className="h-10 w-10 sm:h-12 sm:w-12 transition-all duration-300"
+                                    style={{
+                                        color: iconColor,
+                                        filter: `drop-shadow(0 0 10px ${iconColor})`
+                                    }}
+                                    strokeWidth={1.5}
+                                />
                             </div>
                         ) : null}
                         <h1 className={cn(

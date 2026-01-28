@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
     getPendingJoinRequests,
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
+import { ClassIcon } from "@/components/shared/class-icon";
 
 interface JoinRequest {
     id: string;
@@ -27,6 +28,7 @@ interface JoinRequestsPanelProps {
 
 export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPanelProps) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [requests, setRequests] = useState<JoinRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -45,14 +47,16 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
         setLoading(false);
     };
 
-    const handleRespond = async (requestId: string, accept: boolean) => {
+    const handleRespond = (requestId: string, accept: boolean) => {
         setActionLoading(requestId);
-        await respondToJoinRequest(guildId, { requestId, accept });
-        // Reload to refresh list
-        await loadRequests();
-        setActionLoading(null);
-        // Refresh the entire page to update team members display
-        router.refresh();
+        startTransition(async () => {
+            await respondToJoinRequest(guildId, { requestId, accept });
+            // Reload to refresh list
+            await loadRequests();
+            setActionLoading(null);
+            // Refresh the entire page to update team members display
+            router.refresh();
+        });
     };
 
     // Only leaders can see this panel
@@ -96,6 +100,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                     </h4>
                                     <div className="flex items-center gap-2 mb-1">
                                         <Badge variant="secondary" className="bg-blue-600/20 text-blue-300 border-blue-500/30">
+                                            <ClassIcon classId={request.classe} size={14} className="mr-1.5" />
                                             {request.classe}
                                         </Badge>
                                         <span className="text-xs text-purple-300/50">
@@ -118,7 +123,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                         variant="ghost"
                                         className="h-8 w-8 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white"
                                         onClick={() => handleRespond(request.id, true)}
-                                        disabled={actionLoading === request.id}
+                                        disabled={actionLoading === request.id || isPending}
                                     >
                                         {actionLoading === request.id ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -131,7 +136,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                         variant="ghost"
                                         className="h-8 w-8 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white"
                                         onClick={() => handleRespond(request.id, false)}
-                                        disabled={actionLoading === request.id}
+                                        disabled={actionLoading === request.id || isPending}
                                     >
                                         <X className="w-4 h-4" />
                                     </Button>

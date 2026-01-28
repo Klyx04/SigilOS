@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '5mb', // Allow larger uploads for R2
     },
   },
+  // @ts-ignore
+  serverExternalPackages: ['tesseract.js'], // Prevent Webpack from bundling Tesseract
   // Security Headers
   async headers() {
     return [

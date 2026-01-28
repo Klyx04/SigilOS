@@ -490,7 +490,7 @@ export async function submitMissionProof(
         if (!profile) return { success: false, error: "Profile not found" };
 
         // Auto-validation logic...
-        const autoValidateThreshold = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || "95", 10);
+        const autoValidateThreshold = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || "70", 10);
         const ocrIsValid = ocrResult?.isValid ?? false;
         const shouldAutoValidate = ocrIsValid && ocrScore !== undefined && ocrScore >= autoValidateThreshold;
 
@@ -499,7 +499,7 @@ export async function submitMissionProof(
             return { success: false, error: "Une preuve est requise pour validation manuelle." };
         }
 
-        await db.submission.create({
+        const submission = await db.submission.create({
             data: {
                 missionId,
                 profileId: profile.id,
@@ -511,6 +511,15 @@ export async function submitMissionProof(
                 validatorId: shouldAutoValidate ? "SYSTEM_OCR" : null
             }
         });
+
+        // If Auto-Validated, give XP immediately
+        if (shouldAutoValidate) {
+            const xpReward = mission.xpReward || 0;
+            await addProfileXp(profile.id, xpReward);
+
+            // Revalidate Ladder as well
+            revalidatePath(`/dashboard/${mission.guild.discordGuildId}/ladder`);
+        }
 
         // Notify Validators
         const userName = profile.user.name || "Un membre";
@@ -574,20 +583,7 @@ export async function validateSubmission(
         // 3. If validated, add XP to user profile
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
-            if (xpReward > 0) {
-                // Fetch current profile to ensure we handle initial null XP correctly
-                const currentProfile = await db.userProfile.findUnique({
-                    where: { id: updatedSubmission.profileId },
-                    select: { xp: true }
-                });
-
-                const currentXp = currentProfile?.xp || 0;
-
-                await db.userProfile.update({
-                    where: { id: updatedSubmission.profileId },
-                    data: { xp: currentXp + xpReward }
-                });
-            }
+            await addProfileXp(updatedSubmission.profileId, xpReward);
         }
 
         // 4. Notify User
@@ -598,18 +594,41 @@ export async function validateSubmission(
             await createNotification(
                 updatedSubmission.profile.userId,
                 notifType as NotificationType,
-                `Mission ${resultMsg}`,
-                `Votre preuve pour la mission "${submission.mission.title || 'Mission'}" a été ${status === "VALIDATED" ? "acceptée" : "rejetée"}.`,
-                `/dashboard/${submission.mission.guild.discordGuildId}/missions`
+                `[Mission] ${submission.mission.title}`,
+                `Votre preuve a été ${resultMsg}`
             );
         }
 
-        revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/missions`);
-        revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/profile`);
+        revalidatePath(`/dashboard/${discordGuildId}/missions`);
+        revalidatePath(`/dashboard/${discordGuildId}/ladder`); // Revalidate ladder too!
+
         return { success: true };
     } catch (error) {
         console.error("Validation Error:", error);
         return { success: false, error: "Database error" };
+    }
+}
+
+// --- Helpers ---
+
+async function addProfileXp(profileId: string, amount: number) {
+    if (amount <= 0) return;
+
+    try {
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { xp: true }
+        });
+
+        if (!profile) return;
+
+        await db.userProfile.update({
+            where: { id: profileId },
+            data: { xp: (profile.xp || 0) + amount }
+        });
+        console.log(`[XP] Added ${amount} XP to profile ${profileId}`);
+    } catch (e) {
+        console.error(`[XP] Failed to add XP to profile ${profileId}:`, e);
     }
 }
 

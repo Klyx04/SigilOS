@@ -56,7 +56,8 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
             <UnifiedModuleHeader
                 title="Missions de Guilde"
                 description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
-                imageSrc="/assets/ui/icons/missions.png"
+                icon={ScrollText}
+                iconColor="#ef4444"
                 backHref={`/dashboard/${guildId}`}
             />
 

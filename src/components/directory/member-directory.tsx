@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { Search, Filter, X, Briefcase, Swords, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -147,7 +148,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                                         setIsOpenClass(false);
                                                     }}
                                                 >
-                                                    <span className="text-2xl filter drop-shadow-lg">{c.icon}</span>
+                                                    <ClassIcon classId={c.id} size={32} className="filter drop-shadow-lg" />
                                                     <span className="text-[10px] font-medium truncate w-full text-center">{c.name}</span>
                                                 </div>
                                             ))}

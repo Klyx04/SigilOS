@@ -3,6 +3,7 @@ import { Trophy, Clock, TrendingUp } from "lucide-react";
 import { LadderTabs } from "./_components/ladder-tabs";
 import { getUserContext } from "@/server/actions/user-actions";
 import AccessDenied from "@/components/access-denied";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -18,21 +19,13 @@ export default async function LadderPage({ params }: Props) {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/10 border border-purple-500/20">
-                    <Trophy className="h-8 w-8 text-purple-400" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-500">
-                        Ladder
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Classements de la guilde
-                    </p>
-                </div>
-            </div>
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Classement de Guilde"
+                description="Découvrez les membres les plus actifs et leur progression en jeu."
+                imageSrc="/assets/ui/icons/ladder.png"
+                backHref={`/dashboard/${guildId}`}
+            />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

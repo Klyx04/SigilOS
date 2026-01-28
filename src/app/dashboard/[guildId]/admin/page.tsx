@@ -8,6 +8,8 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { Shield } from "lucide-react";
 
 
 export default async function AdminPage({
@@ -77,18 +79,13 @@ export default async function AdminPage({
     const currentMapping = (config.rolesMapping || {}) as Record<string, PermissionId[]>;
 
     return (
-        <div className="p-6 space-y-8">
-            <div className="flex items-center justify-between border-b pb-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Droits</h1>
-                    <p className="text-muted-foreground">
-                        Configuration des permissions pour <span className="font-semibold text-foreground">{config.name}</span>
-                    </p>
-                </div>
-                {config.iconUrl && (
-                    <img src={config.iconUrl} alt="Guild Icon" className="w-12 h-12 rounded-full border" />
-                )}
-            </div>
+        <div className="space-y-8 pb-12">
+            <UnifiedModuleHeader
+                title="Gestion des Droits"
+                description={`Configuration des permissions pour ${config.name}`}
+                icon={Shield}
+                backHref={`/dashboard/${guildId}`}
+            />
 
             <PermissionsManager
                 guildId={targetGuildId}

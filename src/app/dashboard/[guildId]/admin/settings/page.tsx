@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
-import { Settings, Bell, Key, Moon } from "lucide-react";
+import { Settings, Bell, Key, Moon, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
+import { MemberSyncButton } from "@/components/admin/member-sync-button";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 export default async function FeatureSettingsPage({
     params
@@ -27,21 +29,13 @@ export default async function FeatureSettingsPage({
     }
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-500/20">
-                    <Settings className="h-8 w-8 text-indigo-400" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Paramètres
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Configuration des fonctionnalités de guilde
-                    </p>
-                </div>
-            </div>
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Paramètres de Guilde"
+                description="Configuration des fonctionnalités avancées"
+                icon={Settings}
+                backHref={`/dashboard/${guildId}/admin`}
+            />
 
             {/* Settings Tabs */}
             <Tabs defaultValue="absences" className="space-y-6">
@@ -58,6 +52,10 @@ export default async function FeatureSettingsPage({
                         <Moon className="h-4 w-4" />
                         Notifications Discord Songes
                     </TabsTrigger>
+                    <TabsTrigger value="membres" className="gap-2 data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+                        <Users className="h-4 w-4" />
+                        Gestion des Membres
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* Absences Tab */}
@@ -73,6 +71,28 @@ export default async function FeatureSettingsPage({
                 {/* Songes Tab */}
                 <TabsContent value="songes" className="mt-6">
                     <SongesSettingsClientEmbed guildId={guildId} />
+                </TabsContent>
+
+                {/* Membres Tab */}
+                <TabsContent value="membres" className="mt-6">
+                    <div className="max-w-4xl space-y-6">
+                        <div className="p-6 rounded-xl bg-zinc-900/60 border border-white/5">
+                            <h3 className="text-lg font-semibold text-white mb-4">Synchronisation Discord</h3>
+                            <p className="text-sm text-zinc-400 mb-4">
+                                Compare les membres du serveur Discord avec les profils en base de données.
+                                Archive automatiquement les profils des membres ayant quitté, et réactive
+                                ceux qui reviennent.
+                            </p>
+                            <MemberSyncButton guildId={guildId} />
+                        </div>
+
+                        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <p className="text-sm text-amber-400">
+                                <strong>Note :</strong> En production, cette synchronisation s'exécute
+                                automatiquement chaque jour à 4h du matin via un cron job.
+                            </p>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

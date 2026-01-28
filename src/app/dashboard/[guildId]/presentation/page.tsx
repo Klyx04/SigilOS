@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Edit, Users, MessageSquare, Swords, Globe, Calendar, Server } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -24,33 +25,31 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
     const canEdit = user.isAdmin || user.canEditPresentation;
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                        Présentation de la Guilde
-                    </h1>
-                    <p className="text-zinc-400">
-                        Informations visibles par les membres et le public.
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Link href={`/guilds/${guildId}`} target="_blank">
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <ExternalLink className="w-4 h-4" />
-                            Voir page publique
-                        </Button>
-                    </Link>
-                    {canEdit && (
-                        <Link href={`/dashboard/${guildId}/admin/presentation`}>
-                            <Button size="sm" className="gap-2">
-                                <Edit className="w-4 h-4" />
-                                Modifier
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Présentation de la Guilde"
+                description="Informations visibles par les membres et le public."
+                imageSrc="/assets/ui/icons/members.png"
+                backHref={`/dashboard/${guildId}`}
+                actions={
+                    <div className="flex gap-2">
+                        <Link href={`/guilds/${guildId}`} target="_blank">
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <ExternalLink className="w-4 h-4" />
+                                Voir page publique
                             </Button>
                         </Link>
-                    )}
-                </div>
-            </div>
+                        {canEdit && (
+                            <Link href={`/dashboard/${guildId}/admin/presentation`}>
+                                <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+                                    <Edit className="w-4 h-4" />
+                                    Modifier
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Info Column */}

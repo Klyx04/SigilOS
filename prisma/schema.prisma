@@ -61,6 +61,22 @@ model User {
 
 // -- SigilOS Core Models --
 
+// Platform-level guild whitelist (managed by super-admin)
+model AllowedGuild {
+  id             String    @id @default(cuid())
+  discordGuildId String    @unique
+  name           String?   // Cached guild name
+  tier           String    @default("BETA") // BETA, FREE, PREMIUM (for future monetization)
+  isActive       Boolean   @default(true)   // Quick enable/disable
+  addedBy        String    // Discord ID of super-admin who added
+  addedAt        DateTime  @default(now())
+  expiresAt      DateTime? // Null = permanent, or expiration date
+  notes          String?   // Internal notes (e.g. "Beta partner", "Paid tier")
+  
+  @@index([discordGuildId])
+  @@index([isActive])
+}
+
 model GuildConfig {
   id               String        @id @default(cuid())
   discordGuildId   String        @unique
@@ -143,6 +159,10 @@ model UserProfile {
   guildId String
 
   status ProfileStatus @default(ACTIVE)
+
+  // RGPD Lifecycle Management
+  archivedAt    DateTime? // When the profile was archived (for retention policy)
+  archiveReason String?   // "LEFT" | "KICKED" | "BANNED" | "GDPR_REQUEST"
 
   // Identity
   pseudoDofus       String?

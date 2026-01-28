@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChevronRight, Shield, PlusCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { GuildSetupCard } from "@/components/guild-setup-card";
+import { NoGuildMessage } from "@/components/no-guild-message";
 
 type GuildData = {
     id: string;
@@ -46,7 +47,32 @@ async function getGuildsSeparated(userId: string) {
         next: { revalidate: 0 } // No cache for debug
     });
 
-    if (!res.ok) return { active: [], pending: [] };
+    if (!res.ok) {
+        console.error(`[Dashboard] Discord API error fetching user guilds: ${res.status}`);
+
+        // Fallback: Check database for user's existing profiles
+        const dbProfiles = await db.userProfile.findMany({
+            where: {
+                userId,
+                status: "ACTIVE"
+            },
+            include: {
+                guild: true
+            }
+        });
+
+        if (dbProfiles.length > 0) {
+            // User has active profiles, use those guilds
+            const activeFromDb: GuildData[] = dbProfiles.map(p => ({
+                id: p.guild.discordGuildId,
+                name: p.guild.name,
+                icon: p.guild.iconUrl
+            }));
+            return { active: activeFromDb, pending: [] };
+        }
+
+        return { active: [], pending: [], rateLimited: res.status === 429 };
+    }
 
     const userGuilds = (await res.json()) as { id: string, name: string, icon: string, owner: boolean, permissions: string }[];
 
@@ -86,14 +112,14 @@ async function getGuildsSeparated(userId: string) {
             icon: g.iconUrl
         }));
 
-    return { active, pending };
+    return { active, pending, rateLimited: false };
 }
 
 export default async function GuildSelectorPage() {
     const session = await auth();
     if (!session?.user?.id) redirect("/");
 
-    const { active, pending } = await getGuildsSeparated(session.user.id);
+    const { active, pending, rateLimited } = await getGuildsSeparated(session.user.id);
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
 
     // Smart Redirect: ONLY if 1 active and NO pending (to avoid hiding setup options)
@@ -102,15 +128,17 @@ export default async function GuildSelectorPage() {
     // No, existing logic was "If 1 guild, go there".
     // New logic: If 1 active and user isn't looking to setup (assumed), redirect.
     // BUT: Users might want to setup a new one. 
-    // Compromise: Only redirect if pending is empty.
-    // Smart Redirects
-    if (active.length === 0 && pending.length === 0) {
-        redirect("/");
-    }
+    // Smart Redirects - REMOVED redirect to / to avoid loop
+    // If no guilds, we let the page render with empty states instead of looping
 
     // Direct access if only one active guild and user has no pending setups
     if (active.length === 1 && pending.length === 0) {
         redirect(`/dashboard/${active[0].id}`);
+    }
+
+    // No guilds available - show message for regular members
+    if (active.length === 0 && pending.length === 0) {
+        return <NoGuildMessage rateLimited={rateLimited} />;
     }
 
     return (

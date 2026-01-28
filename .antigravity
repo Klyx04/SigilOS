@@ -237,26 +237,25 @@ L'IA doit générer une page `/admin/roles` dynamique :
 5.  **Droit Spécial :** `missions.validate` permet d'accéder à la file d'attente `/dashboard/[guildId]/missions/validation`.
 
 
-### E. Cycle de Vie Utilisateur (Retention Policy)
+### E. Cycle de Vie Utilisateur (Member Lifecycle - GDPR Compliant)
 
-**Synchronisation Discord <-> Dashboard :**
-1.  **Départ (Leave) :** Si un membre quitte le Discord, son `UserProfile` passe en `ARCHIVED`. Il disparaît des annuaires publics mais ses stats (points, historique) sont conservées.
-2.  **Retour (Re-join) :** S'il revient, son `UserProfile` repasse en `ACTIVE`. Il retrouve tout son historique.
-3.  **Ban (Ban) :** Si banni du Discord, `UserProfile` passe en `BANNED`. Accès bloqué définitivement et suppression de toutes ses données.
-4.  **Affichage :** Toutes les requêtes publiques (Ladder, Annuaire) doivent filtrer `where: { status: 'ACTIVE' }`.
+**Synchronisation Discord ↔ Dashboard (Real-Time):**
+1.  **Départ (Leave/Kick):** Détecté automatiquement via Discord API 404. `UserProfile` → `ARCHIVED`, `archiveReason: "LEFT"`.
+2.  **Ban :** Détecté via `/guilds/{id}/bans/{userId}`. `UserProfile` → `BANNED`, données personnelles anonymisées.
+3.  **Retour (Re-join):** Si profil `ARCHIVED`, il repasse automatiquement en `ACTIVE` au login.
+4.  **Retour Banni:** Impossible. Les profils `BANNED` ne sont jamais réactivés automatiquement.
+5.  **Affichage :** Toutes les requêtes publiques (Ladder, Annuaire) doivent filtrer `where: { status: 'ACTIVE' }`.
 
-**Règle de Rétention des Données (Data Retention Policy) :**
-1.  **Durée de conservation :** Les profils `ARCHIVED` sont conservés **365 jours** après la date de passage en archivage.
-
-2.  **Purge Automatique (Cron Job) :**
-    - Un job tourne chaque nuit.
-    - Il supprime définitivement (Hard Delete) ou anonymise les `UserProfile` dont `updatedAt < NOW - 365 DAYS` ET `status === 'ARCHIVED'`.
-
-3.  **Scénario "Retour Tardif" (> 1 an) :**
-    - Si l'utilisateur revient après la purge (ex: 18 mois plus tard).
+**Règle de Rétention des Données (Data Retention Policy - GDPR):**
+1.  **Conservation `ARCHIVED` (LEFT):** 90 jours après `archivedAt`.
+2.  **Conservation `ARCHIVED` (KICKED):** 30 jours après `archivedAt`.
+3.  **Conservation `BANNED`:** Anonymisation immédiate. Suppression après 30 jours.
+4.  **Purge Automatique (Cron Job):**
+    - Via `/api/sync/members` ou `cleanupExpiredProfiles()` action.
+    - Supprime les profils expirés selon leur `archiveReason`.
+5.  **Scénario "Retour Tardif" (> rétention):**
     - Le système ne trouve plus son `UserProfile`.
-    - **Conséquence :** Il est traité comme un **Nouvel Utilisateur** (Onboarding complet, nouveau profil vierge).
-    - C'est un comportement accepté et souhaitable (Reset de sa vie de guilde).
+    - **Conséquence :** Traité comme **Nouvel Utilisateur** (nouveau profil vierge).
 
 ### F. Workflow Sécurité (Access Guard)
 
@@ -314,8 +313,8 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ## 4. Current Focus (Sprint Backlog)
 
-**Status:** Phase 14 Project Stabilization & Build Fixes Completed (2026-01-27).
-**Current Sprint:** Stabilizing CI/CD and preparing for the next functional module.
+**Status:** Phase 15 Member Lifecycle Management Completed (2026-01-28).
+**Current Sprint:** GDPR-compliant member lifecycle with automatic archiving/banning.
 
 1.  **Foundation (DONE):**
     - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
@@ -460,6 +459,37 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Calendar Build Fix:** Resolved Zod schema mismatches in `event-form.tsx` causing build failures.
     - [x] **Type Safety Sync:** Aligned frontend data structures with Prisma/Zod validation layers.
     - [x] **Codebase Cleanup:** Stabilized dev and main branches after mission-logic exploration.
+
+15. **Phase 15: Member Lifecycle Management - GDPR Compliance (COMPLETE - 2026-01-28):**
+    - [x] **Prisma Schema Update:** Added `archivedAt` (DateTime) and `archiveReason` (String) to `UserProfile` model.
+    - [x] **Real-Time Membership Check:** `getUserContext()` now uses `cache: 'no-store'` for live Discord membership verification.
+    - [x] **Auto-Archive on Leave:** When Discord returns 404 for member, profile status → `ARCHIVED` + `archiveReason: "LEFT"`.
+    - [x] **Auto-Ban Detection:** Checks `/guilds/{id}/bans/{userId}` - If banned → `status: BANNED` + data anonymization.
+    - [x] **Auto-Reactivation:** Returning members with `ARCHIVED` status are automatically reactivated to `ACTIVE` on login.
+    - [x] **Banned Profiles Protected:** `BANNED` profiles are NEVER auto-reactivated (permanent).
+    - [x] **Lifecycle Server Actions:** `cleanupExpiredProfiles()`, `reactivateProfile()`, `handleGdprDeletionRequest()` in `lifecycle-actions.ts`.
+    - [x] **Sync Job:** `syncMembershipStatus()` and `syncAllGuilds()` for periodic Discord ↔ DB comparison.
+    - [x] **Sync API Endpoint:** `/api/sync/members` for cron jobs (GET/POST with `x-cron-secret` header).
+    - [x] **Admin Sync Button:** `MemberSyncButton` component added to `/admin/settings` → "Gestion des Membres" tab.
+    - [x] **Retention Policy:** 90 days for `LEFT`, 30 days for `KICKED`, immediate anonymization for `BANNED`.
+    - [x] **Discord Webhook:** `/api/discord/webhook` with Ed25519 signature verification for `GUILD_MEMBER_REMOVE` and `GUILD_BAN_ADD`.
+    - [x] **No-Guild Message:** `NoGuildMessage` component with logout button for members without active guilds.
+    - [x] **Redirect Loop Fix:** Dashboard no longer redirects to `/` when user has no guilds (was causing infinite loop).
+    - [x] **Rate Limit Fallback:** If Discord returns 429, falls back to DB profiles to avoid blocking access.
+    - [x] **SignOutButton Component:** Reusable client component for logout in Server Components.
+    - [x] **All Error Pages Updated:** "Retour à l'accueil" replaced with "Se déconnecter" to prevent loops.
+    - [x] **VPS Deployment Guide:** `docs/DEPLOYMENT.md` with Nginx, PM2, Cron setup instructions.
+    - [x] **Vitest Setup:** Test framework configured with path aliases and coverage (12 lifecycle tests).
+
+16. **Phase 16: Super-Admin Platform Management (COMPLETE - 2026-01-28):**
+    - [x] **AllowedGuild Model:** New Prisma model for database-based guild whitelisting.
+    - [x] **Super-Admin Actions:** `isSuperAdmin()`, `getAllowedGuilds()`, `addAllowedGuild()`, `removeAllowedGuild()`, `toggleGuildActive()`, `getPlatformStats()`, `isGuildAllowed()`.
+    - [x] **Super-Admin Page:** `/god` with stats dashboard and guild management UI.
+    - [x] **Environment Migration:** Guild whitelist moved from `ALLOWED_GUILD_IDS` env to BDD.
+    - [x] **SUPER_ADMIN_IDS:** New env var for platform-level admin Discord IDs.
+    - [x] **Backward Compatibility:** Falls back to env var if no guilds in DB.
+    - [x] **Security Hardening:** Unified `isGuildAllowed()` check in both layout and `getUserContext()`.
+    - [x] **Guild Manager Component:** Add/remove/toggle guilds via UI instead of manual `.env` edits.
 
 ---
 

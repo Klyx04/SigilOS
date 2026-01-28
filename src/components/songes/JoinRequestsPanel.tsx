@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Users, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ interface JoinRequestsPanelProps {
 }
 
 export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPanelProps) {
+    const router = useRouter();
     const [requests, setRequests] = useState<JoinRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -49,6 +51,8 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
         // Reload to refresh list
         await loadRequests();
         setActionLoading(null);
+        // Refresh the entire page to update team members display
+        router.refresh();
     };
 
     // Only leaders can see this panel

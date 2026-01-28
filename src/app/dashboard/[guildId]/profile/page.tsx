@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
 import AccessDenied from "@/components/access-denied";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { UserCircle } from "lucide-react";
 
 export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -54,14 +56,16 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
         };
 
     return (
-        <div className="relative min-h-[calc(100vh-4rem)]">
+        <div className="relative min-h-[calc(100vh-4rem)] pb-12">
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
-            <div className="relative z-10 p-6 max-w-6xl mx-auto space-y-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Mon Profil</h1>
-                    <p className="text-zinc-400">Gérez votre identité de guilde, votre classe et vos métiers.</p>
-                </div>
+            <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+                <UnifiedModuleHeader
+                    title="Mon Profil"
+                    description="Gérez votre identité de guilde, votre classe et vos métiers."
+                    imageSrc="/assets/ui/icons/profile.png"
+                    backHref={`/dashboard/${guildId}`}
+                />
 
                 <ProfileBentoGrid
                     profile={{

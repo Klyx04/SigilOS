@@ -1,57 +1,50 @@
-import { auth, signIn, signOut } from "@/auth";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Users } from "lucide-react";
+import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
+import { GalacticHeader } from "@/components/layout/galactic-header"; // Not used on landing, but good for reference
+import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { HeroSection } from "@/components/landing/hero-section";
+import { BentoGrid } from "@/components/landing/bento-grid";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth();
+  const params = await searchParams;
+
+  // Handle Auth Errors (redirect to custom error page)
+  if (params.error) {
+    redirect(`/auth/error?error=${params.error}`);
+  }
+
+  // If logged in, redirect to dashboard (or keep landing page accessible?)
+  // For now, let's auto-redirect for convenience, but the "Elite" flow might want to show the landing first?
+  // Let's stick to standard SaaS behavior: Login -> Dashboard.
+  if (session?.user) {
+    redirect("/dashboard");
+  }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-black text-white">
-      <div className="text-center space-y-6">
-        <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
-          SigilOS
-        </h1>
-        <p className="text-muted-foreground">Operating System for Dofus Guilds</p>
+    <NebulaClientWrapper>
+      <div className="min-h-screen bg-[#020202] text-white selection:bg-indigo-500/30 font-sans flex flex-col">
 
-        {session?.user ? (
-          <div className="flex flex-col gap-4 items-center">
-            <Link href="/dashboard">
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
-                Accéder au Dashboard ({session.user.name})
-              </Button>
-            </Link>
-            <form action={async () => {
-              "use server";
-              await signOut();
-            }}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
-                Se déconnecter
-              </Button>
-            </form>
+        {/* Navbar Minimaliste (Juste le Logo) */}
+        <header className="fixed top-0 left-0 right-0 z-50 p-6 flex justify-between items-center bg-transparent">
+          <div className="text-xl font-bold tracking-tighter mix-blend-difference">
+            SIGILOS <span className="text-xs opacity-50 font-normal ml-2 tracking-widest">OS</span>
           </div>
-        ) : (
-          <form
-            action={async () => {
-              "use server";
-              await signIn("discord", { redirectTo: "/dashboard" });
-            }}
-          >
-            <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700">
-              Connexion avec Discord
-            </Button>
-          </form>
-        )}
+        </header>
 
-        {/* Guild Directory Link */}
-        <div className="pt-8 border-t border-white/10 mt-8">
-          <Link href="/guilds" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
-            <Users className="w-4 h-4" />
-            Découvrir les guildes
-          </Link>
-        </div>
+        <main className="flex-1 w-full relative z-10">
+          <HeroSection />
+          <BentoGrid />
+        </main>
+
+        <GalacticFooter />
       </div>
-    </div>
+    </NebulaClientWrapper>
   );
 }
 

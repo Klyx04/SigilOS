@@ -44,15 +44,12 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
     if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
 
-    // --- SECURITY: DEEP WHITELIST CHECK ---
-    // Rule: If defined (even empty), enforce strict whitelist.
-    const whitelistVar = process.env.ALLOWED_GUILD_IDS;
-    if (whitelistVar !== undefined) {
-        const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
-        if (!allowedGuilds.includes(targetGuildId)) {
-            console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
-            return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
-        }
+    // --- SECURITY: DEEP WHITELIST CHECK (Database-based) ---
+    const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
+    const allowed = await isGuildAllowed(targetGuildId);
+    if (!allowed) {
+        console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
+        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
     }
 
     // 1. Get Guild Config for Mappings
@@ -98,7 +95,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const [memberRes, guildInfo, allRoles] = await Promise.all([
         fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUserId}`, {
             headers: { Authorization: `Bot ${token}` },
-            next: { revalidate: 60 } // Cache for 60s
+            cache: 'no-store' // No cache - always check live membership status for security
         }),
         fetchGuild(targetGuildId).catch(() => null),
         fetchGuildRoles(targetGuildId, { excludeManaged: false }).catch(() => [])
@@ -151,6 +148,52 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         }
     }
 
+    // --- AUTO-ARCHIVE: If user is no longer in Discord guild but has active profile ---
+    // This handles the case where user left Discord but session is still valid
+    if (guildConfig && !memberRes.ok && profile && profile.status === "ACTIVE") {
+        // 404 = Member not found in guild = they left, were kicked, or banned
+        if (memberRes.status === 404) {
+            // Check if user is banned
+            let isBanned = false;
+            try {
+                const banRes = await fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/bans/${discordUserId}`, {
+                    headers: { Authorization: `Bot ${token}` }
+                });
+                isBanned = banRes.ok; // 200 = banned, 404 = not banned
+            } catch {
+                // If ban check fails, assume not banned
+            }
+
+            if (isBanned) {
+                console.log(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "BANNED",
+                        archivedAt: new Date(),
+                        archiveReason: "BANNED",
+                        // Anonymize personal data for GDPR
+                        pseudoDofus: "Utilisateur banni",
+                        discordNickname: "Banni"
+                    }
+                });
+            } else {
+                console.log(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "ARCHIVED",
+                        archivedAt: new Date(),
+                        archiveReason: "LEFT"
+                    }
+                });
+            }
+
+            // Return as non-member
+            return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+        }
+    }
+
     // --- ENSURE USER PROFILE EXISTS AND IS UP-TO-DATE ---
     // Now that we have member data, create or update the profile with Discord info
     if (guildConfig && memberRes.ok && member) {
@@ -158,7 +201,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         const now = new Date();
 
         if (!profile) {
-            // Create new profile with Discord data
+            // No profile exists - create a new one
             console.log(`[UserContext] Auto-creating profile for user ${session.user.id} in guild ${guildConfig.id}`);
             try {
                 profile = await db.userProfile.create({
@@ -170,12 +213,29 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         discordRoleColor: roleColor,
                         discordJoinedAt: joinedAt,
                         discordCacheUpdatedAt: now,
-                        lastActivityAt: now, // Track login as activity
+                        lastActivityAt: now,
                     }
                 });
             } catch (e) {
                 console.error("[UserContext] Failed to auto-create profile:", e);
             }
+        } else if (profile.status === "ARCHIVED") {
+            // Profile exists but is archived - reactivate it (returning member)
+            console.log(`[UserContext] Reactivating archived profile for returning member ${session.user.id}`);
+            profile = await db.userProfile.update({
+                where: { id: profile.id },
+                data: {
+                    status: "ACTIVE",
+                    archivedAt: null,
+                    archiveReason: null,
+                    discordNickname: displayName,
+                    discordRoleName: roleName,
+                    discordRoleColor: roleColor,
+                    discordJoinedAt: joinedAt,
+                    discordCacheUpdatedAt: now,
+                    lastActivityAt: now,
+                }
+            });
         } else {
             // Update existing profile with fresh Discord data
             // Only update if cache is older than 1 hour to reduce writes

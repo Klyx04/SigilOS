@@ -1,6 +1,12 @@
-import { AppSidebar } from "@/components/layout/app-sidebar";
-import { GuildHeader } from "@/components/layout/guild-header";
+import { GalacticHeader } from "@/components/layout/galactic-header";
+import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { getUserContext } from "@/server/actions/user-actions";
+import { getGuildHeaderData } from "@/server/actions/guild-actions";
+import { isGuildAllowed } from "@/server/actions/super-admin-actions";
+import { AlmanaxWidget } from "@/components/layout/almanax-widget";
+import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { Suspense } from "react";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export default async function DashboardLayout({
     children,
@@ -11,43 +17,37 @@ export default async function DashboardLayout({
 }) {
     const { guildId } = await params;
 
-    // --- SECURITY: GUILD WHITELIST ---
-    // Rule:
-    // - If ALLOWED_GUILD_IDS is undefined (missing key), Allow All (Dev mode).
-    // - If ALLOWED_GUILD_IDS is defined (even empty), Enforce Strict Whitelist.
-
-    const whitelistVar = process.env.ALLOWED_GUILD_IDS;
-
-    if (whitelistVar !== undefined) {
-        const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
-
-        if (!allowedGuilds.includes(guildId)) {
-            return (
-                <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center font-sans">
-                    <div className="p-6 rounded-full bg-orange-500/10 mb-6 border border-orange-500/20">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                    </div>
-                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Bêta Fermée</h1>
-                    <p className="text-zinc-400 max-w-lg text-lg mb-8">
-                        L'accès à SigilOS est actuellement limité aux serveurs partenaires.<br />
-                        Ce serveur n'est pas encore autorisé.
-                    </p>
-                    <div className="flex gap-4">
-                        <a href="/" className="px-6 py-2 bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors font-bold">
-                            Retour à l'accueil
-                        </a>
-                    </div>
+    // --- SECURITY: GUILD WHITELIST (Database-based) ---
+    const allowed = await isGuildAllowed(guildId);
+    if (!allowed) {
+        return (
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center font-sans">
+                <div className="p-6 rounded-full bg-orange-500/10 mb-6 border border-orange-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
                 </div>
-            );
-        }
+                <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Bêta Fermée</h1>
+                <p className="text-zinc-400 max-w-lg text-lg mb-8">
+                    L'accès à SigilOS est actuellement limité aux serveurs partenaires.<br />
+                    Ce serveur n'est pas encore autorisé.
+                </p>
+                <div className="flex gap-4">
+                    <SignOutButton />
+                </div>
+            </div>
+        );
     }
 
-    const user = await getUserContext(guildId);
+
+    const [user, guildData] = await Promise.all([
+        getUserContext(guildId),
+        getGuildHeaderData(guildId)
+    ]);
 
     if (!user.isMember) {
+        // ... (keep restricted view)
         return (
             <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center font-sans">
                 <div className="p-6 rounded-full bg-red-500/10 mb-6 animate-pulse-slow">
@@ -61,32 +61,47 @@ export default async function DashboardLayout({
                     Vous devez être membre du serveur Discord <span className="text-white font-semibold">{user.guildName}</span> pour accéder à ce tableau de bord.
                 </p>
                 <div className="mt-8 flex gap-4">
-                    <a href="/" className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors font-medium">
-                        Retour à l'accueil
-                    </a>
+                    <SignOutButton variant="ghost" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background font-sans antialiased overflow-hidden selection:bg-primary/20 md:flex">
-            {/* Background Effects */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background" />
-            </div>
-
-            <AppSidebar user={user} guildId={guildId} />
-
-            <div className="flex-1 flex flex-col relative z-10 h-screen overflow-y-auto">
-                <main className="flex-1 container mx-auto py-4 px-4 md:px-8 max-w-7xl">
-                    <GuildHeader guildId={guildId} />
-                    {children}
-                </main>
-
-                <div className="p-4 md:p-8">
+        <NebulaClientWrapper>
+            <div className="min-h-screen bg-[#020202] text-white selection:bg-primary/30 font-sans overflow-x-hidden flex flex-col relative">
+                {/* 2026 Background Effects */}
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[160px] animate-pulse-slow" />
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[160px]" />
+                    <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
                 </div>
+
+                <GalacticHeader
+                    user={user}
+                    guildId={guildId}
+                    guildData={guildData}
+                    almanaxWidget={
+                        <Suspense fallback={<div className="h-10 w-32 bg-white/5 rounded-xl animate-pulse" />}>
+                            <AlmanaxWidget />
+                        </Suspense>
+                    }
+                />
+
+                <div className="flex-1 flex flex-col relative z-10 w-full pt-20 sm:pt-28">
+                    <main className="flex-1 w-full max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-12 pb-20">
+                        <div className="mt-4">
+                            {/* Fused: GuildHeader is now part of GalacticHeader */}
+                            <div className="mt-8">
+                                {children}
+                            </div>
+                        </div>
+                    </main>
+                </div>
+
+                <GalacticFooter />
             </div>
-        </div>
+        </NebulaClientWrapper>
     );
 }

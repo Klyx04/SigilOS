@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Bug, AlertCircle, Link2 } from "lucide-react";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 export default async function ArchimonstresPage({
     params
@@ -29,21 +30,19 @@ export default async function ArchimonstresPage({
     // Fetch user's archimonster data
     const archiResponse = await getMyArchimonsters(guildId);
 
+    // ... (inside the component)
+
     return (
-        <div className="relative min-h-[calc(100vh-4rem)]">
+        <div className="relative min-h-[calc(100vh-4rem)] pb-12">
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
-            <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-8">
-                {/* Header */}
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white mb-1 flex items-center gap-3">
-                        <Bug className="h-8 w-8 text-amber-500" />
-                        Bourse aux Archimonstres
-                    </h1>
-                    <p className="text-zinc-400">
-                        Gérez votre collection et trouvez des partenaires d&apos;échange au sein de la guilde.
-                    </p>
-                </div>
+            <div className="relative z-10 max-w-7xl mx-auto space-y-8">
+                <UnifiedModuleHeader
+                    title="Bourse aux Archimonstres"
+                    description="Optimisez votre quête de l'Éternelle Moisson grâce au partage communautaire."
+                    imageSrc="/assets/ui/icons/archis.png"
+                    backHref={`/dashboard/${guildId}`}
+                />
 
                 {/* Content */}
                 {archiResponse.success && archiResponse.data ? (

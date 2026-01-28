@@ -700,7 +700,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
     // Create notification for leader if enabled
     if (run.notifyOnJoinRequest) {
         // We already fetched candidateName above!
-
+        // run.leaderId is already an internal Prisma User ID
         await db.notification.create({
             data: {
                 userId: run.leaderId,
@@ -712,7 +712,9 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         });
 
         // Also send Discord notification if channel is configured
+        console.log(`[Songes] Checking Discord notification: channelId=${guildConfig?.songesNotifyChannelId || 'none'}`);
         if (guildConfig && guildConfig.songesNotifyChannelId) {
+            console.log(`[Songes] Sending Discord notification to channel ${guildConfig.songesNotifyChannelId}`);
             // Get leader's pseudo for the embed
             const leaderProfile = await db.userProfile.findFirst({
                 where: { userId: run.leaderId, guildId: guildConfig.id },
@@ -1066,7 +1068,7 @@ export async function getMyJoinRequestStatus(guildId: string, runId: string) {
         // Notify
         await db.notification.create({
             data: {
-                userId: ctx.id,
+                userId: request.userId,
                 title: "Candidature expirée",
                 message: "Votre candidature a expiré (délai dépassé).",
                 type: "SYSTEM_INFO",
@@ -1092,8 +1094,9 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
     });
     const internalGuildId = guildConfig?.id;
 
-    // Get profiles for these user IDs with User data for fallback
-    const profiles = internalGuildId ? await db.userProfile.findMany({
+    // userIds are internal Prisma User IDs (not Discord IDs)
+    // Query profiles directly
+    const profiles = internalGuildId && userIds.length > 0 ? await db.userProfile.findMany({
         where: {
             userId: { in: userIds },
             guildId: internalGuildId,
@@ -1111,9 +1114,6 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
         },
     }) : [];
 
-    // Note: We no longer fetch Discord nicknames from API here to avoid rate limiting
-    // Nicknames should be synced separately (on login, or via background job)
-
     // Transform to include discordNickname with fallbacks
     const enrichedProfiles = profiles.map((p) => ({
         userId: p.userId,
@@ -1122,10 +1122,9 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
         discordNickname: p.discordNickname || p.user?.name || null,
     }));
 
-    // For users without profiles, fetch from User table directly
-    const missingUserIds = userIds.filter(
-        (uid) => !profiles.some((p) => p.userId === uid)
-    );
+    // For users without profiles, fetch from User table directly as fallback
+    const foundUserIds = new Set(profiles.map((p) => p.userId));
+    const missingUserIds = userIds.filter((uid) => !foundUserIds.has(uid));
 
     if (missingUserIds.length > 0) {
         const users = await db.user.findMany({
@@ -1145,6 +1144,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
 
     return { success: true, profiles: enrichedProfiles };
 }
+
 
 // ============================================
 // UPDATE CURRENT FLOOR (Leader only)

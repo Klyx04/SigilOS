@@ -56,18 +56,49 @@ src/
 
 ## 🌿 Git Workflow
 
+### 1. Branching Strategy
+| Branch | Role | Rules |
+|--------|------|-------|
+| `main` | Production | 🔴 **Protected**. No direct commits. Deployable code only. |
+| `dev` | Staging / Integration | 🟠 **Protected**. Integration branch. PRs land here. |
+| `feat/*` | New Features | Source: `dev`. Example: `feat/mission-board` |
+| `fix/*` | Bug Fixes | Source: `dev` (or `main` for hotfix). Example: `fix/upload-error` |
+
+### 2. Workflow Lifecycle
+
+#### A. Start a new task
 ```bash
-# 1. Create feature branch
-git checkout -b feat/my-feature
+# 1. Update dev
+git checkout dev
+git pull origin dev
 
-# 2. Develop & commit
-git commit -m "feat: description"
+# 2. Create branch
+git checkout -b feat/my-new-feature
+```
 
-# 3. Merge into dev
-git checkout dev && git merge feat/my-feature --no-ff
+#### B. During development
+```bash
+# Commit often (atomic commits)
+git add .
+git commit -m "feat: add mission card component"
 
-# 4. Delete branch
-git branch -d feat/my-feature
+# Keep updated with dev (crucial!)
+git pull origin dev
+```
+
+#### C. Finish & Merge
+```bash
+# 1. Push your branch
+git push origin feat/my-new-feature
+
+# 2. Open Pull Request (PR) on GitHub
+# Target: dev
+# Reviewers: Yourself (or team)
+
+# 3. After merge, clean up
+git checkout dev
+git pull origin dev
+git branch -d feat/my-new-feature
 ```
 
 **Prefixes:** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`

@@ -7,6 +7,7 @@ import { fetchGuildRoles } from "@/server/discord";
 import { FileText, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuditLogsClient } from "./_components/audit-logs-client";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -55,21 +56,13 @@ export default async function AdminLogsPage({ params }: Props) {
     }));
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-zinc-500/20 to-zinc-500/10 border border-zinc-500/20">
-                    <FileText className="h-8 w-8 text-zinc-400" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Logs d'Audit
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Historique des modifications administratives
-                    </p>
-                </div>
-            </div>
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Logs d'Audit"
+                description="Historique des modifications administratives"
+                icon={FileText}
+                backHref={`/dashboard/${guildId}/admin`}
+            />
 
             {/* Security Notice */}
             <Card className="bg-amber-500/10 border-amber-500/20">

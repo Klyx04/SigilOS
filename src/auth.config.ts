@@ -68,4 +68,10 @@ export const authConfig = {
             return true
         },
     },
+
+    // Custom Pages
+    pages: {
+        error: "/auth/error",
+        signIn: "/", // Redirect signin to landing page
+    },
 } satisfies NextAuthConfig

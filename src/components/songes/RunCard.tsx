@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell } from "lucide-react";
+import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -29,7 +29,9 @@ import {
     getMemberProfiles,
     getMyJoinRequestStatus,
     cancelJoinRequest,
-    leaveDreamRun
+    leaveDreamRun,
+    getPendingJoinRequests,
+    respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
@@ -65,6 +67,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [pendingRequest, setPendingRequest] = useState(false);
 
+    // Candidacy panel state (for leaders)
+    const [candidacyExpanded, setCandidacyExpanded] = useState(false);
+    const [candidacies, setCandidacies] = useState<Array<{ id: string; userId: string; classe: string; message: string | null; displayName?: string }>>([]);
+    const [candidacyLoading, setCandidacyLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
     const progress = (run.currentFloor / 26) * 100;
@@ -76,12 +84,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
     const canApply = canApplyConditions && canJoinSonges;
 
-    // Load member profiles
+    // Load member profiles (including leader)
     useEffect(() => {
         async function loadData() {
-            const userIds = run.members.map((m) => m.userId);
-            if (userIds.length > 0) {
-                const result = await getMemberProfiles(params.guildId as string, userIds);
+            // Include leader ID in the profile fetch
+            const allUserIds = [...new Set([run.leaderId, ...run.members.map((m) => m.userId)])];
+            if (allUserIds.length > 0) {
+                const result = await getMemberProfiles(params.guildId as string, allUserIds);
                 if (result.success && result.profiles) {
                     setProfiles(result.profiles as MemberProfile[]);
                 }
@@ -124,6 +133,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         if (profile?.discordNickname) return profile.discordNickname;
         return "Joueur";
     };
+
+    // Get leader's display name
+    const leaderDisplayName = getDisplayName(run.leaderId);
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
@@ -169,6 +181,31 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         setLoading(false);
     };
 
+    // Candidacy handlers (leader only)
+    const loadCandidacies = async () => {
+        setCandidacyLoading(true);
+        const result = await getPendingJoinRequests(params.guildId as string, run.id);
+        if (result.success && result.requests) {
+            setCandidacies(result.requests as typeof candidacies);
+        }
+        setCandidacyLoading(false);
+    };
+
+    const handleToggleCandidacies = () => {
+        if (!candidacyExpanded) {
+            loadCandidacies();
+        }
+        setCandidacyExpanded(!candidacyExpanded);
+    };
+
+    const handleRespondCandidacy = async (requestId: string, accept: boolean) => {
+        setActionLoading(requestId);
+        await respondToJoinRequest(params.guildId as string, { requestId, accept });
+        await loadCandidacies();
+        setActionLoading(null);
+        router.refresh();
+    };
+
     return (
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4 hover:border-purple-400/50 transition-all">
             {/* Glow effect based on difficulty */}
@@ -197,6 +234,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     </div>
                     <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
                         {objective?.icon} {objective?.label}
+                    </div>
+                    <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1">
+                        <Crown className="w-3 h-3 text-amber-400/70" />
+                        <span>Run de <span className="text-white/80 font-medium">{leaderDisplayName}</span></span>
                     </div>
                 </div>
 
@@ -308,6 +349,69 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     })}
                 </div>
             </div>
+
+            {/* Candidacy Panel - For Leaders Only */}
+            {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                <div className="mt-3 border-t border-purple-500/20 pt-3">
+                    <button
+                        onClick={handleToggleCandidacies}
+                        className="w-full flex items-center justify-between text-sm text-amber-400 hover:text-amber-300 transition-colors"
+                    >
+                        <span className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            Candidatures
+                            {run.joinRequests && run.joinRequests.length > 0 && (
+                                <span className="bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                                    {run.joinRequests.length}
+                                </span>
+                            )}
+                        </span>
+                        {candidacyExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+
+                    {candidacyExpanded && (
+                        <div className="mt-2 space-y-2">
+                            {candidacyLoading ? (
+                                <div className="flex items-center justify-center py-3 text-purple-400">
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    <span className="text-xs">Chargement...</span>
+                                </div>
+                            ) : candidacies.length === 0 ? (
+                                <p className="text-xs text-purple-300/50 text-center py-2">Aucune candidature</p>
+                            ) : (
+                                candidacies.map((c) => (
+                                    <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-purple-900/30 border border-purple-500/20">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm text-white font-medium truncate">{c.displayName || "Joueur"}</p>
+                                            <p className="text-xs text-purple-300/70">{c.classe}</p>
+                                        </div>
+                                        <div className="flex gap-1 shrink-0">
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white"
+                                                onClick={() => handleRespondCandidacy(c.id, true)}
+                                                disabled={actionLoading === c.id}
+                                            >
+                                                {actionLoading === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white"
+                                                onClick={() => handleRespondCandidacy(c.id, false)}
+                                                disabled={actionLoading === c.id}
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2">

@@ -5,6 +5,10 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { ValidationQueue } from "@/components/missions/validation-queue";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { CheckCircle, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export default async function ValidationPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -27,16 +31,19 @@ export default async function ValidationPage({ params }: { params: Promise<{ gui
     const submissions = response.data || [];
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Validation des Preuves</h1>
-                    <p className="text-zinc-400">Examinez les screenshots soumis par les membres.</p>
-                </div>
-                <div className="text-sm text-zinc-500 px-3 py-1 bg-zinc-900 rounded-full border border-zinc-800">
-                    {submissions.length} en attente
-                </div>
-            </div>
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Validation des Preuves"
+                description="Examinez les screenshots soumis par les membres pour valider leurs missions."
+                imageSrc="/assets/ui/icons/missions.png"
+                backHref={`/dashboard/${guildId}/missions`}
+                actions={
+                    <Badge variant="outline" className="gap-2 bg-zinc-900 border-zinc-800 text-zinc-400">
+                        <Clock className="w-3 h-3" />
+                        {submissions.length} en attente
+                    </Badge>
+                }
+            />
 
             <ValidationQueue submissions={submissions} guildId={guildId} />
         </div>

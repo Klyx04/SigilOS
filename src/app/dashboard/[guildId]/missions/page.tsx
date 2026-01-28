@@ -3,6 +3,8 @@ import { getWeekMissions } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
+import { ScrollText } from "lucide-react";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 
 export const dynamic = 'force-dynamic';
@@ -47,14 +49,16 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const missions = response.data || [];
 
+    // ... (inside the component)
+
     return (
-        <div className="p-6 space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Missions de Guilde</h1>
-                    <p className="text-zinc-400">Semaine {week} • Année {year}</p>
-                </div>
-            </div>
+        <div className="space-y-8 pb-12">
+            <UnifiedModuleHeader
+                title="Missions de Guilde"
+                description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
+                imageSrc="/assets/ui/icons/missions.png"
+                backHref={`/dashboard/${guildId}`}
+            />
 
             <MissionBoard
                 missions={missions}

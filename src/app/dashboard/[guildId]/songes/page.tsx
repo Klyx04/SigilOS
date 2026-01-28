@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import { getDreamRuns } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
-import { SongesHeader } from "@/components/songes/SongesHeader";
 import { RunCardGrid } from "@/components/songes/RunCardGrid";
 import { CreateRunButton } from "@/components/songes/CreateRunButton";
 import AccessDenied from "@/components/access-denied";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { InfinityIcon } from "lucide-react";
 
 export default async function SongesPage({
     params,
@@ -23,16 +24,18 @@ export default async function SongesPage({
     const currentUserId = userContext.isAuthenticated ? userContext.id : undefined;
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <SongesHeader />
-
-            {/* Create Button - only if has permission */}
-            {(userContext.canCreateSonges || userContext.isAdmin) && (
-                <div className="flex justify-end">
-                    <CreateRunButton guildId={guildId} />
-                </div>
-            )}
+        <div className="space-y-6 pb-12">
+            <UnifiedModuleHeader
+                title="Songes Infinis"
+                description="Suivez la progression des runs et rejoignez vos compagnons d'armes."
+                imageSrc="/assets/ui/icons/songes.png"
+                backHref={`/dashboard/${guildId}`}
+                actions={
+                    (userContext.canCreateSonges || userContext.isAdmin) && (
+                        <CreateRunButton guildId={guildId} />
+                    )
+                }
+            />
 
             {/* Active Runs Grid */}
             <Suspense fallback={<div className="text-purple-400">Chargement...</div>}>

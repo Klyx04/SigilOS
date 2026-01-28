@@ -456,9 +456,21 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onTierChan
             </div>
 
             {/* Preview */}
-            <div className="p-3 bg-zinc-900/50 rounded-lg border border-cyan-500/20 text-xs text-zinc-400">
-                Démarrer un songe en <span className="text-cyan-400 font-medium">{difficulty} {level}</span> et terminer le <span className="text-cyan-400 font-medium">Palier {tier}</span> : les Balades fantastiques
-            </div>
+            {(() => {
+                const palierNames: Record<number, string> = {
+                    1: "Pensées oniriques",
+                    2: "Balades fantastiques",
+                    3: "Espaces imaginaires",
+                    4: "Concepts brumeux",
+                    5: "Abstractions chimériques"
+                };
+                const palierName = palierNames[tier] || palierNames[2];
+                return (
+                    <div className="p-3 bg-zinc-900/50 rounded-lg border border-cyan-500/20 text-xs text-zinc-400">
+                        Démarrer un songe en <span className="text-cyan-400 font-medium">{difficulty} {level}</span> et terminer le <span className="text-cyan-400 font-medium">Palier {tier}</span> : les {palierName}
+                    </div>
+                );
+            })()}
         </div>
     );
 }

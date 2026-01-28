@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target } from "lucide-react";
@@ -31,6 +31,7 @@ interface RunDetailHeaderProps {
 
 export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onStatusChange }: RunDetailHeaderProps) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
     const isCompleted = optimisticStatus === "COMPLETED";
     const [loading, setLoading] = useState(false);
@@ -48,48 +49,52 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
         });
     };
 
-    const handleCloseRun = async () => {
+    const handleCloseRun = () => {
         // Optimistic Update
         const previousStatus = optimisticStatus;
         onStatusChange("COMPLETED"); // Tell parent we are now completed
         setCloseDialogOpen(false);
         setLoading(true);
 
-        try {
-            const result = await closeDreamRun(guildId, run.id);
-            if (result.success) {
-                router.refresh();
-                // Keep completed state
-            } else {
-                // Rollback on error
+        startTransition(async () => {
+            try {
+                const result = await closeDreamRun(guildId, run.id);
+                if (result.success) {
+                    router.refresh();
+                    // Keep completed state
+                } else {
+                    // Rollback on error
+                    onStatusChange(previousStatus);
+                    console.error(result.error);
+                }
+            } catch (e) {
                 onStatusChange(previousStatus);
-                console.error(result.error);
             }
-        } catch (e) {
-            onStatusChange(previousStatus);
-        }
-        setLoading(false);
+            setLoading(false);
+        });
     };
 
-    const handleReopenRun = async () => {
+    const handleReopenRun = () => {
         const previousStatus = optimisticStatus;
         onStatusChange("IN_PROGRESS"); // Tell parent we are active again
         setLoading(true);
 
-        try {
-            const { reopenDreamRun } = await import("@/server/actions/songes/dream-run-actions");
-            const result = await reopenDreamRun(guildId, run.id);
-            if (result.success) {
-                router.refresh();
-            } else {
+        startTransition(async () => {
+            try {
+                const { reopenDreamRun } = await import("@/server/actions/songes/dream-run-actions");
+                const result = await reopenDreamRun(guildId, run.id);
+                if (result.success) {
+                    router.refresh();
+                } else {
+                    onStatusChange(previousStatus);
+                    console.error(result.error);
+                }
+            } catch (e) {
                 onStatusChange(previousStatus);
-                console.error(result.error);
             }
-        } catch (e) {
-            onStatusChange(previousStatus);
-        }
-        setLoading(false);
-    }
+            setLoading(false);
+        });
+    };
 
     return (
         <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0a0415] shadow-2xl transition-all duration-500">

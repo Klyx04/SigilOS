@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Image from "next/image";
 import { Pencil, Check, X, Hammer, Info } from "lucide-react";
 import { DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId, hasAnyForgemagie } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
@@ -103,7 +104,19 @@ export function JobsGrid({
                                                                         : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
                                                                 )}
                                                             >
-                                                                <span className="text-3xl mb-3 transform transition-transform group-hover:scale-110 duration-300">{job.icon}</span>
+                                                                <div className="mb-3 transform transition-transform group-hover:scale-110 duration-300">
+                                                                    {job.icon.startsWith("/") ? (
+                                                                        <Image
+                                                                            src={job.icon}
+                                                                            alt={job.name}
+                                                                            width={48}
+                                                                            height={48}
+                                                                            className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-3xl">{job.icon}</span>
+                                                                    )}
+                                                                </div>
                                                                 <span className={cn("text-xs font-semibold uppercase tracking-wider text-center", isSelected ? "text-amber-200" : "text-zinc-500")}>
                                                                     {job.name}
                                                                 </span>
@@ -165,7 +178,13 @@ export function JobsGrid({
                     <div className="flex flex-wrap gap-1.5 mb-4">
                         {activeJobsData.slice(0, 12).map(job => (
                             <div key={job.id} className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-base">{job.icon}</span>
+                                <span className="flex items-center justify-center">
+                                    {job.icon.startsWith("/") ? (
+                                        <Image src={job.icon} alt={job.name} width={20} height={20} className="w-5 h-5 object-contain" />
+                                    ) : (
+                                        <span className="text-base">{job.icon}</span>
+                                    )}
+                                </span>
                                 <span className="text-xs font-medium text-zinc-300">{job.name}</span>
                             </div>
                         ))}

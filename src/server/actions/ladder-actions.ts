@@ -26,7 +26,7 @@ export type LadderEntry = {
 };
 
 export type LadderType = "activity" | "seniority";
-export type ActivityView = "monthly" | "alltime";
+export type ActivityView = "weekly" | "monthly" | "alltime";
 
 // ============================================================================
 // LADDER QUERIES
@@ -61,17 +61,28 @@ export async function getActivityLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        if (view === "monthly") {
-            // For monthly view, we need to calculate XP from validated missions this month
+        if (view === "weekly" || view === "monthly") {
             const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            let startDate: Date;
 
-            // Get all validated submissions this month with their XP rewards
+            if (view === "weekly") {
+                // Start of week (Monday)
+                const day = now.getDay(); // 0 (Sun) - 6 (Sat)
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+                startDate = new Date(now.setDate(diff));
+                startDate.setHours(0, 0, 0, 0);
+            } else {
+                // Start of month
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            }
+
+            // Get all validated submissions in this period with their XP rewards
+            // IMPORTANT: Use updatedAt (validation date) instead of createdAt
             const monthlyStats = await db.submission.groupBy({
                 by: ["profileId"],
                 where: {
                     status: "VALIDATED",
-                    createdAt: { gte: startOfMonth },
+                    updatedAt: { gte: startDate },
                     profile: {
                         guildId: guildConfig.id,
                         status: "ACTIVE"
@@ -83,7 +94,6 @@ export async function getActivityLadder(
             // Get profile details and calculate XP based on mission rewards
             const profileIds = monthlyStats.map(s => s.profileId);
 
-            // For now, use a simpler approach: count validated missions * base XP
             const profiles = await db.userProfile.findMany({
                 where: {
                     id: { in: profileIds },
@@ -99,7 +109,7 @@ export async function getActivityLadder(
                     submissions: {
                         where: {
                             status: "VALIDATED",
-                            createdAt: { gte: startOfMonth }
+                            updatedAt: { gte: startDate } // Match the period
                         },
                         select: {
                             mission: {
@@ -110,14 +120,14 @@ export async function getActivityLadder(
                 }
             });
 
-            // Calculate monthly XP per profile
+            // Calculate period XP per profile
             const rankedProfiles = profiles.map(p => ({
                 ...p,
-                monthlyXp: p.submissions.reduce((sum, sub) => sum + (sub.mission.xpReward || 0), 0)
+                periodXp: p.submissions.reduce((sum, sub) => sum + (sub.mission.xpReward || 0), 0)
             }))
                 .sort((a, b) => {
                     // Sort by XP DESC, then by joinedAt ASC (older wins ties)
-                    if (b.monthlyXp !== a.monthlyXp) return b.monthlyXp - a.monthlyXp;
+                    if (b.periodXp !== a.periodXp) return b.periodXp - a.periodXp;
                     const aJoined = a.discordJoinedAt?.getTime() || Infinity;
                     const bJoined = b.discordJoinedAt?.getTime() || Infinity;
                     return aJoined - bJoined;
@@ -130,7 +140,7 @@ export async function getActivityLadder(
                 discordRoleColor: p.discordRoleColor,
                 pseudoDofus: p.pseudoDofus,
                 classe: p.classe,
-                value: p.monthlyXp,
+                value: p.periodXp,
                 isCurrentUser: p.id === currentProfile?.id
             }));
 

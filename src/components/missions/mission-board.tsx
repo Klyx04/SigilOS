@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { MissionCard } from "./mission-card";
 import { InterestModal } from "./interest-modal";
 import { ResetCountdown } from "./reset-countdown";
@@ -41,6 +41,7 @@ const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.Co
 export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
+    const [isPending, startTransition] = useTransition();
 
     // Interest Modal State
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
@@ -109,10 +110,11 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                             variant="ghost"
                             size="icon"
                             className="h-9 w-9 text-zinc-400 hover:text-white transition-colors border border-white/5 bg-zinc-900/50"
-                            onClick={() => router.refresh()}
+                            onClick={() => startTransition(() => router.refresh())}
+                            disabled={isPending}
                             title="Actualiser les données"
                         >
-                            <RefreshCcw className="w-4 h-4" />
+                            <RefreshCcw className={cn("w-4 h-4", isPending && "animate-spin")} />
                         </Button>
                         <ResetCountdown />
                     </div>

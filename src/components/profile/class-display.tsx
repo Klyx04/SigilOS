@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pencil, Check, X, Info } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ClassDisplayProps {
@@ -93,7 +94,9 @@ export function ClassDisplay({
                                                             )}
                                                             style={isSelected ? { borderColor: c.color, backgroundColor: `${c.color}15` } : undefined}
                                                         >
-                                                            <span className="text-4xl mb-3 transform transition-transform group-hover:scale-110 duration-300">{c.icon}</span>
+                                                            <div className="mb-3 transform transition-transform group-hover:scale-110 duration-300">
+                                                                <ClassIcon classId={c.id} size={40} />
+                                                            </div>
                                                             <span className={cn("text-xs font-semibold uppercase tracking-wider", isSelected ? "text-white" : "text-zinc-500")}
                                                                 style={isSelected ? { color: c.color } : undefined}
                                                             >
@@ -134,7 +137,9 @@ export function ClassDisplay({
                                                                     : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
                                                             )}
                                                         >
-                                                            <span className="text-3xl mb-3">{c.icon}</span>
+                                                            <div className="mb-3">
+                                                                <ClassIcon classId={c.id} size={32} />
+                                                            </div>
                                                             <span className={cn("text-xs font-medium", isSelected ? "text-secondary-foreground" : "text-zinc-500")}>
                                                                 {c.name}
                                                             </span>
@@ -176,7 +181,7 @@ export function ClassDisplay({
 
                     <div className="relative flex items-center gap-4">
                         <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-zinc-950 border border-white/10 shadow-lg shrink-0">
-                            <span className="text-3xl drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]">{mainClassData.icon}</span>
+                            <ClassIcon classId={mainClassData.id} size={36} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
                             <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
                         </div>
 
@@ -207,7 +212,7 @@ export function ClassDisplay({
                                     key={classId}
                                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors h-9"
                                 >
-                                    <span className="text-xl">{data.icon}</span>
+                                    <ClassIcon classId={data.id} size={20} />
                                     <span className="text-sm font-medium text-zinc-200">{data.name}</span>
                                 </div>
                             );

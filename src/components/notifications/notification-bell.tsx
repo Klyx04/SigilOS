@@ -14,7 +14,7 @@ import { getUnreadNotifications, markAllAsRead, markAsRead, type Notification } 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-export function NotificationBell({ userId }: { userId: string }) {
+export function NotificationBell({ userId, mode = "popover" }: { userId: string, mode?: "popover" | "simple" }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -30,15 +30,20 @@ export function NotificationBell({ userId }: { userId: string }) {
             if (isPolling) {
                 const newNotifs = fresh.filter(n => new Date(n.createdAt) > lastCheckedRef.current);
                 newNotifs.forEach(n => {
-                    const icon = n.type === 'MISSION_VALIDATED' ? <Check className="w-4 h-4 text-green-500" /> :
-                        n.type === 'MISSION_REJECTED' ? <X className="w-4 h-4 text-red-500" /> :
-                            <Info className="w-4 h-4 text-blue-500" />;
+                    // Freshness check: Only toast if created within last 60 seconds
+                    // Prevents spamming old unread notifications on remount/ref reset
+                    const diff = new Date().getTime() - new Date(n.createdAt).getTime();
+                    if (diff < 60000) {
+                        const icon = n.type === 'MISSION_VALIDATED' ? <Check className="w-4 h-4 text-green-500" /> :
+                            n.type === 'MISSION_REJECTED' ? <X className="w-4 h-4 text-red-500" /> :
+                                <Info className="w-4 h-4 text-blue-500" />;
 
-                    toast(n.title, {
-                        description: n.message,
-                        icon: icon,
-                        duration: 5000,
-                    });
+                        toast(n.title, {
+                            description: n.message,
+                            icon: icon,
+                            duration: 5000,
+                        });
+                    }
                 });
 
                 if (newNotifs.length > 0) {
@@ -49,7 +54,6 @@ export function NotificationBell({ userId }: { userId: string }) {
                     lastCheckedRef.current = maxDate;
                 }
             } else {
-                // Initial Load: set ref to latest date found
                 if (fresh.length > 0) {
                     const maxDate = fresh.reduce((acc, curr) => {
                         const d = new Date(curr.createdAt);
@@ -64,7 +68,6 @@ export function NotificationBell({ userId }: { userId: string }) {
         setIsLoading(false);
     };
 
-    // Poll every 10 seconds for responsiveness
     useEffect(() => {
         fetchNotifications(false);
         const interval = setInterval(() => fetchNotifications(true), 10000);
@@ -72,6 +75,18 @@ export function NotificationBell({ userId }: { userId: string }) {
     }, []);
 
     const unreadCount = notifications.length;
+
+    if (mode === "simple") {
+        return (
+            <div className="relative flex items-center justify-center w-full h-full">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
+                )}
+                <span className="sr-only">Notifications</span>
+            </div>
+        );
+    }
 
     const handleMarkAllRead = async () => {
         await markAllAsRead();

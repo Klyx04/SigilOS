@@ -4,9 +4,11 @@ import Link from "next/link";
 import { UserProfile, User } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Hammer, Palmtree, Sparkles } from "lucide-react";
 import { getClass, DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -103,7 +105,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             {displayName}
                         </h3>
                         <div className="flex items-center justify-center gap-1.5">
-                            {classData && <span>{classData.icon}</span>}
+                            {classData && <ClassIcon classId={classData.id} size={20} />}
                             <p className="text-sm text-muted-foreground font-medium">
                                 {classData?.name || profile.classe || "Aventurier"}
                             </p>
@@ -118,7 +120,15 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     const jobData = Object.values(DOFUS_JOBS).flat().find(j => j.id === job);
                                     return (
                                         <Badge key={job} variant="secondary" className="bg-white/5 hover:bg-white/10 text-[10px] px-2 py-0.5 border-white/5">
-                                            {jobData?.icon || <Hammer className="w-3 h-3 mr-1 opacity-50" />}
+                                            {jobData?.icon ? (
+                                                jobData.icon.startsWith("/") ? (
+                                                    <Image src={jobData.icon} alt={jobData.name} width={16} height={16} className="w-4 h-4 mr-1 object-contain" />
+                                                ) : (
+                                                    <span className="mr-1">{jobData.icon}</span>
+                                                )
+                                            ) : (
+                                                <Hammer className="w-3 h-3 mr-1 opacity-50" />
+                                            )}
                                             <span className="ml-1">{jobData?.name || job}</span>
                                         </Badge>
                                     );

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Edit, Users, MessageSquare, Swords, Globe, Calendar, Server } from "lucide-react";
+import { ExternalLink, Edit, Users, MessageSquare, Swords, Globe, Calendar, Server, BookOpen } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
@@ -29,7 +29,8 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
             <UnifiedModuleHeader
                 title="Présentation de la Guilde"
                 description="Informations visibles par les membres et le public."
-                imageSrc="/assets/ui/icons/members.png"
+                icon={BookOpen}
+                iconColor="#a855f7"
                 backHref={`/dashboard/${guildId}`}
                 actions={
                     <div className="flex gap-2">

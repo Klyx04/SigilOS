@@ -118,3 +118,22 @@ export async function getImageDimensions(
         return null;
     }
 }
+/**
+ * Optimize image for OCR analysis
+ * - Grayscale
+ * - Increase contrast
+ * - Resize to optimal width (if needed)
+ */
+export async function optimizeForOcr(buffer: Buffer): Promise<Buffer> {
+    try {
+        return await sharp(buffer)
+            .grayscale() // Remove color noise
+            .linear(1.1, 0) // Slight contrast boost, but less aggressive
+            .resize({ width: 2000, withoutEnlargement: true }) // Standardize size
+            .toFormat('png') // PNG is better for Tesseract than WebP
+            .toBuffer();
+    } catch (error) {
+        console.warn("[ImageProcessor] OCR optimization failed, returning original:", error);
+        return buffer;
+    }
+}

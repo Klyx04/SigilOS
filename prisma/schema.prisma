@@ -53,10 +53,10 @@ model User {
   sessions      Session[]
 
   // SigilOS Relations
-  profiles      UserProfile[]
-  guildEvents   GuildEvent[]
-  attendances   EventAttendee[]
-  notifications Notification[]
+  profiles            UserProfile[]
+  guildEvents         GuildEvent[]
+  eventParticipations EventParticipant[]
+  notifications       Notification[]
 }
 
 // -- SigilOS Core Models --
@@ -93,6 +93,9 @@ model GuildConfig {
   
   // Songes Module Configuration
   songesNotifyChannelId String?  // Discord channel ID for Songes join request notifications
+  
+  // Calendar Module Configuration  
+  calendarNotifyChannelId String?  // Discord channel ID for calendar event notifications
   
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled     Boolean   @default(false)  // Visible in public directory
@@ -384,6 +387,7 @@ enum NotificationType {
   NEW_SUBMISSION_PENDING
   SYSTEM_INFO
   SONGES_JOIN_REQUEST // New candidature for Songes run
+  EVENT_REMINDER      // Event reminder notification
 }
 
 model Notification {
@@ -559,53 +563,16 @@ enum JoinRequestStatus {
   REJECTED
 }
 
-// -- CALENDAR MODELS --
+// -- CALENDAR MODELS V2 --
 
-// -- CALENDAR MODELS --
-
-model GuildEvent {
-  id          String            @id @default(cuid())
-  guildId     String
-  creatorId   String            // User who created the event
-  
-  title       String
-  description String?           @db.Text
-  type        CalendarEventType @default(SOCIAL)
-  
-  startDate   DateTime
-  endDate     DateTime
-  
-  location    String?           // In-game location or Discord channel
-  maxAttendees Int?             // Max spots available (null = infinite)
-  
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  
-  guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  attendees   EventAttendee[]
-
-  @@index([guildId, startDate])
-  @@index([creatorId])
-}
-
-model EventAttendee {
-  id        String         @id @default(cuid())
-  eventId   String
-  userId    String
-  status    AttendeeStatus @default(GOING)
-  comment   String?        // Small note from user ("Possible de venir en retard?")
-  
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  
-  event     GuildEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, userId])
-}
-
-enum CalendarEventType {
+// Types d'événements Dofus
+enum GuildEventType {
+  RAID_OFFICIAL     // Raids MaJ 3.6 (1/semaine par joueur)
+  EVENT_GUILD       // Mini-jeux RP/Social (Nibar, Chafer Crit, etc.)
+  SESSION_MISSIONS  // Sorties missions guilde (drop/métiers)
+  SORTIE_FARM       // Farm/Koli interne
+  ALMANAX_BONUS     // Auto-généré quotidien
+  // Legacy types (rétrocompatibilité)
   GUILD_MISSION
   SONGES_RUN
   DUNGEON_FARM
@@ -613,8 +580,106 @@ enum CalendarEventType {
   OFFICIAL_RESET
 }
 
+enum EventStatus {
+  DRAFT       // Brouillon (non visible)
+  PUBLISHED   // Visible et inscriptions ouvertes
+  COMPLETED   // Terminé (points distribués)
+  CANCELLED   // Annulé
+}
+
+enum RecurrenceType {
+  UNIQUE    // Événement unique
+  WEEKLY    // Chaque semaine
+  MONTHLY   // Chaque mois
+}
+
+enum ParticipantStatus {
+  REGISTERED  // Titulaire inscrit
+  RESERVE     // En file d'attente
+  CONFIRMED   // Auto-promu et confirmé
+  DECLINED    // Désisté
+}
+
+// Ancien enum conservé pour compatibilité
 enum AttendeeStatus {
   GOING
   MAYBE
   DECLINED
+}
+
+model GuildEvent {
+  id              String          @id @default(cuid())
+  guildId         String
+  creatorId       String          // Capitaine/Organisateur
+  
+  // Infos de base
+  title           String
+  description     String?         @db.Text
+  type            GuildEventType  @default(SOCIAL)
+  status          EventStatus     @default(DRAFT)
+  
+  // Timing
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Récurrence
+  recurrence      RecurrenceType  @default(UNIQUE)
+  parentEventId   String?         // Pour instances d'events récurrents
+  
+  // Configuration
+  location        String?         // Lieu in-game ou channel Discord
+  maxParticipants Int?            // Limite (ex: 12 pour raid)
+  
+  // Discord Sync
+  discordMessageId String?        // ID du message embed
+  discordChannelId String?        // Channel où poster
+  
+  // Métadonnées dynamiques par type
+  // { raidBoss, eventTemplate, pollOptions, etc. }
+  metadata        Json?
+  
+  // Notifications
+  notifyBefore    Int?            @default(60)  // Minutes avant event
+  lastRemindedAt  DateTime?       // Dernier rappel envoyé
+  
+  // Validation (Raids)
+  proofUrl        String?         // Screenshot preuve victoire
+  validatedAt     DateTime?       // Date validation
+  validatedBy     String?         // User qui a validé
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // Relations
+  guild           GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator         User            @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants    EventParticipant[]
+  
+  @@index([guildId, startDate])
+  @@index([guildId, status])
+  @@index([creatorId])
+}
+
+model EventParticipant {
+  id          String            @id @default(cuid())
+  eventId     String
+  userId      String
+  
+  status      ParticipantStatus @default(REGISTERED)
+  position    Int               // 1-N titulaires, N+1... réserve
+  classe      String?           // Classe Dofus (pour raids)
+  comment     String?           // Note ("Dispo 15min après")
+  
+  // Auto-promotion
+  promotedAt  DateTime?         // Quand promu de la réserve
+  confirmedAt DateTime?         // Confirmation après promotion
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  event       GuildEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, userId])
+  @@index([eventId, position])
 }

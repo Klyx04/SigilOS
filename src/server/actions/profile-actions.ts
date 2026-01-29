@@ -671,6 +671,13 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
             return { success: false, error: "Aucun salon configuré pour les notifications d'absence" };
         }
 
+        // SECURITY: Validate channel belongs to this guild
+        const { validateChannelBelongsToGuild } = await import("@/server/discord");
+        const isValidChannel = await validateChannelBelongsToGuild(guildConfig.absenceChannelId, guildId);
+        if (!isValidChannel) {
+            return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
+        }
+
         // Apply Rate Limit Update only before successful attempt logic (or after?)
         // Applying before prevents spamming external API even if it fails, ensuring strict rate limit.
         notificationRateLimits.set(session.user.id, now);

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { UserProfile, User } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Hammer, Palmtree, Sparkles } from "lucide-react";
-import { getClass, DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
+import { Hammer, Palmtree } from "lucide-react";
+import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -35,10 +37,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     const remaining = jobs.length - 3;
 
     const classData = getClass(profile.classe || "");
-    const fmStatus = profile.forgemagieStatus
-        ? getForgemagieStatus(profile.forgemagieStatus)
-        : null;
-    const showFMBadge = fmStatus && fmStatus.id !== "UNAVAILABLE";
+
 
     const displayName = profile.displayName || profile.pseudoDofus || profile.user.name || "Voyageur";
 
@@ -52,9 +51,10 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;
     const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
     const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+    const isUpcoming = vacationStart && vacationStart > now;
 
     // Format vacation dates for tooltip
-    const vacationTooltip = isOnVacation
+    const vacationTooltip = (isOnVacation || isUpcoming)
         ? `Absent du ${format(vacationStart!, "d MMM", { locale: fr })}${vacationEnd ? ` au ${format(vacationEnd, "d MMM", { locale: fr })}` : " (indéfini)"}`
         : "";
 
@@ -67,7 +67,43 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                 )}
                 style={roleColor ? { borderColor: roleColor } : undefined}
             >
-                <CardContent className="p-6 flex flex-col items-center gap-4">
+                <CardContent className="p-6 flex flex-col items-center gap-4 relative">
+                    {/* Vacation Badge */}
+                    {isOnVacation && (
+                        <div className="absolute top-3 right-3">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-400 gap-1.5 hover:bg-cyan-500/20 transition-colors cursor-help">
+                                            <Palmtree className="w-3.5 h-3.5" />
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide">En vacances</span>
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="bg-zinc-900 border-cyan-500/30 text-cyan-300">
+                                        <p>{vacationTooltip}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    )}
+                    {isUpcoming && (
+                        <div className="absolute top-3 right-3">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 gap-1.5 hover:bg-orange-500/20 transition-colors cursor-help">
+                                            <Palmtree className="w-3.5 h-3.5" />
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide">Bientôt</span>
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="bg-zinc-900 border-orange-500/30 text-orange-300">
+                                        <p>⏳ {vacationTooltip}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    )}
+
                     {/* Avatar */}
                     <div className="relative">
                         <Avatar
@@ -79,22 +115,6 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 {displayName?.[0]?.toUpperCase() ?? "?"}
                             </AvatarFallback>
                         </Avatar>
-
-                        {/* Vacation Indicator with Tooltip */}
-                        {isOnVacation && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div className="absolute -bottom-1 -right-1 p-1.5 bg-cyan-500/20 rounded-full border border-cyan-500/30 cursor-help">
-                                            <Palmtree className="w-3 h-3 text-cyan-400" />
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-zinc-900 border-cyan-500/30 text-cyan-300">
-                                        <p>🏖️ {vacationTooltip}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        )}
                     </div>
 
                     {/* Name & Class */}
@@ -103,7 +123,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             {displayName}
                         </h3>
                         <div className="flex items-center justify-center gap-1.5">
-                            {classData && <span>{classData.icon}</span>}
+                            {classData && <ClassIcon classId={classData.id} size={20} />}
                             <p className="text-sm text-muted-foreground font-medium">
                                 {classData?.name || profile.classe || "Aventurier"}
                             </p>
@@ -118,7 +138,15 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     const jobData = Object.values(DOFUS_JOBS).flat().find(j => j.id === job);
                                     return (
                                         <Badge key={job} variant="secondary" className="bg-white/5 hover:bg-white/10 text-[10px] px-2 py-0.5 border-white/5">
-                                            {jobData?.icon || <Hammer className="w-3 h-3 mr-1 opacity-50" />}
+                                            {jobData?.icon ? (
+                                                jobData.icon.startsWith("/") ? (
+                                                    <Image src={jobData.icon} alt={jobData.name} width={16} height={16} className="w-4 h-4 mr-1 object-contain" />
+                                                ) : (
+                                                    <span className="mr-1">{jobData.icon}</span>
+                                                )
+                                            ) : (
+                                                <Hammer className="w-3 h-3 mr-1 opacity-50" />
+                                            )}
                                             <span className="ml-1">{jobData?.name || job}</span>
                                         </Badge>
                                     );
@@ -133,16 +161,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     </div>
 
                     {/* Forgemagie Badge */}
-                    {showFMBadge && (
-                        <Badge
-                            variant="outline"
-                            className="text-xs"
-                            style={{ borderColor: fmStatus!.color + "40", color: fmStatus!.color }}
-                        >
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            FM {fmStatus!.label}
-                        </Badge>
-                    )}
+
                 </CardContent>
             </Card>
         </Link>

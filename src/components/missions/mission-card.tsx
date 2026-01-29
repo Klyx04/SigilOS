@@ -509,8 +509,16 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             }
             return <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{payload.levelRange || "200"}</span> sous anomalie</>;
         case "SONGES":
+            const palierNames: Record<number, string> = {
+                1: "Pensées oniriques",
+                2: "Balades fantastiques",
+                3: "Espaces imaginaires",
+                4: "Concepts brumeux",
+                5: "Abstractions chimériques"
+            };
+            const palierName = palierNames[payload.tier] || palierNames[2];
             return (
-                <>Démarrer un songe en <span className="text-cyan-400 font-medium">{payload.difficulty || "Paradoxe"} {payload.level || "I"}</span> et terminer le Palier {payload.tier || 2} : les <span className="text-cyan-400">Balades fantastiques</span></>
+                <>Démarrer un songe en <span className="text-cyan-400 font-medium">{payload.difficulty || "Paradoxe"} {payload.level || "I"}</span> et terminer le Palier {payload.tier || 2} : les <span className="text-cyan-400">{palierName}</span></>
             );
         case "EXPEDITION":
             const modeText = payload.mode && payload.mode !== 'aucun' ? ` de ${payload.mode}` : '';

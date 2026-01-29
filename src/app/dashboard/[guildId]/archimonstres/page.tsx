@@ -6,7 +6,7 @@ import { ArchiHub } from "@/components/archimonstres/archi-hub";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bug, AlertCircle, Link2 } from "lucide-react";
+import { Bug, AlertCircle, Link2, Gem } from "lucide-react";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -40,7 +40,8 @@ export default async function ArchimonstresPage({
                 <UnifiedModuleHeader
                     title="Bourse aux Archimonstres"
                     description="Optimisez votre quête de l'Éternelle Moisson grâce au partage communautaire."
-                    imageSrc="/assets/ui/icons/archis.png"
+                    icon={Gem}
+                    iconColor="#eab308"
                     backHref={`/dashboard/${guildId}`}
                 />
 

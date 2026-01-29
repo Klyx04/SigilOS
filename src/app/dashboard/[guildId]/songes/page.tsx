@@ -5,7 +5,7 @@ import { RunCardGrid } from "@/components/songes/RunCardGrid";
 import { CreateRunButton } from "@/components/songes/CreateRunButton";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { InfinityIcon } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export default async function SongesPage({
     params,
@@ -28,7 +28,8 @@ export default async function SongesPage({
             <UnifiedModuleHeader
                 title="Songes Infinis"
                 description="Suivez la progression des runs et rejoignez vos compagnons d'armes."
-                imageSrc="/assets/ui/icons/songes.png"
+                icon={Sparkles}
+                iconColor="#d946ef"
                 backHref={`/dashboard/${guildId}`}
                 actions={
                     (userContext.canCreateSonges || userContext.isAdmin) && (

@@ -22,6 +22,9 @@ interface ProfileBentoGridProps {
         classeSecondaires?: string[] | null;
         metiers?: string[] | null;
         forgemagieStatus?: string | null;
+        fmPriceClassic?: number | null;
+        fmPriceTrans?: number | null;
+        fmPriceExo?: number | null;
         availability?: GlobalAvailability | AvailabilityMap | null;
         vacationStart?: Date | null;
         vacationEnd?: Date | null;
@@ -67,9 +70,11 @@ export function ProfileBentoGrid({
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
     const now = new Date();
-    const isOnVacation = Boolean(localProfile.vacationStart &&
-        localProfile.vacationStart <= now &&
-        (!localProfile.vacationEnd || localProfile.vacationEnd >= now));
+    const startDate = localProfile.vacationStart ? new Date(localProfile.vacationStart) : null;
+    const endDate = localProfile.vacationEnd ? new Date(localProfile.vacationEnd) : null;
+
+    const isUpcoming = Boolean(startDate && startDate > now);
+    const isOnVacation = Boolean(startDate && startDate <= now && (!endDate || endDate >= now));
 
     // Handlers
     const handleClassSave = async (mainClass: string, secondaryClasses: string[]) => {
@@ -104,6 +109,28 @@ export function ProfileBentoGrid({
         const res = await updateForgemagieStatus({ guildId, status });
         if (res.success) {
             toast.success("Statut Forgemagie mis à jour");
+        } else {
+            toast.error(res.error || "Erreur");
+        }
+    };
+
+    const handleForgemagiePricesSave = async (prices: { classic: number | null, trans: number | null, exo: number | null }) => {
+        setLocalProfile(prev => ({
+            ...prev,
+            fmPriceClassic: prices.classic,
+            fmPriceTrans: prices.trans,
+            fmPriceExo: prices.exo
+        }));
+
+        const res = await updateUserProfile({
+            guildId,
+            fmPriceClassic: prices.classic,
+            fmPriceTrans: prices.trans,
+            fmPriceExo: prices.exo
+        });
+
+        if (res.success) {
+            toast.success("Tarifs Forgemagie mis à jour");
         } else {
             toast.error(res.error || "Erreur");
         }
@@ -158,6 +185,9 @@ export function ProfileBentoGrid({
                     contributorTier={stats.contributorTier}
                     rank={stats.rank}
                     isOnVacation={isOnVacation}
+                    isUpcomingVacation={isUpcoming}
+                    vacationStart={startDate}
+                    vacationEnd={endDate}
                     joinedAt={stats.joinedAt}
                     xp={stats.xp}
                     weeklyXp={stats.weeklyXp}
@@ -196,7 +226,6 @@ export function ProfileBentoGrid({
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                         <div className="flex flex-col gap-6">
                             {/* Classes */}
-                            {/* Classes */}
                             <ClassDisplay
                                 mainClass={localProfile.classe}
                                 secondaryClasses={localProfile.classeSecondaires || []}
@@ -219,8 +248,12 @@ export function ProfileBentoGrid({
                         <JobsGrid
                             jobs={localProfile.metiers || []}
                             forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                            fmPriceClassic={localProfile.fmPriceClassic}
+                            fmPriceTrans={localProfile.fmPriceTrans}
+                            fmPriceExo={localProfile.fmPriceExo}
                             onSaveJobs={handleJobsSave}
                             onSaveForgemagieStatus={handleForgemagieStatusSave}
+                            onSaveForgemagiePrices={handleForgemagiePricesSave}
                             readOnly={readOnly}
                         />
                     </div>

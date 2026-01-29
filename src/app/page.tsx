@@ -30,10 +30,14 @@ export default async function Home({
     <NebulaClientWrapper>
       <div className="min-h-screen bg-[#020202] text-white selection:bg-indigo-500/30 font-sans flex flex-col">
 
-        {/* Navbar Minimaliste (Juste le Logo) */}
-        <header className="fixed top-0 left-0 right-0 z-50 p-6 flex justify-between items-center bg-transparent">
-          <div className="text-xl font-bold tracking-tighter mix-blend-difference">
-            SIGILOS <span className="text-xs opacity-50 font-normal ml-2 tracking-widest">OS</span>
+        <header className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex justify-between items-center bg-transparent pointer-events-none">
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <div className="relative w-8 h-8">
+              <img src="/assets/ui/logo_sigilos_v2.png" alt="SigilOS" className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+            </div>
+            <div className="text-xl font-black tracking-widest text-white font-heading mix-blend-difference">
+              SIGIL<span className="text-purple-400">OS</span>
+            </div>
           </div>
         </header>
 

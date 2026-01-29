@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ const CATEGORIES: { label: string; value: MissionCategory | 'ALL' }[] = [
 
 export function ValidationQueue({ submissions: initialSubmissions, guildId }: { submissions: ExtendedSubmission[], guildId: string }) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [submissions, setSubmissions] = useState(initialSubmissions);
 
     useEffect(() => {
@@ -42,17 +43,20 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
     const [searchTerm, setSearchTerm] = useState("");
     const [categoryFilter, setCategoryFilter] = useState<MissionCategory | 'ALL'>('ALL');
 
-    const handleDecision = async (id: string, status: "VALIDATED" | "REJECTED") => {
+    const handleDecision = (id: string, status: "VALIDATED" | "REJECTED") => {
         setProcessingId(id);
-        const result = await validateSubmission(guildId, id, status);
-        setProcessingId(null);
+        startTransition(async () => {
+            const result = await validateSubmission(guildId, id, status);
+            setProcessingId(null);
 
-        if (result.success) {
-            toast.success(status === "VALIDATED" ? "Validé avec succès" : "Refusé");
-            setSubmissions(prev => prev.filter(s => s.id !== id));
-        } else {
-            toast.error(result.error || "Erreur action");
-        }
+            if (result.success) {
+                toast.success(status === "VALIDATED" ? "Validé avec succès" : "Refusé");
+                setSubmissions(prev => prev.filter(s => s.id !== id));
+                router.refresh(); // Ensure server state is synced
+            } else {
+                toast.error(result.error || "Erreur action");
+            }
+        });
     };
 
     // Filter Logic
@@ -80,10 +84,11 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-zinc-400 hover:text-white transition-colors"
-                        onClick={() => router.refresh()}
+                        onClick={() => startTransition(() => router.refresh())}
+                        disabled={isPending}
                         title="Actualiser la liste"
                     >
-                        <RefreshCcw className="w-4 h-4" />
+                        <RefreshCcw className={cn("w-4 h-4", isPending && "animate-spin")} />
                     </Button>
                 </div>
 

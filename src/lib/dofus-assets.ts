@@ -4,28 +4,33 @@
 
 // -----------------------------------------------------------------------------
 // CLASSES
-// -----------------------------------------------------------------------------
+export interface DofusClass {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+}
 
 export const DOFUS_CLASSES = [
-    { id: "cra", name: "Cra", icon: "🏹", color: "#4ade80" },
-    { id: "ecaflip", name: "Écaflip", icon: "🎲", color: "#facc15" },
-    { id: "eliotrope", name: "Éliotrope", icon: "🌀", color: "#a78bfa" },
-    { id: "eniripsa", name: "Eniripsa", icon: "💖", color: "#f472b6" },
-    { id: "enutrof", name: "Enutrof", icon: "💰", color: "#fbbf24" },
-    { id: "feca", name: "Féca", icon: "🛡️", color: "#60a5fa" },
-    { id: "huppermage", name: "Huppermage", icon: "✨", color: "#c4b5fd" },
-    { id: "iop", name: "Iop", icon: "⚔️", color: "#f87171" },
-    { id: "osamodas", name: "Osamodas", icon: "🐉", color: "#34d399" },
-    { id: "ouginak", name: "Ouginak", icon: "🐺", color: "#fb923c" },
-    { id: "pandawa", name: "Pandawa", icon: "🐼", color: "#a3e635" },
-    { id: "roublard", name: "Roublard", icon: "💣", color: "#94a3b8" },
-    { id: "sacrieur", name: "Sacrieur", icon: "🩸", color: "#dc2626" },
-    { id: "sadida", name: "Sadida", icon: "🌿", color: "#22c55e" },
-    { id: "sram", name: "Sram", icon: "🗡️", color: "#6366f1" },
-    { id: "steamer", name: "Steamer", icon: "⚙️", color: "#78716c" },
-    { id: "xelor", name: "Xélor", icon: "⏰", color: "#06b6d4" },
-    { id: "zobal", name: "Zobal", icon: "🎭", color: "#ec4899" },
-    { id: "forgelance", name: "Forgelance", icon: "🔱", color: "#0ea5e9" },
+    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80" },
+    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899" },
+    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6" },
+    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6" },
+    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b" },
+    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa" },
+    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d" }, // ID 20 confirmed
+    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6" },
+    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444" },
+    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444" },
+    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b" },
+    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a" },
+    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316" },
+    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626" },
+    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e" },
+    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7" },
+    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4" },
+    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1" },
+    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444" },
 ] as const;
 
 export type DofusClassId = typeof DOFUS_CLASSES[number]["id"];
@@ -46,28 +51,29 @@ export const JOB_CATEGORIES = {
 
 export const DOFUS_JOBS = {
     [JOB_CATEGORIES.RECOLTE]: [
-        { id: "alchimiste", name: "Alchimiste", icon: "🧪" },
-        { id: "bucheron", name: "Bûcheron", icon: "🪓" },
-        { id: "chasseur", name: "Chasseur", icon: "🍖" },
-        { id: "mineur", name: "Mineur", icon: "⛏️" },
-        { id: "paysan", name: "Paysan", icon: "🌾" },
+        { id: "alchimiste", name: "Alchimiste", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "bucheron", name: "Bûcheron", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "chasseur", name: "Chasseur", icon: "/assets/dofus/jobs/41.png" },
+        { id: "mineur", name: "Mineur", icon: "/assets/dofus/jobs/24.png" },
+        { id: "paysan", name: "Paysan", icon: "/assets/dofus/jobs/28.png" },
+        { id: "pecheur", name: "Pêcheur", icon: "/assets/dofus/jobs/36.png" },
     ],
     [JOB_CATEGORIES.ARTISANAT]: [
-        { id: "bijoutier", name: "Bijoutier", icon: "💍" },
-        { id: "bricoleur", name: "Bricoleur", icon: "🔧" },
-        { id: "cordonnier", name: "Cordonnier", icon: "👟" },
-        { id: "faconneur", name: "Façonneur", icon: "🏺" },
-        { id: "forgeron", name: "Forgeron", icon: "⚔️" },
-        { id: "sculpteur", name: "Sculpteur", icon: "🪄" },
-        { id: "tailleur", name: "Tailleur", icon: "🧵" },
+        { id: "bijoutier", name: "Bijoutier", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "bricoleur", name: "Bricoleur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "cordonnier", name: "Cordonnier", icon: "/assets/dofus/jobs/5.png" },
+        { id: "faconneur", name: "Façonneur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "forgeron", name: "Forgeron", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "sculpteur", name: "Sculpteur", icon: "/assets/dofus/jobs/13.png" },
+        { id: "tailleur", name: "Tailleur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
     ],
     [JOB_CATEGORIES.FORGEMAGIE]: [
-        { id: "cordomage", name: "Cordomage", icon: "👟✨" },
-        { id: "costumage", name: "Costumage", icon: "👗✨" },
-        { id: "forgemage", name: "Forgemage", icon: "⚔️✨" },
-        { id: "joaillomage", name: "Joaillomage", icon: "💍✨" },
-        { id: "sculptemage", name: "Sculptemage", icon: "🪄✨" },
-        { id: "facomage", name: "Façomage", icon: "🏺✨" },
+        { id: "cordomage", name: "Cordomage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "costumage", name: "Costumage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "forgemage", name: "Forgemage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "joaillomage", name: "Joaillomage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "sculptemage", name: "Sculptemage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "facomage", name: "Façomage", icon: "/assets/dofus/jobs/1.png" },
     ],
 } as const;
 

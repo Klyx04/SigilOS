@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from "react";
+import { useState, useRef, useTransition } from "react";
 import {
     Dialog,
     DialogContent,
@@ -21,7 +21,8 @@ import {
     AlertTriangle,
     XCircle,
     Check,
-    Eye
+    Eye,
+    Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -63,6 +64,7 @@ export function ProofUploadDialog({
     const [safetyDebug, setSafetyDebug] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
 
     // Client-side OCR hook
     const { isAnalyzing, progress, analyze, reset: resetOcr } = useClientOcr();
@@ -196,19 +198,26 @@ export function ProofUploadDialog({
 
             const result = await response.json();
 
+            // Use Server OCR result if available (it refers to the file actually processed/validated)
+            // Fallback to client result only if server returned nothing (shouldn't happen on success)
+            const finalOcr = result.ocr || clientOcrResult;
+
+            // UPDATE UI with Server Reality (Score 86, Validated)
+            setOcrResult(finalOcr);
+
             // 3. Create submission in database
             const submitResult = await submitMissionProof(
                 missionId,
                 result.proofUrl,
-                clientOcrResult.score,
+                finalOcr.score,
                 {
-                    matchedElements: clientOcrResult.matchedElements,
-                    missingElements: clientOcrResult.missingElements,
-                    isValid: clientOcrResult.isValid,
-                    categoryMatch: clientOcrResult.categoryMatch,
-                    contentMatch: clientOcrResult.contentMatch,
-                    victoryDetected: clientOcrResult.victoryDetected,
-                    confidence: clientOcrResult.confidence,
+                    matchedElements: finalOcr.matchedElements || [],
+                    missingElements: finalOcr.missingElements || [],
+                    isValid: finalOcr.isValid,
+                    categoryMatch: finalOcr.categoryMatch,
+                    contentMatch: finalOcr.contentMatch,
+                    victoryDetected: finalOcr.victoryDetected,
+                    confidence: finalOcr.confidence,
                 }
             );
 
@@ -218,15 +227,16 @@ export function ProofUploadDialog({
 
             setState("success");
 
-            // Wrap in simple timeout to avoid conflicts with state updates/rendering
-            setTimeout(() => {
+            // Replaced timeout with startTransition
+            startTransition(() => {
                 router.refresh();
-                toast.success(
-                    clientOcrResult.isValid && clientOcrResult.score >= 95
-                        ? "Preuve soumise et auto-validée ! 🎉"
-                        : "Preuve soumise ! En attente de validation."
-                );
-            }, 0);
+            });
+
+            toast.success(
+                finalOcr.isValid && finalOcr.score >= 70
+                    ? "Preuve soumise et auto-validée ! 🎉"
+                    : "Preuve soumise ! En attente de validation."
+            );
 
         } catch (err) {
             setState("error");
@@ -253,7 +263,7 @@ export function ProofUploadDialog({
     const isProcessing = state === "analyzing" || state === "uploading";
 
     // Determine if auto-validated for UI feedback
-    const isAutoValidated = ocrResult?.isValid && ocrResult.score >= 95;
+    const isAutoValidated = ocrResult?.isValid && ocrResult.score >= 70;
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -350,8 +360,17 @@ export function ProofUploadDialog({
                             {state === "success" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-2" />
-                                        <p className="text-sm text-green-300 font-medium">Preuve soumise !</p>
+                                        {isAutoValidated ? (
+                                            <>
+                                                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                                                <p className="text-sm text-green-300 font-medium">Mission validée !</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Clock className="w-12 h-12 text-amber-400 mx-auto mb-2" />
+                                                <p className="text-sm text-amber-300 font-medium">Envoyée à la modération</p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -495,22 +514,25 @@ export function ProofUploadDialog({
                             {/* Allow cancelling for simple UX even if validated - user might have made mistake */}
                             <Button
                                 variant="destructive"
-                                onClick={async () => {
-                                    try {
-                                        const result = await cancelMissionSubmission(missionId);
-                                        if (result.success) {
-                                            toast.success("Soumission annulée.");
-                                            handleClose();
-                                            router.refresh();
-                                        } else {
-                                            toast.error(result.error || "Erreur lors de l'annulation");
+                                disabled={isPending}
+                                onClick={() => {
+                                    startTransition(async () => {
+                                        try {
+                                            const result = await cancelMissionSubmission(missionId);
+                                            if (result.success) {
+                                                toast.success("Soumission annulée.");
+                                                handleClose();
+                                                router.refresh();
+                                            } else {
+                                                toast.error(result.error || "Erreur lors de l'annulation");
+                                            }
+                                        } catch (e) {
+                                            toast.error("Erreur inattendue");
                                         }
-                                    } catch (e) {
-                                        toast.error("Erreur inattendue");
-                                    }
+                                    });
                                 }}
                             >
-                                <XCircle className="w-4 h-4 mr-2" />
+                                {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
                                 Annuler la soumission
                             </Button>
                         </>

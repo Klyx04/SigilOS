@@ -207,6 +207,7 @@ interface SendChannelMessageOptions {
     };
     fields?: EmbedField[];       // Structured data fields
     mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
+    components?: any[];          // Discord Components (Buttons, Select Menus)
 }
 
 /**
@@ -216,11 +217,11 @@ export async function sendChannelMessage(
     channelId: string,
     content: string,
     options?: SendChannelMessageOptions
-): Promise<boolean> {
+): Promise<string | null> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
         console.error("[Discord] Missing DISCORD_BOT_TOKEN");
-        return false;
+        return null;
     }
 
     const body: Record<string, unknown> = {};
@@ -301,6 +302,11 @@ export async function sendChannelMessage(
         };
     }
 
+    // Add components (buttons)
+    if (options?.components) {
+        body.components = options.components;
+    }
+
     try {
         const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages`, {
             method: "POST",
@@ -313,12 +319,127 @@ export async function sendChannelMessage(
 
         if (!res.ok) {
             console.error(`[Discord] Failed to send message: ${res.status} ${res.statusText}`);
+            const errBody = await res.text();
+            console.error(`[Discord] Error body: ${errBody}`);
+            return null;
+        }
+
+        const json = await res.json() as { id: string };
+        return json.id; // Return message ID
+    } catch (error) {
+        console.error("[Discord] Error sending message:", error);
+        return null;
+    }
+}
+
+/**
+ * Update an existing Discord message
+ */
+export async function updateChannelMessage(
+    channelId: string,
+    messageId: string,
+    content: string,
+    options?: SendChannelMessageOptions
+): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const body: Record<string, unknown> = {};
+
+    // Reconstruct body similar to sendChannelMessage...
+    // Use embed if title is provided
+    if (options?.embedTitle) {
+        const embed: Record<string, unknown> = {
+            title: options.embedTitle,
+            color: options.embedColor ?? 0x9333ea,
+            timestamp: new Date().toISOString(),
+        };
+
+        const isMention = content.startsWith("@") || content.startsWith("<@");
+        if (content && !isMention) {
+            embed.description = content;
+        }
+
+        if (options.embedUrl) embed.url = options.embedUrl;
+        if (options.embedFooter) embed.footer = { text: options.embedFooter, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+        if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
+        if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
+        if (options.embedImage) embed.image = { url: options.embedImage };
+
+        if (options.fields && options.fields.length > 0) {
+            embed.fields = options.fields.map(f => ({
+                name: f.name,
+                value: f.value,
+                inline: f.inline ?? true,
+            }));
+        }
+
+        body.embeds = [embed];
+
+        if (content && isMention) body.content = content;
+        if (options.mentionContent) body.content = options.mentionContent;
+    } else {
+        body.content = content;
+    }
+
+    if (options?.components) {
+        body.components = options.components;
+    }
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            console.error(`[Discord] Failed to update message: ${res.status}`);
             return false;
         }
 
         return true;
     } catch (error) {
-        console.error("[Discord] Error sending message:", error);
+        console.error("[Discord] Error updating message:", error);
+        return false;
+    }
+}
+
+// Export signature verification for use in interactions route
+export async function verifyDiscordSignature(
+    request: Request,
+    body: string
+): Promise<boolean> {
+    const signature = request.headers.get("X-Signature-Ed25519");
+    const timestamp = request.headers.get("X-Signature-Timestamp");
+    const publicKey = process.env.DISCORD_PUBLIC_KEY;
+
+    if (!signature || !timestamp || !publicKey) return false;
+
+    try {
+        const hexToUint8Array = (hex: string) => {
+            const matches = hex.match(/.{1,2}/g);
+            return new Uint8Array(matches ? matches.map(byte => parseInt(byte, 16)) : []);
+        };
+
+        const keyData = hexToUint8Array(publicKey);
+        const key = await crypto.subtle.importKey(
+            "raw",
+            keyData.buffer as ArrayBuffer,
+            { name: "Ed25519" },
+            false,
+            ["verify"]
+        );
+
+        const message = new TextEncoder().encode(timestamp + body);
+        const sig = hexToUint8Array(signature);
+
+        return await crypto.subtle.verify("Ed25519", key, sig.buffer as ArrayBuffer, message);
+    } catch (error) {
+        console.error("Signature verification failed:", error);
         return false;
     }
 }

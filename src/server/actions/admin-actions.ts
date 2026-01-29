@@ -229,6 +229,15 @@ export async function updateAbsenceChannel(
             return { success: false, error: "Permission refusée: Admin requis" };
         }
 
+        // SECURITY: Validate channel belongs to this guild (if provided)
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
         // Update channel ID
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
@@ -404,6 +413,15 @@ export async function updateSongesChannel(
             return { success: false, error: "Permission refusée: Admin requis" };
         }
 
+        // SECURITY: Validate channel belongs to this guild (if provided)
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
         // Update channel ID
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
@@ -414,6 +432,97 @@ export async function updateSongesChannel(
         return { success: true };
     } catch (error) {
         console.error("Update Songes Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
+// CALENDAR NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { calendarNotifyChannelId: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { calendarChannelId: config.calendarNotifyChannelId } };
+    } catch (error) {
+        console.error("Get Calendar Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateCalendarChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        // Security: Verify user is admin of this guild
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (!account) return { success: false, error: "No Discord account linked" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Check admin permission
+        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const guildInfo = await fetchGuild(guildId);
+        const member = await fetchGuildMember(guildId, account.providerAccountId);
+
+        if (!member) return { success: false, error: "Not a member of this guild" };
+
+        let isAdmin = guildInfo.owner_id === account.providerAccountId;
+
+        if (!isAdmin) {
+            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        }
+
+        if (!isAdmin) {
+            return { success: false, error: "Permission refusée: Admin requis" };
+        }
+
+        // Validate channel ID format (18-19 digits)
+        if (channelId && !/^\d{17,19}$/.test(channelId)) {
+            return { success: false, error: "Format d'ID invalide" };
+        }
+
+        // SECURITY: Validate channel belongs to this guild (if provided)
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
+        // Update channel ID
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { calendarNotifyChannelId: channelId }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Calendar Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

@@ -1,37 +1,39 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * EventForm V3 - Fixed Date Handling + 4 Types
+ * Types: RAID_OFFICIAL, EVENT_GUILD, SESSION_MISSIONS, SORTIE_FARM
+ */
+
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, parse, addHours, isBefore } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Loader2 } from "lucide-react";
 import {
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-    DialogDescription
-} from "@/components/ui/dialog";
+    Calendar as CalendarIcon,
+    Clock,
+    Loader2,
+    Users,
+    Swords,
+    PartyPopper,
+    Target,
+    Wheat,
+    Info,
+    AlertTriangle
+} from "lucide-react";
 import {
     Form,
     FormControl,
     FormField,
     FormItem,
     FormLabel,
-    FormMessage
+    FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
-} from "@/components/ui/select";
 import {
     Popover,
     PopoverContent,
@@ -40,19 +42,98 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
+// ============================================
+// 4 EVENT TYPES (Almanax removed)
+// ============================================
+
+interface TypeConfig {
+    label: string;
+    shortLabel: string;
+    icon: React.ElementType;
+    gradient: string;
+    bg: string;
+    border: string;
+    text: string;
+    preset: {
+        defaultDuration: number;
+        maxParticipants?: number;
+    };
+}
+
+const TYPE_CONFIG: Record<string, TypeConfig> = {
+    RAID_OFFICIAL: {
+        label: "Raid Officiel 3.6",
+        shortLabel: "Raid 3.6",
+        icon: Swords,
+        gradient: "from-red-600 to-rose-600",
+        bg: "bg-red-500/10",
+        border: "border-red-500/30",
+        text: "text-red-400",
+        preset: { defaultDuration: 3, maxParticipants: 12 }
+    },
+    EVENT_GUILD: {
+        label: "Event Guilde (Mini-jeux)",
+        shortLabel: "Event Guilde",
+        icon: PartyPopper,
+        gradient: "from-purple-600 to-fuchsia-600",
+        bg: "bg-purple-500/10",
+        border: "border-purple-500/30",
+        text: "text-purple-400",
+        preset: { defaultDuration: 2 }
+    },
+    SESSION_MISSIONS: {
+        label: "Missions Guilde",
+        shortLabel: "Missions Guilde",
+        icon: Target,
+        gradient: "from-amber-600 to-orange-600",
+        bg: "bg-amber-500/10",
+        border: "border-amber-500/30",
+        text: "text-amber-400",
+        preset: { defaultDuration: 4, maxParticipants: 8 }
+    },
+    SORTIE_FARM: {
+        label: "Sortie Farm / Drop",
+        shortLabel: "Sortie Farm",
+        icon: Wheat,
+        gradient: "from-emerald-600 to-green-600",
+        bg: "bg-emerald-500/10",
+        border: "border-emerald-500/30",
+        text: "text-emerald-400",
+        preset: { defaultDuration: 2 }
+    },
+};
+
+const EVENT_TYPES = Object.keys(TYPE_CONFIG);
+
+// ============================================
+// ZOD SCHEMA with better date validation
+// ============================================
+
 const eventFormSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
-    description: z.string().max(1000).optional(),
-    type: z.enum(["GUILD_MISSION", "SONGES_RUN", "DUNGEON_FARM", "SOCIAL", "OFFICIAL_RESET"]),
-    startDate: z.date({ required_error: "Date de début requise" }),
+    description: z.string().max(2000).optional(),
+    type: z.string(),
+    date: z.date({ required_error: "Date requise" }),
     startTime: z.string().min(5, "Heure requise"),
-    endDate: z.date({ required_error: "Date de fin requise" }),
     endTime: z.string().min(5, "Heure requise"),
-    location: z.string().max(100).optional(),
-    maxAttendees: z.any().optional(),
+    maxParticipants: z.coerce.number().min(1).optional().nullable(),
+}).refine((data) => {
+    // Validate end time is after start time
+    const start = parse(data.startTime, "HH:mm", new Date());
+    const end = parse(data.endTime, "HH:mm", new Date());
+    // Handle case where end is next day (e.g., 23:00 - 01:00)
+    if (data.endTime < data.startTime) return true; // Considered next day
+    return !isBefore(end, start);
+}, {
+    message: "L'heure de fin doit être après l'heure de début",
+    path: ["endTime"]
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
+
+// ============================================
+// COMPONENT
+// ============================================
 
 interface EventFormProps {
     initialData?: any;
@@ -61,44 +142,90 @@ interface EventFormProps {
 
 export function EventForm({ initialData, onSubmit }: EventFormProps) {
     const [submitting, setSubmitting] = useState(false);
+    // Fallback to EVENT_GUILD for unknown types
+    const validType = initialData?.type && TYPE_CONFIG[initialData.type] ? initialData.type : "EVENT_GUILD";
+    const [selectedType, setSelectedType] = useState<string>(validType);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
         defaultValues: initialData ? {
-            ...initialData,
+            title: initialData.title || "",
+            description: initialData.description || "",
+            type: validType,
+            date: new Date(initialData.startDate),
             startTime: format(new Date(initialData.startDate), "HH:mm"),
             endTime: format(new Date(initialData.endDate), "HH:mm"),
-            maxAttendees: initialData.maxAttendees?.toString() || "",
+            maxParticipants: initialData.maxParticipants || undefined,
         } : {
             title: "",
             description: "",
-            type: "SOCIAL",
-            startDate: new Date(),
+            type: "EVENT_GUILD",
+            date: new Date(),
             startTime: "20:00",
-            endDate: new Date(),
             endTime: "22:00",
-            location: "",
-            maxAttendees: "",
+            maxParticipants: undefined,
         },
     });
 
-    const handleFormSubmit = async (values: any) => {
+    // Watch start time to auto-update end time
+    const startTime = form.watch("startTime");
+
+    // Apply preset when type changes
+    const handleTypeChange = (type: string) => {
+        setSelectedType(type);
+        form.setValue("type", type);
+
+        const config = TYPE_CONFIG[type];
+        if (config && !initialData) {
+            if (config.preset.maxParticipants) {
+                form.setValue("maxParticipants", config.preset.maxParticipants);
+            }
+            // Auto-calculate end time based on duration
+            updateEndTime(startTime, config.preset.defaultDuration);
+        }
+    };
+
+    // Helper to update end time
+    const updateEndTime = (start: string, durationHours: number) => {
+        if (start) {
+            const [hours, minutes] = start.split(":").map(Number);
+            const startDate = new Date();
+            startDate.setHours(hours, minutes, 0, 0);
+            const endDate = addHours(startDate, durationHours);
+            form.setValue("endTime", format(endDate, "HH:mm"));
+        }
+    };
+
+    // Update end time when start time changes (only if not editing)
+    useEffect(() => {
+        if (!initialData && startTime) {
+            const config = TYPE_CONFIG[selectedType];
+            if (config) {
+                updateEndTime(startTime, config.preset.defaultDuration);
+            }
+        }
+    }, [startTime, selectedType, initialData]);
+
+    const handleFormSubmit = async (values: EventFormValues) => {
         setSubmitting(true);
         try {
-            // Combine date and time
-            const startStr = `${format(values.startDate as Date, "yyyy-MM-dd", { locale: fr })}T${values.startTime}:00`;
-            const endStr = `${format(values.endDate as Date, "yyyy-MM-dd", { locale: fr })}T${values.endTime}:00`;
+            // Build proper dates
+            const dateStr = format(values.date, "yyyy-MM-dd");
+            const startDate = new Date(`${dateStr}T${values.startTime}:00`);
+            let endDate = new Date(`${dateStr}T${values.endTime}:00`);
+
+            // If end time is before start time, assume next day
+            if (endDate <= startDate) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
 
             const submissionData = {
                 title: values.title,
                 description: values.description,
                 type: values.type,
-                startDate: new Date(startStr),
-                endDate: new Date(endStr),
-                location: values.location,
-                maxAttendees: values.maxAttendees === "" || values.maxAttendees === null || values.maxAttendees === undefined
-                    ? null
-                    : Number(values.maxAttendees),
+                startDate,
+                endDate,
+                maxParticipants: values.maxParticipants || null,
             };
 
             await onSubmit(submissionData);
@@ -109,96 +236,116 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
         }
     };
 
+    const currentConfig = TYPE_CONFIG[selectedType] || TYPE_CONFIG.EVENT_GUILD;
+
     return (
-        <DialogContent className="bg-zinc-950 border-zinc-800 sm:max-w-[500px]">
-            <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-amber-500">
-                    {initialData ? "Modifier l'événement" : "Nouvel événement"}
-                </DialogTitle>
-                <DialogDescription className="text-zinc-400">
-                    Planifiez une activité pour la guilde
-                </DialogDescription>
-            </DialogHeader>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
+                {/* ============ TYPE SELECTOR (4 types) ============ */}
+                <div className="space-y-3">
+                    <FormLabel className="text-sm font-medium text-zinc-300">
+                        Type d'événement
+                    </FormLabel>
+                    <div className="grid grid-cols-4 gap-2">
+                        {EVENT_TYPES.map((type) => {
+                            const config = TYPE_CONFIG[type];
+                            const Icon = config.icon;
+                            const isSelected = selectedType === type;
 
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
-                    <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-zinc-300">Titre</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Ex: Farm DJ Merkator" {...field} className="bg-zinc-900 border-zinc-800 text-zinc-100" />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-zinc-300">Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger className="bg-zinc-900 border-zinc-800 text-zinc-100">
-                                                <SelectValue placeholder="Social" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-                                            <SelectItem value="SOCIAL">Social / Évent</SelectItem>
-                                            <SelectItem value="GUILD_MISSION">Mission de Guilde</SelectItem>
-                                            <SelectItem value="SONGES_RUN">Run Songes</SelectItem>
-                                            <SelectItem value="DUNGEON_FARM">Farm Donjon</SelectItem>
-                                            <SelectItem value="OFFICIAL_RESET">Reset Hebdo</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="maxAttendees"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-zinc-300">Places Max</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="Illimité" {...field} value={field.value || ""} className="bg-zinc-900 border-zinc-800 text-zinc-100" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => handleTypeChange(type)}
+                                    className={cn(
+                                        "relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                                        isSelected
+                                            ? cn(config.bg, config.border, "ring-2 ring-offset-2 ring-offset-zinc-900", config.border.replace("border-", "ring-"))
+                                            : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "h-10 w-10 rounded-lg flex items-center justify-center transition-all",
+                                        isSelected
+                                            ? cn("bg-gradient-to-br", config.gradient, "shadow-lg")
+                                            : "bg-zinc-800"
+                                    )}>
+                                        <Icon className={cn(
+                                            "h-5 w-5 transition-colors",
+                                            isSelected ? "text-white" : "text-zinc-400"
+                                        )} />
+                                    </div>
+                                    <span className={cn(
+                                        "text-[11px] font-medium text-center leading-tight",
+                                        isSelected ? config.text : "text-zinc-400"
+                                    )}>
+                                        {config.shortLabel}
+                                    </span>
+                                    {isSelected && (
+                                        <div className={cn(
+                                            "absolute -top-1 -right-1 h-3 w-3 rounded-full",
+                                            "bg-gradient-to-br", config.gradient
+                                        )} />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Preset badge */}
+                    {currentConfig.preset.maxParticipants && (
+                        <div className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
+                            currentConfig.bg, currentConfig.border, "border"
+                        )}>
+                            <Info className={cn("h-3.5 w-3.5", currentConfig.text)} />
+                            <span className="text-zinc-400">
+                                <span className={currentConfig.text}>Preset :</span> {currentConfig.preset.maxParticipants} places
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* ============ TITLE ============ */}
+                <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-zinc-300">Titre</FormLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="Ex: Raid Bethel - Farm clés"
+                                    {...field}
+                                    className="h-11 bg-zinc-900/50 border-zinc-800 text-zinc-100 focus:border-amber-500/50"
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {/* ============ DATE & TIME (unified row) ============ */}
+                <div className="space-y-2">
+                    <FormLabel className="text-zinc-300">Date et horaires</FormLabel>
+                    <div className="grid grid-cols-3 gap-3">
                         <FormField
                             control={form.control}
-                            name="startDate"
+                            name="date"
                             render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel className="text-zinc-300">Date de début</FormLabel>
+                                <FormItem>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <FormControl>
                                                 <Button
-                                                    variant={"outline"}
+                                                    variant="outline"
                                                     className={cn(
-                                                        "w-full pl-3 text-left font-normal bg-zinc-900 border-zinc-800 text-zinc-100 hover:bg-zinc-800",
+                                                        "h-11 w-full justify-start text-left font-normal bg-zinc-900/50 border-zinc-800 text-zinc-100 hover:bg-zinc-800/80",
                                                         !field.value && "text-muted-foreground"
                                                     )}
                                                 >
-                                                    {field.value ? (
-                                                        format(field.value, "PPP", { locale: fr })
-                                                    ) : (
-                                                        <span>Choisir</span>
-                                                    )}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    <CalendarIcon className="mr-2 h-4 w-4 text-amber-500" />
+                                                    {field.value ? format(field.value, "d MMM", { locale: fr }) : "Date"}
                                                 </Button>
                                             </FormControl>
                                         </PopoverTrigger>
@@ -209,7 +356,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                                                 onSelect={field.onChange}
                                                 disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
                                                 initialFocus
-                                                className="bg-zinc-900 text-zinc-100"
+                                                className="bg-zinc-900"
                                             />
                                         </PopoverContent>
                                     </Popover>
@@ -217,16 +364,40 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                                 </FormItem>
                             )}
                         />
+
                         <FormField
                             control={form.control}
                             name="startTime"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-zinc-300">Heure</FormLabel>
                                     <FormControl>
                                         <div className="relative">
-                                            <Input type="time" {...field} className="bg-zinc-900 border-zinc-800 text-zinc-100" />
-                                            <Clock className="absolute right-3 top-2.5 h-4 w-4 text-zinc-500" />
+                                            <Clock className="absolute left-3 top-3.5 h-4 w-4 text-green-500" />
+                                            <Input
+                                                type="time"
+                                                {...field}
+                                                className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                                            />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="endTime"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Clock className="absolute left-3 top-3.5 h-4 w-4 text-red-400" />
+                                            <Input
+                                                type="time"
+                                                {...field}
+                                                className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                                            />
                                         </div>
                                     </FormControl>
                                     <FormMessage />
@@ -234,52 +405,77 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                             )}
                         />
                     </div>
+                </div>
 
-                    <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-zinc-300">Lieu (Optionnel)</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Ex: Salon Vocal Discord" {...field} value={field.value || ""} className="bg-zinc-900 border-zinc-800 text-zinc-100" />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-zinc-300">Description</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="Détails de l'expédition..."
-                                        className="bg-zinc-900 border-zinc-800 text-zinc-100 resize-none h-20"
+                {/* ============ MAX PARTICIPANTS ============ */}
+                <FormField
+                    control={form.control}
+                    name="maxParticipants"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-zinc-300">Places max</FormLabel>
+                            <FormControl>
+                                <div className="relative w-48">
+                                    <Users className="absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
+                                    <Input
+                                        type="number"
+                                        placeholder="∞"
                                         {...field}
                                         value={field.value || ""}
+                                        className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
                                     />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
-                    <DialogFooter className="pt-4">
-                        <Button
-                            type="submit"
-                            disabled={submitting}
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold"
-                        >
-                            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {/* ============ DESCRIPTION ============ */}
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-zinc-300">Description</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="Détails, objectifs, pré-requis..."
+                                    className="min-h-[70px] bg-zinc-900/50 border-zinc-800 text-zinc-100 resize-none"
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {/* ============ SUBMIT ============ */}
+                <Button
+                    type="submit"
+                    disabled={submitting}
+                    className={cn(
+                        "w-full h-12 font-bold text-base transition-all",
+                        "bg-gradient-to-r from-amber-500 to-orange-500",
+                        "hover:from-amber-400 hover:to-orange-400",
+                        "shadow-lg shadow-amber-500/20",
+                        "text-zinc-950"
+                    )}
+                >
+                    {submitting ? (
+                        <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Création...
+                        </>
+                    ) : (
+                        <>
+                            {currentConfig && <currentConfig.icon className="mr-2 h-5 w-5" />}
                             {initialData ? "Enregistrer" : "Créer l'événement"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
+                        </>
+                    )}
+                </Button>
+            </form>
+        </Form>
     );
 }

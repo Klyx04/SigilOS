@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
-import { Settings, Bell, Key, Moon, Users } from "lucide-react";
+import { Settings, Bell, Key, Moon, Users, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
+import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
@@ -68,6 +69,13 @@ export default async function FeatureSettingsPage({
                         >
                             <Users className="h-4 w-4" />
                             <span className="font-bold tracking-wide">Membres</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="calendrier"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_20px_rgba(251,191,36,0.1)] border border-transparent data-[state=active]:border-amber-500/20"
+                        >
+                            <Calendar className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Calendrier</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -131,6 +139,19 @@ export default async function FeatureSettingsPage({
                                     <span className="text-xs text-zinc-500 font-mono">Auto-sync: 04:00 AM</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* Calendrier Tab */}
+                <TabsContent value="calendrier" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Notifications Calendrier</h2>
+                            <p className="text-zinc-400 max-w-2xl">Partagez vos événements de guilde directement sur Discord avec un embed riche.</p>
+                        </div>
+                        <div className="max-w-4xl">
+                            <CalendarSettingsClient guildId={guildId} />
                         </div>
                     </div>
                 </TabsContent>

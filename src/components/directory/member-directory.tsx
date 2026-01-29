@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { MemberCard } from "./member-card";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { Search, Filter, X, Briefcase, Swords, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -134,22 +136,23 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                     <CommandGroup heading="Classes">
                                         <div className="grid grid-cols-4 gap-1 p-2">
                                             {DOFUS_CLASSES.map((c) => (
-                                                <div
+                                                <CommandItem
                                                     key={c.id}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all gap-1 border",
-                                                        selectedClass === c.id
-                                                            ? "bg-primary/20 border-primary/50 text-white"
-                                                            : "bg-zinc-900/50 border-transparent hover:bg-zinc-800 hover:border-white/10 text-zinc-400 hover:text-zinc-200"
-                                                    )}
-                                                    onClick={() => {
+                                                    value={c.name}
+                                                    onSelect={() => {
                                                         setSelectedClass(selectedClass === c.id ? null : c.id);
                                                         setIsOpenClass(false);
                                                     }}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all gap-1 border h-auto",
+                                                        selectedClass === c.id
+                                                            ? "bg-primary/20 border-primary/50 text-white aria-selected:bg-primary/30"
+                                                            : "bg-zinc-900/50 border-transparent hover:bg-zinc-800 hover:border-white/10 text-zinc-400 hover:text-zinc-200 aria-selected:bg-zinc-800"
+                                                    )}
                                                 >
-                                                    <span className="text-2xl filter drop-shadow-lg">{c.icon}</span>
-                                                    <span className="text-[10px] font-medium truncate w-full text-center">{c.name}</span>
-                                                </div>
+                                                    <ClassIcon classId={c.id} size={32} className="filter drop-shadow-lg" />
+                                                    <span className="text-[10px] font-medium truncate w-full text-center mt-1">{c.name}</span>
+                                                </CommandItem>
                                             ))}
                                         </div>
                                     </CommandGroup>
@@ -204,7 +207,19 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                                         }}
                                                         className="cursor-pointer"
                                                     >
-                                                        <span className="mr-2 text-lg">{job.icon}</span>
+                                                        <div className="mr-2 w-6 h-6 flex items-center justify-center">
+                                                            {job.icon.startsWith("/") ? (
+                                                                <Image
+                                                                    src={job.icon}
+                                                                    alt={job.name}
+                                                                    width={24}
+                                                                    height={24}
+                                                                    className="w-full h-full object-contain"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-lg">{job.icon}</span>
+                                                            )}
+                                                        </div>
                                                         <span>{job.name}</span>
                                                         {selectedJob === job.id && (
                                                             <Check className="ml-auto w-4 h-4 opacity-100" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -34,6 +34,7 @@ import {
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
+import { ClassIcon } from "@/components/shared/class-icon";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 
 type RunWithRelations = DreamRun & {
@@ -59,7 +60,8 @@ interface RunCardProps {
 export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardProps) {
     const params = useParams();
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const [loading, setLoading] = useState(false); // Keep for dialog submit buttons
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedClasse, setSelectedClasse] = useState<DofusClass>("Cra");
@@ -151,19 +153,19 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         setLoading(false);
     };
 
-    const handleCancelRequest = async () => {
-        setLoading(true);
-        await cancelJoinRequest(params.guildId as string, run.id);
-        setPendingRequest(false);
-        router.refresh();
-        setLoading(false);
+    const handleCancelRequest = () => {
+        startTransition(async () => {
+            await cancelJoinRequest(params.guildId as string, run.id);
+            setPendingRequest(false);
+            router.refresh();
+        });
     };
 
-    const handleStart = async () => {
-        setLoading(true);
-        await startDreamRun(params.guildId as string, run.id);
-        router.refresh();
-        setLoading(false);
+    const handleStart = () => {
+        startTransition(async () => {
+            await startDreamRun(params.guildId as string, run.id);
+            router.refresh();
+        });
     };
 
     const handleDelete = async () => {
@@ -174,11 +176,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
         setLoading(false);
     };
 
-    const handleLeave = async () => {
-        setLoading(true);
-        await leaveDreamRun(params.guildId as string, run.id);
-        router.refresh();
-        setLoading(false);
+    const handleLeave = () => {
+        startTransition(async () => {
+            await leaveDreamRun(params.guildId as string, run.id);
+            router.refresh();
+        });
     };
 
     // Candidacy handlers (leader only)
@@ -383,7 +385,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                     <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-purple-900/30 border border-purple-500/20">
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm text-white font-medium truncate">{c.displayName || "Joueur"}</p>
-                                            <p className="text-xs text-purple-300/70">{c.classe}</p>
+                                            <div className="flex items-center text-xs text-purple-300/70 mt-0.5">
+                                                <ClassIcon classId={c.classe} size={14} className="mr-1.5" />
+                                                {c.classe}
+                                            </div>
                                         </div>
                                         <div className="flex gap-1 shrink-0">
                                             <Button
@@ -420,10 +425,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     <Button
                         size="sm"
                         onClick={handleCancelRequest}
-                        disabled={loading}
+                        disabled={isPending}
                         className="flex-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4 mr-1" />}
+                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4 mr-1" />}
                         Annuler candidature
                     </Button>
                 ) : canApply ? (
@@ -447,8 +452,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                         </SelectTrigger>
                                         <SelectContent className="bg-[#1a0933] border-purple-500/30">
                                             {DOFUS_CLASSES.map((classe) => (
-                                                <SelectItem key={classe} value={classe} className="text-white focus:bg-purple-700/50">
-                                                    {classe}
+                                                <SelectItem key={classe} value={classe} className="text-white focus:bg-purple-700/50 text-left">
+                                                    <div className="flex items-center">
+                                                        <ClassIcon classId={classe} size={20} className="mr-2" />
+                                                        {classe}
+                                                    </div>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -485,10 +493,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     <Button
                         size="sm"
                         onClick={handleStart}
-                        disabled={loading}
+                        disabled={isPending}
                         className="flex-1 bg-purple-600 hover:bg-purple-500"
                     >
-                        <Play className="w-4 h-4 mr-1" />
+                        {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
                         Démarrer
                     </Button>
                 )}
@@ -505,10 +513,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     <Button
                         size="sm"
                         onClick={handleLeave}
-                        disabled={loading}
+                        disabled={isPending}
                         className="bg-orange-600/80 hover:bg-orange-500 text-white"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 mr-1" />}
+                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 mr-1" />}
                         Quitter
                     </Button>
                 )}

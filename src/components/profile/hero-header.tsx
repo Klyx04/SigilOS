@@ -44,6 +44,9 @@ interface HeroHeaderProps {
     contributorTier?: ContributorTier;
     rank?: number;
     isOnVacation?: boolean;
+    isUpcomingVacation?: boolean;
+    vacationStart?: Date | null;
+    vacationEnd?: Date | null;
     joinedAt?: Date | null;
     xp: number;
     weeklyXp: number;
@@ -58,6 +61,9 @@ export function HeroHeader({
     contributorTier = null,
     rank,
     isOnVacation = false,
+    isUpcomingVacation = false,
+    vacationStart,
+    vacationEnd,
     joinedAt,
     xp,
     weeklyXp,
@@ -138,6 +144,12 @@ export function HeroHeader({
                                 <Badge className="bg-cyan-500/15 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20">
                                     <Palmtree className="w-3 h-3 mr-1" />
                                     En Congés
+                                </Badge>
+                            )}
+                            {isUpcomingVacation && vacationStart && (
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20">
+                                    <Palmtree className="w-3 h-3 mr-1" />
+                                    Absence : {vacationStart.toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}
                                 </Badge>
                             )}
                             {joinedAt && (

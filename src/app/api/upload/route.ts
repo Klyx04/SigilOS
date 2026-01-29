@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { processImage, MAX_FILE_SIZE } from "@/lib/image-processor";
+import { processImage, MAX_FILE_SIZE, optimizeForOcr } from "@/lib/image-processor";
 import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
@@ -73,18 +73,60 @@ export async function POST(request: NextRequest) {
         }
         const processedBuffer = processResult.data;
 
-        // 5. OCR Analysis (Placeholder / TODO)
-        // In a real scenario, we would run Tesseract/Vision here on `processedBuffer`.
-        // For now, we simulate a check. 
-        // If we firmly believe it's valid, we set `isAutoValidated = true`.
-        // Currently, we default to FALSE to force manual check as requested by user fallback.
-        const isAutoValidated = false; // TODO: Connect real OCR
+        // 5. OCR Analysis
+        let isAutoValidated = false;
+        let ocrValidationResult: any = null;
 
-        const ocrResult = {
+        try {
+            // Fetch mission context for smarter OCR
+            const mission = await db.mission.findUnique({
+                where: { id: missionId }
+            });
+
+            if (mission) {
+                // Pass the processed (Color) buffer to OCR logic to allow color detection (Green Checkmark)
+                // The OCR service will handle specific optimization for text recognition internally
+                const { analyzeMissionScreenshot, shouldAutoValidate } = await import("@/lib/ocr");
+
+                // Enrich payload with mission title for Songes level/palier extraction
+                const enrichedPayload = {
+                    ...(mission.payload as any),
+                    missionTitle: mission.title
+                };
+
+                ocrValidationResult = await analyzeMissionScreenshot(
+                    processedBuffer,
+                    mission.category,
+                    enrichedPayload
+                );
+
+                isAutoValidated = shouldAutoValidate(ocrValidationResult);
+
+                console.log(`[Upload] OCR Result for Mission ${missionId}:`, {
+                    valid: isAutoValidated,
+                    score: ocrValidationResult.score,
+                    matches: ocrValidationResult.matchedElements
+                });
+            }
+        } catch (ocrErr) {
+            console.warn("[Upload] OCR Analysis failed:", ocrErr);
+            // Non-blocking error
+        }
+
+        const ocrResult = ocrValidationResult ? {
             isValid: isAutoValidated,
-            score: isAutoValidated ? 100 : 0,
-            confidence: isAutoValidated ? 100 : 0,
-            missingElements: isAutoValidated ? [] : ["Validation manuelle requise"]
+            score: ocrValidationResult.score,
+            confidence: ocrValidationResult.confidence,
+            matchedElements: ocrValidationResult.matchedElements,
+            missingElements: ocrValidationResult.missingElements,
+            categoryMatch: ocrValidationResult.categoryMatch,
+            contentMatch: ocrValidationResult.contentMatch,
+            victoryDetected: ocrValidationResult.victoryDetected
+        } : {
+            isValid: false, // Default to manual
+            score: 0,
+            confidence: 0,
+            missingElements: ["Validation manuelle requise"]
         };
 
         let publicUrl: string | null = null;

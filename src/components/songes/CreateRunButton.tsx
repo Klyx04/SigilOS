@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,33 +24,32 @@ import { useRouter } from "next/navigation";
 
 export function CreateRunButton({ guildId }: { guildId: string }) {
     const [open, setOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [difficulty, setDifficulty] = useState<DifficultyKey>("REVE_III");
     // Change to array
     const [objectives, setObjectives] = useState<ObjectiveKey[]>([]);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
 
-    const handleCreate = async () => {
+    const handleCreate = () => {
         if (objectives.length === 0) {
             setError("Veuillez sélectionner au moins un objectif.");
             return;
         }
-        setLoading(true);
         setError(null);
 
-        // Send array to server action
-        const result = await createDreamRun(guildId, { difficulty, objectives });
+        startTransition(async () => {
+            // Send array to server action
+            const result = await createDreamRun(guildId, { difficulty, objectives });
 
-        if (result.success) {
-            setOpen(false);
-            setObjectives([]); // Reset
-            router.refresh();
-        } else {
-            setError(result.error || "Erreur inconnue");
-        }
-
-        setLoading(false);
+            if (result.success) {
+                setOpen(false);
+                setObjectives([]); // Reset
+                router.refresh();
+            } else {
+                setError(result.error || "Erreur inconnue");
+            }
+        });
     };
 
     const toggleObjective = (obj: ObjectiveKey) => {
@@ -165,10 +164,10 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                     {/* Submit */}
                     <Button
                         onClick={handleCreate}
-                        disabled={loading}
+                        disabled={isPending}
                         className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500"
                     >
-                        {loading ? (
+                        {isPending ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                                 Création...

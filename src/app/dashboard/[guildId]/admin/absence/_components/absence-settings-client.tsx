@@ -69,16 +69,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
     }
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-8">
-            <div className="flex items-center gap-4">
-                <Link href={`/dashboard/${guildId}/admin`} className="p-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Gestion des Absences</h1>
-                    <p className="text-zinc-400 text-sm">Automatisez le suivi des congés de vos membres via Discord.</p>
-                </div>
-            </div>
+        <div className="space-y-8">
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}

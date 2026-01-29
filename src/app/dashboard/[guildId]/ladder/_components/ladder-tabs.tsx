@@ -19,7 +19,7 @@ type Props = {
 
 export function LadderTabs({ guildId }: Props) {
     const [activeTab, setActiveTab] = useState<"activity" | "seniority">("activity");
-    const [activityView, setActivityView] = useState<ActivityView>("monthly");
+    const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -87,6 +87,7 @@ export function LadderTabs({ guildId }: Props) {
                                 <SelectValue placeholder="Période" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="weekly">📅 Cette semaine</SelectItem>
                                 <SelectItem value="monthly">📅 Ce mois-ci</SelectItem>
                                 <SelectItem value="alltime">🏆 Global (All-Time)</SelectItem>
                             </SelectContent>

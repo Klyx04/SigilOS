@@ -66,19 +66,7 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
     }
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-8">
-            <div className="flex items-center gap-4">
-                <Link href={`/dashboard/${guildId}/admin`} className="p-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Moon className="w-6 h-6 text-purple-400" />
-                        Notifications Songes
-                    </h1>
-                    <p className="text-zinc-400 text-sm">Recevez des alertes Discord quand un joueur candidate à vos runs.</p>
-                </div>
-            </div>
+        <div className="space-y-8">
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}

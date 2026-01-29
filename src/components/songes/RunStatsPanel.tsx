@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, User, LogOut, UserMinus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ interface RunStatsPanelProps {
 
 export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }: RunStatsPanelProps) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -61,11 +62,13 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
         return profile?.classe || null;
     };
 
-    const handleKick = async (targetUserId: string) => {
+    const handleKick = (targetUserId: string) => {
         setLoadingAction(targetUserId);
-        await kickMember(guildId, run.id, targetUserId);
-        router.refresh();
-        setLoadingAction(null);
+        startTransition(async () => {
+            await kickMember(guildId, run.id, targetUserId);
+            router.refresh();
+            setLoadingAction(null);
+        });
     };
 
     const handleLeave = async () => {

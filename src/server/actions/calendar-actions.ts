@@ -1,35 +1,69 @@
 "use server";
 
 /**
- * Calendar Module - Server Actions
- * Handles guild events and attendance with strict RBAC.
+ * Calendar Module V2 - Server Actions
+ * Handles guild events with 5 Dofus types, roster management, and Discord sync.
  */
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
-import { PERMISSIONS } from "@/lib/permissions";
+
+// ============================================
+// LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
+// ============================================
+
+const GUILD_EVENT_TYPES = [
+    "RAID_OFFICIAL",
+    "EVENT_GUILD",
+    "SESSION_MISSIONS",
+    "SORTIE_FARM",
+    "ALMANAX_BONUS",
+    "GUILD_MISSION",
+    "SONGES_RUN",
+    "DUNGEON_FARM",
+    "SOCIAL",
+    "OFFICIAL_RESET"
+] as const;
+
+const EVENT_STATUSES = ["DRAFT", "PUBLISHED", "COMPLETED", "CANCELLED"] as const;
+const RECURRENCE_TYPES = ["UNIQUE", "WEEKLY", "MONTHLY"] as const;
 
 // ============================================
 // SCHEMAS
 // ============================================
 
-const CalendarEventSchema = z.object({
+const GuildEventSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
-    description: z.string().max(1000).optional(),
-    type: z.enum(["GUILD_MISSION", "SONGES_RUN", "DUNGEON_FARM", "SOCIAL", "OFFICIAL_RESET"]),
+    description: z.string().max(2000).optional(),
+    type: z.enum(GUILD_EVENT_TYPES),
+    status: z.enum(EVENT_STATUSES).optional().default("DRAFT"),
     startDate: z.date(),
     endDate: z.date(),
+    recurrence: z.enum(RECURRENCE_TYPES).optional().default("UNIQUE"),
     location: z.string().max(100).optional(),
-    maxAttendees: z.number().int().min(1).nullable().optional(),
+    maxParticipants: z.number().int().min(1).nullable().optional(),
+    notifyBefore: z.number().int().min(0).nullable().optional(),
+    metadata: z.any().optional(), // Dynamic per type
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
 });
 
+const RegisterEventSchema = z.object({
+    classe: z.string().max(50).optional(),
+    comment: z.string().max(200).optional(),
+});
+
 // ============================================
-// ACTIONS
+// TYPES
+// ============================================
+
+export type GuildEventInput = z.infer<typeof GuildEventSchema>;
+
+// ============================================
+// READ ACTIONS
 // ============================================
 
 /**
@@ -39,6 +73,12 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié", events: [] };
     if (!ctx.isMember) return { success: false, error: "Accès restreint aux membres", events: [] };
+
+    // SECURITY: Limit date range to prevent DB overload (max 60 days)
+    const MAX_RANGE_MS = 60 * 24 * 60 * 60 * 1000;
+    if (end.getTime() - start.getTime() > MAX_RANGE_MS) {
+        return { success: false, error: "Plage de dates trop large (max 60 jours)", events: [] };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -51,17 +91,36 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
             where: {
                 guildId: guildConfig.id,
                 startDate: { gte: start },
-                endDate: { lte: end }
+                endDate: { lte: end },
+                // Only show published events to non-admins
+                ...(ctx.canManageCalendar ? {} : { status: "PUBLISHED" })
             },
             include: {
                 creator: {
                     select: { name: true, image: true }
                 },
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                image: true,
+                                profiles: {
+                                    where: { guildId: guildConfig.id },
+                                    select: { discordNickname: true }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { position: "asc" }
+                },
                 _count: {
-                    select: { attendees: true }
+                    select: { participants: true }
                 }
             },
-            orderBy: { startDate: "asc" }
+            orderBy: { startDate: "asc" },
+            take: 500 // Limit max events per request
         });
 
         return { success: true, events };
@@ -72,14 +131,103 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 }
 
 /**
+ * Get event details with participants
+ */
+export async function getCalendarEventDetails(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            include: {
+                creator: { select: { id: true, name: true, image: true } },
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                image: true,
+                                profiles: {
+                                    where: { guildId: guildConfig.id },
+                                    select: { discordNickname: true }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { position: "asc" }
+                }
+            }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        return { success: true, event };
+    } catch (error) {
+        console.error("[Calendar] getEventDetails Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Get upcoming events for widget
+ */
+export async function getUpcomingEvents(guildId: string, days: number = 7) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié", events: [] };
+    if (!ctx.isMember) return { success: false, error: "Membre requis", events: [] };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée", events: [] };
+
+        const now = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + days);
+
+        const events = await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                startDate: { gte: now, lte: endDate },
+                status: "PUBLISHED"
+            },
+            include: {
+                _count: { select: { participants: true } }
+            },
+            orderBy: { startDate: "asc" },
+            take: 5
+        });
+
+        return { success: true, events };
+    } catch (error) {
+        console.error("[Calendar] getUpcomingEvents Error:", error);
+        return { success: false, error: "Erreur serveur", events: [] };
+    }
+}
+
+// ============================================
+// WRITE ACTIONS
+// ============================================
+
+/**
  * Create a new guild event
  */
-export async function createCalendarEvent(guildId: string, data: z.infer<typeof CalendarEventSchema>) {
+export async function createCalendarEvent(guildId: string, data: GuildEventInput) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.canManageCalendar) return { success: false, error: "Permission requise: Gérer le calendrier" };
 
-    const validated = CalendarEventSchema.safeParse(data);
+    const validated = GuildEventSchema.safeParse(data);
     if (!validated.success) return { success: false, error: validated.error.errors[0].message };
 
     try {
@@ -108,12 +256,12 @@ export async function createCalendarEvent(guildId: string, data: z.infer<typeof 
 /**
  * Update an existing event
  */
-export async function updateCalendarEvent(guildId: string, eventId: string, data: z.infer<typeof CalendarEventSchema>) {
+export async function updateCalendarEvent(guildId: string, eventId: string, data: GuildEventInput) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
-    const validated = CalendarEventSchema.safeParse(data);
+    const validated = GuildEventSchema.safeParse(data);
     if (!validated.success) return { success: false, error: validated.error.errors[0].message };
 
     try {
@@ -164,13 +312,89 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 }
 
 /**
- * RSVP to an event
+ * Publish an event (DRAFT -> PUBLISHED)
  */
-export async function respondToCalendarEvent(
+export async function publishEvent(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        await db.guildEvent.update({
+            where: { id: eventId, guildId: guildConfig.id },
+            data: { status: "PUBLISHED" }
+        });
+
+        // TODO: Create Discord embed here
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Calendar] publishEvent Error:", error);
+        return { success: false, error: "Erreur lors de la publication" };
+    }
+}
+
+/**
+ * Complete an event (PUBLISHED -> COMPLETED) and distribute points
+ */
+export async function completeEvent(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            include: { participants: { where: { status: "REGISTERED" } } }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
+
+        // Distribute XP based on event type
+        const xpReward = event.type === "RAID_OFFICIAL" ? 50 : 20;
+        const captainBonus = 10;
+
+        // Update event status
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: { status: "COMPLETED" }
+        });
+
+        // TODO: Distribute XP to participants via UserProfile update
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, participantsReward: event.participants.length, xpReward };
+    } catch (error) {
+        console.error("[Calendar] completeEvent Error:", error);
+        return { success: false, error: "Erreur lors de la clôture" };
+    }
+}
+
+// ============================================
+// REGISTRATION ACTIONS
+// ============================================
+
+/**
+ * Register for an event
+ */
+export async function registerForEvent(
     guildId: string,
     eventId: string,
-    status: "GOING" | "MAYBE" | "DECLINED",
-    comment?: string
+    data?: z.infer<typeof RegisterEventSchema>
 ) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -185,42 +409,73 @@ export async function respondToCalendarEvent(
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            include: { _count: { select: { attendees: { where: { status: "GOING" } } } } }
+            include: {
+                _count: { select: { participants: { where: { status: "REGISTERED" } } } },
+                participants: { where: { userId: ctx.id! } }
+            }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
+        if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
 
-        // Check capacity if going
-        if (status === "GOING" && event.maxAttendees && event._count.attendees >= event.maxAttendees) {
-            // Check if user is already GOING (updating comment)
-            const existing = await db.eventAttendee.findUnique({
-                where: { eventId_userId: { eventId, userId: ctx.id! } }
+        // Check raid 1/week rule
+        if (event.type === "RAID_OFFICIAL") {
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+            weekStart.setHours(0, 0, 0, 0);
+
+            const existingRaid = await db.eventParticipant.findFirst({
+                where: {
+                    userId: ctx.id!,
+                    status: "REGISTERED",
+                    event: {
+                        guildId: guildConfig.id,
+                        type: "RAID_OFFICIAL",
+                        status: "COMPLETED",
+                        startDate: { gte: weekStart }
+                    }
+                }
             });
-            if (!existing || existing.status !== "GOING") {
-                return { success: false, error: "Désolé, cet événement est complet" };
+
+            if (existingRaid) {
+                return { success: false, error: "Tu as déjà participé à un Raid cette semaine" };
             }
         }
 
-        await db.eventAttendee.upsert({
-            where: { eventId_userId: { eventId, userId: ctx.id! } },
-            update: { status, comment },
-            create: { eventId, userId: ctx.id!, status, comment }
+        // Determine position (titulaire or reserve)
+        const currentCount = event._count.participants;
+        const maxParticipants = event.maxParticipants || 999;
+        const isReserve = currentCount >= maxParticipants;
+
+        await db.eventParticipant.create({
+            data: {
+                eventId,
+                userId: ctx.id!,
+                status: isReserve ? "RESERVE" : "REGISTERED",
+                position: currentCount + 1,
+                classe: data?.classe,
+                comment: data?.comment
+            }
         });
 
+        // TODO: Update Discord embed
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true };
+        return { success: true, isReserve };
     } catch (error) {
-        console.error("[Calendar] respondToEvent Error:", error);
+        console.error("[Calendar] registerForEvent Error:", error);
         return { success: false, error: "Erreur lors de l'inscription" };
     }
 }
 
 /**
- * Get event details with attendees
+ * Unregister from an event
  */
-export async function getCalendarEventDetails(guildId: string, eventId: string) {
+export async function unregisterFromEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isMember) return { success: false, error: "Membre requis" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -229,23 +484,468 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+        const participant = await db.eventParticipant.findUnique({
+            where: { eventId_userId: { eventId, userId: ctx.id! } },
+            include: { event: true }
+        });
+
+        if (!participant) return { success: false, error: "Non inscrit" };
+
+        const wasRegistered = participant.status === "REGISTERED";
+
+        // Delete participation
+        await db.eventParticipant.delete({
+            where: { id: participant.id }
+        });
+
+        // Auto-promote first reserve if was registered
+        if (wasRegistered) {
+            const firstReserve = await db.eventParticipant.findFirst({
+                where: { eventId, status: "RESERVE" },
+                orderBy: { position: "asc" }
+            });
+
+            if (firstReserve) {
+                await db.eventParticipant.update({
+                    where: { id: firstReserve.id },
+                    data: {
+                        status: "REGISTERED",
+                        promotedAt: new Date()
+                    }
+                });
+                // TODO: Send Discord DM to promoted user
+            }
+        }
+
+        // Reorder positions
+        await reorderParticipants(eventId);
+
+        // TODO: Update Discord embed
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Calendar] unregisterFromEvent Error:", error);
+        return { success: false, error: "Erreur lors de la désinscription" };
+    }
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+async function reorderParticipants(eventId: string) {
+    const participants = await db.eventParticipant.findMany({
+        where: { eventId },
+        orderBy: { position: "asc" }
+    });
+
+    for (let i = 0; i < participants.length; i++) {
+        await db.eventParticipant.update({
+            where: { id: participants[i].id },
+            data: { position: i + 1 }
+        });
+    }
+}
+
+// ============================================
+// REMINDER ACTIONS
+// ============================================
+
+/**
+ * Send reminder notifications to all participants
+ * Also sends a Discord reminder embed if configured
+ * Only event creator or admin can trigger
+ * @param pingRoleId - Optional role ID to mention (use "everyone" for @everyone)
+ */
+export async function sendEventReminder(guildId: string, eventId: string, pingRoleId?: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, name: true, calendarNotifyChannelId: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
             include: {
-                attendees: {
-                    include: {
-                        user: { select: { name: true, image: true } }
-                    },
-                    orderBy: { updatedAt: "desc" }
+                participants: {
+                    where: { status: { in: ["REGISTERED", "RESERVE"] } },
+                    include: { user: { select: { id: true, name: true } } }
                 }
             }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        return { success: true, event };
+        // Check permission: must be creator or have calendar management
+        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul l'organisateur peut envoyer des rappels" };
+        }
+
+        // Check if already reminded recently (within 30 min)
+        if (event.lastRemindedAt) {
+            const minsSinceReminder = (Date.now() - event.lastRemindedAt.getTime()) / 60000;
+            if (minsSinceReminder < 30) {
+                return { success: false, error: `Rappel déjà envoyé il y a ${Math.round(minsSinceReminder)} minutes` };
+            }
+        }
+
+        // Import notification helper
+        const { createNotification } = await import("./notification-actions");
+
+        // Format event time
+        const { format, formatDistanceToNow } = await import("date-fns");
+        const { fr } = await import("date-fns/locale");
+        const eventTime = format(event.startDate, "EEEE d MMMM à HH:mm", { locale: fr });
+        const timeUntil = formatDistanceToNow(event.startDate, { locale: fr, addSuffix: false });
+
+        // Send in-app notifications to all participants
+        let sentCount = 0;
+        for (const participant of event.participants) {
+            await createNotification(
+                participant.user.id,
+                "SYSTEM_INFO",
+                `🔔 Rappel: ${event.title}`,
+                `L'événement commence ${eventTime}. N'oublie pas de te connecter !`,
+                `/dashboard/${guildId}/calendar`
+            );
+            sentCount++;
+        }
+
+        // Send Discord reminder if channel is configured
+        let discordSent = false;
+        if (guildConfig.calendarNotifyChannelId) {
+            // Validate channel belongs to guild
+            const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(guildConfig.calendarNotifyChannelId, guildId);
+
+            if (isValidChannel) {
+                // Get type config for emoji and color
+                const typeConfig = {
+                    RAID_OFFICIAL: { emoji: "⚔️", color: 0xef4444 },
+                    EVENT_GUILD: { emoji: "🎉", color: 0x8b5cf6 },
+                    SESSION_MISSIONS: { emoji: "🎯", color: 0x3b82f6 },
+                    SORTIE_FARM: { emoji: "🌾", color: 0x22c55e },
+                    ALMANAX_BONUS: { emoji: "✨", color: 0xf59e0b },
+                    GUILD_MISSION: { emoji: "📋", color: 0x06b6d4 },
+                    SONGES_RUN: { emoji: "🌙", color: 0x6366f1 },
+                    DUNGEON_FARM: { emoji: "🏰", color: 0xec4899 },
+                    SOCIAL: { emoji: "🍻", color: 0xf97316 },
+                    OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b }
+                }[event.type] || { emoji: "📅", color: 0x9333ea };
+
+                // Format date/time
+                const dateStr = format(event.startDate, "EEEE d MMMM", { locale: fr });
+                const timeStr = event.endDate
+                    ? `${format(event.startDate, "HH:mm")} - ${format(event.endDate, "HH:mm")}`
+                    : format(event.startDate, "HH:mm");
+
+                // Build mention content
+                let mentionContent = "";
+                if (pingRoleId) {
+                    if (pingRoleId === "everyone") {
+                        mentionContent = "@everyone";
+                    } else {
+                        mentionContent = `<@&${pingRoleId}>`;
+                    }
+                }
+
+                // Registered participants count
+                const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
+
+                // Create urgency embed for reminder
+                discordSent = await sendChannelMessage(
+                    guildConfig.calendarNotifyChannelId,
+                    mentionContent,
+                    {
+                        embedTitle: `⏰ RAPPEL: ${event.title}`,
+                        embedColor: 0xff6b35, // Orange urgence
+                        embedFooter: `SigilOS • ${guildConfig.name}`,
+                        fields: [
+                            { name: "⏱️ Commence dans", value: `**${timeUntil}**`, inline: true },
+                            { name: "📆 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
+                            { name: "⏰ Horaire", value: timeStr, inline: true },
+                            { name: "👥 Inscrits", value: `${registeredCount}${event.maxParticipants ? `/${event.maxParticipants}` : ""} participants`, inline: true },
+                            { name: `${typeConfig.emoji} Type`, value: event.type.replace(/_/g, " "), inline: true },
+                            { name: "💡 Rappel", value: "Préparez-vous, l'événement arrive bientôt !", inline: false }
+                        ]
+                    }
+                );
+            }
+        }
+
+        // Update lastRemindedAt
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: { lastRemindedAt: new Date() }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, sentCount, discordSent };
     } catch (error) {
-        console.error("[Calendar] getEventDetails Error:", error);
-        return { success: false, error: "Erreur serveur" };
+        console.error("[Calendar] sendEventReminder Error:", error);
+        return { success: false, error: "Erreur lors de l'envoi des rappels" };
+    }
+}
+
+/**
+ * Get events that need reminders (for cron job)
+ * Returns events where:
+ * - status = PUBLISHED
+ * - startDate is within notifyBefore minutes
+ * - lastRemindedAt is null or was more than notifyBefore ago
+ */
+export async function getEventsNeedingReminders() {
+    try {
+        const now = new Date();
+
+        const events = await db.guildEvent.findMany({
+            where: {
+                status: "PUBLISHED",
+                startDate: { gt: now },
+                notifyBefore: { not: null }
+            },
+            include: {
+                guild: { select: { discordGuildId: true } },
+                participants: {
+                    where: { status: { in: ["REGISTERED", "RESERVE"] } },
+                    include: { user: { select: { id: true } } }
+                }
+            }
+        });
+
+        // Filter events that need reminder
+        const needsReminder = events.filter(event => {
+            if (!event.notifyBefore) return false;
+
+            const msUntilEvent = event.startDate.getTime() - now.getTime();
+            const notifyAtMs = event.notifyBefore * 60 * 1000;
+
+            // Event is within notify window
+            if (msUntilEvent > notifyAtMs) return false;
+
+            // Not already reminded
+            if (event.lastRemindedAt) {
+                const msSinceReminder = now.getTime() - event.lastRemindedAt.getTime();
+                // Don't remind again if already reminded within the window
+                if (msSinceReminder < notifyAtMs) return false;
+            }
+
+            return true;
+        });
+
+        return { success: true, events: needsReminder };
+    } catch (error) {
+        console.error("[Calendar] getEventsNeedingReminders Error:", error);
+        return { success: false, events: [] };
+    }
+}
+
+// ============================================
+// AUTO-CLOSE EXPIRED EVENTS
+// ============================================
+
+/**
+ * Auto-close events that have passed their end date
+ * Called on dashboard load or via cron job
+ */
+export async function autoCloseExpiredEvents(guildId: string) {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, closedCount: 0 };
+
+        const now = new Date();
+
+        // Find published events that have ended
+        const expiredEvents = await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "PUBLISHED",
+                endDate: { lt: now }
+            },
+            select: { id: true, title: true }
+        });
+
+        if (expiredEvents.length === 0) {
+            return { success: true, closedCount: 0 };
+        }
+
+        // Mark them as COMPLETED
+        await db.guildEvent.updateMany({
+            where: {
+                id: { in: expiredEvents.map(e => e.id) }
+            },
+            data: {
+                status: "COMPLETED"
+            }
+        });
+
+        console.log(`[Calendar] Auto-closed ${expiredEvents.length} expired events`);
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, closedCount: expiredEvents.length };
+    } catch (error) {
+        console.error("[Calendar] autoCloseExpiredEvents Error:", error);
+        return { success: false, closedCount: 0 };
+    }
+}
+
+// ============================================
+// DISCORD NOTIFICATION
+// ============================================
+
+const pingRateLimit = new Map<string, number>();
+const PING_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Send event to Discord channel as rich embed
+ * Rate limited: 1 notification per event per 5 minutes
+ * @param pingRoleId - Optional role ID to mention (use "everyone" for @everyone)
+ */
+export async function sendCalendarDiscordNotification(guildId: string, eventId: string, pingRoleId?: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                calendarNotifyChannelId: true,
+                name: true
+            }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+        if (!guildConfig.calendarNotifyChannelId) {
+            return { success: false, error: "Salon Discord non configuré. Allez dans Admin > Calendrier." };
+        }
+
+        // SECURITY: Validate channel belongs to this guild
+        const { validateChannelBelongsToGuild } = await import("@/server/discord");
+        const isValidChannel = await validateChannelBelongsToGuild(guildConfig.calendarNotifyChannelId, guildId);
+        if (!isValidChannel) {
+            return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
+        }
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            include: {
+                participants: {
+                    where: { status: "REGISTERED" }
+                }
+            }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        // Permission check: must be creator or admin
+        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul l'organisateur peut partager l'événement" };
+        }
+
+        // Rate limit check
+        const lastPing = pingRateLimit.get(eventId);
+        if (lastPing && Date.now() - lastPing < PING_COOLDOWN) {
+            const minutesLeft = Math.ceil((PING_COOLDOWN - (Date.now() - lastPing)) / 60000);
+            return { success: false, error: `Veuillez attendre ${minutesLeft} minute(s) avant de renvoyer une notification.` };
+        }
+
+        // Format date
+        const { format } = await import("date-fns");
+        const { fr } = await import("date-fns/locale");
+        const dateStr = format(event.startDate, "EEEE d MMMM", { locale: fr });
+        const timeStr = `${format(event.startDate, "HH:mm")} - ${format(event.endDate ? event.endDate : event.startDate, "HH:mm")}`;
+
+        // Event type config
+        const typeLabels: Record<string, { emoji: string; color: number }> = {
+            RAID_OFFICIAL: { emoji: "⚔️", color: 0xef4444 },
+            EVENT_GUILD: { emoji: "🎉", color: 0xa855f7 },
+            SESSION_MISSIONS: { emoji: "🎯", color: 0xf59e0b },
+            SORTIE_FARM: { emoji: "🌾", color: 0x22c55e },
+        };
+        const typeConfig = typeLabels[event.type] || { emoji: "📅", color: 0xf59e0b };
+
+        // Build embed fields
+        const participantCount = event.participants.length;
+        const maxStr = event.maxParticipants ? `${participantCount}/${event.maxParticipants}` : `${participantCount}`;
+
+        // Build mention content
+        let mentionContent = "";
+        if (pingRoleId) {
+            if (pingRoleId === "everyone") {
+                mentionContent = "@everyone";
+            } else {
+                mentionContent = `<@&${pingRoleId}>`;
+            }
+        }
+
+        // Send Discord message
+        const { sendChannelMessage } = await import("@/server/discord");
+        const success = await sendChannelMessage(
+            guildConfig.calendarNotifyChannelId,
+            mentionContent, // Role mention if specified
+            {
+                embedTitle: `${typeConfig.emoji} ${event.title}`,
+                embedColor: typeConfig.color,
+                embedFooter: `SigilOS • Calendrier ${guildConfig.name}`,
+                fields: [
+                    { name: "📆 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
+                    { name: "⏰ Horaire", value: timeStr, inline: true },
+                    { name: "👥 Places", value: maxStr, inline: true },
+                    ...(event.description ? [{ name: "📝 Description", value: event.description.slice(0, 200) + (event.description.length > 200 ? "..." : "") }] : []),
+                ]
+            }
+        );
+
+        if (!success) {
+            return { success: false, error: "Échec de l'envoi. Vérifiez les permissions du bot." };
+        }
+
+        // Update rate limit cache
+        pingRateLimit.set(eventId, Date.now());
+
+        console.log(`[Calendar] Discord notification sent for event ${event.title}`);
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Calendar] sendCalendarDiscordNotification Error:", error);
+        return { success: false, error: "Erreur lors de l'envoi" };
+    }
+}
+
+
+/**
+ * Get Discord roles for calendar notifications
+ * Used to populate the role selection dropdown
+ */
+export async function getDiscordRolesForCalendar(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.canManageCalendar) {
+        return [];
+    }
+
+    try {
+        const { fetchGuildRoles } = await import("@/server/discord");
+        const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
+
+        // Filter out @everyone (role with id === guildId) and return mentionable roles
+        return roles
+            .filter(role => role.id !== guildId && role.name !== "@everyone")
+            .map(role => ({
+                id: role.id,
+                name: role.name,
+                color: role.color
+            }));
+    } catch (error) {
+        console.error("[Calendar] getDiscordRolesForCalendar Error:", error);
+        return [];
     }
 }

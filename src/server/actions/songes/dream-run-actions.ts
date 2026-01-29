@@ -753,33 +753,39 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             if (rawMessage.length > 200) rawMessage = rawMessage.slice(0, 200) + "...";
             const messageValue = rawMessage ? `>>> ${rawMessage}` : "*Aucun message personnalisé.*";
 
-            await sendChannelMessage(
-                guildConfig.songesNotifyChannelId,
-                `Un nouveau joueur souhaite rejoindre votre run.`,
-                {
-                    embedTitle: "📩 Nouvelle candidature Songes",
-                    embedUrl: dashboardUrl,
-                    embedColor,
-                    embedAuthor: {
-                        name: `Run de ${leaderName}`,
-                        // iconUrl: could be leader avatar if we had it easily
-                    },
-                    embedThumbnail: "https://plutonio.fr/i/sigil_songes.png", // Generic or specific icon if available
-                    fields: [
-                        { name: "👤 Candidat", value: candidateValue, inline: true },
-                        { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
-                        { name: "💀 Difficulté", value: `\`${difficultyDisplay}\``, inline: true },
+            // SECURITY: Validate channel belongs to this guild before sending
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(guildConfig.songesNotifyChannelId, run.guildId);
 
-                        { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
-                        { name: "📅 Date", value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
-                        { name: "\u200b", value: "\u200b", inline: true }, // Spacer
+            if (isValidChannel) {
+                await sendChannelMessage(
+                    guildConfig.songesNotifyChannelId,
+                    `Un nouveau joueur souhaite rejoindre votre run.`,
+                    {
+                        embedTitle: "📩 Nouvelle candidature Songes",
+                        embedUrl: dashboardUrl,
+                        embedColor,
+                        embedAuthor: {
+                            name: `Run de ${leaderName}`,
+                            // iconUrl: could be leader avatar if we had it easily
+                        },
+                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png", // Generic or specific icon if available
+                        fields: [
+                            { name: "👤 Candidat", value: candidateValue, inline: true },
+                            { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
+                            { name: "💀 Difficulté", value: `\`${difficultyDisplay}\``, inline: true },
 
-                        { name: "📝 Message du joueur", value: messageValue, inline: false },
-                    ],
-                    embedFooter: `SigilOS • Gestion des Songes`,
-                    mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
-                }
-            );
+                            { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
+                            { name: "📅 Date", value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+                            { name: "\u200b", value: "\u200b", inline: true }, // Spacer
+
+                            { name: "📝 Message du joueur", value: messageValue, inline: false },
+                        ],
+                        embedFooter: `SigilOS • Gestion des Songes`,
+                        mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
+                    }
+                );
+            } // End isValidChannel
         }
     }
 

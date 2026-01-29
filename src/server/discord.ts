@@ -134,6 +134,55 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
 }
 
 /**
+ * Fetch channel info from Discord API
+ */
+export async function fetchChannel(channelId: string) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 60 }
+    });
+
+    if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error(`Failed to fetch channel: ${res.statusText}`);
+    }
+
+    return (await res.json()) as {
+        id: string;
+        guild_id?: string;
+        name: string;
+        type: number;
+    };
+}
+
+/**
+ * SECURITY: Validate that a channel belongs to the specified guild
+ * Prevents cross-guild message injection attacks
+ */
+export async function validateChannelBelongsToGuild(channelId: string, guildId: string): Promise<boolean> {
+    try {
+        const channel = await fetchChannel(channelId);
+        if (!channel) {
+            console.warn(`[Discord Security] Channel ${channelId} not found`);
+            return false;
+        }
+
+        if (channel.guild_id !== guildId) {
+            console.error(`[Discord Security] BLOCKED: Channel ${channelId} belongs to guild ${channel.guild_id}, not ${guildId}`);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("[Discord Security] Channel validation failed:", error);
+        return false;
+    }
+}
+
+/**
  * Discord embed field
  */
 interface EmbedField {
@@ -180,10 +229,16 @@ export async function sendChannelMessage(
     if (options?.embedTitle) {
         const embed: Record<string, unknown> = {
             title: options.embedTitle,
-            description: content,
             color: options.embedColor ?? 0x9333ea, // Purple by default
             timestamp: new Date().toISOString(),
         };
+
+        // Add description only if content is provided and not a mention
+        // Mentions should go in body.content, not embed.description
+        const isMention = content.startsWith("@") || content.startsWith("<@");
+        if (content && !isMention) {
+            embed.description = content;
+        }
 
         // Clickable title URL
         if (options.embedUrl) {
@@ -224,12 +279,26 @@ export async function sendChannelMessage(
 
         body.embeds = [embed];
 
-        // Add content with mentions to trigger pings (outside embed)
+        // Add mention content to trigger pings (must be in body.content)
+        if (content && isMention) {
+            body.content = content;
+        }
+
+        // Add mentionContent option if provided
         if (options.mentionContent) {
             body.content = options.mentionContent;
         }
+
+        // Allow mentions to actually ping users/roles
+        body.allowed_mentions = {
+            parse: ["users", "roles", "everyone"]
+        };
     } else {
         body.content = content;
+        // Allow mentions in plain messages too
+        body.allowed_mentions = {
+            parse: ["users", "roles", "everyone"]
+        };
     }
 
     try {

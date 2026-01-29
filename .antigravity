@@ -502,6 +502,15 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Forgemagie Pricing:** Differentiated pricing (Classic/Trans/Exo) in Profile & Directory.
     - [x] **Security Hardening:** Rate Limiting on notification/updates, strict Date validation, Zod schemas enforcement.
 
+18. **Phase 18: Calendar V2 (COMPLETE - 2026-01-29):**
+    - [x] **Grid View UX:** Modern responsive grid with enriched event cards (Date, Creator, Participants).
+    - [x] **Event Types:** Raid Official (with 1/week limit), Guild Event, Missions, Farming.
+    - [x] **Participant List:** Explicit vertical list with "Guild Nickname" priority (vs Global Name).
+    - [x] **Reminders System:** In-app notifications + Discord mentions (@everyone/Role) with duplicate check.
+    - [x] **Security Audit:** Max 60-day range limit, 500 events cap to prevent DoS. Max 1 notification/5min.
+    - [x] **Quick Actions:** Modal with "Participate/Queue" logic & class selection.
+    - [x] **Admin Tooling:** Publish/Complete flow, auto-close expired events logic.
+
 ---
 
 ## 5. Security Implementation Summary (Reference)

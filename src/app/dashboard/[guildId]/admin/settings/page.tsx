@@ -29,7 +29,7 @@ export default async function FeatureSettingsPage({
     }
 
     return (
-        <div className="space-y-6 pb-12">
+        <div className="space-y-8 pb-12 w-full max-w-[1600px] mx-auto">
             <UnifiedModuleHeader
                 title="Paramètres de Guilde"
                 description="Configuration des fonctionnalités avancées"
@@ -37,60 +37,100 @@ export default async function FeatureSettingsPage({
                 backHref={`/dashboard/${guildId}/admin`}
             />
 
-            {/* Settings Tabs */}
-            <Tabs defaultValue="absences" className="space-y-6">
-                <TabsList className="bg-zinc-900/60 border border-white/5 h-auto flex-wrap">
-                    <TabsTrigger value="absences" className="gap-2 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
-                        <Bell className="h-4 w-4" />
-                        Notifications Discord Absences
-                    </TabsTrigger>
-                    <TabsTrigger value="metamob" className="gap-2 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
-                        <Key className="h-4 w-4" />
-                        Intégration Metamob
-                    </TabsTrigger>
-                    <TabsTrigger value="songes" className="gap-2 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
-                        <Moon className="h-4 w-4" />
-                        Notifications Discord Songes
-                    </TabsTrigger>
-                    <TabsTrigger value="membres" className="gap-2 data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
-                        <Users className="h-4 w-4" />
-                        Gestion des Membres
-                    </TabsTrigger>
-                </TabsList>
+            {/* Custom "Command Deck" Tabs */}
+            <Tabs defaultValue="absences" className="space-y-8">
+                <div className="sticky top-[80px] z-30 bg-[#030304]/80 backdrop-blur-md py-4 border-b border-white/5 -mx-4 px-4 md:px-0 md:mx-0 md:border-b-0 md:bg-transparent md:backdrop-blur-none md:static">
+                    <TabsList className="w-full h-auto p-1 bg-zinc-900/50 backdrop-blur-sm border border-white/10 rounded-2xl flex justify-start overflow-x-auto no-scrollbar gap-1 custom-scrollbar-hide">
+                        <TabsTrigger
+                            value="absences"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400 data-[state=active]:shadow-[0_0_20px_rgba(34,211,238,0.1)] border border-transparent data-[state=active]:border-cyan-500/20"
+                        >
+                            <Bell className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Absences</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="metamob"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_20px_rgba(251,191,36,0.1)] border border-transparent data-[state=active]:border-amber-500/20"
+                        >
+                            <Key className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Metamob</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="songes"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:shadow-[0_0_20px_rgba(168,85,247,0.1)] border border-transparent data-[state=active]:border-purple-500/20"
+                        >
+                            <Moon className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Songes</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="membres"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.1)] border border-transparent data-[state=active]:border-emerald-500/20"
+                        >
+                            <Users className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Membres</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
                 {/* Absences Tab */}
-                <TabsContent value="absences" className="mt-6">
-                    <AbsenceSettingsClient guildId={guildId} />
+                <TabsContent value="absences" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Gestion des Absences</h2>
+                            <p className="text-zinc-400 max-w-2xl">Connectez un salon Discord pour automatiser le suivi des congés de vos membres. Le bot postera automatiquement un message récapitulatif.</p>
+                        </div>
+                        <AbsenceSettingsClient guildId={guildId} />
+                    </div>
                 </TabsContent>
 
                 {/* Metamob Tab */}
-                <TabsContent value="metamob" className="mt-6">
-                    <MetamobSettingsClient guildId={guildId} />
+                <TabsContent value="metamob" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Intégration Metamob</h2>
+                            <p className="text-zinc-400 max-w-2xl">Configurez une clé API Metamob unique pour synchroniser l'état des Archimonstres de toute la guilde.</p>
+                        </div>
+                        <div className="max-w-4xl">
+                            <MetamobSettingsClient guildId={guildId} />
+                        </div>
+                    </div>
                 </TabsContent>
 
                 {/* Songes Tab */}
-                <TabsContent value="songes" className="mt-6">
-                    <SongesSettingsClientEmbed guildId={guildId} />
+                <TabsContent value="songes" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Notifications Songes</h2>
+                            <p className="text-zinc-400 max-w-2xl">Recevez des alertes en temps réel sur Discord lorsqu'un membre postule à une run Songes Infinis.</p>
+                        </div>
+                        <SongesSettingsClientEmbed guildId={guildId} />
+                    </div>
                 </TabsContent>
 
                 {/* Membres Tab */}
-                <TabsContent value="membres" className="mt-6">
-                    <div className="max-w-4xl space-y-6">
-                        <div className="p-6 rounded-xl bg-zinc-900/60 border border-white/5">
-                            <h3 className="text-lg font-semibold text-white mb-4">Synchronisation Discord</h3>
-                            <p className="text-sm text-zinc-400 mb-4">
-                                Compare les membres du serveur Discord avec les profils en base de données.
-                                Archive automatiquement les profils des membres ayant quitté, et réactive
-                                ceux qui reviennent.
-                            </p>
-                            <MemberSyncButton guildId={guildId} />
+                <TabsContent value="membres" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Gestion des Membres</h2>
+                            <p className="text-zinc-400 max-w-2xl">Outils de maintenance pour la base de données des membres.</p>
                         </div>
-
-                        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                            <p className="text-sm text-amber-400">
-                                <strong>Note :</strong> En production, cette synchronisation s'exécute
-                                automatiquement chaque jour à 4h du matin via un cron job.
-                            </p>
+                        <div className="max-w-4xl space-y-6">
+                            <div className="p-8 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-sm relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-400" />
+                                    Synchronisation Discord
+                                </h3>
+                                <p className="text-sm text-zinc-400 mb-6 leading-relaxed max-w-xl">
+                                    Compare les membres du serveur Discord avec les profils en base de données.
+                                    Archive automatiquement les profils des membres ayant quitté, et réactive
+                                    ceux qui reviennent.
+                                </p>
+                                <div className="flex items-center gap-4">
+                                    <MemberSyncButton guildId={guildId} />
+                                    <span className="text-xs text-zinc-500 font-mono">Auto-sync: 04:00 AM</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </TabsContent>

@@ -493,6 +493,17 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 ---
 
+17. **Phase 17: UI/UX V3 & Guild Directory Polish (COMPLETE - 2026-01-29):**
+    - [x] **GalacticHeader V2:** Unified context-aware navigation, improved branding (Logo V2), and "Void Glass" design.
+    - [x] **Profile V3 (Bento Grid):** Premium glassmorphism UI, tabbed layout (General/Stuffs/Planning), dynamic stats grid.
+    - [x] **Vacation Mode V2:** Smart date logic (Future/Active), visible badges in Directory & Header ("Absence Prévue" vs "En Congés").
+    - [x] **Directory Polish:** Fixed job icons rendering, optimized class filters, added vacation status indicators.
+    - [x] **Settings Unification:** Single `/admin/settings` page with tabs for Absences, Metamob, Songes, and Member Sync.
+    - [x] **Forgemagie Pricing:** Differentiated pricing (Classic/Trans/Exo) in Profile & Directory.
+    - [x] **Security Hardening:** Rate Limiting on notification/updates, strict Date validation, Zod schemas enforcement.
+
+---
+
 ## 5. Security Implementation Summary (Reference)
 
 **API Routes Protection Pattern:**

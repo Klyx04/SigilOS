@@ -207,6 +207,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                                                 mode="single"
                                                 selected={field.value}
                                                 onSelect={field.onChange}
+                                                disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
                                                 initialFocus
                                                 className="bg-zinc-900 text-zinc-100"
                                             />

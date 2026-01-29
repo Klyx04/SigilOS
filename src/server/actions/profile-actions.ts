@@ -27,6 +27,9 @@ const UpdateProfileSchema = z.object({
     classeSecondaires: z.array(z.string()).optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
+    fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
+    fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
+    fmPriceExo: z.number().min(0, "Prix invalide").nullable().optional(),
 });
 
 // Schema allows both legacy map (for validation) and new GlobalAvailability structure
@@ -202,7 +205,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus } = validation.data;
+    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -221,6 +224,9 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
+                fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
+                fmPriceTrans: fmPriceTrans !== undefined ? fmPriceTrans : undefined,
+                fmPriceExo: fmPriceExo !== undefined ? fmPriceExo : undefined,
             },
             create: {
                 userId: session.user.id,
@@ -230,6 +236,9 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
+                fmPriceClassic: fmPriceClassic || null,
+                fmPriceTrans: fmPriceTrans || null,
+                fmPriceExo: fmPriceExo || null,
                 status: "ACTIVE"
             }
         });
@@ -617,6 +626,10 @@ export async function getGuildMembers(
 // DISCORD NOTIFICATIONS
 // ============================================================================
 
+// Rate Limiting needs to be outside the function scope to persist across calls (in stateful server environments)
+// Note: specifically for server actions in Next.js, this map persists as long as the lambda/container is warm.
+const notificationRateLimits = new Map<string, number>();
+
 export async function sendVacationNotification(rawData: z.infer<typeof SendVacationNotificationSchema>): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -624,6 +637,16 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
     const validation = SendVacationNotificationSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, pseudo, profileId, startDate, endDate } = validation.data;
+
+    // Rate Limiting Check
+    const now = Date.now();
+    const lastSent = notificationRateLimits.get(session.user.id);
+    const COOLDOWN = 60 * 1000; // 60 seconds
+
+    if (lastSent && now - lastSent < COOLDOWN) {
+        const remaining = Math.ceil((COOLDOWN - (now - lastSent)) / 1000);
+        return { success: false, error: `Veuillez patienter ${remaining}s avant de renvoyer une notification.` };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -647,6 +670,10 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         if (!guildConfig.absenceChannelId) {
             return { success: false, error: "Aucun salon configuré pour les notifications d'absence" };
         }
+
+        // Apply Rate Limit Update only before successful attempt logic (or after?)
+        // Applying before prevents spamming external API even if it fails, ensuring strict rate limit.
+        notificationRateLimits.set(session.user.id, now);
 
         // Use the SECURED pseudo from the database profile, not the provided one
         const securedPseudo = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
@@ -684,6 +711,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         });
 
         if (!response.ok) {
+            // Remove rate limit if it was a system error? No, keep it to prevent attack.
             const errorData = await response.json().catch(() => ({}));
             console.error("Discord API Error:", response.status, errorData);
             if (response.status === 403) {

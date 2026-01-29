@@ -153,6 +153,11 @@ export function VacationMode({
                                         selected={startDate}
                                         onSelect={setStartDate}
                                         locale={fr}
+                                        disabled={(date) => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            return date < today;
+                                        }}
                                     />
                                 </PopoverContent>
                             </Popover>
@@ -186,7 +191,13 @@ export function VacationMode({
                                             selected={endDate}
                                             onSelect={setEndDate}
                                             locale={fr}
-                                            disabled={(date) => startDate ? date < startDate : false}
+                                            disabled={(date) => {
+                                                const today = new Date();
+                                                today.setHours(0, 0, 0, 0);
+                                                if (date < today) return true;
+                                                if (startDate && date < startDate) return true;
+                                                return false;
+                                            }}
                                         />
                                     </PopoverContent>
                                 </Popover>

@@ -172,6 +172,11 @@ model UserProfile {
   // Jobs & Crafting
   metiers          Json? // String[] - List of max-level jobs
   forgemagieStatus String? @default("UNAVAILABLE") // "FREE" | "PAID" | "UNAVAILABLE"
+  
+  // Forgemagie Pricing (Kamas)
+  fmPriceClassic   Int? // Prix pour FM classique
+  fmPriceTrans     Int? // Prix pour passage rune Trans
+  fmPriceExo       Int? // Prix pour tentative Exo/Over
 
   // Achievements (V2)
   succes Json? // List of validated achievements

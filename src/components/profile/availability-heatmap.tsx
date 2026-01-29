@@ -165,10 +165,13 @@ export function AvailabilityHeatmap({
 
     const toggleSlot = (day: DayOfWeek, slot: TimeSlot) => {
         if (readOnly) return;
-        if (isVacation(day)) return; // Prevents editing during vacation
+        if (isVacation(day)) return;
+        if (isPast(day)) return; // Prevent editing past dates
 
         setGlobalData(prev => {
-            // If we are editing specific week but it was using template, we need to clone template first
+            // ... (rest of logic same as before, just ensuring we don't break indentation, but since I'm replacing the whole function start, I need to be careful. Actually, I will just replace the specific lines in the loop and the toggle function, but this tool requires contiguous blocks. I'll split into two edits for safety or replace the whole block if confident.)
+            // Wait, I can't replace `toggleSlot` AND the render loop in one contiguous block easily without including a huge chunk.
+            // I will replace `toggleSlot` first.
             const existingWeekData = prev.weeks?.[currentWeekKey];
             const baseData = existingWeekData || prev.template || {};
 
@@ -205,6 +208,14 @@ export function AvailabilityHeatmap({
         return today.getDate() === date.getDate() &&
             today.getMonth() === date.getMonth() &&
             today.getFullYear() === date.getFullYear();
+    };
+
+    const isPast = (day: DayOfWeek) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const date = new Date(weekDates[day]);
+        date.setHours(0, 0, 0, 0);
+        return date < today;
     };
 
     return (
@@ -310,6 +321,7 @@ export function AvailabilityHeatmap({
                                         {DAYS_OF_WEEK.map(day => {
                                             const isActive = isSlotActive(day, slot);
                                             const isVacationDay = isVacation(day);
+                                            const isPastDay = isPast(day);
                                             const isHovered = hoveredSlot?.day === day && hoveredSlot?.slot === slot;
 
                                             return (
@@ -318,20 +330,23 @@ export function AvailabilityHeatmap({
                                                         onClick={() => toggleSlot(day, slot)}
                                                         onMouseEnter={() => !readOnly && setHoveredSlot({ day, slot })}
                                                         onMouseLeave={() => !readOnly && setHoveredSlot(null)}
-                                                        disabled={readOnly || isVacationDay}
+                                                        disabled={readOnly || isVacationDay || isPastDay}
                                                         className={cn(
                                                             "w-14 h-11 rounded-lg transition-all duration-200 border transform relative overflow-hidden",
-                                                            // Normal State (No Vacation)
-                                                            !isVacationDay && isActive
+                                                            // Normal State (Active Future)
+                                                            !isVacationDay && !isPastDay && isActive
                                                                 ? cn(colors.bg, colors.border, "shadow-sm")
                                                                 : "bg-white/5 border-white/5",
 
-                                                            // Hover States (No Vacation)
-                                                            !readOnly && !isVacationDay && isHovered && !isActive && "scale-105 bg-white/10 border-white/20",
-                                                            !readOnly && !isVacationDay && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
+                                                            // Hover States (Active Future)
+                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && !isActive && "scale-105 bg-white/10 border-white/20",
+                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
+
+                                                            // Past State
+                                                            isPastDay && "cursor-not-allowed opacity-30 grayscale brightness-50 border-transparent",
 
                                                             // Vacation State (High Contrast Fix)
-                                                            isVacationDay && "cursor-not-allowed opacity-70 bg-red-900/10 border-red-500/20 grayscale-0",
+                                                            isVacationDay && !isPastDay && "cursor-not-allowed opacity-70 bg-red-900/10 border-red-500/20 grayscale-0",
                                                             readOnly && "cursor-default"
                                                         )}
                                                     >

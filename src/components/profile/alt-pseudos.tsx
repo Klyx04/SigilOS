@@ -33,7 +33,7 @@ export function AltPseudos({
     // Format: First letter cap, rest lowercase/alphanumeric, optional hyphen
     const formatPseudo = (value: string) => {
         // Remove characters that aren't letters, numbers, or hyphens
-        let cleaned = value.replace(/[^a-zA-Z0-9-]/g, "");
+        const cleaned = value.replace(/[^a-zA-Z0-9-]/g, "");
 
         // Ensure only one hyphen max (optional, Dofus rule is looser but good for clean data)
         // cleaned = cleaned.replace(/-+/g, "-"); 

@@ -46,8 +46,9 @@ src/
 
 ## 🧪 Before Commit Checklist
 
-- [ ] `npm run build` passes
+- [ ] `npm run build` passes localement
 - [ ] No TypeScript errors
+- [ ] SIGIL-CI (Robot) s'affiche en vert sur GitHub après le push
 - [ ] All new actions have auth checks
 - [ ] Sensitive routes have permission guards
 - [ ] No `console.log` in production code (use `console.error` for errors only)
@@ -59,53 +60,65 @@ src/
 ### 1. Branching Strategy
 | Branch | Role | Rules |
 |--------|------|-------|
-| `main` | Production | 🔴 **Protected**. No direct commits. Deployable code only. |
-| `dev` | Staging / Integration | 🟠 **Protected**. Integration branch. PRs land here. |
-| `feat/*` | New Features | Source: `dev`. Example: `feat/mission-board` |
-| `fix/*` | Bug Fixes | Source: `dev` (or `main` for hotfix). Example: `fix/upload-error` |
+| `main` | **Production** | 🔴 **Protected**. The "Real" Site. Updated only from `dev`. |
+| `dev` | **Beta / Testing** | 🟠 **Protected**. Integration branch. PRs land here first. |
+| `feat/*` | New Features | Source: `dev`. Deleted after merge. |
+| `fix/*` | Bug Fixes | Source: `dev`. Deleted after merge. |
 
-### 2. Workflow Lifecycle
+### 2. The Production Path (Le chemin vers la Prod)
+1. **Dev Local** : Tu travailles sur ta branche `feat/ma-feature`.
+2. **Integration** : Tu ouvres une PR vers `dev`. Le robot CI vérifie tout.
+3. **Beta Test** : Une fois mergé dans `dev`, le site Beta se met à jour. Tu testes avec ta guilde.
+4. **Release** : Si tout est OK après 24-48h, on merge `dev` vers `main`. 
+   - *Zéro interruption* : Le serveur bascule automatiquement sur la nouvelle version.
+   - *Sécurité* : Le robot CI re-vérifie `main` avant d'autoriser la mise en ligne.
 
-#### A. Start a new task
+### 3. Clean Code & Branch Hygiene
+- **Zero Error Policy** : Le robot (GitHub Actions) **DOIT** être vert avant tout merge.
+- **Merged = Deleted** : Une fois une branche fusionnée, efface-la (`git branch -d`). Ça évite de se perdre.
+- **Warnings are Debt** : Les alertes oranges (warnings) sont tolérées pour avancer, mais ne doivent pas s'accumuler.
+
+### 4. Workflow Lifecycle (Commandes de survie)
+
+#### A. Commencer un nouveau but
 ```bash
-# 1. Update dev
+# 1. On se met sur dev et on récupère le dernier code
 git checkout dev
 git pull origin dev
 
-# 2. Create branch
-git checkout -b feat/my-new-feature
+# 2. On crée sa branche de travail
+git checkout -b feat/ma-nouvelle-idee
 ```
 
-#### B. During development
+#### B. Pendant que tu codes
 ```bash
-# Commit often (atomic commits)
+# Ajoute tes changements et crée un paquet (commit)
 git add .
-git commit -m "feat: add mission card component"
+git commit -m "feat: ajout de ma fonctionnalité"
 
-# Keep updated with dev (crucial!)
+# Optionnel : Récupère les nouveautés des autres
 git pull origin dev
 ```
 
-#### C. Finish & Merge
+#### C. Terminer et Envoyer au Robot
 ```bash
-# 1. Push your branch
-git push origin feat/my-new-feature
+# 1. Envoie ta branche sur GitHub
+git push origin feat/ma-nouvelle-idee
 
-# 2. Open Pull Request (PR) on GitHub
-# Target: dev
-# Reviewers: Yourself (or team)
+# 2. Ouvre la Pull Request sur GitHub (vers dev)
+# 3. Attends le CHECK VERT du robot ✅
 
-# 3. After merge, clean up
+# 4. Une fois fusionné (Merge), on nettoie tout
 git checkout dev
 git pull origin dev
-git branch -d feat/my-new-feature
+git branch -d feat/ma-nouvelle-idee
 ```
 
-**Prefixes:** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`
+**Préfixes recommandés :** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`
 
 ---
 
-## � Security Patterns (Copy-Paste)
+## 🔒 Security Patterns (Copy-Paste)
 
 ### 1. Server Actions (Standard)
 ```typescript

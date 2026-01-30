@@ -9,14 +9,28 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { validateSubmission } from "@/server/actions/mission-actions";
 import { Submission, Mission, UserProfile, User, MissionCategory } from "@prisma/client";
-import { Check, X, ExternalLink, Sparkles, Search, Filter as FilterIcon, User as UserIcon, RefreshCcw } from "lucide-react";
+import { Check, X, ExternalLink, Sparkles, Search, Filter as FilterIcon, User as UserIcon, RefreshCcw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ExtendedSubmission = Submission & {
     mission: Mission;
-    profile: UserProfile & { user: User };
+    profile: {
+        id: string;
+        userId: string;
+        discordNickname: string | null;
+        pseudoDofus: string | null;
+        classe: string | null;
+        discordRoleName: string | null;
+        isAdmin: boolean;
+        user: {
+            id: string;
+            name: string | null;
+            image: string | null;
+        };
+    };
 };
 
 const CATEGORIES: { label: string; value: MissionCategory | 'ALL' }[] = [
@@ -150,6 +164,18 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
                                         <span className="text-sm font-semibold text-white truncate">
                                             {item.profile.discordNickname || item.profile.user.name || "Membre Inconnu"}
                                         </span>
+                                        {item.profile.isAdmin && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                                        Administration
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
                                         {item.profile.pseudoDofus && (
                                             <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-zinc-800 text-zinc-400 font-normal">
                                                 {item.profile.pseudoDofus}

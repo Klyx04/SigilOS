@@ -185,6 +185,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
         if (!selectedEventId) return;
         const result = await registerForEvent(guildId, selectedEventId, data);
         if (result.success) {
+            // @ts-ignore - isReserve is present on success
             toast.success(result.isReserve ? "Ajouté à la file d'attente" : "Inscription réussie !");
             fetchEventDetails(selectedEventId);
             fetchEvents();
@@ -227,6 +228,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
             } else {
                 const result = await registerForEvent(guildId, eventId);
                 if (result.success) {
+                    // @ts-ignore - isReserve is present on success
                     toast.success(result.isReserve ? "Ajouté à la file d'attente" : "Inscription validée !");
                 } else {
                     toast.error(result.error);

@@ -50,11 +50,13 @@ export function GalacticHeader({
     guildId,
     user,
     guildData,
+    userGuilds = [],
     almanaxWidget
 }: {
     guildId: string,
     user: UserContext,
     guildData: GuildHeaderData,
+    userGuilds?: { id: string, name: string, iconUrl: string | null }[],
     almanaxWidget: React.ReactNode
 }) {
     const pathname = usePathname();
@@ -143,32 +145,83 @@ export function GalacticHeader({
                     {/* Divider */}
                     <div className="h-8 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent hidden xl:block" />
 
-                    {/* 2. Guild Context */}
-                    <Link
-                        href={`/dashboard/${guildId}`}
-                        className="flex items-center gap-3 group select-none relative"
-                        title="Retour au Dashboard"
-                    >
-                        {/* Glow effect for guild branding */}
-                        <div className="absolute -inset-3 bg-white/5 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                    {/* 2. Guild Context / Switcher */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <div
+                                className="flex items-center gap-3 group select-none relative cursor-pointer hover:bg-white/5 p-1 rounded-xl transition-all"
+                                title="Changer de guilde"
+                            >
+                                {/* Glow effect for guild branding */}
+                                <div className="absolute -inset-1 bg-white/5 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-500"></div>
 
-                        <div className="relative">
-                            <Avatar className="h-10 w-10 border-2 border-white/10 group-hover:border-white/30 transition-colors shadow-lg rounded-xl">
-                                <AvatarImage src={guildData.iconUrl || undefined} />
-                                <AvatarFallback className="bg-zinc-900 text-zinc-500 font-black text-xs rounded-xl">
-                                    {guildData.name?.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                        </div>
-                        <div className="flex flex-col relative">
-                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest leading-none mb-0.5"> Guilde</span>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-base font-black text-white tracking-wide uppercase group-hover:text-primary transition-colors line-clamp-1 max-w-[150px]">
-                                    {guildData.name}
-                                </span>
+                                <div className="relative">
+                                    <Avatar className="h-10 w-10 border-2 border-white/10 group-hover:border-primary/50 transition-all shadow-lg rounded-xl">
+                                        <AvatarImage src={guildData.iconUrl || undefined} />
+                                        <AvatarFallback className="bg-zinc-900 text-zinc-500 font-black text-xs rounded-xl">
+                                            {guildData.name?.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {userGuilds.length > 1 && (
+                                        <div className="absolute -bottom-1 -right-1 bg-primary text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#030304] shadow-lg">
+                                            {userGuilds.length}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col relative pr-6">
+                                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em] leading-none mb-1">Guilde Active</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base font-black text-white tracking-tight group-hover:text-primary transition-colors line-clamp-1 max-w-[150px]">
+                                            {guildData.name}
+                                        </span>
+                                        <ChevronDown className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </Link>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64 bg-[#0A0A0C]/98 backdrop-blur-2xl border border-white/10 text-white p-2 shadow-2xl mt-4 rounded-2xl">
+                            <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2 py-2">
+                                Vos Guildes SigilOS
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/5 mx-1 mb-2" />
+                            <div className="grid gap-1">
+                                {userGuilds.map((g) => (
+                                    <DropdownMenuItem key={g.id} asChild>
+                                        <Link
+                                            href={`/dashboard/${g.id}`}
+                                            className={cn(
+                                                "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border border-transparent",
+                                                g.id === guildId
+                                                    ? "bg-primary/10 border-primary/20"
+                                                    : "hover:bg-white/5 hover:border-white/10"
+                                            )}
+                                        >
+                                            <Avatar className="h-9 w-9 border border-white/10 rounded-lg">
+                                                <AvatarImage src={g.iconUrl || undefined} />
+                                                <AvatarFallback className="bg-zinc-900 text-[10px] font-bold">
+                                                    {g.name?.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                                <span className={cn(
+                                                    "text-sm font-bold",
+                                                    g.id === guildId ? "text-primary" : "text-white"
+                                                )}>
+                                                    {g.name}
+                                                </span>
+                                                {g.id === guildId && (
+                                                    <span className="text-[9px] font-bold text-primary uppercase tracking-widest">Actuel</span>
+                                                )}
+                                            </div>
+                                            {g.id === guildId && (
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                            )}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                ))}
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {/* --- ZONE B: COMMAND NAV (Center) --- */}
@@ -210,12 +263,12 @@ export function GalacticHeader({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className={cn(
-                                        "h-9 px-3 flex items-center gap-2 rounded-lg transition-all duration-300 outline-none font-bold text-[10px] uppercase tracking-wider border",
+                                        "h-10 px-4 flex items-center gap-2.5 rounded-xl transition-all duration-300 outline-none font-black text-[11px] uppercase tracking-[0.15em] border",
                                         isActive(`/dashboard/${guildId}/admin`)
-                                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-                                            : "bg-white/5 text-zinc-400 border-white/5 hover:bg-white/10 hover:text-white"
+                                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            : "bg-[#0A0A0C] text-zinc-400 border-white/10 hover:bg-white/5 hover:text-white"
                                     )}>
-                                        <Shield className="w-3.5 h-3.5" />
+                                        <Shield className={cn("w-4 h-4", isActive(`/dashboard/${guildId}/admin`) ? "text-amber-500" : "text-zinc-500")} />
                                         <span className="hidden xl:inline">Admin</span>
                                     </button>
                                 </DropdownMenuTrigger>
@@ -257,29 +310,46 @@ export function GalacticHeader({
                     {/* User Profile - RESTORED NAME */}
                     <DropdownMenu>
                         <DropdownMenuTrigger className="outline-none group">
-                            <div className="flex items-center gap-3 pl-1 pr-2 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all cursor-pointer">
-                                <Avatar className="h-8 w-8 border border-white/10 group-hover:border-primary/50 transition-all shadow-md">
-                                    <AvatarImage src={user.image} />
-                                    <AvatarFallback className="bg-zinc-800 text-[10px] font-bold">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col items-start min-w-[80px]">
-                                    <span className="text-xs font-bold text-white leading-none truncate max-w-[100px]">{user.name}</span>
-                                    <span className="text-[9px] font-bold uppercase tracking-wider opacity-60 leading-none mt-1" style={{ color: roleColorHex }}>
-                                        {user.roleName}
-                                    </span>
+                            <div className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-2xl bg-[#0A0A0C] hover:bg-white/5 border border-white/10 hover:border-primary/30 transition-all cursor-pointer shadow-inner">
+                                <div className="relative">
+                                    <Avatar className="h-8 w-8 border border-white/10 group-hover:border-primary/50 transition-all shadow-lg">
+                                        <AvatarImage src={user.image} />
+                                        <AvatarFallback className="bg-zinc-800 text-[10px] font-black text-zinc-400">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0A0A0C] rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                                 </div>
-                                <ChevronDown className="w-3 h-3 text-zinc-500 group-hover:text-white transition-colors" />
+                                <div className="flex flex-col items-start min-w-[70px]">
+                                    <span className="text-xs font-black text-white leading-none tracking-tight group-hover:text-primary transition-colors">{user.name}</span>
+                                    {user.isAdmin ? (
+                                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-purple-400 mt-1 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                                            Admin
+                                        </span>
+                                    ) : (
+                                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-50 leading-none mt-1" style={{ color: roleColorHex }}>
+                                            {user.roleName}
+                                        </span>
+                                    )}
+                                </div>
+                                <ChevronDown className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
                             </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64 bg-[#0A0A0C]/95 backdrop-blur-xl border border-white/10 text-white p-1.5 shadow-2xl mt-2 rounded-xl">
-                            <div className="bg-white/5 rounded-lg p-3 mb-1 flex items-center gap-3">
-                                <Avatar className="h-12 w-12 border-2 border-white/10 shadow-xl">
+                            <div className="bg-white/[0.03] rounded-xl p-4 mb-2 flex items-center gap-4 border border-white/5">
+                                <Avatar className="h-14 w-14 border-2 border-white/10 shadow-2xl scale-110">
                                     <AvatarImage src={user.image} />
-                                    <AvatarFallback className="bg-zinc-800 text-lg font-black">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                    <AvatarFallback className="bg-zinc-800 text-xl font-black">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <div className="font-bold text-sm text-white">{user.name}</div>
-                                    <div className="text-[10px] font-bold uppercase mt-0.5 tracking-wide text-zinc-400">{user.roleName}</div>
+                                    <div className="font-black text-base text-white tracking-tight">{user.name}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                        <div className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">En ligne</div>
+                                    </div>
+                                    {user.isAdmin && (
+                                        <div className="mt-2 text-[9px] font-black uppercase tracking-widest bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded border border-purple-500/30 w-fit">
+                                            Staff {guildData.name}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

@@ -179,3 +179,176 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
 
     return !!guild && guild.isActive;
 }
+/**
+ * CLEANUP JANITOR (GDPR & Hygiene)
+ * Deletes users created > threshold ago with NO profile and NO critical data.
+ * Default: 24h. Test Mode: 2 mins.
+ */
+export async function cleanupGhostUsers(isTestMode = false) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    // DATA LIFECYCLE MANAGEMENT
+    // Production: 24h grace period
+    // Testing: 2 minutes grace period
+    const threshold = isTestMode ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    const cutoffDate = new Date(Date.now() - threshold);
+
+    const superAdminIds = getSuperAdminIds();
+
+    // 1. Find candidates (Old users)
+    const candidates = await db.user.findMany({
+        where: {
+            createdAt: { lt: cutoffDate } as any,
+            profiles: { none: {} } // No UserProfile
+        },
+        include: {
+            accounts: true // To check Discord ID for Super Admin protection
+        }
+    });
+
+    let deletedCount = 0;
+
+    for (const user of candidates) {
+        // SAFETY CHECK 1: Is Super Admin?
+        const discordId = user.accounts[0]?.providerAccountId;
+        if (discordId && superAdminIds.includes(discordId)) {
+            continue; // Skip Super Admins
+        }
+
+        // SAFETY CHECK 2: Has created guild events? (Deep cleaning check)
+        const hasEvents = await db.guildEvent.count({ where: { creatorId: user.id } });
+        if (hasEvents > 0) continue;
+
+        // Execute Delete
+        await db.user.delete({ where: { id: user.id } });
+        deletedCount++;
+    }
+
+    revalidatePath("/god");
+    return { success: true, count: deletedCount, mode: isTestMode ? "TEST (2m)" : "PROD (24h)" };
+}
+
+/**
+ * Get Ghost Users (No Profile) for Admin View
+ */
+export async function getGhostUsers() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    return db.user.findMany({
+        where: {
+            profiles: { none: {} } // ONLY users without any profile
+        },
+        orderBy: { createdAt: "desc" } as any,
+        take: 50,
+        include: {
+            accounts: {
+                select: { provider: true }
+            }
+        }
+    });
+}
+
+/**
+ * Get Registration Stats for Charts
+ * Returns daily registrations for the last 30 days
+ */
+export async function getRegistrationStats() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const users = await db.user.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } } as any,
+        select: { createdAt: true }
+    });
+
+    // Group by date
+    const statsMap = new Map<string, number>();
+
+    // Initialize last 30 days with 0
+    for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        statsMap.set(d.toISOString().split("T")[0], 0);
+    }
+
+    users.forEach((u: any) => {
+        const dateKey = (u as any).createdAt.toISOString().split("T")[0];
+        if (statsMap.has(dateKey)) {
+            statsMap.set(dateKey, (statsMap.get(dateKey) || 0) + 1);
+        }
+    });
+
+    // Convert to array and sort
+    return Array.from(statsMap.entries())
+        .map(([date, count]) => ({ date, users: count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Force Delete User (Admin Manual Action)
+ */
+export async function forceDeleteUser(userId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    // Prevent Admin Suicide
+    const session = await auth();
+    if (session?.user?.id === userId) {
+        throw new Error("Cannot delete yourself");
+    }
+
+    try {
+        // Cascade delete will handle relations if Schema is set up correctly,
+        // but explicit clean up is safer/clearer or relying on Prisma onDelete: Cascade
+        await db.user.delete({
+            where: { id: userId }
+        });
+
+        revalidatePath("/god");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Error:", error);
+        return { success: false, error: "Deletion failed" };
+    }
+}
+/**
+ * PLANETARY ORPHAN CLEANUP
+ * Removes UserProfile entries that are no longer linked to a valid User.
+ * This can happen if a User was deleted bypassing Prisma's cascade or due to previous bugs.
+ */
+export async function cleanupOrphanedProfiles() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    // 1. Find all profile IDs
+    const profiles = await db.userProfile.findMany({
+        select: { id: true, userId: true }
+    });
+
+    // 2. Find all valid user IDs
+    const users = await db.user.findMany({
+        select: { id: true }
+    });
+    const userIds = new Set(users.map(u => u.id));
+
+    // 3. Identify orphans
+    const orphanIds = profiles
+        .filter(p => !userIds.has(p.userId))
+        .map(p => p.id);
+
+    if (orphanIds.length === 0) {
+        return { success: true, count: 0, message: "Aucun profil orphelin détecté." };
+    }
+
+    // 4. Delete orphans
+    await db.userProfile.deleteMany({
+        where: { id: { in: orphanIds } }
+    });
+
+    revalidatePath("/god");
+    return { success: true, count: orphanIds.length, message: `${orphanIds.length} profils orphelins supprimés.` };
+}

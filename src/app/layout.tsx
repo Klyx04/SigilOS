@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -33,20 +34,22 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster
-            position="top-center"
-            richColors
-            closeButton
-            theme="dark"
-            toastOptions={{
-              className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
-              style: {
-                borderRadius: "1rem",
-                padding: "1rem",
-              }
-            }}
-          />
+          <AuthProvider>
+            {children}
+            <Toaster
+              position="top-center"
+              richColors
+              closeButton
+              theme="dark"
+              toastOptions={{
+                className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
+                style: {
+                  borderRadius: "1rem",
+                  padding: "1rem",
+                }
+              }}
+            />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

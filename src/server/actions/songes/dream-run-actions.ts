@@ -1096,7 +1096,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
     // Determine internal guildId for profile lookup
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true },
+        select: { id: true, rolesMapping: true },
     });
     const internalGuildId = guildConfig?.id;
 
@@ -1112,6 +1112,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
             pseudoDofus: true,
             classe: true,
             discordNickname: true,
+            discordRoleName: true,
             user: {
                 select: {
                     name: true,
@@ -1120,13 +1121,31 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
         },
     }) : [];
 
-    // Transform to include discordNickname with fallbacks
-    const enrichedProfiles = profiles.map((p) => ({
-        userId: p.userId,
-        pseudoDofus: p.pseudoDofus,
-        classe: p.classe,
-        discordNickname: p.discordNickname || p.user?.name || null,
-    }));
+    // Transform to include discordNickname with fallbacks + Admin check
+    const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+
+    // identify role names that grant admin access
+    // This is a bit of a proxy since we don't have role IDs here, 
+    // but better than nothing for the songes list view performance.
+    const enrichedProfiles = profiles.map((p) => {
+        const discordNickname = p.discordNickname || p.user?.name || null;
+
+        // Check for admin role name in mapping
+        // We look if any roles mapped to 'admin:access' match this user's current role name
+        // (Note: This is an approximation since we match on NAME in this specific list view)
+        const isAdmin = p.discordRoleName === "Administrateur" ||
+            Object.entries(rolesMapping).some(([_, perms]) =>
+                perms.includes("admin:access") && p.discordRoleName
+            );
+
+        return {
+            userId: p.userId,
+            pseudoDofus: p.pseudoDofus,
+            classe: p.classe,
+            discordNickname,
+            isAdmin
+        };
+    });
 
     // For users without profiles, fetch from User table directly as fallback
     const foundUserIds = new Set(profiles.map((p) => p.userId));
@@ -1144,6 +1163,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
                 pseudoDofus: null,
                 classe: null,
                 discordNickname: user.name || null,
+                isAdmin: false
             });
         }
     }

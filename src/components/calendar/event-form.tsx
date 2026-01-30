@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
     Popover,
     PopoverContent,
@@ -117,6 +118,7 @@ const eventFormSchema = z.object({
     startTime: z.string().min(5, "Heure requise"),
     endTime: z.string().min(5, "Heure requise"),
     maxParticipants: z.coerce.number().min(1).optional().nullable(),
+    publishOnDiscord: z.boolean().optional(),
 }).refine((data) => {
     // Validate end time is after start time
     const start = parse(data.startTime, "HH:mm", new Date());
@@ -156,6 +158,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
             startTime: format(new Date(initialData.startDate), "HH:mm"),
             endTime: format(new Date(initialData.endDate), "HH:mm"),
             maxParticipants: initialData.maxParticipants || undefined,
+            publishOnDiscord: false, // Default to false when editing
         } : {
             title: "",
             description: "",
@@ -164,6 +167,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
             startTime: "20:00",
             endTime: "22:00",
             maxParticipants: undefined,
+            publishOnDiscord: true,
         },
     });
 
@@ -226,6 +230,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                 startDate,
                 endDate,
                 maxParticipants: values.maxParticipants || null,
+                publishOnDiscord: values.publishOnDiscord,
             };
 
             await onSubmit(submissionData);
@@ -427,6 +432,32 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                                 </div>
                             </FormControl>
                             <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {/* ============ PUBLISH OPTION ============ */}
+                <FormField
+                    control={form.control}
+                    name="publishOnDiscord"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base text-zinc-100">
+                                    Publier sur Discord
+                                </FormLabel>
+                                <div className="text-sm text-zinc-400">
+                                    Envoie immédiatement l'annonce dans le canal configuré.
+                                </div>
+                            </div>
+                            <FormControl>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </div>
+                            </FormControl>
                         </FormItem>
                     )}
                 />

@@ -26,6 +26,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
+import { AuroraBackground } from "@/components/ui/aurora-background";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 // Activity icons mapping
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
@@ -89,7 +92,8 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
     const textY = useTransform(scrollY, [0, 500], [0, 100]); // Slower parallax for text
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden selection:bg-indigo-500/30">
+        <div className="relative min-h-screen bg-[#020202] text-zinc-100 overflow-x-hidden selection:bg-indigo-500/30">
+            <AuroraBackground className="fixed inset-0 z-0 opacity-30 pointer-events-none" />
             {/* Hero Banner with Parallax */}
             <header ref={headerRef} className="relative h-[45vh] md:h-[55vh] min-h-[350px] overflow-hidden">
                 {/* Background Parallax Layer */}
@@ -112,21 +116,24 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
 
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent z-10" />
 
-                {/* Back Link */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="absolute top-6 left-6 z-30"
-                >
-                    <Link
-                        href="/guilds"
-                        className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-all bg-black/40 hover:bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Retour à l&apos;annuaire
-                    </Link>
-                </motion.div>
+                {/* Sticky Header Nav */}
+                <nav className="fixed top-0 left-0 right-0 z-50 bg-[#020202]/40 backdrop-blur-xl border-b border-white/5 py-4 px-6">
+                    <div className="max-w-7xl mx-auto flex justify-between items-center">
+                        <Link href="/" className="flex items-center gap-3 group">
+                            <img src="/assets/ui/logo_sigilos_v2.png" alt="SigilOS" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] group-hover:scale-110 transition-transform" />
+                            <span className="text-xl font-black tracking-widest text-white">
+                                SIGIL<span className="text-purple-400">OS</span>
+                            </span>
+                        </Link>
+                        <Link
+                            href="/guilds"
+                            className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Annuaire
+                        </Link>
+                    </div>
+                </nav>
 
                 {/* Guild Identity */}
                 <motion.div
@@ -139,7 +146,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                             initial={{ scale: 0.8, opacity: 0, y: 50 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             transition={{ type: "spring", duration: 0.8, bounce: 0.5 }}
-                            className="relative w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center overflow-hidden shrink-0 shadow-2xl shadow-black/50 group"
+                            className="relative w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-zinc-950 border-4 border-[#10081a] flex items-center justify-center overflow-hidden shrink-0 shadow-2xl shadow-purple-500/20 group"
                         >
                             {guild.iconUrl ? (
                                 <Image
@@ -317,14 +324,15 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                                     </div>
                                     Notre Histoire
                                 </h2>
-                                <div className="bg-zinc-900/30 rounded-3xl p-8 border border-white/5 relative overflow-hidden group">
+                                <GlassPanel intensity="low" className="p-8 border border-white/5 relative overflow-hidden group">
+                                    <BorderBeam className="opacity-30" />
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors duration-1000" />
                                     <div className="prose prose-invert prose-lg prose-zinc max-w-none relative z-10">
                                         <p className="whitespace-pre-wrap leading-relaxed text-zinc-300">
                                             {guild.history}
                                         </p>
                                     </div>
-                                </div>
+                                </GlassPanel>
                             </motion.section>
                         )}
                     </motion.div>
@@ -332,13 +340,11 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                     {/* Right Column - Sidebar */}
                     <div className="space-y-8">
                         {/* Recruitment Card */}
-                        <motion.div
-                            initial={{ opacity: 0, x: 50 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
-                            className="bg-zinc-900/50 backdrop-blur-sm rounded-3xl border border-white/10 p-6 md:p-8 space-y-8 sticky top-24 shadow-2xl shadow-indigo-500/5"
+                        <GlassPanel
+                            intensity="high"
+                            className="bg-[#0a0a0c]/80 border border-white/10 p-6 md:p-8 space-y-8 sticky top-24 shadow-2xl shadow-purple-500/10"
                         >
+                            <BorderBeam size={200} duration={12} delay={9} colorFrom="#a855f7" colorTo="#6366f1" />
                             <div>
                                 <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
                                     <Swords className="w-5 h-5 text-pink-400" />
@@ -417,7 +423,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                                     Le recrutement est actuellement fermé, mais vous pouvez toujours venir discuter sur notre Discord !
                                 </p>
                             )}
-                        </motion.div>
+                        </GlassPanel>
                     </div>
                 </div>
             </main>

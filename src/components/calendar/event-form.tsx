@@ -216,7 +216,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
             // Build proper dates
             const dateStr = format(values.date, "yyyy-MM-dd");
             const startDate = new Date(`${dateStr}T${values.startTime}:00`);
-            let endDate = new Date(`${dateStr}T${values.endTime}:00`);
+            const endDate = new Date(`${dateStr}T${values.endTime}:00`);
 
             // If end time is before start time, assume next day
             if (endDate <= startDate) {

@@ -38,7 +38,7 @@ export default async function AdminLogsPage({ params }: Props) {
     const total = logsResult.success && logsResult.data ? logsResult.data.total : 0;
 
     // Fetch Discord roles to get role names
-    let roleNames: Record<string, string> = {};
+    const roleNames: Record<string, string> = {};
     try {
         const roles = await fetchGuildRoles(guildId);
         roles.forEach(role => {

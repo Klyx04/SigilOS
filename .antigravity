@@ -526,6 +526,7 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Project Hygiene:** Deleted ~50MB of obsolete assets, legacy components, and old logs.
     - [x] **Build Stability:** Next.js 16 / Turbopack build verified (Exit 0).
     - [x] **Audit Foundations:** Added `createdAt`/`updatedAt` synchronization across core models.
+    - [x] **CI/CD Automation:** Created GitHub Actions workflow (`verify.yml`) for automated lint, types, and build checks.
 
 ---
 

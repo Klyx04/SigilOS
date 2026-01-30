@@ -511,6 +511,22 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Quick Actions:** Modal with "Participate/Queue" logic & class selection.
     - [x] **Admin Tooling:** Publish/Complete flow, auto-close expired events logic.
 
+19. **Phase 19: Calendar V3 - Discord Integrations (COMPLETE - 2026-01-29):**
+    - [x] **New Visuals:** Premium generated visuals for each event type (Raid, Farm, etc.) renaming "thumbnails" to "header banners".
+    - [x] **Interactive Buttons:** "Join/Leave" buttons directly on Discord Embeds using Interaction API.
+    - [x] **Smart Queue Display:** Discord Embed separates "Registered" vs "Queue" lists.
+    - [x] **Performance:** Fire-and-forget pattern for Discord updates (preventing interaction timeouts).
+    - [x] **Ngrok Tunneling:** Local dev setup documented for testing Webhooks/Interactions.
+    - [x] **Image Hosting:** Cached assets path fix (`?v=timestamp`) to force Discord image refresh.
+
+20. **Phase 20: Platform Reliability & Data Hygiene (COMPLETE - 2026-01-30):**
+    - [x] **Prisma Optimization:** Implementation of `pg.Pool` for connection resilience, idle timeouts (30s), and connection limits (20).
+    - [x] **Conditional Logging:** New `PRISMA_LOG_QUERIES` env var to toggle SQL logs, keeping the terminal clean.
+    - [x] **Cleanup Janitor:** `cleanupGhostUsers()` script (GDPR Hygiene) and `cleanupOrphanedProfiles()`.
+    - [x] **Project Hygiene:** Deleted ~50MB of obsolete assets, legacy components, and old logs.
+    - [x] **Build Stability:** Next.js 16 / Turbopack build verified (Exit 0).
+    - [x] **Audit Foundations:** Added `createdAt`/`updatedAt` synchronization across core models.
+
 ---
 
 ## 5. Security Implementation Summary (Reference)

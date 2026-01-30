@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,7 @@ import {
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -49,6 +50,7 @@ interface MemberProfile {
     pseudoDofus: string | null;
     classe: string | null;
     discordNickname: string | null;
+    isAdmin?: boolean;
 }
 
 interface RunCardProps {
@@ -239,7 +241,21 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                     </div>
                     <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1">
                         <Crown className="w-3 h-3 text-amber-400/70" />
-                        <span>Run de <span className="text-white/80 font-medium">{leaderDisplayName}</span></span>
+                        <span className="flex items-center gap-1">
+                            Run de <span className="text-white/80 font-medium">{leaderDisplayName}</span>
+                            {profiles.find(p => p.userId === run.leaderId)?.isAdmin && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <ShieldCheck className="w-3 h-3 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                            Administration
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </span>
                     </div>
                 </div>
 
@@ -334,15 +350,22 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                     title={member ? displayName : "Libre"}
                                 >
                                     {member ? (
-                                        memberIsLeader ? (
-                                            <Crown className="w-4 h-4 text-amber-400" />
-                                        ) : (
-                                            <span className="text-xs font-semibold">{firstLetter}</span>
-                                        )
+                                        <div className="relative">
+                                            {memberIsLeader ? (
+                                                <Crown className="w-4 h-4 text-amber-400" />
+                                            ) : (
+                                                <span className="text-xs font-semibold">{firstLetter}</span>
+                                            )}
+                                            {profiles.find(p => p.userId === member.userId)?.isAdmin && (
+                                                <div className="absolute -top-1 -right-1 bg-zinc-900 rounded-full p-0.5 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                                                    <ShieldCheck className="w-2.5 h-2.5 text-purple-400 fill-purple-500/10" />
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : null}
                                 </div>
                                 {member && (
-                                    <span className="text-[10px] text-purple-300/80 truncate max-w-[50px]" title={displayName}>
+                                    <span className="text-[10px] text-purple-300/80 truncate max-w-[50px] flex items-center gap-0.5 justify-center" title={displayName}>
                                         {shortName}
                                     </span>
                                 )}

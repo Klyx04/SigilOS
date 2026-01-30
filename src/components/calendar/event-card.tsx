@@ -49,6 +49,18 @@ const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; bo
     SORTIE_FARM: { label: "Sortie Farm", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: Wheat, gradient: "from-emerald-600 to-green-600" },
 };
 
+const EVENT_IMAGES: Record<string, string> = {
+    "RAID_OFFICIAL": "/assets/calendar/calendar_raid_official.png",
+    "EVENT_GUILD": "/assets/calendar/calendar_event_guild.png",
+    "SESSION_MISSIONS": "/assets/calendar/calendar_session_missions.png",
+    "SORTIE_FARM": "/assets/calendar/calendar_boss_farm.png",
+    "GUILD_MISSION": "/assets/calendar/calendar_session_missions.png", // Fallback
+    "SONGES_RUN": "/assets/calendar/calendar_songes_run.png",
+    "DUNGEON_FARM": "/assets/calendar/calendar_dungeon_farm.png",
+    "SOCIAL": "/assets/calendar/calendar_social.png",
+    "ALMANAX_BONUS": "/assets/calendar/calendar_almanax_bonus.png",
+};
+
 export function EventCard({
     event,
     currentUserId,
@@ -145,8 +157,18 @@ export function EventCard({
 
     return (
         <Card className="h-full flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-zinc-800/50 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700/50">
+            {/* Top Image Background */}
+            <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/90 z-10" />
+                <img
+                    src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
+                    alt="Event type"
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 transform group-hover:scale-105"
+                />
+            </div>
+
             {/* Top Accent Line */}
-            <div className={cn("h-1.5 w-full bg-gradient-to-r opacity-90", theme.gradient)} />
+            <div className={cn("h-1.5 w-full bg-gradient-to-r opacity-90 relative z-20", theme.gradient)} />
 
             <CardHeader className="p-5 flex-none space-y-4 pb-2">
                 <div className="flex justify-between items-start gap-4">

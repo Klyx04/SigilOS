@@ -7,6 +7,7 @@
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
+import { revalidatePath } from "next/cache";
 
 // Retention periods in days
 const RETENTION_DAYS = {
@@ -147,4 +148,72 @@ export async function handleGdprDeletionRequest(discordGuildId: string) {
     console.log(`[GDPR] User ${ctx.id} requested deletion. Removed ${result.count} profile(s)`);
 
     return { success: true, deleted: result.count > 0 };
+}
+/**
+ * ARCHIVE & SYNC GUILD MEMBERS
+ * Compares Discord members with local profiles and archives members who are no longer in the guild.
+ * This is the "Military Grade" cleanup requested.
+ */
+export async function syncGuildMembers(discordGuildId: string) {
+    const ctx = await getUserContext(discordGuildId);
+    if (!ctx.isAdmin) {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    try {
+        const { listGuildMembers } = await import("@/server/discord");
+
+        // 1. Fetch current members from Discord
+        const discordMembers = await listGuildMembers(discordGuildId);
+        const discordUserIds = new Set(discordMembers.map(m => m.user.id));
+
+        // 2. Fetch all profiles for this guild with their Discord Accounts
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guild: { discordGuildId },
+                status: "ACTIVE" // Only check active ones
+            },
+            include: {
+                user: {
+                    include: {
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        let archivedCount = 0;
+
+        // 3. Compare and archive
+        for (const profile of profiles) {
+            const discordId = profile.user.accounts[0]?.providerAccountId;
+
+            // If we have a discord ID but it's not in the current guild member list
+            if (discordId && !discordUserIds.has(discordId)) {
+                console.log(`[Lifecycle Sync] Archiving ${profile.discordNickname} (left Discord)`);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "ARCHIVED",
+                        archivedAt: new Date(),
+                        archiveReason: "LEFT"
+                    }
+                });
+                archivedCount++;
+            }
+        }
+
+        revalidatePath(`/dashboard/${discordGuildId}/admin`);
+        return {
+            success: true,
+            message: `${archivedCount} membres archivés sur ${profiles.length} vérifiés.`,
+            count: archivedCount
+        };
+    } catch (error) {
+        console.error("[Lifecycle Sync] Error:", error);
+        return { success: false, error: "Échec de la synchronisation" };
+    }
 }

@@ -1,0 +1,53 @@
+{
+	# Options globales
+	email admin@{$DOMAIN_NAME}
+}
+
+# -----------------------------------------------------------------------------
+# 🔴 PRODUCTION (tondomaine.fr)
+# -----------------------------------------------------------------------------
+{$DOMAIN_NAME} {
+	reverse_proxy app-prod:3000
+
+	# Rate Limiting (Protection DDoS)
+	# Limite à 20 requêtes/seconde par IP
+	@api {
+		path /api/*
+	}
+	# Note: La syntaxe rate_limit native Caddy nécessite souvent un plugin ou une config avancée.
+	# Pour la version standard, on utilise les headers de sécurité robustes.
+	
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+	
+	encode zstd gzip
+}
+
+# -----------------------------------------------------------------------------
+# 🟡 BETA (beta.tondomaine.fr)
+# -----------------------------------------------------------------------------
+beta.{$DOMAIN_NAME} {
+	reverse_proxy app-beta:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Robots-Tag "noindex, nofollow" # ⚠️ Ne pas référencer la Beta sur Google
+	}
+	
+	encode zstd gzip
+}
+
+# -----------------------------------------------------------------------------
+# 📊 MONITORING (monitor.tondomaine.fr)
+# -----------------------------------------------------------------------------
+monitor.{$DOMAIN_NAME} {
+	reverse_proxy grafana:3000
+    basic_auth {
+        # Protection basique en plus du login Grafana (Optionnel)
+        # admin $2a$14$....
+    }
+}

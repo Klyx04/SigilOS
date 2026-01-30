@@ -46,6 +46,7 @@ const GuildEventSchema = z.object({
     maxParticipants: z.number().int().min(1).nullable().optional(),
     notifyBefore: z.number().int().min(0).nullable().optional(),
     metadata: z.any().optional(), // Dynamic per type
+    publishOnDiscord: z.boolean().optional().default(false),
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
@@ -237,16 +238,26 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+        const { publishOnDiscord, ...eventData } = validated.data;
+
         const event = await db.guildEvent.create({
             data: {
-                ...validated.data,
+                ...eventData,
                 guildId: guildConfig.id,
                 creatorId: ctx.id!
             }
         });
 
+        // Auto-publish if requested
+        let discordSent = false;
+        if (publishOnDiscord) {
+            const { publishDiscordEvent } = await import("@/server/calendar-service"); // Lazy import to avoid cycle
+            const result = await publishDiscordEvent(guildId, event.id);
+            if (result.success) discordSent = true;
+        }
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, eventId: event.id };
+        return { success: true, eventId: event.id, discordSent };
     } catch (error) {
         console.error("[Calendar] createEvent Error:", error);
         return { success: false, error: "Erreur lors de la création de l'événement" };
@@ -271,9 +282,12 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+        // Exclude virtual fields
+        const { publishOnDiscord, ...updateData } = validated.data;
+
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
-            data: validated.data
+            data: updateData
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
@@ -326,12 +340,21 @@ export async function publishEvent(guildId: string, eventId: string) {
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        await db.guildEvent.update({
-            where: { id: eventId, guildId: guildConfig.id },
-            data: { status: "PUBLISHED" }
-        });
+        const { publishDiscordEvent } = await import("@/server/calendar-service");
+        const result = await publishDiscordEvent(guildId, eventId);
 
-        // TODO: Create Discord embed here
+        if (!result.success) {
+            // Fallback: just update status if discord fails? 
+            // Or fail? Better to fail or warn.
+            // For now, if discord fails, we still mark as published but warn?
+            // User requested premium experience, so failing might be better.
+            // But let's at least mark it published so they don't get stuck.
+            await db.guildEvent.update({
+                where: { id: eventId, guildId: guildConfig.id },
+                data: { status: "PUBLISHED" }
+            });
+            return { success: true, warning: "Publié mais erreur Discord: " + result.error };
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
@@ -401,68 +424,8 @@ export async function registerForEvent(
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
-
-        const event = await db.guildEvent.findUnique({
-            where: { id: eventId, guildId: guildConfig.id },
-            include: {
-                _count: { select: { participants: { where: { status: "REGISTERED" } } } },
-                participants: { where: { userId: ctx.id! } }
-            }
-        });
-
-        if (!event) return { success: false, error: "Événement introuvable" };
-        if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
-        if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
-
-        // Check raid 1/week rule
-        if (event.type === "RAID_OFFICIAL") {
-            const weekStart = new Date();
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-            weekStart.setHours(0, 0, 0, 0);
-
-            const existingRaid = await db.eventParticipant.findFirst({
-                where: {
-                    userId: ctx.id!,
-                    status: "REGISTERED",
-                    event: {
-                        guildId: guildConfig.id,
-                        type: "RAID_OFFICIAL",
-                        status: "COMPLETED",
-                        startDate: { gte: weekStart }
-                    }
-                }
-            });
-
-            if (existingRaid) {
-                return { success: false, error: "Tu as déjà participé à un Raid cette semaine" };
-            }
-        }
-
-        // Determine position (titulaire or reserve)
-        const currentCount = event._count.participants;
-        const maxParticipants = event.maxParticipants || 999;
-        const isReserve = currentCount >= maxParticipants;
-
-        await db.eventParticipant.create({
-            data: {
-                eventId,
-                userId: ctx.id!,
-                status: isReserve ? "RESERVE" : "REGISTERED",
-                position: currentCount + 1,
-                classe: data?.classe,
-                comment: data?.comment
-            }
-        });
-
-        // TODO: Update Discord embed
-
-        revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, isReserve };
+        const { processRegistration } = await import("@/server/calendar-service");
+        return await processRegistration(guildId, eventId, ctx.id!, data);
     } catch (error) {
         console.error("[Calendar] registerForEvent Error:", error);
         return { success: false, error: "Erreur lors de l'inscription" };
@@ -478,52 +441,8 @@ export async function unregisterFromEvent(guildId: string, eventId: string) {
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
-
-        const participant = await db.eventParticipant.findUnique({
-            where: { eventId_userId: { eventId, userId: ctx.id! } },
-            include: { event: true }
-        });
-
-        if (!participant) return { success: false, error: "Non inscrit" };
-
-        const wasRegistered = participant.status === "REGISTERED";
-
-        // Delete participation
-        await db.eventParticipant.delete({
-            where: { id: participant.id }
-        });
-
-        // Auto-promote first reserve if was registered
-        if (wasRegistered) {
-            const firstReserve = await db.eventParticipant.findFirst({
-                where: { eventId, status: "RESERVE" },
-                orderBy: { position: "asc" }
-            });
-
-            if (firstReserve) {
-                await db.eventParticipant.update({
-                    where: { id: firstReserve.id },
-                    data: {
-                        status: "REGISTERED",
-                        promotedAt: new Date()
-                    }
-                });
-                // TODO: Send Discord DM to promoted user
-            }
-        }
-
-        // Reorder positions
-        await reorderParticipants(eventId);
-
-        // TODO: Update Discord embed
-
-        revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true };
+        const { processUnregistration } = await import("@/server/calendar-service");
+        return await processUnregistration(guildId, eventId, ctx.id!);
     } catch (error) {
         console.error("[Calendar] unregisterFromEvent Error:", error);
         return { success: false, error: "Erreur lors de la désinscription" };
@@ -658,7 +577,8 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
 
                 // Create urgency embed for reminder
-                discordSent = await sendChannelMessage(
+                // Create urgency embed for reminder
+                const msgId = await sendChannelMessage(
                     guildConfig.calendarNotifyChannelId,
                     mentionContent,
                     {
@@ -675,6 +595,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                         ]
                     }
                 );
+                discordSent = !!msgId;
             }
         }
 
@@ -889,7 +810,7 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
 
         // Send Discord message
         const { sendChannelMessage } = await import("@/server/discord");
-        const success = await sendChannelMessage(
+        const messageId = await sendChannelMessage(
             guildConfig.calendarNotifyChannelId,
             mentionContent, // Role mention if specified
             {
@@ -905,7 +826,7 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
             }
         );
 
-        if (!success) {
+        if (!messageId) {
             return { success: false, error: "Échec de l'envoi. Vérifiez les permissions du bot." };
         }
 

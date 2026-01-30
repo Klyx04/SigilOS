@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # 🔴 PRODUCTION ENVIRONMENT
+  # ===========================================================================
+  app-prod:
+    container_name: sigilos-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=https://${DOMAIN_NAME}
+      - NEXT_PUBLIC_APP_URL=https://${DOMAIN_NAME}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - METAMOB_API_KEY=${METAMOB_API_KEY}
+    depends_on:
+      - db-prod
+    networks:
+      - prod-net
+
+  db-prod:
+    image: postgres:15-alpine
+    container_name: sigilos-db-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-prod-data:/var/lib/postgresql/data
+    networks:
+      - prod-net
+
+  # ===========================================================================
+  # 🟡 BETA ENVIRONMENT (Pour tests sans danger)
+  # ===========================================================================
+  app-beta:
+    container_name: sigilos-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - NODE_ENV=production
+      # ⚠️ CONNECTÉ À LA BDD BETA UNIQUEMENT
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
+      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}} # Idéalement différent
+      - AUTH_URL=https://beta.${DOMAIN_NAME}
+      - NEXT_PUBLIC_APP_URL=https://beta.${DOMAIN_NAME}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - METAMOB_API_KEY=${METAMOB_API_KEY}
+    depends_on:
+      - db-beta
+    networks:
+      - beta-net
+
+  db-beta:
+    image: postgres:15-alpine
+    container_name: sigilos-db-beta
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-beta-data:/var/lib/postgresql/data
+    networks:
+      - beta-net
+
+  # ===========================================================================
+  # 🌐 ROUTING & SECURITÉ (Commun)
+  # ===========================================================================
+  caddy:
+    image: caddy:alpine
+    container_name: sigilos-gateway
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    networks:
+      - prod-net
+      - beta-net
+      - monitoring-net
+
+  # ===========================================================================
+  # 📊 MONITORING (Stack 2026)
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus
+    container_name: sigilos-prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring-net
+
+  grafana:
+    image: grafana/grafana
+    container_name: sigilos-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring-net
+
+volumes:
+  db-prod-data:
+  db-beta-data:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  prod-net:
+  beta-net:
+  monitoring-net:

@@ -66,9 +66,9 @@ export function UserNav({ user }: { user: UserContext }) {
                     )}
                     {user.isAdmin && (
                         <DropdownMenuItem asChild>
-                            <Link href="/dashboard/admin" className="cursor-pointer">
-                                <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
-                                <span>Administration</span>
+                            <Link href="/dashboard/admin" className="cursor-pointer font-medium">
+                                <Sparkles className="mr-2 h-4 w-4 text-purple-400 animate-pulse" />
+                                <span className="text-purple-100">Administration</span>
                             </Link>
                         </DropdownMenuItem>
                     )}

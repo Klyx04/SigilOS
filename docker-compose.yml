@@ -1,18 +1,77 @@
 version: '3.8'
 
 services:
+  # -----------------------------------------------------------------------------
+  # APPLICATION (Next.js)
+  # -----------------------------------------------------------------------------
+  app:
+    container_name: sigilos-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      # Database connection string (internal docker network alias 'db')
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Auth & App secrets
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=https://${DOMAIN_NAME}
+      - NEXT_PUBLIC_APP_URL=https://${DOMAIN_NAME}
+      # Discord
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      # Metamob
+      - METAMOB_API_KEY=${METAMOB_API_KEY}
+    depends_on:
+      - db
+    networks:
+      - internal-net
+
+  # -----------------------------------------------------------------------------
+  # REVERSE PROXY (Caddy - Automatic HTTPS)
+  # -----------------------------------------------------------------------------
+  caddy:
+    image: caddy:alpine
+    container_name: sigilos-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC) support
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    networks:
+      - internal-net
+
+  # -----------------------------------------------------------------------------
+  # DATABASE (PostgreSQL)
+  # -----------------------------------------------------------------------------
   db:
     image: postgres:15-alpine
     container_name: sigilos-db
+    restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: sigilos
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-sigilos}
     volumes:
       - db-data:/var/lib/postgresql/data
-    restart: unless-stopped
+    # ⚠️ SECURITY: Do not expose port 5432 to the outside world
+    # Only services in 'internal-net' can access it.
+    networks:
+      - internal-net
 
 volumes:
   db-data:
+  caddy_data:
+  caddy_config:
+
+
+networks:
+  internal-net:
+    driver: bridge

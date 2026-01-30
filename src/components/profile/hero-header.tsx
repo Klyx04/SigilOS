@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star } from "lucide-react";
+import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 
@@ -41,7 +41,7 @@ interface HeroHeaderProps {
     avatarUrl?: string | null;
     displayName: string;
     roleColor?: number;
-    contributorTier?: ContributorTier;
+    contributorTier?: ContributorTier | null;
     rank?: number;
     isOnVacation?: boolean;
     isUpcomingVacation?: boolean;
@@ -52,6 +52,8 @@ interface HeroHeaderProps {
     weeklyXp: number;
     missionsValidated: number;
     weeklyMissions: number;
+    isAdmin?: boolean;
+    guildName?: string;
 }
 
 export function HeroHeader({
@@ -69,6 +71,8 @@ export function HeroHeader({
     weeklyXp,
     missionsValidated,
     weeklyMissions,
+    isAdmin = false,
+    guildName = "Guilde"
 }: HeroHeaderProps) {
     const roleHexColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
@@ -114,6 +118,11 @@ export function HeroHeader({
                                 <TierIcon className={cn("w-5 h-5", tierConfig.textColor, tierConfig.iconFill)} />
                             </div>
                         )}
+                        {isAdmin && (
+                            <div className="absolute -top-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)] shadow-lg" title="Administration">
+                                <ShieldCheck className="w-5 h-5 text-purple-400 fill-purple-500/10" />
+                            </div>
+                        )}
                         {isOnVacation && (
                             <div className="absolute -bottom-2 -right-2 p-1.5 bg-zinc-900 rounded-full border border-cyan-500/40 shadow-lg" title="En Vacances">
                                 <Palmtree className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />
@@ -124,15 +133,23 @@ export function HeroHeader({
                     {/* Info Section */}
                     <div className="flex-1 min-w-0 text-center md:text-left">
                         {/* Name */}
-                        <h1
-                            className="text-3xl md:text-4xl font-bold tracking-tight mb-2 truncate"
-                            style={{ color: roleHexColor }}
-                        >
-                            {displayName}
-                        </h1>
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-2">
+                            <h1
+                                className="text-3xl md:text-4xl font-bold tracking-tight truncate leading-tight"
+                                style={{ color: roleHexColor }}
+                            >
+                                {displayName}
+                            </h1>
+                        </div>
 
                         {/* Status Badges */}
                         <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-4">
+                            {isAdmin && (
+                                <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/20 font-black uppercase tracking-[0.1em] text-[10px] py-1">
+                                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                                    Administration
+                                </Badge>
+                            )}
                             {tierConfig && (
                                 <Badge className={cn(tierConfig.bgColor, tierConfig.textColor, tierConfig.borderColor, tierConfig.hoverColor)}>
                                     <TierIcon className="w-3 h-3 mr-1" />

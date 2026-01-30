@@ -132,10 +132,10 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 const { fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
                 const member = await fetchGuildMember(guildId, discordAccountId);
                 if (member) {
-                    let nickname = member.nick || member.user?.global_name || member.user?.username || null;
+                    const nickname = member.nick || member.user?.global_name || member.user?.username || null;
                     let roleName = "Membre";
                     let roleColor = 0;
-                    let joinedAt = member.joined_at ? member.joined_at : null;
+                    const joinedAt = member.joined_at ? member.joined_at : null;
 
                     if (member.roles && member.roles.length > 0) {
                         const guildRoles = await fetchGuildRoles(guildId);

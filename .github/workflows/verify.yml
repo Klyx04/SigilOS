@@ -1,0 +1,49 @@
+name: SigilOS CI (Verification)
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛰️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🛡️ Security Audit (npm audit)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: 💎 Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
+
+      - name: 🧹 Linting Check
+        run: npm run lint
+
+      - name: 🧪 Type Checking (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: 🏗️ Production Build Check
+        run: npm run build
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'dummy_secret_for_ci_verification' }}
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
+
+      - name: 🚀 Run Tests (Vitest)
+        run: npm run test:run

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Hammer, Palmtree } from "lucide-react";
+import { Hammer, Palmtree, ShieldCheck } from "lucide-react";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ interface ExtendedProfile extends UserProfile {
     displayName?: string;
     roleColor?: number;
     roleName?: string;
+    isAdmin?: boolean;
 }
 
 interface MemberCardProps {
@@ -119,9 +120,23 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Name & Class */}
                     <div className="text-center space-y-1 w-full">
-                        <h3 className="font-bold text-lg truncate text-white">
-                            {displayName}
-                        </h3>
+                        <div className="flex items-center justify-center gap-1.5">
+                            <h3 className="font-bold text-lg truncate text-white">
+                                {displayName}
+                            </h3>
+                            {profile.isAdmin && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <ShieldCheck className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                            Administration
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
                         <div className="flex items-center justify-center gap-1.5">
                             {classData && <ClassIcon classId={classData.id} size={20} />}
                             <p className="text-sm text-muted-foreground font-medium">

@@ -132,13 +132,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         }
 
         // --- OVERRIDES ---
-        // 1. Owner Override
-        if (guildInfo && guildInfo.owner_id === discordUserId) {
-            roleName = "Empereur"; // Custom title for Server Owner
-            roleColor = 0xFFD700; // Gold color
-        }
-        // 2. Admin Override (if no specific role name was found or just "Membre")
-        else if (roleName === "Membre") {
+        // 1. Admin Override (if no specific role name was found or just "Membre")
+        if (roleName === "Membre") {
             // Check for Administrator permission (0x8) in any role
             const isAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
             if (isAdmin) {
@@ -200,12 +195,17 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
         const now = new Date();
 
-        if (!profile) {
-            // No profile exists - create a new one
-            console.log(`[UserContext] Auto-creating profile for user ${session.user.id} in guild ${guildConfig.id}`);
+        // If no profile or ARCHIVED, we use upsert to handle race conditions atomically
+        if (!profile || profile.status === "ARCHIVED") {
             try {
-                profile = await db.userProfile.create({
-                    data: {
+                profile = await db.userProfile.upsert({
+                    where: {
+                        userId_guildId: {
+                            userId: session.user.id,
+                            guildId: guildConfig.id
+                        }
+                    },
+                    create: {
                         userId: session.user.id,
                         guildId: guildConfig.id,
                         discordNickname: displayName,
@@ -214,31 +214,32 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         discordJoinedAt: joinedAt,
                         discordCacheUpdatedAt: now,
                         lastActivityAt: now,
+                    },
+                    update: {
+                        status: "ACTIVE",
+                        archivedAt: null,
+                        archiveReason: null,
+                        discordNickname: displayName,
+                        discordRoleName: roleName,
+                        discordRoleColor: roleColor,
+                        discordJoinedAt: joinedAt || undefined,
+                        discordCacheUpdatedAt: now,
+                        lastActivityAt: now,
                     }
                 });
+                console.log(`[UserContext] Profile synchronized for ${session.user.id}`);
             } catch (e) {
-                console.error("[UserContext] Failed to auto-create profile:", e);
-            }
-        } else if (profile.status === "ARCHIVED") {
-            // Profile exists but is archived - reactivate it (returning member)
-            console.log(`[UserContext] Reactivating archived profile for returning member ${session.user.id}`);
-            profile = await db.userProfile.update({
-                where: { id: profile.id },
-                data: {
-                    status: "ACTIVE",
-                    archivedAt: null,
-                    archiveReason: null,
-                    discordNickname: displayName,
-                    discordRoleName: roleName,
-                    discordRoleColor: roleColor,
-                    discordJoinedAt: joinedAt,
-                    discordCacheUpdatedAt: now,
-                    lastActivityAt: now,
+                console.error("[UserContext] Failed to sync profile:", e);
+                // Fallback: try to fetch it one last time if upsert failed weirdly
+                if (!profile) {
+                    profile = await db.userProfile.findUnique({
+                        where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
+                    });
                 }
-            });
+            }
         } else {
-            // Update existing profile with fresh Discord data
-            // Only update if cache is older than 1 hour to reduce writes
+            // Profile exists and is ACTIVE. 
+            // We keep the throttle logic (1 hour) to avoid unnecessary DB writes on every page load.
             const cacheAge = profile.discordCacheUpdatedAt
                 ? now.getTime() - new Date(profile.discordCacheUpdatedAt).getTime()
                 : Infinity;
@@ -347,3 +348,44 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null
     };
 };
+
+/**
+ * Get all guilds where the user has an active profile.
+ * Used for the guild switcher (multi-tenant support).
+ */
+export async function getUserGuilds() {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    try {
+        const profiles = await db.userProfile.findMany({
+            where: {
+                userId: session.user.id,
+                status: "ACTIVE"
+            },
+            include: {
+                guild: {
+                    select: {
+                        discordGuildId: true,
+                        name: true,
+                        iconUrl: true
+                    }
+                }
+            },
+            orderBy: {
+                guild: {
+                    name: 'asc'
+                }
+            }
+        });
+
+        return profiles.map(p => ({
+            id: p.guild.discordGuildId,
+            name: p.guild.name,
+            iconUrl: p.guild.iconUrl
+        }));
+    } catch (error) {
+        console.error("Error fetching user guilds:", error);
+        return [];
+    }
+}

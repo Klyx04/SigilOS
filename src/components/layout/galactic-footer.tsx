@@ -46,7 +46,7 @@ export function GalacticFooter() {
                     <span>© 2026 Stellium</span>
                     <span className="w-px h-3 bg-white/10 hidden sm:block"></span>
                     <div className="flex items-center gap-3">
-                        <Link href="/legal/terms" className="hover:text-white transition-colors">CGU</Link>
+                        <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
                         <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
                     </div>
                 </div>

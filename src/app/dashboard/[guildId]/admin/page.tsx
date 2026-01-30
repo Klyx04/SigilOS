@@ -10,6 +10,7 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Shield } from "lucide-react";
+import { SyncPurgeCard } from "./_components/sync-purge-card";
 
 
 export default async function AdminPage({
@@ -92,6 +93,10 @@ export default async function AdminPage({
                 roles={roles}
                 currentMapping={currentMapping}
             />
+
+            <div className="mt-12 pt-12 border-t border-zinc-800">
+                <SyncPurgeCard guildId={targetGuildId} />
+            </div>
         </div>
     );
 }

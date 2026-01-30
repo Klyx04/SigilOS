@@ -676,7 +676,8 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
-            where: { discordGuildId: guildId }
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
         });
 
         const submissions = await db.submission.findMany({
@@ -686,12 +687,40 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
             },
             include: {
                 mission: true,
-                profile: { include: { user: true } } // Get User details (name, image)
+                profile: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        discordNickname: true,
+                        pseudoDofus: true,
+                        classe: true,
+                        discordRoleName: true,
+                        user: {
+                            select: { id: true, name: true, image: true }
+                        }
+                    }
+                }
             },
             orderBy: { createdAt: "asc" }
         });
 
-        return { success: true, data: submissions };
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+        // Enrich submissions with isAdmin flag
+        const enrichedSubmissions = submissions.map(sub => {
+            const isAdmin = sub.profile.discordRoleName === "Administrateur" ||
+                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && sub.profile.discordRoleName;
+
+            return {
+                ...sub,
+                profile: {
+                    ...sub.profile,
+                    isAdmin: !!isAdmin
+                }
+            };
+        });
+
+        return { success: true, data: enrichedSubmissions };
 
     } catch (error) {
         console.error("Fetch Pending Error:", error);

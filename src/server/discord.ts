@@ -118,6 +118,27 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     };
 }
 
+export async function listGuildMembers(guildId: string, limit = 1000) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members?limit=${limit}`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 0 }
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to list members: ${res.statusText}`);
+    }
+
+    return (await res.json()) as Array<{
+        user: { id: string; username: string; global_name?: string };
+        nick?: string | null;
+        roles: string[];
+        joined_at?: string;
+    }>;
+}
+
 export async function verifyGuildAccessibility(guildId: string): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;

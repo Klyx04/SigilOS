@@ -115,34 +115,39 @@ export type PublicGuildSummary = {
  * Get all guilds that have enabled their public presentation
  */
 export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
-    const guilds = await db.guildConfig.findMany({
-        where: {
-            isActive: true,
-            presentationEnabled: true,
-        },
-        select: {
-            id: true,
-            discordGuildId: true,
-            name: true,
-            iconUrl: true,
-            presentationServer: true,
-            presentationRecruiting: true,
-            presentationBannerType: true,
-            presentationBannerUrl: true,
-        },
-        orderBy: { name: "asc" },
-    });
+    try {
+        const guilds = await db.guildConfig.findMany({
+            where: {
+                isActive: true,
+                presentationEnabled: true,
+            },
+            select: {
+                id: true,
+                discordGuildId: true,
+                name: true,
+                iconUrl: true,
+                presentationServer: true,
+                presentationRecruiting: true,
+                presentationBannerType: true,
+                presentationBannerUrl: true,
+            },
+            orderBy: { name: "asc" },
+        });
 
-    return guilds.map((g) => ({
-        id: g.id,
-        discordGuildId: g.discordGuildId,
-        name: g.name,
-        iconUrl: g.iconUrl,
-        server: g.presentationServer,
-        isRecruiting: g.presentationRecruiting,
-        bannerType: g.presentationBannerType,
-        bannerUrl: g.presentationBannerUrl,
-    }));
+        return guilds.map((g) => ({
+            id: g.id,
+            discordGuildId: g.discordGuildId,
+            name: g.name,
+            iconUrl: g.iconUrl,
+            server: g.presentationServer,
+            isRecruiting: g.presentationRecruiting,
+            bannerType: g.presentationBannerType as any,
+            bannerUrl: g.presentationBannerUrl,
+        }));
+    } catch (error) {
+        console.error("Error fetching public guilds:", error);
+        return [];
+    }
 }
 
 export type GuildPresentation = {

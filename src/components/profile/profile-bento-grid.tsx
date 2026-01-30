@@ -54,6 +54,8 @@ interface ProfileBentoGridProps {
     discordNickname?: string | null;
     roleColor?: number;
     readOnly?: boolean;
+    isAdmin?: boolean;
+    guildName?: string;
 }
 
 export function ProfileBentoGrid({
@@ -64,6 +66,8 @@ export function ProfileBentoGrid({
     discordNickname,
     roleColor = 0,
     readOnly = false,
+    isAdmin = false,
+    guildName,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
 
@@ -193,6 +197,8 @@ export function ProfileBentoGrid({
                     weeklyXp={stats.weeklyXp}
                     missionsValidated={stats.missionsValidated}
                     weeklyMissions={stats.weeklyMissions}
+                    isAdmin={isAdmin}
+                    guildName={guildName}
                 />
             </div>
 

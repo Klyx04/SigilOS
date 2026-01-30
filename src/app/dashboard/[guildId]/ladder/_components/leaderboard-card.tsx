@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
-import { Crown, Medal, Trophy } from "lucide-react";
+import { Crown, Medal, Trophy, ShieldCheck } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Props = {
     entry: LadderEntry;
@@ -107,6 +108,18 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         >
                             {entry.discordNickname || "Membre"}
                         </span>
+                        {entry.isAdmin && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                        Administration
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                         {entry.isCurrentUser && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/30 text-primary font-medium shrink-0">
                                 VOUS

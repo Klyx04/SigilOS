@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
-import { isSuperAdmin, getAllowedGuilds, getPlatformStats } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, getAllowedGuilds, getPlatformStats, getRegistrationStats, getGhostUsers } from "@/server/actions/super-admin-actions";
 import { GuildManager } from "./guild-manager";
+import { JanitorButton } from "./janitor-button";
+import { ActivityChart } from "./activity-chart";
+import { UserList } from "./user-list";
+import { SuperAdminHeader } from "./header";
+import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 export default async function SuperAdminPage() {
     const isAdmin = await isSuperAdmin();
@@ -10,33 +15,73 @@ export default async function SuperAdminPage() {
         redirect("/");
     }
 
-    const [guilds, stats] = await Promise.all([
+    const [guilds, stats, chartData, ghostUsers] = await Promise.all([
         getAllowedGuilds(),
-        getPlatformStats()
+        getPlatformStats(),
+        getRegistrationStats(),
+        getGhostUsers()
     ]);
 
     return (
-        <div className="min-h-screen bg-black text-white p-8">
-            <div className="max-w-6xl mx-auto space-y-8">
-                {/* Header */}
-                <div className="border-b border-zinc-800 pb-6">
-                    <h1 className="text-3xl font-bold text-amber-500">🔱 Contrôle Plateforme</h1>
-                    <p className="text-zinc-400 mt-2">Gestion des guildes autorisées et statistiques globales</p>
-                </div>
+        <div className="min-h-screen bg-black text-white flex flex-col">
+            <SuperAdminHeader />
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    <StatCard label="Guildes Autorisées" value={stats.allowedGuilds} />
-                    <StatCard label="Guildes Actives" value={stats.activeGuilds} color="green" />
-                    <StatCard label="Utilisateurs" value={stats.totalUsers} />
-                    <StatCard label="Profils Total" value={stats.totalProfiles} />
-                    <StatCard label="Profils Actifs" value={stats.activeProfiles} color="green" />
-                    <StatCard label="Missions" value={stats.totalMissions} color="amber" />
-                </div>
+            <main className="flex-grow pt-24 pb-12 px-8">
+                <div className="max-w-7xl mx-auto space-y-12">
+                    {/* Header Section */}
+                    <div className="flex justify-between items-end border-b border-zinc-800 pb-8">
+                        <div>
+                            <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-200 to-amber-600 bg-clip-text text-transparent">
+                                Contrôle Plateforme
+                            </h1>
+                            <p className="text-zinc-400 mt-2 max-w-xl">
+                                Interface de gestion administrative globale. Surveillez, gérez et maintenez la santé de SigilOS depuis ce point de contrôle central.
+                            </p>
+                        </div>
+                    </div>
 
-                {/* Guild Manager */}
-                <GuildManager initialGuilds={guilds} />
-            </div>
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <StatCard label="Guildes Autorisées" value={stats.allowedGuilds} />
+                        <StatCard label="Guildes Actives" value={stats.activeGuilds} color="green" />
+                        <StatCard label="Utilisateurs" value={stats.totalUsers} />
+                        <StatCard label="Profils Total" value={stats.totalProfiles} />
+                        <StatCard label="Profils Actifs" value={stats.activeProfiles} color="green" />
+                        <StatCard label="Missions" value={stats.totalMissions} color="amber" />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Main Chart */}
+                        <div className="lg:col-span-2 bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-6 backdrop-blur-sm">
+                            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                                Inscriptions (30 jours)
+                            </h3>
+                            <ActivityChart data={chartData} />
+                        </div>
+
+                        {/* Side Panel (Janitor & Extra Tools) */}
+                        <div className="space-y-6">
+                            <JanitorButton />
+
+                            <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-6 backdrop-blur-sm">
+                                <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Cibles du Nettoyeur</span>
+                                    <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-300">{ghostUsers.length}</span>
+                                </h3>
+                                <UserList users={ghostUsers} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Guild Manager */}
+                    <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-8 backdrop-blur-sm">
+                        <GuildManager initialGuilds={guilds} />
+                    </div>
+                </div>
+            </main>
+
+            <GalacticFooter />
         </div>
     );
 }

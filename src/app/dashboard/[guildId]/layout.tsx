@@ -2,6 +2,7 @@ import { GalacticHeader } from "@/components/layout/galactic-header";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
+import { getUserGuilds } from "@/server/actions/user-actions";
 import { isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { AlmanaxWidget } from "@/components/layout/almanax-widget";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -41,9 +42,10 @@ export default async function DashboardLayout({
     }
 
 
-    const [user, guildData] = await Promise.all([
+    const [user, guildData, userGuilds] = await Promise.all([
         getUserContext(guildId),
-        getGuildHeaderData(guildId)
+        getGuildHeaderData(guildId),
+        getUserGuilds()
     ]);
 
     if (!user.isMember) {
@@ -82,6 +84,7 @@ export default async function DashboardLayout({
                     user={user}
                     guildId={guildId}
                     guildData={guildData}
+                    userGuilds={userGuilds}
                     almanaxWidget={
                         <Suspense fallback={<div className="h-10 w-32 bg-white/5 rounded-xl animate-pulse" />}>
                             <AlmanaxWidget />

@@ -265,7 +265,7 @@ export async function analyzeMissionScreenshot(
         const isLogicValid = isClassicVictory || isCheckedCard;
 
         // Calculate final score
-        let score = calculateScore(validation, confidence, hasGreenCheck);
+        const score = calculateScore(validation, confidence, hasGreenCheck);
 
         // Force isValid if logic passes and score is decent
         const isValid = isLogicValid && score >= 60;
@@ -503,7 +503,7 @@ function validateRegulation(
     matched: string[],
     missing: string[]
 ): { categoryMatch: boolean; contentMatch: boolean } {
-    let categoryMatch = true; // Regulation doesn't need specific category markers
+    const categoryMatch = true; // Regulation doesn't need specific category markers
     let contentMatch = false;
 
     // Check for monster name

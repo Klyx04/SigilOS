@@ -46,8 +46,9 @@ src/
 
 ## 🧪 Before Commit Checklist
 
-- [ ] `npm run build` passes
+- [ ] `npm run build` passes localement
 - [ ] No TypeScript errors
+- [ ] SIGIL-CI (Robot) s'affiche en vert sur GitHub après le push
 - [ ] All new actions have auth checks
 - [ ] Sensitive routes have permission guards
 - [ ] No `console.log` in production code (use `console.error` for errors only)

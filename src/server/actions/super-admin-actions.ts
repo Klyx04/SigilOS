@@ -199,7 +199,7 @@ export async function cleanupGhostUsers(isTestMode = false) {
     // 1. Find candidates (Old users)
     const candidates = await db.user.findMany({
         where: {
-            createdAt: { lt: cutoffDate } as any,
+            createdAt: { lt: cutoffDate },
             profiles: { none: {} } // No UserProfile
         },
         include: {
@@ -240,7 +240,7 @@ export async function getGhostUsers() {
         where: {
             profiles: { none: {} } // ONLY users without any profile
         },
-        orderBy: { createdAt: "desc" } as any,
+        orderBy: { createdAt: "desc" },
         take: 50,
         include: {
             accounts: {
@@ -261,7 +261,7 @@ export async function getRegistrationStats() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const users = await db.user.findMany({
-        where: { createdAt: { gte: thirtyDaysAgo } } as any,
+        where: { createdAt: { gte: thirtyDaysAgo } },
         select: { createdAt: true }
     });
 
@@ -275,8 +275,8 @@ export async function getRegistrationStats() {
         statsMap.set(d.toISOString().split("T")[0], 0);
     }
 
-    users.forEach((u: any) => {
-        const dateKey = (u as any).createdAt.toISOString().split("T")[0];
+    users.forEach((u) => {
+        const dateKey = u.createdAt.toISOString().split("T")[0];
         if (statsMap.has(dateKey)) {
             statsMap.set(dateKey, (statsMap.get(dateKey) || 0) + 1);
         }

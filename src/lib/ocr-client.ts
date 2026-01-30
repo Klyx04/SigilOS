@@ -151,7 +151,7 @@ function validateDonjon(
     matched: string[],
     missing: string[]
 ): { categoryMatch: boolean; contentMatch: boolean } {
-    let categoryMatch = DUNGEON_PATTERNS.some(p => p.test(textLower));
+    const categoryMatch = DUNGEON_PATTERNS.some(p => p.test(textLower));
     let contentMatch = false;
 
     const bossName = payload.bossName || payload.dungeonName;
@@ -203,7 +203,7 @@ function validateAnomalie(
     matched: string[],
     missing: string[]
 ): { categoryMatch: boolean; contentMatch: boolean } {
-    let categoryMatch = ANOMALY_PATTERNS.some(p => p.test(textLower));
+    const categoryMatch = ANOMALY_PATTERNS.some(p => p.test(textLower));
     let contentMatch = false;
 
     // Look for "Elixir Uchronique" specifically
@@ -225,7 +225,7 @@ function validateSonges(
     matched: string[],
     missing: string[]
 ): { categoryMatch: boolean; contentMatch: boolean } {
-    let categoryMatch = SONGES_PATTERNS.some(p => p.test(textLower));
+    const categoryMatch = SONGES_PATTERNS.some(p => p.test(textLower));
     let contentMatch = false;
 
     // Check difficulty
@@ -270,7 +270,7 @@ function validateExpedition(
     matched: string[],
     missing: string[]
 ): { categoryMatch: boolean; contentMatch: boolean } {
-    let categoryMatch = EXPEDITION_PATTERNS.some(p => p.test(textLower));
+    const categoryMatch = EXPEDITION_PATTERNS.some(p => p.test(textLower));
     let contentMatch = false;
 
     // Check mode
@@ -398,7 +398,7 @@ export async function analyzeScreenshot(
         console.log(`[OCR-Client] Text extracted (${rawText.length} chars), confidence: ${confidence}%`);
 
         // Check for victory
-        let victoryDetected = VICTORY_PATTERNS.some(p => p.test(rawText));
+        const victoryDetected = VICTORY_PATTERNS.some(p => p.test(rawText));
 
         const matchedElements: string[] = [];
         const missingElements: string[] = [];

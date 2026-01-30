@@ -23,6 +23,10 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm ci
 
+      - name: 🛡️ Security Audit (npm audit)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
       - name: 💎 Generate Prisma Client
         run: npx prisma generate
         env:

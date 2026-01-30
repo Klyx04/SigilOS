@@ -1,43 +1,41 @@
 export default function PrivacyPage() {
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-white mb-4">Politique de Confidentialité</h1>
-            <p className="text-sm italic opacity-50">Dernière mise à jour : Janvier 2026</p>
+        <div className="min-h-screen bg-black text-white pt-32 pb-16 px-6">
+            <div className="max-w-3xl mx-auto prose prose-invert prose-lg">
+                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 mb-8">
+                    Politique de Confidentialité
+                </h1>
 
-            <section className="space-y-2">
-                <h2 className="text-lg font-semibold text-zinc-200">1. Collecte des Données</h2>
-                <p>
-                    Nous collectons uniquement les données strictement nécessaires au fonctionnement de l'application via l'API Discord :
-                </p>
-                <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Identifiant Discord (ID)</li>
-                    <li>Pseudo et Avatar</li>
-                    <li>Rôles sur le serveur de la guilde</li>
+                <div className="bg-zinc-900/50 border border-emerald-500/20 rounded-xl p-6 mb-8">
+                    <p className="m-0 text-emerald-200">
+                        <strong>En bref :</strong> Nous ne vendons pas vos données. Nous stockons uniquement le strict nécessaire pour gérer votre guilde.
+                    </p>
+                </div>
+
+                <h3>1. Données Collectées</h3>
+                <ul className="list-disc pl-5 space-y-2 text-zinc-300">
+                    <li><strong>Identifiant Discord :</strong> Pour vous authentifier et gérer vos permissions.</li>
+                    <li><strong>Pseudo & Avatar :</strong> Affichés sur votre profil de guilde.</li>
+                    <li><strong>Screenshots de jeu :</strong> Uploadés pour valider vos missions (supprimés après validation).</li>
                 </ul>
-            </section>
 
-            <section className="space-y-2">
-                <h2 className="text-lg font-semibold text-zinc-200">2. Utilisation des Données</h2>
+                <h3>2. Cookies</h3>
                 <p>
-                    Ces données sont utilisées pour :
+                    Nous utilisons uniquement des cookies de session "essentiels" pour maintenir votre connexion (Auth.js).
+                    Aucun traceur publicitaire, aucun pixel Facebook/Google.
                 </p>
-                <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Gérer votre authentification et vos permissions.</li>
-                    <li>Afficher votre profil aux autres membres de la guilde.</li>
-                    <li>Suivre votre progression dans les modules (Missions, Songes).</li>
-                </ul>
-                <p>
-                    Aucune donnée n'est revendue à des tiers.
-                </p>
-            </section>
 
-            <section className="space-y-2">
-                <h2 className="text-lg font-semibold text-zinc-200">3. Vos Droits (RGPD)</h2>
+                <h3>3. Vos Droits</h3>
                 <p>
-                    Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données.
-                    Pour exercer ce droit, veuillez contacter un administrateur via Discord ou utiliser le bouton "Supprimer mon compte" dans votre profil.
+                    Conformément au RGPD, vous pouvez demander la suppression complète de vos données (Droit à l'oubli)
+                    directement via le bouton "Supprimer mon compte" dans vos paramètres, ou en nous contactant sur Discord.
                 </p>
-            </section>
+
+                <h3>4. Hébergement</h3>
+                <p>
+                    Vos données sont hébergées en France (OVHcloud) et sécurisées selon les standards de l'industrie.
+                </p>
+            </div>
         </div>
     );
 }

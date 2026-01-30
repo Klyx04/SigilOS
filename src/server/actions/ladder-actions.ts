@@ -23,6 +23,7 @@ export type LadderEntry = {
     classe: string | null;
     value: number;
     isCurrentUser: boolean;
+    isAdmin: boolean;
 };
 
 export type LadderType = "activity" | "seniority";
@@ -49,7 +50,7 @@ export async function getActivityLadder(
         // Get guild config
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, rolesMapping: true }
         });
 
         if (!guildConfig) {
@@ -103,6 +104,7 @@ export async function getActivityLadder(
                     id: true,
                     discordNickname: true,
                     discordRoleColor: true,
+                    discordRoleName: true,
                     discordJoinedAt: true,
                     pseudoDofus: true,
                     classe: true,
@@ -133,16 +135,24 @@ export async function getActivityLadder(
                     return aJoined - bJoined;
                 });
 
-            const ladder: LadderEntry[] = rankedProfiles.map((p, idx) => ({
-                rank: idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                value: p.periodXp,
-                isCurrentUser: p.id === currentProfile?.id
-            }));
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+            const ladder: LadderEntry[] = rankedProfiles.map((p, idx) => {
+                const isAdmin = p.discordRoleName === "Administrateur" ||
+                    Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: p.periodXp,
+                    isCurrentUser: p.id === currentProfile?.id,
+                    isAdmin: !!isAdmin
+                };
+            });
 
             return { success: true, data: ladder };
         } else {
@@ -157,6 +167,7 @@ export async function getActivityLadder(
                     id: true,
                     discordNickname: true,
                     discordRoleColor: true,
+                    discordRoleName: true,
                     discordJoinedAt: true,
                     pseudoDofus: true,
                     classe: true,
@@ -168,16 +179,24 @@ export async function getActivityLadder(
                 ]
             });
 
-            const ladder: LadderEntry[] = profiles.map((p, idx) => ({
-                rank: idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                value: p.xp,
-                isCurrentUser: p.id === currentProfile?.id
-            }));
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+            const ladder: LadderEntry[] = profiles.map((p, idx) => {
+                const isAdmin = p.discordRoleName === "Administrateur" ||
+                    Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: p.xp,
+                    isCurrentUser: p.id === currentProfile?.id,
+                    isAdmin: !!isAdmin
+                };
+            });
 
             return { success: true, data: ladder };
         }
@@ -201,7 +220,7 @@ export async function getSeniorityLadder(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, rolesMapping: true }
         });
 
         if (!guildConfig) {
@@ -222,6 +241,7 @@ export async function getSeniorityLadder(
                 id: true,
                 discordNickname: true,
                 discordRoleColor: true,
+                discordRoleName: true,
                 discordJoinedAt: true,
                 pseudoDofus: true,
                 classe: true
@@ -235,6 +255,10 @@ export async function getSeniorityLadder(
             const joinedAt = p.discordJoinedAt!;
             const daysInGuild = Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60 * 24));
 
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const isAdmin = p.discordRoleName === "Administrateur" ||
+                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+
             return {
                 rank: idx + 1,
                 profileId: p.id,
@@ -243,7 +267,8 @@ export async function getSeniorityLadder(
                 pseudoDofus: p.pseudoDofus,
                 classe: p.classe,
                 value: daysInGuild,
-                isCurrentUser: p.id === currentProfile?.id
+                isCurrentUser: p.id === currentProfile?.id,
+                isAdmin: !!isAdmin
             };
         });
 

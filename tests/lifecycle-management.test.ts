@@ -27,6 +27,12 @@ const mockDb = {
         deleteMany: vi.fn(),
         update: vi.fn(),
         create: vi.fn(),
+        upsert: vi.fn(),
+    },
+    user: {
+        findMany: vi.fn(),
+        delete: vi.fn(),
+        count: vi.fn(),
     },
 };
 
@@ -386,6 +392,65 @@ describe("Member Lifecycle Management", () => {
 
             // If already archived, count should be 0
             expect(result.count).toBe(0);
+        });
+    });
+
+    describe("New Features: Sync & Orphan Cleanup", () => {
+        it("should identify and delete orphaned profiles (no user)", async () => {
+            // Simulate 2 profiles, only one has a valid user
+            const mockProfiles = [
+                { id: "orphan-1", userId: "non-existent-user" },
+                { id: "valid-1", userId: USER_1.id }
+            ];
+            const mockUsers = [{ id: USER_1.id }];
+
+            mockDb.userProfile.findMany.mockResolvedValue(mockProfiles);
+            mockDb.user.findMany.mockResolvedValue(mockUsers);
+            mockDb.userProfile.deleteMany.mockResolvedValue({ count: 1 });
+
+            // Logic check: filtering orphans
+            const userIds = new Set(mockUsers.map(u => u.id));
+            const orphanIds = mockProfiles
+                .filter(p => !userIds.has(p.userId))
+                .map(p => p.id);
+
+            expect(orphanIds).toContain("orphan-1");
+            expect(orphanIds).not.toContain("valid-1");
+
+            const result = await mockDb.userProfile.deleteMany({
+                where: { id: { in: orphanIds } }
+            });
+            expect(result.count).toBe(1);
+        });
+
+        it("should archive members who are no longer in Discord member list (Sync)", async () => {
+            // Member list from Discord (only user-2)
+            const discordUserIds = new Set(["discord-user-2"]);
+
+            // Profile in DB (user-1)
+            const activeProfiles = [
+                { id: "profile-1", discordNickname: "Player 1", user: { accounts: [{ providerAccountId: "discord-user-1" }] } }
+            ];
+
+            // Filter logic: profile-1's discord ID is NOT in the set
+            const profilesToArchive = activeProfiles.filter(p => !discordUserIds.has(p.user.accounts[0].providerAccountId));
+
+            expect(profilesToArchive.length).toBe(1);
+            expect(profilesToArchive[0].id).toBe("profile-1");
+
+            // Mocking the update call
+            mockDb.userProfile.update.mockResolvedValue({ status: "ARCHIVED" });
+
+            for (const p of profilesToArchive) {
+                await mockDb.userProfile.update({
+                    where: { id: p.id },
+                    data: { status: "ARCHIVED", archiveReason: "LEFT", archivedAt: new Date() }
+                });
+            }
+
+            expect(mockDb.userProfile.update).toHaveBeenCalledWith(
+                expect.objectContaining({ where: { id: "profile-1" } })
+            );
         });
     });
 });

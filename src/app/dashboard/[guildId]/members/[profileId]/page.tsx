@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getMemberProfile, getProfileStats } from "@/server/actions/profile-actions";
+import { getGuildHeaderData } from "@/server/actions/guild-actions";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { ArchiMatchingWidget } from "@/components/profile/archi-matching-widget";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
@@ -18,8 +19,12 @@ export default async function MemberProfilePage({
 
     const { guildId, profileId } = await params;
 
-    // Fetch member profile (includes Discord info)
-    const profileResult = await getMemberProfile(guildId, profileId);
+    // Fetch member profile and guild data
+    const [profileResult, guildData] = await Promise.all([
+        getMemberProfile(guildId, profileId),
+        getGuildHeaderData(guildId)
+    ]);
+
     if (!profileResult.success || !profileResult.data) {
         notFound();
     }
@@ -98,9 +103,11 @@ export default async function MemberProfilePage({
                 }}
                 stats={stats}
                 guildId={guildId}
+                guildName={guildData.name}
                 discordNickname={discordNickname}
                 roleColor={roleColor}
                 readOnly={true}
+                isAdmin={profile.discordInfo?.isAdmin || false}
             />
 
             {/* Archi Matching Widget - shows potential exchanges */}

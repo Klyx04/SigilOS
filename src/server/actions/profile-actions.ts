@@ -142,13 +142,26 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                         const memberRoles = guildRoles
                             .filter(r => member.roles.includes(r.id))
                             .sort((a, b) => b.position - a.position);
+
                         if (memberRoles.length > 0) {
                             roleName = memberRoles[0].name;
                             roleColor = memberRoles[0].color || 0;
                         }
-                    }
 
-                    discordInfo = { nickname, roleName, roleColor, joinedAt };
+                        // Admin Check
+                        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+                        const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+                        const isAdmin = member.roles.some(rid => {
+                            const hasSigilAdmin = rolesMapping[rid]?.includes("admin:access");
+                            const role = guildRoles.find(r => r.id === rid);
+                            const hasDiscordAdmin = role ? (BigInt(role.permissions) & 0x8n) === 0x8n : false;
+                            return hasSigilAdmin || hasDiscordAdmin;
+                        });
+
+                        discordInfo = { nickname, roleName, roleColor, joinedAt, isAdmin };
+                    } else {
+                        discordInfo = { nickname, roleName, roleColor, joinedAt, isAdmin: false };
+                    }
                 }
             } catch (e) {
                 console.warn("Failed to fetch Discord info:", e);
@@ -605,14 +618,53 @@ export async function getGuildMembers(
             });
         }
 
-        // Map with Discord cache data
-        const mappedResult = result.map(p => ({
-            ...p,
-            user: { id: p.user.id, name: p.user.name, image: p.user.image },
-            displayName: p.discordNickname || p.pseudoDofus || p.user.name,
-            roleColor: p.discordRoleColor || 0,
-            roleName: p.discordRoleName || "Membre",
-        }));
+        // 3. Parallelize Discord correlation for Admin rights
+        const { listGuildMembers, fetchGuildRoles } = await import("@/server/discord");
+        const [discordMembers, allRoles] = await Promise.all([
+            listGuildMembers(guildId).catch(() => []),
+            fetchGuildRoles(guildId, { excludeManaged: false }).catch(() => [])
+        ]);
+
+        // Identify roles that grant admin rights (Discord bit 0x8 or SigilOS mapping)
+        const adminRoleIds = new Set<string>();
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+        for (const role of allRoles) {
+            const hasDiscordAdmin = (BigInt(role.permissions) & 0x8n) === 0x8n;
+            const hasSigilAdmin = rolesMapping[role.id]?.includes("admin:access");
+            if (hasDiscordAdmin || hasSigilAdmin) {
+                adminRoleIds.add(role.id);
+            }
+        }
+
+        const discordMemberMap = new Map(discordMembers.map(m => [m.user.id, m]));
+
+        // Fetch Discord Accounts for matching
+        const users = await db.user.findMany({
+            where: { id: { in: result.map(p => p.userId) } },
+            include: { accounts: { where: { provider: "discord" } } }
+        });
+        const userDiscordIdMap = new Map(users.map(u => [u.id, u.accounts[0]?.providerAccountId]));
+
+        // Map with Discord cache data + Real-time Admin check
+        const mappedResult = result.map(p => {
+            const discordId = userDiscordIdMap.get(p.userId);
+            const discordMember = discordId ? discordMemberMap.get(discordId) : null;
+
+            // Real-time admin check if we found the member
+            const isAdmin = discordMember
+                ? discordMember.roles.some(rid => adminRoleIds.has(rid))
+                : false;
+
+            return {
+                ...p,
+                user: { id: p.user.id, name: p.user.name, image: p.user.image },
+                displayName: p.discordNickname || p.pseudoDofus || p.user.name,
+                roleColor: p.discordRoleColor || 0,
+                roleName: p.discordRoleName || "Membre",
+                isAdmin
+            };
+        });
 
         return { success: true, data: mappedResult };
 

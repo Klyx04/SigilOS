@@ -93,8 +93,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     }}
                     stats={stats}
                     guildId={guildId}
+                    guildName={userContext.guildName}
                     discordNickname={userContext.name}
                     roleColor={userContext.roleColor}
+                    isAdmin={userContext.isAdmin}
                     readOnly={false}
                 />
             </div>

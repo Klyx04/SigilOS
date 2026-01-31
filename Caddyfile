@@ -44,10 +44,10 @@ beta.{$DOMAIN_NAME} {
 # -----------------------------------------------------------------------------
 # 📊 MONITORING (monitor.tondomaine.fr)
 # -----------------------------------------------------------------------------
-monitor.{$DOMAIN_NAME} {
-	reverse_proxy grafana:3000
-    basic_auth {
-        # Protection basique en plus du login Grafana (Optionnel)
-        # admin $2a$14$....
-    }
-}
+# monitor.{$DOMAIN_NAME} {
+# 	reverse_proxy grafana:3000
+#     basic_auth {
+#         # Protection basique en plus du login Grafana (Optionnel)
+#         # admin $2a$14$....
+#     }
+# }

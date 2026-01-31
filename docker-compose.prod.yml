@@ -19,14 +19,11 @@ services:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - METAMOB_API_KEY=${METAMOB_API_KEY}
       - REDIS_URL=redis://redis:6379
-      - OCR_SERVICE_URL=http://ocr-service:9999
     depends_on:
       - db-prod
       - redis
-      - ocr-service
     networks:
       - prod-net
-      - ai-net
 
   db-prod:
     image: postgres:15-alpine
@@ -42,7 +39,7 @@ services:
       - prod-net
 
   # ===========================================================================
-  # 🟡 BETA ENVIRONMENT (Pour tests sans danger)
+  # 🟡 BETA ENVIRONMENT
   # ===========================================================================
   app-beta:
     container_name: sigilos-beta
@@ -52,9 +49,8 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      # ⚠️ CONNECTÉ À LA BDD BETA UNIQUEMENT
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
-      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}} # Idéalement différent
+      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
       - AUTH_URL=https://beta.${DOMAIN_NAME}
       - NEXT_PUBLIC_APP_URL=https://beta.${DOMAIN_NAME}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
@@ -62,14 +58,11 @@ services:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - METAMOB_API_KEY=${METAMOB_API_KEY}
       - REDIS_URL=redis://redis:6379
-      - OCR_SERVICE_URL=http://ocr-service:9999
     depends_on:
       - db-beta
       - redis
-      - ocr-service
     networks:
       - beta-net
-      - ai-net
 
   db-beta:
     image: postgres:15-alpine
@@ -85,7 +78,7 @@ services:
       - beta-net
 
   # ===========================================================================
-  # 🌐 ROUTING & SECURITÉ (Commun)
+  # 🌐 ROUTING (Caddy gère le SSL automatique)
   # ===========================================================================
   caddy:
     image: caddy:alpine
@@ -104,68 +97,28 @@ services:
     networks:
       - prod-net
       - beta-net
-      - monitoring-net
 
   # ===========================================================================
-  # 📊 MONITORING (Stack 2026)
-  # ===========================================================================
-  prometheus:
-    image: prom/prometheus
-    container_name: sigilos-prometheus
-    restart: always
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    networks:
-      - monitoring-net
-
-  grafana:
-    image: grafana/grafana
-    container_name: sigilos-grafana
-    restart: always
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-    volumes:
-      - grafana_data:/var/lib/grafana
-    networks:
-      - monitoring-net
-
-  # ===========================================================================
-  # 🧠 AI & QUEUE SERVICES (Shared)
+  # 🧠 QUEUE SERVICE (Indispensable pour l'app même sans IA)
   # ===========================================================================
   redis:
     image: redis:7-alpine
     container_name: sigilos-redis
     restart: always
-    command: redis-server --save 60 1 --loglevel warning
     volumes:
       - redis_data:/data
     networks:
       - prod-net
       - beta-net
-      - ai-net
-
-  ocr-service:
-    image: dyngate/paddleocr:latest
-    container_name: sigilos-ocr-engine
-    restart: always
-    ports:
-      - "9999:9999"
-    networks:
-      - ai-net
 
 volumes:
   db-prod-data:
   db-beta-data:
   caddy_data:
   caddy_config:
-  prometheus_data:
-  grafana_data:
   redis_data:
 
 
 networks:
   prod-net:
   beta-net:
-  monitoring-net:
-  ai-net:

@@ -2,6 +2,10 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
+if (!process.env.POSTGRES_PASSWORD) {
+    console.error("[Prisma] CRITICAL: POSTGRES_PASSWORD is empty or undefined!");
+}
+
 const connectionString = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || '')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@${process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost'}:5432/${encodeURIComponent(process.env.POSTGRES_DB || '')}`
 
 const pool = new Pool({

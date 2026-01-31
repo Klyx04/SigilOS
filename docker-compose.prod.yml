@@ -10,24 +10,19 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - POSTGRES_USER="${POSTGRES_USER}"
-      - POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
-      - POSTGRES_DB="${POSTGRES_DB}"
-      - DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}"
-      - AUTH_SECRET="${AUTH_SECRET}"
-      - NEXTAUTH_SECRET="${AUTH_SECRET}"
-      - AUTH_URL="https://${DOMAIN_NAME}/api/auth"
-      - NEXTAUTH_URL="https://${DOMAIN_NAME}/api/auth"
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=https://${DOMAIN_NAME}/api/auth
       - AUTH_TRUST_HOST=true
-      - NEXT_PUBLIC_APP_URL="https://${DOMAIN_NAME}"
-      - AUTH_DISCORD_ID="${DISCORD_CLIENT_ID}"
-      - AUTH_DISCORD_SECRET="${DISCORD_CLIENT_SECRET}"
-      - DISCORD_CLIENT_ID="${DISCORD_CLIENT_ID}"
-      - DISCORD_CLIENT_SECRET="${DISCORD_CLIENT_SECRET}"
-      - DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
-      - METAMOB_API_KEY="${METAMOB_API_KEY}"
-      - REDIS_URL="redis://redis:6379"
-      - HOSTNAME="0.0.0.0"
+      - NEXT_PUBLIC_APP_URL=https://${DOMAIN_NAME}
+      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
+      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - METAMOB_API_KEY=${METAMOB_API_KEY}
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - db-prod
       - redis
@@ -58,24 +53,19 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - POSTGRES_USER="${POSTGRES_USER}"
-      - POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
-      - POSTGRES_DB="${POSTGRES_DB}"
-      - DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}"
-      - AUTH_SECRET="${AUTH_SECRET_BETA:-${AUTH_SECRET}}"
-      - NEXTAUTH_SECRET="${AUTH_SECRET_BETA:-${AUTH_SECRET}}"
-      - AUTH_URL="https://beta.${DOMAIN_NAME}/api/auth"
-      - NEXTAUTH_URL="https://beta.${DOMAIN_NAME}/api/auth"
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
+      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
+      - AUTH_URL=https://beta.${DOMAIN_NAME}/api/auth
       - AUTH_TRUST_HOST=true
-      - NEXT_PUBLIC_APP_URL="https://beta.${DOMAIN_NAME}"
-      - AUTH_DISCORD_ID="${DISCORD_CLIENT_ID}"
-      - AUTH_DISCORD_SECRET="${DISCORD_CLIENT_SECRET}"
-      - DISCORD_CLIENT_ID="${DISCORD_CLIENT_ID}"
-      - DISCORD_CLIENT_SECRET="${DISCORD_CLIENT_SECRET}"
-      - DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
-      - METAMOB_API_KEY="${METAMOB_API_KEY}"
-      - REDIS_URL="redis://redis:6379"
-      - HOSTNAME="0.0.0.0"
+      - NEXT_PUBLIC_APP_URL=https://beta.${DOMAIN_NAME}
+      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
+      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - METAMOB_API_KEY=${METAMOB_API_KEY}
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - db-beta
       - redis
@@ -96,7 +86,7 @@ services:
       - beta-net
 
   # ===========================================================================
-  # 🌐 ROUTING (Caddy gère le SSL automatique)
+  # 🌐 ROUTING
   # ===========================================================================
   caddy:
     image: caddy:alpine
@@ -117,7 +107,7 @@ services:
       - beta-net
 
   # ===========================================================================
-  # 🧠 QUEUE SERVICE (Indispensable pour l'app même sans IA)
+  # 🧠 QUEUE SERVICE
   # ===========================================================================
   redis:
     image: redis:7-alpine

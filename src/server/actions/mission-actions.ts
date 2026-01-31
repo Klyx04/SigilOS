@@ -7,8 +7,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { MissionCategory, Prisma, NotificationType } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
-import { unlink, rmdir } from "fs/promises";
 import { join, dirname } from "path";
+import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 
 // --- Types & Schemas ---
@@ -144,47 +144,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
     }
 }
 
-// --- Helper: Deletion ---
-async function deleteProofFile(proofUrl: string) {
-    const isLocalUpload = proofUrl && proofUrl.startsWith("/uploads/proofs/");
-
-    if (!isLocalUpload) return;
-
-    try {
-        // defined in upload route: /uploads/proofs/... -> public/uploads/proofs/...
-        const relativePath = proofUrl.replace(/^\//, "");
-        const absolutePath = join(process.cwd(), "public", relativePath);
-
-        // 1. Delete the file
-        await unlink(absolutePath);
-        console.log(`[Cleanup] Deleted file: ${absolutePath} `);
-
-        // 2. Safely attempt to delete the parent directory (Mission folder)
-        // This fails silently if the directory is NOT empty (which is exactly what we want)
-        try {
-            const dirPath = dirname(absolutePath);
-            await rmdir(dirPath);
-            console.log(`[Cleanup] Removed empty directory: ${dirPath} `);
-
-            // Optional: Try to remove the grandparent (Guild folder) if also empty
-            const grandParentDirPath = dirname(dirPath);
-            await rmdir(grandParentDirPath);
-            console.log(`[Cleanup] Removed empty guild directory: ${grandParentDirPath} `);
-        } catch (dirError: any) {
-            // Ignore ENOTEMPTY or permissions errors, it just means the folder is still in use.
-            if (dirError.code !== "ENOTEMPTY" && dirError.code !== "EEXIST" && dirError.code !== "EBUSY") {
-                // Only log unexpected errors
-                // console.warn(`[Cleanup] Directory cleanup skipped: ${ dirError.message } `);
-            }
-        }
-
-    } catch (error: any) {
-        // Ignore ENOENT (File not found), warn on others
-        if (error.code !== "ENOENT") {
-            console.warn(`[Cleanup] Failed to delete file ${proofUrl}: `, error);
-        }
-    }
-}
+// deleteProofFile removed and moved to @/lib/storage-utils
 
 
 // --- Actions ---
@@ -634,8 +594,8 @@ async function addProfileXp(profileId: string, amount: number) {
 
 
 export async function cleanupExpiredSubmissions(guildId: string) {
-    // 48 hours expiration
-    const EXPIRATION_MS = 48 * 60 * 60 * 1000;
+    // 24 hours expiration
+    const EXPIRATION_MS = 24 * 60 * 60 * 1000;
     const thresholdDate = new Date(Date.now() - EXPIRATION_MS);
 
     try {

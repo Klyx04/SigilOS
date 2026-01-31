@@ -487,84 +487,126 @@ export function PresentationForm({ guildId }: Props) {
                         <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" />
 
                         <div className="space-y-4">
-                            {/* Mono-compte */}
+                            {/* Épiques */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Shield className="w-4 h-4 text-emerald-500" />
+                                    <p className="text-sm font-medium text-emerald-500">Serveurs Épiques</p>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    {DOFUS_UNITY_SERVERS.epique.map((s) => (
+                                        <button
+                                            key={s.name}
+                                            type="button"
+                                            onClick={() => setServer(s.name)}
+                                            className={cn(
+                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
+                                                server === s.name
+                                                    ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]"
+                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <span className="relative z-10">{s.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Monocompte */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Trophy className="w-4 h-4 text-amber-500" />
-                                    <p className="text-sm font-medium text-amber-500">Mono-compte (Dakal)</p>
+                                    <p className="text-sm font-medium text-amber-500">Serveurs Monocompte</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.singleAccount.map((s) => (
+                                    {DOFUS_UNITY_SERVERS.monocompte.map((s) => (
                                         <button
-                                            key={s}
+                                            key={s.name}
                                             type="button"
-                                            onClick={() => setServer(s)}
+                                            onClick={() => setServer(s.name)}
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s
+                                                server === s.name
                                                     ? "bg-amber-500/10 border-amber-500 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
-                                            <span className="relative z-10">{s.replace("Dakal ", "")}</span>
-                                            {server === s && (
-                                                <motion.div
-                                                    layoutId="server-active"
-                                                    className="absolute inset-0 rounded-xl bg-amber-500/5"
-                                                    initial={false}
-                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                                />
-                                            )}
+                                            <span className="relative z-10">{s.name}</span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Multi-compte */}
+                            {/* Classiques */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Gamepad2 className="w-4 h-4 text-zinc-400" />
+                                    <p className="text-sm font-medium text-zinc-400">Serveurs Classiques</p>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    {DOFUS_UNITY_SERVERS.classique.map((s) => (
+                                        <button
+                                            key={s.name}
+                                            type="button"
+                                            onClick={() => setServer(s.name)}
+                                            className={cn(
+                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
+                                                server === s.name
+                                                    ? "bg-white/10 border-white text-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.2)]"
+                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <span className="relative z-10">{s.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pionniers Mono */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles className="w-4 h-4 text-indigo-400" />
+                                    <p className="text-sm font-medium text-indigo-400">Serveurs Pionniers Monocompte</p>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    {DOFUS_UNITY_SERVERS.pionnierMono.map((s) => (
+                                        <button
+                                            key={s.name}
+                                            type="button"
+                                            onClick={() => setServer(s.name)}
+                                            className={cn(
+                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
+                                                server === s.name
+                                                    ? "bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]"
+                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <span className="relative z-10">{s.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pionniers Multi */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Users className="w-4 h-4 text-blue-500" />
-                                    <p className="text-sm font-medium text-blue-500">Multi-compte</p>
+                                    <p className="text-sm font-medium text-blue-500">Serveurs Pionniers</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.multiAccount.map((s) => (
+                                    {DOFUS_UNITY_SERVERS.pionnier.map((s) => (
                                         <button
-                                            key={s}
+                                            key={s.name}
                                             type="button"
-                                            onClick={() => setServer(s)}
+                                            onClick={() => setServer(s.name)}
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s
+                                                server === s.name
                                                     ? "bg-blue-500/10 border-blue-500 text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.2)]"
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
-                                            <span className="relative z-10">{s}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Legacy */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Castle className="w-4 h-4 text-purple-500" />
-                                    <p className="text-sm font-medium text-purple-500">Serveurs historiques</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {DOFUS_UNITY_SERVERS.legacy.map((s) => (
-                                        <button
-                                            key={s}
-                                            type="button"
-                                            onClick={() => setServer(s)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s
-                                                    ? "bg-purple-500/10 border-purple-500 text-purple-400 shadow-[0_0_15px_-3px_rgba(168,85,247,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s}</span>
+                                            <span className="relative z-10">{s.name}</span>
                                         </button>
                                     ))}
                                 </div>

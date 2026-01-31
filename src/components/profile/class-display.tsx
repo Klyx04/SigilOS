@@ -10,15 +10,19 @@ import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { UserCircle } from "lucide-react";
 
 interface ClassDisplayProps {
+    pseudoDofus?: string | null;
     mainClass?: string | null;
     secondaryClasses?: string[];
-    onSave?: (mainClass: string, secondaryClasses: string[]) => void;
+    onSave?: (mainClass: string, secondaryClasses: string[], pseudoDofus: string) => void;
     readOnly?: boolean;
 }
 
 export function ClassDisplay({
+    pseudoDofus,
     mainClass,
     secondaryClasses = [],
     onSave,
@@ -27,6 +31,7 @@ export function ClassDisplay({
     const [isOpen, setIsOpen] = useState(false);
     const [selectedMain, setSelectedMain] = useState<string>(mainClass || "");
     const [selectedSecondary, setSelectedSecondary] = useState<string[]>(secondaryClasses);
+    const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
 
     const mainClassData = getClass(mainClass || "");
 
@@ -41,13 +46,14 @@ export function ClassDisplay({
     };
 
     const handleSave = () => {
-        onSave?.(selectedMain, selectedSecondary);
+        onSave?.(selectedMain, selectedSecondary, localPseudo);
         setIsOpen(false);
     };
 
     const handleOpen = () => {
         setSelectedMain(mainClass || "");
         setSelectedSecondary(secondaryClasses);
+        setLocalPseudo(pseudoDofus || "");
     };
 
     return (
@@ -66,9 +72,36 @@ export function ClassDisplay({
                         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
                             {/* ... Dialog Content ... (Keep existing layout inside dialog as it is fine for modal) */}
                             <DialogHeader className="p-6 pb-2 border-b border-white/5">
-                                <DialogTitle className="text-xl">Choisir votre voie</DialogTitle>
-                                <DialogDescription>Définissez votre classe principale et vos spécialisations secondaires.</DialogDescription>
+                                <DialogTitle className="text-xl">Modifier votre profil</DialogTitle>
+                                <DialogDescription>Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
                             </DialogHeader>
+
+                            <div className="px-6 pt-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest flex items-center gap-1.5 pl-1">
+                                        <UserCircle className="w-3 h-3" />
+                                        Pseudo Dofus Exact
+                                    </label>
+                                    <div className="relative">
+                                        <Input
+                                            value={localPseudo}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]/g, "");
+                                                setLocalPseudo(val);
+                                            }}
+                                            placeholder="Votre pseudo en jeu..."
+                                            className="bg-zinc-900/50 border-white/10 h-11 focus:ring-primary/20 pr-12"
+                                            maxLength={50}
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                                            {localPseudo.length}/50
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500 italic pl-1">
+                                        Essentiel pour le ladder et les synchronisations automatiques.
+                                    </p>
+                                </div>
+                            </div>
 
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="main" className="h-full flex flex-col">
@@ -185,11 +218,26 @@ export function ClassDisplay({
                             <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
                         </div>
 
-                        <div>
-                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest mb-0.5">Classe Principale</p>
-                            <h2 className="text-xl font-bold text-white tracking-tight" style={{ textShadow: `0 0 20px ${mainClassData.color}30` }}>
-                                {mainClassData.name}
-                            </h2>
+                        <div className="flex-1 space-y-1.5">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Pseudo en jeu :</span>
+                                {pseudoDofus ? (
+                                    <span className="text-lg font-black text-amber-500 italic tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                        {pseudoDofus}
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] font-black text-amber-500/80 animate-pulse uppercase tracking-widest">
+                                        Non renseigné
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Classe principale :</span>
+                                <span className="text-base font-black text-white tracking-wide" style={{ textShadow: `0 0 15px ${mainClassData.color}50` }}>
+                                    {mainClassData.name}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>

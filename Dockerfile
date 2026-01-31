@@ -55,7 +55,7 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Copy prisma schema and migrations
+# Copy prisma schema
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Automatically leverage output traces to reduce image size

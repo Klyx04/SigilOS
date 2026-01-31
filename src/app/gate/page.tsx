@@ -54,7 +54,7 @@ export default function BetaGate() {
                                     type="password"
                                     placeholder="Code d'accès"
                                     value={password}
-                                    onChange={(e) => setPassword(e.current.value)}
+                                    onChange={(e) => setPassword(e.target.value)}
                                     className="bg-black/50 border-white/10 h-12 text-center text-lg focus:ring-indigo-500/50 transition-all"
                                     required
                                 />

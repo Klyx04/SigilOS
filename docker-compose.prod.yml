@@ -65,7 +65,7 @@ services:
       - beta-net
 
   # ===========================================================================
-  # 🌐 ROUTING
+  # 🌐 ROUTING (Le Gardien du SSL)
   # ===========================================================================
   caddy:
     image: caddy:alpine
@@ -79,7 +79,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-    env_file: .env
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
     networks:
       - prod-net
       - beta-net

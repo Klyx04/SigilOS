@@ -2,11 +2,19 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
-const user = process.env.POSTGRES_USER;
-const pwd = process.env.POSTGRES_PASSWORD;
-const database_name = process.env.POSTGRES_DB;
+// Fonction de nettoyage ultra-robuste
+const clean = (val: string | undefined) => {
+    if (!val) return '';
+    // Retire les guillemets (si Docker les laisse) et les espaces/retours à la ligne invisibles
+    return val.replace(/^['"]|['"]$/g, '').trim();
+};
 
-const connectionString = `postgresql://${encodeURIComponent(user || '')}:${encodeURIComponent(pwd || '')}@${process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost'}:5432/${encodeURIComponent(database_name || '')}`
+const user = clean(process.env.POSTGRES_USER);
+const pwd = clean(process.env.POSTGRES_PASSWORD);
+const db_name = clean(process.env.POSTGRES_DB);
+
+// On construit l'URL EXACTEMENT comme dans prisma.config.js
+const connectionString = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost'}:5432/${db_name}?schema=public`
 
 const pool = new Pool({
     connectionString,

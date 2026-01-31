@@ -12,6 +12,9 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
+      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
+      - AUTH_TRUST_HOST=true
     depends_on:
       - db-prod
       - redis
@@ -41,6 +44,10 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
+      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
+      - AUTH_TRUST_HOST=true
+      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
     depends_on:
       - db-beta
       - redis

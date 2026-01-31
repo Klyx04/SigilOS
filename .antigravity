@@ -528,6 +528,16 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Audit Foundations:** Added `createdAt`/`updatedAt` synchronization across core models.
     - [x] **CI/CD Automation:** Created GitHub Actions workflow (`verify.yml`) for automated lint, types, and build checks.
 
+21. **Phase 21: Success Sync & OCR Refinement (COMPLETE - 2026-01-31):**
+    - [x] **OCR Engine V2 (Buffers):** Separation of processing buffers. `ocrBuffer` (B&W/High contrast) for Tesseract precision and `displayBuffer` (Original colors/WebP) for a clean UI preview.
+    - [x] **Hybrid Security Thresholds:** Implemented tiered validation: 90% confidence for banner-only crops (unambiguous) or 70% confidence if Dofus context keywords are present.
+    - [x] **Context Validation:** Mandatory check for keywords (`succès`, `score`, `déverrouillé`) to prevent random images from auto-updating profiles.
+    - [x] **Pending Submissions Guard:** Logic to prevent users from sending multiple requests while one is still pending analysis/review.
+    - [x] **Submission Cancellation:** Server action `cancelAchievementSubmission` with physical file deletion (`fs.unlink`) and DB record removal.
+    - [x] **UI Polish (Dashboard):** "Validation en cours" card with real-time confidence rating, progress bar, and "Original Color" image preview (replacing ghost-like debug view).
+    - [x] **Robust Text Cleaning:** Improved parsing for large numbers (e.g., `21 644` -> `21644`) and OCR character confusion (I/l/|).
+    - [x] **Code Stability:** Refactored for `prefer-const` linting compliance and Next.js 16 build stability.
+
 ---
 
 ## 5. Security Implementation Summary (Reference)

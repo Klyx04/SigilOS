@@ -81,12 +81,12 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
 
 ### A. La Stack Technique (Strict) 
 
-- **Framework :** Next.js 15+ (App Router, Server Actions ). 
-
-- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`). - **Base de Données :** PostgreSQL (via Neon/Supabase/Docker) géré par **Prisma ORM**.  
-
-- **Auth :** Auth.js (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
-
+- **Framework :** Next.js 16+ (App Router, Server Actions, Turbopack). 
+- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`).
+- **Base de Données :** PostgreSQL 15 (Docker) géré par **Prisma ORM 7.3+** (Adapter-PG). 
+- **Infrastucture :** VPS Linux, Docker Compose, Caddy Gateway (HTTPS/SSL automatique).
+- **Auth :** Auth.js v5 (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
+- **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR).
 - **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
 - **Vision :** Tesseract.js (OCR Client-side) + Algorithme de détection de couleur (Canvas).  
  
@@ -537,6 +537,15 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **UI Polish (Dashboard):** "Validation en cours" card with real-time confidence rating, progress bar, and "Original Color" image preview (replacing ghost-like debug view).
     - [x] **Robust Text Cleaning:** Improved parsing for large numbers (e.g., `21 644` -> `21644`) and OCR character confusion (I/l/|).
     - [x] **Code Stability:** Refactored for `prefer-const` linting compliance and Next.js 16 build stability.
+
+22. **Phase 22: Production Deployment & Infrastructure (COMPLETE - 2026-02-01):**
+    - [x] **VPS Setup:** Dual environment (Prod/Beta) on Linux VPS with Docker Compose.
+    - [x] **Gateway:** Caddy implemented for automated SSL management (Let's Encrypt / ZeroSSL fallback).
+    - [x] **Prisma 7 Migration:** Upgraded to Prisma 7.3.0, moved datasource config to `prisma.config.js` for dynamic deployment.
+    - [x] **Docker Hardening:** Environment injection via `env_file`, strict variable encoding (`encodeURIComponent`) to handle complex passwords.
+    - [x] **Security Fix (Dollar Bug):** Resolved Docker Compose character interpolation issues ($ and # symbols).
+    - [x] **Super-Admin Restore:** Activated `/god` panel through environment variable injection and platform-level whitelisting.
+    - [x] **SSL Resilience:** Stabilized HTTPS through manual Caddy config review during rate-limit events.
 
 ---
 

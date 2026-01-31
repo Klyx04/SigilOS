@@ -12,8 +12,6 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
-      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
-      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
       - AUTH_TRUST_HOST=true
     depends_on:
       - db-prod
@@ -44,12 +42,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
-      - AUTH_URL=https://beta.sigilos.fr
-      - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
-      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
-      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
       - AUTH_TRUST_HOST=true
-      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
     depends_on:
       - db-beta
       - redis
@@ -81,9 +74,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-    environment:
-      - DOMAIN_NAME=${DOMAIN_NAME}
-      - BETA_PASSWORD_HASH=${BETA_PASSWORD_HASH}
+    # On utilise env_file pour Caddy aussi afin d'éviter les warnings d'interpolation
+    env_file: .env.prod
     networks:
       - prod-net
       - beta-net

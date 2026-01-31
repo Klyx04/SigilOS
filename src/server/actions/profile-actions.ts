@@ -900,11 +900,24 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             .webp({ quality: 90 })
             .toBuffer();
 
+        // PRO-GAMING PREPROCESSING: Better isolation
         const ocrBuffer = await sharpInstance
-            .resize({ width: isSmallCrop ? 1800 : 1200, withoutEnlargement: false })
+            .resize({ width: isSmallCrop ? 1600 : 1200, withoutEnlargement: true })
+            .recomb([
+                [1.4, 0.2, -0.8], // Boost Yellow (R+G), cut Blue
+                [0.2, 1.4, -0.8],
+                [-0.5, -0.5, 1.5]
+            ])
             .grayscale()
+            .linear(1.5, -0.2)
             .threshold(160)
             .toBuffer();
+
+        // SAVE DEBUG IMAGE (For the catastrophe we are fixing)
+        const debugDir = join(process.cwd(), "public", "uploads", "ocr-debug");
+        await mkdir(debugDir, { recursive: true });
+        const debugPath = join(debugDir, `${session.user.id}-last-scan.png`);
+        await writeFile(debugPath, ocrBuffer);
 
         const { createWorker } = await import("tesseract.js");
         const worker = await createWorker(['fra', 'eng']);
@@ -934,55 +947,42 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         }
 
         // 2. Parse points
-        // Robust cleaning: Tesseract often adds spaces in large numbers (21 644)
-        // We first normalize characters that look like numbers or separators
-        const normalized = text
-            .replace(/[Il|]/g, '1')
-            .replace(/[Oo]/g, '0')
-            .replace(/[.,'·]/g, '')
-            .replace(/[^0-9/]/g, ' '); // Everything else is a space, keep slash for strategy A
-
-        // Merge digits that were separated by 1 or 2 spaces only
-        const cleanedText = normalized.replace(/(\d)\s{1,2}(?=\d)/g, '$1');
-
+        // We look for alphanumeric strings of at least 3 chars. 
+        // We ONLY apply digit normalization on these candidates.
+        const rawCandidates = text.match(/[A-Za-z0-9\/|]{3,}/g) || [];
+        let candidates: number[] = [];
         let points = 0;
 
-        // Strategy A: Progress bars (XXXX / YYYY) - Very common in Dofus
-        // We match any two groups of numbers separated by / or |
-        const progressMatch = cleanedText.match(/(\d{2,5})\s*[\/|1]\s*(\d{2,5})/);
+        for (const raw of rawCandidates) {
+            const clean = raw
+                .replace(/[Il|]/g, '1')
+                .replace(/[Oo]/g, '0')
+                .replace(/[S]/g, '5')
+                .replace(/[B]/g, '8')
+                .replace(/[^0-9/]/g, '');
 
-        if (progressMatch) {
-            points = parseInt(progressMatch[1], 10);
-        } else {
-            // Strategy B: Biggest number in the correct range
-            const allNumbers = cleanedText.match(/\d{3,5}/g);
-            if (allNumbers) {
-                const candidates = allNumbers
-                    .map(n => parseInt(n, 10))
-                    .filter(n => n >= 50 && n <= 32000);
-
-                if (candidates.length > 0) {
-                    candidates.sort((a, b) => b - a);
-                    points = candidates[0];
-                }
+            if (clean.includes('/')) {
+                const val = parseInt(clean.split('/')[0], 10);
+                if (val >= 50 && val <= 30000) candidates.push(val);
+            } else {
+                const val = parseInt(clean, 10);
+                if (val >= 100 && val <= 30000) candidates.push(val);
             }
         }
 
-        // Strategy C: REMOVED (Too risky, was letting random numbers pass)
+        points = candidates.length > 0 ? Math.max(...candidates) : 0;
+        console.log(`[OCR] Candidates:`, candidates, `-> Winner: ${points}`);
 
-        if (isNaN(points) || points <= 0) {
-            return { success: false, error: "Aucun score détecté. Assurez-vous d'inclure vos points de succès dans le screen." };
+        if (points <= 0) {
+            return { success: false, error: "Aucun score détecté. Détourez plus précisément vos points (ex: 21 644)." };
         }
 
-        // currentProfile already fetched above
-
         // 3. Threshold Logic
-        // SECURITY HYBRID: 
-        // - IF VERY high confidence (>90), we allow it even if keywords are missing (Banner only crop)
-        // - IF good confidence (>70) AND keywords present, we allow it.
-        const VERY_HIGH_CONFIDENCE = 90;
-        const GOOD_CONFIDENCE = 70;
+        const VERY_HIGH_CONFIDENCE = 85;
+        const GOOD_CONFIDENCE = 55; // Lowered because our filters are aggressive
         const shouldAutoValidate = (confidence >= VERY_HIGH_CONFIDENCE) || (hasDofusContext && confidence >= GOOD_CONFIDENCE);
+
+        const debugImageUrl = `/uploads/ocr-debug/${session.user.id}-last-scan.png?v=${Date.now()}`;
 
         // Fallback for Debug Image: use displayBuffer so user sees the "Nice" version
         const finalDebugBuffer = displayBuffer;

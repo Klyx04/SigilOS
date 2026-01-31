@@ -32,7 +32,7 @@ services:
       - prod-net
 
   # ===========================================================================
-  # 🟡 BETA ENVIRONMENT
+  # 🟡 BETA ENVIRONMENT (Autonome)
   # ===========================================================================
   app-beta:
     container_name: sigilos-beta
@@ -44,10 +44,14 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      # On force l'URL bêta ici pour ne pas dépendre du .env global
+      - AUTH_URL=https://beta.sigilos.fr
+      - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
       - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
       - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
       - AUTH_TRUST_HOST=true
       - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}?schema=public
     depends_on:
       - db-beta
       - redis
@@ -65,7 +69,7 @@ services:
       - beta-net
 
   # ===========================================================================
-  # 🌐 ROUTING (Le Gardien du SSL)
+  # 🌐 ROUTING
   # ===========================================================================
   caddy:
     image: caddy:alpine

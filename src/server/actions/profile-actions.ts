@@ -936,14 +936,14 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         // 2. Parse points
         // Robust cleaning: Tesseract often adds spaces in large numbers (21 644)
         // We first normalize characters that look like numbers or separators
-        let normalized = text
+        const normalized = text
             .replace(/[Il|]/g, '1')
             .replace(/[Oo]/g, '0')
             .replace(/[.,'·]/g, '')
             .replace(/[^0-9/]/g, ' '); // Everything else is a space, keep slash for strategy A
 
         // Merge digits that were separated by 1 or 2 spaces only
-        let cleanedText = normalized.replace(/(\d)\s{1,2}(?=\d)/g, '$1');
+        const cleanedText = normalized.replace(/(\d)\s{1,2}(?=\d)/g, '$1');
 
         let points = 0;
 

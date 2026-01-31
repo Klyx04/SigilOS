@@ -127,54 +127,42 @@ async function detectGreenCheckmark(buffer: Buffer): Promise<boolean> {
         let greenPixelCount = 0;
         let sampledPixels = 0;
 
-        // Define edge margins (15% of each dimension)
+        // Scan the whole image but favor bottom right where the checkmark usually sits in list view
+        // AND scan edges for the validation veil
         const marginX = Math.floor(width * 0.15);
         const marginY = Math.floor(height * 0.15);
 
-        // Scan only edge regions (top, bottom, left, right strips)
-        // This avoids the center where difficulty icons are
-        for (let y = 0; y < height; y += 2) {
-            for (let x = 0; x < width; x += 2) {
-                // Check if pixel is in edge region
-                const isTopEdge = y < marginY;
-                const isBottomEdge = y > height - marginY;
-                const isLeftEdge = x < marginX;
-                const isRightEdge = x > width - marginX;
+        for (let y = 0; y < height; y += 4) {
+            for (let x = 0; x < width; x += 4) {
+                const i = (y * width + x) * 4;
+                const r = rawBuffer[i];
+                const g = rawBuffer[i + 1];
+                const b = rawBuffer[i + 2];
 
-                if (isTopEdge || isBottomEdge || isLeftEdge || isRightEdge) {
-                    const i = (y * width + x) * 4;
-                    const r = rawBuffer[i];
-                    const g = rawBuffer[i + 1];
-                    const b = rawBuffer[i + 2];
+                sampledPixels++;
 
-                    sampledPixels++;
+                // TRUE GREEN (Validation Checkmark #55aa55 / #2fb35a)
+                // Green must be dominant and twice as strong as red/blue for bright checkmarks
+                const isCheckmarkGreen = g > 120 && g > r * 1.8 && g > b * 1.4;
 
-                    // TEAL/TURQUOISE Detection (Dofus validated card indicator)
-                    // Relaxed: g>100, b>100, both dominate red by 1.1x
-                    const isBrightTeal = g > 100 && b > 100 && g > r * 1.1 && b > r * 1.1 && Math.abs(g - b) < 80;
+                // VALIDATION VEIL (The greenish tint over the whole card)
+                // More subtle, g > r and g > b by at least 15%
+                const isVeilGreen = g > 50 && g > r * 1.15 && g > b * 1.15;
 
-                    // Muted Teal/Green (darker shades on card borders - very relaxed)
-                    const isMutedTeal = g > 50 && b > 50 && g > r && b > r && Math.abs(g - b) < 60;
+                // EDGE REGION (Specific for the veil)
+                const isEdge = y < marginY || y > height - marginY || x < marginX || x > width - marginX;
 
-                    // GREEN Detection (validation veil - very relaxed for subtle greens)
-                    // Just needs green to be dominant channel
-                    const isGreenDominant = g > 60 && g > r && g > b;
-
-                    // Also catch any cyan-ish color
-                    const isCyanish = (g + b) > (r * 2.5) && g > 50 && b > 50;
-
-                    if (isBrightTeal || isMutedTeal || isGreenDominant || isCyanish) {
-                        greenPixelCount++;
-                    }
+                if (isCheckmarkGreen || (isVeilGreen && isEdge)) {
+                    greenPixelCount++;
                 }
             }
         }
 
-        const validationColorRatio = sampledPixels > 0 ? greenPixelCount / sampledPixels : 0;
-        console.log(`[OCR] Validation Color Ratio (Edges): ${(validationColorRatio * 100).toFixed(2)}% (${greenPixelCount}/${sampledPixels})`);
+        const ratio = greenPixelCount / sampledPixels;
+        console.log(`[OCR] Green Ratio: ${(ratio * 100).toFixed(2)}% (${greenPixelCount}/${sampledPixels})`);
 
-        // Require at least 0.5% green coverage in edge regions (relaxed from 1%)
-        return validationColorRatio > 0.005;
+        // Thresholds: 0.5% coverage is enough for a veil or a checkmark
+        return ratio > 0.005;
     } catch (e) {
         console.error("[OCR] Color analysis failed:", e);
         return false;
@@ -199,11 +187,18 @@ export async function analyzeMissionScreenshot(
             (async () => {
                 try {
                     const Tesseract = await import("tesseract.js");
-                    // Optimize specifically for Tesseract (Grayscale + Contrast)
+                    // PRO-GAMING PREPROCESSING:
+                    // 1. Resize for baseline
+                    // 2. Sharpen to define edges
+                    // 3. Grayscale
+                    // 4. Threshold (Binarization) to separate text from background
                     const optimizedBuffer = await sharp(imageBuffer)
+                        .resize({ width: 2200, withoutEnlargement: true })
+                        .sharpen()
+                        .modulate({ brightness: 1.2 })
+                        .linear(1.5, -0.2) // Increase contrast (slope=1.5, offset=-0.2)
                         .grayscale()
-                        .linear(1.1, 0)
-                        .resize({ width: 2000, withoutEnlargement: true })
+                        .threshold(160) // Critical for white text on green/dark backgrounds
                         .toFormat('png')
                         .toBuffer();
 

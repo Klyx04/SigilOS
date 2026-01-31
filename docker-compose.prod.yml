@@ -20,10 +20,15 @@ services:
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - METAMOB_API_KEY=${METAMOB_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - OCR_SERVICE_URL=http://ocr-service:9999
     depends_on:
       - db-prod
+      - redis
+      - ocr-service
     networks:
       - prod-net
+      - ai-net
 
   db-prod:
     image: postgres:15-alpine
@@ -58,10 +63,15 @@ services:
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - METAMOB_API_KEY=${METAMOB_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - OCR_SERVICE_URL=http://ocr-service:9999
     depends_on:
       - db-beta
+      - redis
+      - ocr-service
     networks:
       - beta-net
+      - ai-net
 
   db-beta:
     image: postgres:15-alpine
@@ -122,6 +132,30 @@ services:
     networks:
       - monitoring-net
 
+  # ===========================================================================
+  # 🧠 AI & QUEUE SERVICES (Shared)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: sigilos-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - prod-net
+      - beta-net
+      - ai-net
+
+  ocr-service:
+    image: paddlepaddle/paddleocr:latest-cpu
+    container_name: sigilos-ocr-engine
+    restart: always
+    ports:
+      - "9999:9999"
+    networks:
+      - ai-net
+
 volumes:
   db-prod-data:
   db-beta-data:
@@ -129,8 +163,11 @@ volumes:
   caddy_config:
   prometheus_data:
   grafana_data:
+  redis_data:
+
 
 networks:
   prod-net:
   beta-net:
   monitoring-net:
+  ai-net:

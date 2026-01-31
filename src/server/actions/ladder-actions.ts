@@ -19,6 +19,7 @@ export type LadderEntry = {
     profileId: string;
     discordNickname: string | null;
     discordRoleColor: number | null;
+    discordImage: string | null;
     pseudoDofus: string | null;
     classe: string | null;
     value: number;
@@ -26,7 +27,7 @@ export type LadderEntry = {
     isAdmin: boolean;
 };
 
-export type LadderType = "activity" | "seniority";
+export type LadderType = "activity" | "seniority" | "success";
 export type ActivityView = "weekly" | "monthly" | "alltime";
 
 // ============================================================================
@@ -108,6 +109,9 @@ export async function getActivityLadder(
                     discordJoinedAt: true,
                     pseudoDofus: true,
                     classe: true,
+                    user: {
+                        select: { image: true }
+                    },
                     submissions: {
                         where: {
                             status: "VALIDATED",
@@ -146,6 +150,7 @@ export async function getActivityLadder(
                     profileId: p.id,
                     discordNickname: p.discordNickname,
                     discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.periodXp,
@@ -171,7 +176,10 @@ export async function getActivityLadder(
                     discordJoinedAt: true,
                     pseudoDofus: true,
                     classe: true,
-                    xp: true
+                    xp: true,
+                    user: {
+                        select: { image: true }
+                    }
                 },
                 orderBy: [
                     { xp: "desc" },
@@ -190,6 +198,7 @@ export async function getActivityLadder(
                     profileId: p.id,
                     discordNickname: p.discordNickname,
                     discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.xp,
@@ -244,7 +253,10 @@ export async function getSeniorityLadder(
                 discordRoleName: true,
                 discordJoinedAt: true,
                 pseudoDofus: true,
-                classe: true
+                classe: true,
+                user: {
+                    select: { image: true }
+                }
             },
             orderBy: { discordJoinedAt: "asc" } // Oldest first
         });
@@ -264,6 +276,7 @@ export async function getSeniorityLadder(
                 profileId: p.id,
                 discordNickname: p.discordNickname,
                 discordRoleColor: p.discordRoleColor,
+                discordImage: p.user.image,
                 pseudoDofus: p.pseudoDofus,
                 classe: p.classe,
                 value: daysInGuild,
@@ -276,5 +289,82 @@ export async function getSeniorityLadder(
     } catch (error) {
         console.error("[getSeniorityLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement" };
+    }
+}
+
+/**
+ * Get Success Ladder (Achievement points ranking)
+ */
+export async function getSuccessLadder(
+    guildId: string
+): Promise<ActionResponse<LadderEntry[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id }
+        });
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                successPoints: { gt: 0 }
+            },
+            select: {
+                id: true,
+                discordNickname: true,
+                discordRoleColor: true,
+                discordRoleName: true,
+                discordJoinedAt: true,
+                pseudoDofus: true,
+                classe: true,
+                successPoints: true,
+                user: {
+                    select: { image: true }
+                }
+            },
+            orderBy: [
+                { successPoints: "desc" },
+                { discordJoinedAt: "asc" } // Tie-breaker
+            ]
+        });
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+        const ladder: LadderEntry[] = profiles.map((p, idx) => {
+            const isAdmin = p.discordRoleName === "Administrateur" ||
+                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+
+            return {
+                rank: idx + 1,
+                profileId: p.id,
+                discordNickname: p.discordNickname,
+                discordRoleColor: p.discordRoleColor,
+                discordImage: p.user.image,
+                pseudoDofus: p.pseudoDofus,
+                classe: p.classe,
+                value: p.successPoints || 0,
+                isCurrentUser: p.id === currentProfile?.id,
+                isAdmin: !!isAdmin
+            };
+        });
+
+        return { success: true, data: ladder };
+    } catch (error) {
+        console.error("[getSuccessLadder] Error:", error);
+        return { success: false, error: "Erreur lors du chargement du classement des succès" };
     }
 }

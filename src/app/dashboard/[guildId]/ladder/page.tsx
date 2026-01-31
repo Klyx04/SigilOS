@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { Trophy, Clock, TrendingUp } from "lucide-react";
-import { LadderTabs } from "./_components/ladder-tabs";
+import { Trophy } from "lucide-react";
+import { LadderClient } from "./_components/ladder-client";
 import { getUserContext } from "@/server/actions/user-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -19,48 +20,38 @@ export default async function LadderPage({ params }: Props) {
     }
 
     return (
-        <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Classement de Guilde"
-                description="Découvrez les membres les plus actifs et leur progression en jeu."
-                icon={Trophy}
-                iconColor="#f59e0b"
-                backHref={`/dashboard/${guildId}`}
-            />
+        <div className="relative min-h-[calc(100vh-4rem)] pb-12">
+            <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 backdrop-blur-sm">
-                    <div className="flex items-center gap-3">
-                        <TrendingUp className="h-5 w-5 text-purple-400" />
-                        <span className="text-sm font-medium text-purple-300">Activité</span>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">XP gagnée via les missions</p>
-                </div>
-                <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20 backdrop-blur-sm">
-                    <div className="flex items-center gap-3">
-                        <Clock className="h-5 w-5 text-cyan-400" />
-                        <span className="text-sm font-medium text-cyan-300">Ancienneté</span>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">Les piliers de la guilde</p>
-                </div>
+            <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+                <UnifiedModuleHeader
+                    title="Classement de Guilde"
+                    description="Découvrez les membres les plus actifs et leur progression en jeu."
+                    icon={Trophy}
+                    iconColor="#f59e0b"
+                    backHref={`/dashboard/${guildId}`}
+                />
+
+                {/* Main Client Module */}
+                <Suspense fallback={<LadderSkeleton />}>
+                    <LadderClient guildId={guildId} canValidate={user.canValidateMissions} />
+                </Suspense>
             </div>
-
-            {/* Ladder Tabs */}
-            <Suspense fallback={<LadderSkeleton />}>
-                <LadderTabs guildId={guildId} />
-            </Suspense>
         </div>
     );
 }
 
 function LadderSkeleton() {
     return (
-        <div className="space-y-4">
-            <div className="h-12 bg-muted/20 rounded-lg animate-pulse" />
+        <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-32 bg-white/5 border border-white/5 rounded-2xl animate-pulse" />
+                ))}
+            </div>
             <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-16 bg-muted/10 rounded-lg animate-pulse" />
+                    <div key={i} className="h-12 bg-white/5 border border-white/5 rounded-lg animate-pulse" />
                 ))}
             </div>
         </div>

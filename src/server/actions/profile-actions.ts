@@ -4,7 +4,10 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { rateLimit } from "@/lib/ratelimit";
 import { hasAnyForgemagie, type AvailabilityMap, type ForgemagieStatusId } from "@/lib/dofus-assets";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 
 // ============================================================================
 // TYPES
@@ -22,7 +25,10 @@ export type ActionResponse<T = null> = {
 
 const UpdateProfileSchema = z.object({
     guildId: z.string(),
-    pseudoDofus: z.string().max(30).optional(),
+    pseudoDofus: z.string()
+        .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]+$/, "Le pseudo ne doit contenir que des lettres (pas de chiffres ni de caractères spéciaux)")
+        .optional(),
     classe: z.string().optional(),
     classeSecondaires: z.array(z.string()).optional(),
     metiers: z.array(z.string()).optional(),
@@ -60,6 +66,11 @@ const SendVacationNotificationSchema = z.object({
     endDate: z.string().nullable(),
 });
 
+const SyncSuccessPointsSchema = z.object({
+    guildId: z.string(),
+    imageData: z.string(), // Base64 image string (data:image/...)
+});
+
 // ============================================================================
 // PROFILE CRUD
 // ============================================================================
@@ -84,7 +95,27 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
 
         if (!profile) return { success: false, error: "Profil introuvable" };
 
-        return { success: true, data: profile };
+        // Attach pending submission if exists
+        const pendingSubmission = await (db as any).achievementSubmission.findFirst({
+            where: {
+                profileId: profile.id,
+                status: "PENDING"
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        return {
+            success: true,
+            data: {
+                ...profile,
+                pendingSubmission: pendingSubmission ? {
+                    id: pendingSubmission.id,
+                    points: pendingSubmission.points,
+                    ocrScore: pendingSubmission.ocrScore,
+                    createdAt: pendingSubmission.createdAt
+                } : null
+            }
+        };
     } catch (error) {
         console.error("Get Profile Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -783,5 +814,264 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
     } catch (error) {
         console.error("Send Vacation Notification Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
+// OCR & LADDER SYNC
+// ============================================================================
+
+export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSuccessPointsSchema>): Promise<ActionResponse<{ points: number, debugImage?: string, pending?: boolean, confidence?: number }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = SyncSuccessPointsSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, imageData } = validation.data;
+
+    // 1. Sanitization & Rate Limiting
+    // Rate limit: 10 syncs per 10 minutes (to be more forgiving while preventing spam)
+    const limiter = await rateLimit(`sync_success:${session.user.id}`, 10, 10 * 60 * 1000);
+    if (!limiter.success) {
+        return { success: false, error: "Limite de tentatives atteinte. Veuillez patienter 10 minutes avant de réessayer la synchronisation." };
+    }
+
+    // Security: Validate Base64 size (limit to ~4MB to prevent memory exhaustion)
+    // 4MB in base64 is roughly 5.5 million characters
+    if (imageData.length > 6000000) {
+        return { success: false, error: "L'image est trop lourde (max 4Mo)." };
+    }
+
+    // Security: Validate Image Format and Integrity (Hard check with Sharp)
+    if (!imageData.startsWith("data:image/")) {
+        return { success: false, error: "Format d'image invalide." };
+    }
+
+    try {
+        const base64Data = imageData.split(',')[1];
+        if (!base64Data) return { success: false, error: "Données d'image corrompues." };
+
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Hard validation: If Sharp can't read metadata, it's not a valid image
+        const sharp = await import("sharp");
+        try {
+            const metadata = await sharp.default(buffer).metadata();
+            const allowedFormats = ["png", "jpeg", "webp", "tiff"];
+            if (!metadata.format || !allowedFormats.includes(metadata.format)) {
+                return { success: false, error: "Format d'image non supporté ou fichier malveillant détecté." };
+            }
+        } catch (e) {
+            console.error("[Security] Sharp validation failed:", e);
+            return { success: false, error: "Le fichier n'est pas une image valide ou est corrompu." };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: {
+                userId: session.user.id,
+                guildId: guildConfig.id
+            }
+        });
+        if (!currentProfile) return { success: false, error: "Profil introuvable" };
+
+        // 1.1 SECURITY: Block if a submission is already pending
+        const existingPending = await (db as any).achievementSubmission.findFirst({
+            where: {
+                profileId: currentProfile.id,
+                status: "PENDING"
+            }
+        });
+
+        if (existingPending) {
+            return { success: false, error: "Vous avez déjà une demande de validation en attente. Annulez-la ou attendez le staff." };
+        }
+
+        // 2. OCR Processing (Optimized for small crops)
+        const sharpInstance = sharp.default(buffer);
+        const metadata = await sharpInstance.metadata();
+        const isSmallCrop = (metadata.width || 0) < 600;
+
+        // NICE BUFFER FOR DISPLAY
+        const displayBuffer = await sharpInstance
+            .resize({ width: 1000, withoutEnlargement: true })
+            .webp({ quality: 90 })
+            .toBuffer();
+
+        const ocrBuffer = await sharpInstance
+            .resize({ width: isSmallCrop ? 1800 : 1200, withoutEnlargement: false })
+            .grayscale()
+            .threshold(160)
+            .toBuffer();
+
+        const { createWorker } = await import("tesseract.js");
+        const worker = await createWorker(['fra', 'eng']);
+
+        // Optimize for single line/block reading
+        await worker.setParameters({
+            tessedit_pageseg_mode: '6' as any,
+        });
+
+        const { data: { text, confidence } } = await worker.recognize(ocrBuffer);
+        await worker.terminate();
+
+        const cleanedTextForLog = text.replace(/\n/g, ' ').trim();
+        console.log(`[OCR] Raw: "${cleanedTextForLog}" (Conf: ${confidence}%)`);
+
+        // Security: Context Validation
+        const dousKeywords = [
+            "succès", "succes", "points", "de succès", "de succes", "personnage",
+            "déverrouillé", "achievements", "avancement", "score", "progression"
+        ];
+        const lowerText = text.toLowerCase();
+        const hasDofusContext = dousKeywords.some(kw => lowerText.includes(kw));
+
+        // Threshold logic:
+        if (confidence < 15) {
+            return { success: false, error: "Image illisible. Essayez de prendre une capture d'écran plus nette." };
+        }
+
+        // 2. Parse points
+        // Robust cleaning: Tesseract often adds spaces in large numbers (21 644)
+        // We first normalize characters that look like numbers or separators
+        let normalized = text
+            .replace(/[Il|]/g, '1')
+            .replace(/[Oo]/g, '0')
+            .replace(/[.,'·]/g, '')
+            .replace(/[^0-9/]/g, ' '); // Everything else is a space, keep slash for strategy A
+
+        // Merge digits that were separated by 1 or 2 spaces only
+        let cleanedText = normalized.replace(/(\d)\s{1,2}(?=\d)/g, '$1');
+
+        let points = 0;
+
+        // Strategy A: Progress bars (XXXX / YYYY) - Very common in Dofus
+        // We match any two groups of numbers separated by / or |
+        const progressMatch = cleanedText.match(/(\d{2,5})\s*[\/|1]\s*(\d{2,5})/);
+
+        if (progressMatch) {
+            points = parseInt(progressMatch[1], 10);
+        } else {
+            // Strategy B: Biggest number in the correct range
+            const allNumbers = cleanedText.match(/\d{3,5}/g);
+            if (allNumbers) {
+                const candidates = allNumbers
+                    .map(n => parseInt(n, 10))
+                    .filter(n => n >= 50 && n <= 32000);
+
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b - a);
+                    points = candidates[0];
+                }
+            }
+        }
+
+        // Strategy C: REMOVED (Too risky, was letting random numbers pass)
+
+        if (isNaN(points) || points <= 0) {
+            return { success: false, error: "Aucun score détecté. Assurez-vous d'inclure vos points de succès dans le screen." };
+        }
+
+        // currentProfile already fetched above
+
+        // 3. Threshold Logic
+        // SECURITY HYBRID: 
+        // - IF VERY high confidence (>90), we allow it even if keywords are missing (Banner only crop)
+        // - IF good confidence (>70) AND keywords present, we allow it.
+        const VERY_HIGH_CONFIDENCE = 90;
+        const GOOD_CONFIDENCE = 70;
+        const shouldAutoValidate = (confidence >= VERY_HIGH_CONFIDENCE) || (hasDofusContext && confidence >= GOOD_CONFIDENCE);
+
+        // Fallback for Debug Image: use displayBuffer so user sees the "Nice" version
+        const finalDebugBuffer = displayBuffer;
+
+        console.log(`[OCR] Decision: Points=${points}, Context=${hasDofusContext}, Conf=${confidence}%, Auto=${shouldAutoValidate}`);
+
+        if (shouldAutoValidate) {
+            // Auto-update Profile
+            await db.userProfile.update({
+                where: { id: currentProfile.id },
+                data: {
+                    successPoints: points,
+                    lastLadderUpdate: new Date(),
+                    achievementPoints: points,
+                    achievementLastSync: new Date()
+                }
+            });
+
+            revalidatePath(`/dashboard/${guildConfig.discordGuildId}/profile`);
+            revalidatePath(`/dashboard/${guildConfig.discordGuildId}/ladder`);
+
+            return {
+                success: true,
+                data: {
+                    points,
+                    confidence,
+                    debugImage: `data:image/webp;base64,${displayBuffer.toString('base64')}`
+                }
+            };
+        } else {
+            // MANUAL VALIDATION PATH
+            // 4. Save image for staff review
+            const uploadRelativeDir = `uploads/achievements/${guildConfig.discordGuildId}`;
+            const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+            await mkdir(uploadDir, { recursive: true });
+
+            const fileName = `${session.user.id}-${Date.now()}.webp`;
+            const filePath = join(uploadDir, fileName);
+
+            // Save the ORIGINAL crop (with displayBuffer) for staff review so it's not ugly
+            await writeFile(filePath, displayBuffer);
+            const proofUrl = `/${uploadRelativeDir}/${fileName}`;
+
+            // 5. Create Submission (Safety check for Prisma generation)
+            if (!(db as any).achievementSubmission) {
+                console.error("[Prisma] achievementSubmission model not found in client!");
+                // Emergency fallback: just update the profile but log the error
+                await db.userProfile.update({
+                    where: { id: currentProfile.id },
+                    data: {
+                        successPoints: points,
+                        lastLadderUpdate: new Date()
+                    }
+                });
+                return {
+                    success: true,
+                    data: { points, debugImage: `data:image/webp;base64,${displayBuffer.toString('base64')}` }
+                };
+            }
+
+            await (db as any).achievementSubmission.create({
+                data: {
+                    profileId: currentProfile.id,
+                    guildId: guildConfig.id,
+                    points,
+                    proofUrl,
+                    ocrScore: confidence,
+                    ocrRawText: text
+                }
+            });
+
+            return {
+                success: true,
+                data: {
+                    points,
+                    pending: true,
+                    confidence,
+                    debugImage: `data:image/webp;base64,${finalDebugBuffer.toString('base64')}`
+                }
+            };
+        }
+    } catch (error: any) {
+        console.error("Sync Success Points Error:", error);
+
+        // Try to capture the processed buffer even on error if it's available in the scope
+        // (Note: it might not be available if error happens before processedBuffer is created)
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Erreur lors du traitement de l'image (OCR)"
+        };
     }
 }

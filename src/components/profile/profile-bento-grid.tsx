@@ -9,6 +9,7 @@ import { VacationMode } from "./vacation-mode";
 import { MetamobLink } from "./metamob-link";
 import { AltPseudos } from "./alt-pseudos";
 import { BuildsCard } from "./builds-card";
+import { SuccessSync } from "./success-sync";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
@@ -34,6 +35,14 @@ interface ProfileBentoGridProps {
         metamobLastSync?: Date | null;
         altPseudos?: string[] | null;
         dofusBookLinks?: { id: string; url: string; name: string }[] | null;
+        successPoints?: number | null;
+        lastLadderUpdate?: Date | null;
+        pendingSubmission?: {
+            id: string;
+            points: number;
+            ocrScore: number;
+            createdAt: Date;
+        } | null;
     };
     user: {
         name?: string | null;
@@ -56,6 +65,7 @@ interface ProfileBentoGridProps {
     readOnly?: boolean;
     isAdmin?: boolean;
     guildName?: string;
+    dofusServerId?: string | null;
 }
 
 export function ProfileBentoGrid({
@@ -68,8 +78,10 @@ export function ProfileBentoGrid({
     readOnly = false,
     isAdmin = false,
     guildName,
+    dofusServerId,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
+    const [activeTab, setActiveTab] = useState("overview");
 
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
@@ -81,15 +93,23 @@ export function ProfileBentoGrid({
     const isOnVacation = Boolean(startDate && startDate <= now && (!endDate || endDate >= now));
 
     // Handlers
-    const handleClassSave = async (mainClass: string, secondaryClasses: string[]) => {
-        setLocalProfile(prev => ({ ...prev, classe: mainClass, classeSecondaires: secondaryClasses }));
+    const handleClassSave = async (mainClass: string, secondaryClasses: string[], pseudo: string) => {
+        setLocalProfile(prev => ({
+            ...prev,
+            classe: mainClass,
+            classeSecondaires: secondaryClasses,
+            pseudoDofus: pseudo
+        }));
+
         const res = await updateUserProfile({
             guildId,
             classe: mainClass,
             classeSecondaires: secondaryClasses,
+            pseudoDofus: pseudo
         });
+
         if (res.success) {
-            toast.success("Classes mises à jour");
+            toast.success("Profil mis à jour");
         } else {
             toast.error(res.error || "Erreur");
         }
@@ -203,7 +223,7 @@ export function ProfileBentoGrid({
             </div>
 
             {/* Tabs Navigation */}
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="flex items-center justify-center mb-6">
                     <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
                         <TabsTrigger
@@ -224,6 +244,12 @@ export function ProfileBentoGrid({
                         >
                             Planning
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="achievements"
+                            className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                        >
+                            Succès
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -233,6 +259,7 @@ export function ProfileBentoGrid({
                         <div className="flex flex-col gap-6">
                             {/* Classes */}
                             <ClassDisplay
+                                pseudoDofus={localProfile.pseudoDofus}
                                 mainClass={localProfile.classe}
                                 secondaryClasses={localProfile.classeSecondaires || []}
                                 onSave={handleClassSave}
@@ -247,6 +274,8 @@ export function ProfileBentoGrid({
                                 metamobLastSync={profile.metamobLastSync}
                                 readOnly={readOnly}
                             />
+
+
                         </div>
 
                         {/* Jobs */}
@@ -310,6 +339,33 @@ export function ProfileBentoGrid({
                             />
                         </div>
                     </div>
+                </TabsContent>
+                {/* ACHIEVEMENTS TAB */}
+                <TabsContent value="achievements" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <SuccessSync
+                        pseudoDofus={localProfile.pseudoDofus}
+                        guildId={guildId}
+                        dofusServerId={dofusServerId}
+                        successPoints={localProfile.successPoints}
+                        lastUpdate={localProfile.lastLadderUpdate}
+                        readOnly={readOnly}
+                        onTabChange={setActiveTab}
+                        onSuccess={(points) => {
+                            setLocalProfile(prev => ({
+                                ...prev,
+                                successPoints: points,
+                                lastLadderUpdate: new Date(),
+                                pendingSubmission: null // Clear on success
+                            }));
+                        }}
+                        pendingSubmission={localProfile.pendingSubmission}
+                        onCancel={() => {
+                            setLocalProfile(prev => ({
+                                ...prev,
+                                pendingSubmission: null
+                            }));
+                        }}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

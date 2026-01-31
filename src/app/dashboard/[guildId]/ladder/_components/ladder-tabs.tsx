@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock } from "lucide-react";
+import { TrendingUp, Clock, Trophy } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
     getSeniorityLadder,
+    getSuccessLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -18,7 +19,7 @@ type Props = {
 };
 
 export function LadderTabs({ guildId }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "seniority">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "seniority" | "success">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,6 +35,9 @@ export function LadderTabs({ guildId }: Props) {
                     break;
                 case "seniority":
                     result = await getSeniorityLadder(guildId);
+                    break;
+                case "success":
+                    result = await getSuccessLadder(guildId);
                     break;
             }
 
@@ -54,6 +58,8 @@ export function LadderTabs({ guildId }: Props) {
                 return `${entry.value.toLocaleString()} XP`;
             case "seniority":
                 return formatSeniority(entry.value);
+            case "success":
+                return `${entry.value.toLocaleString()} pts`;
             default:
                 return entry.value.toString();
         }
@@ -77,6 +83,13 @@ export function LadderTabs({ guildId }: Props) {
                         >
                             <Clock className="h-4 w-4" />
                             Ancienneté
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="success"
+                            className="gap-2 text-foreground data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-200 data-[state=active]:shadow-sm"
+                        >
+                            <Trophy className="h-4 w-4" />
+                            Succès
                         </TabsTrigger>
                     </TabsList>
 
@@ -114,6 +127,16 @@ export function LadderTabs({ guildId }: Props) {
                         accentColor="cyan"
                     />
                 </TabsContent>
+
+                <TabsContent value="success" className="mt-6">
+                    <LeaderboardList
+                        ladder={ladder}
+                        loading={loading}
+                        getValueLabel={getValueLabel}
+                        emptyMessage="Aucun score de succès enregistré."
+                        accentColor="amber"
+                    />
+                </TabsContent>
             </Tabs>
         </div>
     );
@@ -131,7 +154,7 @@ function LeaderboardList({
     loading: boolean;
     getValueLabel: (entry: LadderEntry) => string;
     emptyMessage: string;
-    accentColor: "purple" | "cyan";
+    accentColor: "purple" | "cyan" | "amber";
 }) {
     if (loading) {
         return (

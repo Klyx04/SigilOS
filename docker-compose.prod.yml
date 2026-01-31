@@ -8,13 +8,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
-    env_file: .env
-    environment:
-      - NODE_ENV=production
-      - HOSTNAME=0.0.0.0
-      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
-      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
-      - AUTH_TRUST_HOST=true
+    env_file: .env.prod
     depends_on:
       - db-prod
       - redis
@@ -25,14 +19,14 @@ services:
     image: postgres:15-alpine
     container_name: sigilos-db-prod
     restart: always
-    env_file: .env
+    env_file: .env.prod
     volumes:
       - db-prod-data:/var/lib/postgresql/data
     networks:
       - prod-net
 
   # ===========================================================================
-  # 🟡 BETA ENVIRONMENT (Autonome)
+  # 🟡 BETA ENVIRONMENT
   # ===========================================================================
   app-beta:
     container_name: sigilos-beta
@@ -40,18 +34,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
-    env_file: .env
-    environment:
-      - NODE_ENV=production
-      - HOSTNAME=0.0.0.0
-      # On force l'URL bêta ici pour ne pas dépendre du .env global
-      - AUTH_URL=https://beta.sigilos.fr
-      - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
-      - AUTH_DISCORD_ID=${DISCORD_CLIENT_ID}
-      - AUTH_DISCORD_SECRET=${DISCORD_CLIENT_SECRET}
-      - AUTH_TRUST_HOST=true
-      - AUTH_SECRET=${AUTH_SECRET_BETA:-${AUTH_SECRET}}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}?schema=public
+    env_file: .env.beta
     depends_on:
       - db-beta
       - redis
@@ -62,7 +45,7 @@ services:
     image: postgres:15-alpine
     container_name: sigilos-db-beta
     restart: always
-    env_file: .env
+    env_file: .env.beta
     volumes:
       - db-beta-data:/var/lib/postgresql/data
     networks:
@@ -83,8 +66,10 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+    # On passe les secrets ici uniquement au moment de l'exécution
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
+      - BETA_PASSWORD_HASH=${BETA_PASSWORD_HASH}
     networks:
       - prod-net
       - beta-net

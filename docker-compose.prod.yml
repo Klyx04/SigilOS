@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ===========================================================================
   # 🔴 PRODUCTION ENVIRONMENT
@@ -148,7 +146,7 @@ services:
       - ai-net
 
   ocr-service:
-    image: paddlepaddle/paddleocr:latest-cpu
+    image: dyngate/paddleocr:latest
     container_name: sigilos-ocr-engine
     restart: always
     ports:

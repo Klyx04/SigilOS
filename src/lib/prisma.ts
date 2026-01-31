@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
 const connectionString = process.env.DATABASE_URL ||
-    `postgresql://${process.env.POSTGRES_USER}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@${process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost'}:5432/${process.env.POSTGRES_DB}`
+    `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || '')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@${process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost'}:5432/${encodeURIComponent(process.env.POSTGRES_DB || '')}`
 
 const pool = new Pool({
     connectionString,

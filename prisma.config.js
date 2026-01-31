@@ -1,5 +1,4 @@
 // prisma.config.js
-const { encodeURIComponent } = require('url');
 
 // Fonction de nettoyage
 const clean = (val) => {
@@ -15,6 +14,7 @@ const host = process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost';
 module.exports = {
     schema: "prisma/schema.prisma",
     datasource: {
+        // encodeURIComponent est une fonction globale dans Node.js
         url: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`,
     },
 };

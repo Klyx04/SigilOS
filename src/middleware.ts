@@ -6,15 +6,20 @@ const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
     const { nextUrl } = req
-    const isBeta = process.env.NEXT_PUBLIC_APP_URL?.includes('beta')
 
-    // 1. Si on est en Bêta, on vérifie l'accès
+    // On détecte la bêta via le hostname pour être infaillible
+    const isBeta = nextUrl.hostname.includes('beta')
+
     if (isBeta) {
         const hasAccess = req.cookies.get("beta_access")?.value === "true"
         const isGatePage = nextUrl.pathname === "/gate"
 
-        // Si pas de cookie et pas sur la page de garde -> Redirection
-        if (!hasAccess && !isGatePage) {
+        // On laisse passer les fichiers statiques et l'API d'auth
+        const isPublicAsset = nextUrl.pathname.startsWith('/_next') ||
+            nextUrl.pathname.startsWith('/api/auth') ||
+            nextUrl.pathname === '/favicon.ico'
+
+        if (!hasAccess && !isGatePage && !isPublicAsset) {
             return NextResponse.redirect(new URL("/gate", nextUrl))
         }
     }

@@ -7,6 +7,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD}
     restart: always
     env_file: .env.prod
     environment:
@@ -37,6 +39,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD}
     restart: always
     env_file: .env.beta
     environment:
@@ -74,7 +78,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-    # On utilise env_file pour Caddy aussi afin d'éviter les warnings d'interpolation
     env_file: .env.prod
     networks:
       - prod-net

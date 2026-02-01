@@ -6,6 +6,7 @@ const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const globalForRedis = global as unknown as { redis: Redis | undefined };
 
 export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
+    password: process.env.REDIS_PASSWORD,
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     lazyConnect: true,

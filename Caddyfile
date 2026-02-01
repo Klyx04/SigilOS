@@ -2,14 +2,28 @@
     email admin@sigilos.fr
 }
 
+(security_headers) {
+    header {
+        # HSTS (Strict-Transport-Security)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Defense in depth (redundant with Next.js but good for static/errors)
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+
 sigilos.fr {
+    import security_headers
     respond "Maintenance en cours. SigilOS revient bientôt." 503
 }
 
 beta.sigilos.fr {
+    import security_headers
     reverse_proxy sigilos-beta:3000
 }
 
 monitor.sigilos.fr {
+    import security_headers
     reverse_proxy sigilos-grafana:3000
 }

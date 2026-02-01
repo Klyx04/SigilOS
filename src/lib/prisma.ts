@@ -59,6 +59,12 @@ export const prisma = basePrisma.$extends({
                 if (typeof args.update.refresh_token === 'string') args.update.refresh_token = encrypt(args.update.refresh_token);
                 if (typeof args.update.id_token === 'string') args.update.id_token = encrypt(args.update.id_token);
                 return query(args);
+            },
+            async updateMany({ args, query }) {
+                if (typeof args.data.access_token === 'string') args.data.access_token = encrypt(args.data.access_token);
+                if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
+                if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
+                return query(args);
             }
         },
         guildConfig: {
@@ -73,6 +79,10 @@ export const prisma = basePrisma.$extends({
             async upsert({ args, query }) {
                 if (args.create.metamobApiKey) args.create.metamobApiKey = encrypt(args.create.metamobApiKey);
                 if (typeof args.update.metamobApiKey === 'string') args.update.metamobApiKey = encrypt(args.update.metamobApiKey);
+                return query(args);
+            },
+            async updateMany({ args, query }) {
+                if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
                 return query(args);
             }
         }

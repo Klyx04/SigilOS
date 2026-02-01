@@ -64,11 +64,19 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🐳 Docker (Production)
+## 🐳 Docker & VPS (Production)
 
+Le projet utilise une architecture duale (Bêta/Prod) sur un VPS sécurisé via Docker Compose.
+
+### Environnements
+- **Production** : [sigilos.fr](https://sigilos.fr) (Branche `main`)
+- **Bêta** : [beta.sigilos.fr](https://beta.sigilos.fr) (Branche `dev` + Pass Protection)
+- **Monitoring** : [monitor.sigilos.fr](https://monitor.sigilos.fr) (Grafana/Prometheus)
+
+### Déploiement
 ```bash
-docker build -t sigilos .
-docker run -p 3000:3000 sigilos
+# Sur le VPS
+./scripts/deploy.sh [beta|prod]
 ```
 
 ---

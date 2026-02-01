@@ -90,6 +90,7 @@ services:
     image: redis:7-alpine
     container_name: sigilos-redis
     restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:

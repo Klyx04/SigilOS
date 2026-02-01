@@ -137,17 +137,38 @@ export async function handleGdprDeletionRequest(discordGuildId: string) {
         return { success: false, error: "Guild not found" };
     }
 
-    // Delete the user's profile for this guild
-    const result = await db.userProfile.deleteMany({
+    // Find the profile first
+    const profile = await db.userProfile.findUnique({
         where: {
-            userId: ctx.id,
-            guildId: guild.id
+            userId_guildId: {
+                userId: ctx.id,
+                guildId: guild.id
+            }
         }
     });
 
-    console.log(`[GDPR] User ${ctx.id} requested deletion. Removed ${result.count} profile(s)`);
+    if (!profile) return { success: true, deleted: false };
 
-    return { success: true, deleted: result.count > 0 };
+    // Delete the user's profile for this guild
+    await db.userProfile.delete({
+        where: { id: profile.id }
+    });
+
+    // --- GDPR CLEANUP (Orphaned User check) ---
+    // If user has no more profiles in any guild, we delete their account and personal info
+    const otherProfilesCount = await db.userProfile.count({
+        where: { userId: ctx.id }
+    });
+
+    if (otherProfilesCount === 0) {
+        console.log(`[GDPR] User ${ctx.id} has no more profiles. Deleting global account data.`);
+        await db.user.delete({
+            where: { id: ctx.id }
+        });
+        // Note: Prisma is configured with Cascade Delete for Accounts and Sessions
+    }
+
+    return { success: true, deleted: true };
 }
 /**
  * ARCHIVE & SYNC GUILD MEMBERS

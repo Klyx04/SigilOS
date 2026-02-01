@@ -950,7 +950,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         // We look for alphanumeric strings of at least 3 chars. 
         // We ONLY apply digit normalization on these candidates.
         const rawCandidates = text.match(/[A-Za-z0-9\/|]{3,}/g) || [];
-        let candidates: number[] = [];
+        const candidates: number[] = [];
         let points = 0;
 
         for (const raw of rawCandidates) {

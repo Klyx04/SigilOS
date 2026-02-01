@@ -1,4 +1,4 @@
-import { encrypt, decrypt, isEncrypted } from "./src/lib/encryption";
+import { encrypt, decrypt, isEncrypted } from "../src/lib/encryption";
 import * as dotenv from "dotenv";
 
 // Load environment to get ENCRYPTION_KEY
@@ -37,7 +37,7 @@ async function testEncryption() {
         }
 
     } catch (e) {
-        console.error("❌ TEST FAILED:", e.message);
+        console.error("❌ TEST FAILED:", e instanceof Error ? e.message : "Unknown error");
     }
 }
 

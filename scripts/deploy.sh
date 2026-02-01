@@ -1,58 +1,40 @@
 #!/bin/bash
 
 # =============================================================================
-# 🚀 SigilOS - Script de Déploiement Unifié
+# 🚀 SigilOS - Script de Déploiement Unifié (2026)
 # =============================================================================
 # Usage: 
-#   ./deploy.sh prod   -> Déploie la PROD (main)
-#   ./deploy.sh beta   -> Déploie la BETA (dev)
-#   ./deploy.sh all    -> Déploie TOUT (attention aux ressources)
-#   ./deploy.sh monit  -> Déploie le Monitoring uniquement
+#   ./scripts/deploy.sh prod   -> Déploie la PROD (main)
+#   ./scripts/deploy.sh beta   -> Déploie la BETA (dev)
 
-ENV=$1
+TARGET=$1
 
-if [ -z "$ENV" ]; then
-    echo "❌ Usage: ./deploy.sh [prod|beta|all|monit]"
+if [ "$TARGET" != "beta" ] && [ "$TARGET" != "prod" ]; then
+    echo "❌ Usage: ./scripts/deploy.sh {beta|prod}"
     exit 1
 fi
 
-echo "🚀 Démarrage du déploiement pour : $ENV"
+echo "🚀 Démarrage du déploiement : $TARGET"
 
-# Fonction pour déployer un service spécifique
-deploy_service() {
-    SERVICE=$1
-    echo "🔄 Build & Restart de $SERVICE..."
-    docker compose -f docker-compose.prod.yml up -d --build $SERVICE
-}
+# 1. On s'assure d'être dans le bon dossier
+cd "$(dirname "$0")/.."
 
-case $ENV in
-    "prod")
-        echo "🔵 Déploiement PRODUCTION..."
-        deploy_service "app-prod"
-        deploy_service "caddy"
-        ;;
-    
-    "beta")
-        echo "🟡 Déploiement BETA..."
-        deploy_service "app-beta"
-        deploy_service "caddy"
-        ;;
+# 2. Mise à jour du code
+echo "📦 Récupération du code..."
+git pull origin $(git rev-parse --abbrev-ref HEAD)
 
-    "monit")
-        echo "📊 Déploiement MONITORING..."
-        docker compose -f docker-compose.prod.yml up -d --build prometheus grafana caddy
-        ;;
+# 3. Lancement Docker selon l'environnement
+if [ "$TARGET" == "beta" ]; then
+    echo "🧪 Mise à jour du laboratoire BÊTA..."
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --build app-beta
+    echo "🧹 Synchronisation des tables BÊTA..."
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx prisma db push --accept-data-loss
+else
+    echo "🏰 Mise à jour de la PRODUCTION..."
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build app-prod
+    echo "🧹 Synchronisation des tables PRODUCTION..."
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.prod exec app-prod npx prisma db push --accept-data-loss
+fi
 
-    "all")
-        echo "🌍 Déploiement COMPLET..."
-        docker compose -f docker-compose.prod.yml up -d --build
-        ;;
-    
-    *)
-        echo "❌ Environnement inconnu. Utilisez: prod, beta, all, ou monit."
-        exit 1
-        ;;
-esac
-
-echo "✅ Déploiement terminé !"
-docker compose -f docker-compose.prod.yml ps
+echo "✅ Déploiement $TARGET terminé avec succès !"
+sudo docker compose -f docker-compose.prod.yml ps

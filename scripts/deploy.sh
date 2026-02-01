@@ -14,7 +14,13 @@ if [ "$TARGET" != "beta" ] && [ "$TARGET" != "prod" ]; then
     exit 1
 fi
 
-echo "🚀 Démarrage du déploiement : $TARGET"
+# Choix du fichier d'environnement
+ENV_FILE=".env.prod"
+if [ "$TARGET" == "beta" ]; then
+    ENV_FILE=".env.beta"
+fi
+
+echo "🚀 Démarrage du déploiement : $TARGET (via $ENV_FILE)"
 
 # 1. On s'assure d'être dans le bon dossier
 cd "$(dirname "$0")/.."
@@ -26,15 +32,17 @@ git pull origin $(git rev-parse --abbrev-ref HEAD)
 # 3. Lancement Docker selon l'environnement
 if [ "$TARGET" == "beta" ]; then
     echo "🧪 Mise à jour du laboratoire BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --build app-beta
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta
     echo "🧹 Synchronisation des tables BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx prisma db push --accept-data-loss
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma db push --accept-data-loss
 else
     echo "🏰 Mise à jour de la PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build app-prod
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod
     echo "🧹 Synchronisation des tables PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file .env.prod exec app-prod npx prisma db push --accept-data-loss
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma db push --accept-data-loss
 fi
 
 echo "✅ Déploiement $TARGET terminé avec succès !"
-sudo docker compose -f docker-compose.prod.yml ps
+
+# On utilise l'env_file ici aussi pour supprimer les derniers warnings d'affichage
+sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE ps

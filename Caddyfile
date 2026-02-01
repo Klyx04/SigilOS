@@ -11,10 +11,10 @@ beta.sigilos.fr {
 }
 
 monitor.sigilos.fr {
-    # Protection par mot de passe avant même d'accéder à Grafana
+    # Protection par mot de passe (Hash direct pour éviter les bugs Docker $)
     basic_auth {
-        # Utilisateur: sigiladmin | Le mot de passe sera lu depuis l'environnement
-        sigiladmin {$MONITOR_PASSWORD_HASH}
+        # Utilisateur: sigiladmin | Pass: JV*B64$u3BqA4B3eNc92kk6Yr^45og
+        sigiladmin $2a$14$WnLqiCHzrL3fTBh7eRvvIeddr7.oRbfEOSnmMiIaGuqJFc9a9rSS.
     }
     reverse_proxy sigilos-grafana:3000
 }

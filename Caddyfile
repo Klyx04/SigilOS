@@ -11,9 +11,9 @@ beta.sigilos.fr {
 }
 
 monitor.sigilos.fr {
-    # Test avec mot de passe simple (Pass: SigilPass2026)
+    # TEST ULTIME (Login: sigiladmin | Pass: sigil2026)
     basic_auth {
-        sigiladmin $2a$14$W56SOfP5Nf9HkM08x9z4UeR6pW5vM9V/3Y0W5H6k6v6v6v6v6v6v6
+        sigiladmin JDJhJDE0JFZVN0p6S096WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6WnZ6
     }
     reverse_proxy sigilos-grafana:3000
 }

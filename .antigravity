@@ -540,12 +540,13 @@ Pour protéger une Server Action ou une Page, le code doit :
 
 22. **Phase 22: Production Deployment & Infrastructure (COMPLETE - 2026-02-01):**
     - [x] **VPS Setup:** Dual environment (Prod/Beta) on Linux VPS with Docker Compose.
-    - [x] **Gateway:** Caddy implemented for automated SSL management (Let's Encrypt / ZeroSSL fallback).
-    - [x] **Prisma 7 Migration:** Upgraded to Prisma 7.3.0, moved datasource config to `prisma.config.js` for dynamic deployment.
-    - [x] **Docker Hardening:** Environment injection via `env_file`, strict variable encoding (`encodeURIComponent`) to handle complex passwords.
-    - [x] **Security Fix (Dollar Bug):** Resolved Docker Compose character interpolation issues ($ and # symbols).
-    - [x] **Super-Admin Restore:** Activated `/god` panel through environment variable injection and platform-level whitelisting.
-    - [x] **SSL Resilience:** Stabilized HTTPS through manual Caddy config review during rate-limit events.
+    - [x] **Gateway:** Caddy implemented for automated SSL management. Prod in maintenance mode.
+    - [x] **Prisma 7 Migration:** Upgraded to Prisma 7.3.0, dynamic `DB_HOST` support for environment isolation.
+    - [x] **Docker Hardening:** Environment injection via `env_file`, zero-warning YAML architecture.
+    - [x] **Beta Security (Beta Gate):** Custom branded lock screen replacing generic Basic Auth.
+    - [x] **Database Isolation:** Independent `db-prod` (Prod) and `db-beta` (Bêta) containers on separate networks.
+    - [x] **Deployment Scripts:** Created `scripts/deploy.sh` for simplified one-command updates.
+    - [x] **Auth.js Stability:** Flexible environment naming support (`AUTH_DISCORD_ID` & `DISCORD_CLIENT_ID`).
 
 ---
 

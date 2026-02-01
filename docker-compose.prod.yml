@@ -84,6 +84,19 @@ services:
       - beta-net
 
   # ===========================================================================
+  # 🧠 QUEUE SERVICE (Redis)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: sigilos-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - prod-net
+      - beta-net
+
+  # ===========================================================================
   # 📊 MONITORING STACK
   # ===========================================================================
   prometheus:

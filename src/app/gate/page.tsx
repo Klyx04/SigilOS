@@ -16,8 +16,10 @@ export default function BetaGate() {
         e.preventDefault();
         setLoading(true);
 
+        const betaPassword = process.env.NEXT_PUBLIC_BETA_PASSWORD || "SigilOS_2026";
+
         // On utilise un simple cookie pour l'accès bêta (sécurisé par le SSL de Caddy)
-        if (password === "SigilOS_2026") {
+        if (password === betaPassword) {
             document.cookie = `beta_access=true; path=/; max-age=604800; SameSite=Lax; Secure`;
             toast.success("Accès autorisé. Entrée dans le protocole...");
             setTimeout(() => router.push("/"), 1000);

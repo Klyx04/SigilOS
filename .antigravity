@@ -575,3 +575,12 @@ if (!ctx.isMember) throw new Error("Not a member");
 - Dependabot scans every Monday 9 AM (Paris)
 - GitHub Actions run `npm audit` on every push
 - 30-day audit log retention
+
+---
+
+### Phase 22 : Infrastructure Duale & Sécurisation Bêta (Févr. 2026) ✅
+- **Environnement** : Split complet entre `beta.sigilos.fr` (branche `dev`) et `sigilos.fr` (branche `main`).
+- **Databases** : Isolation totale (`db-beta` vs `db-prod`) au sein du même Docker Compose.
+- **Monitoring** : Stack Prometheus/Grafana opérationnelle sur `monitor.sigilos.fr` (Auth GitHub / 2FA).
+- **Maintenance** : Script de nettoyage quotidien automatique (`scripts/maintenance.sh`) programmé à 4h00.
+- **Gestion Bêta** : Mur de protection "Gate" avec mot de passe et cookies d'accès, simplifiant les tests sans exposer le dashboard.

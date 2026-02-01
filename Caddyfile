@@ -11,5 +11,10 @@ beta.sigilos.fr {
 }
 
 monitor.sigilos.fr {
+    # Protection par mot de passe avant même d'accéder à Grafana
+    basic_auth {
+        # Utilisateur: sigiladmin | Le mot de passe sera lu depuis l'environnement
+        sigiladmin {$MONITOR_PASSWORD_HASH}
+    }
     reverse_proxy sigilos-grafana:3000
 }

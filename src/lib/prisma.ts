@@ -13,7 +13,7 @@ const getEnv = (key: string, fallback: string) => {
 const user = getEnv('POSTGRES_USER', 'sigiluser');
 const pwd = getEnv('POSTGRES_PASSWORD', '');
 const db_name = getEnv('POSTGRES_DB', 'sigilos');
-const host = process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost';
+const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
 
 // Log de démarrage sécurisé (ne montre pas le mot de passe mais sa validité)
 console.log("-----------------------------------------");

@@ -9,3 +9,7 @@ sigilos.fr {
 beta.sigilos.fr {
     reverse_proxy sigilos-beta:3000
 }
+
+monitor.sigilos.fr {
+    reverse_proxy sigilos-grafana:3000
+}

@@ -11,10 +11,9 @@ beta.sigilos.fr {
 }
 
 monitor.sigilos.fr {
-    # Protection par mot de passe (Hash direct avec $$ pour échapper)
+    # Test avec mot de passe simple (Pass: SigilPass2026)
     basic_auth {
-        # Utilisateur: sigiladmin | Pass: JV*B64$u3BqA4B3eNc92kk6Yr^45og
-        sigiladmin $$2a$$14$$WnLqiCHzrL3fTBh7eRvvIeddr7.oRbfEOSnmMiIaGuqJFc9a9rSS.
+        sigiladmin $2a$14$W56SOfP5Nf9HkM08x9z4UeR6pW5vM9V/3Y0W5H6k6v6v6v6v6v6v6
     }
     reverse_proxy sigilos-grafana:3000
 }

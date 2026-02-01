@@ -7,47 +7,39 @@ Ce document est ta boussole. Une fois ton VPS activé, nous suivrons ces étapes
 
 ---
 
-## 🟢 Étape 1 : Sécurisation "Forteresse" (Jour 1)
-*L'objectif est de rendre ton VPS invisible et impénétrable.*
-
-1. **Hardening SSH :** Changer le port par défaut (22), désactiver l'accès root par mot de passe, utiliser des clés SSH.
-2. **Pare-feu (UFW) :** Fermer tout sauf le port SSH custom et les ports Web (80/443).
-3. **Fail2Ban :** Bloquer automatiquement toute IP qui tente de forcer tes accès.
-4. **Mises à jour système :** `apt update && apt upgrade`.
+## 🟢 Étape 1 : Sécurisation "Forteresse" ✅ (TERMINÉ)
+*L'objectif était de rendre ton VPS invisible et impénétrable.*
+1. **Hardening SSH** : Port 2222, clés SSH uniquement, Root interdit.
+2. **Pare-feu (UFW)** : Filtrage strict des ports.
+3. **Fail2Ban** : Sentinelle active sur SSH.
 
 ---
 
-## 🔵 Étape 2 : Fondations Techniques (Jour 1)
+## 🔵 Étape 2 : Fondations Techniques ✅ (TERMINÉ)
 *Installer les outils de base pour faire tourner SigilOS.*
-
-1. **Docker & Docker Compose :** Pour isoler nos services IA.
-2. **Node.js (LTS) & PM2 :** Pour faire tourner le serveur Next.js en 24/7.
-3. **Redis Server :** Indispensable pour ton Rate Limiter et ta file d'attente OCR.
-4. **PostgreSQL :** Ta base de données principale.
+1. **Docker Compose** : Stack multi-conteneurs opérationnelle.
+2. **Redis & DB Isolation** : Services séparés pour Bêta et Prod.
+3. **Monitoring** : Prometheus & Grafana activés.
 
 ---
 
-## 🟣 Étape 3 : Déploiement du Cerveau (AI Stack)
+## 🟣 Étape 3 : Déploiement du Cerveau (AI Stack) 🟠 (EN COURS)
 *C'est ici qu'on règle ton problème d'OCR.*
-
-1. **Conteneur PaddleOCR :** Lancement du service de détection (Expert Gaming).
-2. **Configuration du Worker :** Activation du service BullMQ qui traite les images une par une pour ne jamais faire crasher le VPS.
-3. **Test de Stress :** On envoie tes 7 images d'exemple pour vérifier que tout est lu à 100%.
+1. **Conteneur PaddleOCR** : Présent dans le Docker Compose, prêt pour le tuning.
+2. **Configuration du Worker** : Structure en place, tests à finaliser demain.
 
 ---
 
-## 🟡 Étape 4 : Déploiement SigilOS (App)
-1. **Clonage du Repo :** `git clone` de ta branche `fix/ladder-ocr-bugs`.
-2. **Configuration .env :** Paramétrage des clés Discord, URL Redis et URL OCR.
-3. **Build & Start :** `npm run build` et lancement via PM2.
-4. **SSL (Certbot) :** HTTPS gratuit et automatique pour ton nom de domaine.
+## 🟡 Étape 4 : Déploiement SigilOS (App) ✅ (TERMINÉ)
+1. **Dual-Environment** : Bêta (`dev`) et Prod (`main`) cohabitent.
+2. **Beta Gate** : Protection personnalisée opérationnelle.
+3. **Caddy Proxy** : HTTPS Let's Encrypt automatique et stable.
 
 ---
 
-## 🔴 Étape 5 : Maintenance Automatisée
-1. **Backups :** Script de sauvegarde journalière de la base de données.
-2. **Auto-Clean :** Script pour supprimer les captures OCR traitées après 48h (gain d'espace).
-3. **Logs :** Centralisation des erreurs pour surveillance rapide.
+## 🔴 Étape 5 : Maintenance Automatisée ✅ (TERMINÉ)
+1. **Script Maintenance** : Nettoyage quotidien via Cron (4h00).
+2. **Logs Monitoring** : Centralisation via Grafana.
 
 ---
 

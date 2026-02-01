@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
+import { Prisma } from "@prisma/client";
 
 export type UserContext = {
     isAuthenticated: boolean;
@@ -168,9 +169,19 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         status: "BANNED",
                         archivedAt: new Date(),
                         archiveReason: "BANNED",
-                        // Anonymize personal data for GDPR
+                        // --- GDPR ANONYMIZATION ---
                         pseudoDofus: "Utilisateur banni",
-                        discordNickname: "Banni"
+                        discordNickname: "Banni",
+                        metamobPseudo: null,
+                        metamobVerified: false,
+                        altPseudos: Prisma.JsonNull,
+                        availability: Prisma.JsonNull,
+                        vacationStart: null,
+                        vacationEnd: null,
+                        vacationNotify: false,
+                        lastActivityDesc: "Compte banni pour violation des règles du serveur.",
+                        succes: Prisma.JsonNull,
+                        dofusBookLinks: Prisma.JsonNull
                     }
                 });
             } else {

@@ -9,7 +9,7 @@ const clean = (val) => {
 const user = clean(process.env.POSTGRES_USER) || 'sigiluser';
 const pwd = clean(process.env.POSTGRES_PASSWORD);
 const db_name = clean(process.env.POSTGRES_DB) || 'sigilos';
-const host = process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost';
+const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
 
 module.exports = {
     schema: "prisma/schema.prisma",

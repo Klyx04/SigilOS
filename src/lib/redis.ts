@@ -15,17 +15,15 @@ const globalForRedis = global as unknown as { redis: Redis | undefined };
 export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
     password: redisPassword || undefined,
     maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    lazyConnect: true,
-    showFriendlyErrorStack: false,
-    autoResubscribe: false,
+    enableReadyCheck: true,
+    showFriendlyErrorStack: true,
+    autoResubscribe: true,
     retryStrategy: (times) => {
-        if (process.env.NODE_ENV !== "production") {
-            return null;
-        }
         return Math.min(times * 200, 5000);
     },
 });
+
+console.log(`[Redis] Initializing connection to ${redisUrl.split('@').pop()}...`);
 
 // LOGGING
 redis.on("connect", () => console.log("[Redis] Connecting..."));

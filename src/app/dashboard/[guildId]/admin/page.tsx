@@ -11,6 +11,7 @@ import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Shield } from "lucide-react";
 import { SyncPurgeCard } from "./_components/sync-purge-card";
+import { MemberHistory } from "./_components/member-history";
 
 
 export default async function AdminPage({
@@ -94,8 +95,9 @@ export default async function AdminPage({
                 currentMapping={currentMapping}
             />
 
-            <div className="mt-12 pt-12 border-t border-zinc-800">
+            <div className="mt-12 pt-12 border-t border-zinc-800 grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <SyncPurgeCard guildId={targetGuildId} />
+                <MemberHistory guildId={targetGuildId} />
             </div>
         </div>
     );

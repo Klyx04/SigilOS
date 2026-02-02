@@ -1,0 +1,429 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Trophy, Upload, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from "lucide-react";
+import { syncMemberSuccessPoints } from "@/server/actions/profile-actions";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { cancelAchievementSubmission } from "@/server/actions/achievement-actions";
+
+interface SuccessSyncProps {
+    guildId: string;
+    pseudoDofus?: string | null;
+    dofusServerId?: string | null;
+    successPoints?: number | null;
+    lastUpdate?: Date | null;
+    readOnly?: boolean;
+    onTabChange?: (tab: string) => void;
+    onSuccess?: (points: number) => void;
+    pendingSubmission?: {
+        id: string;
+        points: number;
+        ocrScore: number;
+        createdAt: Date;
+    } | null;
+    onCancel?: () => void;
+}
+
+import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+import { ExternalLink, Info, MapPin, MousePointer2, UserSearch } from "lucide-react";
+
+export function SuccessSync({
+    guildId,
+    pseudoDofus,
+    dofusServerId,
+    successPoints = 0,
+    lastUpdate,
+    readOnly = false,
+    onTabChange,
+    onSuccess,
+    pendingSubmission,
+    onCancel
+}: SuccessSyncProps) {
+    const [isUploading, setIsUploading] = useState(false);
+    const [dragActive, setDragActive] = useState(false);
+    const [lastScanResult, setLastScanResult] = useState<{ points?: number, error?: string, pending?: boolean, confidence?: number, debugImage?: string } | null>(
+        pendingSubmission ? { points: pendingSubmission.points, pending: true, confidence: pendingSubmission.ocrScore } : null
+    );
+
+    // Use provided server ID from guild config or fallback to Draconiros (295)
+    const serverId = dofusServerId || "295";
+    const serverName = [...Object.values(DOFUS_UNITY_SERVERS).flat()].find(s => s.id.toString() === serverId)?.name || "Draconiros";
+
+    const ladderUrl = pseudoDofus ? `https://www.dofus.com/fr/mmorpg/communaute/ladder/succes?server_id=${serverId}&name=${pseudoDofus}#jt_list` : null;
+
+    const handleCancel = async () => {
+        setIsUploading(true);
+        const res = await cancelAchievementSubmission(guildId);
+        setIsUploading(false);
+        if (res.success) {
+            toast.success("Demande annulée");
+            setLastScanResult(null);
+            onCancel?.();
+        } else {
+            toast.error(res.error || "Erreur lors de l'annulation");
+        }
+    };
+
+    const handleFile = async (file: File) => {
+        if (lastScanResult?.pending) {
+            toast.error("Vous avez déjà une demande en cours.");
+            return;
+        }
+        if (!file.type.startsWith("image/")) {
+            toast.error("Veuillez sélectionner une image.");
+            return;
+        }
+
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+
+        reader.onload = async () => {
+            const base64 = reader.result as string;
+            try {
+                const res = await syncMemberSuccessPoints({
+                    guildId,
+                    imageData: base64,
+                });
+
+                if (res.success) {
+                    if (res.data?.pending) {
+                        const conf = Math.round(res.data.confidence || 0);
+                        toast.info(`Score détecté (${res.data?.points} pts), mais la confiance OCR est de ${conf}%. Validation staff requise.`);
+                        setLastScanResult({
+                            points: res.data?.points,
+                            pending: true,
+                            confidence: res.data?.confidence,
+                            debugImage: res.data?.debugImage
+                        });
+                    } else {
+                        toast.success(`Succès synchronisés : ${res.data?.points} points !`);
+                        setLastScanResult({ points: res.data?.points, debugImage: res.data?.debugImage });
+                        if (res.data?.points) {
+                            onSuccess?.(res.data.points);
+                        }
+                    }
+                } else {
+                    toast.error(res.error || "Échec de la synchronisation.");
+                    setLastScanResult({ error: res.error });
+                }
+            } catch (err) {
+                toast.error("Une erreur est survenue lors de l'OCR.");
+            } finally {
+                setIsUploading(false);
+                setDragActive(false);
+            }
+        };
+    };
+
+    const onDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActive(true);
+    };
+
+    const onDragLeave = () => {
+        setDragActive(false);
+    };
+
+    const onDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    if (readOnly && !successPoints) return null;
+
+    return (
+        <Card className="overflow-hidden border-white/10 bg-black/20 backdrop-blur-md">
+            <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                            <Trophy className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg">Points de Succès</CardTitle>
+                            <CardDescription>Ladder Succès (OCR Sync)</CardDescription>
+                        </div>
+                    </div>
+                    {successPoints ? (
+                        <div className="text-2xl font-bold text-amber-400">
+                            {successPoints.toLocaleString()}
+                        </div>
+                    ) : null}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {!readOnly && (
+                    <div className="space-y-4">
+                        <div
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            className={cn(
+                                "relative group flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-all",
+                                dragActive ? "border-amber-500 bg-amber-500/10" : "border-white/10 hover:border-white/20 hover:bg-white/5",
+                                (isUploading || lastScanResult?.pending) && "opacity-50 pointer-events-none cursor-not-allowed"
+                            )}
+                        >
+                            {lastScanResult?.pending ? (
+                                <div className="flex flex-col items-center gap-2 p-4 text-center">
+                                    <Clock className="w-8 h-8 text-blue-400 animate-pulse" />
+                                    <p className="text-sm font-bold text-blue-200 uppercase">Demande en attente</p>
+                                    <p className="text-xs text-blue-300/60 max-w-[200px]">Une capture est déjà en cours de validation par le staff.</p>
+                                </div>
+                            ) : isUploading ? (
+                                <div className="flex flex-col items-center gap-2 animate-pulse">
+                                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+                                    <span className="text-sm font-medium text-amber-200">Analyse de l'image en cours...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="p-3 rounded-full bg-white/5 group-hover:scale-110 transition-transform">
+                                        <Upload className="w-6 h-6 text-white/40 group-hover:text-amber-400" />
+                                    </div>
+                                    <div className="text-center space-y-1">
+                                        <p className="text-base font-bold text-white/90">Déposez votre capture</p>
+                                        <p className="text-sm text-white/40">ou cliquez pour parcourir vos fichiers</p>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                                        accept="image/*"
+                                    />
+                                </>
+                            )}
+                        </div>
+
+                        {/* Instructional Tip with Full Examples */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
+                                <div className="flex items-center gap-2 text-amber-400">
+                                    <div className="p-2 rounded-lg bg-amber-500/10">
+                                        <MousePointer2 className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-sm font-bold uppercase tracking-wider">Étape 1 : Le Détourage</span>
+                                </div>
+                                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
+                                    Ne prenez pas tout l'écran ! Utilisez l'outil de capture pour détourer uniquement la zone avec vos points.
+                                </p>
+                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                                    <img
+                                        src="/uploads/ladder/exemple1.png"
+                                        alt="Exemple Détourage"
+                                        className="w-full h-auto"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
+                                <div className="flex items-center gap-2 text-blue-400">
+                                    <div className="p-2 rounded-lg bg-blue-500/10">
+                                        <Info className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-sm font-bold uppercase tracking-wider">Étape 2 : La Qualité</span>
+                                </div>
+                                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
+                                    Si vous incluez la barre de progression, l'IA sera encore plus précise dans sa détection.
+                                </p>
+                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                                    <img
+                                        src="/uploads/ladder/exemple2.png"
+                                        alt="Exemple Qualité"
+                                        className="w-full h-auto"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Pseudo Configuration Instruction */}
+                        {!pseudoDofus && (
+                            <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-5">
+                                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 shrink-0">
+                                    <UserSearch className="w-6 h-6" />
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="text-base font-bold text-amber-200 uppercase tracking-tight">Pseudo Dofus requis</p>
+                                    <p className="text-sm text-amber-400/80 leading-relaxed font-medium">
+                                        Pour activer le lien direct vers le ladder officiel, rendez-vous dans l'onglet{" "}
+                                        <button
+                                            onClick={() => onTabChange?.('overview')}
+                                            className="text-amber-200 underline decoration-amber-200/30 underline-offset-4 hover:text-white transition-colors cursor-pointer"
+                                        >
+                                            Général
+                                        </button>
+                                        {" "}et modifiez votre bloc{" "}
+                                        <button
+                                            onClick={() => onTabChange?.('overview')}
+                                            className="text-amber-200 underline decoration-amber-200/30 underline-offset-4 hover:text-white transition-colors cursor-pointer text-left"
+                                        >
+                                            Identité de Combat
+                                        </button>
+                                        {" "}pour y ajouter votre pseudo exact.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {lastScanResult?.pending && (
+                    <div className="relative overflow-hidden p-5 rounded-2xl bg-blue-500/10 text-blue-300 border border-blue-500/20 animate-in fade-in zoom-in-95 duration-500">
+                        {/* Status bar background */}
+                        <div className="absolute top-0 left-0 h-1 bg-blue-500/10 w-full" />
+                        <div
+                            className="absolute top-0 left-0 h-1 bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)] transition-all duration-1000"
+                            style={{ width: `${Math.round(lastScanResult.confidence || 0)}%` }}
+                        />
+
+                        <div className="flex flex-col gap-4 relative z-10">
+                            <div className="flex items-start gap-3">
+                                <Clock className="w-5 h-5 mt-1 shrink-0 text-blue-400" />
+                                <div className="flex-1 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-black text-blue-200 uppercase tracking-tighter">Validation en cours</p>
+                                        <div className={cn(
+                                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight",
+                                            (lastScanResult.confidence || 0) >= 50 ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"
+                                        )}>
+                                            <Sparkles className="w-3 h-3" />
+                                            Confiance {Math.round(lastScanResult.confidence || 0)}%
+                                        </div>
+                                    </div>
+                                    <p className="text-xs leading-relaxed opacity-80 font-medium">
+                                        Votre score de <strong className="text-blue-200">{lastScanResult.points} points</strong> a été détecté.
+                                        En raison d'un score de confiance intermédiaire, un membre du staff doit valider votre capture.
+                                    </p>
+
+                                    {lastScanResult.debugImage && (
+                                        <div className="mt-3 space-y-2">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Vue IA (Debug)</p>
+                                            <div className="rounded-lg overflow-hidden border border-blue-500/20 bg-black/40">
+                                                <img
+                                                    src={lastScanResult.debugImage}
+                                                    alt="IA Debug View"
+                                                    className="w-full h-auto rounded-lg brightness-110 contrast-105"
+                                                />
+                                            </div>
+                                            <p className="text-[10px] italic opacity-50">
+                                                Tip: Détourez au plus proche de vos points pour faciliter la détection automatique (Seuil 40%).
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 text-[10px] font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                                    onClick={handleCancel}
+                                    disabled={isUploading}
+                                >
+                                    Annuler la demande
+                                </Button>
+                                <Button
+                                    className="h-8 text-[10px] font-bold bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30 pointer-events-none"
+                                >
+                                    Attente Staff
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {lastUpdate && (
+                    <div className="flex items-center justify-between text-sm text-white/50 bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span className="font-medium">Dernière synchronisation</span>
+                        <span className="font-bold text-white/90">{new Date(lastUpdate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    </div>
+                )}
+
+                {/* Ladder Link Option */}
+                {!readOnly && (
+                    <div className="pt-2 border-t border-white/5 space-y-3">
+                        <div className="flex flex-col gap-3 bg-white/5 p-3 rounded-xl border border-white/10 hover:border-amber-500/30 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
+                                        <ExternalLink className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-white/90 tracking-tight">Lien Ladder Officiel</span>
+                                            <span className="px-1.5 py-0.5 rounded-md bg-zinc-800 text-[10px] font-bold text-zinc-400 border border-white/5 uppercase">
+                                                {serverName}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-white/40 font-medium">Consulter vos points en temps réel sur Ankama</span>
+                                    </div>
+                                </div>
+                                {pseudoDofus ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 border-white/10 hover:bg-white/10 text-xs"
+                                        asChild
+                                    >
+                                        <a href={ladderUrl!} target="_blank" rel="noopener noreferrer">
+                                            Ouvrir
+                                        </a>
+                                    </Button>
+                                ) : (
+                                    <span className="text-[10px] text-white/20 italic">Pseudo requis</span>
+                                )}
+                            </div>
+
+                            {pseudoDofus && (
+                                <div className="px-2 py-1.5 bg-black/40 rounded border border-white/5 overflow-hidden">
+                                    <p className="text-[9px] text-zinc-500 truncate font-mono">
+                                        {ladderUrl}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {!pseudoDofus && (
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/5 text-amber-400/70 text-[10px]">
+                                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                <p>Renseignez votre pseudo Dofus pour activer le lien.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Link to Guild Ladder Module */}
+                <div className="pt-4 mt-2 border-t border-white/5">
+                    <Button
+                        asChild
+                        variant="secondary"
+                        className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 gap-2 h-11 font-bold"
+                    >
+                        <Link href={`/dashboard/${guildId}/ladder`}>
+                            <Trophy className="w-5 h-5 text-amber-500" />
+                            <span>VOIR LE CLASSEMENT DE GUILDE</span>
+                        </Link>
+                    </Button>
+                </div>
+
+                {!successPoints && !readOnly && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                        <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                            <p className="text-sm font-bold text-blue-200">Ladder vide</p>
+                            <p className="text-sm leading-relaxed opacity-80">Synchronisez vos points pour apparaître dans le classement mondial et de guilde.</p>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}

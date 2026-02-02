@@ -8,6 +8,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 // Retention periods in days
 const RETENTION_DAYS = {
@@ -206,35 +207,112 @@ export async function syncGuildMembers(discordGuildId: string) {
             }
         });
 
-        let archivedCount = 0;
+        // 3. Fetch current bans from Discord
+        const discordBans = await (await import("@/server/discord")).fetchGuildBans(discordGuildId);
+        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
-        // 3. Compare and archive
+        let archivedCount = 0;
+        let bannedCount = 0;
+
+        // 4. Compare and archive/anonymize
         for (const profile of profiles) {
             const discordId = profile.user.accounts[0]?.providerAccountId;
 
-            // If we have a discord ID but it's not in the current guild member list
             if (discordId && !discordUserIds.has(discordId)) {
-                console.log(`[Lifecycle Sync] Archiving ${profile.discordNickname} (left Discord)`);
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
-                archivedCount++;
+                // Check if they are banned or just left
+                const isBanned = bannedUserIds.has(discordId);
+
+                if (isBanned) {
+                    console.log(`[Lifecycle Sync] Anonymizing BANNED member ${profile.discordNickname}`);
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "BANNED",
+                            archivedAt: new Date(),
+                            archiveReason: "BANNED",
+                            // --- GDPR WIPE (Suppression des données lourdes) ---
+                            pseudoDofus: "Utilisateur banni",
+                            discordNickname: "Anonyme",
+                            metamobPseudo: null,
+                            metamobVerified: false,
+                            altPseudos: Prisma.JsonNull,
+                            availability: Prisma.JsonNull,
+                            vacationStart: null,
+                            vacationEnd: null,
+                            vacationNotify: false,
+                            lastActivityDesc: "Détecté banni lors de la synchronisation. Données nettoyées.",
+                            succes: Prisma.JsonNull,
+                            metiers: Prisma.JsonNull,
+                            classeSecondaires: Prisma.JsonNull,
+                            dofusBookLinks: Prisma.JsonNull
+                        }
+                    });
+                    bannedCount++;
+                } else {
+                    console.log(`[Lifecycle Sync] Archiving ${profile.discordNickname} (left Discord)`);
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "ARCHIVED",
+                            archivedAt: new Date(),
+                            archiveReason: "LEFT"
+                        }
+                    });
+                    archivedCount++;
+                }
             }
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return {
             success: true,
-            message: `${archivedCount} membres archivés sur ${profiles.length} vérifiés.`,
-            count: archivedCount
+            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés.`,
+            count: archivedCount + bannedCount
         };
     } catch (error) {
         console.error("[Lifecycle Sync] Error:", error);
         return { success: false, error: "Échec de la synchronisation" };
+    }
+}
+
+/**
+ * MANUAL WIPE (RGPD)
+ * Force deep anonymization for an archived profile (e.g. after a kick/expulsion)
+ */
+export async function wipeUserProfile(profileId: string, discordGuildId: string) {
+    const ctx = await getUserContext(discordGuildId);
+    if (!ctx.isAdmin) {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    try {
+        await db.userProfile.update({
+            where: { id: profileId },
+            data: {
+                status: "BANNED", // On passe en statut BANNED pour bloquer tout retour et marquer le wipe
+                archiveReason: "KICKED",
+                // --- GDPR WIPE ---
+                pseudoDofus: "Utilisateur nettoyé",
+                discordNickname: "Anonyme",
+                metamobPseudo: null,
+                metamobVerified: false,
+                altPseudos: Prisma.JsonNull,
+                availability: Prisma.JsonNull,
+                vacationStart: null,
+                vacationEnd: null,
+                vacationNotify: false,
+                succes: Prisma.JsonNull,
+                metiers: Prisma.JsonNull,
+                classeSecondaires: Prisma.JsonNull,
+                dofusBookLinks: Prisma.JsonNull,
+                lastActivityDesc: "Données nettoyées manuellement par un administrateur.",
+            }
+        });
+
+        revalidatePath(`/dashboard/${discordGuildId}/admin`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Manual Wipe] Error:", error);
+        return { success: false, error: "Erreur lors du nettoyage" };
     }
 }

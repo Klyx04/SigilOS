@@ -139,6 +139,25 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
     }>;
 }
 
+export async function fetchGuildBans(guildId: string) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/bans`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 0 }
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to fetch bans: ${res.statusText}`);
+    }
+
+    return (await res.json()) as Array<{
+        user: { id: string; username: string };
+        reason?: string | null;
+    }>;
+}
+
 export async function verifyGuildAccessibility(guildId: string): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;

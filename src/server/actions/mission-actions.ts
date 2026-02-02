@@ -10,6 +10,7 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { join, dirname } from "path";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
+import { withCache, invalidateCache } from "@/lib/cache";
 
 // --- Types & Schemas ---
 
@@ -99,9 +100,7 @@ export async function checkGuildPermission(
     return { allowed: false, error: "Insufficient Permissions" };
 }
 
-// --- Helper: Notification ---
 async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
-    console.log(`[Notification] notifyValidators called for guild ${guildId}`);
     try {
         const { fetchGuild } = await import("@/server/discord");
         const guildInfo = await fetchGuild(guildId);
@@ -115,8 +114,6 @@ async function notifyValidators(guildId: string, title: string, message: string,
             return;
         }
 
-        console.log(`[Notification] Guild Owner ID(Discord): ${guildInfo.owner_id} `);
-
         // Find owner user internally
         const account = await db.account.findFirst({
             where: {
@@ -127,7 +124,6 @@ async function notifyValidators(guildId: string, title: string, message: string,
         });
 
         if (account) {
-            console.log(`[Notification] Found internal user ${account.userId} for owner.Creating notification...`);
             await createNotification(
                 account.userId,
                 "NEW_SUBMISSION_PENDING",
@@ -135,9 +131,6 @@ async function notifyValidators(guildId: string, title: string, message: string,
                 message,
                 link
             );
-            console.log(`[Notification] Notification created.`);
-        } else {
-            console.warn(`[Notification] Internal account not found for Discord Owner ID ${guildInfo.owner_id} `);
         }
     } catch (e) {
         console.error("Notify Validators Error:", e);
@@ -165,6 +158,12 @@ export async function createWeekMissions(
         console.error("[DEBUG] createWeekMissions - Permission denied:", guard.error);
         return { success: false, error: guard.error };
     }
+
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // 3. RATE LIMIT: 5 creations per minute per admin
+    const limiter = await rateLimit(`create_missions:${session.user.id}:${data.guildId}`, 5, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez patienter un instant." };
 
     try {
         await db.$transaction(async (tx) => {
@@ -209,6 +208,10 @@ export async function createWeekMissions(
 
         revalidatePath(`/dashboard/${data.guildId}/missions`);
         revalidatePath(`/dashboard/${data.guildId}/missions/manage`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${data.guildId}:${data.year}:${data.weekNumber}`);
+
         return { success: true };
     } catch (error) {
         console.error("Create Missions Error Full:", error);
@@ -242,6 +245,10 @@ export async function resetMission(
 
         revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
         return { success: true };
     } catch (error) {
         console.error("Reset Mission Error:", error);
@@ -255,7 +262,6 @@ export async function resetWeek(
     year: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    console.log(`[ResetWeek] Attempting reset for Week ${weekNumber}, Year ${year} in Guild ${guildId}`);
 
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
     if (!guard.allowed) {
@@ -269,13 +275,10 @@ export async function resetWeek(
         });
 
         if (!guildConfig) {
-            console.error(`[ResetWeek] Guild config not found for discordId: ${guildId}`);
             return { success: false, error: "Guilde non configurée" };
         }
 
-        console.log(`[ResetWeek] Found internal guildId: ${guildConfig.id}. Proceeding to delete missions...`);
-
-        const deleteResult = await db.mission.deleteMany({
+        await db.mission.deleteMany({
             where: {
                 guildId: guildConfig.id,
                 weekNumber,
@@ -283,10 +286,12 @@ export async function resetWeek(
             }
         });
 
-        console.log(`[ResetWeek] Deleted ${deleteResult.count} missions.`);
-
         revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
         return { success: true };
     } catch (error) {
         console.error("[ResetWeek] Critical Error:", error);
@@ -302,39 +307,65 @@ export async function getWeekMissions(
     const session = await auth();
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
     if (!guard.allowed) {
-        console.error("[DEBUG] getWeekMissions - Permission denied:", guard.error);
         return { success: false, error: guard.error };
     }
 
     try {
-        const guildConfig = await db.guildConfig.findUniqueOrThrow({
-            where: { discordGuildId: guildId }
-        });
+        const missions = await withCache(
+            `missions:${guildId}:${year}:${weekNumber}`,
+            300, // 5 minutes cache
+            async () => {
+                const guildConfig = await db.guildConfig.findUniqueOrThrow({
+                    where: { discordGuildId: guildId }
+                });
 
-        const missions = await db.mission.findMany({
-            where: {
-                guildId: guildConfig.id,
-                weekNumber,
-                year
-            },
-            include: {
-                interests: {
+                return db.mission.findMany({
+                    where: {
+                        guildId: guildConfig.id,
+                        weekNumber,
+                        year
+                    },
                     include: {
-                        profile: {
-                            include: { user: true }
+                        interests: {
+                            include: {
+                                profile: {
+                                    include: { user: true }
+                                }
+                            }
                         }
-                    } // Include user for Discord name fallback
-                },
-                submissions: {
-                    where: { profile: { userId: session!.user!.id } },
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
-                }
-            },
-            orderBy: { slotIndex: 'asc' } // Sort by Slot Index for consistent grid
-        });
+                    },
+                    orderBy: { slotIndex: 'asc' }
+                });
+            }
+        );
 
-        return { success: true, data: missions };
+        // Submissions can't be easily cached per user in a global key, 
+        // so we filter them or fetch them separately if needed. 
+        // For now, let's skip user-specific submission caching in the global missions list
+        // OR we can make the key user-specific, but that defeats the purpose of "global" cache.
+        // DECISION: Cache the missions + interests (global), then fetch the current user's submission separately if session exists.
+
+        let userSubmissions: any[] = [];
+        if (session?.user?.id) {
+            userSubmissions = await db.submission.findMany({
+                where: {
+                    mission: {
+                        guild: { discordGuildId: guildId },
+                        weekNumber,
+                        year
+                    },
+                    profile: { userId: session.user.id }
+                }
+            });
+        }
+
+        // Merge submissions into cached missions
+        const enrichedMissions = missions.map(m => ({
+            ...m,
+            submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1)
+        }));
+
+        return { success: true, data: enrichedMissions };
     } catch (error) {
         console.error("Fetch Missions Error Full:", error);
         return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
@@ -347,8 +378,11 @@ export async function toggleMissionInterest(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // RATE LIMIT: 30 toggles per minute
+    const limiter = await rateLimit(`toggle_interest:${session.user.id}:${missionId}`, 30, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions rapide. Calmez-vous un peu !" };
+
     try {
-        console.log(`[DEBUG] ToggleInterest - User: ${session.user.id}, Mission: ${missionId}`);
 
         // 1. Get Mission & Guild (to check permissions)
         const mission = await db.mission.findUnique({
@@ -371,11 +405,8 @@ export async function toggleMissionInterest(
         });
 
         if (!profile) {
-            console.error(`[DEBUG] Profile not found for userId: ${session.user.id} and guildId: ${mission.guildId}`);
             return { success: false, error: "Profile null ou inexistant pour cette guilde." };
         }
-
-        console.log(`[DEBUG] Profile found: ${profile.id}, attempting toggle...`);
 
         // 3. Toggle
         const existing = await db.missionInterest.findUnique({
@@ -389,7 +420,6 @@ export async function toggleMissionInterest(
 
         if (existing) {
             await db.missionInterest.delete({ where: { id: existing.id } });
-            console.log(`[DEBUG] Interest removed for profile: ${profile.id}`);
         } else {
             await db.missionInterest.create({
                 data: {
@@ -397,10 +427,13 @@ export async function toggleMissionInterest(
                     profileId: profile.id
                 }
             });
-            console.log(`[DEBUG] Interest added for profile: ${profile.id}`);
         }
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${mission.guild.discordGuildId}:${mission.year}:${mission.weekNumber}`);
+
         return { success: true };
 
     } catch (error) {
@@ -425,6 +458,10 @@ export async function submitMissionProof(
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // RATE LIMIT: 10 submissions per minute (protection for OCR)
+    const limiter = await rateLimit(`submit_proof:${session.user.id}`, 10, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop de soumissions. Veuillez patienter." };
 
     try {
         const mission = await db.mission.findUnique({
@@ -494,6 +531,12 @@ export async function submitMissionProof(
         );
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
+
+        // Invalidate Cache if auto-validated (mission list changed)
+        if (shouldAutoValidate) {
+            await invalidateCache(`missions:${mission.guild.discordGuildId}:${mission.year}:${mission.weekNumber}`);
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Submission Error:", error);
@@ -562,6 +605,9 @@ export async function validateSubmission(
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
         revalidatePath(`/dashboard/${discordGuildId}/ladder`); // Revalidate ladder too!
 
+        // Invalidate Cache
+        await invalidateCache(`missions:${discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
+
         return { success: true };
     } catch (error) {
         console.error("Validation Error:", error);
@@ -586,7 +632,6 @@ async function addProfileXp(profileId: string, amount: number) {
             where: { id: profileId },
             data: { xp: (profile.xp || 0) + amount }
         });
-        console.log(`[XP] Added ${amount} XP to profile ${profileId}`);
     } catch (e) {
         console.error(`[XP] Failed to add XP to profile ${profileId}:`, e);
     }
@@ -613,7 +658,6 @@ export async function cleanupExpiredSubmissions(guildId: string) {
         });
 
         if (expiredSubmissions.length > 0) {
-            console.log(`[Cleanup] Found ${expiredSubmissions.length} expired pending submissions for guild ${guildId}`);
             for (const sub of expiredSubmissions) {
                 // Delete file
                 await deleteProofFile(sub.proofUrl);
@@ -725,6 +769,10 @@ export async function cancelMissionSubmission(
         }
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${mission.guild.discordGuildId}:${mission.year}:${mission.weekNumber}`);
+
         return { success: true };
 
     } catch (error) {

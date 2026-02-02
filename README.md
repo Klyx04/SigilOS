@@ -85,6 +85,7 @@ Le projet utilise une architecture duale (Bêta/Prod) sur un VPS sécurisé via 
 
 | File | Description |
 |------|-------------|
+| [MAINTENANCE.md](./MAINTENANCE.md) | Manuel technique d'administration |
 | [RULES.md](./RULES.md) | Development standards |
 | [SECURITY.md](./SECURITY.md) | Security policy |
 | [WORKFLOW.md](./WORKFLOW.md) | Git workflow |

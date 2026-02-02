@@ -82,6 +82,8 @@ Le script de nettoyage tourne automatiquement ou peut être lancé manuellement 
 1. **Le site répond 502 Bad Gateway** : Caddy ne trouve plus le conteneur `app-prod`. Vérifier si le conteneur crashed : `docker ps -a`.
 2. **Erreur de BDD (Prisma)** : Lancer `npx prisma db push` (seulement si le script de déploiement a échoué).
 3. **Redis Error** : Vérifier le mot de passe dans le `.env` et dans `docker-compose`.
+   - **Cache Wipe** : Pour vider tout le cache manuellement : `docker exec sigilos-redis redis-cli FLUSHALL`.
+   - **Graceful Shutdown** : Le serveur Next.js gère désormais la fermeture propre des connexions Redis via les signaux SIGTERM.
 
 ---
 *Dernière mise à jour : Février 2026 - Antigravity (IA)*

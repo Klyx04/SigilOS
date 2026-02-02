@@ -13,6 +13,7 @@ export async function rateLimit(
 
     // FALLBACK: Use memory if Redis is not ready
     if (redis.status !== "ready") {
+        // ... rest of memory logic continues ...
         const entry = memoryCache.get(key);
         if (!entry || now > entry.reset) {
             const newEntry = { count: 1, reset: now + windowMs };

@@ -19,10 +19,9 @@ export default auth((req) => {
             nextUrl.pathname.startsWith('/api/auth') ||
             nextUrl.pathname.startsWith('/assets') ||
             nextUrl.pathname.startsWith('/models') ||
-            nextUrl.pathname.endsWith('.png') ||
-            nextUrl.pathname.endsWith('.jpg') ||
-            nextUrl.pathname.endsWith('.svg') ||
-            nextUrl.pathname === '/favicon.ico'
+            nextUrl.pathname.startsWith('/songes') ||
+            nextUrl.pathname.startsWith('/uploads') ||
+            /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(nextUrl.pathname)
 
         if (!hasAccess && !isGatePage && !isPublicAsset) {
             return NextResponse.redirect(new URL("/gate", nextUrl))

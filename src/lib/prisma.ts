@@ -13,11 +13,21 @@ const getEnv = (key: string, fallback: string) => {
 const user = getEnv('POSTGRES_USER', 'sigiluser');
 const pwd = getEnv('POSTGRES_PASSWORD', '');
 const db_name = getEnv('POSTGRES_DB', 'sigilos');
-const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
 
-// Priority to DATABASE_URL if available
+// Smarter host detection
+const isBeta = process.env.DOMAIN_NAME?.includes('beta') || process.env.NEXT_PUBLIC_APP_URL?.includes('beta');
+const defaultHost = isBeta ? 'db-beta' : 'db-prod';
+const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? defaultHost : 'localhost');
+
+// Priority to COMPONENT build if password has special chars (like #)
 const dbUrl = getEnv('DATABASE_URL', '');
-const connectionString = dbUrl || `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+
+// Build a safe URL from components even if dbUrl is provided (unless dbUrl is more complex)
+const safeFromComponents = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+
+// We use the manual dbUrl ONLY if it's explicitly set AND we don't have enough components, 
+// OR if the user specifically wants the manual one (but component-based is safer for encoding)
+const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
 
 if (!dbUrl && !pwd && process.env.NODE_ENV !== 'production') {
     console.warn("[Prisma] No DATABASE_URL or POSTGRES_PASSWORD found. Connection might fail.");

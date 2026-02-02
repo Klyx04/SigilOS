@@ -169,7 +169,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         status: "BANNED",
                         archivedAt: new Date(),
                         archiveReason: "BANNED",
-                        // --- GDPR ANONYMIZATION ---
+                        // --- GDPR WIPE (Suppression des données lourdes) ---
                         pseudoDofus: "Utilisateur banni",
                         discordNickname: "Banni",
                         metamobPseudo: null,
@@ -179,9 +179,11 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         vacationStart: null,
                         vacationEnd: null,
                         vacationNotify: false,
-                        lastActivityDesc: "Compte banni pour violation des règles du serveur.",
                         succes: Prisma.JsonNull,
-                        dofusBookLinks: Prisma.JsonNull
+                        metiers: Prisma.JsonNull,
+                        classeSecondaires: Prisma.JsonNull,
+                        dofusBookLinks: Prisma.JsonNull,
+                        lastActivityDesc: "Compte banni pour violation des règles du serveur. Données nettoyées."
                     }
                 });
             } else {

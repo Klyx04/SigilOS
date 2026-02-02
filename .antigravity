@@ -81,12 +81,13 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
 
 ### A. La Stack Technique (Strict) 
 
-- **Framework :** Next.js 15+ (App Router, Server Actions ). 
-
-- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`). - **Base de Données :** PostgreSQL (via Neon/Supabase/Docker) géré par **Prisma ORM**.  
-
-- **Auth :** Auth.js (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
-
+- **Framework :** Next.js 16+ (App Router, Server Actions, Turbopack). 
+- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`).
+- **Base de Données :** PostgreSQL 15 (Docker) géré par **Prisma ORM 7.3+** (Adapter-PG). 
+- **Infrastucture :** VPS Linux, Docker Compose, Caddy Gateway (HSTS, Security Headers). Isolation Bêta/Prod. 
+- **Auth :** Auth.js v5 (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
+- **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR). Redis protégé par mot de passe et isolation réseau.
+- **Sécurité des Données :** Chiffrement transparent (AES-256-GCM) des tokens Cloud et clés API via `lib/encryption.ts`.
 - **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
 - **Vision :** Tesseract.js (OCR Client-side) + Algorithme de détection de couleur (Canvas).  
  
@@ -528,6 +529,26 @@ Pour protéger une Server Action ou une Page, le code doit :
     - [x] **Audit Foundations:** Added `createdAt`/`updatedAt` synchronization across core models.
     - [x] **CI/CD Automation:** Created GitHub Actions workflow (`verify.yml`) for automated lint, types, and build checks.
 
+21. **Phase 21: Success Sync & OCR Refinement (COMPLETE - 2026-01-31):**
+    - [x] **OCR Engine V2 (Buffers):** Separation of processing buffers. `ocrBuffer` (B&W/High contrast) for Tesseract precision and `displayBuffer` (Original colors/WebP) for a clean UI preview.
+    - [x] **Hybrid Security Thresholds:** Implemented tiered validation: 90% confidence for banner-only crops (unambiguous) or 70% confidence if Dofus context keywords are present.
+    - [x] **Context Validation:** Mandatory check for keywords (`succès`, `score`, `déverrouillé`) to prevent random images from auto-updating profiles.
+    - [x] **Pending Submissions Guard:** Logic to prevent users from sending multiple requests while one is still pending analysis/review.
+    - [x] **Submission Cancellation:** Server action `cancelAchievementSubmission` with physical file deletion (`fs.unlink`) and DB record removal.
+    - [x] **UI Polish (Dashboard):** "Validation en cours" card with real-time confidence rating, progress bar, and "Original Color" image preview (replacing ghost-like debug view).
+    - [x] **Robust Text Cleaning:** Improved parsing for large numbers (e.g., `21 644` -> `21644`) and OCR character confusion (I/l/|).
+    - [x] **Code Stability:** Refactored for `prefer-const` linting compliance and Next.js 16 build stability.
+
+22. **Phase 22: Production Deployment & Infrastructure (COMPLETE - 2026-02-01):**
+    - [x] **VPS Setup:** Dual environment (Prod/Beta) on Linux VPS with Docker Compose.
+    - [x] **Gateway:** Caddy implemented for automated SSL management. Prod in maintenance mode.
+    - [x] **Prisma 7 Migration:** Upgraded to Prisma 7.3.0, dynamic `DB_HOST` support for environment isolation.
+    - [x] **Docker Hardening:** Environment injection via `env_file`, zero-warning YAML architecture.
+    - [x] **Beta Security (Beta Gate):** Custom branded lock screen replacing generic Basic Auth.
+    - [x] **Database Isolation:** Independent `db-prod` (Prod) and `db-beta` (Bêta) containers on separate networks.
+    - [x] **Deployment Scripts:** Created `scripts/deploy.sh` for simplified one-command updates.
+    - [x] **Auth.js Stability:** Flexible environment naming support (`AUTH_DISCORD_ID` & `DISCORD_CLIENT_ID`).
+
 ---
 
 ## 5. Security Implementation Summary (Reference)
@@ -555,3 +576,19 @@ if (!ctx.isMember) throw new Error("Not a member");
 - Dependabot scans every Monday 9 AM (Paris)
 - GitHub Actions run `npm audit` on every push
 - 30-day audit log retention
+
+---
+
+### Phase 22 : Infrastructure Duale & Sécurisation Bêta (Févr. 2026) ✅
+- **Environnement** : Split complet entre `beta.sigilos.fr` (branche `dev`) et `sigilos.fr` (branche `main`).
+- **Databases** : Isolation totale (`db-beta` vs `db-prod`) au sein du même Docker Compose.
+- **Monitoring** : Stack Prometheus/Grafana opérationnelle sur `monitor.sigilos.fr` (Auth GitHub / 2FA).
+- **Maintenance** : Script de nettoyage quotidien automatique (`scripts/maintenance.sh`) programmé à 4h00.
+- **Gestion Bêta** : Mur de protection "Gate" avec mot de passe et cookies d'accès, simplifiant les tests sans exposer le dashboard.
+
+### Phase 23 : Hardening MilSpec & Résilience (Févr. 2026) ✅
+- **Sécurité BDD** : Chiffrement AES-256-GCM des tokens Cloud et clés API activé.
+- **Rétention RGPD** : Logique de "Wipe" automatique pour bannis/exclus et interface d'audit historique.
+- **Network Hardening** : Redis protégé par mot de passe, isolation par Docker Networks, Caddy Security Headers.
+- **Documentation** : Création du `MAINTENANCE.md` technique et de la structure `/docs` pour le futur `docs.sigilos.fr`.
+- **Tests** : Validation automatisée de la rétention et de la sécurité (Vitest).

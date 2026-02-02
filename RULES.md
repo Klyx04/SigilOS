@@ -167,8 +167,25 @@ fetch without try/catch
 
 ---
 
+## 🚀 Deployment Workflow (VPS)
+
+### 1. The Deployment Script
+Utilise toujours `./scripts/deploy.sh [beta|prod]` depuis la racine du projet sur le VPS.
+- **Beta** : Déploie la branche `dev` sur `beta.sigilos.fr`.
+- **Prod** : Déploie la branche `main` sur `sigilos.fr`.
+
+### 2. Monitoring
+Accède à la tour de contrôle sur `monitor.sigilos.fr`. 
+- Authentification via GitHub uniquement.
+- Ne jamais désactiver le 2FA GitHub.
+
+### 3. Maintenance Quotidienne
+Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Docker et logs. Ne pas le supprimer du Crontab.
+
+---
+
 ## 📚 References
 
-- [.antigravity](file:///a:/SigilOS/.antigravity) - Full project context
-- [SECURITY.md](file:///a:/SigilOS/SECURITY.md) - Security policy
-- [WORKFLOW.md](file:///a:/SigilOS/WORKFLOW.md) - Git workflow details
+- [.antigravity](./.antigravity) - Full project context
+- [SECURITY.md](./SECURITY.md) - Security policy
+- [README.md](./README.md) - Project overview

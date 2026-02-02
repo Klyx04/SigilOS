@@ -143,6 +143,10 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         return { success: false, error: validated.error.errors[0].message };
     }
 
+    // RATE LIMIT: 3 creations per 10 minutes
+    const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter." };
+
     // Rule: A leader can only have one active run
     const existingRun = await db.dreamRun.findFirst({
         where: {
@@ -279,6 +283,10 @@ export async function joinDreamRun(guildId: string, runId: string) {
     if (run.waitlist.some((w) => w.userId === ctx.userId)) {
         return { success: false, error: "Vous êtes déjà en file d'attente" };
     }
+
+    // RATE LIMIT: Shared with sendJoinRequest (5 per 10 min)
+    const limiter = await rateLimit(`join_request:${ctx.userId}:${guildId}`, 5, 10 * 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     // Find next available slot
     const usedSlots = run.members.map((m) => m.slot);
@@ -475,6 +483,10 @@ export async function addDreamFloor(guildId: string, data: z.infer<typeof AddFlo
     if (run.leaderId !== ctx.userId) {
         return { success: false, error: "Seul le leader peut ajouter des étages" };
     }
+
+    // RATE LIMIT: 30 floors per 10 minutes
+    const limiter = await rateLimit(`add_dream_floor:${ctx.userId}:${run.id}`, 30, 10 * 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Action trop rapide. Votre progression semble suspecte." };
 
     if (run.status !== "IN_PROGRESS") {
         return { success: false, error: "La run n'est pas en cours" };

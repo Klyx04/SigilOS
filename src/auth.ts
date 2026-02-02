@@ -10,8 +10,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
     providers: [
         Discord({
-            clientId: process.env.AUTH_DISCORD_ID,
-            clientSecret: process.env.AUTH_DISCORD_SECRET,
+            clientId: process.env.AUTH_DISCORD_ID || process.env.DISCORD_CLIENT_ID,
+            clientSecret: process.env.AUTH_DISCORD_SECRET || process.env.DISCORD_CLIENT_SECRET,
             authorization: { params: { scope: "identify email guilds" } }
         })
     ],

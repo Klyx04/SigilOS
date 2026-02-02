@@ -2,150 +2,163 @@
 
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
-import { Crown, Medal, Trophy, ShieldCheck } from "lucide-react";
+import { Crown, Medal, Trophy, ShieldCheck, User } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Props = {
     entry: LadderEntry;
     valueLabel: string;
-    accentColor: "purple" | "cyan";
+    accentColor: "purple" | "cyan" | "amber";
 };
 
 export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     const colorClasses = {
         purple: {
-            bg: "from-purple-500/5 via-purple-500/10 to-transparent",
-            border: "border-purple-500/30",
-            rankBg: "bg-purple-500/20",
-            rankText: "text-purple-300",
-            valueBg: "bg-purple-500/10",
-            valueText: "text-purple-200",
-            highlight: "ring-2 ring-purple-400/60 bg-purple-500/15 shadow-purple-500/20"
+            border: "group-hover:border-purple-500/30 border-white/5",
+            bg: "hover:bg-purple-500/[0.03]",
+            rankText: "text-purple-400",
+            valueText: "text-purple-300",
+            glow: "bg-purple-400/10",
+            highlight: "bg-purple-500/10 border-purple-500/20 ring-1 ring-purple-500/20"
         },
         cyan: {
-            bg: "from-cyan-500/5 via-cyan-500/10 to-transparent",
-            border: "border-cyan-500/30",
-            rankBg: "bg-cyan-500/20",
-            rankText: "text-cyan-300",
-            valueBg: "bg-cyan-500/10",
-            valueText: "text-cyan-200",
-            highlight: "ring-2 ring-cyan-400/60 bg-cyan-500/15 shadow-cyan-500/20"
+            border: "group-hover:border-cyan-500/30 border-white/5",
+            bg: "hover:bg-cyan-500/[0.03]",
+            rankText: "text-cyan-400",
+            valueText: "text-cyan-300",
+            glow: "bg-cyan-400/10",
+            highlight: "bg-cyan-500/10 border-cyan-500/20 ring-1 ring-cyan-500/20"
+        },
+        amber: {
+            border: "group-hover:border-amber-500/30 border-white/5",
+            bg: "hover:bg-amber-500/[0.03]",
+            rankText: "text-amber-400",
+            valueText: "text-amber-300",
+            glow: "bg-amber-400/10",
+            highlight: "bg-amber-500/10 border-amber-500/20 ring-1 ring-amber-500/20"
         }
     };
 
     const colors = colorClasses[accentColor];
 
-    const getRankDisplay = () => {
-        if (entry.rank === 1) {
-            return {
-                icon: <Crown className="h-5 w-5 text-yellow-400" />,
-                emoji: "🥇",
-                bgClass: "bg-gradient-to-br from-yellow-500/30 to-yellow-600/10 border-yellow-400/40"
-            };
-        }
-        if (entry.rank === 2) {
-            return {
-                icon: <Medal className="h-5 w-5 text-gray-300" />,
-                emoji: "🥈",
-                bgClass: "bg-gradient-to-br from-gray-400/30 to-gray-500/10 border-gray-300/40"
-            };
-        }
-        if (entry.rank === 3) {
-            return {
-                icon: <Medal className="h-5 w-5 text-amber-500" />,
-                emoji: "🥉",
-                bgClass: "bg-gradient-to-br from-amber-600/30 to-amber-700/10 border-amber-500/40"
-            };
-        }
-        return {
-            icon: <Trophy className="h-4 w-4 opacity-50" />,
-            emoji: null,
-            bgClass: colors.rankBg
-        };
-    };
-
-    const rankDisplay = getRankDisplay();
+    const isTop3 = entry.rank <= 3;
 
     return (
         <div
             className={cn(
-                "group relative overflow-hidden rounded-xl border backdrop-blur-sm transition-all duration-300",
-                "bg-gradient-to-br",
-                colors.bg,
+                "group relative flex items-center gap-4 px-4 py-2.5 rounded-lg border transition-all duration-200",
+                "bg-zinc-900/20 backdrop-blur-sm",
                 colors.border,
+                colors.bg,
                 entry.isCurrentUser && colors.highlight,
-                entry.isCurrentUser && "shadow-lg",
-                "hover:scale-[1.02] hover:shadow-md"
+                !entry.isCurrentUser && "hover:translate-x-1"
             )}
         >
-            <div className="p-4 flex items-center gap-4">
-                {/* Rank Badge */}
+            {/* Rank Position */}
+            <div className="w-8 flex justify-center shrink-0">
+                {entry.rank === 1 ? (
+                    <Crown className="h-5 w-5 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" />
+                ) : entry.rank === 2 ? (
+                    <Medal className="h-5 w-5 text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.4)]" />
+                ) : entry.rank === 3 ? (
+                    <Medal className="h-5 w-5 text-amber-600 drop-shadow-[0_0_8px_rgba(217,119,6,0.4)]" />
+                ) : (
+                    <span className="text-xs font-mono font-bold text-zinc-500">
+                        {entry.rank.toString().padStart(2, '0')}
+                    </span>
+                )}
+            </div>
+
+            {/* Identity Group */}
+            <div className="flex-1 flex items-center min-w-0 gap-4">
+                {/* Discord Avatar */}
                 <div className={cn(
-                    "relative flex items-center justify-center w-14 h-14 rounded-xl border-2 shrink-0 transition-transform group-hover:scale-110",
-                    rankDisplay.bgClass
+                    "w-10 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 shadow-lg bg-black/40",
+                    isTop3 && "ring-2 ring-white/10"
                 )}>
-                    {rankDisplay.emoji ? (
-                        <span className="text-2xl">{rankDisplay.emoji}</span>
+                    {entry.discordImage ? (
+                        <img
+                            src={entry.discordImage}
+                            alt={entry.discordNickname || "Avatar"}
+                            className="w-full h-full object-cover"
+                        />
                     ) : (
-                        <>
-                            {rankDisplay.icon}
-                            <span className={cn("absolute bottom-1 right-1 text-xs font-bold", colors.rankText)}>
-                                #{entry.rank}
-                            </span>
-                        </>
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                            <User className="w-5 h-5 text-zinc-500" />
+                        </div>
                     )}
                 </div>
 
-                {/* User Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                {/* Info Wrapper */}
+                <div className="min-w-0 flex flex-col">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <span
                             className={cn(
-                                "font-semibold text-base truncate",
-                                entry.isCurrentUser && "text-white"
+                                "text-[15px] font-black tracking-tight truncate",
+                                isTop3 ? "text-white" : "text-zinc-200"
                             )}
                             style={entry.discordRoleColor ? { color: `#${entry.discordRoleColor.toString(16).padStart(6, '0')}` } : undefined}
                         >
                             {entry.discordNickname || "Membre"}
                         </span>
+
+                        {entry.isCurrentUser && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-indigo-500/20 text-indigo-400 font-bold uppercase tracking-tighter">
+                                VOUS
+                            </span>
+                        )}
+
                         {entry.isAdmin && (
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                        <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
-                                        Administration
+                                    <TooltipContent className="bg-zinc-950 border-white/10 text-[10px] uppercase font-bold text-zinc-400">
+                                        Staff
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         )}
-                        {entry.isCurrentUser && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/30 text-primary font-medium shrink-0">
-                                VOUS
+                    </div>
+
+                    {/* Meta info (Dofus Pseudo/Class) */}
+                    <div className="flex items-center gap-2 mt-0.5">
+                        {entry.pseudoDofus && (
+                            <span className="text-[10px] text-zinc-500 italic truncate max-w-[120px]">
+                                {entry.pseudoDofus}
+                            </span>
+                        )}
+                        {entry.pseudoDofus && entry.classe && <span className="text-[10px] text-zinc-700 font-bold">•</span>}
+                        {entry.classe && (
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                {entry.classe}
                             </span>
                         )}
                     </div>
-                    {(entry.pseudoDofus || entry.classe) && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {entry.pseudoDofus && <span>{entry.pseudoDofus}</span>}
-                            {entry.pseudoDofus && entry.classe && <span>•</span>}
-                            {entry.classe && <span>{entry.classe}</span>}
-                        </div>
-                    )}
-                </div>
-
-                {/* Value Badge */}
-                <div className={cn(
-                    "px-4 py-2 rounded-lg border shrink-0",
-                    colors.valueBg,
-                    colors.border
-                )}>
-                    <div className={cn("text-sm font-mono font-bold whitespace-nowrap", colors.valueText)}>
-                        {valueLabel}
-                    </div>
                 </div>
             </div>
+
+            {/* Value (XP/Points) */}
+            <div className="shrink-0 text-right pr-2">
+                <div className={cn(
+                    "text-xs font-black tracking-tight uppercase",
+                    isTop3 ? "text-white" : colors.valueText
+                )}>
+                    {valueLabel}
+                </div>
+                {accentColor === "purple" && (
+                    <div className="text-[9px] text-zinc-600 font-mono mt-0.5">
+                        Sync auto
+                    </div>
+                )}
+            </div>
+
+            {/* Hover Accent Glow */}
+            <div className={cn(
+                "absolute inset-y-0 right-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                colors.glow
+            )} />
         </div>
     );
 }

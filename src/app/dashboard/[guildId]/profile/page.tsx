@@ -86,6 +86,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         metamobVerified: profile.metamobVerified,
                         metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                         altPseudos: (profile.altPseudos as string[]) || [],
+                        successPoints: profile.successPoints,
+                        lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                     }}
                     user={{
                         name: profile.user.name,
@@ -94,6 +96,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     stats={stats}
                     guildId={guildId}
                     guildName={userContext.guildName}
+                    dofusServerId={userContext.dofusServerId}
                     discordNickname={userContext.name}
                     roleColor={userContext.roleColor}
                     isAdmin={userContext.isAdmin}

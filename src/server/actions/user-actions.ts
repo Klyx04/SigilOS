@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
+import { Prisma } from "@prisma/client";
 
 export type UserContext = {
     isAuthenticated: boolean;
@@ -31,6 +32,7 @@ export type UserContext = {
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
+    dofusServerId?: string | null;
     joinedAt?: Date | null;
 };
 
@@ -55,7 +57,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     // 1. Get Guild Config for Mappings
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: targetGuildId },
-        select: { id: true, rolesMapping: true, name: true }
+        select: { id: true, rolesMapping: true, name: true, dofusServerId: true }
     });
 
     // 2. Fetch User's Roles from Discord
@@ -167,9 +169,21 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         status: "BANNED",
                         archivedAt: new Date(),
                         archiveReason: "BANNED",
-                        // Anonymize personal data for GDPR
+                        // --- GDPR WIPE (Suppression des données lourdes) ---
                         pseudoDofus: "Utilisateur banni",
-                        discordNickname: "Banni"
+                        discordNickname: "Banni",
+                        metamobPseudo: null,
+                        metamobVerified: false,
+                        altPseudos: Prisma.JsonNull,
+                        availability: Prisma.JsonNull,
+                        vacationStart: null,
+                        vacationEnd: null,
+                        vacationNotify: false,
+                        succes: Prisma.JsonNull,
+                        metiers: Prisma.JsonNull,
+                        classeSecondaires: Prisma.JsonNull,
+                        dofusBookLinks: Prisma.JsonNull,
+                        lastActivityDesc: "Compte banni pour violation des règles du serveur. Données nettoyées."
                     }
                 });
             } else {
@@ -345,6 +359,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         isAdmin,
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",
+        dofusServerId: guildConfig?.dofusServerId,
         joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null
     };
 };

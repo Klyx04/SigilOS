@@ -1,50 +1,50 @@
-/**
- * Simple in-memory rate limiter for Server Actions
- * Prevents spamming sensitive endpoints (join requests, submissions, etc.)
- */
+import { redis } from "./redis";
 
-type RateLimitEntry = {
-    count: number;
-    resetAt: number;
-};
-
-const cache = new Map<string, RateLimitEntry>();
-
-// Cleanup task every minute
-if (typeof setInterval !== 'undefined') {
-    setInterval(() => {
-        const now = Date.now();
-        for (const [key, entry] of cache.entries()) {
-            if (now > entry.resetAt) {
-                cache.delete(key);
-            }
-        }
-    }, 60000);
-}
+// Fallback memory cache if Redis is down
+const memoryCache = new Map<string, { count: number; reset: number }>();
 
 export async function rateLimit(
     identifier: string,
     limit: number,
     windowMs: number
 ): Promise<{ success: boolean; remaining: number; reset: number }> {
-    const now = Date.now();
     const key = `ratelimit:${identifier}`;
+    const now = Date.now();
 
-    const entry = cache.get(key);
-
-    if (!entry || now > entry.resetAt) {
-        const newEntry = {
-            count: 1,
-            resetAt: now + windowMs
-        };
-        cache.set(key, newEntry);
-        return { success: true, remaining: limit - 1, reset: newEntry.resetAt };
+    // FALLBACK: Use memory if Redis is not ready
+    if (redis.status !== "ready") {
+        // ... rest of memory logic continues ...
+        const entry = memoryCache.get(key);
+        if (!entry || now > entry.reset) {
+            const newEntry = { count: 1, reset: now + windowMs };
+            memoryCache.set(key, newEntry);
+            return { success: true, remaining: limit - 1, reset: newEntry.reset };
+        }
+        if (entry.count >= limit) return { success: false, remaining: 0, reset: entry.reset };
+        entry.count++;
+        return { success: true, remaining: limit - entry.count, reset: entry.reset };
     }
 
-    if (entry.count >= limit) {
-        return { success: false, remaining: 0, reset: entry.resetAt };
-    }
+    try {
+        const results = await redis
+            .multi()
+            .set(key, 0, "PX", windowMs, "NX")
+            .incr(key)
+            .pttl(key)
+            .exec();
 
-    entry.count += 1;
-    return { success: true, remaining: limit - entry.count, reset: entry.resetAt };
+        if (!results) return { success: true, remaining: limit, reset: now + windowMs };
+
+        const count = results[1][1] as number;
+        const ttl = results[2][1] as number;
+        const reset = now + ttl;
+
+        const success = count <= limit;
+        const remaining = Math.max(0, limit - count);
+
+        return { success, remaining, reset };
+    } catch (e) {
+        console.error("[RateLimit] Redis error, falling back to allow:", e);
+        return { success: true, remaining: 1, reset: now + windowMs };
+    }
 }

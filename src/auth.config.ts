@@ -16,34 +16,10 @@ export const authConfig = {
         updateAge: 24 * 60 * 60,       // Refresh JWT every 24 hours (sliding session)
     },
 
-    // Cookie Security Settings
+    // Cookie Security Settings - Simplified for production stability
     cookies: {
         sessionToken: {
-            name: process.env.NODE_ENV === "production"
-                ? "__Secure-authjs.session-token"
-                : "authjs.session-token",
-            options: {
-                httpOnly: true,         // Prevents XSS attacks from accessing token
-                sameSite: "lax",        // CSRF protection while allowing OAuth redirects
-                path: "/",
-                secure: process.env.NODE_ENV === "production", // HTTPS only in production
-            },
-        },
-        callbackUrl: {
-            name: process.env.NODE_ENV === "production"
-                ? "__Secure-authjs.callback-url"
-                : "authjs.callback-url",
-            options: {
-                httpOnly: true,
-                sameSite: "lax",
-                path: "/",
-                secure: process.env.NODE_ENV === "production",
-            },
-        },
-        csrfToken: {
-            name: process.env.NODE_ENV === "production"
-                ? "__Host-authjs.csrf-token"
-                : "authjs.csrf-token",
+            name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
             options: {
                 httpOnly: true,
                 sameSite: "lax",

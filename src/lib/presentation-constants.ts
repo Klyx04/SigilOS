@@ -3,29 +3,37 @@
 // ============================================================================
 
 export const DOFUS_UNITY_SERVERS = {
-    // New Pioneer Servers (December 2024)
-    singleAccount: [
-        "Dakal 1", "Dakal 2", "Dakal 3", "Dakal 4", "Dakal 5",
-        "Dakal 6", "Dakal 7", "Dakal 8", "Dakal 9", "Dakal 10",
+    epique: [
+        { name: "Ombre", id: 50 }
     ],
-    multiAccount: [
-        "Rafal 1", "Rafal 2", "Rafal 3",
-        "Salar 1", "Salar 2", "Salar 3",
-        "Brial 1", "Brial 2", "Brial 3",
-        "Kourial 1", "Kourial 2", "Kourial 3",
-        "Mikhal 1", "Mikhal 2", "Mikhal 3",
+    monocompte: [
+        { name: "Draconiros", id: 295 }
     ],
-    // Legacy Servers (ported to Unity)
-    legacy: [
-        "Tal Kasha", "Imagiro", "Orukam", "Tylezia",
-        "Hell Mina", "Draconiros", "Ombre",
+    classique: [
+        { name: "Tal Kasha", id: 290 },
+        { name: "Imagiro", id: 291 },
+        { name: "Orukam", id: 292 },
+        { name: "Tylezia", id: 293 },
+        { name: "Hell Mina", id: 294 }
+    ],
+    pionnierMono: [
+        { name: "Dakal", id: 353 },
+        { name: "Mikhal", id: 354 },
+        { name: "Kourial", id: 355 }
+    ],
+    pionnier: [
+        { name: "Rafal", id: 350 },
+        { name: "Brial", id: 351 },
+        { name: "Salar", id: 352 }
     ],
 } as const;
 
 export const ALL_DOFUS_SERVERS = [
-    ...DOFUS_UNITY_SERVERS.singleAccount,
-    ...DOFUS_UNITY_SERVERS.multiAccount,
-    ...DOFUS_UNITY_SERVERS.legacy,
+    ...DOFUS_UNITY_SERVERS.epique.map(s => s.name),
+    ...DOFUS_UNITY_SERVERS.monocompte.map(s => s.name),
+    ...DOFUS_UNITY_SERVERS.classique.map(s => s.name),
+    ...DOFUS_UNITY_SERVERS.pionnierMono.map(s => s.name),
+    ...DOFUS_UNITY_SERVERS.pionnier.map(s => s.name),
 ];
 
 // ============================================================================

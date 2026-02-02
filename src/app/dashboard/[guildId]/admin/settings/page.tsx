@@ -11,6 +11,8 @@ import { SongesSettingsClient } from "../songes/_components/songes-settings-clie
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
+import { Sword } from "lucide-react";
 
 export default async function FeatureSettingsPage({
     params
@@ -76,6 +78,13 @@ export default async function FeatureSettingsPage({
                         >
                             <Calendar className="h-4 w-4" />
                             <span className="font-bold tracking-wide">Calendrier</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="dofus"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-indigo-500/10 data-[state=active]:text-indigo-400 data-[state=active]:shadow-[0_0_20px_rgba(99,102,241,0.1)] border border-transparent data-[state=active]:border-indigo-500/20"
+                        >
+                            <Sword className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Dofus</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -153,6 +162,17 @@ export default async function FeatureSettingsPage({
                         <div className="max-w-4xl">
                             <CalendarSettingsClient guildId={guildId} />
                         </div>
+                    </div>
+                </TabsContent>
+
+                {/* Dofus Tab */}
+                <TabsContent value="dofus" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Configuration Dofus Unity</h2>
+                            <p className="text-zinc-400 max-w-2xl">Paramétrez les informations relatives à Dofus pour l'ensemble de la guilde.</p>
+                        </div>
+                        <DofusSettingsClient guildId={guildId} />
                     </div>
                 </TabsContent>
             </Tabs>

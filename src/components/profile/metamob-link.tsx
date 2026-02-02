@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface MetamobLinkProps {
     guildId: string;
@@ -161,22 +162,27 @@ export function MetamobLink({
 
                         {/* Settings / Unlink */}
                         {!readOnly && (
-                            <div className="flex gap-1 ml-1 border-l border-white/5 pl-2 shrink-0">
+                            <div className="flex gap-2 ml-1 border-l border-white/10 pl-3 shrink-0">
                                 <Button
-                                    variant="ghost"
-                                    size="icon"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={handleRefresh}
                                     disabled={isRefreshing}
-                                    className="h-8 w-8 text-zinc-500 hover:text-zinc-300"
-                                    title="Rafraîchir"
+                                    className="h-9 px-3 bg-white/5 border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400 text-zinc-400 transition-all font-medium flex items-center gap-2"
                                 >
-                                    <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                                    <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing ? "animate-spin" : "")} />
+                                    <span className="hidden lg:inline">Synchro</span>
                                 </Button>
 
                                 <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
                                     <DialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/5">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-3 bg-white/5 border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 text-zinc-400 hover:text-red-400 transition-all font-medium flex items-center gap-2"
+                                        >
                                             <Unlink className="h-3.5 w-3.5" />
+                                            <span className="hidden lg:inline">Délier</span>
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>

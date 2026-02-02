@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { type PermissionId } from "@/lib/permissions";
 import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 export type ActionResponse = {
     success: boolean;
@@ -526,3 +527,70 @@ export async function updateCalendarChannel(
         return { success: false, error: "Erreur serveur" };
     }
 }
+// ============================================================================
+// DOFUS CONFIGURATION
+// ============================================================================
+
+const DofusConfigSchema = z.object({
+    guildId: z.string(),
+    serverId: z.string().nullable(),
+});
+
+export async function getDofusConfig(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: { dofusServerId: string | null }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { dofusServerId: true }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { dofusServerId: guildConfig.dofusServerId } };
+    } catch (error) {
+        console.error("Get Dofus Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateDofusServer(
+    guildId: string,
+    serverId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Validation
+    const validation = DofusConfigSchema.safeParse({ guildId, serverId });
+    if (!validation.success) return { success: false, error: "Données invalides" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { dofusServerId: serverId }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/ladder`);
+
+        return { success: true };
+    } catch (error) {
+        console.error("Update Dofus Server Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour" };
+    }
+}
+

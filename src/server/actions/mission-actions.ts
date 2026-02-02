@@ -159,6 +159,8 @@ export async function createWeekMissions(
         return { success: false, error: guard.error };
     }
 
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
     // 3. RATE LIMIT: 5 creations per minute per admin
     const limiter = await rateLimit(`create_missions:${session.user.id}:${data.guildId}`, 5, 60 * 1000);
     if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez patienter un instant." };

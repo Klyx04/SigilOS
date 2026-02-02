@@ -62,8 +62,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/ioredis": "^4.28.10",
-    "@types/node": "^25",
+    "@types/ioredis": "^5.0.0",
+    "@types/node": "^25.2.0",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

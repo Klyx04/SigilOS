@@ -27,9 +27,11 @@ export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
     },
 });
 
-// SILENCE ALL REDIS ERRORS IN DEV
+// LOGGING
+redis.on("connect", () => console.log("[Redis] Connecting..."));
+redis.on("ready", () => console.log("[Redis] Ready"));
 redis.on("error", (err) => {
-    // Silent fail in dev, application checks redis.status
+    console.error("[Redis] Error:", err.message);
 });
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;

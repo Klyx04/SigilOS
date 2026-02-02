@@ -14,9 +14,14 @@ export default auth((req) => {
         const hasAccess = req.cookies.get("beta_access")?.value === "true"
         const isGatePage = nextUrl.pathname === "/gate"
 
-        // On laisse passer les fichiers statiques et l'API d'auth
+        // On laisse passer les fichiers statiques, l'API d'auth et les assets publics
         const isPublicAsset = nextUrl.pathname.startsWith('/_next') ||
             nextUrl.pathname.startsWith('/api/auth') ||
+            nextUrl.pathname.startsWith('/assets') ||
+            nextUrl.pathname.startsWith('/models') ||
+            nextUrl.pathname.endsWith('.png') ||
+            nextUrl.pathname.endsWith('.jpg') ||
+            nextUrl.pathname.endsWith('.svg') ||
             nextUrl.pathname === '/favicon.ico'
 
         if (!hasAccess && !isGatePage && !isPublicAsset) {

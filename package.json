@@ -56,7 +56,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "tesseract.js": "^5.1.1",
+    "tesseract.js": "^7.0.0",
     "use-debounce": "^10.1.0",
     "zod": "^3.25.76"
   },

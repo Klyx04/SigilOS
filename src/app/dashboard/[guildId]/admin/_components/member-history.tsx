@@ -15,10 +15,8 @@ export async function MemberHistory({ guildId }: MemberHistoryProps) {
             status: { in: ["ARCHIVED", "BANNED"] }
         },
         orderBy: { archivedAt: "desc" },
-        take: 10 // On limite aux 10 derniers pour la vue rapide
+        take: 10
     });
-
-    // if (historicalProfiles.length === 0) return null; // On le garde visible pour que l'admin sache où c'est
 
     return (
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
@@ -38,58 +36,54 @@ export async function MemberHistory({ guildId }: MemberHistoryProps) {
                 ) : (
                     historicalProfiles.map((profile) => (
                         <div key={profile.id} className="p-4 flex items-center justify-between hover:bg-zinc-800/30 transition-colors">
-                            {/* ... reste du code identique ... */}
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${profile.status === "BANNED" ? "bg-red-500/10" : "bg-zinc-800"
+                                    }`}>
+                                    {profile.status === "BANNED" ? (
+                                        <ShieldAlert className="w-4 h-4 text-red-400" />
+                                    ) : (
+                                        <LogOut className="w-4 h-4 text-zinc-400" />
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="font-medium text-zinc-200">
+                                        {profile.discordNickname}
+                                    </div>
+                                    <div className="text-xs text-zinc-500">
+                                        {profile.archiveReason === "BANNED" ? "Banni définitivement" :
+                                            profile.archiveReason === "KICKED" ? "Exclu de la guilde" : "Départ volontaire"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <div className="text-sm text-zinc-400">
+                                        {profile.archivedAt ? format(profile.archivedAt, "d MMMM yyyy", { locale: fr }) : "Date inconnue"}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-600 uppercase tracking-tighter">
+                                        {profile.status === "BANNED" ? "Données Nettoyées" : "Rétention 90j"}
+                                    </div>
+                                </div>
+
+                                {profile.status === "ARCHIVED" && (
+                                    <HistoryWipeButton
+                                        profileId={profile.id}
+                                        guildId={guildId}
+                                        nickname={profile.discordNickname || "Anonyme"}
+                                    />
+                                )}
+                            </div>
                         </div>
                     ))
                 )}
             </div>
-                            <div className={`p-2 rounded-lg ${profile.status === "BANNED" ? "bg-red-500/10" : "bg-zinc-800"
-                                }`}>
-                                {profile.status === "BANNED" ? (
-                                    <ShieldAlert className="w-4 h-4 text-red-400" />
-                                ) : (
-                                    <LogOut className="w-4 h-4 text-zinc-400" />
-                                )}
-                            </div>
-                            <div>
-                                <div className="font-medium text-zinc-200">
-                                    {profile.discordNickname}
-                                </div>
-                                <div className="text-xs text-zinc-500">
-                                    {profile.archiveReason === "BANNED" ? "Banni définitivement" :
-                                        profile.archiveReason === "KICKED" ? "Exclu de la guilde" : "Départ volontaire"}
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <div className="text-sm text-zinc-400">
-                                    {profile.archivedAt ? format(profile.archivedAt, "d MMMM yyyy", { locale: fr }) : "Date inconnue"}
-                                </div>
-                                <div className="text-[10px] text-zinc-600 uppercase tracking-tighter">
-                                    {profile.status === "BANNED" ? "Données Nettoyées" : "Rétention 90j"}
-                                </div>
-                            </div>
-
-                            {profile.status === "ARCHIVED" && (
-                                <HistoryWipeButton
-                                    profileId={profile.id}
-                                    guildId={guildId}
-                                    nickname={profile.discordNickname || "Anonyme"}
-                                />
-                            )}
-                        </div>
-                    </div >
-                ))
-}
-            </div >
-
-    <div className="p-3 bg-zinc-900/30 text-center border-t border-zinc-800">
-        <p className="text-[10px] text-zinc-500 italic">
-            Note: Les profils bannis n'ont plus aucune donnée associée (succès, métiers, activitées) par sécurité.
-        </p>
-    </div>
-        </div >
+            <div className="p-3 bg-zinc-900/30 text-center border-t border-zinc-800">
+                <p className="text-[10px] text-zinc-500 italic">
+                    Note: Les profils bannis n'ont plus aucune donnée associée (succès, métiers, activitées) par sécurité.
+                </p>
+            </div>
+        </div>
     );
 }

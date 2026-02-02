@@ -15,7 +15,13 @@ const pwd = getEnv('POSTGRES_PASSWORD', '');
 const db_name = getEnv('POSTGRES_DB', 'sigilos');
 const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
 
-const connectionString = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`
+// Priority to DATABASE_URL if available
+const dbUrl = getEnv('DATABASE_URL', '');
+const connectionString = dbUrl || `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+
+if (!dbUrl && !pwd && process.env.NODE_ENV !== 'production') {
+    console.warn("[Prisma] No DATABASE_URL or POSTGRES_PASSWORD found. Connection might fail.");
+}
 
 const pool = new Pool({
     connectionString,

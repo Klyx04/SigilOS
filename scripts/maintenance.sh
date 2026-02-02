@@ -3,6 +3,8 @@
 # maintenance.sh - Le concierge automatique de SigilOS
 # Ce script nettoie les ressources inutilisées pour garder le VPS rapide.
 
+echo "--------------------------------------------------"
+echo "📅 Date : $(date '+%Y-%m-%d %H:%M:%S')"
 echo "🧹 Démarrage du nettoyage hebdomadaire..."
 
 # 1. Nettoyage Docker (Images orphelines, cache de build inutilisé)

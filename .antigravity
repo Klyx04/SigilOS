@@ -84,9 +84,10 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
 - **Framework :** Next.js 16+ (App Router, Server Actions, Turbopack). 
 - **Langage :** TypeScript 5+ (Strict Mode : pas de `any`).
 - **Base de Données :** PostgreSQL 15 (Docker) géré par **Prisma ORM 7.3+** (Adapter-PG). 
-- **Infrastucture :** VPS Linux, Docker Compose, Caddy Gateway (HTTPS/SSL automatique).
+- **Infrastucture :** VPS Linux, Docker Compose, Caddy Gateway (HSTS, Security Headers). Isolation Bêta/Prod. 
 - **Auth :** Auth.js v5 (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
-- **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR).
+- **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR). Redis protégé par mot de passe et isolation réseau.
+- **Sécurité des Données :** Chiffrement transparent (AES-256-GCM) des tokens Cloud et clés API via `lib/encryption.ts`.
 - **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
 - **Vision :** Tesseract.js (OCR Client-side) + Algorithme de détection de couleur (Canvas).  
  
@@ -584,3 +585,10 @@ if (!ctx.isMember) throw new Error("Not a member");
 - **Monitoring** : Stack Prometheus/Grafana opérationnelle sur `monitor.sigilos.fr` (Auth GitHub / 2FA).
 - **Maintenance** : Script de nettoyage quotidien automatique (`scripts/maintenance.sh`) programmé à 4h00.
 - **Gestion Bêta** : Mur de protection "Gate" avec mot de passe et cookies d'accès, simplifiant les tests sans exposer le dashboard.
+
+### Phase 23 : Hardening MilSpec & Résilience (Févr. 2026) ✅
+- **Sécurité BDD** : Chiffrement AES-256-GCM des tokens Cloud et clés API activé.
+- **Rétention RGPD** : Logique de "Wipe" automatique pour bannis/exclus et interface d'audit historique.
+- **Network Hardening** : Redis protégé par mot de passe, isolation par Docker Networks, Caddy Security Headers.
+- **Documentation** : Création du `MAINTENANCE.md` technique et de la structure `/docs` pour le futur `docs.sigilos.fr`.
+- **Tests** : Validation automatisée de la rétention et de la sécurité (Vitest).

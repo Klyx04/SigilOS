@@ -8,7 +8,7 @@ export default function MentionsPage() {
 
                 <h3>1. Éditeur</h3>
                 <p>
-                    Le site <strong>SigilOS</strong> est édité par l'équipe développement de la guilde [Nom Guilde].<br />
+                    Le site <strong>SigilOS</strong> est édité par l'équipe SigilOS.<br />
                     Contact : Via le serveur Discord officiel.
                 </p>
 

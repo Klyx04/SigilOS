@@ -24,9 +24,31 @@ services:
       # Metamob
       - METAMOB_API_KEY=${METAMOB_API_KEY}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - internal-net
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # HARDWARE LOCKING
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+          # NOTE: 2GB is enough for Next.js + Tesseract.
+          # For Qwen2-VL (LLM), DO NOT increase this limit. Create a separate 'ai-worker' service.
+          # This protects the web server (= user UX) from the heavy AI workload.
+          # LOG HYGIENE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # -----------------------------------------------------------------------------
   # REVERSE PROXY (Caddy - Automatic HTTPS)
@@ -47,6 +69,11 @@ services:
       - DOMAIN_NAME=${DOMAIN_NAME}
     networks:
       - internal-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # -----------------------------------------------------------------------------
   # DATABASE (PostgreSQL)
@@ -65,6 +92,21 @@ services:
     # Only services in 'internal-net' can access it.
     networks:
       - internal-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-sigilos}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   db-data:

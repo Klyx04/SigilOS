@@ -48,6 +48,7 @@ export function GalacticFooter() {
                     <div className="flex items-center gap-3">
                         <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
                         <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
+                        <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
                     </div>
                 </div>
 

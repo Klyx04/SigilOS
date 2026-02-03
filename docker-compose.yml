@@ -21,6 +21,8 @@ services:
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      # Redis (internal docker network)
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sigilos-redis-secret}@redis:6379
       # Metamob
       - METAMOB_API_KEY=${METAMOB_API_KEY}
     depends_on:
@@ -108,8 +110,37 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # -----------------------------------------------------------------------------
+  # REDIS (Cache & Rate Limiting)
+  # -----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: sigilos-redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-sigilos-redis-secret}
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sigilos-redis-secret}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   db-data:
+  redis-data:
   caddy_data:
   caddy_config:
 

@@ -1,0 +1,27 @@
+# Gitleaks configuration for SigilOS
+# https://github.com/gitleaks/gitleaks
+
+title = "SigilOS Gitleaks Config"
+
+# Allowlist paths that contain example/test data
+[allowlist]
+  description = "Allow example and test files"
+  paths = [
+    '''.env.example''',
+    '''tests/.*''',
+    '''.*\.test\.ts''',
+    '''.*\.spec\.ts''',
+  ]
+
+# Custom rules adjustments
+[[rules]]
+  id = "discord-bot-token"
+  description = "Discord Bot Token"
+  regex = '''[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27,}'''
+  keywords = ["discord"]
+
+[[rules]]
+  id = "encryption-key"
+  description = "Encryption Key (64 hex chars)"
+  regex = '''ENCRYPTION_KEY\s*=\s*["']?[a-fA-F0-9]{64}["']?'''
+  keywords = ["encryption_key"]

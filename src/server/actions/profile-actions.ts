@@ -138,9 +138,13 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
         });
         if (!callerProfile) return { success: false, error: "Accès refusé" };
 
-        // Fetch target profile
+        // Fetch target profile (SECURITY: Only active profiles are accessible)
         const profile = await db.userProfile.findFirst({
-            where: { id: profileId, guildId: guildConfig.id },
+            where: {
+                id: profileId,
+                guildId: guildConfig.id,
+                status: "ACTIVE"  // Prevent access to archived/banned profiles
+            },
             include: {
                 user: {
                     include: {
@@ -711,7 +715,7 @@ export async function getGuildMembers(
 
 // Rate Limiting needs to be outside the function scope to persist across calls (in stateful server environments)
 // Note: specifically for server actions in Next.js, this map persists as long as the lambda/container is warm.
-const notificationRateLimits = new Map<string, number>();
+// Rate Limiter used inside function
 
 export async function sendVacationNotification(rawData: z.infer<typeof SendVacationNotificationSchema>): Promise<ActionResponse> {
     const session = await auth();
@@ -721,14 +725,10 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, pseudo, profileId, startDate, endDate } = validation.data;
 
-    // Rate Limiting Check
-    const now = Date.now();
-    const lastSent = notificationRateLimits.get(session.user.id);
-    const COOLDOWN = 60 * 1000; // 60 seconds
-
-    if (lastSent && now - lastSent < COOLDOWN) {
-        const remaining = Math.ceil((COOLDOWN - (now - lastSent)) / 1000);
-        return { success: false, error: `Veuillez patienter ${remaining}s avant de renvoyer une notification.` };
+    // Rate Limiting Check: 1 per minute
+    const limiter = await rateLimit(`vacation_notif:${session.user.id}`, 1, 60 * 1000);
+    if (!limiter.success) {
+        return { success: false, error: `Veuillez patienter un instant avant de renvoyer une notification.` };
     }
 
     try {
@@ -761,9 +761,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
             return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
         }
 
-        // Apply Rate Limit Update only before successful attempt logic (or after?)
-        // Applying before prevents spamming external API even if it fails, ensuring strict rate limit.
-        notificationRateLimits.set(session.user.id, now);
+
 
         // Use the SECURED pseudo from the database profile, not the provided one
         const securedPseudo = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";

@@ -11,8 +11,11 @@ export async function rateLimit(
     const key = `ratelimit:${identifier}`;
     const now = Date.now();
 
-    // FALLBACK: Use memory if Redis is not ready
+    // DECISION: Fail-open to maintain availability. 
+    // Redis outage allows requests through memory fallback.
+    // For fail-closed behavior, return { success: false, ... } instead.
     if (redis.status !== "ready") {
+        console.warn("[RateLimit] Redis unavailable - using memory fallback (fail-open)");
         // ... rest of memory logic continues ...
         const entry = memoryCache.get(key);
         if (!entry || now > entry.reset) {

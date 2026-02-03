@@ -1,4 +1,5 @@
 // prisma.config.js
+require('dotenv').config();
 
 // Fonction de nettoyage
 const clean = (val) => {

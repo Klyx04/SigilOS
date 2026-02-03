@@ -51,9 +51,25 @@ const basePrisma = new PrismaClient({
  * Handles transparent encryption/decryption of sensitive fields:
  * - Account (access_token, refresh_token)
  * - GuildConfig (metamobApiKey)
+ * 
+ * + SLOW QUERY MONITORING (> 200ms)
  */
 export const prisma = basePrisma.$extends({
     query: {
+        $allModels: {
+            async $allOperations({ operation, model, args, query }) {
+                const start = performance.now();
+                const result = await query(args);
+                const end = performance.now();
+                const duration = end - start;
+
+                if (duration > 200) {
+                    console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
+                    // Potential future hook: Send to monitoring service
+                }
+                return result;
+            }
+        },
         account: {
             async create({ args, query }) {
                 if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);

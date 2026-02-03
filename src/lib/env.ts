@@ -30,6 +30,10 @@ const envSchema = z.object({
     // Encryption (optional in dev, required in prod)
     ENCRYPTION_KEY: z.string().length(64, "ENCRYPTION_KEY must be exactly 64 hex characters").optional(),
 
+    // Sentry (optional - error tracking)
+    SENTRY_DSN: z.string().url().optional(),
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
     // Node environment
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });

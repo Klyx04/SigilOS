@@ -12,8 +12,9 @@ echo "🌟 Bienvenue dans l'initialiseur SigilOS 2026 🌟"
 # 1. Sécurisation et Pré-requis
 echo "--- 1/3 SÉCURISATION & OUTILS ---"
 
-# Install basics
-sudo apt-get update && sudo apt-get install -y unzip gnupg curl
+# Install basics & Security Updates
+sudo apt-get update && sudo apt-get install -y unzip gnupg curl unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades # Activer les mises à jour de sécurité auto
 
 # AWS CLI v2 (for R2 Backups)
 if ! command -v aws &> /dev/null; then

@@ -88,6 +88,14 @@ export async function updateRoleMapping(
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) {
+        console.warn(`[Security] updateRoleMapping blocked: ${guard.error} for user ${session.user.id}`);
+        return { success: false, error: guard.error };
+    }
+
     try {
         // Get current mapping for audit log
         const currentConfig = await db.guildConfig.findUnique({
@@ -174,6 +182,11 @@ export async function updateRoleMapping(
 export async function getAbsenceConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { absenceChannelId: string | null } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -268,6 +281,11 @@ export async function getMetamobConfig(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -359,6 +377,11 @@ export async function getSongesConfig(guildId: string): Promise<{ success: boole
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -444,6 +467,11 @@ export async function updateSongesChannel(
 export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -543,6 +571,11 @@ export async function getDofusConfig(guildId: string): Promise<{
 }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({

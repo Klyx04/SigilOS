@@ -596,16 +596,24 @@ if (!ctx.isMember) throw new Error("Not a member");
 
 Cette phase est découpée en Sprints logiques pour atteindre le niveau "Military Grade".
 
-### ⚔️ Sprint C : Blindage & Sécurité du Code (`feat/security-v3`)
-- **Gitleaks + Husky** : Protection contre l'oubli de secrets dans le code.
-- **Zod Validation** : Validation stricte des `.env` au démarrage.
-- **Audits** : Audit automatisé (ESLint Security) et revue manuelle des Server Actions.
-- **CSP** : Activation des headers de sécurité navigateur.
+### ⚔️ Sprint C : Blindage & Sécurité du Code (`feat/security-v3`) ✅
+- **Audit Complet** : Analyse exhaustive du code (score 3.9/5). 2 vulnérabilités critiques corrigées.
+- **Guards.ts** : Helpers `requireGuildAdmin` et `requireGuildMember` pour vérification centralisée.
+- **Admin Actions** : Fix `updateRoleMapping` + protection des 5 fonctions `get*Config`.
+- **Profile Actions** : Filtre `status: ACTIVE` dans `getMemberProfile` (GDPR compliant).
+- **Gitleaks CI** : Scan de secrets automatique sur chaque PR avec GitHub Actions.
+- **Documentation** : `ENCRYPTION_KEY` et `DISCORD_PUBLIC_KEY` ajoutés à `.env.example`.
 
 ### 🔭 Sprint D : Observabilité & Alerting (`feat/monitoring-v4`)
 - **Error Tracking** : Installation de Sentry pour le tracking des bugs en temps réel.
 - **Alerting Unifié** : Connexion Grafana ↔ Discord pour les alertes matérielles.
 - **UX Admin** : Mode Maintenance et conformité RGPD (Suppression de compte).
 
-### 🧠 Sprint E : Intelligence & OCR (Futur)
+### 🧪 Sprint E : Tests & Qualité (À venir)
+- **Unit Tests** : Tests encryption.ts, ratelimit.ts, guards.ts.
+- **Integration Tests** : Tests user-actions, mission-actions.
+- **Coverage** : Objectif 70%+ sur les modules critiques.
+
+### 🧠 Sprint F : Intelligence & OCR (Futur)
 - **OCR V2** : Analyse assistée par IA pour les captures d'écran de ladder.
+

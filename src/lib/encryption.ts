@@ -23,7 +23,8 @@ function getEncryptionKey(): Buffer {
         if (process.env.NODE_ENV === "production") {
             throw new Error("CRITICAL: ENCRYPTION_KEY is missing in production environment.");
         }
-        // Fallback for development only
+        // Fallback for development only - log warning
+        console.warn("[Encryption] ⚠️ Using fallback dev key - DO NOT USE IN PRODUCTION");
         return scryptSync("dev-fallback-sigilos-key-2026", "salt", KEY_LENGTH);
     }
 

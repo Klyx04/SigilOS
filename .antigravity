@@ -589,16 +589,23 @@ if (!ctx.isMember) throw new Error("Not a member");
 ### Phase 23 : Hardening MilSpec & Résilience (Févr. 2026) ✅
 - **Sécurité BDD** : Chiffrement AES-256-GCM des tokens Cloud et clés API activé.
 - **Rétention RGPD** : Logique de "Wipe" automatique pour bannis/exclus et interface d'audit historique.
-- **Network Hardening** : Redis protégé par mot de passe, isolation par Docker Networks, Caddy Security Headers.
-- **Documentation** : Création du `MAINTENANCE.md` technique et de la structure `/docs` pour le futur `docs.sigilos.fr`.
-- **Tests** : Validation automatisée de la rétention et de la sécurité (Vitest).
+- **Infrastructure** : Sprint B terminé (Backups R2 vérifiés, Healthchecks Docker, Limites Hardware fixées).
+- **Maintenance** : Script auto-nettoyant avec alertes Discord pour l'espace disque.
 
-## 6. Future Roadmap: Phase 3 (Résilience & Élite) 🚀
+## 6. Future Roadmap: Phase 3 (Blindage & Intelligence) 🚀
 
-Cette phase est découpée en 4 Sprints logiques pour atteindre le niveau "Military Grade".
+Cette phase est découpée en Sprints logiques pour atteindre le niveau "Military Grade".
 
-### 🏎️ Sprint A : Performance & Nerveuseté (`feat/infra-perf`)
-- **Anti-Spam** : Rate Limiting (Redis) sur les Server Actions critiques.
-- **Caching** : Mise en cache BDD (Redis) pour latence < 5ms.
-- **Graceful Shutdown** : Gestion propre des signaux d'arrêt.
-- **Monitoring** : Alertes Slow Query (> 200ms).
+### ⚔️ Sprint C : Blindage & Sécurité du Code (`feat/security-v3`)
+- **Gitleaks + Husky** : Protection contre l'oubli de secrets dans le code.
+- **Zod Validation** : Validation stricte des `.env` au démarrage.
+- **Audits** : Audit automatisé (ESLint Security) et revue manuelle des Server Actions.
+- **CSP** : Activation des headers de sécurité navigateur.
+
+### 🔭 Sprint D : Observabilité & Alerting (`feat/monitoring-v4`)
+- **Error Tracking** : Installation de Sentry pour le tracking des bugs en temps réel.
+- **Alerting Unifié** : Connexion Grafana ↔ Discord pour les alertes matérielles.
+- **UX Admin** : Mode Maintenance et conformité RGPD (Suppression de compte).
+
+### 🧠 Sprint E : Intelligence & OCR (Futur)
+- **OCR V2** : Analyse assistée par IA pour les captures d'écran de ladder.

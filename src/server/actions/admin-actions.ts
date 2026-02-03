@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { rateLimit } from "@/lib/ratelimit";
 import { type PermissionId } from "@/lib/permissions";
 import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
@@ -15,6 +16,12 @@ export type ActionResponse = {
 export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Rate limit: 5 guild onboards per minute per user
+    const rateLimitResult = await rateLimit(`onboard:${session.user.id}`, 5, 60000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Too many requests. Please wait before onboarding another guild." };
+    }
 
     try {
         // 1. Check if already exists (Idempotency)
@@ -87,6 +94,12 @@ export async function updateRoleMapping(
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    // Rate limit: 10 role mapping updates per minute per user
+    const rateLimitResult = await rateLimit(`roleMapping:${session.user.id}`, 10, 60000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Too many requests. Please wait before updating roles again." };
+    }
 
     // SECURITY: Verify user is admin of this guild
     const { requireGuildAdmin } = await import("./guards");

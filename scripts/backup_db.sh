@@ -11,16 +11,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Load env vars safely (Prioritize PROD)
-if [ -f "$ROOT_DIR/.env.prod" ]; then
-    echo "[Config] Loading .env.prod"
-    export $(grep -v '^#' "$ROOT_DIR/.env.prod" | xargs)
-elif [ -f "$ROOT_DIR/.env" ]; then
-    echo "[Config] Loading .env"
-    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
-fi
+# Local backup directory instead of /var/backups to avoid sudo/permission issues
+BACKUP_DIR="$ROOT_DIR/backups/db"
 
-BACKUP_DIR="/var/backups/sigilos"
+# Load env vars safely (Prioritize PROD)
 DB_CONTAINER="sigilos-db"
 DB_USER="${POSTGRES_USER:-user}"
 

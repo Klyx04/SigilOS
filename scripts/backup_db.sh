@@ -23,7 +23,7 @@ elif [ -f "$ROOT_DIR/.env" ]; then
     export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
 fi
 
-DB_CONTAINER="sigilos-db"
+DB_CONTAINER="sigilos-db-prod"
 DB_USER="${POSTGRES_USER:-user}"
 
 DATE=$(date +%Y-%m-%d_%H-%M-%S)

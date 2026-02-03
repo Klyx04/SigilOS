@@ -20,6 +20,11 @@ services:
       - redis
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
 
   db-prod:
     image: postgres:15-alpine
@@ -30,6 +35,11 @@ services:
       - db-prod-data:/var/lib/postgresql/data
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
   # ===========================================================================
   # 🟡 BETA ENVIRONMENT
@@ -52,6 +62,11 @@ services:
       - redis
     networks:
       - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
 
   db-beta:
     image: postgres:15-alpine
@@ -62,6 +77,11 @@ services:
       - db-beta-data:/var/lib/postgresql/data
     networks:
       - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
   # ===========================================================================
   # 🌐 ROUTING

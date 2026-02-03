@@ -592,3 +592,13 @@ if (!ctx.isMember) throw new Error("Not a member");
 - **Network Hardening** : Redis protégé par mot de passe, isolation par Docker Networks, Caddy Security Headers.
 - **Documentation** : Création du `MAINTENANCE.md` technique et de la structure `/docs` pour le futur `docs.sigilos.fr`.
 - **Tests** : Validation automatisée de la rétention et de la sécurité (Vitest).
+
+## 6. Future Roadmap: Phase 3 (Résilience & Élite) 🚀
+
+Cette phase est découpée en 4 Sprints logiques pour atteindre le niveau "Military Grade".
+
+### 🏎️ Sprint A : Performance & Nerveuseté (`feat/infra-perf`)
+- **Anti-Spam** : Rate Limiting (Redis) sur les Server Actions critiques.
+- **Caching** : Mise en cache BDD (Redis) pour latence < 5ms.
+- **Graceful Shutdown** : Gestion propre des signaux d'arrêt.
+- **Monitoring** : Alertes Slow Query (> 200ms).

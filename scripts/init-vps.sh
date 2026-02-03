@@ -9,8 +9,21 @@ set -e
 
 echo "🌟 Bienvenue dans l'initialiseur SigilOS 2026 🌟"
 
-# 1. Sécurisation
-echo "--- 1/3 SÉCURISATION ---"
+# 1. Sécurisation et Pré-requis
+echo "--- 1/3 SÉCURISATION & OUTILS ---"
+
+# Install basics
+sudo apt-get update && sudo apt-get install -y unzip gnupg curl
+
+# AWS CLI v2 (for R2 Backups)
+if ! command -v aws &> /dev/null; then
+    echo "📦 Installation AWS CLI v2..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    sudo ./aws/install
+    rm -rf aws awscliv2.zip
+fi
+
 chmod +x ./scripts/secure_vps.sh
 sudo ./scripts/secure_vps.sh
 

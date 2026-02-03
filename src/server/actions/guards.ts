@@ -35,20 +35,25 @@ export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
 
     try {
         const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
+
+        // Parallel fetch for performance (~3x faster)
+        const [guildInfo, member, guildRoles] = await Promise.all([
+            fetchGuild(guildId),
+            fetchGuildMember(guildId, discordUserId),
+            fetchGuildRoles(guildId, { excludeManaged: false })
+        ]);
 
         // Check 1: Is Owner?
         if (guildInfo.owner_id === discordUserId) {
             return { isAuthorized: true, discordUserId };
         }
 
-        // Check 2: Has Administrator Permission (0x8)?
-        const member = await fetchGuildMember(guildId, discordUserId);
+        // Check 2: Is guild member?
         if (!member) {
             return { isAuthorized: false, error: "Not a member of this guild" };
         }
 
-        const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+        // Check 3: Has Administrator Permission (0x8)?
         const memberRoles = guildRoles.filter((r: any) => member.roles.includes(r.id));
         const isAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
 

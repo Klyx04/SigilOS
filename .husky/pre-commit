@@ -1,0 +1,28 @@
+#!/bin/sh
+# Pre-commit hook - runs before each commit
+
+echo "🔐 Running pre-commit checks..."
+
+# Check for secrets with a simple pattern match (backup for Gitleaks)
+# This catches common mistakes before they reach CI
+
+# Check for Discord tokens
+if git diff --cached --name-only | xargs grep -l -E "[MN][A-Za-z0-9]{23,}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}" 2>/dev/null; then
+    echo "❌ Possible Discord token detected! Commit blocked."
+    exit 1
+fi
+
+# Check for .env file being committed (should never happen)
+if git diff --cached --name-only | grep -E "^\.env$"; then
+    echo "❌ .env file detected in commit! This should never be committed."
+    echo "   Use .env.example for documentation instead."
+    exit 1
+fi
+
+# Check for AWS/API keys patterns
+if git diff --cached --name-only | xargs grep -l -E "(AKIA[0-9A-Z]{16}|sk-[a-zA-Z0-9]{48})" 2>/dev/null; then
+    echo "❌ Possible AWS/OpenAI key detected! Commit blocked."
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed!"

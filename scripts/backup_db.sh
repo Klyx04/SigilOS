@@ -15,6 +15,14 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BACKUP_DIR="$ROOT_DIR/backups/db"
 
 # Load env vars safely (Prioritize PROD)
+if [ -f "$ROOT_DIR/.env.prod" ]; then
+    echo "[Config] Loading .env.prod"
+    export $(grep -v '^#' "$ROOT_DIR/.env.prod" | xargs)
+elif [ -f "$ROOT_DIR/.env" ]; then
+    echo "[Config] Loading .env"
+    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+fi
+
 DB_CONTAINER="sigilos-db"
 DB_USER="${POSTGRES_USER:-user}"
 

@@ -12,7 +12,7 @@ describe("Encryption Module", () => {
 
     beforeEach(() => {
         vi.resetModules();
-        process.env = { ...originalEnv, ...mockEnv };
+        process.env = { ...originalEnv, ...mockEnv } as NodeJS.ProcessEnv;
     });
 
     afterEach(() => {
@@ -95,9 +95,9 @@ describe("Encryption in Production", () => {
         vi.resetModules();
         process.env = {
             ...process.env,
-            NODE_ENV: "production",
+            NODE_ENV: "production" as const,
             ENCRYPTION_KEY: undefined
-        };
+        } as NodeJS.ProcessEnv;
 
         // Importing the module should trigger key generation which throws
         await expect(async () => {

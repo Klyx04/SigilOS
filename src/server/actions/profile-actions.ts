@@ -138,9 +138,13 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
         });
         if (!callerProfile) return { success: false, error: "Accès refusé" };
 
-        // Fetch target profile
+        // Fetch target profile (SECURITY: Only active profiles are accessible)
         const profile = await db.userProfile.findFirst({
-            where: { id: profileId, guildId: guildConfig.id },
+            where: {
+                id: profileId,
+                guildId: guildConfig.id,
+                status: "ACTIVE"  // Prevent access to archived/banned profiles
+            },
             include: {
                 user: {
                     include: {

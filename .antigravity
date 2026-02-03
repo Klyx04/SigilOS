@@ -604,10 +604,11 @@ Cette phase est découpée en Sprints logiques pour atteindre le niveau "Militar
 - **Gitleaks CI** : Scan de secrets automatique sur chaque PR avec GitHub Actions.
 - **Documentation** : `ENCRYPTION_KEY` et `DISCORD_PUBLIC_KEY` ajoutés à `.env.example`.
 
-### 🔭 Sprint D : Observabilité & Alerting (`feat/monitoring-v4`)
-- **Error Tracking** : Installation de Sentry pour le tracking des bugs en temps réel.
-- **Alerting Unifié** : Connexion Grafana ↔ Discord pour les alertes matérielles.
-- **UX Admin** : Mode Maintenance et conformité RGPD (Suppression de compte).
+### 🔭 Sprint D : Observabilité & Alerting (`feat/sentry-integration`) ✅
+- **Quick Wins** : Husky Pre-commit hooks, Health Check API (Redis/DB), Rate Limiting.
+- **Sentry** : Tracking des erreurs (Client/Serveur/Edge) configuré et déployé.
+- **Alerting** : Intégration Discord pour notifications d'erreurs en temps réel.
+- **Security Params** : CSP Headers, Validation Zod .env, Gitleaks.
 
 ### 🧪 Sprint E : Tests & Qualité (À venir)
 - **Unit Tests** : Tests encryption.ts, ratelimit.ts, guards.ts.

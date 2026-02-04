@@ -197,8 +197,9 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: sigilos-postgres-exporter
     restart: always
+    env_file: .env.prod
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}?sslmode=disable"
+      DATA_SOURCE_NAME: "host=db-prod port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} database=${POSTGRES_DB} sslmode=disable"
     depends_on:
       - db-prod
     networks:

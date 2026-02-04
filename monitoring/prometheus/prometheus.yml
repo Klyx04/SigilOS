@@ -1,16 +1,27 @@
+# Prometheus Configuration for SigilOS Production
+# This file tells Prometheus what to scrape and how often
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
+  # Prometheus itself (self-monitoring)
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'sigilos-beta'
+  # Node Exporter - Server metrics (CPU, RAM, Disk, Network)
+  - job_name: 'node-exporter'
     static_configs:
-      - targets: ['sigilos-beta:3000']
+      - targets: ['node-exporter:9100']
 
-  - job_name: 'sigilos-prod'
+  # cAdvisor - Docker container metrics
+  - job_name: 'cadvisor'
     static_configs:
-      - targets: ['sigilos-prod:3000']
+      - targets: ['cadvisor:8080']
+
+  # PostgreSQL Exporter - Database metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']

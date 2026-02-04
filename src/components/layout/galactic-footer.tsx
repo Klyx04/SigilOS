@@ -3,27 +3,44 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Activity, Bug, MessageCircle } from "lucide-react";
+import { Activity } from "lucide-react";
+
+type SystemStatus = "online" | "degraded" | "offline";
 
 export function GalacticFooter() {
     const [latency, setLatency] = useState<number | null>(null);
+    const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
-        const checkPing = async () => {
+        const checkHealth = async () => {
             const start = Date.now();
             try {
-                await fetch('/api/health'); // Simple endpoint or just root
+                const res = await fetch('/api/health');
                 const end = Date.now();
                 setLatency(end - start);
-            } catch (e) {
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === "healthy") {
+                        setSystemStatus("online");
+                    } else if (data.status === "degraded") {
+                        setSystemStatus("degraded");
+                    } else {
+                        setSystemStatus("offline");
+                    }
+                } else {
+                    setSystemStatus("offline");
+                }
+            } catch {
                 setLatency(null);
+                setSystemStatus("offline");
             }
         };
 
-        checkPing();
-        const interval = setInterval(checkPing, 30000); // Check every 30s
+        checkHealth();
+        const interval = setInterval(checkHealth, 30000); // Check every 30s
         return () => clearInterval(interval);
     }, []);
 
@@ -33,7 +50,20 @@ export function GalacticFooter() {
         return "text-red-400";
     };
 
+    const getStatusConfig = (status: SystemStatus) => {
+        switch (status) {
+            case "online":
+                return { color: "bg-emerald-500", textColor: "text-emerald-500", label: "System Online" };
+            case "degraded":
+                return { color: "bg-amber-500", textColor: "text-amber-500", label: "Dégradé" };
+            case "offline":
+                return { color: "bg-red-500", textColor: "text-red-500", label: "Hors Ligne" };
+        }
+    };
+
     if (!mounted) return null;
+
+    const statusConfig = getStatusConfig(systemStatus);
 
     return (
         <footer className="w-full border-t border-white/5 bg-black/40 backdrop-blur-md pb-safe-offset">
@@ -41,7 +71,7 @@ export function GalacticFooter() {
 
                 {/* ZONE GAUCHE : IDENTITÉ & LÉGAL */}
                 <div className="flex items-center gap-4 text-zinc-500 font-mono">
-                    <span className="hidden sm:inline">SIGILOS v2.4</span>
+                    <span className="hidden sm:inline">SIGILOS v2.5</span>
                     <span className="hidden sm:inline">•</span>
                     <span>© 2026 Stellium</span>
                     <span className="w-px h-3 bg-white/10 hidden sm:block"></span>
@@ -52,11 +82,17 @@ export function GalacticFooter() {
                     </div>
                 </div>
 
-                {/* ZONE CENTRE : AMBIANCE (Hidden on mobile) */}
-                <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 opacity-50">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="font-black tracking-[0.2em] text-[10px] text-emerald-500 uppercase">System Online</span>
-                </div>
+                {/* ZONE CENTRE : STATUS WIDGET DYNAMIQUE (Hidden on mobile) */}
+                <Link
+                    href="/status"
+                    className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
+                    title="Voir le statut des services"
+                >
+                    <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", statusConfig.color)}></div>
+                    <span className={cn("font-black tracking-[0.2em] text-[10px] uppercase", statusConfig.textColor)}>
+                        {statusConfig.label}
+                    </span>
+                </Link>
 
                 {/* ZONE DROITE : TECH & SUPPORT */}
                 <div className="flex items-center gap-4 sm:gap-6">
@@ -72,7 +108,7 @@ export function GalacticFooter() {
 
                     {/* Support Link with Discord Icon */}
                     <Link
-                        href="https://discord.gg/stellium"
+                        href="https://discord.gg/uX7G6SUDgN"
                         target="_blank"
                         className="flex items-center gap-2 text-zinc-400 hover:text-[#5865F2] transition-colors group"
                     >

@@ -198,12 +198,7 @@ services:
     container_name: sigilos-postgres-exporter
     restart: always
     environment:
-      PGHOST: "db-prod"
-      PGPORT: "5432"
-      PGUSER: "${POSTGRES_USER}"
-      PGPASSWORD: "${POSTGRES_PASSWORD}"
-      PGDATABASE: "${POSTGRES_DB}"
-      PGSSLMODE: "disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}?sslmode=disable"
     depends_on:
       - db-prod
     networks:

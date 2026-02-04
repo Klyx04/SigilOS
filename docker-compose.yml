@@ -222,6 +222,31 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # -----------------------------------------------------------------------------
+  # MONITORING - POSTGRES EXPORTER (Database Metrics)
+  # -----------------------------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: sigilos-postgres-exporter
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sigilos}?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   db-data:
   redis-data:

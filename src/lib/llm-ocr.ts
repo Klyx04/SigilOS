@@ -326,7 +326,7 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
         'terminé', 'valide', 'validé'
     ];
     const foundIndicators = victoryKeywords.filter(kw => text.includes(kw));
-    const isVictory = foundIndicators.length > 0;
+    let isVictory = foundIndicators.length > 0;
 
     // 3. CALC CONFIDENCE
     let confidence = 0;
@@ -349,29 +349,77 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
         'roublard', 'zobal', 'steamer', 'eliotrope', 'huppermage', 'ouginak', 'forgelance',
         // Servers
         'draconiros', 'tal kasha', 'hell mina', 'imagiro',
-        'orukam', 'tylezia', 'ombre', 'shadow'
+        'orukam', 'tylezia', 'ombre', 'shadow',
+        // Missions - General
+        'rang', 'rank', 'niv', 'niveau', 'level', 'vaincre', 'monstres',
+        // Missions - Types
+        'anomalie', 'gardien', 'donjon', 'zone', // Anom
+        'régulation', 'regulation', 'brikoléreux', 'sanguinaires', // Regulation
+        'expédition', 'expedition', 'bravoure', 'audace', // Expedition
+        'songe', 'dream', 'rêve', 'reve', 'paradoxe', 'cauchemar', // Songes
+        'palier', 'pensées', 'pensees', 'balades', 'espaces', 'concepts', 'abstractions' // Songes Paliers
     ];
 
     const foundContext = contextKeywords.filter(kw => text.includes(kw));
     const hasContext = foundContext.length > 0;
 
-    // Victory keywords are decent indicators for missions
+    // Detect if valid Mission Context specifically (Rang/Niv/Vaincre...)
+    // To avoid confusing "1000 XP" with "1000 Success Points"
+    const missionSpecificKeywords = [
+        'rang', 'rank', 'niv', 'niveau', 'level', 'vaincre', 'monstres',
+        'anomalie', 'gardien', 'donjon', 'zone',
+        'régulation', 'regulation',
+        'expédition', 'expedition',
+        'songe', 'dream', 'rêve', 'reve', 'paradoxe', 'cauchemar',
+        'palier'
+    ];
+    const hasMissionContext = missionSpecificKeywords.some(kw => text.includes(kw));
+
+    // Extract Mission Details for Manual Review (Rang/Niv)
+    const rankMatch = text.match(/rang\s*(\d+)/i);
+    const levelMatch = text.match(/niv\.?\s*(\d+)/i);
+    let extraInfo = "";
+    if (rankMatch) extraInfo += ` | Rang: ${rankMatch[1]}`;
+    if (levelMatch) extraInfo += ` | Niv: ${levelMatch[1]}`;
+
+    // Victory keywords are decent indicators (Keep generic ones like "Terminé")
     if (isVictory) {
         confidence += 30;
     }
 
-    // Boost confidence if we have context
-    // This works for ANY score (500 or 20000)
-    // Rule: Valid Score + Dofus UI Context = Auto-Validate
-    if (bestScore > 0 && hasContext) {
-        confidence += 40; // 40 + 40 = 80 (Auto-Validate)
+    // Boost confidence if we find Mission Keywords
+    // NOTE: We do NOT validate based on 'Progression' (0/50) as it's unreliable.
+    // If we identify it's a valid Mission Screenshot, we give high confidence 
+    // to confirm it's a Dofus image, but Validation might still depend on human review 
+    // unless we find explicit "Success" text.
+    if ((bestScore > 0 || hasContext) && hasContext) {
+        confidence += 50;
+        // 40 (Base) + 50 = 90 (High Confidence it's a Mission Image)
+        // But is it COMPLETED? Hard to say without the checkmark color.
+        // We will return it as "High Confidence Image" and let the Server Action decided 
+        // if it auto-validates based on this confidence.
+    }
+
+    const finalConfidence = Math.min(100, confidence);
+
+    // DETERMINING VICTORY STATUS
+    // 1. If it's a Mission (hasMissionContext):
+    //    - We IGNORE bestScore (could be XP/Kamas).
+    //    - We rely ONLY on explicit victory keywords (Terminé, Validé...) or Manual Review.
+    // 2. If it's NOT a Mission (Standard Success Sheet):
+    //    - We accept bestScore > 0 as a victory indicator (Success Points).
+    let finalIsVictory = isVictory;
+    if (!hasMissionContext && bestScore > 0) {
+        finalIsVictory = true;
     }
 
     return {
-        extractedText: bestScore > 0 ? `Points: ${bestScore}\nBrut: ${rawResponse}` : rawResponse,
-        isVictory: isVictory || bestScore > 0,
+        extractedText: (bestScore > 0 ? `Points: ${bestScore}\n` : '') +
+            `Brut: ${rawResponse}\n` +
+            (extraInfo ? `Detected: ${extraInfo}` : ''),
+        isVictory: finalIsVictory,
         victoryIndicators: foundIndicators,
-        confidence: Math.min(100, confidence),
+        confidence: finalConfidence,
         isAppropriate: true,
         inappropriateReason: null,
     };

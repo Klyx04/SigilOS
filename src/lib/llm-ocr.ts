@@ -54,15 +54,30 @@ export interface OcrRequest {
 }
 
 // =============================================================================
-// CONFIGURATION
+// CONFIGURATION & ENVIROMENT
 // =============================================================================
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-2.0-flash'; // Stable 2026 model with vision support
+const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY || 'helloworld';
+const OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
-// Timeout for Gemini API calls (default 30s - cloud is fast)
-const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS || '30000', 10);
+// Default timeout for OCR calls
+const OCR_TIMEOUT_MS = 30000;
+
+/**
+ * Interface for OCR.space response
+ */
+interface OcrSpaceResponse {
+    ParsedResults?: Array<{
+        ParsedText: string;
+        ErrorMessage?: string;
+        ErrorDetails?: string;
+    }>;
+    IsErroredOnProcessing: boolean;
+    ErrorMessage?: string[];
+    ErrorDetails?: string;
+    ProcessingTimeInMilliseconds?: string;
+}
 
 
 // =============================================================================
@@ -112,84 +127,59 @@ Respond ONLY with this JSON:
 }
 
 // =============================================================================
-// GEMINI API CLIENT
+// OCR.SPACE API CLIENT
 // =============================================================================
 
-interface GeminiResponse {
-    candidates?: Array<{
-        content: {
-            parts: Array<{ text: string }>;
-        };
-    }>;
-    error?: {
-        code: number;
-        message: string;
-    };
-}
-
 /**
- * Call Gemini API with vision support
+ * Call OCR.space API
  */
-async function callGemini(
-    prompt: string,
+async function callOcrSpace(
     imageBase64: string,
-    systemPrompt?: string
+    language: string = 'fre'
 ): Promise<string> {
-    if (!GEMINI_API_KEY) {
-        throw new Error('GEMINI_API_KEY is not configured');
+    if (!OCR_SPACE_API_KEY) {
+        throw new Error('OCR_SPACE_API_KEY is not configured');
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT_MS);
 
     try {
-        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-
-        console.log('[LLM-OCR] Sending request to Gemini:', {
-            model: GEMINI_MODEL,
-            promptLength: fullPrompt.length,
+        console.log('[LLM-OCR] Sending request to OCR.space:', {
             imageSize: imageBase64.length,
+            language
         });
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: fullPrompt },
-                            { inline_data: { mime_type: 'image/webp', data: imageBase64 } }
-                        ]
-                    }],
-                    generationConfig: {
-                        temperature: 0.1,
-                        maxOutputTokens: 500,
-                    }
-                }),
-                signal: controller.signal,
-            }
-        );
+        // OCR.space expects base64 with data URI prefix or a multipart upload
+        const formData = new URLSearchParams();
+        formData.append('apikey', OCR_SPACE_API_KEY);
+        formData.append('base64Image', `data:image/jpeg;base64,${imageBase64}`);
+        formData.append('language', language);
+        formData.append('isOverlayRequired', 'false');
+        formData.append('OCREngine', '2'); // Engine 2 is usually better for numbers/tables
 
-        // Handle rate limiting
-        if (response.status === 429) {
-            throw new Error('RATE_LIMITED');
-        }
+        const response = await fetch(OCR_SPACE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: formData,
+            signal: controller.signal,
+        });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+            throw new Error(`OCR.space API error: ${response.status} - ${errorText}`);
         }
 
-        const result: GeminiResponse = await response.json();
+        const result: OcrSpaceResponse = await response.json();
 
-        if (result.error) {
-            throw new Error(`Gemini API error: ${result.error.message}`);
+        if (result.IsErroredOnProcessing) {
+            throw new Error(`OCR.space processing error: ${result.ErrorMessage?.join(', ') || 'Unknown error'}`);
         }
 
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        console.log('[LLM-OCR] Gemini response:', text.substring(0, 500));
+        const text = result.ParsedResults?.[0]?.ParsedText || '';
+        console.log('[LLM-OCR] OCR.space extraction successful (length:', text.length, ')');
 
         return text;
 
@@ -199,24 +189,21 @@ async function callGemini(
 }
 
 /**
- * Check if Gemini API is configured
+ * Check if OCR service is configured
  */
-export async function checkGeminiHealth(): Promise<{
+export async function checkOcrHealth(): Promise<{
     available: boolean;
-    model: string;
     error?: string;
 }> {
-    if (!GEMINI_API_KEY) {
+    if (!OCR_SPACE_API_KEY || OCR_SPACE_API_KEY === 'helloworld') {
         return {
             available: false,
-            model: GEMINI_MODEL,
-            error: 'GEMINI_API_KEY not configured in environment variables',
+            error: 'OCR_SPACE_API_KEY not configured or using demo key',
         };
     }
 
     return {
         available: true,
-        model: GEMINI_MODEL,
     };
 }
 
@@ -246,19 +233,16 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
     }
 
     try {
-        // Generate analysis prompt based on context
-        const prompt = getAnalysisPrompt(request.context);
-
         // Optimize image (resize & compress) to reduce API payload
         const optimizedImage = await optimizeImage(request.imageBase64);
 
-        // Call Gemini API with the image
-        console.log('[LLM-OCR] Calling Gemini with context:', request.context);
-        const response = await callGemini(prompt, optimizedImage, SYSTEM_PROMPT);
+        // Call OCR.space instead of Gemini
+        console.log('[LLM-OCR] Calling OCR.space with context:', request.context);
+        const response = await callOcrSpace(optimizedImage, 'fre');
 
-        console.log('[LLM-OCR] Raw response (first 500 chars):', response.substring(0, 500));
+        console.log('[LLM-OCR] Raw text (first 500 chars):', response.substring(0, 500));
 
-        // Parse the JSON response
+        // Parse the text response
         const parsed = parseModelResponse(response);
 
         console.log('[LLM-OCR] Parsed result:', {
@@ -282,36 +266,23 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
     } catch (error) {
         console.error('[LLM-OCR] Analysis failed:', error);
 
-        // RATE LIMIT: Fallback to manual validation when API limits are hit
-        const isRateLimited = error instanceof Error && error.message === 'RATE_LIMITED';
-        if (isRateLimited) {
-            console.warn('[LLM-OCR] Rate limited - falling back to manual validation');
-            return {
-                success: true,
-                text: '[Rate limit atteint] Validation manuelle requise',
-                confidence: 0,
-                isVictory: false,
-                moderation: { isAppropriate: true },
-                error: 'API rate limit reached - manual validation required',
-            };
-        }
-
         // CONNECTION ERROR: Fallback to manual validation
         const isConnectionError = error instanceof Error &&
             (error.message.includes('ECONNREFUSED') ||
                 error.message.includes('fetch failed') ||
                 error.name === 'AbortError' ||
-                error.message.includes('aborted'));
+                error.message.includes('aborted') ||
+                error.message.includes('timeout'));
 
         if (isConnectionError) {
-            console.warn('[LLM-OCR] API unreachable - falling back to manual validation');
+            console.warn('[LLM-OCR] OCR Service unreachable - falling back to manual validation');
             return {
                 success: true,
                 text: '[OCR indisponible] Validation manuelle requise',
                 confidence: 0,
                 isVictory: false,
                 moderation: { isAppropriate: true },
-                error: 'Gemini API unreachable - manual validation required',
+                error: 'OCR service unreachable - manual validation required',
             };
         }
 
@@ -341,94 +312,58 @@ interface ParsedModelResponse {
 }
 
 /**
- * Parse the model's response - tries JSON first, falls back to text extraction
- * Gemma 3 typically returns valid JSON, but we handle both cases
+ * Parse the OCR output - focus on regex for raw text
  */
 function parseModelResponse(rawResponse: string): ParsedModelResponse {
-    // Try JSON parsing first (Gemma 3 should return structured JSON)
-    try {
-        // Extract JSON from response (may have markdown code blocks)
-        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-
-            // Handle achievement context
-            if ('score' in parsed) {
-                const score = typeof parsed.score === 'number' ? parsed.score : parseInt(String(parsed.score).replace(/\s/g, ''), 10);
-                const isVictory = parsed.is_victory === true;
-
-                console.log('[LLM-OCR] JSON parsed successfully:', { score, isVictory });
-
-                // High confidence if we got a valid score
-                let confidence = 0;
-                if (score > 0) confidence += 50;
-                if (score > 1000) confidence += 20; // Likely a real Dofus score
-                if (isVictory) confidence += 30;
-
-                return {
-                    extractedText: `Score: ${score}`,
-                    isVictory,
-                    victoryIndicators: isVictory ? ['is_victory'] : [],
-                    confidence: Math.min(100, confidence),
-                    isAppropriate: true,
-                    inappropriateReason: null,
-                };
-            }
-
-            // Handle mission context
-            if ('mission_name' in parsed) {
-                const isValidated = parsed.is_validated === true;
-
-                console.log('[LLM-OCR] Mission JSON parsed:', parsed);
-
-                return {
-                    extractedText: JSON.stringify(parsed),
-                    isVictory: isValidated,
-                    victoryIndicators: isValidated ? ['is_validated'] : [],
-                    confidence: isValidated ? 90 : 60,
-                    isAppropriate: true,
-                    inappropriateReason: null,
-                };
-            }
-        }
-    } catch (e) {
-        console.log('[LLM-OCR] JSON parsing failed, falling back to text extraction');
-    }
-
-    // Fallback: Text extraction (legacy behavior)
     const text = rawResponse.toLowerCase();
 
-    // Extract numbers from the response (e.g., "21 654", "21654", "21,654")
-    const numberMatches = rawResponse.match(/[\d\s,\.]+\d/g) || [];
-    const extractedNumbers = numberMatches
-        .map(n => parseInt(n.replace(/[\s,\.]/g, ''), 10))
-        .filter(n => !isNaN(n) && n > 0);
+    // 1. EXTRACT SCORE (Achievements)
+    // Dofus scores look like "21 644" or "15600"
+    // We look for patterns with 4-5 digits, possibly separated by space
+    const scoreMatches = rawResponse.match(/\b\d{1,2}[\s\.]?\d{3}\b/g) || [];
+    const scores = scoreMatches
+        .map(s => parseInt(s.replace(/[\s\.]/g, ''), 10))
+        .filter(s => s > 0 && s < 40000);
 
-    // Detect victory indicators
-    const victoryKeywords = ['success', 'succes', 'succès', 'victory', 'victoire', 'unlocked', 'déverrouillé', 'achieved', 'completed'];
+    const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
+
+    // 2. DETECT VICTORY (Missions)
+    const victoryKeywords = [
+        'success', 'succes', 'succès',
+        'victory', 'victoire',
+        'unlocked', 'déverrouillé',
+        'achieved', 'accompli',
+        'terminé', 'valide', 'validé'
+    ];
     const foundIndicators = victoryKeywords.filter(kw => text.includes(kw));
     const isVictory = foundIndicators.length > 0;
 
-    // Calculate confidence based on what we found
+    // 3. CALC CONFIDENCE
     let confidence = 0;
-    if (extractedNumbers.length > 0) confidence += 40; // Found a number
-    if (isVictory) confidence += 40; // Found victory keyword
-    if (rawResponse.length > 50) confidence += 10; // Got substantial response
-    if (extractedNumbers.some(n => n > 1000)) confidence += 10; // Found large number (likely score)
 
-    console.log('[LLM-OCR] Text parsing fallback:', {
-        foundNumbers: extractedNumbers,
-        foundIndicators,
-        isVictory,
-        calculatedConfidence: confidence
-    });
+    // If we found a plausible Dofus score, it's a good sign
+    if (bestScore > 1000) {
+        confidence += 60;
+    } else if (bestScore > 0) {
+        confidence += 30;
+    }
+
+    // Victory keywords are strong indicators
+    if (isVictory) {
+        confidence += 30;
+    }
+
+    // Amount of text (OCR noise vs real content)
+    if (rawResponse.length > 20 && rawResponse.length < 1000) {
+        confidence += 10;
+    }
 
     return {
-        extractedText: rawResponse,
-        isVictory,
+        extractedText: bestScore > 0 ? `Points: ${bestScore}\n${rawResponse}` : rawResponse,
+        isVictory: isVictory || bestScore > 0,
         victoryIndicators: foundIndicators,
         confidence: Math.min(100, confidence),
-        isAppropriate: true, // Assume appropriate unless flagged
+        isAppropriate: true,
         inappropriateReason: null,
     };
 }

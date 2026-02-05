@@ -68,52 +68,25 @@ const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10
 // =============================================================================
 
 /**
- * System prompt optimized for Dofus screenshot analysis
+ * Simple prompt for Moondream - no JSON requirement, just describe
+ * Moondream is a lightweight model that works better with simple prompts
  */
-const SYSTEM_PROMPT = `Tu es un assistant expert en analyse d'images de jeux vidéo.
-Ton rôle est d'extraire le texte visible et de détecter les indicateurs de victoire.
-
-IMPORTANT: Tu dois TOUJOURS répondre en JSON valide avec cette structure exacte:
-{
-  "extractedText": "tout le texte visible dans l'image",
-  "isVictory": true/false,
-  "victoryIndicators": ["liste", "des", "indicateurs", "trouvés"],
-  "confidence": 0-100,
-  "isAppropriate": true/false,
-  "inappropriateReason": "raison si inapproprié, sinon null"
-}
-
-Critères de victoire pour Dofus:
-- Texte "Victoire" visible
-- Texte "Succès" visible  
-- Texte "déverrouillé" visible
-- Bannière verte de victoire
-- Score ou XP gagné affiché
-
-Contenu inapproprié:
-- Violence graphique excessive
-- Nudité ou contenu sexuel
-- Discours haineux ou discriminatoire
-- Informations personnelles visibles`;
+const SYSTEM_PROMPT = `You are analyzing a Dofus game screenshot. Describe what you see, especially any numbers and text visible.`;
 
 /**
- * Generate context-specific prompts
+ * Generate simple prompts for Moondream
+ * Keep prompts short and direct for faster inference
  */
 function getAnalysisPrompt(context?: 'mission' | 'achievement' | 'ladder'): string {
-    const basePrompt = "Analyse cette capture d'écran du jeu Dofus.";
-
     switch (context) {
         case 'mission':
-            return `${basePrompt} L'utilisateur veut prouver qu'il a accompli une mission de guilde. Cherche des indices de victoire comme "Succès", "Victoire", ou des messages de complétion.`;
-
+            return `What text and numbers do you see? Is there a "Victory" or "Success" message?`;
         case 'achievement':
-            return `${basePrompt} L'utilisateur veut prouver qu'il a obtenu un succès (achievement). Cherche le nom du succès, le texte "déverrouillé", et le score total.`;
-
+            return `What is the score or number shown? Is there "Success" or "Succes" text visible?`;
         case 'ladder':
-            return `${basePrompt} L'utilisateur veut montrer son classement. Cherche le pseudo Dofus, le rang, et les statistiques visibles.`;
-
+            return `What numbers, ranks, or statistics are shown in this image?`;
         default:
-            return `${basePrompt} Extrait tout le texte visible et identifie si l'image montre une victoire ou un accomplissement.`;
+            return `Describe the text and numbers visible in this image.`;
     }
 }
 
@@ -343,44 +316,45 @@ interface ParsedModelResponse {
 }
 
 /**
- * Parse and validate the model's JSON response
+ * Parse the model's natural language response
+ * Moondream returns descriptive text, not JSON - we extract info from it
  */
 function parseModelResponse(rawResponse: string): ParsedModelResponse {
-    const defaults: ParsedModelResponse = {
-        extractedText: '',
-        isVictory: false,
-        victoryIndicators: [],
-        confidence: 0,
-        isAppropriate: true,
+    const text = rawResponse.toLowerCase();
+
+    // Extract numbers from the response (e.g., "21 654", "21654", "21,654")
+    const numberMatches = rawResponse.match(/[\d\s,\.]+\d/g) || [];
+    const extractedNumbers = numberMatches
+        .map(n => parseInt(n.replace(/[\s,\.]/g, ''), 10))
+        .filter(n => !isNaN(n) && n > 0);
+
+    // Detect victory indicators
+    const victoryKeywords = ['success', 'succes', 'succès', 'victory', 'victoire', 'unlocked', 'déverrouillé', 'achieved', 'completed'];
+    const foundIndicators = victoryKeywords.filter(kw => text.includes(kw));
+    const isVictory = foundIndicators.length > 0;
+
+    // Calculate confidence based on what we found
+    let confidence = 0;
+    if (extractedNumbers.length > 0) confidence += 40; // Found a number
+    if (isVictory) confidence += 40; // Found victory keyword
+    if (rawResponse.length > 50) confidence += 10; // Got substantial response
+    if (extractedNumbers.some(n => n > 1000)) confidence += 10; // Found large number (likely score)
+
+    console.log('[LLM-OCR] Text parsing:', {
+        foundNumbers: extractedNumbers,
+        foundIndicators,
+        isVictory,
+        calculatedConfidence: confidence
+    });
+
+    return {
+        extractedText: rawResponse,
+        isVictory,
+        victoryIndicators: foundIndicators,
+        confidence: Math.min(100, confidence),
+        isAppropriate: true, // Assume appropriate unless flagged
         inappropriateReason: null,
     };
-
-    try {
-        // Try to extract JSON from the response (model might include extra text)
-        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            console.warn('[LLM-OCR] No JSON found in response, using defaults');
-            return { ...defaults, extractedText: rawResponse };
-        }
-
-        const parsed = JSON.parse(jsonMatch[0]);
-
-        return {
-            extractedText: typeof parsed.extractedText === 'string' ? parsed.extractedText : '',
-            isVictory: Boolean(parsed.isVictory),
-            victoryIndicators: Array.isArray(parsed.victoryIndicators) ? parsed.victoryIndicators : [],
-            confidence: typeof parsed.confidence === 'number'
-                ? Math.min(100, Math.max(0, parsed.confidence))
-                : 0,
-            isAppropriate: parsed.isAppropriate !== false,
-            inappropriateReason: typeof parsed.inappropriateReason === 'string'
-                ? parsed.inappropriateReason
-                : null,
-        };
-    } catch (error) {
-        console.warn('[LLM-OCR] Failed to parse JSON response:', error);
-        return { ...defaults, extractedText: rawResponse };
-    }
 }
 
 // =============================================================================

@@ -57,7 +57,7 @@ export interface OcrRequest {
 // =============================================================================
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'moondream'; // Fast vision model optimized for CPU
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b'; // Lightweight vision model (3.3GB RAM)
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
 // Timeout for Ollama API calls (configurable via env, default 120s for CPU vision inference)
@@ -69,44 +69,45 @@ const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10
 // =============================================================================
 
 /**
- * Simple prompt for Moondream - no JSON requirement, just describe
- * Moondream is a lightweight model that works better with simple prompts
+ * System prompt for Gemma 3 - supports structured JSON output
+ * Gemma 3 4B is a lightweight model with good OCR capabilities
  */
-const SYSTEM_PROMPT = `You are analyzing a Dofus game screenshot. Describe what you see, especially any numbers and text visible.`;
+const SYSTEM_PROMPT = `You are an OCR assistant analyzing Dofus game screenshots. Extract text and numbers accurately. Always respond in valid JSON format.`;
 
 /**
- * Generate simple prompts for Moondream
- * Keep prompts short and direct for faster inference
+ * Generate analysis prompts optimized for Gemma 3
+ * Uses structured JSON output format for reliable parsing
  */
 function getAnalysisPrompt(context?: 'mission' | 'achievement' | 'ladder'): string {
-    const baseInstruction = 'Analyze this Dofus game screenshot and extract data in strict JSON format.';
-
     switch (context) {
         case 'mission':
-            return `${baseInstruction}
-            Fields required:
-            - "mission_name": text exact name at the top
-            - "level": number (e.g. 110)
-            - "progress": string format "X/Y" (e.g. "0/50")
-            - "is_validated": boolean (true if green checkmark or "Validé" visible)
-            
-            Reply ONLY with the JSON object.`;
+            return `Look at this Dofus game screenshot. Extract:
+1. Mission name (text at top)
+2. Level number
+3. Progress (format: X/Y)
+4. Is it validated? (green checkmark visible?)
+
+Respond ONLY with this JSON:
+{"mission_name": "...", "level": 0, "progress": "0/0", "is_validated": false}`;
+
         case 'achievement':
-            return `${baseInstruction}
-            Fields required:
-            - "score": number (look for the large number in the golden banner, e.g. 21654)
-            - "is_victory": boolean (true if "Succès", "Success", or "Victoire" text is visible)
-            
-            Reply ONLY with the JSON object.`;
+            return `Look at this Dofus achievement screenshot. Find:
+1. The large score number (usually 5 digits, like 21654)
+2. Any victory/success text ("Succès", "Victoire", "Success")
+
+Respond ONLY with this JSON:
+{"score": 0, "is_victory": false}`;
+
         case 'ladder':
-            return `${baseInstruction}
-            Fields required:
-            - "score": number (look for "Points" column value, e.g. 21644)
-            - "rank": number
-            
-            Reply ONLY with the JSON object.`;
+            return `Look at this Dofus ladder/ranking screenshot. Extract:
+1. Score/points number
+2. Rank position
+
+Respond ONLY with this JSON:
+{"score": 0, "rank": 0}`;
+
         default:
-            return `Describe the text and numbers visible in this image. Is there a "Victory" message? Return JSON.`;
+            return `What text and numbers do you see in this image? Is there any "Victory" or "Success" message? Reply with JSON: {"text": "...", "numbers": [], "is_victory": false}`;
     }
 }
 
@@ -339,10 +340,61 @@ interface ParsedModelResponse {
 }
 
 /**
- * Parse the model's natural language response
- * Moondream returns descriptive text, not JSON - we extract info from it
+ * Parse the model's response - tries JSON first, falls back to text extraction
+ * Gemma 3 typically returns valid JSON, but we handle both cases
  */
 function parseModelResponse(rawResponse: string): ParsedModelResponse {
+    // Try JSON parsing first (Gemma 3 should return structured JSON)
+    try {
+        // Extract JSON from response (may have markdown code blocks)
+        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+
+            // Handle achievement context
+            if ('score' in parsed) {
+                const score = typeof parsed.score === 'number' ? parsed.score : parseInt(String(parsed.score).replace(/\s/g, ''), 10);
+                const isVictory = parsed.is_victory === true;
+
+                console.log('[LLM-OCR] JSON parsed successfully:', { score, isVictory });
+
+                // High confidence if we got a valid score
+                let confidence = 0;
+                if (score > 0) confidence += 50;
+                if (score > 1000) confidence += 20; // Likely a real Dofus score
+                if (isVictory) confidence += 30;
+
+                return {
+                    extractedText: `Score: ${score}`,
+                    isVictory,
+                    victoryIndicators: isVictory ? ['is_victory'] : [],
+                    confidence: Math.min(100, confidence),
+                    isAppropriate: true,
+                    inappropriateReason: null,
+                };
+            }
+
+            // Handle mission context
+            if ('mission_name' in parsed) {
+                const isValidated = parsed.is_validated === true;
+
+                console.log('[LLM-OCR] Mission JSON parsed:', parsed);
+
+                return {
+                    extractedText: JSON.stringify(parsed),
+                    isVictory: isValidated,
+                    victoryIndicators: isValidated ? ['is_validated'] : [],
+                    confidence: isValidated ? 90 : 60,
+                    isAppropriate: true,
+                    inappropriateReason: null,
+                };
+            }
+        }
+    } catch (e) {
+        console.log('[LLM-OCR] JSON parsing failed, falling back to text extraction');
+    }
+
+    // Fallback: Text extraction (legacy behavior)
     const text = rawResponse.toLowerCase();
 
     // Extract numbers from the response (e.g., "21 654", "21654", "21,654")
@@ -363,7 +415,7 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
     if (rawResponse.length > 50) confidence += 10; // Got substantial response
     if (extractedNumbers.some(n => n > 1000)) confidence += 10; // Found large number (likely score)
 
-    console.log('[LLM-OCR] Text parsing:', {
+    console.log('[LLM-OCR] Text parsing fallback:', {
         foundNumbers: extractedNumbers,
         foundIndicators,
         isVictory,

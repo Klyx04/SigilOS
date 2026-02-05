@@ -270,8 +270,8 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 11.5G
-          # NOTE: Increased to 11.5G to cover Qwen2.5-VL requirements (needs ~10.1G)
+          memory: 6G
+          # NOTE: Reduced to 6G for Gemma 3 4B (3.3GB) - leaves room for other containers
     logging:
       driver: "json-file"
       options:

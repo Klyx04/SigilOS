@@ -368,7 +368,7 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
         'terminé', 'valide', 'validé'
     ];
     const foundIndicators = victoryKeywords.filter(kw => text.includes(kw));
-    let isVictory = foundIndicators.length > 0;
+    const isVictory = foundIndicators.length > 0;
 
     // 3. CALC CONFIDENCE
     let confidence = 0;

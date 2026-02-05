@@ -514,8 +514,13 @@ export async function submitMissionProof(
 
         // If mismatch detected, force manual validation regardless of confidence
         let finalAutoValidate = autoValidate;
-        if (!matchResult.isMatch && matchResult.mismatchedFields.length > 0) {
-            console.log(`[Mission OCR] Mismatch detected for ${missionId}:`, matchResult);
+        if (!matchResult.isMatch) {
+            console.log(`[Mission OCR] Cross-validation FAILED for ${missionId}:`, {
+                expected: missionCategory,
+                reason: matchResult.reason,
+                matchedFields: matchResult.matchedFields,
+                mismatchedFields: matchResult.mismatchedFields
+            });
             finalAutoValidate = false;
         }
 

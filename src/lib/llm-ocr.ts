@@ -57,7 +57,7 @@ export interface OcrRequest {
 // =============================================================================
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b'; // Lightweight vision model (3.3GB RAM)
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5vl:3b-q4_K_M'; // Quantized vision model (~3.5GB RAM, fast on CPU)
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
 // Timeout for Ollama API calls (configurable via env, default 120s for CPU vision inference)
@@ -125,6 +125,7 @@ interface OllamaGenerateRequest {
     options?: {
         temperature?: number;
         num_predict?: number;
+        num_thread?: number;
     };
 }
 
@@ -164,6 +165,7 @@ async function callOllama(
             options: {
                 temperature: 0.1, // Low temperature for consistent, factual responses
                 num_predict: 500, // Limit response length
+                num_thread: 6, // Use all CPU cores for faster inference
             },
         };
 

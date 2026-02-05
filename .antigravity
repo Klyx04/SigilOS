@@ -22,11 +22,12 @@ Le système est modulaire. Voici les modules prévus (à implémenter progressiv
 	Veut valider une mission : 
 		1. Membre upload un screenshot.
 		2. **Sécurité :** Nettoyage/Conversion serveur (Anti-malware).
-		3. **OCR (Vision) :** Analyse automatique de l'image pour pré-valider (Lecture des logs de combat/chat dans le screen).
+		        3. **OCR (Vision - LLM) :** Analyse via **Qwen2.5-VL** (Ollama). 
+            - Modèle cible : `qwen2.5-vl:3b` (~10.1GB RAM requise).
+            - Optimisation : Images réduites via `sharp` (JPEG, 1024px max).
         4. **Validation Intelligente :** 
-            - **OCR :** Lecture Textuelle (Tesseract) -> Score de confiance.
-            - **Pixel Analysis :** Détection de la couleur "Vert Dofus" (#39FF14) pour valider visuellement.
-            - **Auto-validation :** Si (Texte "Victoire" OU (Contenu + Marqueur Vert)) -> Validé automatiquement.
+            - **JSON Schema :** Extraction structurée (points, missions, progression).
+            - **Confidence :** Seuil de confiance IA (>50%) pour l'auto-validation.
             - **Fallback :** Si incertain -> Validation Manuelle requise.
     - Catégories : DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT.
 
@@ -89,7 +90,8 @@ https://www.dofuspourlesnoobs.com/songes-infinis.html
 - **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR). Redis protégé par mot de passe et isolation réseau.
 - **Sécurité des Données :** Chiffrement transparent (AES-256-GCM) des tokens Cloud et clés API via `lib/encryption.ts`.
 - **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
-- **Vision :** Tesseract.js (OCR Client-side) + Algorithme de détection de couleur (Canvas).  
+- **Vision (Next-Gen) :** Ollama (Qwen2.5-VL 3B) + `sharp` pour le pré-traitement.
+- **Infrastructure AI :** VPS 12GB RAM min. Docker limite mémoire débloquée (10GB+). **Swap 6GB obligatoire**.
  
 
 - **UI System :** Tailwind CSS v4 + `shadcn/ui` (Radix UI). Thème sombre par défaut mais au choix 
@@ -615,6 +617,9 @@ Cette phase est découpée en Sprints logiques pour atteindre le niveau "Militar
 - **Integration Tests** : Tests user-actions, mission-actions.
 - **Coverage** : Objectif 70%+ sur les modules critiques.
 
-### 🧠 Sprint F : Intelligence & OCR (Futur)
-- **OCR V2** : Analyse assistée par IA pour les captures d'écran de ladder.
+### 🧠 Sprint F : Intelligence & OCR (En cours)
+- [x] Recherche modèle Vision (Qwen2.5-VL 3B validé).
+- [x] Optimisation `sharp` (Payload -80%).
+- [ ] Finaliser l'intégration sur une branche propre.
+- [ ] Configurer Swap/RAM VPS.
 

@@ -1,10 +1,11 @@
 /**
- * LLM-based OCR Service using Ollama
+ * LLM-based OCR Service using Google Gemini API
  * 
- * Replaces Tesseract.js with Qwen2-VL for smarter image analysis:
- * - Better text extraction from complex game screenshots
+ * Uses Gemini 1.5 Flash for smart image analysis:
+ * - Fast cloud-based inference (no local GPU needed)
+ * - Excellent OCR capabilities for game screenshots
  * - Built-in content moderation
- * - Structured confidence scoring
+ * - Rate limit fallback to manual validation
  * 
  * @module lib/llm-ocr
  */
@@ -56,12 +57,12 @@ export interface OcrRequest {
 // CONFIGURATION
 // =============================================================================
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5vl:3b-q4_K_M'; // Quantized vision model (~3.5GB RAM, fast on CPU)
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = 'gemini-1.5-flash';
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
-// Timeout for Ollama API calls (configurable via env, default 120s for CPU vision inference)
-const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
+// Timeout for Gemini API calls (default 30s - cloud is fast)
+const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS || '30000', 10);
 
 
 // =============================================================================
@@ -69,10 +70,9 @@ const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10
 // =============================================================================
 
 /**
- * System prompt for Gemma 3 - supports structured JSON output
- * Gemma 3 4B is a lightweight model with good OCR capabilities
+ * System prompt for Gemini - optimized for Dofus game screenshots
  */
-const SYSTEM_PROMPT = `You are an OCR assistant analyzing Dofus game screenshots. Extract text and numbers accurately. Always respond in valid JSON format.`;
+const SYSTEM_PROMPT = `Tu es un assistant OCR spécialisé dans l'analyse de captures d'écran du jeu Dofus. Extrais le texte et les nombres avec précision. Réponds TOUJOURS en JSON valide.`;
 
 /**
  * Generate analysis prompts optimized for Gemma 3
@@ -112,86 +112,86 @@ Respond ONLY with this JSON:
 }
 
 // =============================================================================
-// OLLAMA API CLIENT
+// GEMINI API CLIENT
 // =============================================================================
 
-interface OllamaGenerateRequest {
-    model: string;
-    prompt: string;
-    system?: string;
-    images?: string[];
-    stream: boolean;
-    think?: boolean; // Qwen3 thinking mode control
-    options?: {
-        temperature?: number;
-        num_predict?: number;
-        num_thread?: number;
+interface GeminiResponse {
+    candidates?: Array<{
+        content: {
+            parts: Array<{ text: string }>;
+        };
+    }>;
+    error?: {
+        code: number;
+        message: string;
     };
 }
 
-
-interface OllamaGenerateResponse {
-    model: string;
-    created_at: string;
-    response: string;
-    done: boolean;
-    context?: number[];
-    total_duration?: number;
-    load_duration?: number;
-    prompt_eval_count?: number;
-    prompt_eval_duration?: number;
-    eval_count?: number;
-    eval_duration?: number;
-}
-
 /**
- * Call Ollama's generate API with vision support
+ * Call Gemini API with vision support
  */
-async function callOllama(
+async function callGemini(
     prompt: string,
     imageBase64: string,
     systemPrompt?: string
-): Promise<OllamaGenerateResponse> {
+): Promise<string> {
+    if (!GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY is not configured');
+    }
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
     try {
-        const requestBody: OllamaGenerateRequest = {
-            model: OLLAMA_MODEL,
-            prompt,
-            system: systemPrompt,
-            images: [imageBase64],
-            stream: false,
-            options: {
-                temperature: 0.1, // Low temperature for consistent, factual responses
-                num_predict: 500, // Limit response length
-                num_thread: 6, // Use all CPU cores for faster inference
-            },
-        };
+        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
-
-        console.log('[LLM-OCR] Sending request to Ollama:', {
-            model: OLLAMA_MODEL,
-            promptLength: prompt.length,
+        console.log('[LLM-OCR] Sending request to Gemini:', {
+            model: GEMINI_MODEL,
+            promptLength: fullPrompt.length,
             imageSize: imageBase64.length,
-            hasSystem: !!systemPrompt
         });
 
-        const response = await fetch(`${OLLAMA_HOST}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal,
-        });
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: fullPrompt },
+                            { inline_data: { mime_type: 'image/webp', data: imageBase64 } }
+                        ]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        maxOutputTokens: 500,
+                    }
+                }),
+                signal: controller.signal,
+            }
+        );
+
+        // Handle rate limiting
+        if (response.status === 429) {
+            throw new Error('RATE_LIMITED');
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
+            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
         }
 
-        const result = await response.json();
-        console.log('[LLM-OCR] Ollama full response:', JSON.stringify(result).substring(0, 1000));
-        return result;
+        const result: GeminiResponse = await response.json();
+
+        if (result.error) {
+            throw new Error(`Gemini API error: ${result.error.message}`);
+        }
+
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        console.log('[LLM-OCR] Gemini response:', text.substring(0, 500));
+
+        return text;
 
     } finally {
         clearTimeout(timeoutId);
@@ -199,40 +199,25 @@ async function callOllama(
 }
 
 /**
- * Check if Ollama service is available
+ * Check if Gemini API is configured
  */
-export async function checkOllamaHealth(): Promise<{
+export async function checkGeminiHealth(): Promise<{
     available: boolean;
     model: string;
     error?: string;
 }> {
-    try {
-        const response = await fetch(`${OLLAMA_HOST}/api/tags`, {
-            method: 'GET',
-            signal: AbortSignal.timeout(5000),
-        });
-
-        if (!response.ok) {
-            return { available: false, model: OLLAMA_MODEL, error: 'Ollama not responding' };
-        }
-
-        const data = await response.json();
-        const models = data.models?.map((m: { name: string }) => m.name) || [];
-
-        const hasModel = models.some((m: string) => m.startsWith(OLLAMA_MODEL.split(':')[0]));
-
-        return {
-            available: hasModel,
-            model: OLLAMA_MODEL,
-            error: hasModel ? undefined : `Model ${OLLAMA_MODEL} not found. Run: ollama pull ${OLLAMA_MODEL}`,
-        };
-    } catch (error) {
+    if (!GEMINI_API_KEY) {
         return {
             available: false,
-            model: OLLAMA_MODEL,
-            error: error instanceof Error ? error.message : 'Connection failed',
+            model: GEMINI_MODEL,
+            error: 'GEMINI_API_KEY not configured in environment variables',
         };
     }
+
+    return {
+        available: true,
+        model: GEMINI_MODEL,
+    };
 }
 
 // =============================================================================
@@ -264,17 +249,17 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
         // Generate analysis prompt based on context
         const prompt = getAnalysisPrompt(request.context);
 
-        // Optimize image (resize & compress) to avoid timeouts with large payloads
+        // Optimize image (resize & compress) to reduce API payload
         const optimizedImage = await optimizeImage(request.imageBase64);
 
-        // Call Ollama with the image
-        console.log('[LLM-OCR] Calling Ollama with context:', request.context);
-        const response = await callOllama(prompt, optimizedImage, SYSTEM_PROMPT);
+        // Call Gemini API with the image
+        console.log('[LLM-OCR] Calling Gemini with context:', request.context);
+        const response = await callGemini(prompt, optimizedImage, SYSTEM_PROMPT);
 
-        console.log('[LLM-OCR] Raw response (first 500 chars):', response.response.substring(0, 500));
+        console.log('[LLM-OCR] Raw response (first 500 chars):', response.substring(0, 500));
 
         // Parse the JSON response
-        const parsed = parseModelResponse(response.response);
+        const parsed = parseModelResponse(response);
 
         console.log('[LLM-OCR] Parsed result:', {
             extractedText: parsed.extractedText.substring(0, 100),
@@ -291,13 +276,27 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
                 isAppropriate: parsed.isAppropriate,
                 reason: parsed.inappropriateReason || undefined,
             },
-            rawResponse: response.response,
+            rawResponse: response,
         };
 
     } catch (error) {
         console.error('[LLM-OCR] Analysis failed:', error);
 
-        // FALLBACK: If Ollama is unreachable or times out, return a low-confidence result for manual validation
+        // RATE LIMIT: Fallback to manual validation when API limits are hit
+        const isRateLimited = error instanceof Error && error.message === 'RATE_LIMITED';
+        if (isRateLimited) {
+            console.warn('[LLM-OCR] Rate limited - falling back to manual validation');
+            return {
+                success: true,
+                text: '[Rate limit atteint] Validation manuelle requise',
+                confidence: 0,
+                isVictory: false,
+                moderation: { isAppropriate: true },
+                error: 'API rate limit reached - manual validation required',
+            };
+        }
+
+        // CONNECTION ERROR: Fallback to manual validation
         const isConnectionError = error instanceof Error &&
             (error.message.includes('ECONNREFUSED') ||
                 error.message.includes('fetch failed') ||
@@ -305,14 +304,14 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
                 error.message.includes('aborted'));
 
         if (isConnectionError) {
-            console.warn('[LLM-OCR] Ollama unreachable - falling back to manual validation');
+            console.warn('[LLM-OCR] API unreachable - falling back to manual validation');
             return {
-                success: true, // Mark as success so the upload continues
+                success: true,
                 text: '[OCR indisponible] Validation manuelle requise',
-                confidence: 0, // Forces manual validation
+                confidence: 0,
                 isVictory: false,
                 moderation: { isAppropriate: true },
-                error: 'Ollama service unreachable - manual validation required',
+                error: 'Gemini API unreachable - manual validation required',
             };
         }
 

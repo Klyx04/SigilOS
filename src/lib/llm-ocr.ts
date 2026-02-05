@@ -584,6 +584,48 @@ async function optimizeImage(base64Image: string): Promise<string> {
 // MISSION CROSS-VALIDATION (Anti-Fraud)
 // =============================================================================
 
+type DetectedCategory = 'DONJON' | 'REGULATION' | 'ANOMALIE' | 'SONGES' | 'EXPEDITION' | 'UNKNOWN';
+
+/**
+ * Detect what mission CATEGORY the OCR content belongs to.
+ * This prevents uploading a Songes screenshot to validate an Anomalie mission.
+ */
+export function detectCategoryFromOCR(rawText: string): DetectedCategory {
+    const text = rawText.toLowerCase();
+
+    // SONGES - Very specific keywords
+    if (text.includes('songe') || text.includes('rêve') || text.includes('paradoxe') ||
+        text.includes('cauchemar') || text.includes('palier') || text.includes('plongée')) {
+        return 'SONGES';
+    }
+
+    // EXPEDITION - Mode keywords
+    if (text.includes('expédition') || text.includes('expedition') ||
+        text.includes('bravoure') || text.includes('audace')) {
+        return 'EXPEDITION';
+    }
+
+    // ANOMALIE - Zone/Boss keywords
+    if (text.includes('anomalie') || text.includes('gardien') ||
+        text.includes('territoire') || text.includes('sous anomalie')) {
+        return 'ANOMALIE';
+    }
+
+    // REGULATION - Monster hunting
+    if (text.includes('régulation') || text.includes('regulation') ||
+        text.includes('vaincre') || text.includes('monstres dans')) {
+        return 'REGULATION';
+    }
+
+    // DONJON - Dungeon runs
+    if (text.includes('donjon') || text.includes('boss vaincu') ||
+        text.includes('donjon terminé')) {
+        return 'DONJON';
+    }
+
+    return 'UNKNOWN';
+}
+
 /**
  * Extract structured mission data from raw OCR text
  */
@@ -676,6 +718,20 @@ export function matchMissionContent(
 ): MissionMatchResult {
     const matched: string[] = [];
     const mismatched: string[] = [];
+
+    // CATEGORY CROSS-CHECK: Detect what type of content is in the screenshot
+    const detectedCategory = detectCategoryFromOCR(extracted.rawText || '');
+
+    // If we detected a specific category AND it doesn't match → REJECT
+    if (detectedCategory !== 'UNKNOWN' && detectedCategory !== category) {
+        return {
+            isMatch: false,
+            matchScore: 0,
+            matchedFields: [],
+            mismatchedFields: ['category'],
+            reason: `Catégorie incorrecte: Screenshot de ${detectedCategory} pour une mission ${category}`
+        };
+    }
 
     // EVENT = Always Manual Validation
     if (category === 'EVENT') {

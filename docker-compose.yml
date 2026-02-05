@@ -270,9 +270,8 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 10G
-          # NOTE: Increased to 10GB to support Qwen2.5-VL 7B and other larger models
-          # Host has ~11GB available
+          memory: 11.5G
+          # NOTE: Increased to 11.5G to cover Qwen2.5-VL requirements (needs ~10.1G)
     logging:
       driver: "json-file"
       options:

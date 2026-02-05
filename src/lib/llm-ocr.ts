@@ -59,8 +59,8 @@ const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'moondream'; // Fast vision model optimized for CPU
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
-// Timeout for Ollama API calls (60 seconds for CPU vision inference)
-const OLLAMA_TIMEOUT_MS = 60000;
+// Timeout for Ollama API calls (configurable via env, default 120s for CPU vision inference)
+const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
 
 
 // =============================================================================
@@ -298,9 +298,12 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
     } catch (error) {
         console.error('[LLM-OCR] Analysis failed:', error);
 
-        // FALLBACK: If Ollama is unreachable, return a low-confidence result for manual validation
+        // FALLBACK: If Ollama is unreachable or times out, return a low-confidence result for manual validation
         const isConnectionError = error instanceof Error &&
-            (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed'));
+            (error.message.includes('ECONNREFUSED') ||
+                error.message.includes('fetch failed') ||
+                error.name === 'AbortError' ||
+                error.message.includes('aborted'));
 
         if (isConnectionError) {
             console.warn('[LLM-OCR] Ollama unreachable - falling back to manual validation');

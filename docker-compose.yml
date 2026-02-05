@@ -246,37 +246,11 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
   # -----------------------------------------------------------------------------
-  # AI SERVICE - OLLAMA (Vision-Language Model for OCR)
+  # AI SERVICE - REMOVED (Now using Gemini API)
   # -----------------------------------------------------------------------------
-  # 🧠 Runs Qwen2-VL 2B for image analysis and text extraction
-  # Isolated from main app to protect web server performance
-  ollama:
-    image: ollama/ollama:latest
-    container_name: sigilos-ollama
-    restart: always
-    volumes:
-      - ollama-data:/root/.ollama
-    networks:
-      - internal-net
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 6G
-          # NOTE: Reduced to 6G for Gemma 3 4B (3.3GB) - leaves room for other containers
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # Ollama was removed - using Google Gemini 1.5 Flash API instead
+  # This saves ~6GB RAM and eliminates timeout issues
 
 volumes:
   db-data:
@@ -284,7 +258,6 @@ volumes:
   caddy_data:
   caddy_config:
   prometheus-data:
-  ollama-data:
 
 
 networks:

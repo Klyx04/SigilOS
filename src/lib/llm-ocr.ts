@@ -58,7 +58,7 @@ export interface OcrRequest {
 // =============================================================================
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash'; // Stable 2026 model with vision support
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
 // Timeout for Gemini API calls (default 30s - cloud is fast)

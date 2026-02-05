@@ -44,8 +44,8 @@ fi
 # 3. TÉLÉCHARGEMENT DES MODÈLES
 # =============================================================================
 
-echo "📥 Téléchargement du modèle de vision moondream (~1Go)..."
-ollama pull moondream
+echo "📥 Téléchargement du modèle de vision Gemma 3 4B (~3.3Go)..."
+ollama pull gemma3:4b
 
 echo ""
 echo "✅ Installation terminée!"
@@ -56,10 +56,10 @@ echo ""
 echo "🔧 Configuration requise dans .env.prod/.env.beta:"
 echo "   DEV_SKIP_OCR=false"
 echo "   OLLAMA_HOST=http://localhost:11434"
-echo "   OLLAMA_MODEL=moondream"
+echo "   OLLAMA_MODEL=gemma3:4b"
 echo ""
-echo "💡 Pour ajouter un modèle plus précis (optionnel, +3Go RAM):"
-echo "   ollama pull qwen3-vl:4b"
+echo "💡 Pour ajouter un modèle plus précis (optionnel, +2Go RAM):"
+echo "   ollama pull llava:7b"
 echo ""
 echo "🔄 Pour redémarrer Ollama:"
 echo "   sudo systemctl restart ollama"

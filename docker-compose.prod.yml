@@ -206,33 +206,11 @@ services:
       - db-prod
     networks:
       - prod-net
-
   # ===========================================================================
-  # 🧠 AI SERVICE - OLLAMA (Vision-Language Model for OCR)
+  # 🧠 AI SERVICE - REMOVED (Now using Gemini API)
   # ===========================================================================
-  # Runs Gemma 3 4B for image analysis and text extraction
-  # Shared between Prod and Beta to save VPS resources
-  ollama:
-    image: ollama/ollama:latest
-    container_name: sigilos-ollama
-    restart: always
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - prod-net
-      - beta-net
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 6G
-          # NOTE: Reduced to 6G for Gemma 3 4B (3.3GB) - leaves room for other containers
+  # Ollama was removed - using Google Gemini 1.5 Flash API instead
+  # This saves ~6GB RAM and eliminates timeout issues
 
 volumes:
   db-prod-data:
@@ -242,7 +220,6 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
-  ollama_data:
 
 
 networks:

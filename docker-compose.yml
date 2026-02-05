@@ -270,9 +270,9 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 4G
-          # NOTE: 4GB is enough for qwen2-vl:2b (2B params, quantized)
-          # If using larger models, increase accordingly
+          memory: 10G
+          # NOTE: Increased to 10GB to support Qwen2.5-VL 7B and other larger models
+          # Host has ~11GB available
     logging:
       driver: "json-file"
       options:

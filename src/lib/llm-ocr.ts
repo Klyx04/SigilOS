@@ -79,15 +79,34 @@ const SYSTEM_PROMPT = `You are analyzing a Dofus game screenshot. Describe what 
  * Keep prompts short and direct for faster inference
  */
 function getAnalysisPrompt(context?: 'mission' | 'achievement' | 'ladder'): string {
+    const baseInstruction = 'Analyze this Dofus game screenshot and extract data in strict JSON format.';
+
     switch (context) {
         case 'mission':
-            return `What text and numbers do you see? Is there a "Victory" or "Success" message?`;
+            return `${baseInstruction}
+            Fields required:
+            - "mission_name": text exact name at the top
+            - "level": number (e.g. 110)
+            - "progress": string format "X/Y" (e.g. "0/50")
+            - "is_validated": boolean (true if green checkmark or "Validé" visible)
+            
+            Reply ONLY with the JSON object.`;
         case 'achievement':
-            return `What is the score or number shown? Is there "Success" or "Succes" text visible?`;
+            return `${baseInstruction}
+            Fields required:
+            - "score": number (look for the large number in the golden banner, e.g. 21654)
+            - "is_victory": boolean (true if "Succès", "Success", or "Victoire" text is visible)
+            
+            Reply ONLY with the JSON object.`;
         case 'ladder':
-            return `What numbers, ranks, or statistics are shown in this image?`;
+            return `${baseInstruction}
+            Fields required:
+            - "score": number (look for "Points" column value, e.g. 21644)
+            - "rank": number
+            
+            Reply ONLY with the JSON object.`;
         default:
-            return `Describe the text and numbers visible in this image.`;
+            return `Describe the text and numbers visible in this image. Is there a "Victory" message? Return JSON.`;
     }
 }
 

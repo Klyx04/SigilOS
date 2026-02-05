@@ -12,7 +12,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
-import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
+import { analyzeImage, hashImage, shouldAutoValidate, extractMissionDetails, matchMissionContent } from "@/lib/llm-ocr";
 
 
 // --- Types & Schemas ---
@@ -506,13 +506,26 @@ export async function submitMissionProof(
 
         const { autoValidate } = shouldAutoValidate(ocrResult);
 
+        // MISSION CROSS-VALIDATION (Anti-Fraud)
+        // Compare OCR-extracted details against the mission's expected payload
+        const extractedMission = extractMissionDetails(ocrResult.text || '');
+        const missionCategory = mission.category as 'DONJON' | 'REGULATION' | 'ANOMALIE' | 'SONGES' | 'EXPEDITION' | 'EVENT';
+        const matchResult = matchMissionContent(extractedMission, missionCategory, mission.payload || {});
+
+        // If mismatch detected, force manual validation regardless of confidence
+        let finalAutoValidate = autoValidate;
+        if (!matchResult.isMatch && matchResult.mismatchedFields.length > 0) {
+            console.log(`[Mission OCR] Mismatch detected for ${missionId}:`, matchResult);
+            finalAutoValidate = false;
+        }
+
         // Prepare storage anyway (we might want to keep proof for a while even if auto-validated)
         // OR we can skip saving file if auto-validated to save space, but guild rules might want evidence.
         // DECISION: Always save proof but with short retention if validated? 
         // For now, let's follow existing pattern: PENDING has file, VALIDATED clears proofUrl.
 
         let proofUrl = "";
-        if (!autoValidate) {
+        if (!finalAutoValidate) {
             const uploadRelativeDir = `uploads/missions/${mission.guild.discordGuildId}`;
             const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
@@ -528,11 +541,11 @@ export async function submitMissionProof(
                 missionId,
                 profileId: profile.id,
                 proofUrl: proofUrl,
-                status: autoValidate ? "VALIDATED" : "PENDING",
+                status: finalAutoValidate ? "VALIDATED" : "PENDING",
                 ocrScore: ocrResult.confidence,
                 ocrResult: ocrResult as any,
                 ocrStatus: "COMPLETED",
-                validatorId: autoValidate ? "SYSTEM_OCR" : null
+                validatorId: finalAutoValidate ? "SYSTEM_OCR" : null
             }
         });
 
@@ -547,7 +560,7 @@ export async function submitMissionProof(
             }
         });
 
-        if (autoValidate) {
+        if (finalAutoValidate) {
             const xpReward = mission.xpReward || 0;
             await addProfileXp(profile.id, xpReward);
 

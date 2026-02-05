@@ -331,16 +331,40 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
     // 3. CALC CONFIDENCE
     let confidence = 0;
 
-    // If we found a plausible Dofus score, it's a very strong indicator
-    if (bestScore > 1000) {
-        confidence += 80; // Should auto-validate if threshold is 70
-    } else if (bestScore > 0) {
-        confidence += 40;
+    // Base confidence if we found a plausible score
+    if (bestScore > 0) {
+        confidence += 40; // Base score (not enough for auto-validate)
     }
+
+    // Context Keywords (Dofus UI elements)
+    // Finding these proves it's likely a real screenshot and not MS Paint
+    const contextKeywords = [
+        // UI Headers
+        'success', 'succes', 'succès', 'points', 'total',
+        'niveau', 'level', 'rang', 'rank', 'compte', 'account',
+        'serveur', 'server', 'xp', 'kamas', 'ladder',
+        // Classes
+        'feca', 'osamodas', 'enutrof', 'sram', 'xelor', 'ecaflip',
+        'eniripsa', 'iop', 'cra', 'sadida', 'sacrieur', 'pandawa',
+        'roublard', 'zobal', 'steamer', 'eliotrope', 'huppermage', 'ouginak', 'forgelance',
+        // Servers
+        'draconiros', 'tal kasha', 'hell mina', 'imagiro',
+        'orukam', 'tylezia', 'ombre', 'shadow'
+    ];
+
+    const foundContext = contextKeywords.filter(kw => text.includes(kw));
+    const hasContext = foundContext.length > 0;
 
     // Victory keywords are decent indicators for missions
     if (isVictory) {
         confidence += 30;
+    }
+
+    // Boost confidence if we have context
+    // This works for ANY score (500 or 20000)
+    // Rule: Valid Score + Dofus UI Context = Auto-Validate
+    if (bestScore > 0 && hasContext) {
+        confidence += 40; // 40 + 40 = 80 (Auto-Validate)
     }
 
     return {

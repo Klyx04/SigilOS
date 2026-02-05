@@ -17,7 +17,9 @@ export type AuditAction =
     | "API_KEY_UPDATED"       // Metamob API key changed
     | "CHANNEL_CONFIGURED"    // Discord channel configured
     | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
-    | "SECURITY_ALERT";       // NSFW/Safety violation
+    | "SECURITY_ALERT"        // NSFW/Safety violation
+    | "HELP_CREDIT_GIVEN"     // Peer-to-peer gratitude
+    | "SUCCESS_SYNC";         // Personal success points updated
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -25,7 +27,8 @@ export type AuditTargetType =
     | "CONFIG"
     | "CHANNEL"
     | "ACCESS_ATTEMPT"
-    | "CONTENT_SAFETY";
+    | "CONTENT_SAFETY"
+    | "USER_PROFILE";
 
 export type AuditLogEntry = {
     id: string;

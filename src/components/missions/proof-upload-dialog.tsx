@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useTransition } from "react";
+
 import {
     Dialog,
     DialogContent,
@@ -30,8 +31,11 @@ import { submitMissionProof, cancelMissionSubmission } from "@/server/actions/mi
 import { reportSecurityIncident } from "@/server/actions/audit-actions";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useClientOcr, type MissionCategory, type MissionPayload, type OcrResult } from "@/lib/ocr-client";
 import { Progress } from "@/components/ui/progress";
+import { type MissionCategory, type MissionPayload } from "@/types/missions";
+
+
+
 import { analyzeImageSafety } from "@/lib/safety-client";
 
 interface ProofUploadDialogProps {
@@ -58,16 +62,16 @@ export function ProofUploadDialog({
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [state, setState] = useState<UploadState>("idle");
-    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrResult, setOcrResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCheckingSafety, setIsCheckingSafety] = useState(false);
+
     const [safetyDebug, setSafetyDebug] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
-    // Client-side OCR hook
-    const { isAnalyzing, progress, analyze, reset: resetOcr } = useClientOcr();
+
 
     const resetState = () => {
         if (preview) URL.revokeObjectURL(preview);
@@ -76,8 +80,8 @@ export function ProofUploadDialog({
         setState("idle");
         setOcrResult(null);
         setError(null);
-        resetOcr();
     };
+
 
     const handleClose = () => {
         resetState();
@@ -134,7 +138,8 @@ export function ProofUploadDialog({
                         missionTitle: missionTitle,
                         scores: safety.predictions
                     }
-                ).catch(e => console.error("Failed to log incident", e));
+                ).catch((err: Error) => console.error("Failed to log incident", err));
+
 
                 resetState();
                 onOpenChange(false);
@@ -158,85 +163,42 @@ export function ProofUploadDialog({
         setError(null);
 
         try {
-            // 1. Run OCR analysis in the browser
-            console.log("[Upload] Starting client-side OCR analysis...");
-            const clientOcrResult = await analyze(file, category, payload);
-            setOcrResult(clientOcrResult);
-
-            console.log(`[Upload] OCR complete. Score: ${clientOcrResult.score}%`);
-
-            // 2. Upload image to server
-            setState("uploading");
-
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("guildId", guildId);
-            formData.append("missionId", missionId);
-            // Send OCR results with the upload
-            formData.append("ocrResult", JSON.stringify(clientOcrResult));
-
-            const response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData,
+            // Convert to Base64
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
             });
 
-            if (!response.ok) {
-                let errorMessage = "Upload failed";
-                try {
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                        const data = await response.json();
-                        errorMessage = data.error || errorMessage;
-                    } else {
-                        errorMessage = `Server Error (${response.status})`;
-                    }
-                } catch (e) {
-                    errorMessage = `Server Error (${response.status})`;
-                }
-                throw new Error(errorMessage);
+            const imageData = await base64Promise;
+
+            // 1. Submit to server action (which handles OCR + Storage)
+            setState("uploading");
+            const result = await submitMissionProof(missionId, imageData);
+
+            if (!result.success) {
+                throw new Error(result.error || "Échec de la soumission");
             }
 
-            const result = await response.json();
+            // 2. Update UI with server result
+            if (result.data) {
+                setOcrResult(result.data.ocrResult);
 
-            // Use Server OCR result if available (it refers to the file actually processed/validated)
-            // Fallback to client result only if server returned nothing (shouldn't happen on success)
-            const finalOcr = result.ocr || clientOcrResult;
+                toast.success(
+                    result.data.autoValidated
+                        ? "Preuve soumise et auto-validée ! 🎉"
+                        : "Preuve soumise ! En attente de validation."
+                );
 
-            // UPDATE UI with Server Reality (Score 86, Validated)
-            setOcrResult(finalOcr);
-
-            // 3. Create submission in database
-            const submitResult = await submitMissionProof(
-                missionId,
-                result.proofUrl,
-                finalOcr.score,
-                {
-                    matchedElements: finalOcr.matchedElements || [],
-                    missingElements: finalOcr.missingElements || [],
-                    isValid: finalOcr.isValid,
-                    categoryMatch: finalOcr.categoryMatch,
-                    contentMatch: finalOcr.contentMatch,
-                    victoryDetected: finalOcr.victoryDetected,
-                    confidence: finalOcr.confidence,
-                }
-            );
-
-            if (!submitResult.success) {
-                throw new Error(submitResult.error || "Failed to create submission");
+                startTransition(() => {
+                    router.refresh();
+                });
             }
+
 
             setState("success");
 
-            // Replaced timeout with startTransition
-            startTransition(() => {
-                router.refresh();
-            });
-
-            toast.success(
-                finalOcr.isValid && finalOcr.score >= 70
-                    ? "Preuve soumise et auto-validée ! 🎉"
-                    : "Preuve soumise ! En attente de validation."
-            );
 
         } catch (err) {
             setState("error");
@@ -245,6 +207,7 @@ export function ProofUploadDialog({
             toast.error(message);
         }
     };
+
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -263,7 +226,8 @@ export function ProofUploadDialog({
     const isProcessing = state === "analyzing" || state === "uploading";
 
     // Determine if auto-validated for UI feedback
-    const isAutoValidated = ocrResult?.isValid && ocrResult.score >= 70;
+    const isAutoValidated = ocrResult?.confidence >= 70;
+
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -338,11 +302,8 @@ export function ProofUploadDialog({
                             {state === "analyzing" && (
                                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3">
                                     <Eye className="w-8 h-8 text-indigo-400 animate-pulse" />
-                                    <p className="text-sm text-slate-300">Analyse OCR en cours...</p>
-                                    <div className="w-48">
-                                        <Progress value={progress} className="h-2" />
-                                    </div>
-                                    <p className="text-xs text-slate-500">{progress}%</p>
+                                    <p className="text-xs text-slate-500">Processing...</p>
+
                                 </div>
                             )}
 
@@ -403,12 +364,13 @@ export function ProofUploadDialog({
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
                                         "text-lg font-bold",
-                                        ocrResult.score >= 70 ? "text-green-400"
-                                            : ocrResult.score >= 40 ? "text-yellow-400"
+                                        ocrResult.confidence >= 70 ? "text-green-400"
+                                            : ocrResult.confidence >= 40 ? "text-yellow-400"
                                                 : "text-red-400"
                                     )}>
-                                        {ocrResult.score}%
+                                        {ocrResult.confidence}%
                                     </span>
+
                                 </div>
                             </div>
 
@@ -417,31 +379,23 @@ export function ProofUploadDialog({
                                 <div
                                     className={cn(
                                         "h-full rounded-full transition-all duration-500",
-                                        ocrResult.score >= 70 ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                                            : ocrResult.score >= 40 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
+                                        ocrResult.confidence >= 70 ? "bg-gradient-to-r from-green-500 to-emerald-400"
+                                            : ocrResult.confidence >= 40 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
                                                 : "bg-gradient-to-r from-red-500 to-rose-400"
                                     )}
-                                    style={{ width: `${ocrResult.score}%` }}
+                                    style={{ width: `${ocrResult.confidence}%` }}
                                 />
+
                             </div>
 
                             {/* Quick Status Pills */}
                             <div className="flex flex-wrap gap-2">
-                                {ocrResult.victoryDetected && (
+                                {ocrResult.isVictory && (
                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-300 border border-green-500/30">
                                         <Check className="w-3 h-3" /> Victoire
                                     </span>
                                 )}
-                                {ocrResult.matchedElements.some(el => el.includes("vert")) && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                        <Check className="w-3 h-3" /> Validé visuellement
-                                    </span>
-                                )}
-                                {ocrResult.categoryMatch && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                                        <Check className="w-3 h-3" /> Catégorie
-                                    </span>
-                                )}
+
                                 {ocrResult.contentMatch && (
                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                         <Check className="w-3 h-3" /> Contenu
@@ -449,37 +403,7 @@ export function ProofUploadDialog({
                                 )}
                             </div>
 
-                            {/* Éléments détectés (collapsible style) */}
-                            {ocrResult.matchedElements.length > 0 && (
-                                <details className="group">
-                                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 flex items-center gap-1">
-                                        <span className="text-green-400">✓</span> {ocrResult.matchedElements.length} élément(s) détecté(s)
-                                    </summary>
-                                    <div className="mt-2 flex flex-wrap gap-1.5 pl-4">
-                                        {ocrResult.matchedElements.map((el, i) => (
-                                            <span key={i} className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-300/80">
-                                                {el}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </details>
-                            )}
 
-                            {/* Missing Elements (only if not auto-validated) */}
-                            {ocrResult.missingElements.length > 0 && !isAutoValidated && (
-                                <details className="group" open>
-                                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 flex items-center gap-1">
-                                        <span className="text-red-400">✗</span> {ocrResult.missingElements.length} élément(s) manquant(s)
-                                    </summary>
-                                    <div className="mt-2 flex flex-wrap gap-1.5 pl-4">
-                                        {ocrResult.missingElements.map((el, i) => (
-                                            <span key={i} className="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-300/80">
-                                                {el}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </details>
-                            )}
 
                             {/* Status Banner */}
                             {isAutoValidated ? (
@@ -549,8 +473,9 @@ export function ProofUploadDialog({
                                 {state === "analyzing" ? (
                                     <>
                                         <Eye className="w-4 h-4 mr-2 animate-pulse" />
-                                        Analyse... {progress}%
+                                        Analyse...
                                     </>
+
                                 ) : state === "uploading" ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />

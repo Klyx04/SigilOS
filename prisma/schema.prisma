@@ -239,8 +239,15 @@ model UserProfile {
   // Gamification (OCR Success)
   successPoints     Int?      @default(0)
   lastLadderUpdate  DateTime?
+  
+  // Entraide (Help Credits)
+  entraidePoints    Int       @default(0) // Cumulative points from received help credits
 
   @@unique([userId, guildId])
+  
+  // Relations
+  givenCredits     HelpCredit[] @relation("GivenCredits")
+  receivedCredits  HelpCredit[] @relation("ReceivedCredits")
 }
 
 model Mission {
@@ -717,3 +724,69 @@ model EventParticipant {
   @@unique([eventId, userId])
   @@index([eventId, position])
 }
+
+// =============================================================================
+// OCR LLM - Image Hash (Anti-Duplicate System)
+// =============================================================================
+// Stores SHA-256 hashes of uploaded images to prevent resubmission
+// Same image cannot be used twice within the same guild
+
+model ImageHash {
+  id          String   @id @default(cuid())
+  guildId     String   // Multi-tenant isolation
+  
+  // SHA-256 hash of the image data (64 hex characters)
+  hash        String
+  
+  // Context of the original submission
+  sourceType  String   // "MISSION" | "ACHIEVEMENT" | "EVENT"
+  sourceId    String   // Reference to Submission.id or AchievementSubmission.id
+  
+  // Who uploaded it
+  uploaderId  String   // User.id
+  
+  // When it was uploaded
+  createdAt   DateTime @default(now())
+  
+  // Unique per guild - same image can be uploaded by different guilds
+  @@unique([guildId, hash])
+  @@index([guildId])
+  @@index([hash])
+  @@index([uploaderId])
+}
+
+// =============================================================================
+// ENTRAIDE - Help Credits (Peer-to-Peer Gratitude)
+// =============================================================================
+// When completing a mission, members can thank those who helped
+// Each credit = points on the Ladder
+
+model HelpCredit {
+  id          String   @id @default(cuid())
+  guildId     String   // Multi-tenant isolation
+  
+  // Who is thanking
+  fromUserId  String   // User.id of the person giving credit
+  
+  // Who is being thanked
+  toUserId    String   // User.id of the person receiving credit
+  
+  // Context (optional)
+  missionId   String?  // Related mission (if any)
+  message     String?  // Optional thank you message (max 100 chars)
+  
+  // Points awarded (default 5, configurable)
+  points      Int      @default(5)
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  fromProfile UserProfile @relation("GivenCredits", fields: [fromUserId, guildId], references: [userId, guildId], onDelete: Cascade)
+  toProfile   UserProfile @relation("ReceivedCredits", fields: [toUserId, guildId], references: [userId, guildId], onDelete: Cascade)
+  
+  // Indexes for queries
+  @@index([guildId, toUserId])           // Get all credits received by user
+  @@index([guildId, fromUserId])         // Get all credits given by user
+  @@index([guildId, fromUserId, createdAt]) // For daily limit checks
+}
+

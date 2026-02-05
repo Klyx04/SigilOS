@@ -207,6 +207,32 @@ services:
     networks:
       - prod-net
 
+  # ===========================================================================
+  # 🧠 AI SERVICE - OLLAMA (Vision-Language Model for OCR)
+  # ===========================================================================
+  # Runs Qwen2-VL 2B for image analysis and text extraction
+  # Shared between Prod and Beta to save VPS resources
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sigilos-ollama
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - prod-net
+      - beta-net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
 volumes:
   db-prod-data:
   db-beta-data:
@@ -215,6 +241,7 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
 
 
 networks:

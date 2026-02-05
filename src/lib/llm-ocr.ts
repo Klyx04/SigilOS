@@ -10,6 +10,7 @@
  */
 
 import { createHash } from 'crypto';
+import sharp from 'sharp';
 
 // =============================================================================
 // TYPES
@@ -241,9 +242,12 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
         // Generate analysis prompt based on context
         const prompt = getAnalysisPrompt(request.context);
 
+        // Optimize image (resize & compress) to avoid timeouts with large payloads
+        const optimizedImage = await optimizeImage(request.imageBase64);
+
         // Call Ollama with the image
         console.log('[LLM-OCR] Calling Ollama with context:', request.context);
-        const response = await callOllama(prompt, request.imageBase64, SYSTEM_PROMPT);
+        const response = await callOllama(prompt, optimizedImage, SYSTEM_PROMPT);
 
         console.log('[LLM-OCR] Raw response (first 500 chars):', response.response.substring(0, 500));
 
@@ -414,9 +418,46 @@ export function shouldAutoValidate(result: OcrResult): {
     };
 }
 
-/**
- * Get the auto-validation threshold
- */
 export function getAutoValidateThreshold(): number {
     return AUTO_VALIDATE_THRESHOLD;
+}
+
+/**
+ * Optimize image for Ollama (Resize & Compress)
+ * - Resize to max 1024x1024 (Moondream works well with this resolution)
+ * - Convert to JPEG (smaller payload than PNG/WebP)
+ * - Remove metadata
+ */
+async function optimizeImage(base64Image: string): Promise<string> {
+    try {
+        // Remove data URL prefix if present
+        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const originalSize = buffer.length;
+
+        // Process with sharp
+        const optimizedBuffer = await sharp(buffer)
+            .resize({
+                width: 1024,
+                height: 1024,
+                fit: 'inside', // Maintain aspect ratio
+                withoutEnlargement: true // Don't upscale small images
+            })
+            .jpeg({
+                quality: 80, // Good balance of quality/size
+                mozjpeg: true // Better compression
+            })
+            .toBuffer();
+
+        const newSize = optimizedBuffer.length;
+        const reduction = Math.round((1 - newSize / originalSize) * 100);
+
+        console.log(`[LLM-OCR] Image optimized: ${Math.round(originalSize / 1024)}KB -> ${Math.round(newSize / 1024)}KB (-${reduction}%)`);
+
+        return optimizedBuffer.toString('base64');
+    } catch (error) {
+        console.warn('[LLM-OCR] Image optimization failed, using original:', error);
+        return base64Image; // Fallback to original if sharp fails
+    }
 }

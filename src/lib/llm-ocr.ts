@@ -311,21 +311,57 @@ interface ParsedModelResponse {
     inappropriateReason: string | null;
 }
 
-/**
- * Parse the OCR output - focus on regex for raw text
- */
 function parseModelResponse(rawResponse: string): ParsedModelResponse {
     const text = rawResponse.toLowerCase();
 
-    // 1. EXTRACT SCORE (Achievements)
-    // Dofus scores look like "21 644" or "15600"
-    // We look for patterns with 4-5 digits, possibly separated by space
-    const scoreMatches = rawResponse.match(/\b\d{1,2}[\s\.]?\d{3}\b/g) || [];
-    const scores = scoreMatches
-        .map(s => parseInt(s.replace(/[\s\.]/g, ''), 10))
-        .filter(s => s > 0 && s < 40000);
+    // 1. EXTRACT SCORE (Dofus Success Points)
+    // Goal: Handle "7 704", "15000", and "7 7049" (where 9 is a trophy)
 
-    const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
+    // Clean text: replace commas/dots often read as thousand separators by spaces
+    const cleanRaw = rawResponse.replace(/[,]/g, ' ').replace(/\./g, ' ');
+
+    // Find all digit groups
+    const digitGroups = cleanRaw.match(/\d+/g) || [];
+
+    let candidates: number[] = [];
+
+    // Case A: Number is split by space (e.g., "7 704")
+    for (let i = 0; i < digitGroups.length - 1; i++) {
+        const combined = digitGroups[i] + digitGroups[i + 1];
+        const val = parseInt(combined, 10);
+        if (val > 0 && val < 300000) candidates.push(val);
+    }
+
+    // Case B: Simple numbers
+    digitGroups.forEach(g => {
+        const val = parseInt(g, 10);
+        if (val > 0) candidates.push(val);
+    });
+
+    // Case C: Full string of digits (ignoring everything else)
+    const allDigits = rawResponse.replace(/[^\d]/g, '');
+    if (allDigits) candidates.push(parseInt(allDigits, 10));
+
+    // Filter and sanitize candidates based on Dofus max score (~23,000)
+    const MAX_DOFUS_SCORE = 24000;
+
+    let bestScore = 0;
+    candidates.forEach(score => {
+        let s = score;
+
+        // TROPHY ICON FIX: if score is > MAX and ends with a digit, 
+        // it's likely the trophy icon was read as a digit (e.g., 7704 + 🏆(9) = 77049)
+        if (s > MAX_DOFUS_SCORE && s < MAX_DOFUS_SCORE * 10) {
+            const truncated = Math.floor(s / 10);
+            if (truncated > 0 && truncated <= MAX_DOFUS_SCORE) {
+                s = truncated;
+            }
+        }
+
+        if (s > 0 && s <= MAX_DOFUS_SCORE) {
+            if (s > bestScore) bestScore = s;
+        }
+    });
 
     // 2. DETECT VICTORY (Missions)
     const victoryKeywords = [
@@ -341,25 +377,20 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
     // 3. CALC CONFIDENCE
     let confidence = 0;
 
-    // If we found a plausible Dofus score, it's a good sign
+    // If we found a plausible Dofus score, it's a very strong indicator
     if (bestScore > 1000) {
-        confidence += 60;
+        confidence += 80; // Should auto-validate if threshold is 70
     } else if (bestScore > 0) {
-        confidence += 30;
+        confidence += 40;
     }
 
-    // Victory keywords are strong indicators
+    // Victory keywords are decent indicators for missions
     if (isVictory) {
         confidence += 30;
     }
 
-    // Amount of text (OCR noise vs real content)
-    if (rawResponse.length > 20 && rawResponse.length < 1000) {
-        confidence += 10;
-    }
-
     return {
-        extractedText: bestScore > 0 ? `Points: ${bestScore}\n${rawResponse}` : rawResponse,
+        extractedText: bestScore > 0 ? `Points: ${bestScore}\nBrut: ${rawResponse}` : rawResponse,
         isVictory: isVictory || bestScore > 0,
         victoryIndicators: foundIndicators,
         confidence: Math.min(100, confidence),

@@ -81,53 +81,7 @@ interface OcrSpaceResponse {
 
 
 // =============================================================================
-// PROMPTS
-// =============================================================================
-
-/**
- * System prompt for Gemini - optimized for Dofus game screenshots
- */
-const SYSTEM_PROMPT = `Tu es un assistant OCR spécialisé dans l'analyse de captures d'écran du jeu Dofus. Extrais le texte et les nombres avec précision. Réponds TOUJOURS en JSON valide.`;
-
-/**
- * Generate analysis prompts optimized for Gemma 3
- * Uses structured JSON output format for reliable parsing
- */
-function getAnalysisPrompt(context?: 'mission' | 'achievement' | 'ladder'): string {
-    switch (context) {
-        case 'mission':
-            return `Look at this Dofus game screenshot. Extract:
-1. Mission name (text at top)
-2. Level number
-3. Progress (format: X/Y)
-4. Is it validated? (green checkmark visible?)
-
-Respond ONLY with this JSON:
-{"mission_name": "...", "level": 0, "progress": "0/0", "is_validated": false}`;
-
-        case 'achievement':
-            return `Look at this Dofus achievement screenshot. Find:
-1. The large score number (usually 5 digits, like 21654)
-2. Any victory/success text ("Succès", "Victoire", "Success")
-
-Respond ONLY with this JSON:
-{"score": 0, "is_victory": false}`;
-
-        case 'ladder':
-            return `Look at this Dofus ladder/ranking screenshot. Extract:
-1. Score/points number
-2. Rank position
-
-Respond ONLY with this JSON:
-{"score": 0, "rank": 0}`;
-
-        default:
-            return `What text and numbers do you see in this image? Is there any "Victory" or "Success" message? Reply with JSON: {"text": "...", "numbers": [], "is_victory": false}`;
-    }
-}
-
-// =============================================================================
-// OCR.SPACE API CLIENT
+// HELPER FUNCTIONS
 // =============================================================================
 
 /**
@@ -323,7 +277,7 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
     // Find all digit groups
     const digitGroups = cleanRaw.match(/\d+/g) || [];
 
-    let candidates: number[] = [];
+    const candidates: number[] = [];
 
     // Case A: Number is split by space (e.g., "7 704")
     for (let i = 0; i < digitGroups.length - 1; i++) {

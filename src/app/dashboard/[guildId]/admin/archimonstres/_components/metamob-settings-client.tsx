@@ -17,10 +17,6 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-    useEffect(() => {
-        loadConfig();
-    }, [guildId]);
-
     async function loadConfig() {
         setLoading(true);
         const res = await getMetamobConfig(guildId);
@@ -30,6 +26,10 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
         }
         setLoading(false);
     }
+
+    useEffect(() => {
+        loadConfig();
+    }, [guildId]);
 
     async function handleSave() {
         if (!newKey.trim()) {

@@ -41,11 +41,6 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
     const [doublonsMap, setDoublonsMap] = useState<Record<number, number>>({});
     const [doublonsLoading, setDoublonsLoading] = useState(true);
 
-    // Load doublons map once on mount
-    useEffect(() => {
-        loadDoublonsMap();
-    }, [guildId]);
-
     const loadDoublonsMap = async () => {
         setDoublonsLoading(true);
         const result = await getGuildDoublonsMap(guildId);
@@ -54,6 +49,11 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
         }
         setDoublonsLoading(false);
     };
+
+    // Load doublons map once on mount
+    useEffect(() => {
+        loadDoublonsMap();
+    }, [guildId]);
 
     // Extract unique zones from monsters
     const zones = useMemo(() => {

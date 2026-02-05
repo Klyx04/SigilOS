@@ -108,6 +108,35 @@ const sanitizeHistoryText = (text: string): string => {
     return text.replace(/https?:\/\/[^\s]+/gi, "[lien supprimé]");
 };
 
+// Section header with save button
+interface SectionHeaderProps {
+    title: string;
+    icon: React.ElementType;
+    section: string;
+    color?: string;
+    onSave: (section: string) => void;
+    isPending: boolean;
+}
+
+const SectionHeader = ({ title, icon: Icon, section, color = "text-indigo-400", onSave, isPending }: SectionHeaderProps) => (
+    <div className="flex items-center justify-between group">
+        <h2 className={cn("text-lg font-semibold text-white flex items-center gap-2")}>
+            <Icon className={cn("w-5 h-5", color)} />
+            {title}
+        </h2>
+        <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onSave(section)}
+            disabled={isPending}
+            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 gap-1.5 text-xs text-zinc-400 hover:text-white"
+        >
+            <Save className="w-3.5 h-3.5" />
+            Sauvegarder
+        </Button>
+    </div>
+);
+
 export function PresentationForm({ guildId }: Props) {
     const [isPending, startTransition] = useTransition();
     const [isLoading, setIsLoading] = useState(true);
@@ -333,30 +362,6 @@ export function PresentationForm({ guildId }: Props) {
         }
     };
 
-    // Section header with save button
-    const SectionHeader = ({ title, icon: Icon, section, color = "text-indigo-400" }: {
-        title: string;
-        icon: React.ElementType;
-        section: string;
-        color?: string;
-    }) => (
-        <div className="flex items-center justify-between group">
-            <h2 className={cn("text-lg font-semibold text-white flex items-center gap-2")}>
-                <Icon className={cn("w-5 h-5", color)} />
-                {title}
-            </h2>
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleSaveSection(section)}
-                disabled={isPending}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 gap-1.5 text-xs text-zinc-400 hover:text-white"
-            >
-                <Save className="w-3.5 h-3.5" />
-                Sauvegarder
-            </Button>
-        </div>
-    );
 
     if (isLoading) {
         return (
@@ -484,7 +489,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                     {/* Server Selection - Grid Style */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" />
+                        <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" onSave={handleSaveSection} isPending={isPending} />
 
                         <div className="space-y-4">
                             {/* Épiques */}
@@ -633,7 +638,7 @@ export function PresentationForm({ guildId }: Props) {
 
                     {/* Founded Date */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Date de fondation" icon={Calendar} section="foundedDate" color="text-amber-500" />
+                        <SectionHeader title="Date de fondation" icon={Calendar} section="foundedDate" color="text-amber-500" onSave={handleSaveSection} isPending={isPending} />
                         <div className="space-y-2">
                             <p className="text-sm text-zinc-400">Cette date servira à calculer l'ancienneté de votre guilde.</p>
                             <Input
@@ -647,7 +652,7 @@ export function PresentationForm({ guildId }: Props) {
 
                     {/* Discord Link */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Lien Discord" icon={MessageCircle} section="discord" color="text-[#5865F2]" />
+                        <SectionHeader title="Lien Discord" icon={MessageCircle} section="discord" color="text-[#5865F2]" onSave={handleSaveSection} isPending={isPending} />
                         <div className="space-y-2">
                             <Input
                                 value={discord}
@@ -694,7 +699,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                     {/* Founder Section */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
-                        <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-amber-400" />
+                        <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-amber-400" onSave={handleSaveSection} isPending={isPending} />
                         <div className="bg-amber-500/5 rounded-xl border border-amber-500/10 p-3">
                             <Label className="text-amber-500 mb-2 block">Pseudo du Chef de guilde</Label>
                             <Input
@@ -733,7 +738,7 @@ export function PresentationForm({ guildId }: Props) {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Co-Leaders Section */}
                         <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
-                            <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" />
+                            <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" onSave={handleSaveSection} isPending={isPending} />
                             <p className="text-xs text-zinc-500">Bras droits avec pouvoirs étendus (Max 3)</p>
 
                             <div className="space-y-3">
@@ -770,7 +775,7 @@ export function PresentationForm({ guildId }: Props) {
                         {/* Bras Droits Section */}
                         <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
                             <div className="flex items-center justify-between">
-                                <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-indigo-400" />
+                                <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-indigo-400" onSave={handleSaveSection} isPending={isPending} />
                                 <span className="bg-indigo-500/10 text-indigo-400 text-xs px-2 py-1 rounded-full font-mono">
                                     {brasDroits.filter(b => b.trim().length > 0).length}/10
                                 </span>
@@ -803,7 +808,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                     {/* History */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" />
+                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
                         <p className="text-xs text-zinc-500">Emojis autorisés ✨ | Les liens seront supprimés automatiquement</p>
                         <Textarea
                             value={history}
@@ -819,7 +824,7 @@ export function PresentationForm({ guildId }: Props) {
 
                     {/* Activities */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-emerald-400" />
+                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {AVAILABLE_ACTIVITIES.map((activity) => (
                                 <button
@@ -856,7 +861,7 @@ export function PresentationForm({ guildId }: Props) {
                 {/* IMAGES TAB */}
                 <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
-                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" />
+                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" onSave={handleSaveSection} isPending={isPending} />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Banner */}
@@ -970,7 +975,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
                         <div className="flex items-center justify-between">
-                            <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" />
+                            <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" onSave={handleSaveSection} isPending={isPending} />
                             <Switch
                                 checked={recruiting}
                                 onCheckedChange={setRecruiting}

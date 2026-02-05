@@ -27,10 +27,6 @@ export function ArchiMatchingWidget({
     const [error, setError] = useState<string | null>(null);
     const [copiedMsg, setCopiedMsg] = useState(false);
 
-    useEffect(() => {
-        loadMatches();
-    }, [guildId, profileId]);
-
     const loadMatches = async () => {
         setLoading(true);
         setError(null);
@@ -43,6 +39,10 @@ export function ArchiMatchingWidget({
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadMatches();
+    }, [guildId, profileId]);
 
     const handleCopyMP = () => {
         if (!matchData || matchData.matches.length === 0) return;

@@ -33,12 +33,6 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!isLeader) return;
-        loadRequests();
-        // No polling - will refresh on actions or manual page reload
-    }, [runId, isLeader]);
-
     const loadRequests = async () => {
         const result = await getPendingJoinRequests(guildId, runId);
         if (result.success && result.requests) {
@@ -46,6 +40,12 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        if (!isLeader) return;
+        loadRequests();
+        // No polling - will refresh on actions or manual page reload
+    }, [runId, isLeader]);
 
     const handleRespond = (requestId: string, accept: boolean) => {
         setActionLoading(requestId);

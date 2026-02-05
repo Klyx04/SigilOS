@@ -31,10 +31,6 @@ export default function NotificationsPage() {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
-    useEffect(() => {
-        loadNotifications();
-    }, []);
-
     async function loadNotifications() {
         setLoading(true);
         const result = await getUnreadNotifications();
@@ -43,6 +39,10 @@ export default function NotificationsPage() {
         }
         setLoading(false);
     }
+
+    useEffect(() => {
+        loadNotifications();
+    }, []);
 
     const handleDismiss = async (id: string) => {
         // Optimistic update

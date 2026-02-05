@@ -43,11 +43,10 @@ export async function validateAchievementSubmission(
                 where: { id: submission.profileId },
                 data: {
                     successPoints: submission.points,
-                    lastLadderUpdate: new Date(),
-                    achievementPoints: submission.points,
-                    achievementLastSync: new Date()
+                    lastLadderUpdate: new Date()
                 }
             });
+
 
             // Notify user
             await createNotification(
@@ -199,6 +198,16 @@ export async function cancelAchievementSubmission(guildId: string): Promise<Acti
         await (db as any).achievementSubmission.delete({
             where: { id: pending.id }
         });
+
+        // 3. Delete Image Hash to allow retry
+        await (db as any).imageHash.deleteMany({
+            where: {
+                guildId: profile.guildId,
+                sourceType: "ACHIEVEMENT",
+                sourceId: pending.id
+            }
+        });
+
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };

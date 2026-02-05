@@ -247,12 +247,45 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # -----------------------------------------------------------------------------
+  # AI SERVICE - OLLAMA (Vision-Language Model for OCR)
+  # -----------------------------------------------------------------------------
+  # 🧠 Runs Qwen2-VL 2B for image analysis and text extraction
+  # Isolated from main app to protect web server performance
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sigilos-ollama
+    restart: always
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - internal-net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+          # NOTE: 4GB is enough for qwen2-vl:2b (2B params, quantized)
+          # If using larger models, increase accordingly
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   db-data:
   redis-data:
   caddy_data:
   caddy_config:
   prometheus-data:
+  ollama-data:
 
 
 networks:

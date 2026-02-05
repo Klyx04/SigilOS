@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { hasAnyForgemagie, type AvailabilityMap, type ForgemagieStatusId } from "@/lib/dofus-assets";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
 
 // ============================================================================
 // TYPES
@@ -821,26 +822,22 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 
 export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSuccessPointsSchema>): Promise<ActionResponse<{ points: number, debugImage?: string, pending?: boolean, confidence?: number }>> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const validation = SyncSuccessPointsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, imageData } = validation.data;
 
     // 1. Sanitization & Rate Limiting
-    // Rate limit: 10 syncs per 10 minutes (to be more forgiving while preventing spam)
     const limiter = await rateLimit(`sync_success:${session.user.id}`, 10, 10 * 60 * 1000);
     if (!limiter.success) {
-        return { success: false, error: "Limite de tentatives atteinte. Veuillez patienter 10 minutes avant de réessayer la synchronisation." };
+        return { success: false, error: "Limite de tentatives atteinte. Veuillez patienter 10 minutes." };
     }
 
-    // Security: Validate Base64 size (limit to ~4MB to prevent memory exhaustion)
-    // 4MB in base64 is roughly 5.5 million characters
     if (imageData.length > 6000000) {
         return { success: false, error: "L'image est trop lourde (max 4Mo)." };
     }
 
-    // Security: Validate Image Format and Integrity (Hard check with Sharp)
     if (!imageData.startsWith("data:image/")) {
         return { success: false, error: "Format d'image invalide." };
     }
@@ -849,155 +846,100 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         const base64Data = imageData.split(',')[1];
         if (!base64Data) return { success: false, error: "Données d'image corrompues." };
 
-        const buffer = Buffer.from(base64Data, 'base64');
-
-        // Hard validation: If Sharp can't read metadata, it's not a valid image
-        const sharp = await import("sharp");
-        try {
-            const metadata = await sharp.default(buffer).metadata();
-            const allowedFormats = ["png", "jpeg", "webp", "tiff"];
-            if (!metadata.format || !allowedFormats.includes(metadata.format)) {
-                return { success: false, error: "Format d'image non supporté ou fichier malveillant détecté." };
-            }
-        } catch (e) {
-            console.error("[Security] Sharp validation failed:", e);
-            return { success: false, error: "Le fichier n'est pas une image valide ou est corrompu." };
-        }
+        // --- ANTI-DUPLICATE CHECK ---
+        const imageHash = hashImage(base64Data);
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        const existingHash = await (db as any).imageHash.findUnique({
+            where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } }
+        });
+
+
+        if (existingHash) {
+            console.warn(`[Security] Duplicate image detected for user ${session.user.id} in guild ${guildId}`);
+            return { success: false, error: "Cette image a déjà été utilisée pour une validation dans cette guilde." };
+        }
+
         const currentProfile = await db.userProfile.findFirst({
-            where: {
-                userId: session.user.id,
-                guildId: guildConfig.id
-            }
+            where: { userId: session.user.id, guildId: guildConfig.id }
         });
         if (!currentProfile) return { success: false, error: "Profil introuvable" };
 
-        // 1.1 SECURITY: Block if a submission is already pending
         const existingPending = await (db as any).achievementSubmission.findFirst({
-            where: {
-                profileId: currentProfile.id,
-                status: "PENDING"
-            }
+            where: { profileId: currentProfile.id, status: "PENDING" }
         });
+
 
         if (existingPending) {
-            return { success: false, error: "Vous avez déjà une demande de validation en attente. Annulez-la ou attendez le staff." };
+            return { success: false, error: "Vous avez déjà une demande en attente." };
         }
 
-        // 2. OCR Processing (Optimized for small crops)
-        const sharpInstance = sharp.default(buffer);
-        const metadata = await sharpInstance.metadata();
-        const isSmallCrop = (metadata.width || 0) < 600;
-
-        // NICE BUFFER FOR DISPLAY
-        const displayBuffer = await sharpInstance
-            .resize({ width: 1000, withoutEnlargement: true })
-            .webp({ quality: 90 })
-            .toBuffer();
-
-        // PRO-GAMING PREPROCESSING: Better isolation
-        const ocrBuffer = await sharpInstance
-            .resize({ width: isSmallCrop ? 1600 : 1200, withoutEnlargement: true })
-            .recomb([
-                [1.4, 0.2, -0.8], // Boost Yellow (R+G), cut Blue
-                [0.2, 1.4, -0.8],
-                [-0.5, -0.5, 1.5]
-            ])
-            .grayscale()
-            .linear(1.5, -0.2)
-            .threshold(160)
-            .toBuffer();
-
-        // SAVE DEBUG IMAGE (For the catastrophe we are fixing)
-        const debugDir = join(process.cwd(), "public", "uploads", "ocr-debug");
-        await mkdir(debugDir, { recursive: true });
-        const debugPath = join(debugDir, `${session.user.id}-last-scan.png`);
-        await writeFile(debugPath, ocrBuffer);
-
-        const { createWorker } = await import("tesseract.js");
-        const worker = await createWorker(['fra', 'eng']);
-
-        // Optimize for single line/block reading
-        await worker.setParameters({
-            tessedit_pageseg_mode: '6' as any,
+        // --- LLM OCR ANALYSIS ---
+        const ocrResult = await analyzeImage({
+            imageBase64: base64Data,
+            mimeType: imageData.split(';')[0].split(':')[1], // Extract from data:image/png;base64,...
+            context: 'achievement'
         });
 
-        const { data: { text, confidence } } = await worker.recognize(ocrBuffer);
-        await worker.terminate();
 
-        const cleanedTextForLog = text.replace(/\n/g, ' ').trim();
-        console.log(`[OCR] Raw: "${cleanedTextForLog}" (Conf: ${confidence}%)`);
 
-        // Security: Context Validation
-        const dousKeywords = [
-            "succès", "succes", "points", "de succès", "de succes", "personnage",
-            "déverrouillé", "achievements", "avancement", "score", "progression"
-        ];
-        const lowerText = text.toLowerCase();
-        const hasDofusContext = dousKeywords.some(kw => lowerText.includes(kw));
-
-        // Threshold logic:
-        if (confidence < 15) {
-            return { success: false, error: "Image illisible. Essayez de prendre une capture d'écran plus nette." };
+        if (!ocrResult.moderation.isAppropriate) {
+            return { success: false, error: `Image rejetée : ${ocrResult.moderation.reason}` };
         }
 
-        // 2. Parse points
-        // We look for alphanumeric strings of at least 3 chars. 
-        // We ONLY apply digit normalization on these candidates.
-        const rawCandidates = text.match(/[A-Za-z0-9\/|]{3,}/g) || [];
-        const candidates: number[] = [];
+        // Parse points from text (LLM usually gives us the number if we asked correctly in prompt)
+        // However, the prompt in llm-ocr.ts currently returns broad text. 
+        // Let's refine the point extraction from ocrResult.text
+        const pointsMatch = ocrResult.text.match(/(\d{1,2}\s?\d{3})/); // Matches things like 21 644 or 15000
         let points = 0;
-
-        for (const raw of rawCandidates) {
-            const clean = raw
-                .replace(/[Il|]/g, '1')
-                .replace(/[Oo]/g, '0')
-                .replace(/[S]/g, '5')
-                .replace(/[B]/g, '8')
-                .replace(/[^0-9/]/g, '');
-
-            if (clean.includes('/')) {
-                const val = parseInt(clean.split('/')[0], 10);
-                if (val >= 50 && val <= 30000) candidates.push(val);
-            } else {
-                const val = parseInt(clean, 10);
-                if (val >= 100 && val <= 30000) candidates.push(val);
+        if (pointsMatch) {
+            points = parseInt(pointsMatch[0].replace(/\s/g, ''), 10);
+        } else {
+            // Fallback: look for any number > 100
+            const numbers = ocrResult.text.match(/\d{3,5}/g);
+            if (numbers) {
+                points = Math.max(...numbers.map(n => parseInt(n, 10)));
             }
         }
 
-        points = candidates.length > 0 ? Math.max(...candidates) : 0;
-        console.log(`[OCR] Candidates:`, candidates, `-> Winner: ${points}`);
+        // If points are invalid OR OCR is skipped/failed, force manual validation
+        const ocrWorked = ocrResult.success && !ocrResult.error?.includes('unreachable') && !ocrResult.rawResponse?.includes('DEV_SKIP');
+        const pointsValid = points > 0 && points <= 35000;
 
-        if (points <= 0) {
-            return { success: false, error: "Aucun score détecté. Détourez plus précisément vos points (ex: 21 644)." };
+        if (!pointsValid && ocrWorked) {
+            // OCR worked but couldn't find valid points - reject
+            return { success: false, error: "Impossible de détecter un score de points de succès valide." };
         }
 
-        // 3. Threshold Logic
-        const VERY_HIGH_CONFIDENCE = 85;
-        const GOOD_CONFIDENCE = 55; // Lowered because our filters are aggressive
-        const shouldAutoValidate = (confidence >= VERY_HIGH_CONFIDENCE) || (hasDofusContext && confidence >= GOOD_CONFIDENCE);
+        // If OCR didn't work OR points invalid, force manual validation path
+        const forceManual = !ocrWorked || !pointsValid;
 
-        const debugImageUrl = `/uploads/ocr-debug/${session.user.id}-last-scan.png?v=${Date.now()}`;
+        const { autoValidate } = shouldAutoValidate(ocrResult);
 
-        // Fallback for Debug Image: use displayBuffer so user sees the "Nice" version
-        const finalDebugBuffer = displayBuffer;
+        // If OCR is skipped/failed OR points invalid, always go manual
+        if (autoValidate && !forceManual) {
 
-        console.log(`[OCR] Decision: Points=${points}, Context=${hasDofusContext}, Conf=${confidence}%, Auto=${shouldAutoValidate}`);
+            await db.$transaction([
+                db.userProfile.update({
+                    where: { id: currentProfile.id },
+                    data: {
+                        successPoints: points,
+                        lastLadderUpdate: new Date(),
+                    }
+                }),
+                (db as any).imageHash.create({
+                    data: {
+                        guildId: guildConfig.id,
+                        hash: imageHash,
+                        sourceType: "ACHIEVEMENT",
+                        sourceId: "AUTO_VALIDATED",
+                        uploaderId: session.user.id
+                    }
+                })
+            ]);
 
-        if (shouldAutoValidate) {
-            // Auto-update Profile
-            await db.userProfile.update({
-                where: { id: currentProfile.id },
-                data: {
-                    successPoints: points,
-                    lastLadderUpdate: new Date(),
-                    achievementPoints: points,
-                    achievementLastSync: new Date()
-                }
-            });
 
             revalidatePath(`/dashboard/${guildConfig.discordGuildId}/profile`);
             revalidatePath(`/dashboard/${guildConfig.discordGuildId}/ladder`);
@@ -1006,13 +948,15 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 success: true,
                 data: {
                     points,
-                    confidence,
-                    debugImage: `data:image/webp;base64,${displayBuffer.toString('base64')}`
+                    confidence: ocrResult.confidence,
+                    debugImage: imageData
                 }
             };
         } else {
             // MANUAL VALIDATION PATH
-            // 4. Save image for staff review
+            // Save preview image for staff (light resizing is handled by client or we can do it here)
+            // For now we use the raw imageData as it's already limited to 4MB
+
             const uploadRelativeDir = `uploads/achievements/${guildConfig.discordGuildId}`;
             const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
@@ -1020,56 +964,48 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             const fileName = `${session.user.id}-${Date.now()}.webp`;
             const filePath = join(uploadDir, fileName);
 
-            // Save the ORIGINAL crop (with displayBuffer) for staff review so it's not ugly
-            await writeFile(filePath, displayBuffer);
+            const buffer = Buffer.from(base64Data, 'base64');
+            await writeFile(filePath, buffer);
             const proofUrl = `/${uploadRelativeDir}/${fileName}`;
 
-            // 5. Create Submission (Safety check for Prisma generation)
-            if (!(db as any).achievementSubmission) {
-                console.error("[Prisma] achievementSubmission model not found in client!");
-                // Emergency fallback: just update the profile but log the error
-                await db.userProfile.update({
-                    where: { id: currentProfile.id },
-                    data: {
-                        successPoints: points,
-                        lastLadderUpdate: new Date()
-                    }
-                });
-                return {
-                    success: true,
-                    data: { points, debugImage: `data:image/webp;base64,${displayBuffer.toString('base64')}` }
-                };
-            }
-
-            await (db as any).achievementSubmission.create({
+            const submission = await (db as any).achievementSubmission.create({
                 data: {
                     profileId: currentProfile.id,
                     guildId: guildConfig.id,
                     points,
                     proofUrl,
-                    ocrScore: confidence,
-                    ocrRawText: text
+                    ocrScore: ocrResult.confidence,
+                    ocrRawText: ocrResult.text
                 }
             });
+
+            // Store hash to prevent reusing the same image while pending
+            await (db as any).imageHash.create({
+                data: {
+                    guildId: guildConfig.id,
+                    hash: imageHash,
+                    sourceType: "ACHIEVEMENT",
+                    sourceId: submission.id,
+                    uploaderId: session.user.id
+                }
+            });
+
 
             return {
                 success: true,
                 data: {
                     points,
                     pending: true,
-                    confidence,
-                    debugImage: `data:image/webp;base64,${finalDebugBuffer.toString('base64')}`
+                    confidence: ocrResult.confidence,
+                    debugImage: imageData
                 }
             };
         }
     } catch (error: any) {
         console.error("Sync Success Points Error:", error);
-
-        // Try to capture the processed buffer even on error if it's available in the scope
-        // (Note: it might not be available if error happens before processedBuffer is created)
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Erreur lors du traitement de l'image (OCR)"
+            error: "Erreur lors du traitement de l'image (OLLAMA/OCR)"
         };
     }
 }

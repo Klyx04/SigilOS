@@ -808,7 +808,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                     {/* History */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" />
+                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
                         <p className="text-xs text-zinc-500">Emojis autorisés ✨ | Les liens seront supprimés automatiquement</p>
                         <Textarea
                             value={history}
@@ -824,7 +824,7 @@ export function PresentationForm({ guildId }: Props) {
 
                     {/* Activities */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-emerald-400" />
+                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {AVAILABLE_ACTIVITIES.map((activity) => (
                                 <button
@@ -861,7 +861,7 @@ export function PresentationForm({ guildId }: Props) {
                 {/* IMAGES TAB */}
                 <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
-                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" />
+                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" onSave={handleSaveSection} isPending={isPending} />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Banner */}
@@ -975,7 +975,7 @@ export function PresentationForm({ guildId }: Props) {
                 <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
                         <div className="flex items-center justify-between">
-                            <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" />
+                            <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" onSave={handleSaveSection} isPending={isPending} />
                             <Switch
                                 checked={recruiting}
                                 onCheckedChange={setRecruiting}

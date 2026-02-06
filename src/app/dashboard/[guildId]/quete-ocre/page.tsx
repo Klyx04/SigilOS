@@ -60,7 +60,7 @@ export default async function QueteOcrePage({
                     {/* Sidebar */}
                     <aside className="hidden lg:block space-y-6">
                         <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-                            <KralamoureWidget guildId={guildId} />
+                            <KralamoureWidget guildId={guildId} canManageCalendar={user.canManageCalendar} />
                         </Suspense>
 
                         {/* Quick Tips */}
@@ -149,3 +149,4 @@ function NotLinkedState({ guildId, error }: { guildId: string; error?: string })
         </Card>
     );
 }
+

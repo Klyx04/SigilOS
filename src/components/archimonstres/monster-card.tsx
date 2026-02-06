@@ -8,20 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Check, Loader2, MapPin, User, Users, Sparkles } from "lucide-react";
-import type { MetamobMonster, MonsterOwner } from "@/lib/metamob-client";
-import { findExchangePartners } from "@/server/actions/metamob-actions";
+import type { OcreMonster } from "@/lib/metamob-client";
+import { findMonsterOwnersAction } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface MonsterCardProps {
-    monster: MetamobMonster;
+    monster: OcreMonster;
     guildId: string;
     showOwners?: boolean;
     compact?: boolean;
     // Pre-computed number of available helpers (from doublonsMap)
     availableHelpers?: number;
     // Pre-loaded owners from parent (optional optimization)
-    preloadedOwners?: MonsterOwner[];
+    preloadedOwners?: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; }[];
 }
 
 export function MonsterCard({
@@ -32,7 +32,7 @@ export function MonsterCard({
     availableHelpers = 0,
     preloadedOwners,
 }: MonsterCardProps) {
-    const [owners, setOwners] = useState<MonsterOwner[]>(preloadedOwners || []);
+    const [owners, setOwners] = useState<{ metamobPseudo: string; profileId: string; displayName: string; quantite: number; }[]>(preloadedOwners || []);
     const [loadingOwners, setLoadingOwners] = useState(false);
     const [ownersLoaded, setOwnersLoaded] = useState(!!preloadedOwners);
     const [showOwnersSection, setShowOwnersSection] = useState(false);
@@ -47,7 +47,7 @@ export function MonsterCard({
 
         setLoadingOwners(true);
         setShowOwnersSection(true);
-        const result = await findExchangePartners({ guildId, monsterId: monster.id });
+        const result = await findMonsterOwnersAction({ guildId, monsterId: monster.id });
         if (result.success && result.data) {
             setOwners(result.data);
         }
@@ -55,7 +55,7 @@ export function MonsterCard({
         setLoadingOwners(false);
     };
 
-    const stateConfig = {
+    const stateConfig: Record<string, { label: string; color: string; icon: string }> = {
         MANQUANT: {
             label: "Manquant",
             color: "bg-red-500/10 text-red-500 border-red-500/30",
@@ -73,13 +73,13 @@ export function MonsterCard({
         },
     };
 
-    const config = stateConfig[monster.etat];
+    const config = stateConfig[monster.state];
     const hasAvailableExchange = availableHelpers > 0;
 
-    const handleCopyMP = (owner: MonsterOwner, e: React.MouseEvent) => {
+    const handleCopyMP = (owner: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; }, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const message = `/w ${owner.displayName} Salut ! Tu aurais ${monster.nom} en doublon à échanger ? :)`;
+        const message = `/w ${owner.displayName} Salut ! Tu aurais ${monster.name} en doublon à échanger ? :)`;
         navigator.clipboard.writeText(message);
         setCopiedPseudo(owner.metamobPseudo);
         toast.success("Message copié !");
@@ -89,11 +89,11 @@ export function MonsterCard({
     if (compact) {
         return (
             <div className="flex items-center gap-3 p-2 rounded-lg bg-card/50 border border-border/50">
-                {monster.imageUrl && (
+                {monster.image && (
                     <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden bg-black/20">
                         <Image
-                            src={monster.imageUrl}
-                            alt={monster.nom}
+                            src={monster.image}
+                            alt={monster.name}
                             fill
                             className="object-contain"
                             sizes="40px"
@@ -101,11 +101,11 @@ export function MonsterCard({
                     </div>
                 )}
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{monster.nom}</p>
+                    <p className="text-sm font-medium truncate">{monster.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{monster.zone}</p>
                 </div>
                 <Badge variant="outline" className={cn("shrink-0", config.color)}>
-                    x{monster.quantite}
+                    x{monster.owned}
                 </Badge>
             </div>
         );
@@ -121,11 +121,11 @@ export function MonsterCard({
             <CardContent className="p-4">
                 <div className="flex gap-4">
                     {/* Monster Image */}
-                    {monster.imageUrl && (
+                    {monster.image && (
                         <div className="relative w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-black/20 border border-border/30">
                             <Image
-                                src={monster.imageUrl}
-                                alt={monster.nom}
+                                src={monster.image}
+                                alt={monster.name}
                                 fill
                                 className="object-contain"
                                 sizes="64px"
@@ -143,19 +143,19 @@ export function MonsterCard({
                     <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-start justify-between gap-2">
                             <h3 className="font-medium text-sm leading-tight line-clamp-2">
-                                {monster.nom}
+                                {monster.name}
                             </h3>
                             <Badge variant="outline" className={cn("shrink-0", config.color)}>
-                                {config.icon} x{monster.quantite}
+                                {config.icon} x{monster.owned}
                             </Badge>
                         </div>
 
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             <span className="truncate">{monster.zone}</span>
-                            {monster.souszone && (
+                            {monster.subzone && (
                                 <span className="truncate text-muted-foreground/60">
-                                    • {monster.souszone}
+                                    • {monster.subzone}
                                 </span>
                             )}
                         </div>
@@ -174,7 +174,7 @@ export function MonsterCard({
                 </div>
 
                 {/* Find helpers button - only for MANQUANT monsters */}
-                {showOwners && monster.etat === "MANQUANT" && (
+                {showOwners && monster.state === "MANQUANT" && (
                     <div className="mt-3 pt-3 border-t border-border/30">
                         {!showOwnersSection ? (
                             <Button
@@ -229,7 +229,7 @@ export function MonsterCard({
                                             key={owner.profileId}
                                             owner={owner}
                                             guildId={guildId}
-                                            monsterName={monster.nom}
+                                            monsterName={monster.name}
                                             copiedPseudo={copiedPseudo}
                                             onCopy={(e) => handleCopyMP(owner, e)}
                                         />
@@ -246,7 +246,7 @@ export function MonsterCard({
                 )}
 
                 {/* Propose indicator for DOUBLON */}
-                {monster.etat === "DOUBLON" && monster.propose && (
+                {monster.state === "DOUBLON" && (
                     <div className="mt-3 pt-3 border-t border-border/30">
                         <Badge variant="outline" className="w-full justify-center bg-amber-500/10 text-amber-500 border-amber-500/30">
                             Proposé à l&apos;échange sur Metamob
@@ -269,7 +269,7 @@ function OwnerBadge({
     copiedPseudo,
     onCopy,
 }: {
-    owner: MonsterOwner;
+    owner: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; };
     guildId: string;
     monsterName: string;
     copiedPseudo: string | null;

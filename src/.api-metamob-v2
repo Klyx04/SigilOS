@@ -1,0 +1,794 @@
+API Metamob
+L'API Metamob vous permet d'accéder à vos données de manière programmatique. Vous pouvez l'utiliser pour créer des outils personnalisés, des bots Discord, ou intégrer Metamob à d'autres applications.
+
+URL de base : https://www.metamob.fr/api/
+
+Table des matières
+Créer une clé API
+Authentification
+Endpoints disponibles
+Versions du jeu
+GET /v1/game-versions - Liste des versions
+GET /v1/game-versions/{id} - Détail d'une version
+Serveurs
+GET /v1/servers - Liste des serveurs
+GET /v1/servers/{id} - Détail d'un serveur
+Événements Kralamoure
+GET /v1/kralove - Liste des événements
+GET /v1/kralove/{id} - Détail d'un événement
+Utilisateurs
+GET /v1/users/search - Rechercher des utilisateurs
+GET /v1/users/{username} - Profil d'un utilisateur
+GET /v1/users/{username}/quests - Liste des quêtes d'un utilisateur
+GET /v1/users/{username}/quests/{slug} - Détail d'une quête avec monstres
+Gestion des quêtes
+PATCH /v1/quests/{slug} - Modifier les paramètres d'une quête
+PATCH /v1/quests/{slug}/monsters/{monsterId} - Modifier un monstre
+PATCH /v1/quests/{slug}/monsters - Modifier plusieurs monstres
+PATCH /v1/quests/{slug}/monsters/{monsterId}/trade - Paramètres de trade manuels
+GET /v1/quests/{slug}/matches - Partenaires d'échange potentiels
+Monstres
+GET /v1/monsters - Liste des monstres
+GET /v1/monsters/{id} - Détail d'un monstre
+Types de monstres
+GET /v1/monster-types - Liste des types
+GET /v1/monster-types/{id} - Détail d'un type
+Modèles de quête
+GET /v1/quest-templates - Liste des modèles
+GET /v1/quest-templates/{id} - Détail avec monstres
+Zones
+GET /v1/zones - Liste des zones
+GET /v1/zones/{id} - Détail d'une zone avec sous-zones
+GET /v1/zones/{id}/subzones - Liste des sous-zones
+GET /v1/zones/{id}/subzones/{subzoneId} - Détail d'une sous-zone
+GET /v1/zones/{id}/subzones/{subzoneId}/monsters - Monstres d'une sous-zone
+Limites d'utilisation
+Créer une clé API
+Connectez-vous à votre compte
+Accédez aux Paramètres
+Dans la section Clé API, cliquez sur Générer une clé
+Copiez et conservez précieusement votre clé (elle ne sera plus affichée)
+Attention : Ne partagez jamais votre clé API. Elle donne accès à votre compte.
+
+Authentification
+Toutes les requêtes à l'API doivent inclure votre clé API dans l'en-tête HTTP :
+
+Authorization: Bearer VOTRE_CLE_API
+Exemple avec cURL :
+
+curl -X GET "https://www.metamob.fr/api/v1/game-versions" \
+     -H "Authorization: Bearer VOTRE_CLE_API"
+Endpoints disponibles
+Versions du jeu
+Méthode	Endpoint	Description
+GET	/v1/game-versions	Liste toutes les versions du jeu
+GET	/v1/game-versions/{id}	Détails d'une version spécifique
+Réponse (liste) :
+
+[
+  {
+    "id": 1,
+    "name": "Dofus (Unity)"
+  }
+]
+Serveurs
+Méthode	Endpoint	Description
+GET	/v1/servers	Liste tous les serveurs
+GET	/v1/servers/{id}	Détails d'un serveur spécifique
+Réponse (liste) :
+
+[
+  {
+    "id": 1,
+    "name": "Brial",
+    "community": "World",
+    "game_version": {
+      "id": 1,
+      "name": "Dofus (Unity)"
+    }
+  }
+]
+Événements Kralamoure
+Méthode	Endpoint	Description
+GET	/v1/kralove	Liste tous les événements Kralamoure
+GET	/v1/kralove/{id}	Détails d'un événement avec participants et messages
+Paramètres de requête (liste) :
+
+server (optionnel) : Filtrer par ID de serveur
+from (optionnel) : Date de début au format YYYY-MM-DD. Par défaut : aujourd'hui
+Réponse (liste) :
+
+{
+  "data": [
+    {
+      "id": 1,
+      "event_datetime": "2026-01-27 20:00:00",
+      "description": "Raid Kralamoure",
+      "creator": "username",
+      "participants_count": 5,
+      "character_count": 12,
+      "messages_count": 3,
+      "server": {
+        "id": 1,
+        "name": "Draconiros",
+        "community": "FR",
+        "game_version": {
+          "id": 1,
+          "name": "Dofus (Unity)"
+        }
+      }
+    }
+  ]
+}
+Réponse (détail) :
+
+{
+  "data": {
+    "id": 1,
+    "event_datetime": "2026-01-27 20:00:00",
+    "description": "Raid Kralamoure",
+    "creator": "username",
+    "server": {
+      "id": 2,
+      "name": "Brial",
+      "community": "FR",
+      "game_version": {
+        "id": 1,
+        "name": "Dofus (Unity)"
+      }
+    },
+    "participants": [
+      {
+        "username": "player1",
+        "character_count": 3
+      }
+    ],
+    "messages": [
+      {
+        "username": "player1",
+        "content": "Je serai là !",
+        "created_at": "2026-01-26 15:30:00"
+      }
+    ]
+  }
+}
+Utilisateurs
+Méthode	Endpoint	Description
+GET	/v1/users/search	Rechercher des utilisateurs
+GET	/v1/users/{username}	Profil public d'un utilisateur
+GET	/v1/users/{username}/quests	Liste des quêtes publiques d'un utilisateur
+GET	/v1/users/{username}/quests/{slug}	Détail d'une quête avec ses monstres
+Rechercher des utilisateurs
+Recherche des utilisateurs ayant des quêtes publiques. Nécessite un terme de recherche d'au moins 3 caractères.
+
+Paramètres de requête :
+
+q (requis) : Terme de recherche (min 3 caractères)
+server_id (optionnel) : Filtrer par ID de serveur
+active_within_days (optionnel) : Utilisateurs actifs dans les N derniers jours (défaut : 90, max : 365)
+limit (optionnel) : Nombre de résultats (défaut : 20, max : 50)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Exemple :
+
+GET /v1/users/search?q=player&server_id=1&active_within_days=30
+Réponse :
+
+{
+  "data": [
+    {
+      "username": "player1",
+      "avatar": {
+        "id": 123,
+        "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+        "image": "tofu.png"
+      },
+      "last_active": "2026-01-27 14:22:00"
+    }
+  ],
+  "pagination": {
+    "total": 5,
+    "limit": 20,
+    "offset": 0
+  }
+}
+Profil utilisateur
+Réponse :
+
+{
+  "data": {
+    "username": "player1",
+    "bio": "Ma bio",
+    "avatar": {
+      "id": 123,
+      "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+      "image": "tofu.png"
+    },
+    "created_at": "2025-01-15 10:30:00",
+    "last_active": "2026-01-27 14:22:00",
+    "quests": [
+      {
+        "slug": "a1b2c3d4",
+        "character_name": "Mon perso",
+        "current_step": 15,
+        "parallel_quests": 3,
+        "server": {
+          "id": 1,
+          "name": "Draconiros",
+          "community": "FR",
+          "game_version": { "id": 2, "name": "Dofus (Unity)" }
+        },
+        "quest_template": {
+          "id": 2,
+          "monster_count": 620,
+          "step_count": 200
+        }
+      }
+    ]
+  }
+}
+Liste des quêtes
+Retourne les quêtes publiques avec le nombre de monstres recherchés et proposés.
+
+Réponse :
+
+{
+  "data": [
+    {
+      "slug": "a1b2c3d4",
+      "character_name": "Mon perso",
+      "current_step": 15,
+      "parallel_quests": 3,
+      "wanted_count": 42,
+      "offered_count": 15,
+      "server": {
+        "id": 1,
+        "name": "Draconiros",
+        "community": "FR",
+        "game_version": { "id": 2, "name": "Dofus (Unity)" }
+      },
+      "quest_template": {
+        "id": 2,
+        "monster_count": 620,
+        "step_count": 200
+      }
+    }
+  ]
+}
+Détail d'une quête
+Retourne une quête avec la liste de ses monstres. Supporte la pagination et les filtres.
+
+Paramètres de requête :
+
+status (optionnel) : wanted (recherchés) ou offered (proposés). Par défaut : tous
+step (optionnel) : Filtrer par numéro d'étape
+limit (optionnel) : Nombre de résultats (défaut : 50, max : 200)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Exemple :
+
+GET /v1/users/player1/quests/a1b2c3d4?status=wanted&limit=50&offset=0
+Réponse :
+
+{
+  "data": {
+    "slug": "a1b2c3d4",
+    "character_name": "Mon perso",
+    "current_step": 15,
+    "parallel_quests": 3,
+    "server": {
+      "id": 1,
+      "name": "Draconiros",
+      "community": "FR",
+      "game_version": { "id": 2, "name": "Dofus (Unity)" }
+    },
+    "quest_template": {
+      "id": 2,
+      "monster_count": 620,
+      "step_count": 200
+    },
+    "monsters": [
+      {
+        "id": 123,
+        "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+        "image": "tofu.png",
+        "level_min": 1,
+        "level_max": 10,
+        "type": {
+          "id": 1,
+          "name": { "fr": "Monstre", "en": "Monster", "es": "Monstruo" }
+        },
+        "step": 15,
+        "owned": 2,
+        "status": -1
+      }
+    ],
+    "pagination": {
+      "total": 620,
+      "limit": 50,
+      "offset": 0
+    }
+  }
+}
+Note : Le champ owned indique la quantité possédée par l'utilisateur. Le champ status est calculé (owned - parallel_quests) : négatif = recherché, positif = proposé, zéro = ni recherché ni proposé. Par exemple, si owned vaut 2 et parallel_quests vaut 3, alors status vaut -1 (l'utilisateur recherche 1 exemplaire).
+
+Gestion des quêtes
+Ces endpoints permettent de modifier vos propres quêtes.
+
+Méthode	Endpoint	Description
+PATCH	v1/quests/{slug}	Modifier les paramètres d'une quête
+PATCH	v1/quests/{slug}/monsters/{monsterId}	Modifier la quantité d'un monstre
+PATCH	v1/quests/{slug}/monsters	Modifier plusieurs monstres en une requête
+GET	/v1/quests/{slug}/matches	Trouver des partenaires d'échange
+Note : Vous ne pouvez modifier que vos propres quêtes. Le slug de la quête est visible dans l'URL de votre page de quête ou via l'endpoint /v1/users/{username}/quests.
+
+Modifier les paramètres d'une quête
+Modifie un ou plusieurs paramètres de la quête. Tous les champs sont optionnels.
+
+Champs modifiables :
+
+character_name (string) : Nom du personnage (max 200 caractères)
+parallel_quests (int) : Nombre de quêtes en parallèle (1-20)
+current_step (int) : Étape courante (1-34)
+show_trades (bool) : Visibilité de la quête dans la communauté
+trade_mode (int) : Mode de trading (0 = Automatique, 1 = Mode expert)
+trade_offer_threshold (int|null) : Seuil minimal pour proposer en mode expert (0-30)
+trade_want_threshold (int|null) : Seuil maximal pour rechercher en mode expert (0-30)
+never_offer_normal (bool) : Ne jamais proposer les monstres normaux (étapes 1-16)
+never_want_normal (bool) : Ne jamais rechercher les monstres normaux (étapes 1-16)
+never_offer_boss (bool) : Ne jamais proposer les boss (étapes 17-19)
+never_want_boss (bool) : Ne jamais rechercher les boss (étapes 17-19)
+never_offer_arch (bool) : Ne jamais proposer les archimonstres (étapes 20+)
+never_want_arch (bool) : Ne jamais rechercher les archimonstres (étapes 20+)
+Requête :
+
+PATCH /v1/quests/a1b2c3d4
+Content-Type: application/json
+{
+  "character_name": "Mon personnage",
+  "parallel_quests": 5,
+  "current_step": 12,
+  "show_trades": true,
+  "trade_mode": 1,
+  "trade_offer_threshold": 6,
+  "trade_want_threshold": 1,
+  "never_offer_normal": 1,
+  "never_want_normal": 0,
+  "never_offer_boss": 0,
+  "never_want_boss": 0,
+  "never_offer_arch": 0,
+  "never_want_arch": 1
+}
+Réponse :
+
+{
+  "data": {
+    "slug": "a1b2c3d4",
+    "character_name": "Mon personnage",
+    "parallel_quests": 5,
+    "current_step": 12,
+    "show_trades": true,
+    "trade_mode": 1,
+    "trade_offer_threshold": 6,
+    "trade_want_threshold": 1,
+    "never_offer_normal": 1,
+    "never_want_normal": 0,
+    "never_offer_boss": 0,
+    "never_want_boss": 0,
+    "never_offer_arch": 0,
+    "never_want_arch": 1
+  }
+}
+Modifier un monstre
+Requête :
+
+PATCH /v1/quests/a1b2c3d4/monsters/123
+Content-Type: application/json
+{
+  "quantity": 5
+}
+Réponse :
+
+{
+  "data": {
+    "monster_id": 123,
+    "quantity": 5,
+    "owned": 5,
+    "status": 2
+  }
+}
+Modifier plusieurs monstres
+Requête :
+
+PATCH /v1/quests/a1b2c3d4/monsters
+Content-Type: application/json
+{
+  "monsters": [
+    { "monster_id": 123, "quantity": 5 },
+    { "monster_id": 456, "quantity": 0 },
+    { "monster_id": 789, "quantity": 10 }
+  ]
+}
+Réponse :
+
+{
+  "data": {
+    "updated_count": 3,
+    "monsters": [
+      { "monster_id": 123, "quantity": 5, "owned": 5, "status": 2 },
+      { "monster_id": 456, "quantity": 0, "owned": 0, "status": -3 },
+      { "monster_id": 789, "quantity": 10, "owned": 10, "status": 7 }
+    ]
+  }
+}
+Limites : - quantity : entre 0 et 30 - Maximum 200 monstres par requête batch
+
+Paramètres de trade manuels
+Permet de forcer les quantités proposées et recherchées pour un monstre, au lieu d'utiliser le calcul automatique basé sur le statut.
+
+Requête :
+
+PATCH /v1/quests/a1b2c3d4/monsters/123/trade
+Content-Type: application/json
+{
+  "trade_offer": 1,
+  "trade_want": null
+}
+Champs :
+
+trade_offer (int|null) : Quantité à proposer (0 à owned). null = calcul automatique
+trade_want (int|null) : Quantité recherchée (0 à 30). null = calcul automatique
+Réponse :
+
+{
+  "data": {
+    "monster_id": 123,
+    "trade_offer": 1,
+    "trade_want": null
+  }
+}
+Cas d'usage : Vous possédez 5 exemplaires et faites 2 quêtes parallèles. Par défaut, 3 sont marqués proposés (status = 5 - 2 = 3). En définissant trade_offer: 1, seul 1 exemplaire sera visible sur votre profil et disponible aux échanges.
+
+Partenaires d'échange
+Trouve des utilisateurs avec qui échanger des monstres. Cet endpoint analyse votre quête et cherche d'autres joueurs sur le même serveur qui :
+
+Proposent des monstres que vous recherchez
+Recherchent des monstres que vous proposez
+Note : Cet endpoint ne fonctionne que pour vos propres quêtes.
+
+Paramètres de requête :
+
+direction (optionnel) : Type de match à rechercher
+they_have : Ils/Elles ont ce que je cherche
+they_want : Ils/Elles cherchent ce que j'ai
+both (défaut) : Les deux directions
+active_within_days (optionnel) : Utilisateurs actifs dans les N derniers jours (défaut : 30, max : 365)
+min_parallel_quests (optionnel) : Nombre minimum de quêtes en parallèle du partenaire (défaut : 1, max : 20). Utile pour filtrer les joueurs "hardcore".
+limit (optionnel) : Nombre de résultats (défaut : 20, max : 50)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Exemple :
+
+GET /v1/users/player1/quests/a1b2c3d4/matches?direction=both&min_parallel_quests=5
+Réponse :
+
+{
+  "data": [
+    {
+      "user": {
+        "username": "trader42",
+        "avatar": {
+          "id": 456,
+          "name": { "fr": "Bouftou", "en": "Gobball", "es": "Jalató" },
+          "image": "bouftou.png"
+        },
+        "last_active": "2026-01-27 18:45:00"
+      },
+      "quest": {
+        "slug": "x9y8z7w6",
+        "character_name": "Xelor-Pro",
+        "parallel_quests": 8
+      },
+      "matches": {
+        "they_have_you_want": [
+          {
+            "id": 123,
+            "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+            "available": 3,
+            "needed": 2,
+            "covers_need": true
+          }
+        ],
+        "you_have_they_want": [
+          {
+            "id": 789,
+            "name": { "fr": "Bouftou", "en": "Gobball", "es": "Jalató" },
+            "available": 5,
+            "needed": 8,
+            "covers_need": false
+          }
+        ]
+      },
+      "match_score": 2
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "limit": 20,
+    "offset": 0
+  }
+}
+Note : Les résultats sont triés par match_score décroissant (nombre total de monstres en commun). Pour chaque monstre, available indique la quantité disponible à l'échange, needed le besoin, et covers_need si l'offre couvre entièrement le besoin.
+
+Monstres
+Méthode	Endpoint	Description
+GET	/v1/monsters	Liste des monstres avec pagination et filtres
+GET	/v1/monsters/{id}	Détails d'un monstre spécifique
+Liste des monstres
+Paramètres de requête :
+
+q (optionnel) : Recherche par nom (français, anglais ou espagnol) - minimum 3 caractères
+type (optionnel) : Filtrer par type de monstre (1 = Monstre, 2 = Boss, 3 = Archimonstre)
+limit (optionnel) : Nombre de résultats (défaut : 50, max : 200)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Exemple :
+
+GET /v1/monsters?q=tofu&type=1&limit=50&offset=0
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 123,
+      "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+      "image": "tofu.png",
+      "level_min": 1,
+      "level_max": 10,
+      "type": {
+        "id": 1,
+        "name": { "fr": "Monstre", "en": "Monster", "es": "Monstruo" }
+      }
+    }
+  ],
+  "pagination": {
+    "total": 150,
+    "limit": 50,
+    "offset": 0
+  }
+}
+Détail d'un monstre
+Réponse :
+
+{
+  "data": {
+    "id": 456,
+    "name": { "fr": "Tofu Maléfique", "en": "Evil Tofu", "es": "Tofu Maléfico" },
+    "image": "tofu_malefique.png",
+    "level_min": 50,
+    "level_max": 60,
+    "type": {
+      "id": 3,
+      "name": { "fr": "Archimonstre", "en": "Archmonster", "es": "Archimonstruo" }
+    },
+    "reference": {
+      "id": 123,
+      "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" }
+    },
+    "zones": [
+      {
+        "id": 1,
+        "name": { "fr": "Amakna", "en": "Amakna", "es": "Amakna" },
+        "subzones": [
+          {
+            "id": 10,
+            "name": { "fr": "Plaine des Scarafeuilles", "en": "Scaraleaf Plain", "es": "Llanura de los Escarabajos" }
+          },
+          {
+            "id": 11,
+            "name": { "fr": "Forêt des Abraknydes", "en": "Treechnid Forest", "es": "Bosque de los Arbraknidos" }
+          }
+        ]
+      }
+    ]
+  }
+}
+Note : Le champ reference n'apparaît que pour les archimonstres et indique le monstre de base correspondant. Le champ zones contient la liste des zones où le monstre peut être trouvé, avec leurs sous-zones respectives.
+
+Types de monstres
+Méthode	Endpoint	Description
+GET	/v1/monster-types	Liste tous les types de monstres
+GET	/v1/monster-types/{id}	Détails d'un type spécifique
+Réponse (liste) :
+
+{
+  "data": [
+    {
+      "id": 1,
+      "name": { "fr": "Monstre", "en": "Monster", "es": "Monstruo" }
+    },
+    {
+      "id": 2,
+      "name": { "fr": "Boss", "en": "Boss", "es": "Jefe" }
+    },
+    {
+      "id": 3,
+      "name": { "fr": "Archimonstre", "en": "Archmonster", "es": "Archimonstruo" }
+    }
+  ]
+}
+Modèles de quête
+Les modèles de quête décrivent la liste des monstres à capturer pour chaque version du jeu.
+
+Méthode	Endpoint	Description
+GET	/v1/quest-templates	Liste des modèles par version du jeu
+GET	/v1/quest-templates/{id}	Détails d'un modèle avec ses monstres
+Liste des modèles
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 1,
+      "game_version": { "id": 1, "name": "Dofus (Unity)" },
+      "monster_count": 620,
+      "step_count": 200
+    },
+    {
+      "id": 2,
+      "game_version": { "id": 2, "name": "Dofus Retro" },
+      "monster_count": 450,
+      "step_count": 150
+    }
+  ]
+}
+Détail d'un modèle
+Retourne un modèle avec la liste de ses monstres. Supporte la pagination et le filtre par étape.
+
+Paramètres de requête :
+
+step (optionnel) : Filtrer par numéro d'étape
+limit (optionnel) : Nombre de résultats (défaut : 50, max : 200)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Exemple :
+
+GET /v1/quest-templates/1?step=15&limit=50&offset=0
+Réponse :
+
+{
+  "data": {
+    "id": 1,
+    "game_version": { "id": 1, "name": "Dofus (Unity)" },
+    "monsters": [
+      {
+        "id": 123,
+        "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+        "image": "tofu.png",
+        "level_min": 1,
+        "level_max": 10,
+        "type": {
+          "id": 1,
+          "name": { "fr": "Monstre", "en": "Monster", "es": "Monstruo" }
+        },
+        "step": 15
+      }
+    ],
+    "pagination": {
+      "total": 620,
+      "limit": 50,
+      "offset": 0
+    }
+  }
+}
+Zones
+Les zones et sous-zones représentent les lieux du jeu où les monstres peuvent être trouvés.
+
+Méthode	Endpoint	Description
+GET	/v1/zones	Liste toutes les zones
+GET	/v1/zones/{id}	Détails d'une zone avec ses sous-zones
+GET	/v1/zones/{id}/subzones	Liste des sous-zones d'une zone
+GET	/v1/zones/{id}/subzones/{subzoneId}	Détails d'une sous-zone
+GET	/v1/zones/{id}/subzones/{subzoneId}/monsters	Liste des monstres d'une sous-zone
+Liste des zones
+Paramètres de requête :
+
+q (optionnel) : Recherche par nom (français, anglais ou espagnol) - minimum 3 caractères
+Exemple :
+
+GET /v1/zones?q=ama
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 1,
+      "name": { "fr": "Amakna", "en": "Amakna", "es": "Amakna" }
+    },
+    {
+      "id": 2,
+      "name": { "fr": "Île de Pandala", "en": "Pandala Island", "es": "Isla de Pandala" }
+    }
+  ]
+}
+Détail d'une zone
+Retourne une zone avec la liste de ses sous-zones.
+
+Réponse :
+
+{
+  "data": {
+    "id": 1,
+    "name": { "fr": "Amakna", "en": "Amakna", "es": "Amakna" },
+    "subzones": [
+      {
+        "id": 10,
+        "name": { "fr": "Plaine des Scarafeuilles", "en": "Scaraleaf Plain", "es": "Llanura de los Escarabajos" }
+      },
+      {
+        "id": 11,
+        "name": { "fr": "Forêt des Abraknydes", "en": "Treechnid Forest", "es": "Bosque de los Arbraknidos" }
+      }
+    ]
+  }
+}
+Liste des sous-zones
+Paramètres de requête :
+
+q (optionnel) : Recherche par nom (français, anglais ou espagnol) - minimum 3 caractères
+Exemple :
+
+GET /v1/zones/1/subzones?q=plaine
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 10,
+      "name": { "fr": "Plaine des Scarafeuilles", "en": "Scaraleaf Plain", "es": "Llanura de los Escarabajos" }
+    }
+  ]
+}
+Détail d'une sous-zone
+Réponse :
+
+{
+  "data": {
+    "id": 10,
+    "name": { "fr": "Plaine des Scarafeuilles", "en": "Scaraleaf Plain", "es": "Llanura de los Escarabajos" },
+    "zone": {
+      "id": 1,
+      "name": { "fr": "Amakna", "en": "Amakna", "es": "Amakna" }
+    }
+  }
+}
+Monstres d'une sous-zone
+Liste tous les monstres pouvant être trouvés dans une sous-zone.
+
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 123,
+      "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+      "image": "tofu.png",
+      "level_min": 1,
+      "level_max": 10,
+      "type": {
+        "id": 1,
+        "name": { "fr": "Monstre", "en": "Monster", "es": "Monstruo" }
+      }
+    },
+    {
+      "id": 456,
+      "name": { "fr": "Tofu Maléfique", "en": "Evil Tofu", "es": "Tofu Maléfico" },
+      "image": "tofu_malefique.png",
+      "level_min": 50,
+      "level_max": 60,
+      "type": {
+        "id": 3,
+        "name": { "fr": "Archimonstre", "en": "Archmonster", "es": "Archimonstruo" }
+      },
+      "reference": {
+        "id": 123,
+        "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" }
+      }
+    }
+  ]
+}

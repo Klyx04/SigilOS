@@ -86,19 +86,28 @@ export const prisma = basePrisma.$extends({
         account: {
             access_token: {
                 needs: { access_token: true },
-                compute(account: any) { return account.access_token ? decrypt(account.access_token) : account.access_token; }
+                compute(account: any) {
+                    if (!account.access_token) return account.access_token;
+                    return decrypt(account.access_token);
+                }
             }
         },
         guildConfig: {
             metamobApiKey: {
                 needs: { metamobApiKey: true },
-                compute(config: any) { return config.metamobApiKey ? decrypt(config.metamobApiKey) : config.metamobApiKey; }
+                compute(config: any) {
+                    if (!config.metamobApiKey) return config.metamobApiKey;
+                    return decrypt(config.metamobApiKey);
+                }
             }
         },
         userProfile: {
             metamobApiKey: {
                 needs: { metamobApiKey: true },
-                compute(profile: any) { return profile.metamobApiKey ? decrypt(profile.metamobApiKey) : profile.metamobApiKey; }
+                compute(profile: any) {
+                    if (!profile.metamobApiKey) return profile.metamobApiKey;
+                    return decrypt(profile.metamobApiKey);
+                }
             }
         }
     }

@@ -18,12 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ProgressRing } from "./progress-ring";
+import { Progress } from "@/components/ui/progress";
+// import { ProgressRing } from "./progress-ring"; // Removed as we use bars now
 import { OcreStatCard, StatsGrid } from "./ocre-stats";
 import { OcreMonsterCard } from "./ocre-monster-card";
 import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } from "./ocre-filter-bar";
 import {
-    refreshOcreCache,
+    forceRefreshOcre,
     getGuildExchangeMap,
     findOcreExchangePartners,
     type OcreProgressData,
@@ -46,8 +47,8 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         selectedType: "all",
         selectedStep: "all",
         selectedZone: "all",
+        minQuantity: 0,
         sortBy: "step-asc",
-        showExchangeableOnly: false,
     });
 
     // Other state
@@ -65,10 +66,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         }
         setExchangeMapLoading(false);
     }, [guildId]);
-
-    useEffect(() => {
-        loadExchangeMap();
-    }, [loadExchangeMap]);
 
     // Extract unique steps and zones from monsters
     const { steps, zones } = useMemo(() => {
@@ -95,11 +92,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         };
     }, [data.monsters]);
 
-    // Count monsters with available exchanges
-    const monstersWithExchanges = useMemo(() => {
-        return manquants.filter((m) => exchangeMap[m.id] && exchangeMap[m.id] > 0).length;
-    }, [manquants, exchangeMap]);
-
     // Sort function
     const sortMonsters = (monsters: OcreMonster[]): OcreMonster[] => {
         return [...monsters].sort((a, b) => {
@@ -119,7 +111,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
     };
 
     // Filter function
-    const filterMonsters = (monsters: OcreMonster[], applyExchangeFilter = false) => {
+    const filterMonsters = (monsters: OcreMonster[]) => {
         let filtered = monsters;
 
         // Filter by type
@@ -138,6 +130,11 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
             filtered = filtered.filter((m) => m.zone === filters.selectedZone);
         }
 
+        // Filter by min quantity
+        if (filters.minQuantity > 0) {
+            filtered = filtered.filter((m) => (m.owned || 0) >= filters.minQuantity);
+        }
+
         // Filter by search query
         if (filters.searchQuery.trim()) {
             const query = filters.searchQuery.toLowerCase();
@@ -145,11 +142,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                 m.name.toLowerCase().includes(query) ||
                 (m.zone && m.zone.toLowerCase().includes(query))
             );
-        }
-
-        // Filter exchangeable only
-        if (applyExchangeFilter && filters.showExchangeableOnly) {
-            filtered = filtered.filter((m) => exchangeMap[m.id] && exchangeMap[m.id] > 0);
         }
 
         // Apply sorting
@@ -166,12 +158,12 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
     // Handlers
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        const result = await refreshOcreCache(guildId);
+        const result = await forceRefreshOcre(guildId);
         if (result.success) {
             if (result.data?.questUpdated) {
                 toast.success("🎉 Nouvelle quête détectée et mise à jour !");
             } else {
-                toast.success("Synchronisation réussie !");
+                toast.success("Synchronisation forcée réussie !");
             }
             setTimeout(() => window.location.reload(), 500);
         } else {
@@ -189,26 +181,46 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         return [];
     };
 
+    // Progress Calculation Helpers
+    const getProgressColor = (current: number, total: number) => {
+        if (current === total) return "bg-emerald-500";
+        if (current > total * 0.7) return "bg-emerald-400";
+        if (current > total * 0.3) return "bg-amber-400";
+        return "bg-red-400";
+    };
+
+    const renderProgressBar = (label: string, category: { total: number; gathered: number }) => {
+        if (!category) return null;
+        const total = category.total || 1; // Avoid div by zero
+        const percent = Math.min(100, Math.round((category.gathered / total) * 100));
+        return (
+            <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-muted-foreground">{label}</span>
+                    <span className="text-muted-foreground">
+                        <span className={category.gathered === total ? "text-emerald-500 font-bold" : "text-foreground"}>
+                            {category.gathered}
+                        </span>
+                        /{total}
+                    </span>
+                </div>
+                <Progress value={percent} className="h-1.5" indicatorClassName={getProgressColor(category.gathered, total)} />
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
-            {/* Header with Progress */}
+            {/* Header with Progress (Metamob Style) */}
             <div className="flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card/50 to-card/30 border border-amber-500/20 backdrop-blur-xl">
-                <ProgressRing
-                    progress={data.stats.progressPercent}
-                    size={130}
-                    strokeWidth={10}
-                    label="Progression"
-                    sublabel={`${data.stats.total - data.stats.manquants}/${data.stats.total}`}
-                />
-
-                <div className="flex-1 text-center md:text-left">
+                <div className="flex-1 md:w-1/2">
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
                         Quête de l&apos;Éternelle Moisson
                     </h2>
                     <p className="text-muted-foreground mt-1">
                         {data.questInfo.characterName} • {data.questInfo.serverName}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-3 justify-center md:justify-start">
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                         <Badge variant="outline" className="border-amber-500/30 text-amber-400">
                             📍 Étape {data.questInfo.currentStep}/{data.questInfo.totalSteps}
                         </Badge>
@@ -217,12 +229,30 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                                 🔄 {data.questInfo.parallelQuests} quêtes parallèles
                             </Badge>
                         )}
-                        {!exchangeMapLoading && monstersWithExchanges > 0 && (
-                            <Badge className="bg-emerald-600 text-white">
-                                ✨ {monstersWithExchanges} échangeables dans la guilde
-                            </Badge>
-                        )}
+                        <Badge variant="outline" className="border-purple-500/30 text-purple-400">
+                            ⚡ {data.stats.progressPercent}% Global
+                        </Badge>
                     </div>
+                </div>
+
+                <div className="absolute top-6 right-6 flex flex-col items-end gap-1">
+                    <span className="text-xs text-muted-foreground/60 font-medium uppercase tracking-wider">
+                        Dernière synchro
+                    </span>
+                    <span className="text-xs text-zinc-400 bg-black/20 px-2 py-1 rounded-md border border-white/5 font-mono">
+                        {data.lastSync ? new Date(data.lastSync).toLocaleString("fr-FR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        }) : "Jamais"}
+                    </span>
+                </div>
+
+                <div className="w-full md:w-1/2 grid gap-4">
+                    {renderProgressBar("Monstres", data.stats.monsters)}
+                    {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
+                    {renderProgressBar("Archimonstres", data.stats.archis)}
                 </div>
             </div>
 
@@ -240,22 +270,17 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                     value={data.stats.manquants}
                     icon={AlertTriangle}
                     color="red"
-                    subValue={
-                        !exchangeMapLoading && monstersWithExchanges > 0
-                            ? `${monstersWithExchanges} échangeables`
-                            : undefined
-                    }
                     delay={0.1}
                 />
                 <OcreStatCard
-                    label="Possédés"
+                    label="Possédés (Min 1)"
                     value={data.stats.possedes}
                     icon={Package}
                     color="green"
                     delay={0.2}
                 />
                 <OcreStatCard
-                    label="Doublons"
+                    label="Doublons (Min 2)"
                     value={data.stats.doublons}
                     icon={Gift}
                     color="amber"
@@ -263,25 +288,25 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                 />
             </StatsGrid>
 
-            {/* New Filter Bar */}
+            {/* Filter Bar */}
             <OcreFilterBar
                 filters={filters}
                 onFiltersChange={setFilters}
                 steps={steps}
                 zones={zones}
-                exchangeableCount={exchangeMapLoading ? 0 : monstersWithExchanges}
                 isRefreshing={isRefreshing}
                 onRefresh={handleRefresh}
+                guildId={guildId}
             />
 
             {/* Tabs */}
             <Tabs defaultValue="manquants" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 bg-card/30 backdrop-blur-sm border border-white/10">
-                    <TabsTrigger value="manquants" className="gap-2 data-[state=active]:bg-red-500/20">
-                        <span className="text-red-400">●</span>
+                    <TabsTrigger value="manquants" className="gap-2 data-[state=active]:bg-zinc-800">
+                        <span className="text-zinc-400">●</span>
                         <span className="hidden sm:inline">Manquants</span>
                         <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                            {filterMonsters(manquants, true).length}
+                            {filterMonsters(manquants).length}
                         </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="possedes" className="gap-2 data-[state=active]:bg-emerald-500/20">
@@ -302,14 +327,12 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
                 <TabsContent value="manquants" className="mt-6">
                     <MonsterGrid
-                        monsters={filterMonsters(manquants, true)}
+                        monsters={filterMonsters(manquants)}
                         guildId={guildId}
                         exchangeMap={exchangeMap}
                         emptyMessage={
                             filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
-                                ? filters.showExchangeableOnly
-                                    ? "Aucun monstre échangeable ne correspond aux filtres"
-                                    : "Aucun monstre ne correspond aux filtres"
+                                ? "Aucun monstre ne correspond aux filtres"
                                 : "Félicitations ! Vous avez tous les monstres ! 🎉"
                         }
                         currentPage={currentPage}

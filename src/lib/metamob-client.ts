@@ -12,7 +12,6 @@ import { z } from "zod";
 // -----------------------------------------------------------------------------
 
 const METAMOB_API_BASE = "https://www.metamob.fr/api";
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 // -----------------------------------------------------------------------------
 // ZOD SCHEMAS - API V2 Response Formats
@@ -74,10 +73,28 @@ const MonsterSchema = z.object({
     })).optional(),
 });
 
+const QuestMonsterSchema = z.object({
+    id: z.coerce.number(),
+    monster_id: z.coerce.number().optional(),
+    name: LocalizedNameSchema,
+    image: z.string().optional().nullable(),
+    level_min: z.coerce.number().optional().nullable(),
+    level_max: z.coerce.number().optional().nullable(),
+    type: MonsterTypeSchema.optional().nullable(),
+    step: z.coerce.number().optional().nullable(),
+    owned: z.coerce.number().optional().nullable(),
+    amount: z.coerce.number().optional().nullable(),
+    quantity: z.coerce.number().optional().nullable(),
+    quantite: z.coerce.number().optional().nullable(),
+    status: z.coerce.number().optional().nullable(),
+    want: z.coerce.number().optional().nullable(),
+    offer: z.coerce.number().optional().nullable(),
+});
+
 const QuestTemplateSchema = z.object({
     id: z.number(),
-    monster_count: z.number(),
-    step_count: z.number(),
+    monster_count: z.number().optional(),
+    step_count: z.number().optional(),
     game_version: GameVersionSchema.optional(),
 });
 
@@ -92,6 +109,11 @@ const UserQuestSchema = z.object({
     quest_template: QuestTemplateSchema,
 });
 
+const QuestTemplateDetailsSchema = QuestTemplateSchema.extend({
+    monsters: z.array(QuestMonsterSchema),
+    pagination: PaginationSchema,
+});
+
 const UserProfileSchema = z.object({
     username: z.string(),
     bio: z.string().nullable().optional(),
@@ -99,20 +121,6 @@ const UserProfileSchema = z.object({
     created_at: z.string().optional(),
     last_active: z.string().optional(),
     quests: z.array(UserQuestSchema).optional(),
-});
-
-const QuestMonsterSchema = z.object({
-    id: z.number(),
-    name: LocalizedNameSchema,
-    image: z.string(),
-    level_min: z.number(),
-    level_max: z.number(),
-    type: MonsterTypeSchema,
-    step: z.number().optional(),
-    owned: z.number().optional(),
-    status: z.number().optional(),
-    want: z.number().optional(),
-    offer: z.number().optional(),
 });
 
 const QuestDetailsSchema = z.object({
@@ -183,6 +191,7 @@ export type Monster = z.infer<typeof MonsterSchema>;
 export type MonsterType = z.infer<typeof MonsterTypeSchema>;
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 export type UserQuest = z.infer<typeof UserQuestSchema>;
+export type QuestTemplate = z.infer<typeof QuestTemplateSchema>;
 export type QuestDetails = z.infer<typeof QuestDetailsSchema>;
 export type QuestMonster = z.infer<typeof QuestMonsterSchema>;
 export type MatchPartner = z.infer<typeof MatchPartnerSchema>;
@@ -229,44 +238,13 @@ export interface OcreMonster {
 }
 
 // -----------------------------------------------------------------------------
-// CACHE SYSTEM
+// CACHE SYSTEM (Delegated to Next.js Data Cache)
 // -----------------------------------------------------------------------------
 
-interface CachedData<T> {
-    data: T;
-    fetchedAt: number;
-}
-
-const cache = new Map<string, CachedData<unknown>>();
-
-function isCacheValid<T>(key: string): CachedData<T> | null {
-    const cached = cache.get(key) as CachedData<T> | undefined;
-    if (!cached) return null;
-    if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
-        cache.delete(key);
-        return null;
-    }
-    return cached;
-}
-
-function setCache<T>(key: string, data: T): void {
-    cache.set(key, { data, fetchedAt: Date.now() });
-}
-
 export function clearCache(pattern?: string): void {
-    if (pattern) {
-        const lowerPattern = pattern.toLowerCase();
-        for (const key of cache.keys()) {
-            if (key.toLowerCase().includes(lowerPattern)) {
-                cache.delete(key);
-            }
-        }
-    } else {
-        cache.clear();
-    }
+    // No-op: handled via revalidateTag in server actions
 }
 
-/** Legacy alias */
 export function clearMonsterCache(pseudo: string): void {
     clearCache(pseudo);
 }
@@ -278,6 +256,9 @@ export function clearMonsterCache(pseudo: string): void {
 export interface FetchOptions {
     guildApiKey?: string | null;
     skipCache?: boolean;
+    tags?: string[];
+    revalidate?: number;
+    offset?: number;
 }
 
 export class MetamobApiError extends Error {
@@ -293,32 +274,67 @@ async function fetchApi<T>(
     schema: z.ZodSchema<T>,
     options: FetchOptions = {}
 ): Promise<T> {
-    const apiKey = options.guildApiKey || process.env.METAMOB_API_KEY;
+    // STRATEGY: No dynamic fallback to process.env.METAMOB_API_KEY for user-specific calls.
+    // This fixed the persistent 401 errors when the global key was invalid.
+    const apiKey = options.guildApiKey;
 
-    if (!apiKey) throw new MetamobApiError("API_KEY_MISSING", "Clé API Metamob non configurée");
-
-    const cacheKey = `metamob:${endpoint}`;
-    if (!options.skipCache) {
-        const cached = isCacheValid<T>(cacheKey);
-        if (cached) return cached.data;
+    const headers: Record<string, string> = { "Accept": "application/json" };
+    if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    const fetchOptions: RequestInit = {
+        headers,
+        next: {
+            revalidate: options.skipCache ? 0 : (options.revalidate ?? 3600),
+            tags: options.tags
+        }
+    };
+
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
-            headers: { "Accept": "application/json", "Authorization": `Bearer ${apiKey}` },
-            next: { revalidate: 0 },
-        });
+        let response = await fetch(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
+
+        // [Robustness] Handle 401/403 gracefully
+        if (response.status === 401 || response.status === 403) {
+            const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+
+            if (apiKey) {
+                // If it's a user resource, DO NOT fallback to anonymous.
+                // Anonymous requests to private quests return success:true but [] monsters, which is misleading.
+                if (isUserResource) {
+                    throw new MetamobApiError("UNAUTHORIZED", "Accès refusé : Ce compte Metamob est privé ou la clé API est invalide.");
+                }
+
+                // For global resources (templates, etc), try once more WITHOUT the key
+                // in case a bad Guild/Global key is blocking public data.
+                console.warn(`[Metamob] ${response.status} with key on global resource. Retrying without Authorization...`);
+                const pHeaders = { ...headers };
+                delete pHeaders["Authorization"];
+                const publicOptions = { ...fetchOptions, headers: pHeaders, next: { ...fetchOptions.next, revalidate: 0 } };
+                const retryResponse = await fetch(`${METAMOB_API_BASE}${endpoint}`, publicOptions);
+
+                if (retryResponse.ok) {
+                    const json = await retryResponse.json();
+                    const data = json.data !== undefined ? json.data : json;
+                    return schema.parse(data);
+                }
+
+                if (retryResponse.status === 401 || retryResponse.status === 403) {
+                    throw new MetamobApiError("UNAUTHORIZED", "Accès refusé : Une clé API valide est requise pour cette ressource.");
+                }
+
+                throw new MetamobApiError("INVALID_API_KEY", "Clé API Metamob invalide ou expirée.");
+            } else {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé : Authentification requise.");
+            }
+        }
 
         if (response.status === 404) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
-        if (response.status === 401) throw new MetamobApiError("API_KEY_INVALID", "Clé API invalide");
-        if (!response.ok) throw new MetamobApiError("API_ERROR", `Erreur ${response.status}`);
+        if (!response.ok) throw new MetamobApiError("API_ERROR", `Erreur ${response.status} de l'API`);
 
         const json = await response.json();
         const data = json.data !== undefined ? json.data : json;
-        const parsed = schema.parse(data);
-
-        setCache(cacheKey, parsed);
-        return parsed;
+        return schema.parse(data);
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
         if (error instanceof z.ZodError) {
@@ -334,35 +350,78 @@ async function fetchPaginatedApi<T>(
     itemSchema: z.ZodSchema<T>,
     options: FetchOptions & { limit?: number; offset?: number } = {}
 ): Promise<{ data: T[]; pagination: z.infer<typeof PaginationSchema> }> {
-    const apiKey = options.guildApiKey || process.env.METAMOB_API_KEY;
-    if (!apiKey) throw new MetamobApiError("API_KEY_MISSING", "Clé API Metamob non configurée");
-
+    const apiKey = options.guildApiKey;
     const params = new URLSearchParams();
-    if (options.limit) params.set("limit", options.limit.toString());
+
+    // Official doc says limit max is 200
+    const finalLimit = Math.min(options.limit || 50, 200);
+    params.set("limit", finalLimit.toString());
     if (options.offset) params.set("offset", options.offset.toString());
-
     const fullEndpoint = `${endpoint}${endpoint.includes("?") ? "&" : "?"}${params}`;
-    const cacheKey = `metamob:${fullEndpoint}`;
 
-    if (!options.skipCache) {
-        const cached = isCacheValid<{ data: T[]; pagination: z.infer<typeof PaginationSchema> }>(cacheKey);
-        if (cached) return cached.data;
+    const headers: Record<string, string> = { "Accept": "application/json" };
+    if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
-        headers: { "Accept": "application/json", "Authorization": `Bearer ${apiKey}` },
-        next: { revalidate: 0 },
-    });
+    const fetchOptions: RequestInit = {
+        headers,
+        next: {
+            revalidate: options.skipCache ? 0 : (options.revalidate ?? 3600),
+            tags: options.tags
+        }
+    };
 
-    if (!response.ok) throw new MetamobApiError("API_ERROR", `Erreur ${response.status}`);
+    try {
+        let response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
 
-    const json = await response.json();
-    const items = z.array(itemSchema).parse(json.data || []);
-    const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
+        // [Robustness] 401/403 handling for paginated
+        if ((response.status === 401 || response.status === 403) && apiKey) {
+            const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
 
-    const result = { data: items, pagination };
-    setCache(cacheKey, result);
-    return result;
+            // If it's a user resource, DO NOT fallback to anonymous.
+            if (!isUserResource) {
+                console.warn(`[Metamob] ${response.status} with key on global resource. Retrying without Authorization...`);
+                const pHeaders = { ...headers };
+                delete pHeaders["Authorization"];
+                const publicOptions = { ...fetchOptions, headers: pHeaders, next: { ...fetchOptions.next, revalidate: 0 } };
+                const retryResponse = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, publicOptions);
+
+                if (retryResponse.ok) {
+                    const json = await retryResponse.json();
+                    const items = z.array(itemSchema).parse(json.data || []);
+                    const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
+                    return { data: items, pagination };
+                }
+            }
+
+            // If we reach here, either retry failed or it's a private user resource
+            const message = isUserResource
+                ? "Accès refusé : Ce compte Metamob est privé."
+                : "Accès refusé : Clé API invalide ou accès restreint.";
+            throw new MetamobApiError("UNAUTHORIZED", message);
+        }
+
+        if (!response.ok) {
+            if (response.status === 404) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
+            if (response.status === 401 || response.status === 403) {
+                const message = apiKey
+                    ? "Accès refusé : Clé API invalide ou compte privé."
+                    : "Accès refusé : Ce compte Metamob est privé.";
+                throw new MetamobApiError("UNAUTHORIZED", message);
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} de l'API`);
+        }
+
+        const json = await response.json();
+        const items = z.array(itemSchema).parse(json.data || []);
+        const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
+
+        return { data: items, pagination };
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur lors de la récupération des données paginées");
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -370,11 +429,17 @@ async function fetchPaginatedApi<T>(
 // -----------------------------------------------------------------------------
 
 export async function getUserProfile(username: string, options?: FetchOptions): Promise<UserProfile> {
-    return fetchApi(`/v1/users/${encodeURIComponent(username)}`, UserProfileSchema, options);
+    return fetchApi(`/v1/users/${encodeURIComponent(username)}`, UserProfileSchema, {
+        ...options,
+        tags: [`metamob-user-${username.toLowerCase()}`]
+    });
 }
 
 export async function getUserQuests(username: string, options?: FetchOptions): Promise<UserQuest[]> {
-    const result = await fetchPaginatedApi(`/v1/users/${encodeURIComponent(username)}/quests`, UserQuestSchema, options);
+    const result = await fetchPaginatedApi(`/v1/users/${encodeURIComponent(username)}/quests`, UserQuestSchema, {
+        ...options,
+        tags: [`metamob-user-${username.toLowerCase()}`]
+    });
     return result.data;
 }
 
@@ -389,7 +454,21 @@ export async function getQuestDetails(
     if (options?.status) params.set("status", options.status);
     if (options?.step) params.set("step", options.step.toString());
     const qs = params.toString();
-    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`, QuestDetailsSchema, options);
+    try {
+        return await fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`, QuestDetailsSchema, {
+            ...options,
+            tags: [`metamob-user-${username.toLowerCase()}`]
+        });
+    } catch (error) {
+        // If getting user-specific quest fails with INVALID_API_KEY, it might actually be a private profile
+        // because we don't know if the key is valid yet.
+        if (error instanceof MetamobApiError && error.code === "INVALID_API_KEY") {
+            // Rethrow as UNAUTHORIZED if it's a user quest, as we assume the key worked for templates before this.
+            // But better: let the caller handle it.
+            throw error;
+        }
+        throw error;
+    }
 }
 
 export async function getPrivateQuestDetails(username: string, slug: string, options?: FetchOptions & { limit?: number; offset?: number; status?: string; step?: number }): Promise<QuestDetails> {
@@ -406,8 +485,38 @@ export async function getQuestMatches(
     if (options?.limit) params.set("limit", options.limit.toString());
     if (options?.offset) params.set("offset", options.offset.toString());
     const qs = params.toString();
-    const result = await fetchPaginatedApi(`/v1/quests/${encodeURIComponent(slug)}/matches${qs ? `?${qs}` : ""}`, MatchPartnerSchema, options);
+    const result = await fetchPaginatedApi(`/v1/quests/${encodeURIComponent(slug)}/matches${qs ? `?${qs}` : ""}`, MatchPartnerSchema, {
+        ...options,
+        tags: [`metamob-quest-matches-${slug}`]
+    });
     return { matches: result.data, pagination: result.pagination };
+}
+
+export async function getQuestTemplates(options?: FetchOptions): Promise<QuestTemplate[]> {
+    const result = await fetchPaginatedApi(`/v1/quest-templates`, QuestTemplateSchema, options);
+    return result.data;
+}
+
+export async function getQuestTemplateMonsters(templateId: number, options?: FetchOptions): Promise<QuestMonster[]> {
+    const params = new URLSearchParams();
+    params.set("limit", "200");
+    if (options?.offset) params.set("offset", options.offset.toString());
+    const endpoint = `/v1/quest-templates/${templateId}?${params}`;
+
+    const result = await fetchApi(endpoint, QuestTemplateDetailsSchema, options);
+
+    let allMonsters = [...result.monsters];
+    let offset = allMonsters.length;
+
+    while (allMonsters.length < result.pagination.total) {
+        params.set("offset", offset.toString());
+        const more = await fetchApi(`/v1/quest-templates/${templateId}?${params}`, QuestTemplateDetailsSchema, options);
+        if (more.monsters.length === 0) break;
+        allMonsters = [...allMonsters, ...more.monsters];
+        offset += more.monsters.length;
+    }
+
+    return allMonsters;
 }
 
 export async function getMonsters(options?: FetchOptions & { q?: string; type?: number; limit?: number; offset?: number }): Promise<{ monsters: Monster[]; pagination: z.infer<typeof PaginationSchema> }> {
@@ -466,8 +575,15 @@ export async function getUserMonsters(username: string, options?: FetchOptions):
     const profile = await getUserProfile(username, options);
     if (!profile.quests || profile.quests.length === 0) return [];
 
-    // Find first Ocre-like quest or use the first one
-    const quest = profile.quests[0];
+    const quest = profile.quests.find(q =>
+        q.quest_template.id === 1 || // Unity (620)
+        q.quest_template.id === 2 || // Retro (450)
+        (q.quest_template.monster_count ?? 0) > 200 ||
+        q.slug.includes("moisson")
+    ) || profile.quests[0];
+
+    if (!quest) return [];
+
     const details = await getQuestDetails(username, quest.slug, { ...options, limit: 500 });
 
     return details.monsters.map(m => {
@@ -515,36 +631,55 @@ export function computeMonsterState(owned: number, parallelQuests: number = 1): 
     return "POSSEDE";
 }
 
-export function getMonsterTypeName(typeId: number): "monstre" | "boss" | "archimonstre" {
-    if (typeId === 1) return "monstre";
-    if (typeId === 2) return "boss";
-    if (typeId === 3) return "archimonstre";
+export function getMonsterTypeName(typeNameFr: string): "monstre" | "boss" | "archimonstre" {
+    const formatted = typeNameFr.toLowerCase().trim();
+    if (formatted.includes("archimonstre")) return "archimonstre";
+    if (formatted.includes("gardien") || formatted.includes("boss")) return "boss";
     return "monstre";
 }
 
 export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: number = 1): OcreMonster {
     const pq = Math.max(1, parallelQuests);
-    let owned = 0;
+    const m = monster as any;
 
-    if (monster.owned !== undefined) {
-        owned = monster.owned;
-    } else if (monster.want !== undefined || monster.offer !== undefined) {
-        const want = monster.want ?? 0;
-        const offer = monster.offer ?? 0;
-        // Logic: if I need 1 (parallelQuests) and I want 0, I have 1. Plus extras (offer).
-        owned = Math.max(0, pq - want) + offer;
+    // Use specific API fields from V2: quantity, owned, or amount
+    let owned = Math.max(
+        0,
+        m.owned ?? 0,
+        m.quantite ?? 0,
+        m.quantity ?? 0,
+        m.amount ?? 0,
+        m.monster?.owned ?? 0,
+        m.monster?.quantite ?? 0
+    );
+
+    // [V2 FIX] If owned is 0/missing, infer from want/offer/status logic
+    // status = owned - parallelQuests
+    if (owned === 0) {
+        if (m.status !== undefined) {
+            owned = Math.max(0, m.status + pq);
+        } else if (m.offer > 0) {
+            owned = pq + m.offer;
+        } else if (m.want > 0) {
+            owned = 0; // If they want it, they have less than pq
+        }
     }
+
+    // Image URL construction
+    const image = monster.image
+        ? (monster.image.startsWith('http') ? monster.image : `https://www.metamob.fr/img/monsters/${monster.image}`)
+        : "";
 
     return {
         id: monster.id,
         name: monster.name.fr,
         nameFr: monster.name.fr,
         nameEn: monster.name.en,
-        image: monster.image ? `https://www.metamob.fr/img/monsters/${monster.image}` : "",
-        levelMin: monster.level_min,
-        levelMax: monster.level_max,
-        type: getMonsterTypeName(monster.type.id),
-        typeId: monster.type.id,
+        image,
+        levelMin: monster.level_min ?? 0,
+        levelMax: monster.level_max ?? 0,
+        type: monster.type ? getMonsterTypeName(monster.type.name.fr) : "monstre",
+        typeId: monster.type?.id ?? 0,
         step: monster.step ?? 1,
         owned,
         status: monster.status ?? 0,
@@ -552,9 +687,25 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
     };
 }
 
-export async function verifyMetamobUser(username: string, options?: FetchOptions): Promise<any> {
+export async function verifyMetamobUser(username: string, options?: FetchOptions): Promise<{ pseudo: string; serveur: string | null; serverId: number | null; questSlug: string | null; characterName: string | null } | null> {
     try {
         const profile = await getUserProfile(username, options);
-        return { pseudo: profile.username, serveur: profile.quests?.[0]?.server.name || null };
-    } catch { return null; }
+        const ocreQuest = profile.quests?.find(q =>
+            q.quest_template.id === 1 || // Unity
+            q.quest_template.id === 2 || // Retro
+            (q.quest_template.monster_count ?? 0) > 200
+        );
+        const targetQuest = ocreQuest || profile.quests?.[0];
+
+        return {
+            pseudo: profile.username,
+            serveur: targetQuest?.server.name || null,
+            serverId: targetQuest?.server.id || null,
+            questSlug: targetQuest?.slug || null,
+            characterName: targetQuest?.character_name || null,
+        };
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        return null;
+    }
 }

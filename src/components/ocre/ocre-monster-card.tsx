@@ -76,7 +76,13 @@ export function OcreMonsterCard({
         setLoading(true);
         try {
             const result = await onFindExchanges();
-            setPartners(result);
+            // Filter partners to only show those who have THIS specific monster in 'monstersTheyHave'
+            // We use 'monstersTheyHave' which contains the list of surplus monsters from the partner
+            const relevantPartners = result.filter(partner =>
+                partner.monstersTheyHave.some(m => m.id === monster.id)
+            );
+
+            setPartners(relevantPartners);
             setShowPartners(true);
         } catch {
             toast.error("Erreur lors de la recherche");

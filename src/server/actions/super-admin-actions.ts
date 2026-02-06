@@ -373,7 +373,8 @@ export async function getOcrApiStats() {
     firstOfMonth.setHours(0, 0, 0, 0);
 
     // Get all usage records for last 30 days
-    const usageRecords = await db.ocrApiUsage.findMany({
+    // Note: Using 'as any' due to Prisma client cache issue with new models
+    const usageRecords = await (db as any).ocrApiUsage.findMany({
         where: { date: { gte: thirtyDaysAgo } },
         orderBy: { date: 'asc' }
     });
@@ -390,7 +391,7 @@ export async function getOcrApiStats() {
     let monthlyTotal = 0;
     let todayTotal = 0;
 
-    usageRecords.forEach((record) => {
+    usageRecords.forEach((record: { date: Date; count: number }) => {
         const dateKey = new Date(record.date).toISOString().split('T')[0];
         if (dailyMap.has(dateKey)) {
             dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + record.count);

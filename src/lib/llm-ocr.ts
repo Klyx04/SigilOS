@@ -27,7 +27,7 @@ export async function trackOcrApiUsage(endpoint: string): Promise<void> {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        await db.ocrApiUsage.upsert({
+        await (db as any).ocrApiUsage.upsert({
             where: {
                 date_endpoint: { date: today, endpoint }
             },

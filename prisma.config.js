@@ -1,5 +1,9 @@
 // prisma.config.js
-require('dotenv').config();
+try {
+    require('dotenv').config();
+} catch (e) {
+    // Ignore, env vars are likely provided by Docker/Environment
+}
 
 // Fonction de nettoyage
 const clean = (val) => {

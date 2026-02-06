@@ -352,3 +352,64 @@ export async function cleanupOrphanedProfiles() {
     revalidatePath("/god");
     return { success: true, count: orphanIds.length, message: `${orphanIds.length} profils orphelins supprimés.` };
 }
+
+/**
+ * Get OCR API Usage Statistics for /god page
+ * Returns daily usage for the last 30 days and monthly totals
+ */
+export async function getOcrApiStats() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { daily: [], monthlyTotal: 0, todayTotal: 0 };
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const firstOfMonth = new Date();
+    firstOfMonth.setDate(1);
+    firstOfMonth.setHours(0, 0, 0, 0);
+
+    // Get all usage records for last 30 days
+    const usageRecords = await db.ocrApiUsage.findMany({
+        where: { date: { gte: thirtyDaysAgo } },
+        orderBy: { date: 'asc' }
+    });
+
+    // Group by date
+    const dailyMap = new Map<string, number>();
+    for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        dailyMap.set(d.toISOString().split('T')[0], 0);
+    }
+
+    let monthlyTotal = 0;
+    let todayTotal = 0;
+
+    usageRecords.forEach((record) => {
+        const dateKey = new Date(record.date).toISOString().split('T')[0];
+        if (dailyMap.has(dateKey)) {
+            dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + record.count);
+        }
+
+        if (new Date(record.date) >= firstOfMonth) {
+            monthlyTotal += record.count;
+        }
+
+        if (new Date(record.date).toISOString().split('T')[0] === today.toISOString().split('T')[0]) {
+            todayTotal += record.count;
+        }
+    });
+
+    return {
+        daily: Array.from(dailyMap.entries())
+            .map(([date, count]) => ({ date, count }))
+            .sort((a, b) => a.date.localeCompare(b.date)),
+        monthlyTotal,
+        todayTotal
+    };
+}

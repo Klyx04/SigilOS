@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isSuperAdmin, getAllowedGuilds, getPlatformStats, getRegistrationStats, getGhostUsers } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, getAllowedGuilds, getPlatformStats, getRegistrationStats, getGhostUsers, getOcrApiStats } from "@/server/actions/super-admin-actions";
 import { GuildManager } from "./guild-manager";
 import { JanitorButton } from "./janitor-button";
 import { ActivityChart } from "./activity-chart";
@@ -15,11 +15,12 @@ export default async function SuperAdminPage() {
         redirect("/");
     }
 
-    const [guilds, stats, chartData, ghostUsers] = await Promise.all([
+    const [guilds, stats, chartData, ghostUsers, ocrStats] = await Promise.all([
         getAllowedGuilds(),
         getPlatformStats(),
         getRegistrationStats(),
-        getGhostUsers()
+        getGhostUsers(),
+        getOcrApiStats()
     ]);
 
     return (
@@ -62,6 +63,27 @@ export default async function SuperAdminPage() {
 
                         {/* Side Panel (Janitor & Extra Tools) */}
                         <div className="space-y-6">
+                            {/* OCR API Usage Card */}
+                            <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-6 backdrop-blur-sm">
+                                <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                                    OCR.space API
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-2xl font-bold text-cyan-400">{ocrStats.todayTotal}</div>
+                                        <div className="text-xs text-zinc-500">Aujourd&apos;hui</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-white">{ocrStats.monthlyTotal}</div>
+                                        <div className="text-xs text-zinc-500">Ce mois</div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 text-xs text-zinc-600">
+                                    Tracking local uniquement
+                                </div>
+                            </div>
+
                             <JanitorButton />
 
                             <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-6 backdrop-blur-sm">

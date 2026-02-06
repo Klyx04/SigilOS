@@ -4,7 +4,7 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { MetamobSettingsClient } from "./_components/metamob-settings-client";
-import { Bug } from "lucide-react";
+import { Crown } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
 export default async function ArchimonstresAdminPage({
@@ -27,8 +27,8 @@ export default async function ArchimonstresAdminPage({
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
-                title="Configuration Metamob"
-                description="Gérez la clé API pour la Bourse aux Archimonstres."
+                title="Configuration Quête Ocre"
+                description="Configurez l'intégration Metamob pour la Quête Ocre."
                 imageSrc="/assets/ui/icons/archis.png"
                 backHref={`/dashboard/${guildId}/admin/settings`}
             />
@@ -38,12 +38,12 @@ export default async function ArchimonstresAdminPage({
 
             {/* Info Card */}
             <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20 flex gap-3">
-                <Bug className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                    <p className="text-amber-300 font-medium">Pourquoi configurer une clé API ?</p>
+                    <p className="text-amber-300 font-medium">Clé API requise</p>
                     <p className="text-muted-foreground mt-1">
-                        Une clé API spécifique à votre guilde permet d'éviter les limites de rate-limiting
-                        partagées. Si non configurée, la clé globale de l'application sera utilisée.
+                        Chaque guilde doit configurer sa propre clé API Metamob pour utiliser le module Quête Ocre.
+                        Cette clé permet de récupérer les données de vos membres depuis metamob.fr.
                     </p>
                 </div>
             </div>

@@ -21,7 +21,8 @@ import {
     Key, // New for Services (Passages)
     Users,
     Trophy,
-    Ghost, // New for Archimonstres
+    Ghost, // Legacy for Archimonstres
+    Crown, // New for Quête Ocre
     Sparkles,
     ScrollText,
     Dna
@@ -90,7 +91,7 @@ export function GalacticHeader({
     const NAV_GROUP_FEATURES = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", shadow: "shadow-emerald-500/50", visible: user.canViewMissions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", shadow: "shadow-fuchsia-500/50", visible: user.canViewSonges },
-        { name: "Bourse", href: `/dashboard/${guildId}/archimonstres`, icon: Ghost, color: "text-amber-400", shadow: "shadow-amber-500/50", visible: user.canViewArchis },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", shadow: "shadow-amber-500/50", visible: user.canViewArchis },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", shadow: "shadow-yellow-500/50", visible: user.canViewLadder },
     ];
 

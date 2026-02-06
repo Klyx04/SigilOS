@@ -24,7 +24,7 @@ import {
     type DoublonsMapData
 } from "@/server/actions/metamob-actions";
 import { toast } from "sonner";
-import type { MetamobMonster } from "@/lib/metamob-api";
+import type { MetamobMonster } from "@/lib/metamob-client";
 
 interface ArchiHubProps {
     data: MyArchimonstresData;
@@ -93,7 +93,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
             filtered = filtered.filter(
                 (m) =>
                     m.nom.toLowerCase().includes(query) ||
-                    m.zone.toLowerCase().includes(query) ||
+                    (m.zone && m.zone.toLowerCase().includes(query)) ||
                     (m.souszone && m.souszone.toLowerCase().includes(query))
             );
         }

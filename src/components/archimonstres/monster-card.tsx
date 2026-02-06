@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Check, Loader2, MapPin, User, Users, Sparkles } from "lucide-react";
-import type { MetamobMonster, MonsterOwner } from "@/lib/metamob-api";
+import type { MetamobMonster, MonsterOwner } from "@/lib/metamob-client";
 import { findExchangePartners } from "@/server/actions/metamob-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

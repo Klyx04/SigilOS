@@ -25,10 +25,22 @@ sudo docker volume prune -f
 
 # 2. Nettoyage Système (APT & Logs)
 echo "📟 Nettoyage Système..."
+sudo apt-get update -q
 sudo apt-get autoremove -y && sudo apt-get autoclean
 sudo journalctl --vacuum-time=7d
 
-# 3. Vérification de l'espace disque
+# 3. Rotation des Logs Locaux (SigilOS)
+echo "📜 Rotation des logs locaux..."
+LOG_DIR="$(dirname "$0")/../logs"
+find "$LOG_DIR" -name "*.log" -size +10M -type f -exec mv {} {}.old \;
+find "$LOG_DIR" -name "*.old" -mtime +7 -delete
+
+# Rotation simple pour backup.log (Garder les 2000 dernières lignes)
+if [ -f "$LOG_DIR/backup.log" ]; then
+    tail -n 2000 "$LOG_DIR/backup.log" > "$LOG_DIR/backup.log.tmp" && mv "$LOG_DIR/backup.log.tmp" "$LOG_DIR/backup.log"
+fi
+
+# 4. Vérification de l'espace disque
 DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
 if [ "$DISK_USAGE" -gt 85 ]; then
     echo "⚠️ Alerte : Disque saturé à $DISK_USAGE%"

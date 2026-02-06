@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getMyArchimonsters } from "@/server/actions/metamob-actions";
+import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { ArchiHub } from "@/components/archimonstres/archi-hub";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -28,7 +28,7 @@ export default async function ArchimonstresPage({
     }
 
     // Fetch user's archimonster data
-    const archiResponse = await getMyArchimonsters(guildId);
+    const archiResponse = await getMyOcreProgress(guildId);
 
     // ... (inside the component)
 

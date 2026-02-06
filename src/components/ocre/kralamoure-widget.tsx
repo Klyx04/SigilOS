@@ -30,12 +30,17 @@ import { cn } from "@/lib/utils";
 import { getGuildKralamoureEvents } from "@/server/actions/ocre-actions";
 import type { KralamoureEvent } from "@/lib/metamob-client";
 
+import { importKralaEvent } from "@/server/actions/calendar-actions";
+import { toast } from "sonner";
+import { Plus } from "lucide-react";
+
 interface KralamoureWidgetProps {
     guildId: string;
     maxEvents?: number;
+    canManageCalendar?: boolean;
 }
 
-export function KralamoureWidget({ guildId, maxEvents = 3 }: KralamoureWidgetProps) {
+export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = false }: KralamoureWidgetProps) {
     const [events, setEvents] = useState<KralamoureEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -107,7 +112,13 @@ export function KralamoureWidget({ guildId, maxEvents = 3 }: KralamoureWidgetPro
                 ) : (
                     <AnimatePresence mode="popLayout">
                         {events.map((event, index) => (
-                            <KralamoureEventCard key={event.id} event={event} index={index} />
+                            <KralamoureEventCard
+                                key={event.id}
+                                event={event}
+                                index={index}
+                                canManageCalendar={canManageCalendar}
+                                guildId={guildId}
+                            />
                         ))}
                     </AnimatePresence>
                 )}
@@ -123,11 +134,14 @@ export function KralamoureWidget({ guildId, maxEvents = 3 }: KralamoureWidgetPro
 interface KralamoureEventCardProps {
     event: KralamoureEvent;
     index: number;
+    canManageCalendar: boolean;
+    guildId: string;
 }
 
-function KralamoureEventCard({ event, index }: KralamoureEventCardProps) {
+function KralamoureEventCard({ event, index, canManageCalendar, guildId }: KralamoureEventCardProps) {
     const eventTime = new Date(event.event_datetime);
     const now = new Date();
+    const [isImporting, setIsImporting] = useState(false);
 
     // Check if event is happening soon (within 15 minutes)
     const isUpcoming = isWithinInterval(eventTime, {
@@ -140,6 +154,20 @@ function KralamoureEventCard({ event, index }: KralamoureEventCardProps) {
         start: now,
         end: addMinutes(now, 5),
     });
+
+    const handleImport = async () => {
+        setIsImporting(true);
+        const result = await importKralaEvent(guildId, {
+            ...event,
+            description: event.description || ""
+        });
+        if (result.success) {
+            toast.success("Événement importé dans le calendrier !");
+        } else {
+            toast.error(result.error || "Erreur lors de l'import");
+        }
+        setIsImporting(false);
+    };
 
     return (
         <motion.div
@@ -212,23 +240,43 @@ function KralamoureEventCard({ event, index }: KralamoureEventCardProps) {
                     )}
                 </div>
 
-                {/* Time */}
-                <div className="text-right shrink-0">
-                    <p
-                        className={cn(
-                            "text-xs font-medium",
-                            isImminent
-                                ? "text-red-400"
-                                : isUpcoming
-                                    ? "text-amber-400"
-                                    : "text-purple-400"
-                        )}
-                    >
-                        {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {format(eventTime, "HH:mm", { locale: fr })}
-                    </p>
+                {/* Time & Actions */}
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="text-right">
+                        <p
+                            className={cn(
+                                "text-xs font-medium",
+                                isImminent
+                                    ? "text-red-400"
+                                    : isUpcoming
+                                        ? "text-amber-400"
+                                        : "text-purple-400"
+                            )}
+                        >
+                            {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {format(eventTime, "HH:mm", { locale: fr })}
+                        </p>
+                    </div>
+
+                    {/* Import Button */}
+                    {canManageCalendar && (
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6 mt-1 border-white/10 hover:bg-purple-500/20 hover:text-purple-400"
+                            onClick={handleImport}
+                            disabled={isImporting}
+                            title="Importer dans le calendrier"
+                        >
+                            {isImporting ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Plus className="h-3.5 w-3.5" />
+                            )}
+                        </Button>
+                    )}
                 </div>
             </div>
         </motion.div>

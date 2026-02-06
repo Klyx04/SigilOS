@@ -1,0 +1,20 @@
+Metamob a subit une refonte de la part du developpeur avec un changement sur l'api
+
+des travaux on été fait par toi meme les précédentes itérations mais c'est assez mauvaise
+Il faut tout revoir
+
+Des questions se soulèvent : 
+un membre ne peut pas saisir une clé api déjà enregistré
+un membre possède sa propre clé api lié à sn compte metamob
+à quoi sert dans les paramètres du Dashboard l'option pour entrer une clé api et à qui appartient t(elle car le compte metamob associé à la personne qui va entrer cette clé "global" à la guilde ne pourra pas entrer sa propre clé dans son profil perso ou si ?
+pourquoi la synchro ne marche pas entre les infos users du Dashboard et les infos metamob ?
+
+Il faut revoir en profondeur ce module
+
+Se baser sur l'API metamob uniquement https://www.metamob.fr/help/api 
+les interactions
+si il y n' y a pas de cochonnerie en bdd à vider ?
+
+Je n'en sais rien mais commence par audité puis soulever des interogations explicatons , aucune inventon 
+les possiblités , les non possiblités etc
+

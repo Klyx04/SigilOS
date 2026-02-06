@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Gift, Copy, Check, Bug, ExternalLink } from "lucide-react";
-import { getProfileMatchingArchis, type ProfileMatchData } from "@/server/actions/metamob-actions";
+import { getProfileMatchingArchis, type ProfileMatchData } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 
 interface ArchiMatchingWidgetProps {
@@ -30,7 +30,7 @@ export function ArchiMatchingWidget({
     const loadMatches = async () => {
         setLoading(true);
         setError(null);
-        const result = await getProfileMatchingArchis(guildId, profileId);
+        const result = await getProfileMatchingArchis({ guildId, targetProfileId: profileId });
 
         if (result.success) {
             setMatchData(result.data ?? null);

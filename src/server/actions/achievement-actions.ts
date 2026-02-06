@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { NotificationType } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
 import { PERMISSIONS } from "@/lib/permissions";
-import { checkGuildPermission } from "./mission-actions";
+import { checkGuildPermission } from "@/server/actions/user-actions";
 import { deleteProofFile } from "@/lib/storage-utils";
 
 export type ActionResponse<T = null> = {

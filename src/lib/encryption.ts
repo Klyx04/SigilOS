@@ -58,7 +58,7 @@ export function encrypt(text: string): string {
 /**
  * Decrypts a value encrypted with the above function.
  */
-export function decrypt(encryptedValue: string): string {
+export function decrypt(encryptedValue: string): string | null {
     if (!encryptedValue || !encryptedValue.includes(":")) return encryptedValue;
 
     try {
@@ -80,10 +80,8 @@ export function decrypt(encryptedValue: string): string {
 
         return decrypted;
     } catch (error) {
-        console.error("[Encryption] Decryption failed:", error);
-        // We return the original value if it's not actually encrypted or if key changed
-        // This allows for "Lazy Migration"
-        return encryptedValue;
+        console.error("[Encryption] Decryption failed. Key might have changed or data is malformed.");
+        return null;
     }
 }
 

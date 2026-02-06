@@ -224,8 +224,19 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                         <p className="font-semibold text-amber-400">Important : La clé expire après 90 jours</p>
                         <p className="text-sm text-muted-foreground mt-1">
                             Les clés API Metamob sont valides <strong className="text-amber-300">90 jours</strong>.
-                            Passé ce délai, vous devrez en générer une nouvelle sur metamob.fr et la mettre à jour ici.
-                            Si la Quête Ocre cesse de fonctionner, c&apos;est probablement la clé API qui a expiré !
+                            Passé ce délai, vous devrez mettre à jour votre clé ici OU sur votre profil Stellium.
+                        </p>
+                    </div>
+                </div>
+
+                {/* API Key Priority Note */}
+                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3">
+                    <div className="flex-shrink-0 text-2xl">🔑</div>
+                    <div>
+                        <p className="font-semibold text-blue-400">Profils Privés et Clés Personnelles</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Si votre profil Metamob est <strong className="text-blue-300">PRIVÉ</strong>, vous devez obligatoirement renseigner votre clé API personnelle dans votre <strong className="text-blue-300">Profil Stellium</strong>.
+                            La clé de guilde configurée ici ne sert que de secours pour les profils publics.
                         </p>
                     </div>
                 </div>

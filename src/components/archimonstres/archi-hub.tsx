@@ -7,6 +7,7 @@ import { MonsterCard } from "./monster-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
     Select,
     SelectContent,
@@ -18,16 +19,17 @@ import { Search, AlertTriangle, Package, Gift, Bug, RefreshCw, MapPin, Sparkles 
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import {
-    refreshMyMetamobCache,
-    getGuildDoublonsMap,
-    type MyArchimonstresData,
-    type DoublonsMapData
-} from "@/server/actions/metamob-actions";
+    forceRefreshOcre,
+    getGuildExchangeMap,
+    type OcreProgressData,
+    type GuildExchangeMapData,
+} from "@/server/actions/ocre-actions";
+import type { OcreMonster } from "@/lib/metamob-client";
 import { toast } from "sonner";
-import type { MetamobMonster } from "@/lib/metamob-client";
+
 
 interface ArchiHubProps {
-    data: MyArchimonstresData;
+    data: OcreProgressData;
     guildId: string;
 }
 
@@ -43,7 +45,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
 
     const loadDoublonsMap = async () => {
         setDoublonsLoading(true);
-        const result = await getGuildDoublonsMap(guildId);
+        const result = await getGuildExchangeMap(guildId);
         if (result.success && result.data) {
             setDoublonsMap(result.data.availableExchanges);
         }
@@ -67,9 +69,9 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
     // Categorize monsters
     const { manquants, possedes, doublons } = useMemo(() => {
         return {
-            manquants: data.monsters.filter((m) => m.etat === "MANQUANT"),
-            possedes: data.monsters.filter((m) => m.etat === "POSSEDE"),
-            doublons: data.monsters.filter((m) => m.etat === "DOUBLON"),
+            manquants: data.monsters.filter((m) => m.state === "MANQUANT"),
+            possedes: data.monsters.filter((m) => m.state === "POSSEDE"),
+            doublons: data.monsters.filter((m) => m.state === "DOUBLON"),
         };
     }, [data.monsters]);
 
@@ -79,7 +81,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
     }, [manquants, doublonsMap]);
 
     // Filter monsters by search query, zone, and exchangeable
-    const filterMonsters = (monsters: MetamobMonster[], applyExchangeFilter = false) => {
+    const filterMonsters = (monsters: OcreMonster[], applyExchangeFilter = false) => {
         let filtered = monsters;
 
         // Filter by zone
@@ -92,9 +94,9 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(
                 (m) =>
-                    m.nom.toLowerCase().includes(query) ||
+                    m.name.toLowerCase().includes(query) ||
                     (m.zone && m.zone.toLowerCase().includes(query)) ||
-                    (m.souszone && m.souszone.toLowerCase().includes(query))
+                    (m.subzone && m.subzone.toLowerCase().includes(query))
             );
         }
 
@@ -108,7 +110,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        const result = await refreshMyMetamobCache(guildId);
+        const result = await forceRefreshOcre(guildId);
         if (result.success) {
             toast.success("Données actualisées ! Rechargez la page pour voir les changements.");
             // Also refresh the doublons map
@@ -127,19 +129,68 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
 
     const hasActiveFilters = searchQuery.trim() !== "" || selectedZone !== "all" || showExchangeableOnly;
 
+
+
+    // Progress Calculation Helpers
+    const getProgressColor = (current: number, total: number) => {
+        if (current === total) return "bg-emerald-500";
+        if (current > total * 0.7) return "bg-emerald-400";
+        if (current > total * 0.3) return "bg-amber-400";
+        return "bg-red-400";
+    };
+
+    const renderProgressBar = (label: string, category: { total: number; gathered: number }, max: number) => {
+        const percent = Math.min(100, Math.round((category.gathered / max) * 100));
+        return (
+            <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-muted-foreground">{label}</span>
+                    <span className="text-muted-foreground">
+                        <span className={category.gathered === max ? "text-emerald-500 font-bold" : "text-foreground"}>
+                            {category.gathered}
+                        </span>
+                        /{max}
+                    </span>
+                </div>
+                <Progress value={percent} className="h-1.5" indicatorClassName={getProgressColor(category.gathered, max)} />
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
+            {/* Detailed Progress Section (Metamob Style) */}
+            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
+                <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-full bg-amber-500/10 text-amber-500">
+                            <span className="text-xl">🏆</span>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg">Quête de l'Éternelle Moisson</h3>
+                            <p className="text-sm text-muted-foreground">Avancement détaillé par catégorie</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-6 md:grid-cols-3">
+                        {renderProgressBar("Monstres", data.stats.monsters, data.stats.monsters.total)}
+                        {renderProgressBar("Gardiens de Donjon", data.stats.bosses, data.stats.bosses.total)}
+                        {renderProgressBar("Archimonstres", data.stats.archis, data.stats.archis.total)}
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Stats Overview */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
-                    label="Total Archimonstres"
+                    label="Total Collection"
                     value={data.stats.total}
                     icon={<Bug className="h-5 w-5" />}
                     color="text-primary"
                 />
                 <StatCard
                     label="Manquants"
-                    value={data.stats.manquants}
+                    value={manquants.length}
                     icon={<AlertTriangle className="h-5 w-5" />}
                     color="text-red-500"
                     subValue={!doublonsLoading && monstersWithExchanges > 0
@@ -150,13 +201,13 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                 />
                 <StatCard
                     label="Possédés"
-                    value={data.stats.possedes}
+                    value={possedes.length}
                     icon={<Package className="h-5 w-5" />}
                     color="text-emerald-500"
                 />
                 <StatCard
                     label="Doublons"
-                    value={data.stats.doublons}
+                    value={doublons.length}
                     icon={<Gift className="h-5 w-5" />}
                     color="text-amber-500"
                 />
@@ -347,7 +398,7 @@ function MonsterGrid({
     showOwners,
     doublonsMap,
 }: {
-    monsters: MetamobMonster[];
+    monsters: OcreMonster[];
     guildId: string;
     emptyMessage: string;
     showOwners: boolean;

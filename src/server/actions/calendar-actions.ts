@@ -257,10 +257,80 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
+        revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, eventId: event.id, discordSent };
     } catch (error) {
         console.error("[Calendar] createEvent Error:", error);
         return { success: false, error: "Erreur lors de la création de l'événement" };
+    }
+}
+
+/**
+ * Import a Kralamoure event from Metamob
+ */
+export async function importKralaEvent(guildId: string, kralaEvent: {
+    id: number;
+    event_datetime: string;
+    server: { name: string };
+    creator: string;
+    description: string;
+}) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission requise: Gérer le calendrier" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const startDate = new Date(kralaEvent.event_datetime);
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration default
+
+        // Check for duplicates (same title and start time within 5 mins)
+        const title = `Ouverture Kralamoure (${kralaEvent.server.name})`;
+        const existing = await db.guildEvent.findFirst({
+            where: {
+                guildId: guildConfig.id,
+                title: title,
+                startDate: startDate,
+            }
+        });
+
+        if (existing) {
+            return { success: false, error: "Cet événement existe déjà dans le calendrier" };
+        }
+
+        const description = [
+            `**Organisateur :** ${kralaEvent.creator}`,
+            kralaEvent.description ? `\n${kralaEvent.description}` : "",
+            `\nImporté depuis Metamob`
+        ].join("\n");
+
+        const event = await db.guildEvent.create({
+            data: {
+                guildId: guildConfig.id,
+                title: title,
+                description: description,
+                type: "EVENT_GUILD", // Use a generic event type
+                startDate: startDate,
+                endDate: endDate,
+                status: "PUBLISHED",
+                creatorId: ctx.id!,
+                recurrence: "UNIQUE",
+                location: "Antre du Kralamoure Géant (-60, -8)",
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        revalidatePath(`/dashboard/${guildId}/quete-ocre`); // Refresh widget too if needed?
+
+        return { success: true, eventId: event.id };
+    } catch (error) {
+        console.error("[Calendar] importKralaEvent Error:", error);
+        return { success: false, error: "Erreur lors de l'import" };
     }
 }
 

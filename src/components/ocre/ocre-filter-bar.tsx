@@ -26,6 +26,7 @@ import {
     ChevronDown,
     Check,
 } from "lucide-react";
+import { OcreExchangeModal } from "./ocre-exchange-modal";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -40,8 +41,8 @@ export interface OcreFilters {
     selectedType: MonsterType;
     selectedStep: string;
     selectedZone: string;
+    minQuantity: number;
     sortBy: SortOption;
-    showExchangeableOnly: boolean;
 }
 
 interface OcreFilterBarProps {
@@ -49,9 +50,9 @@ interface OcreFilterBarProps {
     onFiltersChange: (filters: OcreFilters) => void;
     steps: number[];
     zones: string[];
-    exchangeableCount: number;
     isRefreshing: boolean;
     onRefresh: () => void;
+    guildId: string;
 }
 
 // =============================================================================
@@ -72,6 +73,14 @@ const SORT_OPTIONS: Array<{ id: SortOption; label: string }> = [
     { id: "name-desc", label: "Nom Z → A" },
 ];
 
+const QUANTITY_OPTIONS: Array<{ value: number; label: string }> = [
+    { value: 0, label: "Toute quantité" },
+    { value: 1, label: "1+ (Possédés)" },
+    { value: 2, label: "2+ (Doublons)" },
+    { value: 3, label: "3+ (Triples)" },
+    { value: 4, label: "4+ (Quadruples)" },
+];
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -81,9 +90,9 @@ export function OcreFilterBar({
     onFiltersChange,
     steps,
     zones,
-    exchangeableCount,
     isRefreshing,
     onRefresh,
+    guildId,
 }: OcreFilterBarProps) {
     const updateFilter = <K extends keyof OcreFilters>(key: K, value: OcreFilters[K]) => {
         onFiltersChange({ ...filters, [key]: value });
@@ -94,8 +103,8 @@ export function OcreFilterBar({
         filters.selectedType !== "all" ||
         filters.selectedStep !== "all" ||
         filters.selectedZone !== "all" ||
-        filters.sortBy !== "step-asc" ||
-        filters.showExchangeableOnly;
+        filters.minQuantity > 0 ||
+        filters.sortBy !== "step-asc";
 
     const clearFilters = () => {
         onFiltersChange({
@@ -103,12 +112,13 @@ export function OcreFilterBar({
             selectedType: "all",
             selectedStep: "all",
             selectedZone: "all",
+            minQuantity: 0,
             sortBy: "step-asc",
-            showExchangeableOnly: false,
         });
     };
 
     const currentSort = SORT_OPTIONS.find(s => s.id === filters.sortBy);
+    const currentQty = QUANTITY_OPTIONS.find(q => q.value === filters.minQuantity);
     const currentType = MONSTER_TYPES.find(t => t.id === filters.selectedType);
 
     return (
@@ -142,17 +152,32 @@ export function OcreFilterBar({
                     size="icon"
                     onClick={onRefresh}
                     disabled={isRefreshing}
-                    className="h-12 w-12 border-white/10 bg-black/30 rounded-xl shrink-0"
+                    className="h-12 w-12 border-white/10 bg-black/30 rounded-xl shrink-0 hover:bg-white/5 transition-colors"
                     title="Synchroniser avec Metamob"
                 >
                     <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
                 </Button>
+
+                <div className="w-px h-8 bg-white/10 mx-2 hidden sm:block" />
+
+                <OcreExchangeModal
+                    guildId={guildId}
+                    trigger={
+                        <Button
+                            size="lg"
+                            className="h-12 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-900/20 rounded-xl font-semibold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            <Sparkles className="h-5 w-5 fill-white/20" />
+                            Place de Marché
+                        </Button>
+                    }
+                />
             </div>
 
             {/* Filter Pills Row */}
             <div className="flex flex-wrap items-center gap-3">
                 {/* Type Selector - Large Pills */}
-                <div className="flex items-center rounded-xl bg-black/40 border border-white/10 p-1.5">
+                <div className="flex items-center rounded-xl bg-black/40 border border-white/10 p-1.5 overflow-x-auto max-w-full no-scrollbar">
                     {MONSTER_TYPES.map((type) => {
                         const Icon = type.icon;
                         const isActive = filters.selectedType === type.id;
@@ -161,9 +186,9 @@ export function OcreFilterBar({
                                 key={type.id}
                                 onClick={() => updateFilter("selectedType", type.id)}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap",
                                     isActive
-                                        ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 shadow-lg"
+                                        ? "bg-zinc-800 text-white shadow-md border border-white/10"
                                         : "text-zinc-400 hover:text-white hover:bg-white/5"
                                 )}
                             >
@@ -185,8 +210,8 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2",
-                                filters.selectedStep !== "all" && "border-amber-500/50 bg-amber-500/10 text-amber-300"
+                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                filters.selectedStep !== "all" && "border-amber-500/50 bg-amber-500/10 text-amber-200"
                             )}
                         >
                             <Footprints className="h-4 w-4" />
@@ -222,8 +247,8 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2",
-                                filters.sortBy !== "step-asc" && "border-blue-500/50 bg-blue-500/10 text-blue-300"
+                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                filters.sortBy !== "step-asc" && "border-blue-500/50 bg-blue-500/10 text-blue-200"
                             )}
                         >
                             <ArrowUpDown className="h-4 w-4" />
@@ -253,8 +278,8 @@ export function OcreFilterBar({
                                 variant="outline"
                                 size="lg"
                                 className={cn(
-                                    "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 max-w-[200px]",
-                                    filters.selectedZone !== "all" && "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                                    "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 max-w-[200px] hover:bg-black/50 transition-all",
+                                    filters.selectedZone !== "all" && "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
                                 )}
                             >
                                 <span className="truncate">
@@ -285,36 +310,35 @@ export function OcreFilterBar({
                     </DropdownMenu>
                 )}
 
-                {/* Divider */}
-                <div className="hidden sm:block w-px h-10 bg-white/10" />
-
-                {/* Exchangeable Toggle - Large & Visible */}
-                <button
-                    onClick={() => updateFilter("showExchangeableOnly", !filters.showExchangeableOnly)}
-                    disabled={exchangeableCount === 0}
-                    title={exchangeableCount === 0 ? "Aucun guildeux n'a de doublons à proposer" : "Filtrer les monstres échangeables"}
-                    className={cn(
-                        "flex items-center gap-2 h-12 px-5 rounded-xl text-sm font-semibold transition-all border",
-                        filters.showExchangeableOnly
-                            ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 text-emerald-300 border-emerald-500/50 shadow-lg"
-                            : exchangeableCount > 0
-                                ? "bg-black/30 text-zinc-300 border-white/10 hover:text-white hover:border-emerald-500/30"
-                                : "bg-black/20 text-zinc-600 border-white/5 cursor-not-allowed opacity-50"
-                    )}
-                >
-                    <Sparkles className="h-4 w-4" />
-                    <span className="hidden sm:inline">Échangeables</span>
-                    <span className="sm:hidden">Éch.</span>
-                    {exchangeableCount > 0 ? (
-                        <Badge className="bg-emerald-500/30 text-emerald-200 border-0 text-xs px-2">
-                            {exchangeableCount}
-                        </Badge>
-                    ) : (
-                        <Badge variant="secondary" className="text-xs px-2 opacity-50">
-                            0
-                        </Badge>
-                    )}
-                </button>
+                {/* Quantity Dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            className={cn(
+                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                filters.minQuantity > 0 && "border-purple-500/50 bg-purple-500/10 text-purple-200"
+                            )}
+                        >
+                            <Crown className="h-4 w-4" />
+                            {currentQty?.label || "Quantité"}
+                            <ChevronDown className="h-4 w-4 opacity-60" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                        {QUANTITY_OPTIONS.map((q) => (
+                            <DropdownMenuItem
+                                key={q.value}
+                                onClick={() => updateFilter("minQuantity", q.value)}
+                                className="text-sm py-2.5"
+                            >
+                                <Check className={cn("mr-2 h-4 w-4", filters.minQuantity !== q.value && "opacity-0")} />
+                                {q.label}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
     );

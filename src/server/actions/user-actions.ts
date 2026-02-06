@@ -404,3 +404,67 @@ export async function getUserGuilds() {
         return [];
     }
 }
+
+// ============================================
+// PERMISSION HELPERS
+// ============================================
+
+async function internalCheckPermission(
+    guildId: string,
+    discordUserId: string,
+    permission: PermissionId
+): Promise<boolean> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        if (!guildConfig) return false;
+
+        const { fetchGuildMember, fetchGuildRoles, fetchGuild } = await import("@/server/discord");
+        const member = await fetchGuildMember(guildId, discordUserId);
+        if (!member) return false;
+
+        const guildInfo = await fetchGuild(guildId);
+        if (guildInfo.owner_id === discordUserId) return true;
+
+        const guildRoles = await fetchGuildRoles(guildId);
+        const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+        const isDiscordAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        if (isDiscordAdmin) return true;
+
+        const mapping = (guildConfig.rolesMapping || {}) as Record<string, PermissionId[]>;
+
+        // Collect all permissions from all roles  
+        const allPerms = new Set<PermissionId>();
+        member.roles.forEach((roleId: string) => {
+            const perms = mapping[roleId];
+            if (perms) perms.forEach((p: PermissionId) => allPerms.add(p));
+        });
+
+        // ADMIN_ACCESS grants all permissions (fallback)
+        if (allPerms.has(PERMISSIONS.ADMIN_ACCESS)) return true;
+
+        // Check specific permission
+        return allPerms.has(permission);
+    } catch (e) {
+        console.error(`[InternalPermissionCheck] Error for ${discordUserId}: `, e);
+        return false;
+    }
+}
+
+export async function checkGuildPermission(
+    session: any,
+    guildId: string,
+    permission: PermissionId
+): Promise<{ allowed: boolean; error?: string }> {
+    if (!session?.user?.id) return { allowed: false, error: "Unauthorized" };
+
+    const account = await db.account.findFirst({
+        where: { userId: session.user.id, provider: "discord" },
+        select: { providerAccountId: true }
+    });
+    if (!account) return { allowed: false, error: "No Discord account linked" };
+
+    const allowed = await internalCheckPermission(guildId, account.providerAccountId, permission);
+
+    if (allowed) return { allowed: true };
+    return { allowed: false, error: "Insufficient Permissions" };
+}

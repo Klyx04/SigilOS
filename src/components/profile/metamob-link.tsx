@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Unlink, Link2, Crown } from "lucide-react";
-import { linkOcreAccount, unlinkOcreAccount, refreshOcreCache } from "@/server/actions/ocre-actions";
+import { linkOcreAccount, unlinkOcreAccount, forceRefreshOcre } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -51,7 +51,7 @@ export function MetamobLink({
         const result = await linkOcreAccount({
             guildId,
             pseudo: inputPseudo.trim(),
-            apiKey: inputApiKey.trim() || undefined
+            apiKey: inputApiKey.trim() || undefined,
         });
 
         if (result.success && result.data) {
@@ -60,7 +60,8 @@ export function MetamobLink({
             setShowLinkDialog(false);
             setInputPseudo("");
             setInputApiKey("");
-            toast.success(`Compte Metamob "${result.data.pseudo}" lié avec succès !`);
+            const serverInfo = result.data.serverName ? ` (${result.data.serverName})` : "";
+            toast.success(`Compte Metamob "${result.data.pseudo}" lié${serverInfo} !`);
         } else {
             setLinkError(result.error || "Erreur lors de la liaison du compte");
         }
@@ -69,6 +70,7 @@ export function MetamobLink({
     };
 
     const handleUnlink = async () => {
+        // ... (unchanged)
         setIsUnlinking(true);
 
         const result = await unlinkOcreAccount({ guildId });
@@ -88,7 +90,7 @@ export function MetamobLink({
     const handleRefresh = async () => {
         setIsRefreshing(true);
 
-        const result = await refreshOcreCache(guildId);
+        const result = await forceRefreshOcre(guildId);
 
         if (result.success) {
             toast.success("Données Metamob actualisées");
@@ -99,14 +101,15 @@ export function MetamobLink({
         setIsRefreshing(false);
     };
 
+    // ... (unchanged until return)
+
     return (
         <Card className="border-white/10 bg-black/20 backdrop-blur-md overflow-hidden relative group">
-            {/* Ambient amber glow */}
+            {/* ... (unchanged) */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none -mr-10 -mt-10" />
 
             <CardContent className="p-5 flex flex-col sm:flex-row gap-5 items-center justify-between">
-
-                {/* Visual + Status */}
+                {/* ... (Visual + Status Section Unchanged) */}
                 <div className="flex items-center gap-4">
                     <div className="relative">
                         <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)] shrink-0">
@@ -133,10 +136,8 @@ export function MetamobLink({
                     </div>
                 </div>
 
-                {/* Main Actions (Link) */}
                 {isLinked ? (
                     <div className="flex flex-1 flex-wrap gap-3 w-full items-center justify-end">
-
                         {/* Last Sync Info */}
                         {metamobLastSync && (
                             <span className="text-xs text-zinc-500 whitespace-nowrap hidden lg:block text-right">
@@ -220,6 +221,7 @@ export function MetamobLink({
                                 if (!open) {
                                     setLinkError(null);
                                     setInputPseudo("");
+                                    setInputApiKey("");
                                 }
                             }}>
                                 <DialogTrigger asChild>
@@ -232,53 +234,58 @@ export function MetamobLink({
                                     <DialogHeader>
                                         <DialogTitle>Lier votre compte Metamob</DialogTitle>
                                         <DialogDescription>
-                                            Entrez votre pseudo Metamob. Le nom du personnage de votre quête Metamob doit correspondre à votre <strong>pseudo Dofus</strong> dans SigilOS.
+                                            Entrez votre pseudo Metamob. Nous chercherons automatiquement votre quête "L'éternelle moisson".
                                         </DialogDescription>
                                     </DialogHeader>
 
                                     <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <label htmlFor="metamob-pseudo" className="text-sm font-medium">
-                                                Pseudo Metamob
-                                            </label>
-                                            <Input
-                                                id="metamob-pseudo"
-                                                placeholder="Ex: MonPseudo"
-                                                value={inputPseudo}
-                                                onChange={(e) => {
-                                                    setInputPseudo(e.target.value);
-                                                    setLinkError(null);
-                                                }}
-                                                className="bg-zinc-900 border-zinc-800"
-                                            />
-                                            <p className="text-xs text-zinc-500">
-                                                Visible dans l'URL de votre profil Metamob.
-                                            </p>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label htmlFor="metamob-pseudo" className="text-sm font-medium">
+                                                    Pseudo Metamob
+                                                </label>
+                                                <Input
+                                                    id="metamob-pseudo"
+                                                    placeholder="Ex: MonPseudo"
+                                                    value={inputPseudo}
+                                                    onChange={(e) => {
+                                                        setInputPseudo(e.target.value);
+                                                        setLinkError(null);
+                                                    }}
+                                                    className="bg-zinc-900 border-zinc-800"
+                                                />
+                                                <p className="text-xs text-zinc-500">
+                                                    Visible dans l'URL de votre profil Metamob.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label htmlFor="metamob-key" className="text-sm font-medium">
+                                                        Clé API (Optionnelle)
+                                                    </label>
+                                                    <a
+                                                        href="https://www.metamob.fr/profile/settings"
+                                                        target="_blank"
+                                                        className="text-[10px] text-amber-500 hover:underline"
+                                                    >
+                                                        Où la trouver ?
+                                                    </a>
+                                                </div>
+                                                <Input
+                                                    id="metamob-key"
+                                                    type="password"
+                                                    placeholder="VOTRE_CLE_API"
+                                                    value={inputApiKey}
+                                                    onChange={(e) => setInputApiKey(e.target.value)}
+                                                    className="bg-zinc-900 border-zinc-800"
+                                                />
+                                                <p className="text-[10px] text-zinc-500">
+                                                    Recommandé pour les profils privés ou l'accès aux doublons.
+                                                </p>
+                                            </div>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label htmlFor="metamob-api-key" className="text-sm font-medium flex items-center gap-2">
-                                                Clé API (Recommandé)
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                                    Pour les stocks
-                                                </span>
-                                            </label>
-                                            <Input
-                                                id="metamob-api-key"
-                                                type="password"
-                                                placeholder="Ex: 8f9a2b3c-..."
-                                                value={inputApiKey}
-                                                onChange={(e) => {
-                                                    setInputApiKey(e.target.value);
-                                                    setLinkError(null);
-                                                }}
-                                                className="bg-zinc-900 border-zinc-800 font-mono text-sm"
-                                            />
-                                            <p className="text-xs text-zinc-500">
-                                                Trouvez votre clé dans <a href="https://www.metamob.fr/settings#api" target="_blank" className="text-amber-500 hover:underline">Paramètres &gt; API</a>.
-                                                Nécessaire pour voir vos doublons et monstres possédés sur le dashboard.
-                                            </p>
-                                        </div>
 
                                         {linkError && (
                                             <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm border border-red-500/20">
@@ -291,7 +298,7 @@ export function MetamobLink({
                                         <Button variant="ghost" onClick={() => setShowLinkDialog(false)}>
                                             Annuler
                                         </Button>
-                                        <Button onClick={handleLink} disabled={isLinking || !inputPseudo.trim()}>
+                                        <Button onClick={() => handleLink()} disabled={isLinking || !inputPseudo.trim()}>
                                             {isLinking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                                             Vérifier & Lier
                                         </Button>

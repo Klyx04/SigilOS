@@ -1,9 +1,10 @@
 /**
- * LLM-based OCR Service using Google Gemini API
+ * LLM-based OCR Service using OCR.space API
  * 
- * Uses Gemini 1.5 Flash for smart image analysis:
- * - Fast cloud-based inference (no local GPU needed)
- * - Excellent OCR capabilities for game screenshots
+ * Uses OCR.space (Free Tier) for image text extraction:
+ * - Simple REST API
+ * - Supports French language ('fre')
+ * - Rate limit: ~25,000 requests/month (Free) -> We track this locally
  * - Built-in content moderation
  * - Rate limit fallback to manual validation
  * 

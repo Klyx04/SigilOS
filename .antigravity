@@ -623,3 +623,12 @@ Cette phase est d√©coup√©e en Sprints logiques pour atteindre le niveau "Militar
 - [ ] Finaliser l'int√©gration sur une branche propre.
 - [ ] Configurer Swap/RAM VPS.
 
+
+### Phase 24: Metamob V2 & Ocre Precision (COMPLETE - 2026-02-06):
+- [x] **Unified Client:** Fusion of metamob-api.ts into a robust metamob-client.ts supporting V2 endpoints.
+- [x] **Ocre Dashboard V2:** 'PossÈdÈs' now includes duplicates (Doublons) for accurate collection tracking.
+- [x] **Smart Calculation:** Fixed 'missing monsters' bug by forcing status: 'all' and handling parallel_quests.
+- [x] **Precision Debug:** Implementation of file-based raw API logging for deep diagnostics.
+- [x] **Security:** API Keys now support transparent encryption/decryption in prisma.ts.
+- [x] **Legacy Cleanup:** Removed all dependencies on deprecated Metamob V1 endpoints.
+

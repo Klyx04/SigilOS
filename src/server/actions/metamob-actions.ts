@@ -13,11 +13,13 @@ import { checkGuildPermission } from "@/server/actions/mission-actions";
 import {
     verifyMetamobUser,
     getUserMonsters,
+    getQuestDetails,
+    getPrivateQuestDetails,
     findMonsterOwners,
     clearMonsterCache,
     type MetamobMonster,
     type MonsterOwner,
-} from "@/lib/metamob-api";
+} from "@/lib/metamob-client";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -676,7 +678,7 @@ export async function getProfileMatchingArchis(
                 id: m.id,
                 nom: m.nom,
                 imageUrl: m.imageUrl,
-                zone: m.zone,
+                zone: m.zone || "",
                 ownerQuantite: m.quantite,
             }));
 

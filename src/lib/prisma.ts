@@ -19,19 +19,9 @@ const isBeta = process.env.DOMAIN_NAME?.includes('beta') || process.env.NEXT_PUB
 const defaultHost = isBeta ? 'db-beta' : 'db-prod';
 const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? defaultHost : 'localhost');
 
-// Priority to COMPONENT build if password has special chars (like #)
 const dbUrl = getEnv('DATABASE_URL', '');
-
-// Build a safe URL from components even if dbUrl is provided (unless dbUrl is more complex)
 const safeFromComponents = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
-
-// We use the manual dbUrl ONLY if it's explicitly set AND we don't have enough components, 
-// OR if the user specifically wants the manual one (but component-based is safer for encoding)
 const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
-
-if (!dbUrl && !pwd && process.env.NODE_ENV !== 'production') {
-    console.warn("[Prisma] No DATABASE_URL or POSTGRES_PASSWORD found. Connection might fail.");
-}
 
 const pool = new Pool({
     connectionString,
@@ -48,11 +38,7 @@ const basePrisma = new PrismaClient({
 
 /**
  * SIGILOS EXTENDED PRISMA CLIENT
- * Handles transparent encryption/decryption of sensitive fields:
- * - Account (access_token, refresh_token)
- * - GuildConfig (metamobApiKey)
- * 
- * + SLOW QUERY MONITORING (> 200ms)
+ * Handles transparent encryption/decryption of sensitive fields
  */
 export const prisma = basePrisma.$extends({
     query: {
@@ -62,10 +48,8 @@ export const prisma = basePrisma.$extends({
                 const result = await query(args);
                 const end = performance.now();
                 const duration = end - start;
-
                 if (duration > 200) {
                     console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
-                    // Potential future hook: Send to monitoring service
                 }
                 return result;
             }
@@ -82,39 +66,18 @@ export const prisma = basePrisma.$extends({
                 if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
                 if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
                 return query(args);
-            },
-            async upsert({ args, query }) {
-                if (args.create.access_token) args.create.access_token = encrypt(args.create.access_token);
-                if (args.create.refresh_token) args.create.refresh_token = encrypt(args.create.refresh_token);
-                if (args.create.id_token) args.create.id_token = encrypt(args.create.id_token);
-                if (typeof args.update.access_token === 'string') args.update.access_token = encrypt(args.update.access_token);
-                if (typeof args.update.refresh_token === 'string') args.update.refresh_token = encrypt(args.update.refresh_token);
-                if (typeof args.update.id_token === 'string') args.update.id_token = encrypt(args.update.id_token);
-                return query(args);
-            },
-            async updateMany({ args, query }) {
-                if (typeof args.data.access_token === 'string') args.data.access_token = encrypt(args.data.access_token);
-                if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
-                if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
-                return query(args);
             }
         },
         guildConfig: {
-            async create({ args, query }) {
-                if (args.data.metamobApiKey) args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
-                return query(args);
-            },
             async update({ args, query }) {
                 if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
                 return query(args);
-            },
-            async upsert({ args, query }) {
-                if (args.create.metamobApiKey) args.create.metamobApiKey = encrypt(args.create.metamobApiKey);
-                if (typeof args.update.metamobApiKey === 'string') args.update.metamobApiKey = encrypt(args.update.metamobApiKey);
-                return query(args);
-            },
-            async updateMany({ args, query }) {
-                if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
+            }
+        },
+        userProfile: {
+            async update({ args, query }) {
+                const data = args.data as any;
+                if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
                 return query(args);
             }
         }
@@ -123,21 +86,19 @@ export const prisma = basePrisma.$extends({
         account: {
             access_token: {
                 needs: { access_token: true },
-                compute(account) { return account.access_token ? decrypt(account.access_token) : account.access_token; }
-            },
-            refresh_token: {
-                needs: { refresh_token: true },
-                compute(account) { return account.refresh_token ? decrypt(account.refresh_token) : account.refresh_token; }
-            },
-            id_token: {
-                needs: { id_token: true },
-                compute(account) { return account.id_token ? decrypt(account.id_token) : account.id_token; }
+                compute(account: any) { return account.access_token ? decrypt(account.access_token) : account.access_token; }
             }
         },
         guildConfig: {
             metamobApiKey: {
                 needs: { metamobApiKey: true },
-                compute(config) { return config.metamobApiKey ? decrypt(config.metamobApiKey) : config.metamobApiKey; }
+                compute(config: any) { return config.metamobApiKey ? decrypt(config.metamobApiKey) : config.metamobApiKey; }
+            }
+        },
+        userProfile: {
+            metamobApiKey: {
+                needs: { metamobApiKey: true },
+                compute(profile: any) { return profile.metamobApiKey ? decrypt(profile.metamobApiKey) : profile.metamobApiKey; }
             }
         }
     }

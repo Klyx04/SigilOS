@@ -53,7 +53,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
     }
 
     async function handleRemove() {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer la clé API ? La guilde utilisera la clé globale par défaut.")) {
+        if (!confirm("Êtes-vous sûr de vouloir supprimer la clé API ? Le module Quête Ocre sera désactivé pour cette guilde.")) {
             return;
         }
 
@@ -63,7 +63,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
         const res = await updateMetamobApiKey(guildId, null);
 
         if (res.success) {
-            setMessage({ type: "success", text: "Clé API supprimée. Utilisation de la clé globale." });
+            setMessage({ type: "success", text: "Clé API supprimée. Le module Quête Ocre est désactivé." });
             setNewKey("");
             await loadConfig();
         } else {
@@ -85,17 +85,17 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
             {/* Current Status */}
             <div className="p-4 rounded-lg bg-zinc-900/50 border border-white/10">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${hasApiKey ? 'bg-green-500/10' : 'bg-amber-500/10'}`}>
-                        <Key className={`w-5 h-5 ${hasApiKey ? 'text-green-400' : 'text-amber-400'}`} />
+                    <div className={`p-2 rounded-lg ${hasApiKey ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                        <Key className={`w-5 h-5 ${hasApiKey ? 'text-green-400' : 'text-red-400'}`} />
                     </div>
                     <div>
                         <h3 className="font-medium text-white">
-                            {hasApiKey ? "Clé API configurée" : "Pas de clé API"}
+                            {hasApiKey ? "Clé API configurée" : "Module désactivé"}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                             {hasApiKey
                                 ? `Clé actuelle : ${maskedKey}`
-                                : "La guilde utilise la clé API globale par défaut"}
+                                : "Configurez une clé API pour activer la Quête Ocre"}
                         </p>
                     </div>
                 </div>
@@ -187,7 +187,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">2</div>
                             <div>
                                 <p className="font-medium text-white">Connectez-vous à votre compte Metamob</p>
-                                <p className="text-muted-foreground">Utilisez le bouton <strong className="text-white">"Connexion"</strong> en haut à droite du site</p>
+                                <p className="text-muted-foreground">Utilisez le bouton <strong className="text-white">&quot;Connexion&quot;</strong> en haut à droite du site</p>
                             </div>
                         </div>
 
@@ -195,7 +195,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">3</div>
                             <div>
                                 <p className="font-medium text-white">Allez dans les paramètres API</p>
-                                <p className="text-muted-foreground">Cliquez sur votre <strong className="text-white">pseudo</strong> (en haut) → <strong className="text-white">Mon compte</strong> → Onglet <strong className="text-white">"API"</strong></p>
+                                <p className="text-muted-foreground">Cliquez sur votre <strong className="text-white">pseudo</strong> (en haut) → <strong className="text-white">Mon compte</strong> → Onglet <strong className="text-white">&quot;API&quot;</strong></p>
                             </div>
                         </div>
 
@@ -203,7 +203,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">4</div>
                             <div>
                                 <p className="font-medium text-white">Générez ou copiez votre clé</p>
-                                <p className="text-muted-foreground">Si vous n'avez pas de clé, cliquez sur <strong className="text-white">"Générer une nouvelle clé"</strong>. Sinon, copiez la clé existante.</p>
+                                <p className="text-muted-foreground">Si vous n&apos;avez pas de clé, cliquez sur <strong className="text-white">&quot;Générer une nouvelle clé&quot;</strong>. Sinon, copiez la clé existante.</p>
                             </div>
                         </div>
 
@@ -225,7 +225,19 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                         <p className="text-sm text-muted-foreground mt-1">
                             Les clés API Metamob sont valides <strong className="text-amber-300">90 jours</strong>.
                             Passé ce délai, vous devrez en générer une nouvelle sur metamob.fr et la mettre à jour ici.
-                            Si la Bourse aux Archis cesse de fonctionner, c'est probablement la clé API qui a expiré !
+                            Si la Quête Ocre cesse de fonctionner, c&apos;est probablement la clé API qui a expiré !
+                        </p>
+                    </div>
+                </div>
+
+                {/* Responsibility Note */}
+                <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/30 flex gap-3">
+                    <div className="flex-shrink-0 text-2xl">🏛️</div>
+                    <div>
+                        <p className="font-semibold text-purple-400">Chaque guilde gère sa propre clé</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Pour des raisons de sécurité et d&apos;équité, chaque guilde doit configurer sa propre clé API Metamob.
+                            Il n&apos;y a pas de clé globale partagée.
                         </p>
                     </div>
                 </div>
@@ -234,7 +246,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                 <div className="p-3 rounded-lg bg-zinc-800/50 border border-white/5">
                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                         <span className="text-green-400">🔒</span>
-                        <span>La clé API est stockée de manière sécurisée et chiffrée. Elle n'est jamais affichée en clair après la sauvegarde.</span>
+                        <span>La clé API est stockée de manière sécurisée et chiffrée. Elle n&apos;est jamais affichée en clair après la sauvegarde.</span>
                     </p>
                 </div>
             </div>

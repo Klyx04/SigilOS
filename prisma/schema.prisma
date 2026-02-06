@@ -216,8 +216,11 @@ model UserProfile {
   discordJoinedAt       DateTime?
   discordCacheUpdatedAt DateTime?
 
-  // Metamob Integration (Archimonstres)
+  // Metamob Integration (Quête Ocre - API v2)
   metamobPseudo     String?   // Pseudo Metamob (peut être différent du pseudo Dofus)
+  metamobApiKey     String?   // Clé API personnelle pour accès doublons/exchangeable
+  metamobQuestSlug  String?   // Slug de la quête active (ex: "mon-perso-278")
+  metamobServerId   Int?      // ID du serveur Dofus (ex: 401 = Draconiros)
   metamobVerified   Boolean   @default(false)  // Compte validé via API
   metamobLastSync   DateTime? // Dernière synchronisation du cache
 

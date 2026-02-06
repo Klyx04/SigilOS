@@ -12,7 +12,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
-import { analyzeImage, hashImage, shouldAutoValidate, extractMissionDetails, matchMissionContent } from "@/lib/llm-ocr";
+import { hashImage } from "@/lib/llm-ocr";
 
 
 // --- Types & Schemas ---
@@ -494,67 +494,32 @@ export async function submitMissionProof(
             return { success: false, error: "Cette image a déjà été utilisée pour une validation dans cette guilde." };
         }
 
-        const ocrResult = await analyzeImage({
-            imageBase64: base64Data,
-            mimeType: imageData.split(';')[0].split(':')[1],
-            context: 'mission'
-        });
+        // NO OCR - All submissions go to admin validation
+        // Just save the proof image and create a PENDING submission
 
-        if (!ocrResult.moderation.isAppropriate) {
-            return { success: false, error: `Image rejetée : ${ocrResult.moderation.reason}` };
-        }
+        // Save proof image
+        const uploadRelativeDir = `uploads/missions/${mission.guild.discordGuildId}`;
+        const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+        await mkdir(uploadDir, { recursive: true });
 
-        const { autoValidate } = shouldAutoValidate(ocrResult);
-
-        // MISSION CROSS-VALIDATION (Anti-Fraud)
-        // Compare OCR-extracted details against the mission's expected payload
-        const extractedMission = extractMissionDetails(ocrResult.text || '');
-        const missionCategory = mission.category as 'DONJON' | 'REGULATION' | 'ANOMALIE' | 'SONGES' | 'EXPEDITION' | 'EVENT';
-        const matchResult = matchMissionContent(extractedMission, missionCategory, mission.payload || {});
-
-        // If mismatch detected, force manual validation regardless of confidence
-        let finalAutoValidate = autoValidate;
-        if (!matchResult.isMatch) {
-            console.log(`[Mission OCR] Cross-validation FAILED for ${missionId}:`, {
-                expected: missionCategory,
-                reason: matchResult.reason,
-                matchedFields: matchResult.matchedFields,
-                mismatchedFields: matchResult.mismatchedFields
-            });
-            finalAutoValidate = false;
-        }
-
-        // Prepare storage anyway (we might want to keep proof for a while even if auto-validated)
-        // OR we can skip saving file if auto-validated to save space, but guild rules might want evidence.
-        // DECISION: Always save proof but with short retention if validated? 
-        // For now, let's follow existing pattern: PENDING has file, VALIDATED clears proofUrl.
-
-        let proofUrl = "";
-        if (!finalAutoValidate) {
-            const uploadRelativeDir = `uploads/missions/${mission.guild.discordGuildId}`;
-            const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
-            await mkdir(uploadDir, { recursive: true });
-
-            const fileName = `${session.user.id}-${Date.now()}.webp`;
-            const filePath = join(uploadDir, fileName);
-            await writeFile(filePath, Buffer.from(base64Data, 'base64'));
-            proofUrl = `/${uploadRelativeDir}/${fileName}`;
-        }
+        const fileName = `${session.user.id}-${Date.now()}.webp`;
+        const filePath = join(uploadDir, fileName);
+        await writeFile(filePath, Buffer.from(base64Data, 'base64'));
+        const proofUrl = `/${uploadRelativeDir}/${fileName}`;
 
         const submission = await db.submission.create({
             data: {
                 missionId,
                 profileId: profile.id,
                 proofUrl: proofUrl,
-                status: finalAutoValidate ? "VALIDATED" : "PENDING",
-                ocrScore: ocrResult.confidence,
-                ocrResult: ocrResult as any,
-                ocrStatus: "COMPLETED",
-                validatorId: finalAutoValidate ? "SYSTEM_OCR" : null
+                status: "PENDING",
+                ocrScore: null,
+                ocrStatus: "PENDING",
+                validatorId: null
             }
         });
 
-        // Store hash
+        // Store hash (anti-duplicate)
         await (db as any).imageHash.create({
             data: {
                 guildId: mission.guildId,
@@ -565,46 +530,22 @@ export async function submitMissionProof(
             }
         });
 
-        if (finalAutoValidate) {
-            const xpReward = mission.xpReward || 0;
-            await addProfileXp(profile.id, xpReward);
-
-            // Audit Log
-            const { createAuditLog } = await import("@/server/actions/audit-actions");
-            await createAuditLog({
-                guildId: mission.guild.discordGuildId,
-                actorUserId: "SYSTEM_OCR",
-                actorName: "Sigil-AI (OCR)",
-                action: "SUCCESS_SYNC",
-                targetType: "USER_PROFILE",
-                targetId: profile.id,
-                newValue: { missionId, points: xpReward, autoValidated: true }
-            });
-        } else {
-            // Notify Validators
-            const userName = profile.user.name || "Un membre";
-            const missionTitle = mission.title || "Mission Inconnue";
-            await notifyValidators(
-                mission.guild.discordGuildId,
-                `[Validation] ${userName} - ${missionTitle}`,
-                `${userName} a posté une preuve pour : ${missionTitle}. Manuel requis (Conf: ${ocrResult.confidence}%)`,
-                `/dashboard/${mission.guild.discordGuildId}/missions/validation`
-            );
-        }
+        // Notify Validators
+        const userName = profile.user.name || "Un membre";
+        const missionTitle = mission.title || "Mission Inconnue";
+        await notifyValidators(
+            mission.guild.discordGuildId,
+            `[Validation] ${userName} - ${missionTitle}`,
+            `${userName} a posté une preuve pour : ${missionTitle}`,
+            `/dashboard/${mission.guild.discordGuildId}/admin/validation`
+        );
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
-        revalidatePath(`/dashboard/${mission.guild.discordGuildId}/ladder`);
-
         await invalidateCache(`missions:${mission.guild.discordGuildId}:${mission.year}:${mission.weekNumber}`);
 
         return {
             success: true,
-            data: {
-                autoValidated: autoValidate,
-                points: autoValidate ? mission.xpReward : 0,
-                confidence: ocrResult.confidence,
-                ocrResult: ocrResult
-            }
+            data: { submissionId: submission.id, status: "PENDING" }
         };
     } catch (error) {
         console.error("Submission Error:", error);

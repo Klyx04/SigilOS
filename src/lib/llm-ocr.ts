@@ -12,6 +12,39 @@
 
 import { createHash } from 'crypto';
 import sharp from 'sharp';
+import { db } from '@/lib/prisma';
+
+// =============================================================================
+// API USAGE TRACKING
+// =============================================================================
+
+/**
+ * Track OCR.space API usage for monitoring on /god page.
+ * Increments daily counter per endpoint using upsert.
+ */
+export async function trackOcrApiUsage(endpoint: string): Promise<void> {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        await db.ocrApiUsage.upsert({
+            where: {
+                date_endpoint: { date: today, endpoint }
+            },
+            update: {
+                count: { increment: 1 }
+            },
+            create: {
+                date: today,
+                endpoint,
+                count: 1
+            }
+        });
+    } catch (error) {
+        console.warn('[LLM-OCR] Failed to track API usage:', error);
+        // Don't fail the OCR call if tracking fails
+    }
+}
 
 // =============================================================================
 // TYPES
@@ -51,48 +84,6 @@ export interface OcrRequest {
 
     // Optional context hint for better accuracy
     context?: 'mission' | 'achievement' | 'ladder';
-}
-
-// =============================================================================
-// MISSION CROSS-VALIDATION TYPES
-// =============================================================================
-
-/**
- * Structured data extracted from a mission screenshot for cross-validation
- */
-export interface ExtractedMissionData {
-    // Common fields
-    rank?: number;        // Rang 1-4
-    level?: number;       // Niv. 180-200
-
-    // REGULATION
-    monsterName?: string; // "Brikoléreux"
-
-    // ANOMALIE
-    anomalieType?: 'ZONE' | 'BOSS';
-
-    // SONGES
-    songeDifficulty?: 'Rêve' | 'Paradoxe' | 'Cauchemar';
-    songeLevel?: 'I' | 'II' | 'III' | 'IV';
-    songeTier?: number;   // Palier 1-5
-
-    // EXPEDITION
-    dungeonName?: string;
-    expeditionMode?: 'bravoure' | 'audace' | 'aucun';
-
-    // Raw text for debugging
-    rawText: string;
-}
-
-/**
- * Result of matching OCR content against expected mission payload
- */
-export interface MissionMatchResult {
-    isMatch: boolean;
-    matchScore: number;     // 0-100
-    matchedFields: string[]; // ["monsterName", "rank"]
-    mismatchedFields: string[];
-    reason?: string;
 }
 
 // =============================================================================
@@ -176,6 +167,9 @@ async function callOcrSpace(
 
         const text = result.ParsedResults?.[0]?.ParsedText || '';
         console.log('[LLM-OCR] OCR.space extraction successful (length:', text.length, ')');
+
+        // Track API usage (fire-and-forget)
+        trackOcrApiUsage('ocr.space').catch(() => { });
 
         return text;
 
@@ -578,310 +572,4 @@ async function optimizeImage(base64Image: string): Promise<string> {
         console.warn('[LLM-OCR] Image optimization failed, using original:', error);
         return base64Image; // Fallback to original if sharp fails
     }
-}
-
-// =============================================================================
-// MISSION CROSS-VALIDATION (Anti-Fraud)
-// =============================================================================
-
-type DetectedCategory = 'DONJON' | 'REGULATION' | 'ANOMALIE' | 'SONGES' | 'EXPEDITION' | 'UNKNOWN';
-
-/**
- * Detect what mission CATEGORY the OCR content belongs to.
- * This prevents uploading a Songes screenshot to validate an Anomalie mission.
- */
-export function detectCategoryFromOCR(rawText: string): DetectedCategory {
-    const text = rawText.toLowerCase();
-
-    // SONGES - Very specific keywords
-    if (text.includes('songe') || text.includes('rêve') || text.includes('paradoxe') ||
-        text.includes('cauchemar') || text.includes('palier') || text.includes('plongée')) {
-        return 'SONGES';
-    }
-
-    // EXPEDITION - Mode keywords
-    if (text.includes('expédition') || text.includes('expedition') ||
-        text.includes('bravoure') || text.includes('audace')) {
-        return 'EXPEDITION';
-    }
-
-    // ANOMALIE - Zone/Boss keywords
-    if (text.includes('anomalie') || text.includes('gardien') ||
-        text.includes('territoire') || text.includes('sous anomalie')) {
-        return 'ANOMALIE';
-    }
-
-    // REGULATION - Monster hunting
-    if (text.includes('régulation') || text.includes('regulation') ||
-        text.includes('vaincre') || text.includes('monstres dans')) {
-        return 'REGULATION';
-    }
-
-    // DONJON - Dungeon runs
-    if (text.includes('donjon') || text.includes('boss vaincu') ||
-        text.includes('donjon terminé')) {
-        return 'DONJON';
-    }
-
-    return 'UNKNOWN';
-}
-
-/**
- * Extract structured mission data from raw OCR text
- */
-export function extractMissionDetails(rawText: string): ExtractedMissionData {
-    const text = rawText.toLowerCase();
-
-    const result: ExtractedMissionData = {
-        rawText: rawText
-    };
-
-    // --- COMMON FIELDS ---
-    // Rang (1-4)
-    const rankMatch = text.match(/rang\s*(\d+)/i);
-    if (rankMatch) result.rank = parseInt(rankMatch[1], 10);
-
-    // Niveau (50-200)
-    const levelMatch = text.match(/niv\.?\s*(\d+)/i);
-    if (levelMatch) result.level = parseInt(levelMatch[1], 10);
-
-    // --- REGULATION ---
-    // Look for monster names (usually after "Vaincre 50" or before "sur leur territoire")
-    const monsterMatch = rawText.match(/vaincre\s+\d+\s+(?:monstres\s+de\s+)?([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[a-zà-ÿ]+)?)/i);
-    if (monsterMatch) result.monsterName = monsterMatch[1].trim();
-
-    // Alternative: Look for known monster patterns (capitalized word after number)
-    if (!result.monsterName) {
-        const altMonsterMatch = rawText.match(/50\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/);
-        if (altMonsterMatch) result.monsterName = altMonsterMatch[1].trim();
-    }
-
-    // --- ANOMALIE ---
-    if (text.includes('anomalie')) {
-        if (text.includes('boss') || text.includes('gardien')) {
-            result.anomalieType = 'BOSS';
-        } else if (text.includes('zone') || text.includes('monstres')) {
-            result.anomalieType = 'ZONE';
-        }
-    }
-
-    // --- SONGES ---
-    // Difficulty + Level (Paradoxe III, Rêve I, etc.)
-    const songeDiffMatch = text.match(/(rêve|reve|paradoxe|cauchemar)\s*(i{1,3}|iv)/i);
-    if (songeDiffMatch) {
-        const diffMap: Record<string, 'Rêve' | 'Paradoxe' | 'Cauchemar'> = {
-            'rêve': 'Rêve', 'reve': 'Rêve',
-            'paradoxe': 'Paradoxe',
-            'cauchemar': 'Cauchemar'
-        };
-        result.songeDifficulty = diffMap[songeDiffMatch[1].toLowerCase()];
-        result.songeLevel = songeDiffMatch[2].toUpperCase() as 'I' | 'II' | 'III' | 'IV';
-    }
-
-    // Palier/Tier (1-5)
-    const palierMatch = text.match(/palier\s*(\d+|[iv]+)/i);
-    if (palierMatch) {
-        const val = palierMatch[1];
-        if (/^\d+$/.test(val)) {
-            result.songeTier = parseInt(val, 10);
-        } else {
-            // Roman numeral conversion
-            const romanMap: Record<string, number> = { 'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5 };
-            result.songeTier = romanMap[val.toLowerCase()] || undefined;
-        }
-    }
-
-    // --- EXPEDITION ---
-    // Mode (Bravoure / Audace / Aucun)
-    if (text.includes('bravoure')) {
-        result.expeditionMode = 'bravoure';
-    } else if (text.includes('audace')) {
-        result.expeditionMode = 'audace';
-    }
-
-    // Dungeon name (usually capitalized multi-word after expedition context)
-    const dungeonMatch = rawText.match(/(?:expédition|expedition)\s+(?:en\s+)?([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)*)/i);
-    if (dungeonMatch) result.dungeonName = dungeonMatch[1].trim();
-
-    return result;
-}
-
-/**
- * Compare extracted mission data against expected payload
- * Returns match score and details
- */
-export function matchMissionContent(
-    extracted: ExtractedMissionData,
-    category: 'DONJON' | 'REGULATION' | 'ANOMALIE' | 'SONGES' | 'EXPEDITION' | 'EVENT',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: any
-): MissionMatchResult {
-    const matched: string[] = [];
-    const mismatched: string[] = [];
-
-    // CATEGORY CROSS-CHECK: Detect what type of content is in the screenshot
-    const detectedCategory = detectCategoryFromOCR(extracted.rawText || '');
-
-    // If we detected a specific category AND it doesn't match → REJECT
-    if (detectedCategory !== 'UNKNOWN' && detectedCategory !== category) {
-        return {
-            isMatch: false,
-            matchScore: 0,
-            matchedFields: [],
-            mismatchedFields: ['category'],
-            reason: `Catégorie incorrecte: Screenshot de ${detectedCategory} pour une mission ${category}`
-        };
-    }
-
-    // EVENT = Always Manual Validation
-    if (category === 'EVENT') {
-        return {
-            isMatch: false,
-            matchScore: 0,
-            matchedFields: [],
-            mismatchedFields: ['event'],
-            reason: 'Les missions Événement requièrent une validation manuelle'
-        };
-    }
-
-    // Helper: fuzzy string match (basic Levenshtein tolerance)
-    const fuzzyMatch = (a?: string, b?: string, tolerance = 3): boolean => {
-        if (!a || !b) return false;
-        a = a.toLowerCase().trim();
-        b = b.toLowerCase().trim();
-        if (a === b) return true;
-        if (a.includes(b) || b.includes(a)) return true;
-        // Simple Levenshtein check (for typos)
-        if (Math.abs(a.length - b.length) <= tolerance) {
-            let diff = 0;
-            const minLen = Math.min(a.length, b.length);
-            for (let i = 0; i < minLen; i++) {
-                if (a[i] !== b[i]) diff++;
-            }
-            return diff <= tolerance;
-        }
-        return false;
-    };
-
-    // --- REGULATION ---
-    if (category === 'REGULATION') {
-        if (payload.monsterName && extracted.monsterName) {
-            if (fuzzyMatch(extracted.monsterName, payload.monsterName)) {
-                matched.push('monsterName');
-            } else {
-                mismatched.push('monsterName');
-            }
-        }
-    }
-
-    // --- ANOMALIE ---
-    if (category === 'ANOMALIE') {
-        if (payload.type && extracted.anomalieType) {
-            if (extracted.anomalieType === payload.type) {
-                matched.push('anomalieType');
-            } else {
-                mismatched.push('anomalieType');
-            }
-        }
-        // Level range check
-        if (payload.levelRange && extracted.level) {
-            const expectedMin = parseInt(payload.levelRange.replace('+', ''), 10);
-            if (extracted.level >= expectedMin) {
-                matched.push('levelRange');
-            } else {
-                mismatched.push('levelRange');
-            }
-        }
-    }
-
-    // --- SONGES ---
-    if (category === 'SONGES') {
-        // Difficulty (Rêve / Paradoxe / Cauchemar)
-        if (payload.difficulty && extracted.songeDifficulty) {
-            if (fuzzyMatch(extracted.songeDifficulty, payload.difficulty)) {
-                matched.push('songeDifficulty');
-            } else {
-                mismatched.push('songeDifficulty');
-            }
-        }
-        // Level (I-IV)
-        if (payload.level && extracted.songeLevel) {
-            if (extracted.songeLevel === payload.level) {
-                matched.push('songeLevel');
-            } else {
-                mismatched.push('songeLevel');
-            }
-        }
-        // Tier/Palier (1-5)
-        if (payload.tier && extracted.songeTier) {
-            if (extracted.songeTier === payload.tier) {
-                matched.push('songeTier');
-            } else {
-                mismatched.push('songeTier');
-            }
-        }
-    }
-
-    // --- EXPEDITION ---
-    if (category === 'EXPEDITION') {
-        // Mode
-        if (payload.mode && extracted.expeditionMode) {
-            if (extracted.expeditionMode === payload.mode) {
-                matched.push('expeditionMode');
-            } else {
-                mismatched.push('expeditionMode');
-            }
-        }
-        // Dungeon name
-        if (payload.dungeonName && extracted.dungeonName) {
-            if (fuzzyMatch(extracted.dungeonName, payload.dungeonName)) {
-                matched.push('dungeonName');
-            } else {
-                mismatched.push('dungeonName');
-            }
-        }
-    }
-
-    // --- DONJON ---
-    if (category === 'DONJON') {
-        if (payload.bossName && extracted.dungeonName) {
-            if (fuzzyMatch(extracted.dungeonName, payload.bossName) ||
-                fuzzyMatch(extracted.dungeonName, payload.dungeonName)) {
-                matched.push('dungeonName');
-            } else {
-                mismatched.push('dungeonName');
-            }
-        }
-    }
-
-    // --- RANK CHECK (All types) ---
-    // Note: Rank in DB is `tier` (1-4), OCR extracts `rank`
-    if (payload.tier && extracted.rank) {
-        if (extracted.rank === payload.tier) {
-            matched.push('rank');
-        } else {
-            // Rank mismatch is a strong fraud indicator
-            mismatched.push('rank');
-        }
-    }
-
-    // Calculate score
-    const totalFields = matched.length + mismatched.length;
-    const matchScore = totalFields > 0 ? Math.round((matched.length / totalFields) * 100) : 0;
-
-    // Determine if it's a valid match
-    // We consider it a match if no critical fields are mismatched
-    const isMatch = mismatched.length === 0 && matched.length > 0;
-
-    return {
-        isMatch,
-        matchScore,
-        matchedFields: matched,
-        mismatchedFields: mismatched,
-        reason: mismatched.length > 0
-            ? `Incohérence détectée: ${mismatched.join(', ')}`
-            : matched.length > 0
-                ? `Match validé: ${matched.join(', ')}`
-                : 'Aucun champ comparable détecté'
-    };
 }

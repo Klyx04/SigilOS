@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Check, Loader2, MapPin, Sparkles, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -221,30 +222,49 @@ export function OcreMonsterCard({
                                         partners.slice(0, 4).map((partner) => (
                                             <div
                                                 key={partner.username}
-                                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/20"
+                                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors"
                                             >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                        <Avatar className="h-6 w-6 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
+                                                            <AvatarImage src={partner.discordAvatar} />
+                                                            <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                                                                {partner.characterName.substring(0, 2).toUpperCase()}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    </Link>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <Link
+                                                            href={`/dashboard/${guildId}/members/${partner.profileId}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs font-medium text-amber-400 truncate hover:underline cursor-pointer"
+                                                        >
+                                                            {partner.characterName}
+                                                        </Link>
+                                                        <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                                            <span className="opacity-50">Metamob:</span> {partner.username}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span className="text-xs font-medium text-amber-400 truncate cursor-help">
-                                                            {partner.characterName}
-                                                        </span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 shrink-0"
+                                                            onClick={() => handleCopyMP(partner)}
+                                                        >
+                                                            {copiedUser === partner.username ? (
+                                                                <Check className="h-3 w-3 text-emerald-500" />
+                                                            ) : (
+                                                                <Copy className="h-3 w-3 text-muted-foreground hover:text-white" />
+                                                            )}
+                                                        </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        Score: {partner.matchScore}
-                                                    </TooltipContent>
+                                                    <TooltipContent side="left">Copier le MP</TooltipContent>
                                                 </Tooltip>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 px-2"
-                                                    onClick={() => handleCopyMP(partner)}
-                                                >
-                                                    {copiedUser === partner.username ? (
-                                                        <Check className="h-3 w-3 text-emerald-500" />
-                                                    ) : (
-                                                        <Copy className="h-3 w-3" />
-                                                    )}
-                                                </Button>
                                             </div>
                                         ))
                                     )}

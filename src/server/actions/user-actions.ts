@@ -162,7 +162,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
             }
 
             if (isBanned) {
-                console.log(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
+                // console.log(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
@@ -187,7 +187,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                     }
                 });
             } else {
-                console.log(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
+                // console.log(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
@@ -241,7 +241,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
                         lastActivityAt: now,
                     }
                 });
-                console.log(`[UserContext] Profile synchronized for ${session.user.id}`);
+                // console.log(`[UserContext] Profile synchronized for ${session.user.id}`);
             } catch (e) {
                 console.error("[UserContext] Failed to sync profile:", e);
                 // Fallback: try to fetch it one last time if upsert failed weirdly

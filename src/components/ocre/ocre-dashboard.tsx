@@ -9,13 +9,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import {
     AlertTriangle,
     Package,
     Gift,
     Bug,
     ChevronLeft,
     ChevronRight,
+    ArrowRightLeft,
+    Loader2,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { Progress } from "@/components/ui/progress";
@@ -27,6 +37,8 @@ import {
     forceRefreshOcre,
     getGuildExchangeMap,
     findOcreExchangePartners,
+    getAvailableOcreQuests,
+    switchOcreQuest,
     type OcreProgressData,
     type ExchangePartner,
 } from "@/server/actions/ocre-actions";
@@ -155,6 +167,12 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         setCurrentPage(1);
     }, [filters]);
 
+    // Quest Switcher State
+    const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+    const [isSwitching, setIsSwitching] = useState(false);
+    const [availableQuests, setAvailableQuests] = useState<OcreProgressData["questInfo"][] | any[]>([]);
+    const [questsLoading, setQuestsLoading] = useState(false);
+
     // Handlers
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -169,6 +187,32 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         } else {
             toast.error(result.error || "Erreur lors du rafraîchissement");
             setIsRefreshing(false);
+        }
+    };
+
+    const handleOpenSwitch = async () => {
+        setQuestsLoading(true);
+        setShowSwitchDialog(true);
+        const result = await getAvailableOcreQuests(guildId);
+        if (result.success && result.data) {
+            setAvailableQuests(result.data.sort((a, b) => b.quest_template.id - a.quest_template.id));
+        } else {
+            toast.error("Impossible de charger les quêtes");
+            setShowSwitchDialog(false);
+        }
+        setQuestsLoading(false);
+    };
+
+    const handleSwitch = async (questSlug: string) => {
+        setIsSwitching(true);
+        const result = await switchOcreQuest(guildId, questSlug);
+        if (result.success) {
+            toast.success("Quête active mise à jour !");
+            setShowSwitchDialog(false);
+            window.location.reload();
+        } else {
+            toast.error(result.error || "Impossible de changer de quête");
+            setIsSwitching(false);
         }
     };
 
@@ -211,14 +255,77 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
     return (
         <div className="space-y-6">
+            {/* Quest Switcher Dialog */}
+            <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Choisir la quête active</DialogTitle>
+                        <DialogDescription>
+                            Sélectionnez la quête Ocre que vous souhaitez suivre sur SigilOS.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+                        {questsLoading ? (
+                            <div className="flex justify-center py-8">
+                                <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
+                            </div>
+                        ) : availableQuests.length === 0 ? (
+                            <div className="text-center py-6 text-muted-foreground">
+                                Aucune quête Ocre trouvée.
+                            </div>
+                        ) : (
+                            availableQuests.map((quest) => (
+                                <div
+                                    key={quest.slug}
+                                    onClick={() => handleSwitch(quest.slug)}
+                                    className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 cursor-pointer transition-all group"
+                                >
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-zinc-200">{quest.server.name}</span>
+                                            <Badge variant="secondary" className="text-[10px] h-5 bg-black/20">
+                                                {quest.quest_template.id === 1 ? "Unity" : quest.quest_template.id === 2 ? "Rétro" : "Custom"}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <UserCircle className="h-3.5 w-3.5" />
+                                            <span>{quest.character_name}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                            Étape {quest.current_step}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Header with Progress (Metamob Style) */}
             <div className="flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card/50 to-card/30 border border-amber-500/20 backdrop-blur-xl">
                 <div className="flex-1 md:w-1/2">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-                        Quête de l&apos;Éternelle Moisson
-                    </h2>
-                    <p className="text-muted-foreground mt-1">
-                        {data.questInfo.characterName} • {data.questInfo.serverName}
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+                            Quête de l&apos;Éternelle Moisson
+                        </h2>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
+                            title="Changer de quête"
+                            onClick={handleOpenSwitch}
+                        >
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                    <p className="text-muted-foreground mt-1 flex items-center gap-2">
+                        <span>{data.questInfo.characterName}</span>
+                        <span className="text-zinc-600">•</span>
+                        <span>{data.questInfo.serverName}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                         <Badge variant="outline" className="border-amber-500/30 text-amber-400">
@@ -235,11 +342,11 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                     </div>
                 </div>
 
-                <div className="absolute top-6 right-6 flex flex-col items-end gap-1">
-                    <span className="text-xs text-muted-foreground/60 font-medium uppercase tracking-wider">
+                <div className="flex flex-col items-end gap-2 md:gap-1">
+                    <span className="text-xs text-muted-foreground/60 font-medium uppercase tracking-wider hidden md:block">
                         Dernière synchro
                     </span>
-                    <span className="text-xs text-zinc-400 bg-black/20 px-2 py-1 rounded-md border border-white/5 font-mono">
+                    <span className="text-xs text-zinc-400 bg-black/20 px-2 py-1 rounded-md border border-white/5 font-mono whitespace-nowrap">
                         {data.lastSync ? new Date(data.lastSync).toLocaleString("fr-FR", {
                             day: "2-digit",
                             month: "2-digit",
@@ -247,13 +354,27 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                             minute: "2-digit"
                         }) : "Jamais"}
                     </span>
+
+                    {/* Compact stats for mobile/tablet */}
+                    <div className="md:hidden flex items-center gap-2 mt-2">
+                        <Badge variant="secondary" className="bg-black/40 text-xs">
+                            {data.stats.possedes}/{data.stats.total}
+                        </Badge>
+                    </div>
                 </div>
 
-                <div className="w-full md:w-1/2 grid gap-4">
+                <div className="w-full md:w-1/2 grid gap-4 hidden md:grid">
                     {renderProgressBar("Monstres", data.stats.monsters)}
                     {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
                     {renderProgressBar("Archimonstres", data.stats.archis)}
                 </div>
+            </div>
+
+            {/* Mobile Progress Bars (Separate) */}
+            <div className="md:hidden grid gap-4 p-4 rounded-xl bg-card/30 border border-white/5">
+                {renderProgressBar("Monstres", data.stats.monsters)}
+                {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
+                {renderProgressBar("Archimonstres", data.stats.archis)}
             </div>
 
             {/* Stats Grid */}
@@ -374,6 +495,29 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Helper Components
+// -----------------------------------------------------------------------------
+
+function UserCircle({ className }: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="10" r="3" />
+            <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+        </svg>
     );
 }
 

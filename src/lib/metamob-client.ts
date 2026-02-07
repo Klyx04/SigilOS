@@ -89,6 +89,17 @@ const QuestMonsterSchema = z.object({
     status: z.coerce.number().optional().nullable(),
     want: z.coerce.number().optional().nullable(),
     offer: z.coerce.number().optional().nullable(),
+    reference: z.object({
+        id: z.number(),
+        name: LocalizedNameSchema,
+    }).optional(),
+    monster: z.object({
+        id: z.coerce.number(),
+        owned: z.coerce.number().optional().nullable(),
+        quantity: z.coerce.number().optional().nullable(),
+        quantite: z.coerce.number().optional().nullable(),
+        amount: z.coerce.number().optional().nullable(),
+    }).optional(),
 });
 
 const QuestTemplateSchema = z.object({
@@ -650,18 +661,34 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         m.quantity ?? 0,
         m.amount ?? 0,
         m.monster?.owned ?? 0,
-        m.monster?.quantite ?? 0
+        m.monster?.quantite ?? 0,
+        m.monster?.quantity ?? 0,
+        m.monster?.amount ?? 0
     );
 
     // [V2 FIX] If owned is 0/missing, infer from want/offer/status logic
     // status = owned - parallelQuests
-    if (owned === 0) {
+    // Logic:
+    // - Status defined: explicit.
+    // - Offer > 0: means we have enough for quests + extras.
+    // - Want > 0: means we are missing some.
+    // - Want == 0 && Offer == 0: means we have exactly the count needed (Neutral/Green state).
+
+    // Check if any explicit "owned" field was present (to distinguish from default 0)
+    const hasExplicitOwned = m.owned !== undefined || m.quantite !== undefined || m.quantity !== undefined || m.amount !== undefined || m.monster?.owned !== undefined;
+
+    if (!hasExplicitOwned) {
         if (m.status !== undefined) {
             owned = Math.max(0, m.status + pq);
-        } else if (m.offer > 0) {
-            owned = pq + m.offer;
-        } else if (m.want > 0) {
-            owned = 0; // If they want it, they have less than pq
+        } else if ((m.offer ?? 0) > 0) {
+            owned = pq + (m.offer ?? 0);
+        } else if ((m.want ?? 0) > 0) {
+            owned = Math.max(0, pq - (m.want ?? 0));
+        } else {
+            // Case: Want 0, Offer 0. 
+            // In Metamob, this usually means "I have it" (Satisfied state).
+            // Default to PQ.
+            owned = pq;
         }
     }
 
@@ -671,7 +698,7 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         : "";
 
     return {
-        id: monster.id,
+        id: monster.monster_id ?? m.monster?.id ?? monster.reference?.id ?? monster.id,
         name: monster.name.fr,
         nameFr: monster.name.fr,
         nameEn: monster.name.en,

@@ -23,6 +23,7 @@ import {
     MessageCircle,
     PackageOpen
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { findOcreExchangePartners, type ExchangePartner } from "@/server/actions/ocre-actions";
@@ -71,7 +72,18 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
     };
 
     // Aggregate by monster
-    const monstersMap = new Map<number, { name: string; imageUrl?: string; coversNeed: boolean; providers: { name: string; count: number }[] }>();
+    const monstersMap = new Map<number, {
+        name: string;
+        imageUrl?: string;
+        coversNeed: boolean;
+        providers: {
+            name: string;
+            count: number;
+            avatar?: string;
+            profileId: string;
+            metamobName: string;
+        }[]
+    }>();
     let neededCount = 0;
 
     partners.forEach(partner => {
@@ -86,7 +98,10 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
             }
             monstersMap.get(monster.id)?.providers.push({
                 name: partner.characterName,
-                count: monster.available
+                count: monster.available,
+                avatar: partner.discordAvatar,
+                profileId: partner.profileId,
+                metamobName: partner.username
             });
             if (monster.coversNeed) neededCount++;
         });
@@ -196,14 +211,33 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                                 <div className="space-y-1.5 mt-2">
                                                     {monster.providers.map((provider) => (
                                                         <div key={provider.name} className="flex items-center justify-between text-xs bg-black/40 p-1.5 rounded">
-                                                            <span className="text-zinc-300">{provider.name} <span className="text-zinc-500 text-[10px] ml-1">(x{provider.count})</span></span>
+                                                            <div className="flex items-center gap-2">
+                                                                <Link href={`/dashboard/${guildId}/members/${provider.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                                    <Avatar className="h-5 w-5 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
+                                                                        <AvatarImage src={provider.avatar} />
+                                                                        <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400">
+                                                                            {provider.name.substring(0, 2).toUpperCase()}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                </Link>
+                                                                <div className="flex flex-col">
+                                                                    <Link
+                                                                        href={`/dashboard/${guildId}/members/${provider.profileId}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-zinc-300 hover:text-amber-400 transition-colors cursor-pointer"
+                                                                    >
+                                                                        {provider.name} <span className="text-zinc-500 text-[10px] ml-1">(x{provider.count})</span>
+                                                                    </Link>
+                                                                </div>
+                                                            </div>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 className="h-5 w-5 p-0 hover:text-emerald-400"
-                                                                onClick={() => handleCopyMP(provider.name, monster.name)}
+                                                                onClick={() => handleCopyMP(provider.metamobName, monster.name)}
                                                             >
-                                                                {copiedUser === provider.name ? (
+                                                                {copiedUser === provider.metamobName ? (
                                                                     <Check className="h-3 w-3 text-emerald-500" />
                                                                 ) : (
                                                                     <Copy className="h-3 w-3" />
@@ -228,18 +262,31 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                             >
                                                 <div className="flex items-center justify-between mb-4">
                                                     <div className="flex items-center gap-3">
-                                                        <Avatar className="h-10 w-10 border border-white/10">
-                                                            <AvatarFallback className="bg-emerald-900/50 text-emerald-200">
-                                                                {partner.characterName[0].toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
+                                                        <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                            <Avatar className="h-10 w-10 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
+                                                                <AvatarImage src={partner.discordAvatar} />
+                                                                <AvatarFallback className="bg-emerald-900/50 text-emerald-200">
+                                                                    {partner.characterName[0].toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                        </Link>
                                                         <div>
-                                                            <h4 className="font-bold text-sm text-zinc-100">
+                                                            <Link
+                                                                href={`/dashboard/${guildId}/members/${partner.profileId}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="font-bold text-sm text-zinc-100 hover:text-amber-400 hover:underline cursor-pointer transition-colors"
+                                                            >
                                                                 {partner.characterName}
-                                                            </h4>
-                                                            <p className="text-xs text-zinc-500">
-                                                                propose {partner.monstersTheyHave.length} monstres
-                                                            </p>
+                                                            </Link>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs text-zinc-500">
+                                                                    propose {partner.monstersTheyHave.length} monstres
+                                                                </p>
+                                                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded">
+                                                                    {partner.username}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

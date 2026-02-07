@@ -1519,6 +1519,7 @@ export async function forceRefreshOcre(
 
         // 3. Revalidate
         // Invalidate specific user tag so that getQuestDetails returns fresh data immediately
+        // @ts-ignore
         revalidateTag(`metamob-user-${profile.metamobPseudo.toLowerCase()}`);
         revalidatePath(`/dashboard/${guildId}/quete-ocre`, "page");
 

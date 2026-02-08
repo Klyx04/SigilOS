@@ -1502,7 +1502,7 @@ export async function forceRefreshOcre(
                     data: { metamobLastSync: new Date() }
                 });
             } catch (e) {
-                console.warn("[forceRefreshOcre] Current quest failed, attempting rediscovery...");
+                // console.warn("[forceRefreshOcre] Current quest failed, attempting rediscovery...");
                 const quests = await getUserQuests(profile.metamobPseudo, { guildApiKey: effectiveKey, skipCache: true });
                 if (quests.length > 0 && quests[0].slug !== profile.metamobQuestSlug) {
                     await db.userProfile.update({
@@ -1526,7 +1526,7 @@ export async function forceRefreshOcre(
         return { success: true, data: { questUpdated } };
 
     } catch (error) {
-        console.error("[forceRefreshOcre] Error:", error);
+        // console.error("[forceRefreshOcre] Error:", error);
         return { success: false, error: "Erreur lors de la synchronisation" };
     }
 }
@@ -1560,7 +1560,7 @@ export async function getAvailableOcreQuests(guildId: string): Promise<ActionRes
 
         return { success: true, data: quests };
     } catch (error) {
-        console.error("[getAvailableOcreQuests] Error:", error);
+        // console.error("[getAvailableOcreQuests] Error:", error);
         return { success: false, error: "Impossible de récupérer la liste des quêtes" };
     }
 }

@@ -20,7 +20,6 @@ import {
     Sparkles,
     Copy,
     Check,
-    MessageCircle,
     PackageOpen
 } from "lucide-react";
 import Link from "next/link";

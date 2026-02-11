@@ -1,89 +1,169 @@
-# 🛠️ SigilOS : Manuel de Maintenance
+# 🛠️ Maintenance VPS — SigilOS
 
-Ce document contient toutes les procédures pour maintenir SigilOS en conditions opérationnelles. **Réservé à l'administrateur système (Klyx).**
-
----
-
-## 🏗️ Architecture des Environnements
-
-| Environnement | Domain | Docker Container | DB Container |
-| :--- | :--- | :--- | :--- |
-| **Production** | sigilos.fr | `sigilos-prod` | `sigilos-db-prod` |
-| **Bêta** | beta.sigilos.fr | `sigilos-beta` | `sigilos-db-beta` |
-| **Monitoring** | monitor.sigilos.fr | `sigilos-grafana` | - |
+Documentation des procédures de maintenance infrastructure pour le VPS SigilOS.
 
 ---
 
-## 🚀 Procédures de Déploiement
+## 📅 Automation Quotidienne
 
-### Déployer la Bêta (Labo)
-C'est ici qu'on teste les nouveautés avec la guilde Stellium.
+### Backups (3h00 UTC)
 ```bash
+Script: /home/sigiladmin/SigilOS/scripts/backup_db.sh
+Logs: /home/sigiladmin/SigilOS/logs/backup.log
+```
+
+**Actions**:
+1. Backup PostgreSQL (prod + beta)
+2. Compression gzip
+3. Chiffrement GPG
+4. Upload vers Cloudflare R2
+5. Rotation locale (30 jours)
+
+### Maintenance (4h00 UTC)
+```bash
+Script: /home/sigiladmin/SigilOS/scripts/maintenance.sh
+Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
+```
+
+**Actions**:
+1. Nettoyage Docker (images + build cache)
+2. APT cleanup (autoremove + autoclean)
+3. Rotation logs (journalctl 7j)
+4. Rotation logs application (>10MB)
+5. Alerte Discord si disque >85%
+
+---
+
+## 🔍 Monitoring
+
+### Check Hardening
+```bash
+cd ~/SigilOS
+./scripts/check-hardening.sh
+```
+
+**Vérifie**:
+- Cron jobs configurés
+- Espace disque
+- Containers status
+- SSH config
+- Firewall UFW
+- Fail2Ban
+- Auto-updates
+- Docker cleanup potentiel
+
+### Logs Importants
+```bash
+# Backup execution
+tail -f ~/SigilOS/logs/backup.log
+
+# Maintenance execution
+tail -f ~/SigilOS/logs/maintenance.log
+
+# Application logs
+sudo docker logs sigilos-prod --tail 100 -f
+sudo docker logs sigilos-beta --tail 100 -f
+```
+
+---
+
+## 🚨 Procédures d'Urgence
+
+### Restauration Backup
+```bash
+# 1. Télécharger depuis R2
+aws s3 cp s3://sigilos-backups/sigilos_YYYY-MM-DD_HH-MM-SS.sql.gz.gpg .
+
+# 2. Déchiffrer
+gpg --decrypt sigilos_*.sql.gz.gpg | gunzip > restore.sql
+
+# 3. Restaurer
+sudo docker exec -i sigilos-db-prod psql -U sigilos -d sigilos < restore.sql
+```
+
+### Rollback Déploiement
+```bash
+# Revenir au commit précédent
+cd ~/SigilOS
+git log --oneline -5  # Trouver le commit précédent
+git reset --hard <commit-hash>
+
+# Redéployer
+./scripts/deploy.sh beta  # ou prod
+```
+
+### Saturation Disque
+```bash
+# Nettoyage manuel immédiat
+sudo docker image prune -a --force
+sudo docker builder prune -a --force
+sudo docker system prune -a --force
+journalctl --vacuum-time=1d
+
+# Vérifier gain
+df -h
+```
+
+---
+
+## 📊 Métriques Clés
+
+### Stockage
+- **Cible**: <50% utilisé
+- **Alerte**: >85% (Discord webhook)
+- **Action**: Cleanup manuel si alerte
+
+### Containers
+- **Attendu**: 11 containers UP
+- **Critique**: app-prod, app-beta, db-prod, db-beta, caddy, redis
+
+### Backups
+- **Fréquence**: Quotidien @ 3h UTC
+- **Rétention**: 30 jours local, illimité R2
+- **Vérification**: `ls -lh backups/db/`
+
+---
+
+## 🔄 Mise à Jour Code
+
+### Beta
+```bash
+ssh vps
+cd ~/SigilOS
+git pull origin dev
 ./scripts/deploy.sh beta
 ```
 
-### Déployer la Production (Live)
-À ne faire QUE si la Bêta est validée.
+### Production
 ```bash
+# Local
+git checkout main
+git merge dev
+git push origin main
+
+# VPS
+ssh vps
+cd ~/SigilOS
+git pull origin main
 ./scripts/deploy.sh prod
 ```
 
-### Procédure de secours (Rollback)
-Si la production crash après une mise à jour :
-```bash
-# On arrête le nouveau conteneur fautif
-docker stop sigilos-prod
-# On relance l'ancienne version stable (si image dispo)
-./scripts/deploy.sh prod
-```
+---
+
+## 📞 Contacts & Alertes
+
+**Discord Webhook**: Configuré dans `.env.prod`  
+**Variable**: `DISCORD_ADMIN_WEBHOOK`  
+**Alertes**: Saturation disque >85%
 
 ---
 
-## 🔐 Gestion des Secrets (.env)
+## ✅ Checklist Mensuelle
 
-Les fichiers d'environnement sont sur le VPS dans le dossier racine :
-- `.env.prod` : Configuration réelle.
-- `.env.beta` : Configuration tests.
-
-**Action requise après modification :** Relancer `./scripts/deploy.sh [env]` pour que Next.js prenne en compte les changements.
-
----
-
-## 🛡️ Sécurité & Hardening
-
-1. **Rotation des clés** : Changer `ENCRYPTION_KEY` tous les 12 mois (Attention: demande un script de re-chiffrement).
-2. **Logs d'Audit** : Consultables dans le dashboard `/god` ou directement en base via `select * from "AuditLog"`.
-3. **Images Docker** : Nettoyer régulièrement pour économiser le disque :
-   ```bash
-   docker image prune -f
-   ```
-
----
-
-## 📊 Monitoring (Grafana)
-
-URL : [https://monitor.sigilos.fr](https://monitor.sigilos.fr)
-- **Login** : GitHub OAuth (Uniquement Klyx04).
-- **Statut** : Vérifier les jauges de CPU et RAM avant chaque grosse mise à jour.
-
----
-
-## ⚖️ Rétention GDPR (Janitor)
-
-Le script de nettoyage tourne automatiquement ou peut être lancé manuellement depuis la page `/god`.
-- **Ghost Users** : Supprimés après 24h sans profil créé.
-- **Profils Archivés** : Wipe total après 90 jours d'inactivité.
-- **Force Wipe** : Possible via `MemberHistory` dans l'admin si un membre est banni.
-
----
-
-## 🆘 En cas de pépin
-
-1. **Le site répond 502 Bad Gateway** : Caddy ne trouve plus le conteneur `app-prod`. Vérifier si le conteneur crashed : `docker ps -a`.
-2. **Erreur de BDD (Prisma)** : Lancer `npx prisma db push` (seulement si le script de déploiement a échoué).
-3. **Redis Error** : Vérifier le mot de passe dans le `.env` et dans `docker-compose`.
-   - **Cache Wipe** : Pour vider tout le cache manuellement : `docker exec sigilos-redis redis-cli FLUSHALL`.
-   - **Graceful Shutdown** : Le serveur Next.js gère désormais la fermeture propre des connexions Redis via les signaux SIGTERM.
-
----
-*Dernière mise à jour : Février 2026 - Antigravity (IA)*
+- [ ] Vérifier backups R2 (existence + taille)
+- [ ] Analyser logs maintenance (erreurs ?)
+- [ ] Vérifier croissance DB (`df -h`)
+- [ ] Tester restauration backup (dry-run)
+- [ ] Vérifier mises à jour système (`apt list --upgradable`)
+- [ ] Review Grafana dashboards
+- [ ] Vérifier certificats SSL Caddy

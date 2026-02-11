@@ -428,6 +428,7 @@ Tests importants :
 - **[SECURITY.md](./SECURITY.md)** : Politique de sécurité
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** : Guide de contribution (à créer)
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** : Guide de déploiement détaillé (à créer)
+- **[MAINTENANCE.md](./MAINTENANCE.md)** : Guide de maintenance VPS (Backup, Cleanup, Monitoring)
 - **[API.md](./API.md)** : Documentation des routes API (à créer)
 
 ---

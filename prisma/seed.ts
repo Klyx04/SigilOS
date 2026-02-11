@@ -1,128 +1,207 @@
-import { PrismaClient } from '@prisma/client'
-import 'dotenv/config'
+import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-async function main() {
-    console.log('🌱 Start seeding...')
-
-    // --- 1. ZONES ---
-    const zonesData = [
-        { name: 'Incarnam', level: 10 },
-        { name: 'Astrub', level: 20 },
-        { name: 'Champs d\'Astrub', level: 30 },
-        { name: 'Forêt d\'Abraknyde', level: 60 },
-        { name: 'Bonta', level: 50 },
-        { name: 'Brakmar', level: 50 },
-        { name: 'Ile de Pandala', level: 120 },
-        { name: 'Cité d\'Otomaï', level: 100 },
-        { name: 'Arbre de Hakam', level: 180 },
-        { name: 'Frigost 1', level: 120 },
-        { name: 'Frigost 2', level: 150 },
-        { name: 'Frigost 3', level: 190 },
-        { name: 'Saharach', level: 160 },
-        { name: 'Sufokia', level: 100 },
-        { name: 'Abysses de Sufokia', level: 200 },
-        { name: 'Enutrosor', level: 200 },
-        { name: 'Tour des Rêves', level: 200 },
-    ]
-
-    const zones = []
-    for (const z of zonesData) {
-        const zone = await prisma.zone.upsert({
-            where: { name: z.name },
-            update: { level: z.level },
-            create: z,
-        })
-        zones.push(zone)
-        console.log(`Created/Updated Zone: ${zone.name}`)
-    }
-
-    // --- 2. MONSTERS ---
-    const monstersData = [
-        { name: 'Bouftou d\'Incarnam', zoneName: 'Incarnam' },
-        { name: 'Pichon Bleu', zoneName: 'Astrub' },
-        { name: 'Abraknyde', zoneName: 'Forêt d\'Abraknyde' },
-        { name: 'Tofu Maléfique', zoneName: 'Bonta' },
-        { name: 'Crocodaïlle', zoneName: 'Sufokia' },
-        { name: 'Bwork Arc', zoneName: 'Brakmar' },
-        { name: 'Pandule', zoneName: 'Ile de Pandala' },
-        { name: 'Mansot Royal', zoneName: 'Frigost 1' },
-        { name: 'Blops', zoneName: 'Cité d\'Otomaï' },
-        { name: 'Cactobas', zoneName: 'Saharach' },
-        { name: 'Trithon', zoneName: 'Abysses de Sufokia' },
-        { name: 'Phorror', zoneName: 'Enutrosor' },
-    ]
-
-    for (const m of monstersData) {
-        const zone = zones.find(z => z.name === m.zoneName)
-        if (zone) {
-            // Check if monster exists to avoid double creation in this simplified seed
-            const existing = await prisma.monster.findFirst({
-                where: { name: m.name, zoneId: zone.id }
-            })
-            if (!existing) {
-                await prisma.monster.create({
-                    data: {
-                        name: m.name,
-                        zoneId: zone.id
-                    }
-                })
-                console.log(`Created Monster: ${m.name} in ${zone.name}`)
-            }
-        }
-    }
-
-    // --- 3. DUNGEONS ---
-    const dungeonsData = [
-        // Level 1-50
-        { name: 'Donjon d\'Incarnam', bossName: 'Milimilou', level: 10 },
-        { name: 'Donjon Ensablé', bossName: 'Mob l\'Éponge', level: 20 },
-        { name: 'Donjon des Bouftous', bossName: 'Bouftou Royal', level: 30 },
-        { name: 'Donjon des Squelettes', bossName: 'Chafer Royal', level: 40 },
-        // Level 51-100
-        { name: 'Donjon des Blops', bossName: 'Blop Multicolore Royal', level: 90 },
-        { name: 'Donjon de Nowel', bossName: 'Sapik', level: 60 },
-        { name: 'Donjon des Crapeaux', bossName: 'Kwakwa', level: 50 },
-        { name: 'Donjon de Moon', bossName: 'Moon', level: 100 },
-        // Level 101-150
-        { name: 'Donjon du Dragon Cochon', bossName: 'Dragon Cochon', level: 120 },
-        { name: 'Donjon du Chêne Mou', bossName: 'Chêne Mou', level: 140 },
-        { name: 'Donjon des Mansots', bossName: 'Mansot Royal', level: 130 },
-        { name: 'Donjon du Royalmouth', bossName: 'Royalmouth', level: 120 },
-        // Level 151-190
-        { name: 'Donjon de l\'Obsidiantre', bossName: 'Obsidiantre', level: 160 },
-        { name: 'Donjon du Korriandre', bossName: 'Korriandre', level: 180 },
-        { name: 'Donjon du Kolosso', bossName: 'Kolosso', level: 190 },
-        { name: 'Donjon du Tengu Givrefoux', bossName: 'Tengu Givrefoux', level: 170 },
-        // Level 191-200
-        { name: 'Donjon de Merkator', bossName: 'Merkator', level: 200 },
-        { name: 'Donjon de la Reine des Voleurs', bossName: 'Reine des Voleurs', level: 200 },
-        { name: 'Donjon de Captain Amakna', bossName: 'Captain Amakna', level: 200 },
-        { name: 'Donjon du Comte Harebourg', bossName: 'Comte Harebourg', level: 200 },
-        { name: 'Donjon du Nileza', bossName: 'Nileza', level: 200 },
-        { name: 'Donjon de Sylargh', bossName: 'Sylargh', level: 200 },
-        { name: 'Donjon de Missiz Frizz', bossName: 'Missiz Frizz', level: 200 },
-        { name: 'Donjon de Klime', bossName: 'Klime', level: 200 },
-    ]
-
-    for (const d of dungeonsData) {
-        await prisma.dungeon.upsert({
-            where: { name: d.name },
-            update: { bossName: d.bossName, level: d.level },
-            create: d,
-        })
-        console.log(`Created/Updated Dungeon: ${d.name}`)
-    }
-
-    console.log('✅ Seeding finished.')
+interface SeedData {
+    _meta: {
+        exportedAt: string;
+        environment: string;
+        version: string;
+        counts: {
+            zones: number;
+            monsterFamilies: number;
+            challenges: number;
+            dungeons: number;
+        };
+    };
+    zones: Array<{ name: string; level: number; dpnlUrl?: string | null }>;
+    monsterFamilies: Array<{
+        name: string;
+        description?: string | null;
+        imageUrl?: string | null;
+        zoneNames: string[];
+    }>;
+    challenges: Array<{
+        slug: string;
+        name: string;
+        description?: string | null;
+        iconUrl?: string | null;
+    }>;
+    dungeons: Array<{
+        name: string;
+        bossName: string;
+        level: number;
+        dpnlUrl?: string | null;
+        imageUrl?: string | null;
+        isExpedition: boolean;
+        expeditionModes?: any;
+        expeditionMechanics?: string | null;
+        challengeSlugs: string[];
+    }>;
 }
 
-main()
+async function seed() {
+    console.log('🌱 Starting database seed...');
+
+    const seedFilePath = path.join(process.cwd(), 'prisma', 'seeds', 'game-data.json');
+
+    if (!fs.existsSync(seedFilePath)) {
+        console.log('⚠️  No seed file found at:', seedFilePath);
+        console.log('ℹ️  Run npm run export-seeds first to generate the seed file');
+        return;
+    }
+
+    const seedData: SeedData = JSON.parse(fs.readFileSync(seedFilePath, 'utf-8'));
+
+    console.log('📊 Seed file metadata:');
+    console.log('  - Exported:', seedData._meta.exportedAt);
+    console.log('  - Environment:', seedData._meta.environment);
+    console.log('  - Counts:', seedData._meta.counts);
+    console.log('');
+
+    // 1. Seed Zones (use 'name' as unique key)
+    console.log('🗺️  Seeding Zones...');
+    for (const zone of seedData.zones) {
+        await prisma.zone.upsert({
+            where: { name: zone.name },
+            update: {
+                level: zone.level,
+                dpnlUrl: zone.dpnlUrl,
+            },
+            create: {
+                name: zone.name,
+                level: zone.level,
+                dpnlUrl: zone.dpnlUrl,
+            },
+        });
+    }
+    console.log(`✅ ${seedData.zones.length} zones seeded`);
+
+    // 2. Seed Monster Families (use 'name' as unique key)
+    console.log('👾 Seeding Monster Families...');
+    for (const mf of seedData.monsterFamilies) {
+        // First, create/update the family
+        await prisma.monsterFamily.upsert({
+            where: { name: mf.name },
+            update: {
+                description: mf.description,
+                imageUrl: mf.imageUrl,
+            },
+            create: {
+                name: mf.name,
+                description: mf.description,
+                imageUrl: mf.imageUrl,
+            },
+        });
+
+        // Then, sync zone relations if schema supports many-to-many
+        const family = await prisma.monsterFamily.findUnique({
+            where: { name: mf.name },
+            include: { zones: true }
+        });
+
+        if (family && mf.zoneNames && mf.zoneNames.length > 0) {
+            // Get zones
+            const zones = await prisma.zone.findMany({
+                where: { name: { in: mf.zoneNames } },
+            });
+
+            // Update with connect/disconnect (assuming implicit many-to-many)
+            await prisma.monsterFamily.update({
+                where: { id: family.id },
+                data: {
+                    zones: {
+                        set: zones.map(z => ({ id: z.id }))
+                    }
+                }
+            });
+        }
+    }
+    console.log(`✅ ${seedData.monsterFamilies.length} monster families seeded`);
+
+    // 3. Seed Challenges (has 'slug' field)
+    console.log('🏆 Seeding Challenges...');
+    for (const challenge of seedData.challenges) {
+        await prisma.challenge.upsert({
+            where: { slug: challenge.slug },
+            update: {
+                name: challenge.name,
+                description: challenge.description,
+                iconUrl: challenge.iconUrl,
+            },
+            create: {
+                slug: challenge.slug,
+                name: challenge.name,
+                description: challenge.description,
+                iconUrl: challenge.iconUrl,
+            },
+        });
+    }
+    console.log(`✅ ${seedData.challenges.length} challenges seeded`);
+
+    // 4. Seed Dungeons (use 'name' as unique key)
+    console.log('🏰 Seeding Dungeons...');
+    for (const dungeon of seedData.dungeons) {
+        // Create/update dungeon
+        await prisma.dungeon.upsert({
+            where: { name: dungeon.name },
+            update: {
+                bossName: dungeon.bossName,
+                level: dungeon.level,
+                dpnlUrl: dungeon.dpnlUrl,
+                imageUrl: dungeon.imageUrl,
+                isExpedition: dungeon.isExpedition,
+                expeditionModes: dungeon.expeditionModes || null,
+                expeditionMechanics: dungeon.expeditionMechanics,
+            },
+            create: {
+                name: dungeon.name,
+                bossName: dungeon.bossName,
+                level: dungeon.level,
+                dpnlUrl: dungeon.dpnlUrl,
+                imageUrl: dungeon.imageUrl,
+                isExpedition: dungeon.isExpedition,
+                expeditionModes: dungeon.expeditionModes || null,
+                expeditionMechanics: dungeon.expeditionMechanics,
+            },
+        });
+
+        // Sync challenge relations
+        const dbDungeon = await prisma.dungeon.findUnique({ where: { name: dungeon.name } });
+        if (dbDungeon && dungeon.challengeSlugs && dungeon.challengeSlugs.length > 0) {
+            // Get challenge IDs from slugs
+            const challenges = await prisma.challenge.findMany({
+                where: { slug: { in: dungeon.challengeSlugs } },
+                select: { id: true },
+            });
+
+            // Delete existing relations
+            await prisma.dungeonAchievement.deleteMany({
+                where: { dungeonId: dbDungeon.id },
+            });
+
+            // Create new relations
+            await prisma.dungeonAchievement.createMany({
+                data: challenges.map(c => ({
+                    dungeonId: dbDungeon.id,
+                    challengeId: c.id,
+                })),
+            });
+        }
+    }
+    console.log(`✅ ${seedData.dungeons.length} dungeons seeded`);
+
+    console.log('');
+    console.log('🎉 Database seeding completed successfully!');
+}
+
+seed()
     .catch((e) => {
-        console.error(e)
-        process.exit(1)
+        console.error('❌ Seeding failed:', e);
+        process.exit(1);
     })
     .finally(async () => {
-        await prisma.$disconnect()
-    })
+        await prisma.$disconnect();
+    });

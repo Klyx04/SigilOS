@@ -9,9 +9,12 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { Shield } from "lucide-react";
+import { Shield, Sparkles, ScrollText, CheckCircle } from "lucide-react";
 import { SyncPurgeCard } from "./_components/sync-purge-card";
 import { MemberHistory } from "./_components/member-history";
+import Link from "next/link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight } from "lucide-react";
 
 
 export default async function AdminPage({
@@ -88,6 +91,69 @@ export default async function AdminPage({
                 icon={Shield}
                 backHref={`/dashboard/${guildId}`}
             />
+
+            {/* Admin Module Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {/* Missions Card */}
+                <Link href={`/dashboard/${guildId}/missions/manage`}>
+                    <Card className="bg-card/20 border-border hover:border-blue-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="group-hover:text-blue-400 transition-colors flex items-center gap-2 text-base">
+                                <ScrollText className="w-5 h-5" />
+                                Gérer les Missions
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                Créer et modifier les missions hebdomadaires.
+                            </p>
+                            <div className="mt-4 flex items-center text-xs text-blue-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
+                                Accéder à l'éditeur <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                {/* Validation Card */}
+                <Link href={`/dashboard/${guildId}/missions/validation`}>
+                    <Card className="bg-card/20 border-border hover:border-green-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="group-hover:text-green-400 transition-colors flex items-center gap-2 text-base">
+                                <CheckCircle className="w-5 h-5" />
+                                Valider Preuves
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                Accepter ou refuser les soumissions des membres.
+                            </p>
+                            <div className="mt-4 flex items-center text-xs text-green-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
+                                Ouvrir la file <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                {/* Bonus Management Card */}
+                <Link href={`/dashboard/${guildId}/missions/manage#bonus`}>
+                    <Card className="bg-card/20 border-border hover:border-amber-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="group-hover:text-amber-400 transition-colors flex items-center gap-2 text-base">
+                                <Sparkles className="w-5 h-5" />
+                                Gérer les Bonus
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                Acheter des bonus temporaires pour la guilde.
+                            </p>
+                            <div className="mt-4 flex items-center text-xs text-amber-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
+                                Gérer les bonus <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+            </div>
 
             <PermissionsManager
                 guildId={targetGuildId}

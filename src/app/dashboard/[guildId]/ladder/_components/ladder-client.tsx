@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
     getSeniorityLadder,
     getSuccessLadder,
+    getContributionLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -22,7 +23,7 @@ type Props = {
 };
 
 export function LadderClient({ guildId, canValidate }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "seniority" | "success">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,6 +36,9 @@ export function LadderClient({ guildId, canValidate }: Props) {
             switch (activeTab) {
                 case "activity":
                     result = await getActivityLadder(guildId, activityView);
+                    break;
+                case "contribution":
+                    result = await getContributionLadder(guildId);
                     break;
                 case "seniority":
                     result = await getSeniorityLadder(guildId);
@@ -59,6 +63,8 @@ export function LadderClient({ guildId, canValidate }: Props) {
         switch (activeTab) {
             case "activity":
                 return `${entry.value.toLocaleString()} XP`;
+            case "contribution":
+                return `${entry.value.toLocaleString()} pts`;
             case "seniority":
                 return formatSeniority(entry.value);
             case "success":
@@ -77,6 +83,15 @@ export function LadderClient({ guildId, canValidate }: Props) {
             color: "purple",
             activeClass: "bg-purple-500/20 border-purple-500/40 text-purple-200 shadow-lg shadow-purple-500/10",
             idleClass: "bg-purple-500/5 border-purple-500/10 text-purple-400/60 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-300"
+        },
+        {
+            id: "contribution",
+            label: "Contribution",
+            icon: HandHeart,
+            description: "Entraide & collaboration",
+            color: "emerald",
+            activeClass: "bg-emerald-500/20 border-emerald-500/40 text-emerald-200 shadow-lg shadow-emerald-500/10",
+            idleClass: "bg-emerald-500/5 border-emerald-500/10 text-emerald-400/60 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-300"
         },
         {
             id: "seniority",
@@ -137,7 +152,7 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 "absolute -bottom-6 -right-6 w-24 h-24 rounded-full blur-[40px] opacity-20 pointer-events-none transition-transform duration-500",
                                 isActive ? "scale-150 rotate-12" : "scale-0"
                             )}
-                                style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'cyan' ? '#06b6d4' : '#f59e0b' }}
+                                style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'emerald' ? '#10b981' : cat.color === 'cyan' ? '#06b6d4' : '#f59e0b' }}
                             />
                         </button>
                     );
@@ -150,10 +165,10 @@ export function LadderClient({ guildId, canValidate }: Props) {
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-2 h-2 rounded-full animate-pulse",
-                            activeTab === 'activity' ? 'bg-purple-400' : activeTab === 'seniority' ? 'bg-cyan-400' : 'bg-amber-400'
+                            activeTab === 'activity' ? 'bg-purple-400' : activeTab === 'contribution' ? 'bg-emerald-400' : activeTab === 'seniority' ? 'bg-cyan-400' : 'bg-amber-400'
                         )} />
                         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400">
-                            RANGS {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : 'DE PRESTIGE'}
+                            RANGS {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : 'DE PRESTIGE'}
                         </h2>
                     </div>
 
@@ -204,7 +219,7 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 key={entry.profileId}
                                 entry={entry}
                                 valueLabel={getValueLabel(entry)}
-                                accentColor={activeTab === 'activity' ? 'purple' : activeTab === 'seniority' ? 'cyan' : 'amber'}
+                                accentColor={activeTab === 'activity' ? 'purple' : activeTab === 'contribution' ? 'emerald' : activeTab === 'seniority' ? 'cyan' : 'amber'}
                             />
                         ))}
                     </div>

@@ -6,6 +6,7 @@ export const PERMISSIONS = {
     MISSIONS_VIEW: "missions:view",
     MISSIONS_CREATE: "missions:create", // Gérer les missions (création/édition)
     MISSIONS_VALIDATE: "missions:validate", // Validate submissions
+    BONUS_MANAGE: "missions:bonus_manage", // Gérer les bonus de guilde
 
     // User Profile
     PROFILE_VIEW_ALL: "profile:view_all", // See full guild roster
@@ -63,6 +64,11 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.MISSIONS_VALIDATE]: {
         label: "Valider Preuves",
         description: "Accepter ou refuser les screenshots soumis par les membres.",
+        module: "missions",
+    },
+    [PERMISSIONS.BONUS_MANAGE]: {
+        label: "Gérer les Bonus",
+        description: "Acheter et annuler des bonus de guilde (Oracle de Fortune, etc.).",
         module: "missions",
     },
     [PERMISSIONS.PROFILE_VIEW_ALL]: {

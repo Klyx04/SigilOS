@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 type Props = {
     entry: LadderEntry;
     valueLabel: string;
-    accentColor: "purple" | "cyan" | "amber";
+    accentColor: "purple" | "cyan" | "amber" | "emerald";
 };
 
 export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
@@ -36,6 +36,14 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             valueText: "text-amber-300",
             glow: "bg-amber-400/10",
             highlight: "bg-amber-500/10 border-amber-500/20 ring-1 ring-amber-500/20"
+        },
+        emerald: {
+            border: "group-hover:border-emerald-500/30 border-white/5",
+            bg: "hover:bg-emerald-500/[0.03]",
+            rankText: "text-emerald-400",
+            valueText: "text-emerald-300",
+            glow: "bg-emerald-400/10",
+            highlight: "bg-emerald-500/10 border-emerald-500/20 ring-1 ring-emerald-500/20"
         }
     };
 

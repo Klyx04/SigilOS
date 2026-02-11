@@ -27,7 +27,7 @@ export type LadderEntry = {
     isAdmin: boolean;
 };
 
-export type LadderType = "activity" | "seniority" | "success";
+export type LadderType = "activity" | "seniority" | "success" | "contribution";
 export type ActivityView = "weekly" | "monthly" | "alltime";
 
 // ============================================================================
@@ -366,5 +366,82 @@ export async function getSuccessLadder(
     } catch (error) {
         console.error("[getSuccessLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement des succès" };
+    }
+}
+
+/**
+ * Get Contribution Ladder (Guild contribution points ranking)
+ */
+export async function getContributionLadder(
+    guildId: string
+): Promise<ActionResponse<LadderEntry[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id }
+        });
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                contributionPoints: { gt: 0 }
+            },
+            select: {
+                id: true,
+                discordNickname: true,
+                discordRoleColor: true,
+                discordRoleName: true,
+                discordJoinedAt: true,
+                pseudoDofus: true,
+                classe: true,
+                contributionPoints: true,
+                user: {
+                    select: { image: true }
+                }
+            },
+            orderBy: [
+                { contributionPoints: "desc" },
+                { discordJoinedAt: "asc" } // Tie-breaker
+            ]
+        });
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+
+        const ladder: LadderEntry[] = profiles.map((p, idx) => {
+            const isAdmin = p.discordRoleName === "Administrateur" ||
+                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+
+            return {
+                rank: idx + 1,
+                profileId: p.id,
+                discordNickname: p.discordNickname,
+                discordRoleColor: p.discordRoleColor,
+                discordImage: p.user.image,
+                pseudoDofus: p.pseudoDofus,
+                classe: p.classe,
+                value: p.contributionPoints || 0,
+                isCurrentUser: p.id === currentProfile?.id,
+                isAdmin: !!isAdmin
+            };
+        });
+
+        return { success: true, data: ladder };
+    } catch (error) {
+        console.error("[getContributionLadder] Error:", error);
+        return { success: false, error: "Erreur lors du chargement du classement de contribution" };
     }
 }

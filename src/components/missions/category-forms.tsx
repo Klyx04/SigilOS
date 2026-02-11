@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { getDungeons, getZones } from "@/server/actions/game-data-actions";
+import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones } from "@/server/actions/game-data-actions";
+import { AsyncCombobox } from "@/components/ui/async-combobox";
 import {
     SONGES_CONFIG,
     ANOMALIE_LEVEL_RANGES,
@@ -18,7 +19,7 @@ import {
     type ExpeditionPayload,
     type EventPayload
 } from "@/lib/mission-payloads";
-import { Loader2, Search, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -39,33 +40,37 @@ type Zone = {
     monsters: { id: string; name: string; imageUrl?: string | null }[];
 };
 
+type MonsterFamily = {
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+    monsters?: { id: string; name: string; imageUrl?: string | null }[];
+};
+
 type FormProps = {
     payload: Record<string, any>;
     onPayloadChange: (payload: Record<string, any>) => void;
     onTitleChange: (title: string) => void;
-    onTierChange: (tier: number) => void;
+    onRankChange?: (rank: number) => void;
 };
 
 // --- DONJON FORM ---
 
-export function DungeonForm({ payload, onPayloadChange, onTitleChange, onTierChange }: FormProps) {
+export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [search, setSearch] = useState("");
 
-    useEffect(() => {
-        getDungeons().then(res => {
-            if (res.success && res.data) {
-                setDungeons(res.data);
-            }
-            setIsLoading(false);
-        });
+    const dungeonFetcher = useCallback(async (query: string) => {
+        const res = await searchDungeons(query);
+        if (res.success && res.data) {
+            setDungeons(res.data);
+            return res.data.map(d => ({
+                value: d.id,
+                label: d.name,
+                subLabel: `Niv. ${d.level} - Boss: ${d.bossName}`
+            }));
+        }
+        return [];
     }, []);
-
-    const filteredDungeons = dungeons.filter(d =>
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.bossName.toLowerCase().includes(search.toLowerCase())
-    );
 
     const handleSelect = (dungeonId: string) => {
         const dungeon = dungeons.find(d => d.id === dungeonId);
@@ -80,60 +85,29 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onTierCha
             };
             onPayloadChange(newPayload);
             onTitleChange(dungeon.name);
-            // Auto-set tier based on level
-            if (dungeon.level >= 190) onTierChange(4);
-            else if (dungeon.level >= 100) onTierChange(3);
-            else if (dungeon.level >= 50) onTierChange(2);
-            else onTierChange(1);
+            if (onRankChange) {
+                if (dungeon.level >= 190) onRankChange(4);
+                else if (dungeon.level >= 100) onRankChange(3);
+                else if (dungeon.level >= 50) onRankChange(2);
+                else onRankChange(1);
+            }
         }
     };
 
     const selectedDungeon = payload.dungeonId ? dungeons.find(d => d.id === payload.dungeonId) : null;
 
-    if (isLoading) {
-        return <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-500" /></div>;
-    }
-
-    if (dungeons.length === 0) {
-        return (
-            <div className="text-center py-6 text-zinc-500">
-                <p className="text-sm">Aucun donjon en base de données.</p>
-                <p className="text-xs mt-1">Ajoute des donjons via Prisma Studio.</p>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <Input
-                    className="pl-9 bg-zinc-950 border-zinc-800"
-                    placeholder="Rechercher un donjon..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
+                <AsyncCombobox
+                    value={payload.dungeonId}
+                    onSelect={handleSelect}
+                    fetcher={dungeonFetcher}
+                    placeholder="Sélectionner un donjon..."
+                    searchPlaceholder="Nom du donjon ou du boss..."
+                    emptyText="Aucun donjon trouvé."
                 />
-            </div>
-
-            {/* Dungeon Grid */}
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                {filteredDungeons.slice(0, 20).map(dungeon => (
-                    <button
-                        key={dungeon.id}
-                        type="button"
-                        onClick={() => handleSelect(dungeon.id)}
-                        className={cn(
-                            "p-2 rounded-lg border text-left transition-all text-sm",
-                            payload.dungeonId === dungeon.id
-                                ? "bg-rose-500/20 border-rose-500/50 text-rose-300"
-                                : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300"
-                        )}
-                    >
-                        <div className="font-medium truncate">{dungeon.name}</div>
-                        <div className="text-xs text-zinc-500">Niv. {dungeon.level}</div>
-                    </button>
-                ))}
             </div>
 
             {/* Selected Preview */}
@@ -159,116 +133,142 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onTierCha
 
 // --- REGULATION FORM ---
 
-export function RegulationForm({ payload, onPayloadChange, onTitleChange, onTierChange }: FormProps) {
+export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const [zones, setZones] = useState<Zone[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedZoneId, setSelectedZoneId] = useState<string>(payload.zoneId || "");
+    const [families, setFamilies] = useState<MonsterFamily[]>([]);
 
-    useEffect(() => {
-        getZones().then(res => {
-            if (res.success && res.data) {
-                setZones(res.data);
-            }
-            setIsLoading(false);
-        });
+    // We don't fetch all at once anymore. We fetch via Combobox.
+    // However, we need to store the lists to find objects by ID after selection.
+
+    const zoneFetcher = useCallback(async (query: string) => {
+        const res = await searchZones(query);
+        if (res.success && res.data) {
+            setZones(prev => {
+                // Merge new zones to keep track of them
+                const newZones = res.data || [];
+                const map = new Map(prev.map(z => [z.id, z]));
+                newZones.forEach(z => map.set(z.id, z));
+                return Array.from(map.values());
+            });
+            return res.data.map(z => ({ value: z.id, label: z.name, subLabel: `Niv. ${z.level}` }));
+        }
+        return [];
     }, []);
 
-    const selectedZone = zones.find(z => z.id === selectedZoneId);
+    const familyFetcher = useCallback(async (query: string) => {
+        // Note: payload.zoneId dependency needs to be handled.
+        // If we include payload.zoneId in deps, it changes often? No, only on select.
+        // But we need the LATEST zoneId.
+        // Actually, we should pass zoneId as an argument or let the effect handle it?
+        // But the fetcher signature is fixed (query) => ...
+        // We can use a ref or just dependency.
+        // Using dependency [payload.zoneId] means fetcher recreates when zone changes.
+        // This is fine, as we WANT to refetch/reset when zone changes.
+        // But wait, AsyncCombobox only calls fetcher when 'open' or 'query' changes.
+        // Recreating fetcher might trigger the effect in AsyncCombobox if it depends on fetcher.
+        // Yes it does: [debouncedValue, open, fetcher]
+        // So changing zoneId -> recreates fetcher -> AsyncCombobox effect runs -> fetches new families.
+        // This is exactly what we want!
+        const res = await getMonsterFamilies({ zoneId: payload.zoneId, search: query });
+        if (res.success && res.data) {
+            setFamilies(prev => {
+                const newFamilies = res.data || [];
+                const map = new Map(prev.map(f => [f.id, f]));
+                newFamilies.forEach(f => map.set(f.id, f));
+                return Array.from(map.values());
+            });
+            return res.data.map(f => ({ value: f.id, label: f.name }));
+        }
+        return [];
+    }, [payload.zoneId]);
 
     const handleZoneChange = (zoneId: string) => {
-        setSelectedZoneId(zoneId);
         const zone = zones.find(z => z.id === zoneId);
         if (zone) {
-            // Auto-set tier based on zone level
-            if (zone.level >= 190) onTierChange(4);
-            else if (zone.level >= 100) onTierChange(3);
-            else if (zone.level >= 50) onTierChange(2);
-            else onTierChange(1);
-        }
-        // Clear monster selection when zone changes
-        onPayloadChange({ zoneId, zoneName: zone?.name || '' });
-    };
+            // Auto-set rank based on zone level
+            if (onRankChange) {
+                if (zone.level >= 190) onRankChange(4);
+                else if (zone.level >= 100) onRankChange(3);
+                else if (zone.level >= 50) onRankChange(2);
+                else onRankChange(1);
+            }
 
-    const handleMonsterChange = (monsterId: string) => {
-        const monster = selectedZone?.monsters.find(m => m.id === monsterId);
-        if (monster && selectedZone) {
             const newPayload: RegulationPayload = {
-                zoneId: selectedZone.id,
-                zoneName: selectedZone.name,
-                monsterId: monster.id,
-                monsterName: monster.name,
+                ...payload,
+                zoneId: zone.id,
+                zoneName: zone.name,
+                // Reset family if zone changes, as family filtering depends on zone
+                familyId: "",
+                familyName: "",
                 targetCount: 50,
-                imageUrl: monster.imageUrl || undefined,
             };
             onPayloadChange(newPayload);
-            onTitleChange(`Régulation des ${monster.name}`);
+            onTitleChange(`Régulation en ${zone.name}`);
         }
     };
 
-    if (isLoading) {
-        return <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-500" /></div>;
-    }
-
-    if (zones.length === 0) {
-        return (
-            <div className="text-center py-6 text-zinc-500">
-                <p className="text-sm">Aucune zone en base de données.</p>
-                <p className="text-xs mt-1">Ajoute des zones via Prisma Studio.</p>
-            </div>
-        );
-    }
+    const handleFamilyChange = (familyId: string) => {
+        const family = families.find(f => f.id === familyId);
+        if (family) {
+            const currentPayload = payload as RegulationPayload;
+            const newPayload: RegulationPayload = {
+                ...currentPayload,
+                familyId: family.id,
+                familyName: family.name,
+                imageUrl: family.imageUrl || (family.monsters?.[0]?.imageUrl ?? undefined),
+                targetCount: 50,
+                // Ensure zone fields are present
+                zoneId: currentPayload.zoneId,
+                zoneName: currentPayload.zoneName,
+            };
+            onPayloadChange(newPayload);
+            onTitleChange(`Régulation des ${family.name}`);
+        }
+    };
 
     return (
         <div className="space-y-4">
             {/* Zone Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Zone</Label>
-                <Select value={selectedZoneId} onValueChange={handleZoneChange}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800">
-                        <SelectValue placeholder="Sélectionner une zone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {zones.map(zone => (
-                            <SelectItem key={zone.id} value={zone.id}>
-                                {zone.name} (Niv. {zone.level})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3" /> Zone (Territoire)
+                </Label>
+                <AsyncCombobox
+                    value={payload.zoneId}
+                    onSelect={handleZoneChange}
+                    fetcher={zoneFetcher}
+                    placeholder="Choisir une zone"
+                    searchPlaceholder="Rechercher une zone..."
+                />
             </div>
 
-            {/* Monster Selector */}
-            {selectedZone && (
-                <div className="space-y-2">
-                    <Label className="text-xs text-zinc-400">Type de monstre</Label>
-                    {selectedZone.monsters.length === 0 ? (
-                        <p className="text-xs text-zinc-500">Aucun monstre dans cette zone</p>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                            {selectedZone.monsters.map(monster => (
-                                <button
-                                    key={monster.id}
-                                    type="button"
-                                    onClick={() => handleMonsterChange(monster.id)}
-                                    className={cn(
-                                        "p-2 rounded-lg border text-left transition-all text-sm",
-                                        payload.monsterId === monster.id
-                                            ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                                            : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300"
-                                    )}
-                                >
-                                    {monster.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            {/* Family Selector */}
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                    <Skull className="w-3 h-3" /> Famille de monstres
+                </Label>
+                <AsyncCombobox
+                    key={payload.zoneId} // Force reset when zone changes
+                    value={payload.familyId}
+                    onSelect={handleFamilyChange}
+                    fetcher={familyFetcher}
+                    placeholder={payload.zoneId ? "Choisir une famille de la zone" : "Choisir une famille (Toutes)"}
+                    searchPlaceholder="Rechercher une famille..."
+                    disabled={!payload.zoneId && false} // Can technically search all if no zone selected
+                />
+            </div>
 
             {/* Preview */}
-            {payload.monsterName && (
-                <div className="p-3 bg-zinc-900/50 rounded-lg border border-emerald-500/20 text-xs text-zinc-400">
-                    Vaincre <span className="text-emerald-400 font-medium">50 {payload.monsterName}</span> sur leur territoire
+            {(payload.familyName || payload.zoneName) && (
+                <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20 space-y-1">
+                    <div className="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Mission configurée
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        Vaincre <span className="text-white font-bold">50 monstres</span>
+                        {payload.familyName && <> de la famille <span className="text-emerald-400 font-bold">{payload.familyName}</span></>}
+                        {payload.zoneName && <> dans la zone <span className="text-emerald-400 font-bold">{payload.zoneName}</span></>}
+                    </p>
                 </div>
             )}
         </div>
@@ -277,7 +277,7 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onTier
 
 // --- ANOMALIE FORM ---
 
-export function AnomalieForm({ payload, onPayloadChange, onTitleChange }: FormProps) {
+export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
 
@@ -359,9 +359,15 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange }: FormPr
 
 // --- SONGES FORM ---
 
-export function SongesForm({ payload, onPayloadChange, onTitleChange, onTierChange }: FormProps) {
+export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const difficulty = payload.difficulty || 'Paradoxe';
     const level = payload.level || 'I';
+    // Tier in songes payload specifically refers to the internal Songes floor logic, NOT the mission tier.
+    // However, the original code used payload.tier. 
+    // Let's keep payload.tier for Songes internal logic if it represents "Palier 1-5" of Songes runs?
+    // Wait, Dofus Songes runs have "Floors" (Etages). 
+    // The previous code had "Palier à atteindre", mapping to 1-5.
+    // Use local state if needed, but remove onTierChange for the mission itself.
     const tier = payload.tier || 2;
 
     const availableLevels = SONGES_CONFIG.levels[difficulty as keyof typeof SONGES_CONFIG.levels] || ['I', 'II', 'III'];
@@ -375,10 +381,11 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onTierChan
         onPayloadChange(newPayload);
         onTitleChange(`Plongée en ${newDifficulty} ${newLevel}`);
 
-        // Set tier based on difficulty
-        if (newDifficulty === 'Cauchemar') onTierChange(4);
-        else if (newDifficulty === 'Paradoxe') onTierChange(3);
-        else onTierChange(2);
+        if (onRankChange) {
+            if (newDifficulty === 'Cauchemar') onRankChange(4);
+            else if (newDifficulty === 'Paradoxe') onRankChange(3);
+            else onRankChange(2);
+        }
     };
 
     const handleDifficultyChange = (newDifficulty: string) => {
@@ -477,26 +484,18 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onTierChan
 
 // --- EXPEDITION FORM ---
 
-export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onTierChange }: FormProps) {
+export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [search, setSearch] = useState("");
-
     const mode = payload.mode || 'aucun';
 
-    useEffect(() => {
-        getDungeons().then(res => {
-            if (res.success && res.data) {
-                setDungeons(res.data);
-            }
-            setIsLoading(false);
-        });
+    const dungeonFetcher = useCallback(async (query: string) => {
+        const res = await searchDungeons(query);
+        if (res.success && res.data) {
+            setDungeons(res.data);
+            return res.data.map(d => ({ value: d.id, label: d.name, subLabel: `Niv. ${d.level}` }));
+        }
+        return [];
     }, []);
-
-    const filteredDungeons = dungeons.filter(d =>
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.bossName.toLowerCase().includes(search.toLowerCase())
-    );
 
     const handleSelect = (dungeonId: string) => {
         const dungeon = dungeons.find(d => d.id === dungeonId);
@@ -512,10 +511,11 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onTier
             };
             onPayloadChange(newPayload);
             updateTitle(dungeon.name, mode);
-            // Auto-set tier
-            if (dungeon.level >= 190) onTierChange(4);
-            else if (dungeon.level >= 100) onTierChange(3);
-            else onTierChange(2);
+            if (onRankChange) {
+                if (dungeon.level >= 190) onRankChange(4);
+                else if (dungeon.level >= 100) onRankChange(3);
+                else onRankChange(2);
+            }
         }
     };
 
@@ -532,10 +532,6 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onTier
     };
 
     const selectedDungeon = payload.dungeonId ? dungeons.find(d => d.id === payload.dungeonId) : null;
-
-    if (isLoading) {
-        return <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-500" /></div>;
-    }
 
     return (
         <div className="space-y-4">
@@ -562,38 +558,16 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onTier
             </div>
 
             {/* Search */}
-            {dungeons.length > 0 && (
-                <>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                        <Input
-                            className="pl-9 bg-zinc-950 border-zinc-800"
-                            placeholder="Rechercher un donjon..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
-                    </div>
-
-                    {/* Dungeon Grid */}
-                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
-                        {filteredDungeons.slice(0, 12).map(dungeon => (
-                            <button
-                                key={dungeon.id}
-                                type="button"
-                                onClick={() => handleSelect(dungeon.id)}
-                                className={cn(
-                                    "p-2 rounded-lg border text-left transition-all text-sm",
-                                    payload.dungeonId === dungeon.id
-                                        ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                                        : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300"
-                                )}
-                            >
-                                <div className="font-medium truncate">{dungeon.name}</div>
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
+                <AsyncCombobox
+                    value={payload.dungeonId}
+                    onSelect={handleSelect}
+                    fetcher={dungeonFetcher}
+                    placeholder="Sélectionner un donjon..."
+                    searchPlaceholder="Donjon ou Boss..."
+                />
+            </div>
 
             {/* Preview */}
             {selectedDungeon && (

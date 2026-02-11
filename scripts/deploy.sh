@@ -33,13 +33,13 @@ git pull origin $(git rev-parse --abbrev-ref HEAD)
 if [ "$TARGET" == "beta" ]; then
     echo "🧪 Mise à jour du laboratoire BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta
-    echo "🧹 Synchronisation des tables BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma db push --accept-data-loss
+    echo "🧹 Synchronisation des migrations BÊTA..."
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma migrate deploy
 else
     echo "🏰 Mise à jour de la PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod
-    echo "🧹 Synchronisation des tables PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma db push --accept-data-loss
+    echo "🧹 Synchronisation des migrations PRODUCTION..."
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma migrate deploy
 fi
 
 echo "✅ Déploiement $TARGET terminé avec succès !"

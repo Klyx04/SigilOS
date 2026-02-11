@@ -74,9 +74,6 @@ export async function downloadExternalImage(
             ? pathParts[1].replace(/\\/g, "/")  // Replace backslashes with forward slashes
             : webpPath.replace(/\\/g, "/");
 
-        console.log(`[ImageDownloader] Downloaded and optimized: ${url}`);
-        console.log(`[ImageDownloader] Original: ${(originalSize / 1024).toFixed(1)}KB → Optimized: ${(optimizedSize / 1024).toFixed(1)}KB (${reduction}% reduction)`);
-        console.log(`[ImageDownloader] Saved to: ${relativePath}`);
 
         return {
             success: true,

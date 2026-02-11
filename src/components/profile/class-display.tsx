@@ -98,8 +98,14 @@ export function ClassDisplay({
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-zinc-500 italic pl-1">
-                                        Essentiel pour le ladder et les synchronisations automatiques.
+                                        Ce pseudo doit être <strong>unique</strong> dans la guilde. Il servira pour les classements et sera lié à votre compte Metamob.
                                     </p>
+                                    <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 mt-2">
+                                        <p className="text-[10px] text-amber-200 flex gap-1.5 items-start">
+                                            <Info className="w-3 h-3 shrink-0 mt-0.5" />
+                                            Astuce : Mettez exactement le même pseudo que sur Metamob pour faciliter la liaison.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 

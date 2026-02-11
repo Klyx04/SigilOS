@@ -113,6 +113,7 @@ const LinkAccountSchema = z.object({
         .max(30, "Le pseudo ne peut pas dépasser 30 caractères")
         .regex(/^[a-zA-Z0-9_-]+$/, "Le pseudo ne peut contenir que des lettres, chiffres, tirets et underscores"),
     apiKey: z.string().optional(),
+    force: z.boolean().optional(),
 });
 
 const UnlinkAccountSchema = z.object({
@@ -175,6 +176,7 @@ export async function linkOcreAccount(
         const { guildId } = parsed.data;
         const pseudo = parsed.data.pseudo.trim();
         const apiKey = parsed.data.apiKey?.trim();
+        const force = parsed.data.force;
 
         // Get user profile (multi-tenant check) - include pseudoEnJeu for ownership verification
         const profile = await db.userProfile.findFirst({
@@ -267,6 +269,7 @@ export async function linkOcreAccount(
             });
 
             if (existingKeyUser) {
+                // TODO: Allow force here too? For now, keep it strict as keys are sensitive.
                 return {
                     success: false,
                     error: `Cette clé API est déjà utilisée par ${existingKeyUser.user.name || "un autre membre"} dans une autre guilde.`
@@ -286,13 +289,40 @@ export async function linkOcreAccount(
         });
 
         if (existingPseudoUser) {
-            return {
-                success: false,
-                error: `Le compte Metamob "${metamobPseudo}" est déjà lié à ${existingPseudoUser.user.name || "un autre membre"} dans cette guilde.`
-            };
+            let canOverwrite = false;
+
+            if (force) {
+                // Check if user is Admin
+                const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+                if (guard.allowed) {
+                    canOverwrite = true;
+                    // Detach the previous owner
+                    await db.userProfile.update({
+                        where: { id: existingPseudoUser.id },
+                        data: {
+                            metamobPseudo: null,
+                            metamobQuestSlug: null,
+                            metamobServerId: null,
+                            metamobVerified: false,
+                            metamobLastSync: null,
+                            metamobApiKey: null, // Also remove key if it was linked
+                        }
+                    });
+                    // Clear cache for the old user
+                    clearCache(metamobPseudo.toLowerCase());
+                }
+            }
+
+            if (!canOverwrite) {
+                return {
+                    success: false,
+                    error: `Le compte Metamob "${metamobPseudo}" est déjà lié à ${existingPseudoUser.user.name || "un autre membre"} dans cette guilde.`
+                };
+            }
         }
 
         // 3. Verify character name matches pseudo Dofus
+
         if (metamobCharName) {
             const normalizedMetamobChar = metamobCharName.toLowerCase().trim();
             const userPseudoDofus = profile.pseudoDofus?.toLowerCase().trim();
@@ -778,7 +808,7 @@ export async function findOcreExchangePartners(
         for (let i = 0; i < guildMembers.length; i += BATCH_SIZE) {
             const batch = guildMembers.slice(i, i + BATCH_SIZE);
 
-            await Promise.all(batch.map(async (member) => {
+            await Promise.all(batch.map(async (member: any) => {
                 if (!member.metamobPseudo || !member.metamobQuestSlug) return;
 
                 try {
@@ -936,7 +966,7 @@ export async function findMonsterOwnersAction(
 
         for (let i = 0; i < members.length; i += BATCH_SIZE) {
             const batch = members.slice(i, i + BATCH_SIZE);
-            await Promise.all(batch.map(async (member) => {
+            await Promise.all(batch.map(async (member: any) => {
                 if (!member.metamobPseudo || !member.metamobQuestSlug) return;
                 try {
                     // Optimized: Fetch only this monster if possible? No, API doesn't support filtering by monster ID in list.
@@ -1157,7 +1187,7 @@ export async function getGuildExchangeMap(
         const batchSize = 4; // Lower concurrency for heavier "all" queries
         for (let i = 0; i < members.length; i += batchSize) {
             const batch = members.slice(i, i + batchSize);
-            await Promise.all(batch.map(async (member) => {
+            await Promise.all(batch.map(async (member: any) => {
                 if (!member.metamobPseudo || !member.metamobQuestSlug) return;
 
                 try {
@@ -1397,7 +1427,6 @@ export async function refreshOcreCache(
                 // [HANDLE DELETION] No quests found on Metamob, but we have one linked.
                 // This means the user deleted their quest. Clear it locally.
                 if (profile.metamobQuestSlug) {
-                    console.log(`[refreshOcreCache] User ${profile.metamobPseudo} has no quests. Clearing slug.`);
                     newQuestSlug = null;
                     questUpdated = true;
 
@@ -1615,3 +1644,67 @@ export async function switchOcreQuest(guildId: string, questSlug: string): Promi
     }
 }
 
+const AdminForceUnlinkSchema = z.object({
+    guildId: z.string().min(1),
+    targetPseudo: z.string().min(1),
+});
+
+/**
+ * ADMIN: Force unlink a Metamob account from ANY user in the guild.
+ * Useful directly from Admin UI to release a blocked pseudo.
+ */
+export async function adminForceUnlink(
+    rawData: z.infer<typeof AdminForceUnlinkSchema>
+): Promise<ActionResponse> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const parsed = AdminForceUnlinkSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, targetPseudo } = parsed.data;
+
+        // Security check
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+        if (!guard.allowed) return { success: false, error: "Accès refusé" };
+
+        // Find the user holding this pseudo
+        const userProfile = await db.userProfile.findFirst({
+            where: {
+                guild: { discordGuildId: guildId },
+                metamobPseudo: { equals: targetPseudo, mode: "insensitive" },
+                status: "ACTIVE"
+            },
+            include: { user: true }
+        });
+
+        if (!userProfile) {
+            return { success: false, error: `Aucun utilisateur trouvé avec le compte Metamob "${targetPseudo}"` };
+        }
+
+        // Perform unlink
+        await db.userProfile.update({
+            where: { id: userProfile.id },
+            data: {
+                metamobPseudo: null,
+                metamobQuestSlug: null,
+                metamobServerId: null,
+                metamobVerified: false,
+                metamobLastSync: null,
+                metamobApiKey: null,
+            }
+        });
+
+        clearCache(targetPseudo.toLowerCase());
+
+        // Revalidate admin page and potential user page (though we don't know which user it was easily without fetching)
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/members`);
+
+        return { success: true, data: undefined };
+
+    } catch (error) {
+        console.error("Error in adminForceUnlink:", error);
+        return { success: false, error: "Erreur serveur interne" };
+    }
+}

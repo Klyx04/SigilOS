@@ -20,18 +20,15 @@ export async function deleteProofFile(proofUrl: string) {
 
         // 1. Delete the file
         await unlink(absolutePath);
-        console.log(`[Storage] Deleted file: ${absolutePath}`);
 
         // 2. Safely attempt to delete the parent directory
         try {
             const dirPath = dirname(absolutePath);
             await rmdir(dirPath);
-            console.log(`[Storage] Removed empty directory: ${dirPath}`);
 
             // Optional: Try to remove the grandparent if also empty
             const grandParentDirPath = dirname(dirPath);
             await rmdir(grandParentDirPath);
-            console.log(`[Storage] Removed empty parent directory: ${grandParentDirPath}`);
         } catch (dirError: any) {
             // Ignore if directory is not empty
         }

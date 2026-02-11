@@ -60,7 +60,6 @@ function hexToUint8Array(hex: string): Uint8Array {
 
 // Archive a user profile when they leave or are kicked
 async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT" | "KICKED") {
-    console.log(`[Discord Webhook] Member ${reason}: ${userId} from guild ${guildId}`);
 
     // Find the guild config
     const guild = await db.guildConfig.findUnique({
@@ -69,7 +68,6 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
     });
 
     if (!guild) {
-        console.log(`[Discord Webhook] Guild ${guildId} not found in database, skipping`);
         return;
     }
 
@@ -80,7 +78,6 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
     });
 
     if (!account) {
-        console.log(`[Discord Webhook] User ${userId} not found in database, skipping`);
         return;
     }
 
@@ -99,13 +96,11 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
     });
 
     if (result.count > 0) {
-        console.log(`[Discord Webhook] Archived ${result.count} profile(s) for user ${userId}`);
     }
 }
 
 // Anonymize a user profile when they are banned
 async function handleBan(guildId: string, userId: string) {
-    console.log(`[Discord Webhook] Member BANNED: ${userId} from guild ${guildId}`);
 
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
@@ -142,7 +137,6 @@ async function handleBan(guildId: string, userId: string) {
     });
 
     if (result.count > 0) {
-        console.log(`[Discord Webhook] Banned and anonymized ${result.count} profile(s)`);
     }
 }
 
@@ -161,7 +155,6 @@ export async function POST(request: NextRequest) {
 
         // 2. Handle Discord's PING verification (required for webhook setup)
         if (payload.type === 1) {
-            console.log("[Discord Webhook] Received PING, responding with PONG");
             return NextResponse.json({ type: 1 });
         }
 
@@ -175,7 +168,6 @@ export async function POST(request: NextRequest) {
             if (whitelistVar !== undefined) {
                 const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
                 if (!allowedGuilds.includes(data.guild_id)) {
-                    console.log(`[Discord Webhook] Event for non-whitelisted guild ${data.guild_id}, ignoring`);
                     return NextResponse.json({ status: "ignored" });
                 }
             }
@@ -192,7 +184,6 @@ export async function POST(request: NextRequest) {
                     break;
 
                 default:
-                    console.log(`[Discord Webhook] Unhandled event: ${event}`);
             }
         }
 

@@ -98,7 +98,6 @@ export async function POST(
             }
         });
 
-        console.log(`[server-config] Updated guild ${guildId}: ${serverName} (${serverId})`);
 
         return NextResponse.json({ success: true });
     } catch (error) {

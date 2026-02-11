@@ -224,9 +224,9 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
             }
         });
 
-        const weeklySubmissions = allValidatedSubmissions.filter(s => s.updatedAt >= startOfWeek);
+        const weeklySubmissions = allValidatedSubmissions.filter((s: { updatedAt: Date }) => s.updatedAt >= startOfWeek);
         const weeklyMissions = weeklySubmissions.length;
-        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission.xpReward || 0), 0);
+        const weeklyXp = weeklySubmissions.reduce((acc: number, curr: { mission: { xpReward: number | null } }) => acc + (curr.mission.xpReward || 0), 0);
 
         // Count validated missions (Total)
         const validatedMissionsCount = allValidatedSubmissions.length;
@@ -259,6 +259,21 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Uniqueness Check for Pseudo Dofus
+        if (pseudoDofus) {
+            const existing = await db.userProfile.findFirst({
+                where: {
+                    guildId: guildConfig.id,
+                    pseudoDofus: { equals: pseudoDofus, mode: "insensitive" },
+                    userId: { not: session.user.id } // Exclude self
+                }
+            });
+
+            if (existing) {
+                return { success: false, error: `Le pseudo "${pseudoDofus}" est déjà utilisé par un autre membre.` };
+            }
+        }
 
         await db.userProfile.upsert({
             where: {
@@ -542,10 +557,10 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
             }
         });
 
-        const weeklySubmissions = allValidatedSubmissions.filter(s => s.updatedAt >= startOfWeek);
+        const weeklySubmissions = allValidatedSubmissions.filter((s: { updatedAt: Date }) => s.updatedAt >= startOfWeek);
 
         const weeklyMissions = weeklySubmissions.length;
-        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission.xpReward || 0), 0);
+        const weeklyXp = weeklySubmissions.reduce((acc: number, curr: { mission: { xpReward: number | null } }) => acc + (curr.mission.xpReward || 0), 0);
 
         // Calculate contributor tier based on monthly XP ranking
         // Tier thresholds:
@@ -566,15 +581,15 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
         });
 
         // Find user's rank
-        const userRankIndex = guildRanking.findIndex(p => p.userId === targetUserId);
+        const userRankIndex = guildRanking.findIndex((p: { userId: string }) => p.userId === targetUserId);
         if (userRankIndex !== -1) {
             rank = userRankIndex + 1; // 1-indexed rank
 
-            if (rank === 1) {
+            if (rank! === 1) {
                 contributorTier = "LEGENDE";
-            } else if (rank <= 3) {
+            } else if (rank! <= 3) {
                 contributorTier = "CHAMPION";
-            } else if (rank <= 10) {
+            } else if (rank! <= 10) {
                 contributorTier = "PILIER";
             }
         }
@@ -640,7 +655,7 @@ export async function getGuildMembers(
         let result = profiles;
 
         if (filters?.job) {
-            result = result.filter(p => {
+            result = result.filter((p: any) => {
                 const jobs = (p.metiers as string[]) || [];
                 return jobs.includes(filters.job!);
             });
@@ -648,7 +663,7 @@ export async function getGuildMembers(
 
         if (filters?.hasVacation === false) {
             const now = new Date();
-            result = result.filter(p => {
+            result = result.filter((p: any) => {
                 if (!p.vacationStart || !p.vacationEnd) return true;
                 return !(p.vacationStart <= now && p.vacationEnd >= now);
             });
@@ -677,15 +692,15 @@ export async function getGuildMembers(
 
         // Fetch Discord Accounts for matching
         const users = await db.user.findMany({
-            where: { id: { in: result.map(p => p.userId) } },
+            where: { id: { in: result.map((p: any) => p.userId) } },
             include: { accounts: { where: { provider: "discord" } } }
         });
-        const userDiscordIdMap = new Map(users.map(u => [u.id, u.accounts[0]?.providerAccountId]));
+        const userDiscordIdMap = new Map(users.map((u: any) => [u.id, u.accounts[0]?.providerAccountId]));
 
         // Map with Discord cache data + Real-time Admin check
-        const mappedResult = result.map(p => {
-            const discordId = userDiscordIdMap.get(p.userId);
-            const discordMember = discordId ? discordMemberMap.get(discordId) : null;
+        const mappedResult = result.map((p: any) => {
+            const discordId = userDiscordIdMap.get(p.userId as string);
+            const discordMember = discordId ? discordMemberMap.get(discordId as string) : null;
 
             // Real-time admin check if we found the member
             const isAdmin = discordMember

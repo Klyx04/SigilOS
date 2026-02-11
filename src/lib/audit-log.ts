@@ -34,7 +34,6 @@ export function auditLog(log: Omit<AuditLog, 'timestamp'>): void {
     };
 
     // Console log (captured by Docker logs in prod)
-    console.log('[AUDIT]', JSON.stringify(fullLog));
 
     // TODO: Optional - Save to DB for long-term audit trail
     // await prisma.auditLog.create({ data: fullLog });

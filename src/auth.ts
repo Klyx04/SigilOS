@@ -19,11 +19,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     callbacks: {
         ...authConfig.callbacks,
         async signIn({ user, account }) {
-            console.log("[Auth] SignIn:", {
-                user: user.id,
-                accountProvider: account?.provider,
-                hasAccessToken: !!account?.access_token,
-            });
+            void user;
+            void account;
             return true;
         },
         async jwt({ token, account }) {
@@ -84,7 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                                     where: { id: profile.id },
                                     data: { discordNickname: nickname }
                                 });
-                                console.log(`[Auth] Updated nickname for ${user.id}: ${nickname}`);
+
                             }
                         }
                     } catch {

@@ -151,7 +151,6 @@ export async function cleanupExpiredAchievements(guildId: string) {
         });
 
         if (expired.length > 0) {
-            console.log(`[Cleanup] Found ${expired.length} expired pending achievements for guild ${guildId}`);
             for (const sub of expired) {
                 if (sub.proofUrl) {
                     await deleteProofFile(sub.proofUrl);

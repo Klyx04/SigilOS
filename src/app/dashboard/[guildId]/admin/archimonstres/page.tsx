@@ -4,6 +4,7 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { MetamobSettingsClient } from "./_components/metamob-settings-client";
+import { MetamobUnlocker } from "./_components/metamob-unlocker";
 import { Crown } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
@@ -47,6 +48,9 @@ export default async function ArchimonstresAdminPage({
                     </p>
                 </div>
             </div>
+
+            {/* Unlocker Tool */}
+            <MetamobUnlocker guildId={guildId} />
 
             {/* Settings Component */}
             <MetamobSettingsClient guildId={guildId} />

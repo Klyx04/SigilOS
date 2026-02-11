@@ -89,7 +89,6 @@ export async function createNotification(
                 link
             }
         });
-        console.log(`[Notification] Created for user ${userId}: ${title}`);
     } catch (error) {
         console.error("[Notification] Creation Failed:", error);
     }

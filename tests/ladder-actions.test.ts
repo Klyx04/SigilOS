@@ -31,7 +31,7 @@ describe('getContributionLadder', () => {
     });
 
     it('should return error if user is not authenticated', async () => {
-        vi.mocked(auth).mockResolvedValue(null);
+        vi.mocked(auth).mockResolvedValue(null as any);
 
         const result = await getContributionLadder(mockGuildId);
 

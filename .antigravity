@@ -632,3 +632,25 @@ Cette phase est découpée en Sprints logiques pour atteindre le niveau "Militar
 - [x] **Security:** API Keys now support transparent encryption/decryption in prisma.ts.
 - [x] **Legacy Cleanup:** Removed all dependencies on deprecated Metamob V1 endpoints.
 
+
+### Phase 25: Refonte Ocre & Marketplace (Février 2026) ✅
+#### 1. Metamob V2 (Native Integration)
+- **API Cliente Unifiée** : Migration totale vers `metamob-client.ts`, suppression du legacy scrap. Support multi-quêtes.
+- **Synchronisation Intelligente** : Logique de sync hybride (Cache Redis + RevalidateTag) pour updates instantanés sans spam API.
+- **Qualité de Données** : Gestion native des doublons (`state: DOUBLON` vs `MANQUANT`) et des quêtes parallèles.
+
+#### 2. Ocre Dashboard V3 (UI/UX)
+- **Glassmorphism Premium** : Interface inspirée Unity, responsive, avec animations fluides.
+- **Double Vue Marketplace** :
+    - *Vue Monstre* : "Qui a le Kralamoure ?" (Offre groupée).
+    - *Vue Membre* : "Que propose X ?" (Catalogue personnel).
+- **Matching Algorithm** : Calcul de pertinence croisée (Offre vs Demande) pour trier les partenaires.
+
+#### 3. Security & Stability (Hardening)
+- **Zod Strict** : Validation runtime de tous les inputs (API & Actions).
+- **Zero-Log Policy** : Suppression `console.log` en prod, gestion d'erreurs silencieuse (Toast UI).
+- **Guild Isolation** : Cloisonnement strict des données par `guildId` et `userContext`.
+
+#### 4. Infrastructure (CI/CD)
+- **Linting Strict** : Pipeline GitHub Actions bloquant sur warnings/errors (Zero tolerance).
+- **Automated Deploy** : `scripts/deploy.sh` mis à jour pour build Next.js 16+ (Turbopack).

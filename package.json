@@ -10,7 +10,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "prepare": "husky",
+    "seed": "tsx prisma/seed.ts",
+    "export-seeds": "bash scripts/export-seeds.sh local"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

@@ -580,7 +580,11 @@ const DofusConfigSchema = z.object({
 export async function getDofusConfig(guildId: string): Promise<{
     success: boolean;
     error?: string;
-    data?: { dofusServerId: string | null }
+    data?: {
+        dofusServerId: string | null;
+        missionRanks: number[];
+        missionTier: number;
+    }
 }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -593,12 +597,34 @@ export async function getDofusConfig(guildId: string): Promise<{
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { dofusServerId: true }
+            select: {
+                dofusServerId: true,
+                missionRanks: true,
+                missionTier: true
+            }
         });
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        return { success: true, data: { dofusServerId: guildConfig.dofusServerId } };
+        let parsedRanks: number[] = [];
+        try {
+            if (guildConfig.missionRanks) {
+                // Handle both string JSON and object JSON types
+                const raw = guildConfig.missionRanks;
+                parsedRanks = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+            }
+        } catch (e) {
+            console.error("Error parsing missionRanks", e);
+        }
+
+        return {
+            success: true,
+            data: {
+                dofusServerId: guildConfig.dofusServerId,
+                missionRanks: parsedRanks,
+                missionTier: guildConfig.missionTier || 3
+            }
+        };
     } catch (error) {
         console.error("Get Dofus Config Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -613,8 +639,7 @@ export async function updateDofusServer(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     // Validation
-    const validation = DofusConfigSchema.safeParse({ guildId, serverId });
-    if (!validation.success) return { success: false, error: "Données invalides" };
+    const validation = DofusConfigSchema.safeParse({ guildId, serverId }); // Legacy validation
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -636,6 +661,40 @@ export async function updateDofusServer(
         return { success: true };
     } catch (error) {
         console.error("Update Dofus Server Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour" };
+    }
+}
+
+export async function updateGuildGameConfig(
+    guildId: string,
+    data: {
+        serverId?: string | null;
+        missionRanks?: number[];
+        missionTier?: number;
+    }
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: {
+                dofusServerId: data.serverId,
+                missionRanks: data.missionRanks ? JSON.stringify(data.missionRanks) : undefined,
+                missionTier: data.missionTier
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Guild Game Config Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }

@@ -1,6 +1,8 @@
 version: 2
 updates:
-  # npm dependencies
+  # ─────────────────────────────────────────────────────────
+  # NPM Dependencies
+  # ─────────────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -8,9 +10,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Paris"
-    # Only security updates, not version updates (safer)
     open-pull-requests-limit: 5
-    # Group minor and patch updates together
+    target-branch: "dev"
+    # Group safe updates together (patch + minor only)
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -22,13 +24,32 @@ updates:
         update-types:
           - "patch"
           - "minor"
-    # Reviewers for PRs
-    # reviewers:
-    #   - "your-github-username"
-    # Labels to add
+    # Ignore major version bumps (manual review required)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    reviewers:
+      - "Klyx04"
     labels:
       - "dependencies"
       - "security"
-    # Commit message prefix
     commit-message:
       prefix: "chore(deps)"
+
+  # ─────────────────────────────────────────────────────────
+  # GitHub Actions (monitor CI action versions)
+  # ─────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    reviewers:
+      - "Klyx04"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"

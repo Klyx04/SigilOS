@@ -1172,7 +1172,7 @@ export async function getGuildExchangeMap(
                     );
 
                     const pq = firstPage.parallel_quests || 1;
-                    let allMonsters = [...firstPage.monsters];
+                    const allMonsters = [...firstPage.monsters];
 
                     // Process first page
                     for (const monster of allMonsters) {

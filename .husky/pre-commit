@@ -25,4 +25,14 @@ if git diff --cached --name-only | xargs grep -l -E "(AKIA[0-9A-Z]{16}|sk-[a-zA-
     exit 1
 fi
 
-echo "✅ Pre-commit checks passed!"
+echo "✅ Security checks passed!"
+
+# 🧹 Run lint-staged (lint on staged files only)
+echo "🧹 Running lint on staged files..."
+npx lint-staged
+
+# 🧪 TypeScript check (must run on whole project for type resolution)
+echo "🧪 Running TypeScript check..."
+npx tsc --noEmit
+
+echo "✅ All pre-commit checks passed!"

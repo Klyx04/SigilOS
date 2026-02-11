@@ -193,14 +193,6 @@ export async function getActiveBonuses(
                 },
             },
             orderBy: { createdAt: "desc" },
-            include: {
-                purchaser: {
-                    select: {
-                        dofusPseudo: true,
-                        discordNickname: true,
-                    },
-                },
-            },
         });
 
         if (bonuses.length === 0) {
@@ -224,14 +216,6 @@ export async function getActiveBonuses(
                         status: BonusStatus.ACTIVE,
                         expiresAt,
                     },
-                    include: {
-                        purchaser: {
-                            select: {
-                                dofusPseudo: true,
-                                discordNickname: true,
-                            },
-                        },
-                    },
                 });
             }
 
@@ -244,10 +228,20 @@ export async function getActiveBonuses(
                 continue; // Skip expired bonus
             }
 
+            // Fetch purchaser data separately
+            let purchaserName = "Inconnu";
+            if (current.purchasedBy) {
+                const purchaser = await db.userProfile.findUnique({
+                    where: { id: current.purchasedBy },
+                    select: { dofusPseudo: true, discordNickname: true },
+                });
+                purchaserName = purchaser?.dofusPseudo || purchaser?.discordNickname || "Inconnu";
+            }
+
             results.push({
                 ...current,
                 config: BONUS_CONFIG[current.bonusType],
-                purchaserName: current.purchaser?.dofusPseudo || current.purchaser?.discordNickname || "Inconnu",
+                purchaserName,
             });
         }
 

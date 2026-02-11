@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { BonusType, BonusStatus, MentionType } from "@prisma/client";
+import { BonusType, BonusStatus, MentionType, GuildBonus } from "@prisma/client";
 import { getUserContext } from "./user-actions";
 import { z } from "zod";
 
@@ -124,8 +124,8 @@ export async function getGuildRoles(guildId: string): Promise<ActionResponse<any
         const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
 
         const filteredRoles = roles
-            .filter((r: any) => r.name !== "@everyone")
-            .map((r: any) => ({
+            .filter((r: { name: string }) => r.name !== "@everyone")
+            .map((r: { id: string; name: string; color: number; position: number }) => ({
                 id: r.id,
                 name: r.name,
                 color: r.color,
@@ -133,8 +133,8 @@ export async function getGuildRoles(guildId: string): Promise<ActionResponse<any
             }));
 
         return { success: true, data: filteredRoles };
-    } catch (error: any) {
-        return { success: false, error: error.message, data: [] };
+    } catch (error) {
+        return { success: false, error: (error as Error).message, data: [] };
     }
 }
 
@@ -159,8 +159,8 @@ export async function getGuildBonuses(
         }));
 
         return { success: true, data: enriched };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -200,7 +200,7 @@ export async function getActiveBonuses(
         }
 
         const now = new Date();
-        const results: any[] = [];
+        const results: (GuildBonus & { config: typeof BONUS_CONFIG[BonusType]; purchaserName: string })[] = [];
 
         for (const bonus of bonuses) {
             let current = bonus;
@@ -251,8 +251,8 @@ export async function getActiveBonuses(
         }
 
         return { success: true, data: results };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -365,13 +365,13 @@ export async function purchaseBonus(
                 config,
             },
         };
-    } catch (error: any) {
+    } catch (error) {
         // Return Zod validation errors cleanly
-        if (error.name === "ZodError") {
-            const firstError = error.errors?.[0]?.message || "Données invalides";
+        if ((error as any).name === "ZodError") {
+            const firstError = (error as any).errors?.[0]?.message || "Données invalides";
             return { success: false, error: firstError };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -424,12 +424,12 @@ export async function cancelBonus(
         revalidatePath(`/[guildSlug]/missions`);
 
         return { success: true };
-    } catch (error: any) {
-        if (error.name === "ZodError") {
-            const firstError = error.errors?.[0]?.message || "Données invalides";
+    } catch (error) {
+        if ((error as any).name === "ZodError") {
+            const firstError = (error as any).errors?.[0]?.message || "Données invalides";
             return { success: false, error: firstError };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -475,8 +475,8 @@ export async function activateBonus(bonusId: string): Promise<ActionResponse> {
         revalidatePath(`/[guildSlug]/missions`);
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -516,8 +516,8 @@ export async function expireBonus(bonusId: string): Promise<ActionResponse> {
         revalidatePath(`/[guildSlug]/missions`);
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -578,8 +578,8 @@ export async function getBonusConfig(
         }
 
         return { success: true, data: { bonusNotifyChannelId: config.bonusNotifyChannelId } };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -613,11 +613,11 @@ export async function updateBonusChannel(
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
-    } catch (error: any) {
-        if (error.name === "ZodError") {
+    } catch (error) {
+        if ((error as any).name === "ZodError") {
             return { success: false, error: "ID de salon Discord invalide" };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 

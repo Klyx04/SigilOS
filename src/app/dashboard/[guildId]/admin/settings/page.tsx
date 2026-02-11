@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
-import { Settings, Bell, Key, Moon, Users, Calendar } from "lucide-react";
+import { Settings, Bell, Key, Moon, Users, Calendar, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
+import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
@@ -85,6 +86,13 @@ export default async function FeatureSettingsPage({
                         >
                             <Sword className="h-4 w-4" />
                             <span className="font-bold tracking-wide">Dofus</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="bonus"
+                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:shadow-[0_0_20px_rgba(168,85,247,0.1)] border border-transparent data-[state=active]:border-purple-500/20"
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            <span className="font-bold tracking-wide">Bonus</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -173,6 +181,17 @@ export default async function FeatureSettingsPage({
                             <p className="text-zinc-400 max-w-2xl">Paramétrez les informations relatives à Dofus pour l'ensemble de la guilde.</p>
                         </div>
                         <DofusSettingsClient guildId={guildId} />
+                    </div>
+                </TabsContent>
+
+                {/* Bonus Tab */}
+                <TabsContent value="bonus" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-2">Notifications Bonus</h2>
+                            <p className="text-zinc-400 max-w-2xl">Configurez le salon Discord où seront publiées les annonces d&apos;achat de bonus de guilde.</p>
+                        </div>
+                        <BonusSettingsClient guildId={guildId} />
                     </div>
                 </TabsContent>
             </Tabs>

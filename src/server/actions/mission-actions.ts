@@ -30,6 +30,7 @@ const MissionSchema = z.object({
     // Use string enum for safer runtime validation vs Prisma object
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
     tier: z.number().min(1).max(5), // Palier 1-5 (Dofus Update)
+    rank: z.number().min(1).max(4).default(1), // Rang 1-4 (Content Level)
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
@@ -41,6 +42,7 @@ const CreateWeekSchema = z.object({
     weekNumber: z.number().min(1).max(53),
     year: z.number().min(2025),
     missions: z.array(MissionSchema).min(1).max(12),
+    updateGuildTier: z.number().min(1).max(5).optional(), // New field to sync global tier
 });
 
 async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
@@ -114,6 +116,15 @@ export async function createWeekMissions(
                 where: { discordGuildId: data.guildId }
             });
 
+            // Update Guild Tier if provided
+            if (data.updateGuildTier) {
+                await tx.guildConfig.update({
+                    where: { id: guild.id },
+                    // @ts-ignore - Type definition lag
+                    data: { missionTier: data.updateGuildTier }
+                });
+            }
+
             // Upsert Logic: Iterate and update/create per slot
             for (const m of data.missions) {
                 await tx.mission.upsert({
@@ -128,6 +139,8 @@ export async function createWeekMissions(
                     update: {
                         category: m.category as any,
                         tier: m.tier,
+                        // @ts-ignore
+                        rank: m.rank,
                         xpReward: m.xpReward,
                         guildatonsReward: m.guildatonsReward,
                         title: m.title,
@@ -140,6 +153,8 @@ export async function createWeekMissions(
                         slotIndex: m.slotIndex,
                         category: m.category as any,
                         tier: m.tier,
+                        // @ts-ignore
+                        rank: m.rank,
                         xpReward: m.xpReward,
                         guildatonsReward: m.guildatonsReward,
                         title: m.title,
@@ -269,12 +284,18 @@ export async function getWeekMissions(
                         year
                     },
                     include: {
+                        submissions: {
+                            where: { profile: { userId: session?.user?.id } } // Filter submissions for the current user
+                        },
                         interests: {
                             include: {
                                 profile: {
                                     include: { user: true }
                                 }
                             }
+                        },
+                        _count: {
+                            select: { submissions: { where: { status: 'VALIDATED' } } }
                         }
                     },
                     orderBy: { slotIndex: 'asc' }
@@ -302,13 +323,23 @@ export async function getWeekMissions(
             });
         }
 
-        // Merge submissions into cached missions
+        // Merge submissions into cached missions and ensure plain objects
         const enrichedMissions = missions.map(m => ({
             ...m,
-            submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1)
+            // Spread relations to break Prisma prototype chain (which causes "not a plain object" error)
+            interests: m.interests.map(i => ({
+                ...i,
+                profile: {
+                    ...i.profile,
+                    user: i.profile.user ? { ...i.profile.user } : null
+                }
+            })),
+            submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1).map(s => ({ ...s }))
         }));
 
-        return { success: true, data: enrichedMissions };
+        // FINAL SAFEGUARD: Force pure JSON object to strip any remaining hidden properties/symbols
+        // This is necessary because Prisma JSON fields or hidden symbols can cause "Not a plain object" errors in Client Components
+        return { success: true, data: JSON.parse(JSON.stringify(enrichedMissions)) };
     } catch (error) {
         console.error("Fetch Missions Error Full:", error);
         return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
@@ -387,7 +418,8 @@ export async function toggleMissionInterest(
 
 export async function submitMissionProof(
     missionId: string,
-    imageData: string // Base64 image data from client
+    imageData: string, // Base64 image data from client
+    helperIds: string[] = [] // IDs of UserProfile
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
@@ -418,6 +450,11 @@ export async function submitMissionProof(
             where: { missionId, profileId: profile.id, status: { in: ["PENDING", "VALIDATED"] } }
         });
         if (existing) return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+
+        // 1.5 Validate Helpers
+        if (helperIds.length > 7) return { success: false, error: "Maximum 7 aidants autorisés." };
+        if (helperIds.includes(profile.id)) return { success: false, error: "Vous ne pouvez pas vous ajouter comme aidant." };
+
 
         // 2. OCR Processing
         const base64Data = imageData.split(',')[1];
@@ -454,7 +491,10 @@ export async function submitMissionProof(
                 status: "PENDING",
                 ocrScore: null,
                 ocrStatus: "PENDING",
-                validatorId: null
+                validatorId: null,
+                helpers: {
+                    connect: helperIds.map(id => ({ id }))
+                }
             }
         });
 
@@ -511,7 +551,10 @@ export async function validateSubmission(
     try {
         const submission = await db.submission.findUnique({
             where: { id: submissionId },
-            include: { mission: { include: { guild: true } } }
+            include: {
+                mission: { include: { guild: true } },
+                helpers: true // Include helpers for point distribution
+            }
         });
         if (!submission) return { success: false, error: "Submission not found" };
 
@@ -520,6 +563,15 @@ export async function validateSubmission(
 
         // 1. Delete the temp file (if it exists)
         await deleteProofFile(submission.proofUrl);
+
+        // 1.5 Delete image hash to allow re-upload
+        await (db as any).imageHash.deleteMany({
+            where: {
+                guildId: submission.mission.guild.id,
+                sourceType: "MISSION",
+                sourceId: submissionId
+            }
+        });
 
         // 2. Update DB
         const updatedSubmission = await db.submission.update({
@@ -530,13 +582,30 @@ export async function validateSubmission(
                 proofUrl: "", // Clear the URL since file is gone
                 updatedAt: new Date() // Force update time for stats
             },
-            include: { profile: true }
+            include: {
+                profile: true,
+                helpers: true // Need this for point distribution below
+            }
         });
 
         // 3. If validated, add XP to user profile
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
             await addProfileXp(updatedSubmission.profileId, xpReward);
+
+            // AWARD CONTRIBUTION POINTS TO HELPERS
+            if (updatedSubmission.helpers && updatedSubmission.helpers.length > 0) {
+                // R1=5, R2=10, R3=20, R4=50
+                const rankPointsMap = { 1: 5, 2: 10, 3: 20, 4: 50 };
+                // @ts-ignore
+                const points = rankPointsMap[submission.mission.rank] || 5;
+
+                // Bulk update helpers
+                await db.userProfile.updateMany({
+                    where: { id: { in: updatedSubmission.helpers.map(h => h.id) } },
+                    data: { contributionPoints: { increment: points } }
+                });
+            }
         }
 
         // 4. Notify User
@@ -584,6 +653,65 @@ async function addProfileXp(profileId: string, amount: number) {
         });
     } catch (e) {
         console.error(`[XP] Failed to add XP to profile ${profileId}:`, e);
+    }
+}
+
+/**
+ * Allows a member to cancel their own PENDING submission
+ */
+export async function cancelMySubmission(
+    submissionId: string
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    try {
+        const submission = await db.submission.findUnique({
+            where: { id: submissionId },
+            include: {
+                profile: true,
+                mission: { include: { guild: true } }
+            }
+        });
+
+        if (!submission) return { success: false, error: "Submission introuvable" };
+
+        // 1. Verify it's the submitter's own submission
+        if (submission.profile.userId !== session.user.id) {
+            return { success: false, error: "Vous ne pouvez annuler que vos propres soumissions" };
+        }
+
+        // 2. Can only cancel PENDING submissions
+        if (submission.status !== "PENDING") {
+            return { success: false, error: "Seules les soumissions en attente peuvent être annulées" };
+        }
+
+        // 3. Delete the proof file
+        await deleteProofFile(submission.proofUrl);
+
+        // 3.5 Delete image hash to allow re-upload
+        await (db as any).imageHash.deleteMany({
+            where: {
+                guildId: submission.mission.guild.id,
+                sourceType: "MISSION",
+                sourceId: submissionId
+            }
+        });
+
+        // 4. Delete the submission
+        await db.submission.delete({
+            where: { id: submissionId }
+        });
+
+        revalidatePath(`/dashboard/${submission.mission.guild.discordGuildId}/missions`);
+
+        // Invalidate Cache
+        await invalidateCache(`missions:${submission.mission.guild.discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
+
+        return { success: true };
+    } catch (error) {
+        console.error("Cancel Submission Error:", error);
+        return { success: false, error: "Database error" };
     }
 }
 
@@ -651,6 +779,15 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
                         discordRoleName: true,
                         user: {
                             select: { id: true, name: true, image: true }
+                        }
+                    }
+                },
+                helpers: {
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        user: {
+                            select: { name: true, image: true }
                         }
                     }
                 }

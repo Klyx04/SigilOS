@@ -7,8 +7,10 @@ import { join, dirname } from "path";
 export async function deleteProofFile(proofUrl: string) {
     if (!proofUrl) return;
 
-    // Support both /uploads/proofs/ and /uploads/achievements/
-    const isLocalUpload = proofUrl.startsWith("/uploads/proofs/") || proofUrl.startsWith("/uploads/achievements/");
+    // Support /uploads/proofs/, /uploads/achievements/, and /uploads/missions/
+    const isLocalUpload = proofUrl.startsWith("/uploads/proofs/") ||
+        proofUrl.startsWith("/uploads/achievements/") ||
+        proofUrl.startsWith("/uploads/missions/");
 
     if (!isLocalUpload) return;
 

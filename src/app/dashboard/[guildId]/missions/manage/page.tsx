@@ -5,8 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { ScrollText, Settings } from "lucide-react";
-import Link from "next/link";
+import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 
 export const dynamic = 'force-dynamic';
 

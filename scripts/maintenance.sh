@@ -17,11 +17,19 @@ echo "--------------------------------------------------"
 echo "📅 Date : $(date '+%Y-%m-%d %H:%M:%S')"
 echo "🧹 Purification du VPS en cours..."
 
-# 1. Nettoyage Docker (Images, cache de build, volumes orphelins)
+# 1. Nettoyage Docker AGRESSIF (Stockage SSD Long Terme)
 echo "📦 Nettoyage Docker..."
-sudo docker system prune -af --filter "until=48h"
-sudo docker builder prune -af --filter "until=48h"
-sudo docker volume prune -f
+
+# Supprimer TOUTES les images inutilisées (pas juste >48h)
+# Safe: garde uniquement les images des containers actuellement UP
+sudo docker image prune -a --force
+
+# Supprimer TOUT le build cache (pas juste >48h)
+# Build cache se reconstruit automatiquement au prochain deploy
+sudo docker builder prune -a --force
+
+# Supprimer volumes orphelins (inchangé, déjà OK)
+sudo docker volume prune --force
 
 # 2. Nettoyage Système (APT & Logs)
 echo "📟 Nettoyage Système..."

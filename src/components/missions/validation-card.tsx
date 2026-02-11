@@ -109,6 +109,7 @@ type ValidationCardProps = {
     };
     onValidate: () => void;
     onReject: () => void;
+    onZoom: () => void;
     isProcessing: boolean;
 };
 
@@ -118,7 +119,7 @@ function getDefaultLevel(rank: number): number {
     return levelMap[rank] || 50;
 }
 
-export function ValidationCard({ submission, onValidate, onReject, isProcessing }: ValidationCardProps) {
+export function ValidationCard({ submission, onValidate, onReject, onZoom, isProcessing }: ValidationCardProps) {
     const config = CATEGORY_CONFIG[submission.mission.category];
     const Icon = config.icon;
     const payload = submission.mission.payload as any;
@@ -288,7 +289,10 @@ export function ValidationCard({ submission, onValidate, onReject, isProcessing 
                 )}
 
                 {/* Proof Image Preview */}
-                <div className="relative aspect-video rounded-lg bg-black overflow-hidden border border-zinc-800 group mt-2">
+                <div
+                    className="relative aspect-video rounded-lg bg-black overflow-hidden border border-zinc-800 group mt-2 cursor-zoom-in"
+                    onClick={onZoom}
+                >
                     <Image
                         src={submission.proofUrl}
                         alt="Preuve"
@@ -296,15 +300,10 @@ export function ValidationCard({ submission, onValidate, onReject, isProcessing 
                         className="object-contain"
                     />
 
-                    <a
-                        href={submission.proofUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-2"
-                    >
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-2">
                         <ExternalLink className="w-4 h-4" />
-                        Voir en grand
-                    </a>
+                        Agrandir
+                    </div>
                 </div>
             </CardContent>
 

@@ -116,7 +116,7 @@ async function requireBonusManage(guildId: string) {
 /**
  * Get Discord roles for a guild (for dropdown)
  */
-export async function getGuildRoles(guildId: string): Promise<ActionResponse<any[]>> {
+export async function getGuildRoles(guildId: string): Promise<ActionResponse<Array<{ id: string; name: string; color: number; position: number }>>> {
     try {
         await requireMember(guildId);
 
@@ -170,7 +170,7 @@ export async function getGuildBonuses(
  */
 export async function getActiveBonuses(
     guildId: string
-): Promise<ActionResponse<any[]>> {
+): Promise<ActionResponse<Array<GuildBonus & { config: { name: string; description: string; cost: number; duration: number }; purchaserName: string }>>> {
     try {
         // Security: verify membership before data access
         await requireMember(guildId);
@@ -200,7 +200,7 @@ export async function getActiveBonuses(
         }
 
         const now = new Date();
-        const results: (GuildBonus & { config: typeof BONUS_CONFIG[BonusType]; purchaserName: string })[] = [];
+        const results: Array<GuildBonus & { config: { name: string; description: string; cost: number; duration: number }; purchaserName: string }> = [];
 
         for (const bonus of bonuses) {
             let current = bonus;
@@ -259,9 +259,9 @@ export async function getActiveBonuses(
 /** @deprecated Use getActiveBonuses instead */
 export async function getActiveBonus(
     guildId: string
-): Promise<ActionResponse<any>> {
+): Promise<ActionResponse<(GuildBonus & { config: { name: string; description: string; cost: number; duration: number }; purchaserName: string }) | null>> {
     const result = await getActiveBonuses(guildId);
-    if (!result.success) return result;
+    if (!result.success) return { success: false, error: result.error };
     return { success: true, data: result.data?.[0] || null };
 }
 

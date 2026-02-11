@@ -83,6 +83,8 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
         });
     };
 
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
     // Filter Logic
     const filteredSubmissions = submissions.filter(item => {
         const matchesCategory = categoryFilter === 'ALL' || item.mission.category === categoryFilter;
@@ -157,9 +159,32 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
                             submission={item}
                             onValidate={() => handleDecision(item.id, "VALIDATED")}
                             onReject={() => handleDecision(item.id, "REJECTED")}
+                            onZoom={() => setSelectedImage(item.proofUrl)}
                             isProcessing={processingId === item.id}
                         />
                     ))}
+                </div>
+            )}
+
+            {/* Lightbox / Zoom Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-zoom-out"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <img
+                        src={selectedImage}
+                        className="max-w-full max-h-full object-contain shadow-2xl"
+                        alt="Zoom"
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-4 right-4 text-white hover:bg-white/10"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <X className="w-6 h-6" />
+                    </Button>
                 </div>
             )}
         </div>

@@ -60,6 +60,19 @@ next-env.d.ts
 # Debug/local scripts
 *.local.ts
 *.local.js
+debug-*.js
+debug-*.mjs
+test-api.mjs
+
+# Build logs & output
+build_log*.txt
+lint-output.txt
+
+# Backup files
+*.backup
+
+# ML/OCR trained data (heavy binary files)
+*.traineddata
 
 # Keys and certificates
 *.pem

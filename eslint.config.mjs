@@ -25,7 +25,7 @@ const eslintConfig = defineConfig([
       "@next/next/no-assign-module-variable": "warn",
 
       // On s'assure que le robot ne bloque sur aucun hook mal place pour l'instant
-      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/rules-of-hooks": "error", // ✅ Critical: Prevents conditional hook calls
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/static-components": "warn",

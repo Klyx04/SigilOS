@@ -104,9 +104,7 @@ export async function syncMembershipStatus(
         }
 
         // 2. Fetch all Discord members
-        console.log(`[Sync] Fetching Discord members for guild ${guild.name}...`);
         const discordMemberIds = await fetchAllGuildMembers(discordGuildId);
-        console.log(`[Sync] Found ${discordMemberIds.size} Discord members`);
 
         // 3. Get all profiles for this guild
         const profiles = await db.userProfile.findMany({
@@ -123,7 +121,6 @@ export async function syncMembershipStatus(
             }
         });
 
-        console.log(`[Sync] Found ${profiles.length} profiles in database`);
 
         let skipped = 0;
 
@@ -150,7 +147,6 @@ export async function syncMembershipStatus(
                     }
                 });
                 result.archived++;
-                console.log(`[Sync] Archived profile for user ${profile.discordNickname || discordUserId}`);
             }
             else if (profile.status === "ARCHIVED" && isInGuild && options.reactivateReturning) {
                 // Member returned - Reactivate their profile
@@ -163,7 +159,6 @@ export async function syncMembershipStatus(
                     }
                 });
                 result.reactivated++;
-                console.log(`[Sync] Reactivated profile for returning user ${profile.discordNickname || discordUserId}`);
             }
             // Note: BANNED profiles are never reactivated by sync
         }
@@ -174,7 +169,6 @@ export async function syncMembershipStatus(
             skipped
         };
 
-        console.log(`[Sync] Complete: ${result.archived} archived, ${result.reactivated} reactivated`);
 
     } catch (error) {
         result.success = false;

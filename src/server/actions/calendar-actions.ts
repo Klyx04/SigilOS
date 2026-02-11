@@ -778,7 +778,6 @@ export async function autoCloseExpiredEvents(guildId: string) {
             }
         });
 
-        console.log(`[Calendar] Auto-closed ${expiredEvents.length} expired events`);
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, closedCount: expiredEvents.length };
@@ -903,7 +902,6 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         // Update rate limit cache
         pingRateLimit.set(eventId, Date.now());
 
-        console.log(`[Calendar] Discord notification sent for event ${event.title}`);
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {

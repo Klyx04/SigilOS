@@ -64,7 +64,6 @@ export async function reportSecurityIncident(
     metadata: Record<string, any> = {}
 ): Promise<ActionResponse> {
     const session = await auth();
-    console.log("[Security] Reporting incident...", { guildId, incidentType, userId: session?.user?.id });
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -95,7 +94,6 @@ export async function reportSecurityIncident(
             }
         });
 
-        console.log("[Security] Audit log created:", result.success);
 
         return { success: true };
     } catch (error) {
@@ -233,7 +231,6 @@ export async function logAdminAccessDenied(
         });
 
         const memberStatus = isMember ? `membre (${roleName})` : "utilisateur externe";
-        console.log(`[SECURITY] Admin access denied for ${memberStatus} - user ${session.user.id} on page ${targetPage}`);
     } catch (error) {
         // Silent fail - logging shouldn't break the app
         console.error("[logAdminAccessDenied] Error:", error);
@@ -441,7 +438,6 @@ export async function cleanupOldAuditLogs(
             }
         });
 
-        console.log(`[cleanupOldAuditLogs] Deleted ${result.count} logs older than ${RETENTION_DAYS} days for guild ${discordGuildId}`);
 
         return {
             success: true,

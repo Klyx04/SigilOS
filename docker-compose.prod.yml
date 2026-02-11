@@ -35,7 +35,7 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
     logging: *default-logging
 
   db-prod:
@@ -81,7 +81,7 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
     logging: *default-logging
 
   db-beta:
@@ -115,7 +115,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - uploads-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-prod-data:/app/public/uploads # ✅ Prod uploads only
+      - uploads-beta-data:/app/public/uploads-beta # ✅ Beta uploads accessible for Caddy
     env_file: .env.prod
     networks:
       - prod-net
@@ -245,8 +246,9 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
-  uploads-data:
-    # ✅ Persist uploaded images
+  uploads-prod-data: # ✅ Production uploads isolated
+  uploads-beta-data:
+    # ✅ Beta uploads isolated
 
 networks:
   prod-net:

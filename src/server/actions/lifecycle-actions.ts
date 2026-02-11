@@ -57,7 +57,6 @@ export async function cleanupExpiredProfiles(discordGuildId: string) {
 
         deletedCount += result.count;
         if (result.count > 0) {
-            console.log(`[Lifecycle] Deleted ${result.count} ${reason} profiles older than ${days} days`);
         }
     }
 
@@ -83,7 +82,6 @@ export async function reactivateProfile(userId: string, guildInternalId: string)
     });
 
     if (result.count > 0) {
-        console.log(`[Lifecycle] Reactivated profile for returning member ${userId}`);
     }
 
     return result.count > 0;
@@ -162,7 +160,6 @@ export async function handleGdprDeletionRequest(discordGuildId: string) {
     });
 
     if (otherProfilesCount === 0) {
-        console.log(`[GDPR] User ${ctx.id} has no more profiles. Deleting global account data.`);
         await db.user.delete({
             where: { id: ctx.id }
         });
@@ -223,7 +220,6 @@ export async function syncGuildMembers(discordGuildId: string) {
                 const isBanned = bannedUserIds.has(discordId);
 
                 if (isBanned) {
-                    console.log(`[Lifecycle Sync] Anonymizing BANNED member ${profile.discordNickname}`);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
@@ -249,7 +245,6 @@ export async function syncGuildMembers(discordGuildId: string) {
                     });
                     bannedCount++;
                 } else {
-                    console.log(`[Lifecycle Sync] Archiving ${profile.discordNickname} (left Discord)`);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {

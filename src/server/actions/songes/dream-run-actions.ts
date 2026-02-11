@@ -724,9 +724,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         });
 
         // Also send Discord notification if channel is configured
-        console.log(`[Songes] Checking Discord notification: channelId=${guildConfig?.songesNotifyChannelId || 'none'}`);
         if (guildConfig && guildConfig.songesNotifyChannelId) {
-            console.log(`[Songes] Sending Discord notification to channel ${guildConfig.songesNotifyChannelId}`);
             // Get leader's pseudo for the embed
             const leaderProfile = await db.userProfile.findFirst({
                 where: { userId: run.leaderId, guildId: guildConfig.id },

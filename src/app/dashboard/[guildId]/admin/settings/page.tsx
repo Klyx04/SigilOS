@@ -7,6 +7,7 @@ import { Settings, Bell, Key, Moon, Users, Calendar, Sparkles } from "lucide-rea
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
+import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
@@ -115,8 +116,14 @@ export default async function FeatureSettingsPage({
                             <h2 className="text-2xl font-black tracking-tight text-white mb-2">Intégration Metamob</h2>
                             <p className="text-zinc-400 max-w-2xl">Configurez une clé API Metamob unique pour synchroniser l'état des Archimonstres de toute la guilde.</p>
                         </div>
-                        <div className="max-w-4xl">
-                            <MetamobSettingsClient guildId={guildId} />
+
+                        {/* Settings */}
+                        <MetamobSettingsClient guildId={guildId} />
+
+                        <div className="pt-8 border-t border-white/5">
+                            <h3 className="text-lg font-bold text-white mb-2">Zone de Maintenance</h3>
+                            <p className="text-sm text-zinc-400 mb-4">Outils de dépannage pour les cas particuliers.</p>
+                            <MetamobUnlocker guildId={guildId} />
                         </div>
                     </div>
                 </TabsContent>

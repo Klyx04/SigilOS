@@ -166,7 +166,6 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         });
 
         if (!guildConfig || !guildConfig.calendarNotifyChannelId) {
-            console.log("No calendar channel configured");
             return { success: false, error: "Canal Discord non configuré" };
         }
 

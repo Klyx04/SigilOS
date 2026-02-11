@@ -133,10 +133,6 @@ async function callOcrSpace(
     const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT_MS);
 
     try {
-        console.log('[LLM-OCR] Sending request to OCR.space:', {
-            imageSize: imageBase64.length,
-            language
-        });
 
         // OCR.space expects base64 with data URI prefix or a multipart upload
         const formData = new URLSearchParams();
@@ -167,7 +163,6 @@ async function callOcrSpace(
         }
 
         const text = result.ParsedResults?.[0]?.ParsedText || '';
-        console.log('[LLM-OCR] OCR.space extraction successful (length:', text.length, ')');
 
         // Track API usage (fire-and-forget)
         trackOcrApiUsage('ocr.space').catch(() => { });
@@ -212,7 +207,6 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
     // DEV MODE: Skip OCR when Ollama is not available
     const skipOcr = process.env.DEV_SKIP_OCR === 'true';
     if (skipOcr) {
-        console.log('[LLM-OCR] DEV_SKIP_OCR enabled - returning mock result for manual validation');
         return {
             success: true,
             text: '[DEV MODE] OCR skipped - manual validation required',
@@ -228,19 +222,13 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
         const optimizedImage = await optimizeImage(request.imageBase64);
 
         // Call OCR.space instead of Gemini
-        console.log('[LLM-OCR] Calling OCR.space with context:', request.context);
         const response = await callOcrSpace(optimizedImage, 'fre');
 
-        console.log('[LLM-OCR] Raw text (first 500 chars):', response.substring(0, 500));
 
         // Parse the text response
         const parsed = parseModelResponse(response);
 
-        console.log('[LLM-OCR] Parsed result:', {
-            extractedText: parsed.extractedText.substring(0, 100),
-            confidence: parsed.confidence,
-            isVictory: parsed.isVictory
-        });
+
 
         return {
             success: true,
@@ -566,7 +554,6 @@ async function optimizeImage(base64Image: string): Promise<string> {
         const newSize = optimizedBuffer.length;
         const reduction = Math.round((1 - newSize / originalSize) * 100);
 
-        console.log(`[LLM-OCR] Image optimized: ${Math.round(originalSize / 1024)}KB -> ${Math.round(newSize / 1024)}KB (-${reduction}%)`);
 
         return optimizedBuffer.toString('base64');
     } catch (error) {

@@ -273,6 +273,7 @@ export function ProfileBentoGrid({
                                 metamobVerified={profile.metamobVerified}
                                 metamobLastSync={profile.metamobLastSync}
                                 readOnly={readOnly}
+                                isAdmin={isAdmin}
                             />
 
 

@@ -95,7 +95,7 @@ export default async function QueteOcrePage({
 
 // Component for when user hasn't linked their Metamob account
 function NotLinkedState({ guildId, error }: { guildId: string; error?: string }) {
-    const isNotLinked = error?.includes("Aucun compte Metamob");
+    const isNotLinked = error?.includes("Aucun compte Metamob") || error?.includes("Profil Metamob non lié.");
 
     return (
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm max-w-2xl mx-auto">
@@ -108,16 +108,11 @@ function NotLinkedState({ guildId, error }: { guildId: string; error?: string })
                         <div className="space-y-2">
                             <h2 className="text-xl font-semibold">Liez votre compte Metamob</h2>
                             <p className="text-muted-foreground max-w-md">
-                                Pour accéder à la Quête Ocre, vous devez d&apos;abord lier votre compte{" "}
-                                <a
-                                    href="https://www.metamob.fr"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-amber-500 hover:underline"
-                                >
-                                    Metamob
-                                </a>{" "}
-                                à votre profil SigilOS.
+                                Pour accéder à la Quête Ocre, vous devez lier votre compte Metamob à votre profil SigilOS.
+                                <br /><br />
+                                <span className="text-sm italic">
+                                    Allez sur votre profil, onglet <strong>"Général"</strong>, et cliquez sur <strong>"Connecter Metamob"</strong>.
+                                </span>
                             </p>
                         </div>
                         <Link href={`/dashboard/${guildId}/profile`}>

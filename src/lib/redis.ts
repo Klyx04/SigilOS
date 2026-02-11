@@ -23,11 +23,7 @@ export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
     },
 });
 
-console.log(`[Redis] Initializing connection to ${redisUrl.split('@').pop()}...`);
-
-// LOGGING
-redis.on("connect", () => console.log("[Redis] Connecting..."));
-redis.on("ready", () => console.log("[Redis] Ready"));
+// LOGGING (errors only — Sentry captures console.error)
 redis.on("error", (err) => {
     console.error("[Redis] Error:", err.message);
 });
@@ -37,7 +33,6 @@ if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 // GRACEFUL SHUTDOWN
 if (process.env.NODE_ENV === "production") {
     const shutdown = async () => {
-        console.log("[Redis] Closing connection...");
         await redis.quit();
         process.exit(0);
     };

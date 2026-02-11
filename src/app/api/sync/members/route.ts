@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     const expectedSecret = process.env.CRON_SECRET;
 
     if (cronSecret && expectedSecret && cronSecret === expectedSecret) {
-        console.log("[Sync API] Triggered by cron job");
         const results = await syncAllGuilds();
         return NextResponse.json(results);
     }
@@ -60,7 +59,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("[Sync API] Triggered by Vercel Cron");
     const results = await syncAllGuilds();
     return NextResponse.json(results);
 }

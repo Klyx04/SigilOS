@@ -1,38 +1,82 @@
 #!/bin/sh
-# Pre-commit hook - runs before each commit
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMMIT HOOK — SigilOS
+# Runs before each commit to catch issues early
+# ═══════════════════════════════════════════════════════════════
 
-echo "🔐 Running pre-commit checks..."
+echo ""
+echo "🔐 ══════════════════════════════════════════════"
+echo "   PRE-COMMIT CHECKS"
+echo "═══════════════════════════════════════════════════"
+echo ""
 
-# Check for secrets with a simple pattern match (backup for Gitleaks)
-# This catches common mistakes before they reach CI
+# ─────────────────────────────────────────────────────────────
+# STAGE 1: SECRET DETECTION (instant, blocks immediately)
+# ─────────────────────────────────────────────────────────────
 
-# Check for Discord tokens
+echo "🔍 Scanning for secrets..."
+
+# Discord tokens (Bot/User)
 if git diff --cached --name-only | xargs grep -l -E "[MN][A-Za-z0-9]{23,}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}" 2>/dev/null; then
     echo "❌ Possible Discord token detected! Commit blocked."
     exit 1
 fi
 
-# Check for .env file being committed (should never happen)
+# .env files
 if git diff --cached --name-only | grep -E "^\.env$"; then
-    echo "❌ .env file detected in commit! This should never be committed."
+    echo "❌ .env file detected in commit!"
     echo "   Use .env.example for documentation instead."
     exit 1
 fi
 
-# Check for AWS/API keys patterns
+# AWS / OpenAI keys
 if git diff --cached --name-only | xargs grep -l -E "(AKIA[0-9A-Z]{16}|sk-[a-zA-Z0-9]{48})" 2>/dev/null; then
     echo "❌ Possible AWS/OpenAI key detected! Commit blocked."
     exit 1
 fi
 
-echo "✅ Security checks passed!"
+# GitHub tokens (PATs, OAuth)
+if git diff --cached --name-only | xargs grep -l -E "(ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})" 2>/dev/null; then
+    echo "❌ Possible GitHub token detected! Commit blocked."
+    exit 1
+fi
 
-# 🧹 Run lint-staged (lint on staged files only)
-echo "🧹 Running lint on staged files..."
+# Database connection strings
+if git diff --cached --name-only -- '*.ts' '*.tsx' '*.js' '*.jsx' | xargs grep -l -E "postgresql://[^\"]*@[^\"]*/" 2>/dev/null; then
+    echo "❌ Possible database URL hardcoded! Use env variables instead."
+    exit 1
+fi
+
+echo "✅ No secrets found"
+echo ""
+
+# ─────────────────────────────────────────────────────────────
+# STAGE 2: LINT (only staged files, fast)
+# ─────────────────────────────────────────────────────────────
+
+echo "🧹 Linting staged files..."
 npx lint-staged
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Lint errors found. Fix them before committing."
+    exit 1
+fi
+echo ""
 
-# 🧪 TypeScript check (must run on whole project for type resolution)
-echo "🧪 Running TypeScript check..."
-npx tsc --noEmit
+# ─────────────────────────────────────────────────────────────
+# STAGE 3: TYPESCRIPT (whole project, ~5-15s)
+# ─────────────────────────────────────────────────────────────
 
-echo "✅ All pre-commit checks passed!"
+echo "🧪 TypeScript check..."
+npx tsc --noEmit 2>&1
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ TypeScript errors found. Fix them before committing."
+    exit 1
+fi
+
+echo ""
+echo "══════════════════════════════════════════════════"
+echo "  ✅ ALL CHECKS PASSED — Commit allowed"
+echo "══════════════════════════════════════════════════"
+echo ""

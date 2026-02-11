@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
+import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,10 +50,21 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const missions = response.data || [];
 
-    // ... (inside the component)
+    // Guild Config for Target Tier
+    const { getDofusConfig } = await import("@/server/actions/admin-actions"); // Dynamic import to avoid cycles if any
+    const configRes = await getDofusConfig(guildId);
+    const targetTier = configRes.data?.missionTier || 3;
+
+    // Calculate Total Weekly XP (Activity Points)
+    // Formula: Sum of (Mission XP * Count of Validated Submissions)
+    const currentXP = missions.reduce((acc: number, mission: any) => {
+        // @ts-ignore - _count is added in the query but locally typed maybe not
+        const validatedCount = mission._count?.submissions || 0;
+        return acc + (mission.xpReward || 0) * validatedCount;
+    }, 0);
 
     return (
-        <div className="space-y-8 pb-12">
+        <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
                 title="Missions de Guilde"
                 description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
@@ -60,6 +72,11 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 iconColor="#ef4444"
                 backHref={`/dashboard/${guildId}`}
             />
+
+            {/* Guild Progress Bar */}
+            <div className="px-1">
+                <GuildProgressBar currentXP={currentXP} targetTier={targetTier} guildId={guildId} />
+            </div>
 
             <MissionBoard
                 missions={missions}

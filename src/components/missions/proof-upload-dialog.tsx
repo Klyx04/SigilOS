@@ -23,7 +23,8 @@ import {
     XCircle,
     Check,
     Eye,
-    Clock
+    Clock,
+    Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ import { type MissionCategory, type MissionPayload } from "@/types/missions";
 
 
 import { analyzeImageSafety } from "@/lib/safety-client";
+import { MemberSelector } from "./member-selector"; // Import MemberSelector
 
 interface ProofUploadDialogProps {
     open: boolean;
@@ -65,6 +67,7 @@ export function ProofUploadDialog({
     const [ocrResult, setOcrResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCheckingSafety, setIsCheckingSafety] = useState(false);
+    const [helperIds, setHelperIds] = useState<string[]>([]); // State for helpers
 
     const [safetyDebug, setSafetyDebug] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +83,7 @@ export function ProofUploadDialog({
         setState("idle");
         setOcrResult(null);
         setError(null);
+        setHelperIds([]); // Reset helpers
     };
 
 
@@ -175,7 +179,7 @@ export function ProofUploadDialog({
 
             // 1. Submit to server action (which handles OCR + Storage)
             setState("uploading");
-            const result = await submitMissionProof(missionId, imageData);
+            const result = await submitMissionProof(missionId, imageData, helperIds); // Pass helperIds
 
             if (!result.success) {
                 throw new Error(result.error || "Échec de la soumission");
@@ -245,36 +249,55 @@ export function ProofUploadDialog({
                 <div className="space-y-4">
                     {/* Drop Zone */}
                     {!preview && state === "idle" && (
-                        <div
-                            className={cn(
-                                "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors cursor-pointer",
-                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
-                            )}
-                            onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
-                            onDrop={handleDrop}
-                            onDragOver={(e) => e.preventDefault()}
-                        >
-                            <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                            <p className="text-sm text-slate-400 mb-2">
-                                Glissez votre screenshot ici ou cliquez pour sélectionner
-                            </p>
-                            <p className="text-xs text-slate-500">
-                                PNG, JPEG, WebP ou GIF • Max 10MB
-                            </p>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp,image/gif"
-                                className="hidden"
-                                onChange={handleFileSelect}
-                                disabled={isCheckingSafety}
-                            />
-                            {isCheckingSafety && (
-                                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
-                                    <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-                                    <p className="text-sm text-slate-300">Vérification de sécurité...</p>
-                                </div>
-                            )}
+                        <div className="space-y-4">
+                            {/* HELPER SELECTION (Only visible before upload) */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-indigo-400" />
+                                    Contributeurs (Optionnel)
+                                </label>
+                                <MemberSelector
+                                    guildId={guildId}
+                                    selectedIds={helperIds}
+                                    onSelect={setHelperIds}
+                                    maxSelection={7}
+                                />
+                                <p className="text-[10px] text-slate-500">
+                                    Sélectionnez les membres qui vous ont aidé. Ils recevront des points de contribution à la validation.
+                                </p>
+                            </div>
+
+                            <div
+                                className={cn(
+                                    "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors cursor-pointer",
+                                    isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                                )}
+                                onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
+                                onDrop={handleDrop}
+                                onDragOver={(e) => e.preventDefault()}
+                            >
+                                <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
+                                <p className="text-sm text-slate-400 mb-2">
+                                    Glissez votre screenshot ici ou cliquez pour sélectionner
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    PNG, JPEG, WebP ou GIF • Max 10MB
+                                </p>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,image/gif"
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                    disabled={isCheckingSafety}
+                                />
+                                {isCheckingSafety && (
+                                    <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
+                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                                        <p className="text-sm text-slate-300">Vérification de sécurité...</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 

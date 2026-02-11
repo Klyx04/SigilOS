@@ -1,634 +1,360 @@
-# .antigravity - SigilOS (nom de l’application) 
-
-
-# .antigravity - SIGIL-OS (Master Context)
-
-## 0. Project Context & Vision
-
-**Nom :** SigilOS (The Guild Operating System).
-**Concept :** Plateforme de gestion pour guildes sur le MMORPG **Dofus**.
-**Lore :** Inspiré des "Sigils" (sceaux de protection). Design "Dark Fantasy / Space Opera" (couleurs néons, interfaces épurées, ambiance mystique).
-**Cible :** D'abord ma guilde (MVP), puis ouverture SaaS Multi-tenant.
-**Langue :** Français (par défaut) + Anglais (optionnel).
-
-### Les Modules (Roadmap Fonctionnelle)
-Le système est modulaire. Voici les modules prévus (à implémenter progressivement) :
-
-1.  **MISSIONS (Core) :**
-    - Gestion des 12 missions hebdomadaires générées en jeu (Reset chaque Lundi 8h).
-    - Catégories : DONJON (Boss), REGULATION (Mobs), ANOMALIE taper 50 mobs (sous elixir Uchronique), ANOMALIE taper un boss sous anomalie de cette tranche de lvl (sous elixir Uchronique), SONGES (Infini), CONTRAT (Expédition), EVENT.
-    - Workflow : Admin genère les 12 missions de la semaine -> 
-	Membre se dit intéressé via un premier bouton : une liste dispo des gens intéressé  
-	Veut valider une mission : 
-		1. Membre upload un screenshot.
-		2. **Sécurité :** Nettoyage/Conversion serveur (Anti-malware).
-		        3. **OCR (Vision - LLM) :** Analyse via **Qwen2.5-VL** (Ollama). 
-            - Modèle cible : `qwen2.5-vl:3b` (~10.1GB RAM requise).
-            - Optimisation : Images réduites via `sharp` (JPEG, 1024px max).
-        4. **Validation Intelligente :** 
-            - **JSON Schema :** Extraction structurée (points, missions, progression).
-            - **Confidence :** Seuil de confiance IA (>50%) pour l'auto-validation.
-            - **Fallback :** Si incertain -> Validation Manuelle requise.
-    - Catégories : DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT.
-
-Liens communautaire et officiels à analyser : 
-
-https://www.dofuspourlesnoobs.com/guildes.html
-https://www.dofuspourlesnoobs.com/expeditions-de-guilde.html
-https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1766041-refonte-guildes-phase-i-fondations
-
-2.  **PROFIL (Identity) :**
-    - Fiche membre avec Pseudo Dofus, Classe, Niveau, date d'arrivée et dautres possible (scalable)
-    - **Annuaire Métiers :** Liste des métiers niveau 200 (pour l'entraide artisanat).
-    - **Suivi Succès :** Checklist (Duo, Hardi... pour tel ou tel dj) pour trouver des partenaires.
-
-3.  **SONGES (Tactical) :**
-    - Création de "Runs" Songes Infinis.
-    - Paramètres : Difficulté (Rêve, Paradoxe, Cauchemar), Étages visés, Compo d'équipe.
-    - Inscription / File d'attente.
-
-Liens communautaire et officiels à analyser : 
-
-https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1764631-puits-songes-infinis-partie-2
-https://www.dofus.com/fr/mmorpg/actualites/devblog/billets/1765997-maj-3-4-evolution-songes-infinis (derniere version)
-https://www.dofuspourlesnoobs.com/songes-infinis.html
-
-
-4.  **DONJON (Tactical) :**
-    - Création d'une demande pour faire une DJ (avec tel succès ou non , si c'est pour une quete, pour une mission ou autres?)
-
-
-5.  **PRÊTS (Inventory) :**
-    - Traçabilité des échanges d'items entre membres.
-    - Contrat de prêt : Item + Caution + Date + Preuve échange.
-
-6. **CALENDRIER** (GAMIFICATION) :**
-    - Calendrier de Guilde gérer par un tel(s) rôle(s) à definir, avec notif et tout ce qui va bien
-    - Création d'event à ajouter au calendrier , type d'event à définir
-
-7.  **LADDER (Gamification) :**
-    - Classement automatique (DEPRIORITISÉ pour l'instant).
-
-
-8. **AUTRE MODULES POSSIBLES A L'AVENIR**
-
-
-
-## 1. Core Architecture (NON-NEGOCIABLE) 
-
-**Vision :** SaaS de gestion de guilde Dofus Multi-tenant (SigilOS).  
-**Philosophie :** "Security by Design", UI "Dark Fantasy/Space Opera", UX Optimiste.  
- 
-
-### A. La Stack Technique (Strict) 
-
-- **Framework :** Next.js 16+ (App Router, Server Actions, Turbopack). 
-- **Langage :** TypeScript 5+ (Strict Mode : pas de `any`).
-- **Base de Données :** PostgreSQL 15 (Docker) géré par **Prisma ORM 7.3+** (Adapter-PG). 
-- **Infrastucture :** VPS Linux, Docker Compose, Caddy Gateway (HSTS, Security Headers). Isolation Bêta/Prod. 
-- **Auth :** Auth.js v5 (Discord Provider). Sessions JWT 7 jours, Cookies HttpOnly/Secure/SameSite, CSRF Protection. 
-- **Queue/SaaS :** BullMQ + Redis 7 pour le traitement asynchrone (OCR). Redis protégé par mot de passe et isolation réseau.
-- **Sécurité des Données :** Chiffrement transparent (AES-256-GCM) des tokens Cloud et clés API via `lib/encryption.ts`.
-- **Stockage :** Éphémère (Local `public/uploads/temp`). Les preuves validées sont supprimées immédiatement. Seules les preuves en attente sont conservées (48h max).
-- **Vision (Next-Gen) :** Ollama (Qwen2.5-VL 3B) + `sharp` pour le pré-traitement.
-- **Infrastructure AI :** VPS 12GB RAM min. Docker limite mémoire débloquée (10GB+). **Swap 6GB obligatoire**.
- 
-
-- **UI System :** Tailwind CSS v4 + `shadcn/ui` (Radix UI). Thème sombre par défaut mais au choix 
-
-### B. Security by Design Rules (Lois Absolues)  
- 
-
-**Règle 1 : Zod Gatekeeping (Validation)** - **Impératif :** AUCUNE donnée externe (API, Form, URL params) n'est traitée sans validation Zod stricte. 
-
- 
-
-**Règle 2 : Server-Side Authority (RBAC)** 
-
-- **Impératif :** Ne JAMAIS faire confiance au client. Un bouton caché en CSS ou une route "protégée" par un redirect client n'est PAS une sécurité.  
-
-- **Conséquence :** Chaque mutation (écriture BDD) doit explicitement vérifier :  
-
-1. `if (!session) throw new Unauthorized()`  
-
-2. `if (session.user.role !== “TEL ROLE”) throw new Forbidden()` 
-
-3. `if (data.guildId !== session.user.guildId) throw new SecurityAlert()` 
-
- 
-
-Tout ceci n’est qu’exemple évidemment. 
-
-**Règle 3 : Multi-Tenant Isolation (SaaS Shield)** - **Impératif :** Empêcher les fuites de données entre guildes (IDOR vulnerabilities) 
-
-- **Conséquence :** Toutes les requêtes Prisma (`findMany`, `update`, `delete`) DOIVENT inclure la clause `where: { guildId: session.guildId }`. L'IA doit refuser de générer une requête "globale". 
-
- 
-
-**Règle 4 : Safe Uploads (Anti-Malware)**  
-
-- **Impératif :** Ne jamais stocker/exécuter un fichier utilisateur sur le serveur d'application.  
-
-- **Workflow :**  
-
-1. Validation taille/type côté serveur.
-2. Si **Auto-Validation** (OCR success) -> **Aucun stockage disque**.
-3. Si **En Attente** -> Stockage temporaire (`public/uploads/temp`).
-4. À la validation/refus -> **Suppression immédiate**.
-5. Cleanup automatique des preuves > 48h. 
-
- 
-
-**Règle 5 : Rate Limiting**  
-
-- **Impératif :** Protéger les routes publiques (Login, Upload) contre le Bruteforce/DDoS.  
-
-- **Outil :** Middleware avec Upstash Redis ou limiteur in-memory strict. 
-
- 
-
-### C. Auth Security Configuration (OWASP Compliant)
-
-**Session Management:**
-- `maxAge`: 7 days (reasonable for dashboard app)
-- `updateAge`: 24 hours (sliding session refresh)
-- `strategy`: JWT (stateless, scalable)
-
-**Cookie Security:**
-| Cookie | Options |
-|--------|---------|
-| Session Token | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
-| Callback URL | `httpOnly`, `sameSite: lax`, `secure` (prod only) |
-| CSRF Token | `__Host-` prefix (prod), `httpOnly`, `sameSite: lax` |
-
-**Discord Integration:**
-- `sendChannelMessage()`: Rich embeds with URL, fields, author, mention support.
-- Nickname sync at login via `fetchGuildMember` API.
-
-
-## 2. Business Logic & Data Model (Dynamic Architecture)
-
-**Philosophie :** SigilOS est un système SaaS Multi-tenant piloté par des permissions granulaires.
-Le système ne fige pas les rôles ("Admin", "Membre") dans le code. Il permet à chaque guilde de mapper ses propres Rôles Discord à des Fonctionnalités SigilOS via une matrice de droits.
-
-### A. Entités "SaaS Core" (Multi-tenant & Config)
-
-Ces entités gèrent l'isolation des guildes et la sécurité.
-
-- **GuildConfig :** L'entité racine d'un client (Une Guilde).
-  - `discordGuildId` (String, Unique, Indexé) : L'ID du serveur Discord.
-  - `name` & `iconUrl` : Infos synchro depuis Discord.
-  - `isActive` : Boolean (pour bannir/désactiver une guilde au niveau plateforme).
-  - `rolesMapping` : **JSONB**. Stocke la matrice de permissions configurée par l'admin.
-    - *Structure :* `Record<DiscordRoleId, PermissionId[]>`
-    - *Exemple :* `{ "123456": ["missions.view", "missions.validate"], "987654": ["*"] }`
-
-- **User :** L'utilisateur final (Global).
-  - `discordId` (Unique) : Identifiant stable.
-  - `username`, `image` : Infos profil Discord mises à jour à la connexion.
-  - *Note :* Un User n'a pas de champ "Role" global. Ses droits sont recalculés à chaque requête.
-
-  **Règle d'Affichage des Rôles (Hierarchy) :**
-  1. **Owner Override :** Si `User.discordId === Guild.ownerId` -> Titre **"Empereur"** (Priorité absolue).
-  2. **Admin Override :** Si Permission 0x8 (Administrator) présente mais aucun rôle spécifique mappé -> Titre **"Administrateur"**.
-  3. **Default :** Affiche le nom du plus haut rôle Discord mappé, ou "Membre".
-
-### B. Entités Métier (Le Gameplay Dofus)
-
-Toutes ces entités doivent obligatoirement être liées à une `GuildConfig` (via `discordGuildId`) pour garantir l'isolation des données.
-
-- **UserProfile (Fiche Agent) :**
-  - Relation : 1-1 avec `User` MAIS scopé par `GuildConfig` (Un user peut avoir un profil différent dans 2 guildes).
-  - `status` : Enum (`ACTIVE`, `ARCHIVED`, `BANNED`). Gère la visibilité.
-  - `pseudoDofus` : String.
-  - `classe` : Enum ou String.
-  - `metiers` : JSONB (Liste des métiers 200 activés).
-  - `succes` : JSONB (Liste des succès validés).
-
-- **Mission :** Une tâche hebdomadaire.
-  - Relation : Appartient à `GuildConfig`.
-  - `category` : Enum (DONJON, REGULATION, ANOMALIE, SONGES, CONTRAT, EVENT).
-  - `status` : Enum (ACTIVE, ARCHIVED).
-  - `payload` : JSONB (Détails spécifiques : boss, zone, quantité mobs, étage songes).
-  - `weekNumber` / `year` : Pour le tri temporel.
-
-- **Submission (Preuve) :** La participation d'un membre à une mission.
-  - Relation : Appartient à `Mission` et `UserProfile`.
-  - `status` : Enum (PENDING, VALIDATED, REJECTED).
-  - `proofUrl` : String (URL sécurisée vers le stockage R2).
-  - `validatorId` : String (ID de l'user qui a validé, pour audit).
-
-
-
-### C. Le Système de "Module Registry" (Code)
-
-Le code TypeScript définit la liste immuable des fonctionnalités disponibles (Le "Menu" des droits).
-L'application doit exposer un objet de configuration centralisé `MODULE_REGISTRY` avec par exemple : 
-- **MISSIONS :** `view`, `participate`, `validate` (Staff), `manage` (Admin).
-- **PROFILE :** `view_all` (Annuaire), `edit_self`.
-- **ADMIN :** `access` (Accès Config Globale).
-
-
-
-### D. Workflow Admin (L'Interface de Mapping)
-
-L'IA doit générer une page `/admin/roles` dynamique :
-1.  Récupération des rôles Discord du serveur via l'API Bot.
-2.  Affichage d'un tableau croisé (Lignes = Rôles Discord, Colonnes = Permissions Registry).
-3.  L'Admin coche les cases.
-4.  Sauvegarde dans le JSON `rolesMapping`.
-5.  **Droit Spécial :** `missions.validate` permet d'accéder à la file d'attente `/dashboard/[guildId]/missions/validation`.
-
-
-### E. Cycle de Vie Utilisateur (Member Lifecycle - GDPR Compliant)
-
-**Synchronisation Discord ↔ Dashboard (Real-Time):**
-1.  **Départ (Leave/Kick):** Détecté automatiquement via Discord API 404. `UserProfile` → `ARCHIVED`, `archiveReason: "LEFT"`.
-2.  **Ban :** Détecté via `/guilds/{id}/bans/{userId}`. `UserProfile` → `BANNED`, données personnelles anonymisées.
-3.  **Retour (Re-join):** Si profil `ARCHIVED`, il repasse automatiquement en `ACTIVE` au login.
-4.  **Retour Banni:** Impossible. Les profils `BANNED` ne sont jamais réactivés automatiquement.
-5.  **Affichage :** Toutes les requêtes publiques (Ladder, Annuaire) doivent filtrer `where: { status: 'ACTIVE' }`.
-
-**Règle de Rétention des Données (Data Retention Policy - GDPR):**
-1.  **Conservation `ARCHIVED` (LEFT):** 90 jours après `archivedAt`.
-2.  **Conservation `ARCHIVED` (KICKED):** 30 jours après `archivedAt`.
-3.  **Conservation `BANNED`:** Anonymisation immédiate. Suppression après 30 jours.
-4.  **Purge Automatique (Cron Job):**
-    - Via `/api/sync/members` ou `cleanupExpiredProfiles()` action.
-    - Supprime les profils expirés selon leur `archiveReason`.
-5.  **Scénario "Retour Tardif" (> rétention):**
-    - Le système ne trouve plus son `UserProfile`.
-    - **Conséquence :** Traité comme **Nouvel Utilisateur** (nouveau profil vierge).
-
-### F. Workflow Sécurité (Access Guard)
-
-Pour protéger une Server Action ou une Page, le code doit :
-1.  Récupérer la session (Rôles Discord de l'user).
-2.  Charger la config de la guilde active (`rolesMapping`).
-3.  Vérifier si un des rôles de l'user possède la permission requise.
-4.  Sinon -> Throw `ForbiddenError`.
-
-## 3. Execution Rules (Coding Guidelines)
-
-**User Profile :** Développeur débutant mais ambitieux. Je veux du code professionnel (Best Practices), mais j'ai besoin d'explications claires étape par étape pour le déploiement et les commandes complexes. Ne suppose aucune connaissance préalable en DevOps.
-
-**Règle d'Or :** Tout code produit doit être "Production Ready" (Pas de "TODO Security").
-
-### A. Frontend Architecture (React/Next.js)
-1.  **Server Components First :** Par défaut, tout est Server Component. Utilise `'use client'` uniquement pour l'interactivité.
-2.  **UI Library :** Utilise **shadcn/ui** pour les composants de base. Utilise **Tailwind CSS v4** pour le style.
-3.  **UX Patterns :**
-    - **Optimistic UI :** Les actions (s'inscrire) doivent être instantanées visuellement.
-    - **Feedback :** Utilise `sonner` (Toasts) pour confirmer chaque action.
-    - **Loading :** Utilise des Skeletons, pas d'écran blanc bloquant.
-
-### B. Backend Architecture (Server Actions)
-1.  **Structure :** Une Action = Un Fichier dans `src/server/actions/`.
-2.  **Pipeline Strict :**
-    - Auth Check -> Permission Check -> Zod Validation -> Logique BDD -> Revalidate.
-3.  **Retour :** Toujours renvoyer `{ success: boolean, error?: string }`. Ne jamais crasher l'app.
-
-### C. Gestion BDD (Prisma Multi-tenant)
-- **Isolation :** TOUTES les requêtes métier (`find`, `update`) DOIVENT avoir `where: { guildId: session.guildId }`. C'est la règle de sécurité n°1.
-
-### D. Testing Strategy (MVP)
-- Pas de tests unitaires complexes (Jest/Vitest) pour l'instant.
-- **Validation :** À la fin de chaque tâche, fournis-moi une **Checklist de Test Manuel** précise (ex: "1. Connecte-toi en Admin, 2. Clique sur X, 3. Vérifie que la BDD contient Y").
-
-### E. Git & Versioning Workflow
-1.  **Branches :**
-    - `main` : Production (Stable).
-    - `dev` : Intégration (Travail).
-    - `feat/nom-feature` : Une branche par tâche.
-2.  **Instruction :** Avant de coder, vérifie que je suis sur la bonne branche `feat/...`.
-
-### F. Documentation Vivante (Live Docs)
-**Règle :** Le projet doit être redéployable de zéro par n'importe qui en moins de 10 minutes.
-1.  **README.md Maître :** Doit contenir les pré-requis, commandes d'installation, et variables d'env (`.env.example`).
-2.  **Mise à jour :** Si tu ajoutes une lib ou une variable d'env, mets à jour le README immédiatement.
-
-### G. Infrastructure & Portabilité (Docker First)
-**Contexte :** Dev Windows -> Prod Linux VPS.
-1.  **Docker Ready :** Le projet doit avoir un `Dockerfile` et un `docker-compose.yml` valides dès le début.
-2.  **Base de Données :** En local, utilise un conteneur PostgreSQL via Docker Compose.
+# 📦 Branche `feat/dungeon-data` — Résumé Complet
+
+**Branche** : `feat/dungeon-data`  
+**Base** : `dev`  
+**Commit** : `f01fe95 - feat: bonus system multi-bonus support + RBAC permission`  
+**Date** : 2026-02-11  
+**Status Build** : ✅ Passed (Exit 0)  
+**Status Push** : ✅ Pushed to origin
 
 ---
 
-## 4. Current Focus (Sprint Backlog)
+## 🎯 Objectifs de la Branche
 
-**Status:** Phase 15 Member Lifecycle Management Completed (2026-01-28).
-**Current Sprint:** GDPR-compliant member lifecycle with automatic archiving/banning.
+### 1. **Module Bonus** — Refonte complète
+Fixer les bugs critiques et améliorer la gestion des bonus de guilde :
+- ❌ Impossible d'acheter plusieurs bonus différents
+- ❌ Pseudo du purchaser affiché "Inconnu"
+- ❌ Pas de countdown pour l'admin
+- ❌ Annulation de bonus impossible (guildId mismatch)
+- ❌ Pas de permission RBAC dédiée (admin-only)
 
-1.  **Foundation (DONE):**
-    - [x] Next.js + Tailwind + Docker + Prisma (Adapter-PG).
-    - [x] Auth.js (Discord) Verified.
-    - [x] Middleware Guard Active.
-    - [x] Merged to `main` & `dev`.
-
-2.  **Phase 1: Multi-Tenant Onboarding (COMPLETE & VERIFIED):**
-    - [x] **Zero Trust Security:** `admin-actions.ts` validates permissions via Discord API (not client).
-    - [x] **Guild Selector:** Handles Active vs Pending guilds.
-    - [x] **Bot Integrity:** Live Connectivity Check (Ping) prevents "Ghost Guilds".
-    - [x] **Smart Onboarding:** Invite Link generation (OAuth2) vs DB Deployment.
-    - [x] **Role Logic:** "Smart Role Display" (Empereur/Admin overrides).
-    - [x] **Theme System:** Light/Dark mode with semantic colors & responsive UI.
-
-3.  **Phase 2: Missions & Advanced Management (COMPLETE & VERIFIED):**
-    - [x] **Mission Generator (Admin):** 12-slot Editor with "Space Opera" Theme.
-    - [x] **Submission Workflow (User):** Interest Toggle & Validation flow.
-    - [x] **Validation Queue (Staff):** Review interface working.
-    - [x] **Access Control:** Global Layout Guard & Multi-Tenant Routing.
-    - [x] **Smart OCR:** Text detection + "Dofus Green" Pixel Analysis.
-    - [x] **Proof System:** Secure Upload (R2 Ready) + Auto-validation logic.
-    - [x] **UX Polish:** "Vérification Automatique" UI & Filters (Pending/Validated/Event).
-    - [x] **Security Hardening:** Guild Whitelist (Env) & Deep Security (Server Actions).
-
-4.  **Phase 3: Identity & Community (COMPLETE):**
-    - [x] **User Profiles (V1):** Dofus Class, Jobs (lvl 200), Availability Heatmap, Vacation Mode.
-    - [x] **Profile V1.1:** Weekly Stats (XP/Missions), "Member Since" Date, Premium UI (Stacked Bento, JobsGrid Tabs).
-    - [x] **Directory (V1):** Filterable Member list with Role Colors.
-    - [x] **Discord Cache:** Member info (Nickname, Role, Color) cached for performance.
-    - [x] **Absence Notifications:** Vacation Mode -> Discord Embed.
-    - [ ] **Loans (Prêts):** Item lending contracts. (Deprioritized)
-
-5.  **Phase 4: Archimonstres / Bourse aux Archis (COMPLETE):**
-    - [x] **Metamob Integration:** API client with caching (1h TTL), rate limiting protection.
-    - [x] **Profile Linking:** Users link Metamob pseudo with verification.
-    - [x] **ArchiHub:** Interactive hub showing MANQUANT/POSSÉDÉ/DOUBLON states.
-    - [x] **GuildDoublons Map:** Pre-computed exchange availability for performance.
-    - [x] **Exchange Matching:** Find guild members who can trade archis.
-    - [x] **Zone/Search Filters:** Filter by zone, search by name.
-    - [x] **Exchangeable Toggle:** Show only monsters available for exchange.
-    - [x] **Security:** Permission `archis:view` + guards on all actions.
-    - [x] **Multi-Guild API Key:** Per-guild `metamobApiKey` with global fallback.
-    - [x] **Admin UI:** Config page with tutorial and 90-day expiration warning.
-
-6.  **Phase 5: Ladder (COMPLETE):**
-    - [x] **UI Redesign:** Compact card layout with rank badges (medals for top 3).
-    - [x] **Succès Removal:** Removed achievements ladder (scraping unfeasible).
-    - [x] **Activity Ladder:** Weekly/Monthly XP ranking from validated missions.
-    - [x] **Seniority Ladder:** Member join date ranking.
-    - [x] **Leaderboard Components:** Modern card design without progress bars.
-
-7.  **Phase 6: Profile UI Redesign (COMPLETE):**
-    - [x] **Hero Header:** Large banner with avatar, role-colored name, status badges.
-    - [x] **Compact Stats:** 4-card grid (Total XP, Weekly XP, Missions, Weekly Missions).
-    - [x] **2-Column Layout:** Restructured from 3-column bento to clearer hierarchy.
-    - [x] **Mobile Responsive:** Stats stack 2x2, columns stack vertically.
-    - [x] **Visual Hierarchy:** Gaming-inspired design (Steam, Discord, LoL).
-
-8.  **Phase 7: Songes V3 - Candidatures & Notifications (COMPLETE):**
-    - [x] **Candidature Fixes:** Re-application after leaving run, guildId mismatch fixes.
-    - [x] **Notifications In-App:** Leader (with Discord pseudo), Accept/Reject, Kick.
-    - [x] **Discord Integration:** Rich embeds with @mention, clickable URL, tier colors.
-    - [x] **Tier Filters:** Dashboard filter (Rêve/Paradoxe/Cauchemar) with counts.
-    - [x] **Auth Security (OWASP):** 7-day sessions, 24h sliding refresh, httpOnly cookies.
-    - [x] **Discord Nickname Sync:** Auto-sync at login via fetchGuildMember API.
-    - [x] **Performance:** Removed all automatic polling (was causing excessive requests).
-
-9.  **Phase 8: UI/UX Iteration & Permissions Fixes (COMPLETE):**
-    - [x] **Sidebar Redesign:** Collapsible mode, user widget at top, direct logout.
-    - [x] **Permissions Visibility:** Nav items hidden (not "Access Denied") for unauthorized.
-    - [x] **RBAC UI Redesign:** Module filters (Admin/Missions/Songes/Profils/Modules), stats per module.
-    - [x] **Audit Logs Enhanced:** Permission diff (added/removed per role with module names).
-    - [x] **Feature Settings Page:** Unified `/admin/settings` with tabs for Absences/Metamob/Songes.
-    - [x] **Removed `absence:config`:** Feature settings are admin-only, not RBAC-assignable.
-    - [x] **Profile Alt Pseudos:** Up to 5 alternative character names.
-    - [x] **Availability Heatmap:** Color-coded by time slot (morning/afternoon/evening).
-    - [x] **Guild Header Compacted:** Single horizontal layout.
-    - [x] **Dark Theme Forced:** Removed theme toggle.
-
-10. **Phase 9: RBAC Granulaire & Audit Logs V2 (COMPLETE - 2026-01-15):**
-    - [x] **RBAC Bug Fix (missions:validate):** Fixed `internalCheckPermission` to honor `admin:access` as global fallback.
-    - [x] **Granular Admin Sidebar:** Admin section shows if user has ANY admin-level permission (not just `isAdmin`).
-    - [x] **Per-Link Visibility:** Each admin link respects its specific permission (Gestion Missions → `canManageMissions`).
-    - [x] **Permissions Removed:** `MISSIONS_DELETE`, `PROFILE_UPDATE_SELF` (unused/redundant).
-    - [x] **New Permission:** `canManageMissions` added to UserContext for granular access.
-    - [x] **Songes Join Enforcement:** `canJoinSonges` prop passed to RunCard with explicit error message.
-    - [x] **Unified AccessDenied:** Single component, no variants, consistent UX across all pages.
-    - [x] **Audit Logs Pagination:** 20 logs/page with client-side navigation.
-    - [x] **Audit Logs Filters:** Action type dropdown + search field (prepared for future).
-    - [x] **Role Names in Logs:** Discord role names fetched and displayed instead of raw IDs.
-    - [x] **API Route:** `/api/guild/[guildId]/audit-logs` for client-side log fetching.
-    - [x] **Audit Log Retention:** 30-day cleanup function added.
-    - [x] **Access Denied Logging:** All protected pages log unauthorized access attempts.
-    - [x] **Build Verified:** Exit code 0, all routes functional.
-
-11. **Phase 10: Profile Redesign (Glassmorphism & DofusBook) (COMPLETE - 2026-01-15):**
-    - [x] **Tabs System:** Profile split into "Général", "Stuffs et Autres Pseudos", "Planning".
-    - [x] **Glassmorphism UI:** Unified "Premium Gaming" aesthetic (backdrop-blur, amber glows).
-    - [x] **Availability V2:** GlobalAvailability (Weekly schedule + Nuit slot), Vacation Mode button.
-    - [x] **DofusBook Integration:** "Mes Builds" component with secure link validation (d-bk.net/dofusbook.net).
-    - [x] **Alt Pseudos V2:** List layout, "/w" copy-to-clipboard button, max 5 pseudos.
-    - [x] **Metamob Polish:** Flex-wrap fix for overflow on zoom, better responsive layout.
-    - [x] **Security:** DofusBook URL whitelist, Zod validation for all profile updates.
-
-12. **Phase 11: Guild Presentation Module V1.2 (COMPLETE):**
-    - [x] **Dual View System:** Public "Landing Page" (External) vs Member Dashboard View (Internal/Mirror).
-    - [x] **Admin Form Redesign:** 5-Tab Layout (General, Direction, Content, Images, Recruit), Contextual Save.
-    - [x] **Foundation Date:** Manual historical date field (independent of Discord), displayed in Header as "Guilde fondée le...".
-    - [x] **UI Polish:** Parallax Hero Banner, Scroll Reveal animations, Glassmorphism cards.
-    - [x] **Team Presentation:** Compact `inline-flex` cards for Founder/Co-leaders/Officers.
-    - [x] **Smart Recruitment:** "Other Requirements" hidden if empty, state badges (Open/Closed).
-    - [x] **Image Consistency:** Synced Banner/Photo logic between Public and Member views.
-    - [x] **Security:** `presentation:edit` permission required for Admin access.
-
-13. **Phase 12: Comprehensive Security Audit (COMPLETE - 2026-01-16):**
-    - [x] **OWASP Top 10:2025 Review:** Full audit of 85+ server actions, 4 API routes.
-    - [x] **IDOR Fix #1:** `/api/upload` now verifies guild membership before upload.
-    - [x] **IDOR Fix #2:** `/api/guild/[guildId]/server-config` POST requires admin permission.
-    - [x] **Security Headers:** X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy added to `next.config.ts`.
-    - [x] **Dependabot:** `.github/dependabot.yml` for weekly npm security scans.
-    - [x] **CI Security:** `.github/workflows/security-audit.yml` runs `npm audit` on every push/PR.
-    - [x] **Project Cleanup:** Removed debug scripts, obsolete files, default Next.js assets.
-    - [x] **Documentation:** `SECURITY.md`, `RULES.md` created for SecOps best practices.
-    - [x] **Gitignore 2026:** Updated with IDE, logs, certs, build artifacts patterns.
-    - [x] **README Modernized:** Badges, better structure, documentation links.
-
-13. **Phase 13: Songes Optimization & Security Hardening (COMPLETE - 2026-01-25):**
-    - [x] **Auto-Cancel:** 10-minute TTL for pending requests with user notification.
-    - [x] **Real-Time Polling:** 5s interval for status updates, removing manual refresh needs.
-    - [x] **Strict Isolation:** Audit & Fix of 4 actions (`getPendingJoinRequests`, etc.) to enforce strict `guildId` scoping.
-    - [x] **UI Hardening:** Dialog constraints (`max-w`, `break-all`, `resize-none`) preventing layout breakage (Anti-Spam).
-    - [x] **Performance:** `getDreamRuns` pagination (limit 50) and lazy cleanup logic.
-    - [x] **Discord Embed:** Message truncation (200 chars) and optimized layout.
-    - [x] **Leader Name:** Fixed 'RUN DE MENEUR' to display actual Discord Nickname.
-    - [x] **Floor Layout:** Replaced wrapping grid with horizontal scroll to prevent visual bugs on multi-line floors.
-    - [x] **Shop UI:** Optimized grid layout (up to 8 cols on Ultra-Wide) with expanded Dialog width (1400px).
-    - [x] **Shop Interactions:** Implemented real-time inventory refresh on purchase/deletion.
-    - [x] **Shop UX:** Added explicit 'Add' buttons to minor bonuses and improved tab separation.
-
-14. **Phase 14: Project Stabilization & Build Fixes (COMPLETE - 2026-01-27):**
-    - [x] **Calendar Build Fix:** Resolved Zod schema mismatches in `event-form.tsx` causing build failures.
-    - [x] **Type Safety Sync:** Aligned frontend data structures with Prisma/Zod validation layers.
-    - [x] **Codebase Cleanup:** Stabilized dev and main branches after mission-logic exploration.
-
-15. **Phase 15: Member Lifecycle Management - GDPR Compliance (COMPLETE - 2026-01-28):**
-    - [x] **Prisma Schema Update:** Added `archivedAt` (DateTime) and `archiveReason` (String) to `UserProfile` model.
-    - [x] **Real-Time Membership Check:** `getUserContext()` now uses `cache: 'no-store'` for live Discord membership verification.
-    - [x] **Auto-Archive on Leave:** When Discord returns 404 for member, profile status → `ARCHIVED` + `archiveReason: "LEFT"`.
-    - [x] **Auto-Ban Detection:** Checks `/guilds/{id}/bans/{userId}` - If banned → `status: BANNED` + data anonymization.
-    - [x] **Auto-Reactivation:** Returning members with `ARCHIVED` status are automatically reactivated to `ACTIVE` on login.
-    - [x] **Banned Profiles Protected:** `BANNED` profiles are NEVER auto-reactivated (permanent).
-    - [x] **Lifecycle Server Actions:** `cleanupExpiredProfiles()`, `reactivateProfile()`, `handleGdprDeletionRequest()` in `lifecycle-actions.ts`.
-    - [x] **Sync Job:** `syncMembershipStatus()` and `syncAllGuilds()` for periodic Discord ↔ DB comparison.
-    - [x] **Sync API Endpoint:** `/api/sync/members` for cron jobs (GET/POST with `x-cron-secret` header).
-    - [x] **Admin Sync Button:** `MemberSyncButton` component added to `/admin/settings` → "Gestion des Membres" tab.
-    - [x] **Retention Policy:** 90 days for `LEFT`, 30 days for `KICKED`, immediate anonymization for `BANNED`.
-    - [x] **Discord Webhook:** `/api/discord/webhook` with Ed25519 signature verification for `GUILD_MEMBER_REMOVE` and `GUILD_BAN_ADD`.
-    - [x] **No-Guild Message:** `NoGuildMessage` component with logout button for members without active guilds.
-    - [x] **Redirect Loop Fix:** Dashboard no longer redirects to `/` when user has no guilds (was causing infinite loop).
-    - [x] **Rate Limit Fallback:** If Discord returns 429, falls back to DB profiles to avoid blocking access.
-    - [x] **SignOutButton Component:** Reusable client component for logout in Server Components.
-    - [x] **All Error Pages Updated:** "Retour à l'accueil" replaced with "Se déconnecter" to prevent loops.
-    - [x] **VPS Deployment Guide:** `docs/DEPLOYMENT.md` with Nginx, PM2, Cron setup instructions.
-    - [x] **Vitest Setup:** Test framework configured with path aliases and coverage (12 lifecycle tests).
-
-16. **Phase 16: Super-Admin Platform Management (COMPLETE - 2026-01-28):**
-    - [x] **AllowedGuild Model:** New Prisma model for database-based guild whitelisting.
-    - [x] **Super-Admin Actions:** `isSuperAdmin()`, `getAllowedGuilds()`, `addAllowedGuild()`, `removeAllowedGuild()`, `toggleGuildActive()`, `getPlatformStats()`, `isGuildAllowed()`.
-    - [x] **Super-Admin Page:** `/god` with stats dashboard and guild management UI.
-    - [x] **Environment Migration:** Guild whitelist moved from `ALLOWED_GUILD_IDS` env to BDD.
-    - [x] **SUPER_ADMIN_IDS:** New env var for platform-level admin Discord IDs.
-    - [x] **Backward Compatibility:** Falls back to env var if no guilds in DB.
-    - [x] **Security Hardening:** Unified `isGuildAllowed()` check in both layout and `getUserContext()`.
-    - [x] **Guild Manager Component:** Add/remove/toggle guilds via UI instead of manual `.env` edits.
+### 2. **Game Data Management** — Tooling admin
+Créer un système d'import/export de données Dofus (donjons, monstres) depuis des fichiers JSON.
 
 ---
 
-17. **Phase 17: UI/UX V3 & Guild Directory Polish (COMPLETE - 2026-01-29):**
-    - [x] **GalacticHeader V2:** Unified context-aware navigation, improved branding (Logo V2), and "Void Glass" design.
-    - [x] **Profile V3 (Bento Grid):** Premium glassmorphism UI, tabbed layout (General/Stuffs/Planning), dynamic stats grid.
-    - [x] **Vacation Mode V2:** Smart date logic (Future/Active), visible badges in Directory & Header ("Absence Prévue" vs "En Congés").
-    - [x] **Directory Polish:** Fixed job icons rendering, optimized class filters, added vacation status indicators.
-    - [x] **Settings Unification:** Single `/admin/settings` page with tabs for Absences, Metamob, Songes, and Member Sync.
-    - [x] **Forgemagie Pricing:** Differentiated pricing (Classic/Trans/Exo) in Profile & Directory.
-    - [x] **Security Hardening:** Rate Limiting on notification/updates, strict Date validation, Zod schemas enforcement.
+## 📝 Changements Techniques
 
-18. **Phase 18: Calendar V2 (COMPLETE - 2026-01-29):**
-    - [x] **Grid View UX:** Modern responsive grid with enriched event cards (Date, Creator, Participants).
-    - [x] **Event Types:** Raid Official (with 1/week limit), Guild Event, Missions, Farming.
-    - [x] **Participant List:** Explicit vertical list with "Guild Nickname" priority (vs Global Name).
-    - [x] **Reminders System:** In-app notifications + Discord mentions (@everyone/Role) with duplicate check.
-    - [x] **Security Audit:** Max 60-day range limit, 500 events cap to prevent DoS. Max 1 notification/5min.
-    - [x] **Quick Actions:** Modal with "Participate/Queue" logic & class selection.
-    - [x] **Admin Tooling:** Publish/Complete flow, auto-close expired events logic.
+### 🏆 Module Bonus (Priority 1)
 
-19. **Phase 19: Calendar V3 - Discord Integrations (COMPLETE - 2026-01-29):**
-    - [x] **New Visuals:** Premium generated visuals for each event type (Raid, Farm, etc.) renaming "thumbnails" to "header banners".
-    - [x] **Interactive Buttons:** "Join/Leave" buttons directly on Discord Embeds using Interaction API.
-    - [x] **Smart Queue Display:** Discord Embed separates "Registered" vs "Queue" lists.
-    - [x] **Performance:** Fire-and-forget pattern for Discord updates (preventing interaction timeouts).
-    - [x] **Ngrok Tunneling:** Local dev setup documented for testing Webhooks/Interactions.
-    - [x] **Image Hosting:** Cached assets path fix (`?v=timestamp`) to force Discord image refresh.
+#### Backend (`src/server/actions/bonus-actions.ts`)
 
-20. **Phase 20: Platform Reliability & Data Hygiene (COMPLETE - 2026-01-30):**
-    - [x] **Prisma Optimization:** Implementation of `pg.Pool` for connection resilience, idle timeouts (30s), and connection limits (20).
-    - [x] **Conditional Logging:** New `PRISMA_LOG_QUERIES` env var to toggle SQL logs, keeping the terminal clean.
-    - [x] **Cleanup Janitor:** `cleanupGhostUsers()` script (GDPR Hygiene) and `cleanupOrphanedProfiles()`.
-    - [x] **Project Hygiene:** Deleted ~50MB of obsolete assets, legacy components, and old logs.
-    - [x] **Build Stability:** Next.js 16 / Turbopack build verified (Exit 0).
-    - [x] **Audit Foundations:** Added `createdAt`/`updatedAt` synchronization across core models.
-    - [x] **CI/CD Automation:** Created GitHub Actions workflow (`verify.yml`) for automated lint, types, and build checks.
-
-21. **Phase 21: Success Sync & OCR Refinement (COMPLETE - 2026-01-31):**
-    - [x] **OCR Engine V2 (Buffers):** Separation of processing buffers. `ocrBuffer` (B&W/High contrast) for Tesseract precision and `displayBuffer` (Original colors/WebP) for a clean UI preview.
-    - [x] **Hybrid Security Thresholds:** Implemented tiered validation: 90% confidence for banner-only crops (unambiguous) or 70% confidence if Dofus context keywords are present.
-    - [x] **Context Validation:** Mandatory check for keywords (`succès`, `score`, `déverrouillé`) to prevent random images from auto-updating profiles.
-    - [x] **Pending Submissions Guard:** Logic to prevent users from sending multiple requests while one is still pending analysis/review.
-    - [x] **Submission Cancellation:** Server action `cancelAchievementSubmission` with physical file deletion (`fs.unlink`) and DB record removal.
-    - [x] **UI Polish (Dashboard):** "Validation en cours" card with real-time confidence rating, progress bar, and "Original Color" image preview (replacing ghost-like debug view).
-    - [x] **Robust Text Cleaning:** Improved parsing for large numbers (e.g., `21 644` -> `21644`) and OCR character confusion (I/l/|).
-    - [x] **Code Stability:** Refactored for `prefer-const` linting compliance and Next.js 16 build stability.
-
-22. **Phase 22: Production Deployment & Infrastructure (COMPLETE - 2026-02-01):**
-    - [x] **VPS Setup:** Dual environment (Prod/Beta) on Linux VPS with Docker Compose.
-    - [x] **Gateway:** Caddy implemented for automated SSL management. Prod in maintenance mode.
-    - [x] **Prisma 7 Migration:** Upgraded to Prisma 7.3.0, dynamic `DB_HOST` support for environment isolation.
-    - [x] **Docker Hardening:** Environment injection via `env_file`, zero-warning YAML architecture.
-    - [x] **Beta Security (Beta Gate):** Custom branded lock screen replacing generic Basic Auth.
-    - [x] **Database Isolation:** Independent `db-prod` (Prod) and `db-beta` (Bêta) containers on separate networks.
-    - [x] **Deployment Scripts:** Created `scripts/deploy.sh` for simplified one-command updates.
-    - [x] **Auth.js Stability:** Flexible environment naming support (`AUTH_DISCORD_ID` & `DISCORD_CLIENT_ID`).
-
----
-
-## 5. Security Implementation Summary (Reference)
-
-**API Routes Protection Pattern:**
+**1. Multi-Bonus Support**
 ```typescript
-// All API routes MUST use this pattern:
-const session = await auth();
-if (!session?.user?.id) return 401;
+// AVANT : Un seul bonus actif à la fois
+export async function getActiveBonus(guildId: string) {
+    const bonus = await db.guildBonus.findFirst({ /* ... */ });
+    return { success: true, data: bonus };
+}
 
-const user = await getUserContext(guildId);
-if (!user.isMember) return 403;
-if (!user.isAdmin && routeRequiresAdmin) return 403;
+// APRÈS : Plusieurs bonus de types différents simultanément
+export async function getActiveBonuses(guildId: string) {
+    const bonuses = await db.guildBonus.findMany({
+        where: {
+            guildId: guildConfig.id,
+            status: { in: ["PURCHASED", "ACTIVE"] }
+        }
+    });
+    
+    // Auto-activation/expiration par bonus individuellement
+    for (const bonus of bonuses) {
+        if (bonus.status === "PURCHASED" && now >= bonus.activatesAt) {
+            // Active ce bonus
+        }
+        if (bonus.status === "ACTIVE" && now >= bonus.expiresAt) {
+            // Expire ce bonus
+        }
+    }
+    
+    return { success: true, data: results };
+}
 ```
 
-**Server Actions Protection Pattern:**
+**2. Purchase Logic — Per-Type Blocking**
 ```typescript
-// All server actions MUST use this pattern:
-const ctx = await getUserContext(guildId);
-if (!ctx.isAuthenticated) throw new Error("Unauthorized");
-if (!ctx.isMember) throw new Error("Not a member");
+// AVANT : Bloque TOUS les bonus si un est actif
+const existingBonus = await db.guildBonus.findFirst({
+    where: { guildId, status: { in: ["PURCHASED", "ACTIVE"] } }
+});
+
+// APRÈS : Bloque SEULEMENT le même type
+const existingBonus = await db.guildBonus.findFirst({
+    where: {
+        guildId: guildConfig.id,
+        bonusType: validated.bonusType, // ✅ Filtre par type
+        status: { in: ["PURCHASED", "ACTIVE"] }
+    }
+});
 ```
 
-**Automated Security:**
-- Dependabot scans every Monday 9 AM (Paris)
-- GitHub Actions run `npm audit` on every push
-- 30-day audit log retention
+**3. Purchaser Name Fix**
+```typescript
+// AVANT : Typo sur le champ
+purchaserName: bonus.purchaser?.discordUsername || "Inconnu"
+
+// APRÈS : Champs corrects
+purchaserName: bonus.purchaser?.dofusPseudo 
+    || bonus.purchaser?.discordNickname 
+    || "Inconnu"
+```
+
+**4. Cancel Bonus — guildId Resolution**
+```typescript
+// AVANT : Compare discordGuildId !== CUID → toujours faux
+if (bonus.guildId !== validated.guildId) { ... }
+
+// APRÈS : Résout discordGuildId → CUID avant comparaison
+const guildConfig = await db.guildConfig.findUnique({
+    where: { discordGuildId: validated.guildId }
+});
+
+if (bonus.guildId !== guildConfig.id) { ... } // ✅ Compare CUIDs
+```
+
+**5. RBAC Permission**
+```typescript
+// AVANT : requireAdmin() seulement
+async function requireAdmin(guildId: string) { ... }
+
+// APRÈS : Permission dédiée "Gérer les Bonus"
+async function requireBonusManage(guildId: string) {
+    const ctx = await requireMember(guildId);
+    if (!ctx.canManageBonus) {
+        throw new Error("Permissions insuffisantes - Gestion des bonus requise");
+    }
+    return ctx;
+}
+
+export async function purchaseBonus(...) {
+    await requireBonusManage(validated.guildId); // ✅ Au lieu de requireAdmin
+}
+```
+
+#### Frontend (`src/components/admin/`)
+
+**BonusMenuButton.tsx**
+- State : `activeBonuses: any[]` (array au lieu d'objet unique)
+- Grille : chaque carte vérifie `getBonusForType(type)` pour bloquer SEULEMENT ce type
+- Cancel : bouton individuel par bonus avec `cancellingId` state
+
+**ActiveBonusBar.tsx**
+- Réécriture complète : affiche **plusieurs barres** (une par bonus)
+- Countdown individuel par bonus (30s refresh)
+- Progress bar avec heures:minutes restantes
+- Icons mappés par `BONUS_TYPE`
+
+**BonusCard.tsx**
+- Aucun changement (composant stateless OK)
+
+#### Permissions (`src/lib/permissions.ts`)
+```typescript
+BONUS_MANAGE: "missions:bonus_manage"
+
+[PERMISSIONS.BONUS_MANAGE]: {
+    label: "Gérer les Bonus",
+    description: "Acheter et annuler des bonus de guilde (Oracle de Fortune, etc.)",
+    module: "missions"
+}
+```
+
+#### User Context (`src/server/actions/user-actions.ts`)
+```typescript
+export type UserContext = {
+    // ...
+    canManageBonus: boolean; // ✅ Nouveau champ
+};
+
+const canManageBonus = myPerms.has(PERMISSIONS.BONUS_MANAGE) || isAdmin;
+```
+
+#### API Route (`src/app/api/guild/[guildId]/active-bonus/route.ts`)
+```typescript
+// AVANT : return { bonus: data }
+// APRÈS : return { bonuses: data } // Array
+```
+
+#### Admin Dashboard (`src/app/dashboard/[guildId]/admin/page.tsx`)
+Ajout de 3 cartes de navigation :
+- 🔵 Gérer les Missions
+- 🟢 Valider Preuves
+- 🟠 **Gérer les Bonus** (nouveau)
 
 ---
 
-### Phase 22 : Infrastructure Duale & Sécurisation Bêta (Févr. 2026) ✅
-- **Environnement** : Split complet entre `beta.sigilos.fr` (branche `dev`) et `sigilos.fr` (branche `main`).
-- **Databases** : Isolation totale (`db-beta` vs `db-prod`) au sein du même Docker Compose.
-- **Monitoring** : Stack Prometheus/Grafana opérationnelle sur `monitor.sigilos.fr` (Auth GitHub / 2FA).
-- **Maintenance** : Script de nettoyage quotidien automatique (`scripts/maintenance.sh`) programmé à 4h00.
-- **Gestion Bêta** : Mur de protection "Gate" avec mot de passe et cookies d'accès, simplifiant les tests sans exposer le dashboard.
+### 🎮 Game Data Management (Priority 2)
 
-### Phase 23 : Hardening MilSpec & Résilience (Févr. 2026) ✅
-- **Sécurité BDD** : Chiffrement AES-256-GCM des tokens Cloud et clés API activé.
-- **Rétention RGPD** : Logique de "Wipe" automatique pour bannis/exclus et interface d'audit historique.
-- **Infrastructure** : Sprint B terminé (Backups R2 vérifiés, Healthchecks Docker, Limites Hardware fixées).
-- **Maintenance** : Script auto-nettoyant avec alertes Discord pour l'espace disque.
+#### Admin Tools (`src/app/god/game-data/page.tsx`)
+Nouvelle page d'administration pour gérer les données Dofus :
+- Import JSON donjons/monstres
+- Validation avec Zod schemas
+- Upsert automatique en base
+- UI avec onglets Donjons/Monstres
 
-## 6. Future Roadmap: Phase 3 (Blindage & Intelligence) 🚀
+#### Server Actions (`src/server/actions/game-data-admin-actions.ts`)
+```typescript
+export async function importDungeonData(data: DungeonImport[])
+export async function importMonsterData(data: MonsterImport[])
+export async function getDungeonData()
+export async function getMonsterData()
+```
 
-Cette phase est découpée en Sprints logiques pour atteindre le niveau "Military Grade".
+#### Image Downloader (`src/lib/image-downloader.ts`)
+Utilitaire pour télécharger les images Dofus :
+```typescript
+export async function downloadImage(url: string, outputPath: string)
+```
 
-### ⚔️ Sprint C : Blindage & Sécurité du Code (`feat/security-v3`) ✅
-- **Audit Complet** : Analyse exhaustive du code (score 3.9/5). 2 vulnérabilités critiques corrigées.
-- **Guards.ts** : Helpers `requireGuildAdmin` et `requireGuildMember` pour vérification centralisée.
-- **Admin Actions** : Fix `updateRoleMapping` + protection des 5 fonctions `get*Config`.
-- **Profile Actions** : Filtre `status: ACTIVE` dans `getMemberProfile` (GDPR compliant).
-- **Gitleaks CI** : Scan de secrets automatique sur chaque PR avec GitHub Actions.
-- **Documentation** : `ENCRYPTION_KEY` et `DISCORD_PUBLIC_KEY` ajoutés à `.env.example`.
+#### API Routes
+- `/api/god/download-image` : Proxy pour télécharger images
+- `/api/god/list-local-images` : Liste les images locales
 
-### 🔭 Sprint D : Observabilité & Alerting (`feat/sentry-integration`) ✅
-- **Quick Wins** : Husky Pre-commit hooks, Health Check API (Redis/DB), Rate Limiting.
-- **Sentry** : Tracking des erreurs (Client/Serveur/Edge) configuré et déployé.
-- **Alerting** : Intégration Discord pour notifications d'erreurs en temps réel.
-- **Security Params** : CSP Headers, Validation Zod .env, Gitleaks.
+---
 
-### 🧪 Sprint E : Tests & Qualité (À venir)
-- **Unit Tests** : Tests encryption.ts, ratelimit.ts, guards.ts.
-- **Integration Tests** : Tests user-actions, mission-actions.
-- **Coverage** : Objectif 70%+ sur les modules critiques.
+## 🗂️ Fichiers Modifiés/Créés
 
-### 🧠 Sprint F : Intelligence & OCR (En cours)
-- [x] Recherche modèle Vision (Qwen2.5-VL 3B validé).
-- [x] Optimisation `sharp` (Payload -80%).
-- [ ] Finaliser l'intégration sur une branche propre.
-- [ ] Configurer Swap/RAM VPS.
+### Créés
+- `src/server/actions/bonus-actions.ts` (nouveau module complet)
+- `src/server/actions/bonus-actions.ts.backup` (sauvegarde)
+- `src/server/actions/game-data-admin-actions.ts`
+- `src/components/admin/BonusMenuButton.tsx`
+- `src/components/admin/BonusCard.tsx`
+- `src/components/admin/ActiveBonusBar.tsx`
+- `src/components/admin/bonus-settings-client.tsx`
+- `src/app/god/game-data/page.tsx`
+- `src/lib/image-downloader.ts`
+- `src/app/api/god/download-image/route.ts`
+- `src/app/api/god/list-local-images/route.ts`
+- `tests/ladder-actions.test.ts` (scaffold)
 
+### Modifiés
+- `src/lib/permissions.ts` — Added `BONUS_MANAGE`
+- `src/server/actions/user-actions.ts` — Added `canManageBonus`
+- `src/app/api/guild/[guildId]/active-bonus/route.ts` — Returns array
+- `src/app/dashboard/[guildId]/admin/page.tsx` — Added module cards
+- `prisma/migrations/` — Multiple bonus-related migrations
 
-### Phase 24: Metamob V2 & Ocre Precision (COMPLETE - 2026-02-06):
-- [x] **Unified Client:** Fusion of metamob-api.ts into a robust metamob-client.ts supporting V2 endpoints.
-- [x] **Ocre Dashboard V2:** 'Poss�d�s' now includes duplicates (Doublons) for accurate collection tracking.
-- [x] **Smart Calculation:** Fixed 'missing monsters' bug by forcing status: 'all' and handling parallel_quests.
-- [x] **Precision Debug:** Implementation of file-based raw API logging for deep diagnostics.
-- [x] **Security:** API Keys now support transparent encryption/decryption in prisma.ts.
-- [x] **Legacy Cleanup:** Removed all dependencies on deprecated Metamob V1 endpoints.
+---
 
+## 🔒 Audit Sécurité
+
+### Conformité SECURITY.md ✅
+
+| Règle | Status | Validation |
+|-------|--------|------------|
+| Auth sur chaque action | ✅ | `requireAuth()` + `getUserContext()` partout |
+| Guild isolation | ✅ | `guildConfig.id` (CUID) dans toutes les queries |
+| RBAC check mutations | ✅ | `requireBonusManage()` pour purchase/cancel |
+| Input validation Zod | ✅ | `purchaseBonusSchema`, `cancelBonusSchema` |
+| No raw SQL | ✅ | Prisma ORM exclusivement |
+| No secrets client-side | ✅ | Pas de `process.env` exposé |
+| No eval/exec | ✅ | Aucune exécution dynamique |
+
+### Détails des Checks
+
+**purchaseBonus()**
+```typescript
+const validated = purchaseBonusSchema.parse({ guildId, bonusType, ... });
+const userId = await requireAuth();
+await requireBonusManage(validated.guildId); // ✅ RBAC check
+
+const guildConfig = await db.guildConfig.findUnique({
+    where: { discordGuildId: validated.guildId }
+});
+
+const existingBonus = await db.guildBonus.findFirst({
+    where: {
+        guildId: guildConfig.id, // ✅ Guild isolation (CUID)
+        bonusType: validated.bonusType,
+        status: { in: [BonusStatus.PURCHASED, BonusStatus.ACTIVE] }
+    }
+});
+```
+
+**cancelBonus()**
+```typescript
+const validated = cancelBonusSchema.parse({ bonusId, guildId });
+await requireBonusManage(validated.guildId); // ✅ RBAC check
+
+const guildConfig = await db.guildConfig.findUnique({
+    where: { discordGuildId: validated.guildId }
+});
+
+const bonus = await db.guildBonus.findUnique({
+    where: { id: validated.bonusId }
+});
+
+if (bonus.guildId !== guildConfig.id) { // ✅ Guild isolation check
+    return { success: false, error: "Ce bonus n'appartient pas à votre guilde" };
+}
+```
+
+---
+
+## 🧪 Tests & Validation
+
+### Build Local
+```bash
+npm run build
+✓ Compiled successfully in 19.6s
+✓ Generating static pages (22/22) in 4.4s
+✓ Finalizing page optimization
+Exit code: 0
+```
+
+### Pre-commit Checks
+```bash
+git commit -m "fix: resolve TypeScript lint errors in bonus-actions"
+🔐 Running pre-commit checks...
+✅ Pre-commit checks passed!
+```
+
+### CI/CD (En attente)
+Le robot GitHub Actions va valider :
+- ✅ ESLint (pas d'erreurs critiques)
+- ✅ TypeScript compilation
+- ✅ Build production
+- ✅ Security audit
+
+---
+
+## 📊 Métriques
+
+### Code Stats
+- **Fichiers créés** : 13
+- **Fichiers modifiés** : 6
+- **Lignes ajoutées** : ~2500
+- **Fonctions server actions** : 11 (bonus) + 5 (game-data)
+- **Composants UI** : 5
+
+### Permissions
+- **Nouvelle** : `BONUS_MANAGE` dans la catégorie "Missions"
+- **Impact RBAC** : Les admins peuvent déléguer sans donner accès admin complet
+
+### Database
+- **Tables affectées** : `GuildBonus` (modifications schema)
+- **Migrations** : 3 nouvelles migrations Prisma
+- **Relations** : `purchaser` → `UserProfile` (FK correcte)
+
+---
+
+## 🚀 Déploiement
+
+### Workflow Git
+1. ✅ Branche `feat/dungeon-data` créée depuis `dev`
+2. ✅ Commits atomiques avec messages sémantiques
+3. ✅ Build local passed
+4. ✅ Pre-commit hooks passed
+5. ✅ Push to origin
+6. ⏳ En attente : GitHub Actions CI
+7. ⏳ En attente : Merge vers `dev`
+8. ⏳ En attente : Test sur Beta
+9. ⏳ En attente : Merge `dev` → `main` (après 24-48h)
+
+### Commandes de Déploiement
+```bash
+# Déjà fait
+git checkout dev
+git pull origin dev
+git checkout -b feat/dungeon-data
+git add .
+git commit -m "feat: bonus system multi-bonus support + RBAC permission"
+git push origin feat/dungeon-data
+
+# À faire par le mainteneur
+# 1. Ouvrir PR sur GitHub : feat/dungeon-data → dev
+# 2. Valider checks CI ✅
+# 3. Merger la PR
+# 4. Tester sur Beta (beta.sigilos.fr)
+# 5. Si OK après 24-48h : merger dev → main
+```

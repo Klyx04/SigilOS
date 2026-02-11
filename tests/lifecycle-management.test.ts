@@ -72,15 +72,6 @@ const PROFILE_USER1_GUILD_A = {
     discordNickname: "Player One",
 };
 
-const PROFILE_USER1_GUILD_B = {
-    id: "profile-1b",
-    userId: USER_1.id,
-    guildId: GUILD_B.id,
-    status: "ACTIVE",
-    pseudoDofus: "PlayerOneAlt",
-    discordNickname: "Player One Alt",
-};
-
 describe("Member Lifecycle Management", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -264,13 +255,6 @@ describe("Member Lifecycle Management", () => {
         });
 
         it("should NOT reactivate a BANNED profile", async () => {
-            const bannedProfile = {
-                ...PROFILE_USER1_GUILD_A,
-                status: "BANNED",
-                archivedAt: new Date(),
-                archiveReason: "BANNED"
-            };
-
             // The findFirst should only look for ARCHIVED, not BANNED
             mockDb.userProfile.findFirst.mockResolvedValue(null);
 

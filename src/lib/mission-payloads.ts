@@ -17,8 +17,10 @@ export type DungeonPayload = {
 export type RegulationPayload = {
     zoneId: string;
     zoneName: string;
-    monsterId: string;
-    monsterName: string;
+    familyId?: string;
+    familyName?: string;
+    monsterId?: string;
+    monsterName?: string;
     targetCount: 50; // Always 50
     imageUrl?: string;
 }

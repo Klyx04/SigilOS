@@ -11,6 +11,7 @@ import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle } from "l
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getWeekNumber } from "@/lib/date-utils";
+import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import {
     DungeonForm,
     RegulationForm,
@@ -25,7 +26,7 @@ import {
 type DraftMission = {
     slotIndex: number; // 0-11
     category: MissionCategoryType;
-    tier: number;
+    rank: number;
     title: string;
     xpReward: number;
     guildatonsReward: number;
@@ -35,7 +36,7 @@ type DraftMission = {
 const DEFAULT_mission_TEMPLATE = (index: number): DraftMission => ({
     slotIndex: index,
     category: "DONJON",
-    tier: 1,
+    rank: 1,
     title: "",
     xpReward: 300,
     guildatonsReward: 50,
@@ -52,6 +53,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
         Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
     );
 
+    const [globalTier, setGlobalTier] = useState<number>(3); // Default to 3 or fetch from guild config
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -68,10 +70,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 const newMissions = Array.from({ length: 12 }).map((_, i) => {
                     const existing = fetched.find((m: any) => m.slotIndex === i);
                     if (existing) {
+                        // Infer global tier from existing missions if possible, otherwise keep default
+                        // In reality, we should fetch the guild config for default tier if no missions exist
                         return {
                             slotIndex: i,
                             category: existing.category,
-                            tier: existing.tier,
+                            rank: existing.rank || 1,
                             title: existing.title || "",
                             xpReward: existing.xpReward || 0,
                             guildatonsReward: existing.guildatonsReward || 0,
@@ -81,6 +85,14 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     return DEFAULT_mission_TEMPLATE(i);
                 });
                 setMissions(newMissions);
+
+                // Set global tier from first found mission or default
+                const foundTier = fetched.find((m: any) => m.tier)?.tier;
+                if (foundTier) setGlobalTier(foundTier);
+            } else {
+                // If no missions found, maybe fetch guild config for default tier?
+                // For now, we'll rely on the default state (3) or whatever was set.
+                // Ideally we'd call getDofusConfig here too.
             }
         } catch (e) {
             toast.error("Erreur de chargement");
@@ -107,7 +119,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             guildId,
             weekNumber,
             year,
-            missions: [mission]
+            missions: [{ ...mission, tier: globalTier }],
+            updateGuildTier: globalTier
         });
 
         toast.promise(promise, {
@@ -142,7 +155,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             guildId,
             weekNumber,
             year,
-            missions: missions
+            missions: missions.map(m => ({ ...m, tier: globalTier })),
+            updateGuildTier: globalTier
         });
         setIsSaving(false);
         setConfirmPublishOpen(false);
@@ -180,7 +194,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
         <div className="space-y-6">
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <label className="text-sm text-zinc-400">Semaine</label>
                         <input
@@ -199,10 +213,27 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             onChange={(e) => setYear(parseInt(e.target.value))}
                         />
                     </div>
+
+                    <div className="w-px h-8 bg-zinc-800 mx-2 hidden sm:block"></div>
+
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-zinc-400 font-medium">Objectif Palier</label>
+                        <select
+                            className="h-9 w-32 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                            value={globalTier}
+                            onChange={(e) => setGlobalTier(parseInt(e.target.value))}
+                        >
+                            {[1, 2, 3, 4, 5].map(t => (
+                                <option key={t} value={t}>Palier {t}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <BonusMenuButton guildId={guildId} />
                     <Button
                         type="button"
                         variant="destructive"
@@ -291,7 +322,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                                 {mission.title}
                                             </h4>
                                             <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 mb-2">
-                                                <span className="text-zinc-500 font-medium">P{mission.tier}</span>
+                                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300">
+                                                    Rang {mission.rank}
+                                                </Badge>
                                                 <span className="w-0.5 h-3 bg-zinc-800" />
                                                 <span className="text-indigo-400">{mission.xpReward} XP</span>
                                             </div>
@@ -320,12 +353,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
                     {currentMission && (
                         <div className="grid gap-4 py-4">
-                            {/* Category & Tier Row */}
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Category & Tier/Rank Row */}
+                            <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-zinc-400">Catégorie</label>
                                     <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white"
                                         value={currentMission.category}
                                         onChange={(e) => updateMission(currentMission.slotIndex, {
                                             category: e.target.value as MissionCategoryType,
@@ -338,15 +371,16 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         ))}
                                     </select>
                                 </div>
+
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Rang (Palier)</label>
+                                    <label className="text-xs font-medium text-zinc-400">Rang (Contenu)</label>
                                     <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
-                                        value={currentMission.tier}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { tier: parseInt(e.target.value) })}
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white"
+                                        value={currentMission.rank}
+                                        onChange={(e) => updateMission(currentMission.slotIndex, { rank: parseInt(e.target.value) })}
                                     >
-                                        {[1, 2, 3, 4, 5].map(t => (
-                                            <option key={t} value={t}>Rang {t}</option>
+                                        {[1, 2, 3, 4].map(r => (
+                                            <option key={r} value={r}>Rang {r}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -381,7 +415,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
                                     />
                                 )}
                                 {currentMission.category === 'REGULATION' && (
@@ -389,7 +423,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
                                     />
                                 )}
                                 {currentMission.category === 'ANOMALIE' && (
@@ -397,7 +431,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
                                     />
                                 )}
                                 {currentMission.category === 'SONGES' && (
@@ -405,7 +439,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
                                     />
                                 )}
                                 {currentMission.category === 'EXPEDITION' && (
@@ -413,7 +447,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
+                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
                                     />
                                 )}
                                 {currentMission.category === 'EVENT' && (
@@ -421,7 +455,6 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                         payload={currentMission.payload}
                                         onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
                                         onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onTierChange={(tier) => updateMission(currentMission.slotIndex, { tier })}
                                     />
                                 )}
                             </div>

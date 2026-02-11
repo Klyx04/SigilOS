@@ -9,18 +9,18 @@ datasource db {
 // -- Auth.js Models --
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -59,7 +59,7 @@ model User {
   notifications       Notification[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 // -- SigilOS Core Models --
@@ -68,66 +68,74 @@ model User {
 model AllowedGuild {
   id             String    @id @default(cuid())
   discordGuildId String    @unique
-  name           String?   // Cached guild name
+  name           String? // Cached guild name
   tier           String    @default("BETA") // BETA, FREE, PREMIUM (for future monetization)
-  isActive       Boolean   @default(true)   // Quick enable/disable
-  addedBy        String    // Discord ID of super-admin who added
+  isActive       Boolean   @default(true) // Quick enable/disable
+  addedBy        String // Discord ID of super-admin who added
   addedAt        DateTime  @default(now())
   expiresAt      DateTime? // Null = permanent, or expiration date
-  notes          String?   // Internal notes (e.g. "Beta partner", "Paid tier")
-  
+  notes          String? // Internal notes (e.g. "Beta partner", "Paid tier")
+
   @@index([discordGuildId])
   @@index([isActive])
 }
 
 model GuildConfig {
-  id               String        @id @default(cuid())
-  discordGuildId   String        @unique
+  id               String  @id @default(cuid())
+  discordGuildId   String  @unique
   name             String
   iconUrl          String?
-  isActive         Boolean       @default(true)
-  rolesMapping     Json          @default("{}") // Record<DiscordRoleId, PermissionId[]>
-  absenceChannelId String?       // Discord channel ID for absence notifications
-  metamobApiKey    String?       // Per-guild Metamob API key (optional, falls back to global)
-  
-  // Dofus Server Configuration (for Ladder scraping)
-  dofusServerId    String?       // Ex: "295" for Draconiros
-  dofusServerName  String?       // Ex: "Draconiros" (display name)
-  
-  // Songes Module Configuration
-  songesNotifyChannelId String?  // Discord channel ID for Songes join request notifications
-  
-  // Calendar Module Configuration  
-  calendarNotifyChannelId String?  // Discord channel ID for calendar event notifications
-  
-  // === GUILD PRESENTATION MODULE ===
-  presentationEnabled     Boolean   @default(false)  // Visible in public directory
-  presentationHistory     String?   @db.Text  // Guild history (Markdown, emojis allowed)
-  presentationActivities  Json?     // ["Économie", "PVM", "Roleplay", "Kolizéum", "Percepteur"]
-  presentationFounder     String?   // Founder pseudo
-  presentationCoLeaders   Json?     // ["pseudo1", "pseudo2", "pseudo3"] - Up to 3 co-leaders
-  presentationTeam        Json?     // ["pseudo1", "pseudo2", ...] - Up to 10 bras droits (free text)
-  presentationDiscord     String?   // Discord invite link (sanitized)
-  presentationRecruiting  Boolean   @default(false)  // Recruiting status
-  presentationRecruitReq  String?   @db.Text  // Recruitment requirements (Markdown)
-  presentationServer      String?   // Dofus Unity server name
-  presentationFoundedDate DateTime? // Date of guild creation (roleplay/historical)
-  presentationBannerType  String?   @default("discord")  // "discord" | "custom"
-  presentationBannerUrl   String?   // Custom banner URL (if uploaded)
-  presentationPhotoUrl    String?   // Guild photo URL (uploaded)
-  // Recruitment specific fields
-  presentationDiscordReq  Boolean   @default(false)  // Discord required for recruitment
-  presentationMinLevel    Int?      // Min level (0-200)
-  presentationMinSuccesses Int?     // Min successes (0-25000)
-  
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  isActive         Boolean @default(true)
+  rolesMapping     Json    @default("{}") // Record<DiscordRoleId, PermissionId[]>
+  absenceChannelId String? // Discord channel ID for absence notifications
+  metamobApiKey    String? // Per-guild Metamob API key (optional, falls back to global)
 
-  profiles         UserProfile[]
-  missions         Mission[]
-  auditLogs        AuditLog[]
-  guildEvents      GuildEvent[]
+  // Dofus Server Configuration (for Ladder scraping)
+  dofusServerId   String? // Ex: "295" for Draconiros
+  dofusServerName String? // Ex: "Draconiros" (display name)
+
+  // Songes Module Configuration
+  songesNotifyChannelId String? // Discord channel ID for Songes join request notifications
+
+  // Calendar Module Configuration  
+  calendarNotifyChannelId String? // Discord channel ID for calendar event notifications
+
+  // Bonus Module Configuration
+  bonusNotifyChannelId String? // Discord channel ID for bonus purchase notifications
+
+  // Mission Configuration
+  missionRanks Json? // [1, 2, 3, 4] - Selected ranks for mission generation
+  missionTier  Int?  @default(3) // Selected Tier (Palier) target (1-5)
+
+  // === GUILD PRESENTATION MODULE ===
+  presentationEnabled      Boolean   @default(false) // Visible in public directory
+  presentationHistory      String?   @db.Text // Guild history (Markdown, emojis allowed)
+  presentationActivities   Json? // ["Économie", "PVM", "Roleplay", "Kolizéum", "Percepteur"]
+  presentationFounder      String? // Founder pseudo
+  presentationCoLeaders    Json? // ["pseudo1", "pseudo2", "pseudo3"] - Up to 3 co-leaders
+  presentationTeam         Json? // ["pseudo1", "pseudo2", ...] - Up to 10 bras droits (free text)
+  presentationDiscord      String? // Discord invite link (sanitized)
+  presentationRecruiting   Boolean   @default(false) // Recruiting status
+  presentationRecruitReq   String?   @db.Text // Recruitment requirements (Markdown)
+  presentationServer       String? // Dofus Unity server name
+  presentationFoundedDate  DateTime? // Date of guild creation (roleplay/historical)
+  presentationBannerType   String?   @default("discord") // "discord" | "custom"
+  presentationBannerUrl    String? // Custom banner URL (if uploaded)
+  presentationPhotoUrl     String? // Guild photo URL (uploaded)
+  // Recruitment specific fields
+  presentationDiscordReq   Boolean   @default(false) // Discord required for recruitment
+  presentationMinLevel     Int? // Min level (0-200)
+  presentationMinSuccesses Int? // Min successes (0-25000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profiles               UserProfile[]
+  missions               Mission[]
+  auditLogs              AuditLog[]
+  guildEvents            GuildEvent[]
   achievementSubmissions AchievementSubmission[]
+  guildBonuses           GuildBonus[]
 }
 
 // -- Audit Log (Immutable) --
@@ -135,26 +143,26 @@ model GuildConfig {
 // IMPORTANT: This table has NO updatedAt field - logs are immutable
 
 model AuditLog {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   guildId     String
-  actorUserId String   // User who performed the action
-  actorName   String   // Actor name at time of action (for historical reference)
-  
-  action      String   // Action type: RBAC_UPDATE, RBAC_ROLE_ADD, RBAC_ROLE_REMOVE, etc.
-  targetType  String   // Target entity type: PERMISSION, ROLE, CONFIG, etc.
-  targetId    String?  // ID of the target if applicable
-  
-  oldValue    Json?    // State before modification
-  newValue    Json?    // State after modification
-  metadata    Json?    // Additional context data
-  
-  createdAt   DateTime @default(now())
-  
+  actorUserId String // User who performed the action
+  actorName   String // Actor name at time of action (for historical reference)
+
+  action     String // Action type: RBAC_UPDATE, RBAC_ROLE_ADD, RBAC_ROLE_REMOVE, etc.
+  targetType String // Target entity type: PERMISSION, ROLE, CONFIG, etc.
+  targetId   String? // ID of the target if applicable
+
+  oldValue Json? // State before modification
+  newValue Json? // State after modification
+  metadata Json? // Additional context data
+
+  createdAt DateTime @default(now())
+
   // Note: NO updatedAt - Logs are immutable and cannot be modified
   // Note: NO onDelete Cascade from User - Logs persist even if user is deleted
-  
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  
+
+  guild GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
   @@index([guildId, createdAt])
   @@index([actorUserId])
   @@index([action])
@@ -169,7 +177,7 @@ model UserProfile {
 
   // RGPD Lifecycle Management
   archivedAt    DateTime? // When the profile was archived (for retention policy)
-  archiveReason String?   // "LEFT" | "KICKED" | "BANNED" | "GDPR_REQUEST"
+  archiveReason String? // "LEFT" | "KICKED" | "BANNED" | "GDPR_REQUEST"
 
   // Identity
   pseudoDofus       String?
@@ -179,23 +187,23 @@ model UserProfile {
   // Jobs & Crafting
   metiers          Json? // String[] - List of max-level jobs
   forgemagieStatus String? @default("UNAVAILABLE") // "FREE" | "PAID" | "UNAVAILABLE"
-  
+
   // Forgemagie Pricing (Kamas)
-  fmPriceClassic   Int? // Prix pour FM classique
-  fmPriceTrans     Int? // Prix pour passage rune Trans
-  fmPriceExo       Int? // Prix pour tentative Exo/Over
+  fmPriceClassic Int? // Prix pour FM classique
+  fmPriceTrans   Int? // Prix pour passage rune Trans
+  fmPriceExo     Int? // Prix pour tentative Exo/Over
 
   // Achievements (V2)
   succes Json? // List of validated achievements
 
   // Gamification
-  xp                Int @default(0)
-  guildatons        Int @default(0)
-  achievementPoints Int? // Points de succès Dofus (manual or scraped)
+  xp                  Int       @default(0)
+  guildatons          Int       @default(0)
+  achievementPoints   Int? // Points de succès Dofus (manual or scraped)
   achievementLastSync DateTime? // Last successful sync from dofus.com
-  
+
   // Dofus Identity (for Ladder scraping)
-  dofusPseudo       String? // Pseudo EXACT in-game (case-sensitive)
+  dofusPseudo String? // Pseudo EXACT in-game (case-sensitive)
 
   // Availability Heatmap
   availability Json? // { "lundi": ["matin", "soir"], ... }
@@ -217,64 +225,71 @@ model UserProfile {
   discordCacheUpdatedAt DateTime?
 
   // Metamob Integration (Quête Ocre - API v2)
-  metamobPseudo     String?   // Pseudo Metamob (peut être différent du pseudo Dofus)
-  metamobApiKey     String?   // Clé API personnelle pour accès doublons/exchangeable
-  metamobQuestSlug  String?   // Slug de la quête active (ex: "mon-perso-278")
-  metamobServerId   Int?      // ID du serveur Dofus (ex: 401 = Draconiros)
-  metamobVerified   Boolean   @default(false)  // Compte validé via API
-  metamobLastSync   DateTime? // Dernière synchronisation du cache
+  metamobPseudo    String? // Pseudo Metamob (peut être différent du pseudo Dofus)
+  metamobApiKey    String? // Clé API personnelle pour accès doublons/exchangeable
+  metamobQuestSlug String? // Slug de la quête active (ex: "mon-perso-278")
+  metamobServerId  Int? // ID du serveur Dofus (ex: 401 = Draconiros)
+  metamobVerified  Boolean   @default(false) // Compte validé via API
+  metamobLastSync  DateTime? // Dernière synchronisation du cache
 
   // Alt Characters (up to 5-6 pseudos for other in-game characters)
-  altPseudos        Json?     // String[] - ["AltName1", "AltName2", ...]
+  altPseudos Json? // String[] - ["AltName1", "AltName2", ...]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  submissions Submission[]
-  interests   MissionInterest[]
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild                  GuildConfig             @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  submissions            Submission[]
+  interests              MissionInterest[]
   achievementSubmissions AchievementSubmission[]
-  
+  guildBonuses           GuildBonus[] // Bonuses purchased by this user
+
   // DofusBook Integration
-  dofusBookLinks Json?     // [{ id, url, name }]
+  dofusBookLinks Json? // [{ id, url, name }]
 
   // Gamification (OCR Success)
-  successPoints     Int?      @default(0)
-  lastLadderUpdate  DateTime?
-  
+  successPoints    Int?      @default(0)
+  lastLadderUpdate DateTime?
+
   // Entraide (Help Credits)
-  entraidePoints    Int       @default(0) // Cumulative points from received help credits
+  entraidePoints Int @default(0) // Cumulative points from received help credits
+
+  // Guild Contribution System
+  contributionPoints Int          @default(0)
+  helpedSubmissions  Submission[] @relation("SubmissionHelpers")
+
+  // Relations
+  givenCredits    HelpCredit[] @relation("GivenCredits")
+  receivedCredits HelpCredit[] @relation("ReceivedCredits")
 
   @@unique([userId, guildId])
-  
-  // Relations
-  givenCredits     HelpCredit[] @relation("GivenCredits")
-  receivedCredits  HelpCredit[] @relation("ReceivedCredits")
 }
 
 model Mission {
-  id          String         @id @default(cuid())
-  guildId     String
-  
-  category    MissionCategory
-  status      MissionStatus  @default(ACTIVE)
-  tier        Int            // Rank 1-4 (Dofus Levels)
-  
-  xpReward          Int?     // Guild XP (Purple Star)
-  guildatonsReward  Int?     // Personal Currency (Yellow Coin)
-  
-  title       String?        // Optional override title
-  payload     Json           // Mission details (Boss, Zone, etc)
-  
-  weekNumber  Int
-  year        Int
-  slotIndex   Int            @default(0) // 0-11
-  
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  
-  guild       GuildConfig    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+
+  category MissionCategory
+  status   MissionStatus   @default(ACTIVE)
+
+  tier Int @default(1) // Palier 1-5 (Reward Level)
+  rank Int @default(1) // Rank 1-4 (Content Level: 1=30-109, 2=110-169, 3=170-199, 4=200)
+
+  xpReward         Int? // Guild XP (Purple Star)
+  guildatonsReward Int? // Personal Currency (Yellow Coin)
+
+  title   String? // Optional override title
+  payload Json // Mission details (Boss, Zone, etc)
+
+  weekNumber Int
+  year       Int
+  slotIndex  Int @default(0) // 0-11
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild       GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
   submissions Submission[]
   interests   MissionInterest[]
 
@@ -283,59 +298,61 @@ model Mission {
 }
 
 model MissionInterest {
-  id        String      @id @default(cuid())
+  id        String @id @default(cuid())
   missionId String
   profileId String
-  
-  createdAt DateTime    @default(now())
-  
-  mission   Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  mission Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([missionId, profileId])
 }
 
 model Submission {
-  id          String           @id @default(cuid())
-  missionId   String
-  profileId   String
-  
+  id        String @id @default(cuid())
+  missionId String
+  profileId String
+
   status      SubmissionStatus @default(PENDING)
   proofUrl    String
   validatorId String?
-  
+
   // OCR Analysis Results
-  ocrScore    Float?           // 0-100 confidence score
-  ocrResult   Json?            // { matches: [...], rawText: string }
-  ocrStatus   OcrStatus        @default(PENDING)
-  
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  
-  mission     Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ocrScore  Float? // 0-100 confidence score
+  ocrResult Json? // { matches: [...], rawText: string }
+  ocrStatus OcrStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mission Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  helpers UserProfile[] @relation("SubmissionHelpers")
 }
 
 model AchievementSubmission {
-  id          String           @id @default(cuid())
-  profileId   String
-  guildId     String
-  
-  status      SubmissionStatus @default(PENDING)
-  points      Int
-  proofUrl    String           @db.Text
-  
-  ocrScore    Float?
-  ocrRawText  String?          @db.Text
-  
+  id        String @id @default(cuid())
+  profileId String
+  guildId   String
+
+  status   SubmissionStatus @default(PENDING)
+  points   Int
+  proofUrl String           @db.Text
+
+  ocrScore   Float?
+  ocrRawText String? @db.Text
+
   validatorId String?
   validatedAt DateTime?
-  
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  
-  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  guild       GuildConfig      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([profileId])
@@ -344,33 +361,113 @@ model AchievementSubmission {
 // -- Game Data (Reference Tables) --
 
 model Dungeon {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  bossName  String
-  level     Int
-  dpnlUrl   String?  // Lien dofuspourlesnoobs
-  imageUrl  String?  // Image du boss
+  id       String  @id @default(cuid())
+  name     String  @unique
+  bossName String
+  level    Int
+  dpnlUrl  String? // Lien dofuspourlesnoobs
+  imageUrl String? // Image du boss
+
+  // Expédition metadata
+  isExpedition        Boolean @default(false)
+  expeditionModes     Json? // ["BRAVOURE", "AUDACE", "NORMAL"]
+  expeditionMechanics String? @db.Text // Description mécaniques alternatives
+
+  // Relations
+  achievements DungeonAchievement[]
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([level])
+  @@index([isExpedition])
 }
 
 model Zone {
-  id        String    @id @default(cuid())
-  name      String    @unique
+  id        String   @id @default(cuid())
+  name      String   @unique
   level     Int
   dpnlUrl   String?
-  monsters  Monster[]
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  families MonsterFamily[]
+
+  @@index([name])
 }
 
 model Monster {
-  id        String   @id @default(cuid())
-  name      String
-  zoneId    String
-  imageUrl  String?
-  zone      Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  id       String  @id @default(cuid())
+  name     String
+  familyId String // Remplace zoneId pour organisation par famille
+  level    Int?
+  imageUrl String?
+
+  family MonsterFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
-  
-  @@index([zoneId])
+  updatedAt DateTime @updatedAt
+
+  @@index([familyId])
+  @@index([name])
+}
+
+// -- New Game Data Models --
+
+model MonsterFamily {
+  id          String  @id @default(cuid())
+  name        String  @unique // Ex: "Blops", "Dragoeufs", "Bouftous"
+  description String? @db.Text
+  imageUrl    String?
+
+  monsters Monster[]
+  zones    Zone[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Challenge {
+  id          String  @id @default(cuid())
+  name        String  @unique // Ex: "Misanthrope", "Premier", "Économe"
+  slug        String  @unique // Ex: "misanthrope", "premier"
+  description String? @db.Text
+  iconUrl     String?
+  difficulty  Int?    @default(3) // 1-5 estimation difficulté
+
+  // Conditions générales du challenge (optionnel)
+  conditions Json? // { "maxInvocations": 0, "maxAllies": 1, etc. }
+
+  dungeonAchievements DungeonAchievement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([name])
+}
+
+model DungeonAchievement {
+  id          String @id @default(cuid())
+  dungeonId   String
+  challengeId String
+
+  // Récompense de ce succès spécifique (points de succès Dofus)
+  points Int @default(10)
+
+  // Icône/image custom du succès si différent du challenge
+  imageUrl String?
+
+  dungeon   Dungeon   @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([dungeonId, challengeId])
+  @@index([dungeonId])
+  @@index([challengeId])
 }
 
 // -- Enums --
@@ -431,118 +528,118 @@ enum NotificationType {
   NEW_SUBMISSION_PENDING
   SYSTEM_INFO
   SONGES_JOIN_REQUEST // New candidature for Songes run
-  EVENT_REMINDER      // Event reminder notification
+  EVENT_REMINDER // Event reminder notification
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  title     String
-  message   String
-  type      NotificationType
-  read      Boolean          @default(false)
-  link      String?          // Optional redirection link
-  
-  createdAt DateTime         @default(now())
-  
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id      String           @id @default(cuid())
+  userId  String
+  title   String
+  message String
+  type    NotificationType
+  read    Boolean          @default(false)
+  link    String? // Optional redirection link
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
 // -- SONGES MODULE --
 
 model DreamRun {
-  id              String           @id @default(cuid())
-  guildId         String           // Multi-tenant isolation
-  leaderId        String           // User who created the run
-  
+  id       String @id @default(cuid())
+  guildId  String // Multi-tenant isolation
+  leaderId String // User who created the run
+
   // Configuration
-  difficulty      DreamDifficulty
-  objective       DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
-  objectives      DreamObjective[] // New multi-select field
-  
+  difficulty DreamDifficulty
+  objective  DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
+  objectives DreamObjective[] // New multi-select field
+
   // State
-  status          DreamRunStatus   @default(RECRUITING)
-  currentFloor    Int              @default(0)  // 0 = not started, 1-26 = in progress
-  pointsReve      Int              @default(0)  // Accumulated dream points
-  
-  minorBonuses    Json?            // List of acquired minor bonuses
-  
+  status       DreamRunStatus @default(RECRUITING)
+  currentFloor Int            @default(0) // 0 = not started, 1-26 = in progress
+  pointsReve   Int            @default(0) // Accumulated dream points
+
+  minorBonuses Json? // List of acquired minor bonuses
+
   // Timestamps
-  createdAt       DateTime         @default(now())
-  startedAt       DateTime?        // When run actually started
-  completedAt     DateTime?        // When run ended (victory/defeat/abandon)
-  
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime? // When run actually started
+  completedAt DateTime? // When run ended (victory/defeat/abandon)
+
   // Notification settings
   notifyOnJoinRequest Boolean @default(true)
-  
+
   // Relations
-  members         DreamRunMember[]
-  waitlist        DreamWaitlist[]
-  floors          DreamFloor[]
-  bonuses         DreamRunBonus[]
-  joinRequests    DreamJoinRequest[]
-  
+  members      DreamRunMember[]
+  waitlist     DreamWaitlist[]
+  floors       DreamFloor[]
+  bonuses      DreamRunBonus[]
+  joinRequests DreamJoinRequest[]
+
   @@index([guildId, status])
   @@index([leaderId])
 }
 
 model DreamRunMember {
-  id              String   @id @default(cuid())
-  runId           String
-  userId          String   // Reference to User.id
-  slot            Int      // 1-4 (position in team)
-  joinedAt        DateTime @default(now())
-  
-  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  
+  id       String   @id @default(cuid())
+  runId    String
+  userId   String // Reference to User.id
+  slot     Int // 1-4 (position in team)
+  joinedAt DateTime @default(now())
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
   @@unique([runId, userId])
   @@unique([runId, slot])
 }
 
 model DreamWaitlist {
-  id              String   @id @default(cuid())
-  runId           String
-  userId          String   // Reference to User.id
-  position        Int      // Position in queue (1 = first)
-  createdAt       DateTime @default(now())
-  
-  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  runId     String
+  userId    String // Reference to User.id
+  position  Int // Position in queue (1 = first)
+  createdAt DateTime @default(now())
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
   @@unique([runId, userId])
   @@index([runId, position])
 }
 
 model DreamFloor {
-  id              String   @id @default(cuid())
-  runId           String
-  floorNumber     Int      // 1-26
-  
+  id          String @id @default(cuid())
+  runId       String
+  floorNumber Int // 1-26
+
   // Room info
-  roomType        DreamRoomType
-  difficulty      Int?     // Difficulty score (5-60) for combat rooms
-  
+  roomType   DreamRoomType
+  difficulty Int? // Difficulty score (5-60) for combat rooms
+
   // Results
-  pointsReveGained Int     @default(0)
-  completedAt     DateTime @default(now())
-  
-  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  
+  pointsReveGained Int      @default(0)
+  completedAt      DateTime @default(now())
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
   @@unique([runId, floorNumber])
 }
 
 model DreamRunBonus {
-  id              String   @id @default(cuid())
-  runId           String
-  bonusName       String   // Name from bonus_songes.json
-  bonusType       String   // passif, actif, bonus, consommable
-  bonusRarete     String   // Commun, Rare, Épique, Légendaire
-  cost            Int      // Points de Rêve spent
-  acquiredAt      DateTime @default(now())
-  
-  run             DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  
+  id          String   @id @default(cuid())
+  runId       String
+  bonusName   String // Name from bonus_songes.json
+  bonusType   String // passif, actif, bonus, consommable
+  bonusRarete String // Commun, Rare, Épique, Légendaire
+  cost        Int // Points de Rêve spent
+  acquiredAt  DateTime @default(now())
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
   @@index([runId])
 }
 
@@ -562,41 +659,41 @@ enum DreamDifficulty {
 }
 
 enum DreamObjective {
-  MISSION_GUILDE    // Weekly guild mission
-  DROP_LEGENDE      // Farming legendaries
-  SUCCES_NO_ACHAT   // Achievement (no purchases)
-  FUN               // Just for fun
-  QUETE             // Quest
+  MISSION_GUILDE // Weekly guild mission
+  DROP_LEGENDE // Farming legendaries
+  SUCCES_NO_ACHAT // Achievement (no purchases)
+  FUN // Just for fun
+  QUETE // Quest
 }
 
 enum DreamRunStatus {
-  RECRUITING        // Looking for members
-  IN_PROGRESS       // Run active
-  COMPLETED         // Victory (floor 26 cleared)
-  FAILED            // Defeat
-  ABANDONED         // Leader left
+  RECRUITING // Looking for members
+  IN_PROGRESS // Run active
+  COMPLETED // Victory (floor 26 cleared)
+  FAILED // Defeat
+  ABANDONED // Leader left
 }
 
 enum DreamRoomType {
-  COMBAT            // Monster group
-  FONTAINE          // Shop (buy bonuses)
-  FAVEUR            // Free random bonus
-  BOSS              // Final boss (floor 26)
-  ENTREE            // Room 0 (New)
+  COMBAT // Monster group
+  FONTAINE // Shop (buy bonuses)
+  FAVEUR // Free random bonus
+  BOSS // Final boss (floor 26)
+  ENTREE // Room 0 (New)
 }
 
 model DreamJoinRequest {
   id          String            @id @default(cuid())
   runId       String
-  userId      String            // User requesting to join
-  classe      String            // Dofus class name
-  message     String?           // Optional message ("Cra opti dispo")
+  userId      String // User requesting to join
+  classe      String // Dofus class name
+  message     String? // Optional message ("Cra opti dispo")
   status      JoinRequestStatus @default(PENDING)
   createdAt   DateTime          @default(now())
   respondedAt DateTime?
-  
-  run         DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
   @@unique([runId, userId])
   @@index([runId, status])
 }
@@ -611,11 +708,11 @@ enum JoinRequestStatus {
 
 // Types d'événements Dofus
 enum GuildEventType {
-  RAID_OFFICIAL     // Raids MaJ 3.6 (1/semaine par joueur)
-  EVENT_GUILD       // Mini-jeux RP/Social (Nibar, Chafer Crit, etc.)
-  SESSION_MISSIONS  // Sorties missions guilde (drop/métiers)
-  SORTIE_FARM       // Farm/Koli interne
-  ALMANAX_BONUS     // Auto-généré quotidien
+  RAID_OFFICIAL // Raids MaJ 3.6 (1/semaine par joueur)
+  EVENT_GUILD // Mini-jeux RP/Social (Nibar, Chafer Crit, etc.)
+  SESSION_MISSIONS // Sorties missions guilde (drop/métiers)
+  SORTIE_FARM // Farm/Koli interne
+  ALMANAX_BONUS // Auto-généré quotidien
   // Legacy types (rétrocompatibilité)
   GUILD_MISSION
   SONGES_RUN
@@ -625,23 +722,23 @@ enum GuildEventType {
 }
 
 enum EventStatus {
-  DRAFT       // Brouillon (non visible)
-  PUBLISHED   // Visible et inscriptions ouvertes
-  COMPLETED   // Terminé (points distribués)
-  CANCELLED   // Annulé
+  DRAFT // Brouillon (non visible)
+  PUBLISHED // Visible et inscriptions ouvertes
+  COMPLETED // Terminé (points distribués)
+  CANCELLED // Annulé
 }
 
 enum RecurrenceType {
-  UNIQUE    // Événement unique
-  WEEKLY    // Chaque semaine
-  MONTHLY   // Chaque mois
+  UNIQUE // Événement unique
+  WEEKLY // Chaque semaine
+  MONTHLY // Chaque mois
 }
 
 enum ParticipantStatus {
-  REGISTERED  // Titulaire inscrit
-  RESERVE     // En file d'attente
-  CONFIRMED   // Auto-promu et confirmé
-  DECLINED    // Désisté
+  REGISTERED // Titulaire inscrit
+  RESERVE // En file d'attente
+  CONFIRMED // Auto-promu et confirmé
+  DECLINED // Désisté
 }
 
 // Ancien enum conservé pour compatibilité
@@ -652,78 +749,78 @@ enum AttendeeStatus {
 }
 
 model GuildEvent {
-  id              String          @id @default(cuid())
-  guildId         String
-  creatorId       String          // Capitaine/Organisateur
-  
+  id        String @id @default(cuid())
+  guildId   String
+  creatorId String // Capitaine/Organisateur
+
   // Infos de base
-  title           String
-  description     String?         @db.Text
-  type            GuildEventType  @default(SOCIAL)
-  status          EventStatus     @default(DRAFT)
-  
+  title       String
+  description String?        @db.Text
+  type        GuildEventType @default(SOCIAL)
+  status      EventStatus    @default(DRAFT)
+
   // Timing
-  startDate       DateTime
-  endDate         DateTime
-  
+  startDate DateTime
+  endDate   DateTime
+
   // Récurrence
-  recurrence      RecurrenceType  @default(UNIQUE)
-  parentEventId   String?         // Pour instances d'events récurrents
-  
+  recurrence    RecurrenceType @default(UNIQUE)
+  parentEventId String? // Pour instances d'events récurrents
+
   // Configuration
-  location        String?         // Lieu in-game ou channel Discord
-  maxParticipants Int?            // Limite (ex: 12 pour raid)
-  
+  location        String? // Lieu in-game ou channel Discord
+  maxParticipants Int? // Limite (ex: 12 pour raid)
+
   // Discord Sync
-  discordMessageId String?        // ID du message embed
-  discordChannelId String?        // Channel où poster
-  
+  discordMessageId String? // ID du message embed
+  discordChannelId String? // Channel où poster
+
   // Métadonnées dynamiques par type
   // { raidBoss, eventTemplate, pollOptions, etc. }
-  metadata        Json?
-  
+  metadata Json?
+
   // Notifications
-  notifyBefore    Int?            @default(60)  // Minutes avant event
-  lastRemindedAt  DateTime?       // Dernier rappel envoyé
-  
+  notifyBefore   Int?      @default(60) // Minutes avant event
+  lastRemindedAt DateTime? // Dernier rappel envoyé
+
   // Validation (Raids)
-  proofUrl        String?         // Screenshot preuve victoire
-  validatedAt     DateTime?       // Date validation
-  validatedBy     String?         // User qui a validé
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  proofUrl    String? // Screenshot preuve victoire
+  validatedAt DateTime? // Date validation
+  validatedBy String? // User qui a validé
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  guild           GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  creator         User            @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  participants    EventParticipant[]
-  
+  guild        GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator      User               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+
   @@index([guildId, startDate])
   @@index([guildId, status])
   @@index([creatorId])
 }
 
 model EventParticipant {
-  id          String            @id @default(cuid())
-  eventId     String
-  userId      String
-  
-  status      ParticipantStatus @default(REGISTERED)
-  position    Int               // 1-N titulaires, N+1... réserve
-  classe      String?           // Classe Dofus (pour raids)
-  comment     String?           // Note ("Dispo 15min après")
-  
+  id      String @id @default(cuid())
+  eventId String
+  userId  String
+
+  status   ParticipantStatus @default(REGISTERED)
+  position Int // 1-N titulaires, N+1... réserve
+  classe   String? // Classe Dofus (pour raids)
+  comment  String? // Note ("Dispo 15min après")
+
   // Auto-promotion
-  promotedAt  DateTime?         // Quand promu de la réserve
-  confirmedAt DateTime?         // Confirmation après promotion
-  
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  
-  event       GuildEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  promotedAt  DateTime? // Quand promu de la réserve
+  confirmedAt DateTime? // Confirmation après promotion
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event GuildEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([eventId, userId])
   @@index([eventId, position])
 }
@@ -735,22 +832,22 @@ model EventParticipant {
 // Same image cannot be used twice within the same guild
 
 model ImageHash {
-  id          String   @id @default(cuid())
-  guildId     String   // Multi-tenant isolation
-  
+  id      String @id @default(cuid())
+  guildId String // Multi-tenant isolation
+
   // SHA-256 hash of the image data (64 hex characters)
-  hash        String
-  
+  hash String
+
   // Context of the original submission
-  sourceType  String   // "MISSION" | "ACHIEVEMENT" | "EVENT"
-  sourceId    String   // Reference to Submission.id or AchievementSubmission.id
-  
+  sourceType String // "MISSION" | "ACHIEVEMENT" | "EVENT"
+  sourceId   String // Reference to Submission.id or AchievementSubmission.id
+
   // Who uploaded it
-  uploaderId  String   // User.id
-  
+  uploaderId String // User.id
+
   // When it was uploaded
-  createdAt   DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   // Unique per guild - same image can be uploaded by different guilds
   @@unique([guildId, hash])
   @@index([guildId])
@@ -765,31 +862,31 @@ model ImageHash {
 // Each credit = points on the Ladder
 
 model HelpCredit {
-  id          String   @id @default(cuid())
-  guildId     String   // Multi-tenant isolation
-  
+  id      String @id @default(cuid())
+  guildId String // Multi-tenant isolation
+
   // Who is thanking
-  fromUserId  String   // User.id of the person giving credit
-  
+  fromUserId String // User.id of the person giving credit
+
   // Who is being thanked
-  toUserId    String   // User.id of the person receiving credit
-  
+  toUserId String // User.id of the person receiving credit
+
   // Context (optional)
-  missionId   String?  // Related mission (if any)
-  message     String?  // Optional thank you message (max 100 chars)
-  
+  missionId String? // Related mission (if any)
+  message   String? // Optional thank you message (max 100 chars)
+
   // Points awarded (default 5, configurable)
-  points      Int      @default(5)
-  
-  createdAt   DateTime @default(now())
-  
+  points Int @default(5)
+
+  createdAt DateTime @default(now())
+
   // Relations
   fromProfile UserProfile @relation("GivenCredits", fields: [fromUserId, guildId], references: [userId, guildId], onDelete: Cascade)
   toProfile   UserProfile @relation("ReceivedCredits", fields: [toUserId, guildId], references: [userId, guildId], onDelete: Cascade)
-  
+
   // Indexes for queries
-  @@index([guildId, toUserId])           // Get all credits received by user
-  @@index([guildId, fromUserId])         // Get all credits given by user
+  @@index([guildId, toUserId]) // Get all credits received by user
+  @@index([guildId, fromUserId]) // Get all credits given by user
   @@index([guildId, fromUserId, createdAt]) // For daily limit checks
 }
 
@@ -797,14 +894,68 @@ model HelpCredit {
 // Tracks OCR.space API calls for monitoring on /god page
 
 model OcrApiUsage {
-  id        String   @id @default(cuid())
-  date      DateTime @default(now()) @db.Date // Daily aggregation
-  endpoint  String   // "profile" | "ladder" etc.
-  count     Int      @default(1)
-  
+  id       String   @id @default(cuid())
+  date     DateTime @default(now()) @db.Date // Daily aggregation
+  endpoint String // "profile" | "ladder" etc.
+  count    Int      @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([date, endpoint])
   @@index([date])
+}
+
+// -- Guild Bonus System --
+// Manages guild bonus purchases with 24h countdown before activation
+
+model GuildBonus {
+  id      String      @id @default(cuid())
+  guildId String
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  bonusType BonusType
+  cost      Int // Kamas cost
+
+  // Status tracking
+  status      BonusStatus @default(PURCHASED)
+  purchasedAt DateTime    @default(now())
+  purchasedBy String? // User ID who purchased (nullable for legacy data)
+  purchaser   UserProfile? @relation(fields: [purchasedBy], references: [id], onDelete: SetNull)
+
+  // Activation timing
+  activatesAt DateTime // purchasedAt + 24h
+  expiresAt   DateTime? // activatesAt + 2h (when status = ACTIVE)
+
+  // Discord notification
+  notificationChannelId String?
+  notificationMessageId String?
+  mentionType           MentionType @default(NONE)
+  mentionRoleId         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, status])
+  @@index([activatesAt])
+}
+
+enum BonusType {
+  FORTUNE // +50% loot
+  GLADIATOR // +50% kolizeum
+  HARVESTER // Rékloots
+  WISDOM // +50% XP
+  DIVINE // Moissonneuse event
+}
+
+enum BonusStatus {
+  PURCHASED // Countdown active (0-24h)
+  ACTIVE // Bonus active (2h duration)
+  EXPIRED // Bonus ended
+}
+
+enum MentionType {
+  NONE
+  EVERYONE
+  ROLE
 }

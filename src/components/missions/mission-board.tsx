@@ -75,14 +75,24 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
         setSelectedMissionId(null);
     };
 
+    // Category Styling Map
+    const CATEGORY_STYLES: Record<MissionCategory, { bg: string; border: string; text: string; icon: string; shadow: string }> = {
+        DONJON: { bg: "bg-indigo-500/10", border: "border-indigo-500/20", text: "text-indigo-400", icon: "text-indigo-400", shadow: "shadow-indigo-500/10" },
+        REGULATION: { bg: "bg-rose-500/10", border: "border-rose-500/20", text: "text-rose-400", icon: "text-rose-400", shadow: "shadow-rose-500/10" },
+        ANOMALIE: { bg: "bg-fuchsia-500/10", border: "border-fuchsia-500/20", text: "text-fuchsia-400", icon: "text-fuchsia-400", shadow: "shadow-fuchsia-500/10" },
+        SONGES: { bg: "bg-cyan-500/10", border: "border-cyan-500/20", text: "text-cyan-400", icon: "text-cyan-400", shadow: "shadow-cyan-500/10" },
+        EXPEDITION: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", icon: "text-amber-400", shadow: "shadow-amber-500/10" },
+        EVENT: { bg: "bg-yellow-500/10", border: "border-yellow-500/20", text: "text-yellow-400", icon: "text-yellow-400", shadow: "shadow-yellow-500/10" },
+    };
+
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
 
-                    {/* LEFT: Status Filters (Tabs Style) */}
-                    <div className="inline-flex items-center p-1 bg-zinc-900/50 border border-white/5 rounded-lg">
+                    {/* LEFT: Quick Search / Status (Pill Design) */}
+                    <div className="flex items-center gap-2 p-1 bg-black/40 backdrop-blur-md border border-white/5 rounded-full shadow-lg">
                         {STATUS_FILTERS.map(f => {
                             const IconComponent = f.icon;
                             const isActive = selectedCategory === f.value;
@@ -91,53 +101,71 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                                     key={f.value}
                                     onClick={() => setSelectedCategory(f.value)}
                                     className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                        "relative flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all duration-300",
                                         isActive
-                                            ? "bg-zinc-800 text-white shadow-sm"
-                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                                            ? "bg-zinc-800 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)] ring-1 ring-white/10"
+                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                     )}
                                 >
-                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-primary" : "text-zinc-500")} />}
+                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-zinc-600")} />}
                                     {f.label}
+                                    {isActive && (
+                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
+                                    )}
                                 </button>
                             )
                         })}
                     </div>
 
-                    {/* RIGHT: Actions */}
+                    {/* RIGHT: Refresh */}
                     <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent sm:hidden" />
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 text-zinc-400 hover:text-white transition-colors border border-white/5 bg-zinc-900/50"
+                            className="h-10 w-10 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-full border border-white/5 hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                             onClick={() => startTransition(() => router.refresh())}
                             disabled={isPending}
                             title="Actualiser les données"
                         >
                             <RefreshCcw className={cn("w-4 h-4", isPending && "animate-spin")} />
                         </Button>
-                        <ResetCountdown />
                     </div>
                 </div>
 
-                {/* BOTTOM: Category Filters (Pills Style - Wrapped) */}
-                <div className="flex flex-wrap gap-2">
+                {/* BOTTOM: Category Filters (Colored Tags) */}
+                <div className="flex flex-wrap gap-3">
                     {CATEGORY_FILTERS.map(f => {
                         const IconComponent = f.icon;
                         const isActive = selectedCategory === f.value;
+                        // Cast to ensure type safety if value is strictly typed
+                        const style = CATEGORY_STYLES[f.value as MissionCategory];
+
                         return (
                             <button
                                 key={f.value}
                                 onClick={() => setSelectedCategory(f.value)}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full border transition-all",
+                                    "group relative flex items-center gap-2.5 px-4 py-2 text-xs font-bold rounded-xl border transition-all duration-300",
                                     isActive
-                                        ? "bg-primary/10 border-primary/20 text-primary"
-                                        : "bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/10 hover:text-zinc-300"
+                                        ? cn(style.bg, style.border, style.text, style.shadow, "ring-1 ring-inset ring-white/10 scale-105")
+                                        : "bg-zinc-900/40 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300 hover:bg-zinc-900/80"
                                 )}
                             >
-                                {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
-                                {f.label}
+                                <div className={cn(
+                                    "p-1 rounded-md transition-colors",
+                                    isActive ? "bg-black/20" : "bg-black/40 group-hover:bg-black/60"
+                                )}>
+                                    {IconComponent && <IconComponent className={cn(
+                                        "w-3.5 h-3.5 transition-colors",
+                                        isActive ? style.icon : "text-zinc-600 group-hover:text-zinc-400"
+                                    )} />}
+                                </div>
+                                <span>{f.label}</span>
+
+                                {isActive && (
+                                    <div className={cn("absolute inset-0 rounded-xl opacity-20 bg-gradient-to-b from-white/20 to-transparent pointer-events-none")} />
+                                )}
                             </button>
                         )
                     })}
@@ -145,7 +173,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
             </div>
 
             {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {filteredMissions.map((mission) => (
                     <div key={mission.id} className="h-full">
                         <MissionCard

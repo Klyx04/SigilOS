@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy } from "lucide-react";
+import { TrendingUp, Clock, Trophy, HandHeart } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
     getSeniorityLadder,
     getSuccessLadder,
+    getContributionLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -19,7 +20,7 @@ type Props = {
 };
 
 export function LadderTabs({ guildId }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "seniority" | "success">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -32,6 +33,9 @@ export function LadderTabs({ guildId }: Props) {
             switch (activeTab) {
                 case "activity":
                     result = await getActivityLadder(guildId, activityView);
+                    break;
+                case "contribution":
+                    result = await getContributionLadder(guildId);
                     break;
                 case "seniority":
                     result = await getSeniorityLadder(guildId);
@@ -56,6 +60,8 @@ export function LadderTabs({ guildId }: Props) {
         switch (activeTab) {
             case "activity":
                 return `${entry.value.toLocaleString()} XP`;
+            case "contribution":
+                return `${entry.value.toLocaleString()} pts`;
             case "seniority":
                 return formatSeniority(entry.value);
             case "success":
@@ -70,12 +76,20 @@ export function LadderTabs({ guildId }: Props) {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <TabsList className="bg-muted/30 border border-white/20 p-1">
+                        {/* Ladder Categories */}
                         <TabsTrigger
                             value="activity"
                             className="gap-2 text-foreground data-[state=active]:bg-purple-500/30 data-[state=active]:text-purple-200 data-[state=active]:shadow-sm"
                         >
                             <TrendingUp className="h-4 w-4" />
                             Activité
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="contribution"
+                            className="gap-2 text-foreground data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 data-[state=active]:shadow-sm"
+                        >
+                            <HandHeart className="h-4 w-4" />
+                            Contribution
                         </TabsTrigger>
                         <TabsTrigger
                             value="seniority"
@@ -118,6 +132,16 @@ export function LadderTabs({ guildId }: Props) {
                     />
                 </TabsContent>
 
+                <TabsContent value="contribution" className="mt-6">
+                    <LeaderboardList
+                        ladder={ladder}
+                        loading={loading}
+                        getValueLabel={getValueLabel}
+                        emptyMessage="Aucun point de contribution enregistré."
+                        accentColor="emerald"
+                    />
+                </TabsContent>
+
                 <TabsContent value="seniority" className="mt-6">
                     <LeaderboardList
                         ladder={ladder}
@@ -154,7 +178,7 @@ function LeaderboardList({
     loading: boolean;
     getValueLabel: (entry: LadderEntry) => string;
     emptyMessage: string;
-    accentColor: "purple" | "cyan" | "amber";
+    accentColor: "purple" | "cyan" | "amber" | "emerald";
 }) {
     if (loading) {
         return (

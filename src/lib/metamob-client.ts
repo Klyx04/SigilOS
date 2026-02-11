@@ -303,7 +303,7 @@ async function fetchApi<T>(
     };
 
     try {
-        let response = await fetch(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
@@ -384,7 +384,7 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        let response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {

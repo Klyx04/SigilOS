@@ -26,7 +26,6 @@ export async function checkEligibility(): Promise<EligibilityResult> {
 
     // If token is missing (race condition with signIn event), wait and retry once
     if (!account?.access_token) {
-        console.log("[BetaCheck] Token missing, retrying in 500ms...");
         await new Promise(resolve => setTimeout(resolve, 500));
         account = await db.account.findFirst({
             where: { userId: session.user.id, provider: "discord" },

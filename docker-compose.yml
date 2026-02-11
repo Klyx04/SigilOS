@@ -67,6 +67,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+      - uploads-data:/app/public/uploads # ✅ Persist uploaded images (missions/achievements)
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
     networks:
@@ -258,7 +259,7 @@ volumes:
   caddy_data:
   caddy_config:
   prometheus-data:
-
+  uploads-data: # ✅ New volume for storing user uploads
 
 networks:
   internal-net:

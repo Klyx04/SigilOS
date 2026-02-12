@@ -48,6 +48,6 @@ export const authConfig = {
     // Custom Pages
     pages: {
         error: "/auth/error",
-        // signIn: "/", // Redirect signin to landing page
+        signIn: "/", // Redirect signin to landing page
     },
 } satisfies NextAuthConfig

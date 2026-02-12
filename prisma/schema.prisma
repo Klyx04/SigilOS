@@ -959,3 +959,21 @@ enum MentionType {
   EVERYONE
   ROLE
 }
+
+// -- DOCUMENTATION MODULE --
+
+model DocPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique // e.g., "intro", "guilds/join"
+  title       String
+  content     String   @db.Text // Markdown content
+  category    String   // e.g., "Démarrage", "Fonctionnalités"
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+  
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([category, order])
+  @@index([slug])
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Bell, Check, Info, X } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -14,7 +15,7 @@ import { getUnreadNotifications, markAllAsRead, markAsRead, type Notification } 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-export function NotificationBell({ userId, mode = "popover" }: { userId: string, mode?: "popover" | "simple" }) {
+export function NotificationBell({ userId, guildId, mode = "popover", className }: { userId: string, guildId: string, mode?: "popover" | "simple", className?: string }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +79,7 @@ export function NotificationBell({ userId, mode = "popover" }: { userId: string,
 
     if (mode === "simple") {
         return (
-            <div className="relative flex items-center justify-center w-full h-full">
+            <div className={cn("relative flex items-center justify-center w-full h-full", className)}>
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
                     <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
@@ -108,7 +109,7 @@ export function NotificationBell({ userId, mode = "popover" }: { userId: string,
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="icon" className={cn("relative text-zinc-400 hover:text-white transition-colors", className)}>
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
                         <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
@@ -159,6 +160,13 @@ export function NotificationBell({ userId, mode = "popover" }: { userId: string,
                         </div>
                     )}
                 </ScrollArea>
+                <div className="p-2 border-t border-border bg-muted/20">
+                    <Button variant="ghost" size="sm" className="w-full text-xs h-8" asChild>
+                        <Link href={`/dashboard/${guildId}/notifications`}>
+                            Voir toutes les notifications
+                        </Link>
+                    </Button>
+                </div>
             </PopoverContent>
         </Popover>
     );

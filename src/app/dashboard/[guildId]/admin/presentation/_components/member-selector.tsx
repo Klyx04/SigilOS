@@ -1,0 +1,175 @@
+"use client";
+
+import * as React from "react";
+import { Check, ChevronsUpDown, Search, User, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DiscordMemberOption } from "@/server/actions/presentation-actions";
+
+interface MemberSelectorProps {
+    value?: string;
+    onChange: (value: string) => void;
+    members: DiscordMemberOption[];
+    placeholder?: string;
+    className?: string;
+    error?: boolean;
+}
+
+export function MemberSelector({
+    value = "",
+    onChange,
+    members = [],
+    placeholder = "Sélectionner un membre...",
+    className,
+    error
+}: MemberSelectorProps) {
+    const [open, setOpen] = React.useState(false);
+    const [inputValue, setInputValue] = React.useState("");
+
+    // Find selected member object if it matches a Discord member
+    const selectedMember = members.find((member) => member.name === value);
+
+    const handleSelect = (currentValue: string) => {
+        onChange(currentValue);
+        setOpen(false);
+    };
+
+    // Handle custom input when pressing enter or blurring if no match found
+    const handleCustomInput = () => {
+        if (!inputValue) return;
+
+        // Strict validation: No numbers, no accents, no special chars (except hyphen)
+        const isValid = /^[a-zA-Z-]+$/.test(inputValue);
+
+        if (!isValid) {
+            // Shake effect or error state could be added here, but for now we just don't accept it
+            // and rely on the UI to show it's invalid (or just don't select it)
+            return;
+        }
+
+        if (inputValue !== value) {
+            onChange(inputValue);
+            setOpen(false);
+        }
+    };
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className={cn(
+                        "w-full justify-between bg-zinc-900/50 border-white/10 hover:bg-zinc-800 hover:text-white",
+                        !value && "text-zinc-500",
+                        error && "border-red-500/50 text-red-400",
+                        className
+                    )}
+                >
+                    <div className="flex items-center gap-2 truncate">
+                        {selectedMember ? (
+                            <>
+                                <Avatar className="h-5 w-5">
+                                    <AvatarImage src={selectedMember.avatar || undefined} />
+                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                        {selectedMember.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{selectedMember.name}</span>
+                            </>
+                        ) : value ? (
+                            <span className="truncate">{value}</span>
+                        ) : (
+                            <span className="truncate">{placeholder}</span>
+                        )}
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0 bg-zinc-950 border-white/10" align="start">
+                <Command shouldFilter={false}>
+                    <div className="flex items-center border-b border-white/10 px-3" cmdk-input-wrapper="">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <input
+                            className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+                            placeholder="Rechercher ou saisir un pseudo..."
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    handleCustomInput();
+                                }
+                            }}
+                        />
+                    </div>
+                    <CommandList>
+                        <CommandEmpty className="py-2 px-2 text-sm text-zinc-500 text-center">
+                            {inputValue ? (
+                                /^[a-zA-Z-]+$/.test(inputValue) ? (
+                                    <button
+                                        className="w-full text-left p-2 rounded hover:bg-zinc-900 text-indigo-400 flex items-center gap-2"
+                                        onClick={handleCustomInput}
+                                    >
+                                        <User className="h-4 w-4" />
+                                        Utiliser "{inputValue}"
+                                    </button>
+                                ) : (
+                                    <span className="text-red-400 text-xs flex items-center gap-2 justify-center">
+                                        <X className="h-3 w-3" />
+                                        Pseudo invalide (Lettres et tirets uniquement)
+                                    </span>
+                                )
+                            ) : (
+                                "Aucun résultat."
+                            )}
+                        </CommandEmpty>
+                        <CommandGroup heading="Membres Discord">
+                            {members
+                                .filter((member) =>
+                                    member.name.toLowerCase().includes(inputValue.toLowerCase())
+                                )
+                                .slice(0, 50) // Limit results for performance
+                                .map((member) => (
+                                    <CommandItem
+                                        key={member.id}
+                                        value={member.name}
+                                        onSelect={handleSelect}
+                                        className="gap-2 cursor-pointer aria-selected:bg-zinc-900 aria-selected:text-white"
+                                    >
+                                        <Avatar className="h-6 w-6">
+                                            <AvatarImage src={member.avatar || undefined} />
+                                            <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                                {member.name.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="truncate">{member.name}</span>
+                                        <Check
+                                            className={cn(
+                                                "ml-auto h-4 w-4",
+                                                value === member.name ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                    </CommandItem>
+                                ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}

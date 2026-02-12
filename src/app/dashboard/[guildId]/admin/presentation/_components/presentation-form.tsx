@@ -51,6 +51,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { MemberSelector } from "./member-selector";
 
 type Props = {
     guildId: string;
@@ -147,8 +148,8 @@ export function PresentationForm({ guildId }: Props) {
     const [history, setHistory] = useState("");
     const [activities, setActivities] = useState<string[]>([]);
     const [founder, setFounder] = useState("");
-    const [coLeaders, setCoLeaders] = useState<string[]>(["", "", ""]); // Max 3
-    const [brasDroits, setBrasDroits] = useState<string[]>(["", "", "", "", "", "", "", "", "", ""]); // Max 10
+    const [coLeaders, setCoLeaders] = useState<string[]>([]); // Max 3
+    const [brasDroits, setBrasDroits] = useState<string[]>([]); // Max 10
     const [discord, setDiscord] = useState("");
     const [recruiting, setRecruiting] = useState(false);
     const [recruitmentRequirements, setRecruitmentRequirements] = useState("");
@@ -180,8 +181,8 @@ export function PresentationForm({ guildId }: Props) {
                 setFounder(d.founder || "");
                 // Initialize brasDroits from team data
                 const existingTeam = d.team || [];
-                const brasArr = Array(10).fill("").map((_, i) => existingTeam[i] || "");
-                setBrasDroits(brasArr);
+                setCoLeaders(d.coLeaders || []);
+                setBrasDroits(existingTeam);
                 setDiscord(d.discord || "");
                 setRecruiting(d.recruiting);
                 setRecruitmentRequirements(d.recruitmentRequirements || "");
@@ -294,18 +295,58 @@ export function PresentationForm({ guildId }: Props) {
         formData.append("file", file);
 
         startTransition(async () => {
-            const result = await uploadPresentationImage(guildId, formData, type);
+            try {
+                // Dynamic import
+                const { compressImage } = await import("@/lib/image-compression");
 
-            if (result.success && result.url) {
-                if (type === "banner") {
-                    setBannerUrl(result.url);
-                    setBannerType("custom");
-                } else {
-                    setPhotoUrl(result.url);
+                // Compress image
+                const compressedDataUrl = await compressImage(file, {
+                    maxWidth: 1920,
+                    maxHeight: 1080,
+                    quality: 0.8
+                });
+
+                // Convert Data URL to Blob manually (avoiding fetch entirely)
+                const arr = compressedDataUrl.split(',');
+                const mime = arr[0].match(/:(.*?);/)?.[1] || "image/webp";
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
                 }
-                toast.success("Image uploadée avec succès");
-            } else {
-                toast.error(result.error || "Erreur lors de l'upload");
+
+                // Create a proper File object
+                const filename = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                const compressedFile = new File([u8arr], filename, { type: mime });
+
+                // Create new FormData with compressed file
+                const compressedFormData = new FormData();
+                compressedFormData.append("file", compressedFile);
+
+                const result = await uploadPresentationImage(guildId, compressedFormData, type);
+
+                if (result.success && result.url) {
+                    if (type === "banner") {
+                        setBannerUrl(result.url);
+                        setBannerType("custom");
+                    } else {
+                        setPhotoUrl(result.url);
+                    }
+                    toast.success("Image compressée et uploadée avec succès");
+                } else {
+                    console.error("Upload failed:", result.error);
+                    toast.error(result.error || "Erreur lors de l'upload");
+                }
+            } catch (error) {
+                console.error("Upload process error:", error);
+
+                // More detailed error message
+                let message = "Erreur lors du traitement de l'image";
+                if (error instanceof Error) {
+                    message += `: ${error.message}`;
+                }
+                toast.error(message);
             }
         });
     };
@@ -701,11 +742,11 @@ export function PresentationForm({ guildId }: Props) {
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
                         <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-amber-400" onSave={handleSaveSection} isPending={isPending} />
                         <div className="bg-amber-500/5 rounded-xl border border-amber-500/10 p-3">
-                            <Label className="text-amber-500 mb-2 block">Pseudo du Chef de guilde</Label>
-                            <Input
+                            <Label className="text-amber-500 mb-2 block">Chef de guilde</Label>
+                            <MemberSelector
                                 value={founder}
-                                onChange={(e) => {
-                                    setFounder(e.target.value);
+                                onChange={(val) => {
+                                    setFounder(val);
                                     if (errors.founder) {
                                         setErrors(prev => {
                                             const n = { ...prev };
@@ -714,17 +755,10 @@ export function PresentationForm({ guildId }: Props) {
                                         });
                                     }
                                 }}
-                                onBlur={() => {
-                                    if (founder && !validatePseudo(founder)) {
-                                        setErrors(prev => ({ ...prev, founder: "Format invalide" }));
-                                    }
-                                }}
-                                placeholder="Pseudo du fondateur"
-                                maxLength={30}
-                                className={cn(
-                                    "bg-zinc-900/50 border-amber-500/20 focus:border-amber-400",
-                                    errors.founder && "border-red-500/50"
-                                )}
+                                members={members}
+                                placeholder="Rechercher le chef de guilde..."
+                                error={!!errors.founder}
+                                className="bg-zinc-900/50 border-amber-500/20 focus:border-amber-400"
                             />
                             {errors.founder && (
                                 <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
@@ -737,68 +771,100 @@ export function PresentationForm({ guildId }: Props) {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Co-Leaders Section */}
-                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
-                            <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" onSave={handleSaveSection} isPending={isPending} />
-                            <p className="text-xs text-zinc-500">Bras droits avec pouvoirs étendus (Max 3)</p>
+                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" onSave={handleSaveSection} isPending={isPending} />
+                                <span className="bg-yellow-500/10 text-yellow-400 text-xs px-2 py-1 rounded-full font-mono">
+                                    {coLeaders.filter(c => c.trim()).length}/3
+                                </span>
+                            </div>
 
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {coLeaders.map((cl, i) => (
-                                    <div key={i}>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-xs font-mono text-zinc-600 w-4">{i + 1}</span>
-                                            <div className="flex-1">
-                                                <Input
-                                                    value={cl}
-                                                    onChange={(e) => updateCoLeader(i, e.target.value)}
-                                                    onBlur={() => {
-                                                        if (cl && !validatePseudo(cl)) {
-                                                            setErrors(prev => ({ ...prev, [`coLeader${i}`]: "Format invalide" }));
-                                                        }
-                                                    }}
-                                                    placeholder={`Co-leader ${i + 1}`}
-                                                    maxLength={30}
-                                                    className={cn(
-                                                        "bg-zinc-800/50 border-white/10 focus:border-yellow-400/50",
-                                                        errors[`coLeader${i}`] && "border-red-500/50"
-                                                    )}
-                                                />
-                                            </div>
+                                    <div key={i} className="flex gap-2 items-center bg-zinc-900/50 p-1.5 rounded-lg border border-white/5 group hover:border-white/10 transition-colors">
+                                        <div className="flex-1 min-w-0">
+                                            <MemberSelector
+                                                value={cl}
+                                                onChange={(val) => updateCoLeader(i, val)}
+                                                members={members}
+                                                placeholder={`Co-leader ${i + 1}`}
+                                                error={!!errors[`coLeader${i}`]}
+                                                className="border-0 bg-transparent h-8 focus:ring-0 px-2"
+                                            />
                                         </div>
-                                        {errors[`coLeader${i}`] && (
-                                            <p className="text-xs text-red-400 mt-1 ml-7">{errors[`coLeader${i}`]}</p>
-                                        )}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => {
+                                                const newCoLeaders = coLeaders.filter((_, index) => index !== i);
+                                                setCoLeaders(newCoLeaders);
+                                            }}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </Button>
                                     </div>
                                 ))}
+
+                                {coLeaders.length < 3 && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setCoLeaders([...coLeaders, ""])}
+                                        className="h-full min-h-[44px] border-dashed border-zinc-700 text-zinc-500 hover:text-white hover:bg-zinc-800 bg-transparent"
+                                    >
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        Ajouter
+                                    </Button>
+                                )}
                             </div>
                         </div>
 
                         {/* Bras Droits Section */}
-                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
+                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-4">
                             <div className="flex items-center justify-between">
                                 <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-indigo-400" onSave={handleSaveSection} isPending={isPending} />
                                 <span className="bg-indigo-500/10 text-indigo-400 text-xs px-2 py-1 rounded-full font-mono">
-                                    {brasDroits.filter(b => b.trim().length > 0).length}/10
+                                    {brasDroits.filter(b => b.trim()).length}/10
                                 </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {brasDroits.map((bd, i) => (
-                                    <div key={i}>
-                                        <Input
-                                            value={bd}
-                                            onChange={(e) => updateBrasDroit(i, e.target.value)}
-                                            placeholder={`Bras droit ${i + 1}`}
-                                            maxLength={30}
-                                            className={cn(
-                                                "bg-zinc-800/50 border-white/10 focus:border-indigo-400/50",
-                                                errors[`brasDroit${i}`] && "border-red-500/50"
-                                            )}
-                                        />
-                                        {errors[`brasDroit${i}`] && (
-                                            <p className="text-xs text-red-400 mt-1">{errors[`brasDroit${i}`]}</p>
-                                        )}
+                                    <div key={i} className="flex gap-2 items-center bg-zinc-900/50 p-1.5 rounded-lg border border-white/5 group hover:border-white/10 transition-colors">
+                                        <div className="flex-1 min-w-0">
+                                            <MemberSelector
+                                                value={bd}
+                                                onChange={(val) => updateBrasDroit(i, val)}
+                                                members={members}
+                                                placeholder={`Bras droit ${i + 1}`}
+                                                error={!!errors[`brasDroit${i}`]}
+                                                className="border-0 bg-transparent h-8 focus:ring-0 px-2"
+                                            />
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => {
+                                                const newBras = brasDroits.filter((_, index) => index !== i);
+                                                setBrasDroits(newBras);
+                                            }}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </Button>
                                     </div>
                                 ))}
+
+                                {brasDroits.length < 10 && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setBrasDroits([...brasDroits, ""])}
+                                        className="h-full min-h-[44px] border-dashed border-zinc-700 text-zinc-500 hover:text-white hover:bg-zinc-800 bg-transparent"
+                                    >
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        Ajouter
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>

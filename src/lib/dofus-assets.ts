@@ -47,34 +47,38 @@ export const JOB_CATEGORIES = {
     RECOLTE: "Récolte",
     ARTISANAT: "Artisanat",
     FORGEMAGIE: "Forgemagie",
+    ELEVAGE: "Élevage",
 } as const;
 
 export const DOFUS_JOBS = {
     [JOB_CATEGORIES.RECOLTE]: [
-        { id: "alchimiste", name: "Alchimiste", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "bucheron", name: "Bûcheron", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "chasseur", name: "Chasseur", icon: "/assets/dofus/jobs/41.png" },
-        { id: "mineur", name: "Mineur", icon: "/assets/dofus/jobs/24.png" },
-        { id: "paysan", name: "Paysan", icon: "/assets/dofus/jobs/28.png" },
-        { id: "pecheur", name: "Pêcheur", icon: "/assets/dofus/jobs/36.png" },
+        { id: "alchimiste", name: "Alchimiste", icon: "/assets/dofus/jobs/alchimiste.png" },
+        { id: "bucheron", name: "Bûcheron", icon: "/assets/dofus/jobs/bucheron.png" },
+        { id: "chasseur", name: "Chasseur", icon: "/assets/dofus/jobs/chasseur.png" },
+        { id: "mineur", name: "Mineur", icon: "/assets/dofus/jobs/mineur.png" },
+        { id: "paysan", name: "Paysan", icon: "/assets/dofus/jobs/paysan.png" },
+        { id: "pecheur", name: "Pêcheur", icon: "/assets/dofus/jobs/pêcheur.png" },
     ],
     [JOB_CATEGORIES.ARTISANAT]: [
-        { id: "bijoutier", name: "Bijoutier", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "bricoleur", name: "Bricoleur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "cordonnier", name: "Cordonnier", icon: "/assets/dofus/jobs/5.png" },
-        { id: "faconneur", name: "Façonneur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "forgeron", name: "Forgeron", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
-        { id: "sculpteur", name: "Sculpteur", icon: "/assets/dofus/jobs/13.png" },
-        { id: "tailleur", name: "Tailleur", icon: "/assets/dofus/jobs/1.png" }, // Placeholder
+        { id: "bijoutier", name: "Bijoutier", icon: "/assets/dofus/jobs/bijoutier.png" },
+        { id: "bricoleur", name: "Bricoleur", icon: "/assets/dofus/jobs/bricoleur.png" },
+        { id: "cordonnier", name: "Cordonnier", icon: "/assets/dofus/jobs/cordonnier.png" },
+        { id: "faconneur", name: "Façonneur", icon: "/assets/dofus/jobs/façonneur.png" },
+        { id: "forgeron", name: "Forgeron", icon: "/assets/dofus/jobs/forgeron.png" },
+        { id: "sculpteur", name: "Sculpteur", icon: "/assets/dofus/jobs/sculpteur.png" },
+        { id: "tailleur", name: "Tailleur", icon: "/assets/dofus/jobs/tailleur.png" },
     ],
     [JOB_CATEGORIES.FORGEMAGIE]: [
-        { id: "cordomage", name: "Cordomage", icon: "/assets/dofus/jobs/1.png" },
-        { id: "costumage", name: "Costumage", icon: "/assets/dofus/jobs/1.png" },
-        { id: "forgemage", name: "Forgemage", icon: "/assets/dofus/jobs/1.png" },
-        { id: "joaillomage", name: "Joaillomage", icon: "/assets/dofus/jobs/1.png" },
-        { id: "sculptemage", name: "Sculptemage", icon: "/assets/dofus/jobs/1.png" },
-        { id: "facomage", name: "Façomage", icon: "/assets/dofus/jobs/1.png" },
+        { id: "cordomage", name: "Cordomage", icon: "/assets/dofus/jobs/cordomage.png" },
+        { id: "costumage", name: "Costumage", icon: "/assets/dofus/jobs/costumage.png" },
+        { id: "forgemage", name: "Forgemage", icon: "/assets/dofus/jobs/forgemage.png" },
+        { id: "joaillomage", name: "Joaillomage", icon: "/assets/dofus/jobs/joillomage.png" },
+        { id: "sculptemage", name: "Sculptemage", icon: "/assets/dofus/jobs/sculptemage.png" },
+        { id: "facomage", name: "Façomage", icon: "/assets/dofus/jobs/façomage.png" },
     ],
+    [JOB_CATEGORIES.ELEVAGE]: [
+        { id: "eleveur", name: "Éleveur", icon: "/assets/dofus/jobs/eleveur.png" },
+    ]
 } as const;
 
 // IDs of all Forgemagie jobs for quick checking

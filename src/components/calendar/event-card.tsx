@@ -15,7 +15,8 @@ import {
     Target,
     Swords,
     PartyPopper,
-    Wheat
+    Wheat,
+    Eye
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,13 +48,15 @@ const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; bo
     EVENT_GUILD: { label: "Event Guilde", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: PartyPopper, gradient: "from-purple-600 to-fuchsia-600" },
     SESSION_MISSIONS: { label: "Missions Guilde", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Target, gradient: "from-amber-600 to-orange-600" },
     SORTIE_FARM: { label: "Sortie Farm", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: Wheat, gradient: "from-emerald-600 to-green-600" },
+    KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-rose-600" },
 };
 
 const EVENT_IMAGES: Record<string, string> = {
     "RAID_OFFICIAL": "/assets/calendar/calendar_raid_official.png",
-    "EVENT_GUILD": "/assets/calendar/calendar_event_guild.png",
-    "SESSION_MISSIONS": "/assets/calendar/calendar_session_missions.png",
-    "SORTIE_FARM": "/assets/calendar/calendar_boss_farm.png",
+    EVENT_GUILD: "/assets/calendar/calendar_event.png",
+    SESSION_MISSIONS: "/assets/calendar/calendar_missions.png",
+    SORTIE_FARM: "/assets/calendar/calendar_farm.png",
+    KRALAMOURE: "/assets/calendar/calendar_kralamour.png",
     "GUILD_MISSION": "/assets/calendar/calendar_session_missions.png", // Fallback
     "SONGES_RUN": "/assets/calendar/calendar_songes_run.png",
     "DUNGEON_FARM": "/assets/calendar/calendar_dungeon_farm.png",
@@ -78,7 +81,25 @@ export function EventCard({
     const myAttendance = event.participants?.find((a: any) => a.userId === currentUserId);
     const attendeeCount = event.participants?.length || 0;
 
-    const attendeesGoing = event.participants?.filter((a: any) => a.status === "REGISTERED") || [];
+    // Extract Metamob creator for Kralamoure events
+    const isKralamoure = event.type === "KRALAMOURE";
+    const eventMetadata = (event as any).metadata as any;
+    const displayCreatorName = isKralamoure && eventMetadata?.metamobCreator
+        ? eventMetadata.metamobCreator
+        : event.creator?.name || "Inconnu";
+
+    // For Kralamoure events, use Metamob participants from metadata
+    // For other events, filter by REGISTERED status
+    const metamobParticipants = isKralamoure && eventMetadata?.metamobParticipants
+        ? eventMetadata.metamobParticipants
+        : [];
+
+    const attendeesGoing = isKralamoure
+        ? metamobParticipants
+        : (event.participants?.filter((a: any) => a.status === "REGISTERED") || []);
+
+    // Override attendee count for Kralamoure events
+    const displayAttendeeCount = isKralamoure ? attendeesGoing.length : (event.participants?.length || 0);
 
     // View: List (Horizontal Row)
     if (variant === "list") {
@@ -111,7 +132,7 @@ export function EventCard({
                     <div className="flex items-center gap-4 text-xs text-zinc-400">
                         <div className="flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 text-zinc-500" />
-                            <span>{attendeeCount} {event.maxAttendees ? `/ ${event.maxAttendees}` : ""} participants</span>
+                            <span>{attendeeCount}{event.maxParticipants ? ` / ${event.maxParticipants}` : ""} participants</span>
                         </div>
                         {event.location && (
                             <div className="flex items-center gap-1.5 truncate max-w-[200px]">
@@ -172,10 +193,19 @@ export function EventCard({
 
             <CardHeader className="p-5 flex-none space-y-4 pb-2">
                 <div className="flex justify-between items-start gap-4">
-                    <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
-                        <Icon className="w-4 h-4 mr-2" />
-                        {theme.label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
+                            <Icon className="w-4 h-4 mr-2" />
+                            {theme.label}
+                        </Badge>
+
+                        {/* Completed Event Badge */}
+                        {event.status === "COMPLETED" && (
+                            <Badge className="bg-zinc-700/50 text-zinc-300 border-zinc-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
+                                Terminé
+                            </Badge>
+                        )}
+                    </div>
 
                     {/* Attendance Status Indicator */}
                     {myAttendance && (
@@ -198,7 +228,7 @@ export function EventCard({
                 </div>
 
                 <div className="space-y-1">
-                    <CardTitle className="text-xl font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors line-clamp-2 min-h-[1.75rem]">
+                    <CardTitle className="text-xl font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors line-clamp-2 min-h-[1.75rem] break-all">
                         {event.title}
                     </CardTitle>
                 </div>
@@ -240,7 +270,7 @@ export function EventCard({
                         </Avatar>
                         <div className="flex flex-col">
                             <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Organisé par</span>
-                            <span className={cn("text-sm font-medium transition-colors", theme.color)}>{event.creator.name || "Inconnu"}</span>
+                            <span className={cn("text-sm font-medium transition-colors", theme.color)}>{displayCreatorName}</span>
                         </div>
                     </div>
                 )}
@@ -252,7 +282,7 @@ export function EventCard({
                         <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Participants</span>
                         <div className="flex items-center text-xs font-medium text-zinc-500">
                             <Users className="w-3 h-3 mr-1.5" />
-                            {attendeeCount}
+                            {displayAttendeeCount}
                             {event.maxParticipants && <span className="mx-0.5 opacity-50">/</span>}
                             {event.maxParticipants && <span>{event.maxParticipants}</span>}
                         </div>
@@ -260,19 +290,28 @@ export function EventCard({
 
                     <div className="flex flex-col gap-2">
                         {attendeesGoing.length > 0 ? (
-                            attendeesGoing.slice(0, 3).map((a: any) => (
-                                <div key={a.id} className="flex items-center gap-2.5">
-                                    <Avatar className="h-6 w-6 border border-zinc-700/50 shadow-sm relative z-0">
-                                        <AvatarImage src={a.user.image} />
-                                        <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
-                                            {a.user.name?.[0]}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-sm text-zinc-300 font-medium truncate">
-                                        {a.user.profiles?.[0]?.discordNickname || a.user.name}
-                                    </span>
-                                </div>
-                            ))
+                            attendeesGoing.slice(0, 3).map((a: any, idx: number) => {
+                                // For Kralamoure events, participants are objects { username, character_count } or strings
+                                // For other events, participants have user objects
+                                const participantName = isKralamoure
+                                    ? (typeof a === 'string' ? a : a.username || a.name || 'Inconnu')
+                                    : (a.user?.profiles?.[0]?.discordNickname || a.user?.name || 'Inconnu');
+                                const participantInitial = participantName?.[0]?.toUpperCase() || '?';
+
+                                return (
+                                    <div key={isKralamoure ? `${idx}-${participantName}` : a.id} className="flex items-center gap-2.5">
+                                        <Avatar className="h-6 w-6 border border-zinc-700/50 shadow-sm relative z-0">
+                                            {!isKralamoure && a.user?.image && <AvatarImage src={a.user.image} />}
+                                            <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                                                {participantInitial}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm text-zinc-300 font-medium truncate">
+                                            {participantName}
+                                        </span>
+                                    </div>
+                                );
+                            })
                         ) : (
                             <span className="text-sm text-zinc-600 italic">Aucun participant</span>
                         )}

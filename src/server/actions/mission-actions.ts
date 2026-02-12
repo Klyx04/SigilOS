@@ -460,6 +460,17 @@ export async function submitMissionProof(
         const base64Data = imageData.split(',')[1];
         if (!base64Data) return { success: false, error: "Données d'image corrompues." };
 
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // SECURITY: Validate Magic Bytes
+        // We import dynamically to avoid circular deps if any (though lib is clean)
+        const { detectMimeType, generateSafeFilename, validateMagicBytes } = await import("@/lib/image-security");
+
+        const detectedMime = detectMimeType(buffer);
+        if (!detectedMime) {
+            return { success: false, error: "Format de fichier non reconnu ou non sécurisé." };
+        }
+
         // Image Hashing (Anti-Duplicate)
         const imageHash = hashImage(base64Data);
         const existingHash = await (db as any).imageHash.findUnique({
@@ -478,9 +489,14 @@ export async function submitMissionProof(
         const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
         await mkdir(uploadDir, { recursive: true });
 
-        const fileName = `${session.user.id}-${Date.now()}.webp`;
+        // Generate safe filename with correct extension
+        const extension = detectedMime === "image/png" ? "png" : "webp"; // We favor webp, but if it was png, keep png? 
+        // Actually, client sends WebP usually. Let's use the detected one.
+        const ext = detectedMime.split('/')[1];
+        const fileName = `${session.user.id}-${Date.now()}.${ext}`;
         const filePath = join(uploadDir, fileName);
-        await writeFile(filePath, Buffer.from(base64Data, 'base64'));
+
+        await writeFile(filePath, buffer);
         const proofUrl = `/${uploadRelativeDir}/${fileName}`;
 
         const submission = await db.submission.create({

@@ -165,10 +165,10 @@ export function OcreFilterBar({
                     trigger={
                         <Button
                             size="lg"
-                            className="h-12 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-900/20 rounded-xl font-semibold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            className="h-12 px-3 sm:px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-900/20 rounded-xl font-semibold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
                             <Sparkles className="h-5 w-5 fill-white/20" />
-                            Place de Marché
+                            <span className="hidden sm:inline">Place de Marché</span>
                         </Button>
                     }
                 />

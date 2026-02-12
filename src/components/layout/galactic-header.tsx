@@ -303,7 +303,7 @@ export function GalacticHeader({
                                         : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
                                 )}
                             >
-                                <NotificationBell userId={user.id} mode="simple" />
+                                <NotificationBell userId={user.id} guildId={guildId} mode="simple" />
                             </Link>
                         )}
                     </div>

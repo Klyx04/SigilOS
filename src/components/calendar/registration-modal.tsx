@@ -68,7 +68,7 @@ export function RegistrationModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6 py-4">
+                <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                     {/* Class Selection */}
                     <div className="space-y-3">
                         <Label className="text-sm font-medium text-zinc-300 flex items-center gap-2">

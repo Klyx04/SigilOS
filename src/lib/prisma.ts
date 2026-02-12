@@ -23,97 +23,101 @@ const dbUrl = getEnv('DATABASE_URL', '');
 const safeFromComponents = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
 const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
 
-const pool = new Pool({
-    connectionString,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-})
+const createPrismaClient = () => {
+    const pool = new Pool({
+        connectionString,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+    })
 
-const adapter = new PrismaPg(pool)
-const basePrisma = new PrismaClient({
-    adapter,
-    log: ["error", "warn"]
-})
+    const adapter = new PrismaPg(pool)
+    const basePrisma = new PrismaClient({
+        adapter,
+        log: ["error", "warn"]
+    })
 
-/**
- * SIGILOS EXTENDED PRISMA CLIENT
- * Handles transparent encryption/decryption of sensitive fields
- */
-export const prisma = basePrisma.$extends({
-    query: {
-        $allModels: {
-            async $allOperations({ operation, model, args, query }) {
-                const start = performance.now();
-                const result = await query(args);
-                const end = performance.now();
-                const duration = end - start;
-                if (duration > 200) {
-                    console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
+    return basePrisma.$extends({
+        query: {
+            $allModels: {
+                async $allOperations({ operation, model, args, query }) {
+                    const start = performance.now();
+                    if (process.env.NODE_ENV === 'development') {
+                        // console.log(`[Prisma] Starting ${model}.${operation}`);
+                    }
+                    const result = await query(args);
+                    const end = performance.now();
+                    const duration = end - start;
+                    if (duration > 200) {
+                        console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
+                    }
+                    return result;
                 }
-                return result;
-            }
-        },
-        account: {
-            async create({ args, query }) {
-                if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);
-                if (args.data.refresh_token) args.data.refresh_token = encrypt(args.data.refresh_token);
-                if (args.data.id_token) args.data.id_token = encrypt(args.data.id_token);
-                return query(args);
             },
-            async update({ args, query }) {
-                if (typeof args.data.access_token === 'string') args.data.access_token = encrypt(args.data.access_token);
-                if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
-                if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
-                return query(args);
+            account: {
+                async create({ args, query }) {
+                    if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);
+                    if (args.data.refresh_token) args.data.refresh_token = encrypt(args.data.refresh_token);
+                    if (args.data.id_token) args.data.id_token = encrypt(args.data.id_token);
+                    return query(args);
+                },
+                async update({ args, query }) {
+                    if (typeof args.data.access_token === 'string') args.data.access_token = encrypt(args.data.access_token);
+                    if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
+                    if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
+                    return query(args);
+                }
+            },
+            guildConfig: {
+                async update({ args, query }) {
+                    if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
+                    return query(args);
+                }
+            },
+            userProfile: {
+                async update({ args, query }) {
+                    const data = args.data as any;
+                    if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
+                    return query(args);
+                }
             }
         },
-        guildConfig: {
-            async update({ args, query }) {
-                if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
-                return query(args);
-            }
-        },
-        userProfile: {
-            async update({ args, query }) {
-                const data = args.data as any;
-                if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
-                return query(args);
+        result: {
+            account: {
+                access_token: {
+                    needs: { access_token: true },
+                    compute(account: any) {
+                        if (!account.access_token) return account.access_token;
+                        return decrypt(account.access_token);
+                    }
+                }
+            },
+            guildConfig: {
+                metamobApiKey: {
+                    needs: { metamobApiKey: true },
+                    compute(config: any) {
+                        if (!config.metamobApiKey) return config.metamobApiKey;
+                        return decrypt(config.metamobApiKey);
+                    }
+                }
+            },
+            userProfile: {
+                metamobApiKey: {
+                    needs: { metamobApiKey: true },
+                    compute(profile: any) {
+                        if (!profile.metamobApiKey) return profile.metamobApiKey;
+                        return decrypt(profile.metamobApiKey);
+                    }
+                }
             }
         }
-    },
-    result: {
-        account: {
-            access_token: {
-                needs: { access_token: true },
-                compute(account: any) {
-                    if (!account.access_token) return account.access_token;
-                    return decrypt(account.access_token);
-                }
-            }
-        },
-        guildConfig: {
-            metamobApiKey: {
-                needs: { metamobApiKey: true },
-                compute(config: any) {
-                    if (!config.metamobApiKey) return config.metamobApiKey;
-                    return decrypt(config.metamobApiKey);
-                }
-            }
-        },
-        userProfile: {
-            metamobApiKey: {
-                needs: { metamobApiKey: true },
-                compute(profile: any) {
-                    if (!profile.metamobApiKey) return profile.metamobApiKey;
-                    return decrypt(profile.metamobApiKey);
-                }
-            }
-        }
-    }
-})
+    });
+}
+
+const globalForPrisma = globalThis as unknown as { prisma: ReturnType<typeof createPrismaClient> }
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
 export { prisma as db };
-
-const globalForPrisma = globalThis as unknown as { prisma: typeof prisma }
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma

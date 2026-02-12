@@ -9,65 +9,15 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES } from "@/lib/presentation-cons
 // ============================================================================
 // SANITIZATION UTILITIES
 // ============================================================================
+import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
 
-/**
- * Sanitize Discord invite link - strict validation
- */
-function sanitizeDiscordLink(url: string | null): string | null {
-    if (!url) return null;
-
-    // Clean the input
-    const cleaned = url.trim();
-    if (!cleaned) return null;
-
-    // Strict regex for Discord invite links only
-    const discordInviteRegex = /^https?:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/i;
-
-    if (!discordInviteRegex.test(cleaned)) {
-        return null; // Invalid = rejected
-    }
-
-    // Additional XSS prevention
-    if (cleaned.includes('<') || cleaned.includes('>') || cleaned.includes('"') || cleaned.includes("'")) {
-        return null;
-    }
-
-    return cleaned;
-}
-
-/**
- * Sanitize markdown text - allows emojis, removes XSS vectors
- */
-function sanitizeMarkdown(input: string | null, maxLength: number = 5000): string | null {
-    if (!input) return null;
-
-    return input
-        // Remove script tags
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-        // Remove iframe tags
-        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-        // Remove javascript: protocols
-        .replace(/javascript:/gi, "")
-        // Remove event handlers
-        .replace(/on\w+\s*=/gi, "")
-        // Remove HTML tags but keep content (allows emojis)
-        .replace(/<(?!\/?(b|i|u|strong|em|br)\b)[^>]+>/gi, "")
-        // Limit length
-        .slice(0, maxLength);
-}
-
-/**
- * Validate server name against allowed list
- */
+// Local validation helpers
 function validateServerName(server: string | null): string | null {
     if (!server) return null;
     const cleaned = server.trim();
     return (ALL_DOFUS_SERVERS as readonly string[]).includes(cleaned) ? cleaned : null;
 }
 
-/**
- * Validate level (0-200)
- */
 function validateLevel(level: number | null | undefined): number | null {
     if (level === null || level === undefined) return null;
     const num = Math.floor(Number(level));
@@ -75,25 +25,11 @@ function validateLevel(level: number | null | undefined): number | null {
     return num;
 }
 
-/**
- * Validate successes (0-25000)
- */
 function validateSuccesses(successes: number | null | undefined): number | null {
     if (successes === null || successes === undefined) return null;
     const num = Math.floor(Number(successes));
     if (isNaN(num) || num < 0 || num > 25000) return null;
     return num;
-}
-
-/**
- * Sanitize founder/team member name
- */
-function sanitizeName(name: string | null, maxLength: number = 50): string | null {
-    if (!name) return null;
-    return name
-        .trim()
-        .replace(/[<>'"&]/g, "") // Remove HTML special chars
-        .slice(0, maxLength);
 }
 
 // ============================================================================
@@ -251,6 +187,38 @@ export async function getGuildPresentation(
     };
 }
 
+/**
+ * Get basic guild info to check if it exists but is private
+ */
+export async function getPublicGuildBasicInfo(
+    guildId: string
+): Promise<{ id: string; name: string; iconUrl: string | null; presentationEnabled: boolean } | null> {
+    const guild = await db.guildConfig.findFirst({
+        where: {
+            OR: [
+                { id: guildId },
+                { discordGuildId: guildId },
+            ],
+            isActive: true, // Only if guild is active in system
+        },
+        select: {
+            id: true,
+            name: true,
+            iconUrl: true,
+            presentationEnabled: true,
+        },
+    });
+
+    if (!guild) return null;
+
+    return {
+        id: guild.id,
+        name: guild.name,
+        iconUrl: guild.iconUrl,
+        presentationEnabled: guild.presentationEnabled,
+    };
+}
+
 // ============================================================================
 // ADMIN ACTIONS (Requires presentation:edit permission)
 // ============================================================================
@@ -352,8 +320,9 @@ export async function updateGuildPresentation(
     try {
         // STRICT SANITIZATION
         const sanitizedDiscord = sanitizeDiscordLink(data.discord);
-        const sanitizedHistory = sanitizeMarkdown(data.history, 5000);
-        const sanitizedReqs = sanitizeMarkdown(data.recruitmentRequirements, 1000);
+        // Use strict mode for presentation history (strips most tags)
+        const sanitizedHistory = sanitizeHtml(data.history, 5000, true);
+        const sanitizedReqs = sanitizeHtml(data.recruitmentRequirements, 1000, true);
         const sanitizedFounder = sanitizeName(data.founder);
         const validatedServer = validateServerName(data.server);
         const validatedLevel = validateLevel(data.minLevel);

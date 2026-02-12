@@ -25,7 +25,8 @@ import {
     Bell,
     Share2,
     ChevronDown,
-    AtSign
+    AtSign,
+    ExternalLink
 } from "lucide-react";
 import {
     Dialog,
@@ -95,6 +96,13 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         color: "text-emerald-400",
         bgColor: "bg-emerald-500/10 border-emerald-500/30",
         gradient: "from-emerald-600 to-green-600"
+    },
+    KRALAMOURE: {
+        label: "Kralamoure",
+        icon: Crown,
+        color: "text-pink-400",
+        bgColor: "bg-pink-500/10 border-pink-500/30",
+        gradient: "from-pink-600 to-rose-600"
     },
 };
 
@@ -205,8 +213,20 @@ export function EventDetailModal({
     const reserveCount = event.participants.filter(p => p.status === "RESERVE").length;
     const isUserRegistered = event.participants.some(p => p.user.id === currentUserId && p.status !== "DECLINED");
     const userParticipant = event.participants.find(p => p.user.id === currentUserId);
-    const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
+
+    // Distinguish between direct Metamob events (krala-{id}) and imported events
+    const isDirectKralamoure = event.id.startsWith("krala-");
+    const isImportedKralamoure = event.type === "KRALAMOURE" && !isDirectKralamoure;
+    const isExternal = isDirectKralamoure; // Only direct Kralamoure events are truly external
+
     const isOpen = event.status === "PUBLISHED";
+    const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
+
+    // Extract Metamob creator from metadata or description for Kralamoure events
+    const eventMetadata = (event as any).metadata as any;
+    const metamobCreator = (isDirectKralamoure || isImportedKralamoure)
+        ? (eventMetadata?.metamobCreator || event.creator.name)
+        : null;
 
     const handleAction = async (action: () => Promise<void>) => {
         setIsLoading(true);
@@ -247,7 +267,7 @@ export function EventDetailModal({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent showCloseButton={false} className="max-w-2xl bg-zinc-900/95 backdrop-blur-xl border-zinc-800 p-0 overflow-hidden">
+                <DialogContent showCloseButton={false} className="w-[95vw] sm:max-w-2xl bg-zinc-900/95 backdrop-blur-xl border-zinc-800 p-0 overflow-hidden max-h-[90vh] flex flex-col">
                     {/* Header */}
                     <div className={cn("relative px-6 py-5 border-b border-zinc-800/50 overflow-hidden", typeConfig.bgColor)}>
                         <DialogClose asChild>
@@ -280,6 +300,33 @@ export function EventDetailModal({
                             {/* Move Complete Button Here */}
                             {canManage && (
                                 <div className="flex items-center gap-2 ml-4">
+                                    {/* Delete button for imported Kralamoure events */}
+                                    {isImportedKralamoure && onDelete && (
+                                        <Button
+                                            size="sm"
+                                            variant={isDeleteConfirming ? "destructive" : "ghost"}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isDeleteConfirming) {
+                                                    handleDelete();
+                                                } else {
+                                                    setIsDeleteConfirming(true);
+                                                    setTimeout(() => setIsDeleteConfirming(false), 3000);
+                                                }
+                                            }}
+                                            disabled={isLoading}
+                                            className={cn(
+                                                "transition-all",
+                                                isDeleteConfirming
+                                                    ? "bg-red-600 hover:bg-red-700 text-white"
+                                                    : "text-zinc-400 hover:text-red-400 hover:bg-red-950/20"
+                                            )}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1.5" />
+                                            {isDeleteConfirming ? "Confirmer" : "Supprimer"}
+                                        </Button>
+                                    )}
+
                                     {event.status === "PUBLISHED" && onComplete && (
                                         <Button
                                             size="sm"
@@ -302,7 +349,6 @@ export function EventDetailModal({
                     </div>
 
                     <div className="p-6 space-y-5">
-                        {/* Info Grid */}
                         <div className="grid grid-cols-2 gap-4">
                             <InfoCard
                                 icon={<Calendar className="h-4 w-4 text-amber-500" />}
@@ -329,17 +375,25 @@ export function EventDetailModal({
                                 icon={<Crown className="h-4 w-4 text-yellow-500" />}
                                 label="Organisé par"
                                 value={
-                                    <div className="flex items-center gap-2">
-                                        <Avatar className="h-5 w-5 border border-zinc-700">
-                                            <AvatarImage src={event.creator.image || undefined} />
-                                            <AvatarFallback className="text-[10px] bg-zinc-800">
-                                                {event.creator.name?.charAt(0) || "?"}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <span className="truncate max-w-[120px]" title={event.creator.name || "Inconnu"}>
-                                            {event.creator.name || "Inconnu"}
-                                        </span>
-                                    </div>
+                                    (isDirectKralamoure || isImportedKralamoure) && metamobCreator ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className="truncate max-w-[120px]" title={metamobCreator}>
+                                                {metamobCreator}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-5 w-5 border border-zinc-700">
+                                                <AvatarImage src={event.creator.image || undefined} />
+                                                <AvatarFallback className="text-[10px] bg-zinc-800">
+                                                    {event.creator.name?.charAt(0) || "?"}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="truncate max-w-[120px]" title={event.creator.name || "Inconnu"}>
+                                                {event.creator.name || "Inconnu"}
+                                            </span>
+                                        </div>
+                                    )
                                 }
                             />
                         </div>
@@ -411,48 +465,68 @@ export function EventDetailModal({
                         </div>
                     </div>
 
+
+
                     {/* Footer */}
                     <div className="px-6 py-4 bg-zinc-950/50 border-t border-zinc-800/50 space-y-3">
                         {/* User Actions */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            {isOpen && !isUserRegistered && (
+                            {(isDirectKralamoure || isImportedKralamoure) ? (
                                 <Button
-                                    size="sm"
-                                    onClick={() => setShowRegistration(true)}
-                                    disabled={isLoading}
-                                    className={cn(
-                                        "font-bold",
-                                        isFull
-                                            ? "bg-amber-500 hover:bg-amber-400 text-zinc-950"
-                                            : "bg-green-600 hover:bg-green-500"
-                                    )}
+                                    asChild
+                                    className="bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-lg shadow-pink-500/20"
                                 >
-                                    <Check className="h-4 w-4 mr-1.5" />
-                                    {isFull ? "File d'attente" : "Participer"}
+                                    <a
+                                        href="https://metamob.fr/kralove"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center w-full h-full px-4 py-2" // Added w-full h-full and padding here
+                                    >
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        S'inscrire sur Metamob
+                                    </a>
                                 </Button>
-                            )}
-
-
-
-                            {userParticipant && (
-                                <Badge variant="outline" className={cn(
-                                    "text-xs",
-                                    userParticipant.status === "RESERVE"
-                                        ? "text-amber-400 border-amber-500/30"
-                                        : "text-green-400 border-green-500/30"
-                                )}>
-                                    {userParticipant.status === "RESERVE" ? "Réserve" : "Inscrit"}
-                                    {userParticipant.classe && (
-                                        <span className="ml-1">
-                                            <ClassIcon classId={userParticipant.classe} size={12} />
-                                        </span>
+                            ) : (
+                                <>
+                                    {isOpen && !isUserRegistered && (
+                                        <Button
+                                            size="sm"
+                                            onClick={() => setShowRegistration(true)}
+                                            disabled={isLoading}
+                                            className={cn(
+                                                "font-bold",
+                                                isFull
+                                                    ? "bg-amber-500 hover:bg-amber-400 text-zinc-950"
+                                                    : "bg-green-600 hover:bg-green-500"
+                                            )}
+                                        >
+                                            <Check className="h-4 w-4 mr-1.5" />
+                                            {isFull ? "File d'attente" : "Participer"}
+                                        </Button>
                                     )}
-                                </Badge>
+
+                                    {/* User Badge */}
+                                    {userParticipant && (
+                                        <Badge variant="outline" className={cn(
+                                            "text-xs",
+                                            userParticipant.status === "RESERVE"
+                                                ? "text-amber-400 border-amber-500/30"
+                                                : "text-green-400 border-green-500/30"
+                                        )}>
+                                            {userParticipant.status === "RESERVE" ? "Réserve" : "Inscrit"}
+                                            {userParticipant.classe && (
+                                                <span className="ml-1">
+                                                    <ClassIcon classId={userParticipant.classe} size={12} />
+                                                </span>
+                                            )}
+                                        </Badge>
+                                    )}
+                                </>
                             )}
                         </div>
 
                         {/* Admin Actions */}
-                        {canManage && (
+                        {canManage && !isExternal && (
                             <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-zinc-800/30">
                                 {onDelete && (
                                     <Button
@@ -725,8 +799,6 @@ export function EventDetailModal({
                                         Éditer
                                     </Button>
                                 )}
-
-
                             </div>
                         )}
                     </div>

@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 import { getUserContext } from "./user-actions";
 import { uploadGuildImage, deleteGuildImage } from "./upload-actions";
 import { logAdminAccessDenied } from "./audit-actions";
@@ -367,6 +368,9 @@ export async function updateGuildPresentation(
             },
         });
 
+        revalidatePath(`/guilds/${guildId}`);
+        revalidatePath(`/dashboard/${guildId}/presentation`);
+
         return { success: true };
     } catch (error) {
         console.error("Presentation update error:", error);
@@ -428,6 +432,7 @@ export async function uploadPresentationImage(
         data: updateData,
     });
 
+    revalidatePath(`/guilds/${guildId}`);
     return result;
 }
 
@@ -478,6 +483,7 @@ export async function deletePresentationImage(
         data: updateData,
     });
 
+    revalidatePath(`/guilds/${guildId}`);
     return { success: true };
 }
 
@@ -520,6 +526,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             presentationMinLevel: true,
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
+            // presentationIsActive: true, // If I needed to check active status
         },
     });
 

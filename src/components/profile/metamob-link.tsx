@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Unlink, Link2, Crown, ArrowRightLeft, ShieldCheck, AlertCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Unlink, Link2, Crown, ArrowRightLeft, ShieldCheck, AlertCircle, Settings, MoreVertical } from "lucide-react";
 import { linkOcreAccount, unlinkOcreAccount, forceRefreshOcre, getAvailableOcreQuests, switchOcreQuest } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -12,6 +12,14 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { UserQuest } from "@/lib/metamob-client";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface MetamobLinkProps {
     guildId: string;
@@ -176,137 +184,140 @@ export function MetamobLink({
                 </div>
 
                 {isLinked ? (
-                    <div className="flex flex-1 flex-wrap gap-3 w-full items-center justify-end">
+                    <div className="flex flex-1 flex-wrap gap-4 w-full items-center justify-between sm:justify-end">
                         {metamobLastSync && (
-                            <span className="text-xs text-zinc-500 whitespace-nowrap hidden lg:block text-right">
-                                Màj {formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}
-                            </span>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-2 justify-end">
-                            <Button variant="outline" size="sm" asChild className="h-9 border-white/10 bg-white/5 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 text-zinc-300">
-                                <a
-                                    href={`https://www.metamob.fr/profile/${encodeURIComponent(currentPseudo)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5 mr-2" />
-                                    Voir Profil
-                                </a>
-                            </Button>
-
-                            <Button size="sm" asChild className="h-9 bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-900/20 border border-amber-500/20">
-                                <Link href={`/dashboard/${guildId}/quete-ocre`}>
-                                    <Crown className="h-3.5 w-3.5 mr-2" />
-                                    Quête Ocre
-                                </Link>
-                            </Button>
-                        </div>
-
-                        {!readOnly && (
-                            <div className="flex gap-2 ml-1 border-l border-white/10 pl-3 shrink-0">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleRefresh}
-                                    disabled={isRefreshing}
-                                    className="h-9 px-3 bg-white/5 border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400 text-zinc-400 transition-all font-medium flex items-center gap-2"
-                                >
-                                    <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing ? "animate-spin" : "")} />
-                                    <span className="hidden lg:inline">Synchro</span>
-                                </Button>
-
-                                <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleOpenSwitch}
-                                            className="h-9 px-3 bg-white/5 border-white/10 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-400 text-zinc-400 transition-all font-medium flex items-center gap-2"
-                                        >
-                                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                                            <span className="hidden lg:inline">Changer</span>
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Choisir la quête active</DialogTitle>
-                                            <DialogDescription>
-                                                Sélectionnez la quête Ocre que vous souhaitez suivre sur SigilOS.
-                                            </DialogDescription>
-                                        </DialogHeader>
-
-                                        <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-                                            {questsLoading ? (
-                                                <div className="flex justify-center py-8">
-                                                    <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
-                                                </div>
-                                            ) : availableQuests.length === 0 ? (
-                                                <div className="text-center py-6 text-muted-foreground">
-                                                    Aucune quête Ocre trouvée.
-                                                </div>
-                                            ) : (
-                                                availableQuests.map((quest) => (
-                                                    <div
-                                                        key={quest.slug}
-                                                        onClick={() => handleSwitch(quest.slug)}
-                                                        className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 cursor-pointer transition-all group"
-                                                    >
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium text-zinc-200">{quest.server.name}</span>
-                                                                <Badge variant="secondary" className="text-[10px] h-5 bg-black/20">
-                                                                    {quest.quest_template.id === 1 ? "Unity" : quest.quest_template.id === 2 ? "Rétro" : "Custom"}
-                                                                </Badge>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                                <UserCircle className="h-3.5 w-3.5" />
-                                                                <span>{quest.character_name}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex flex-col items-end gap-1">
-                                                            <Badge className={cn("bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20")}>
-                                                                Étape {quest.current_step}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </DialogContent>
-                                </Dialog>
-
-                                <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-9 px-3 bg-white/5 border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 text-zinc-400 hover:text-red-400 transition-all font-medium flex items-center gap-2"
-                                        >
-                                            <Unlink className="h-3.5 w-3.5" />
-                                            <span className="hidden lg:inline">Délier</span>
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Délier le compte Metamob ?</DialogTitle>
-                                            <DialogDescription>
-                                                Vous ne pourrez plus accéder à la Quête Ocre.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter>
-                                            <Button variant="ghost" onClick={() => setShowUnlinkDialog(false)}>
-                                                Annuler
-                                            </Button>
-                                            <Button variant="destructive" onClick={handleUnlink} disabled={isUnlinking}>
-                                                {isUnlinking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                                Délier
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                            <div className="flex items-center gap-2 text-xs text-zinc-500 mr-auto sm:mr-0">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <span>
+                                    Synchro {formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}
+                                </span>
                             </div>
                         )}
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Button size="sm" asChild className="h-9 bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-900/20 border border-amber-500/20 flex-1 sm:flex-none">
+                                <Link href={`/dashboard/${guildId}/quete-ocre`}>
+                                    <Crown className="h-3.5 w-3.5 mr-2" />
+                                    Avancement Ocre
+                                </Link>
+                            </Button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="icon" className="h-9 w-9 bg-black/20 border-white/10 hover:bg-white/5 hover:border-white/20 text-zinc-400 hover:text-white">
+                                        <Settings className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-zinc-800">
+                                    <DropdownMenuLabel>Mon compte Metamob</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-white/10" />
+
+                                    <DropdownMenuItem asChild>
+                                        <a
+                                            href={`https://www.metamob.fr/profile/${encodeURIComponent(currentPseudo)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="cursor-pointer"
+                                        >
+                                            <ExternalLink className="h-4 w-4 mr-2" />
+                                            Voir sur Metamob.fr
+                                        </a>
+                                    </DropdownMenuItem>
+
+                                    {!readOnly && (
+                                        <>
+                                            <DropdownMenuSeparator className="bg-white/10" />
+                                            <DropdownMenuItem onClick={handleRefresh} disabled={isRefreshing} className="cursor-pointer">
+                                                <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing ? "animate-spin" : "")} />
+                                                Forcer la synchro
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={handleOpenSwitch} className="cursor-pointer">
+                                                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                                Changer de quête
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator className="bg-white/10" />
+                                            <DropdownMenuItem onClick={() => setShowUnlinkDialog(true)} className="text-red-400 focus:text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                                <Unlink className="h-4 w-4 mr-2" />
+                                                Délier le compte
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Dialogs kept in DOM but triggered via state/menu */}
+                            <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+                                <DialogContent className="max-w-md bg-zinc-950 border-zinc-800">
+                                    <DialogHeader>
+                                        <DialogTitle>Choisir la quête active</DialogTitle>
+                                        <DialogDescription>
+                                            Sélectionnez la quête Ocre que vous souhaitez suivre sur SigilOS.
+                                        </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+                                        {questsLoading ? (
+                                            <div className="flex justify-center py-8">
+                                                <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
+                                            </div>
+                                        ) : availableQuests.length === 0 ? (
+                                            <div className="text-center py-6 text-muted-foreground">
+                                                Aucune quête Ocre trouvée.
+                                            </div>
+                                        ) : (
+                                            availableQuests.map((quest) => (
+                                                <div
+                                                    key={quest.slug}
+                                                    onClick={() => handleSwitch(quest.slug)}
+                                                    className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 cursor-pointer transition-all group"
+                                                >
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-zinc-200">{quest.server.name}</span>
+                                                            <Badge variant="secondary" className="text-[10px] h-5 bg-black/20">
+                                                                {quest.quest_template.id === 1 ? "Unity" : quest.quest_template.id === 2 ? "Rétro" : "Custom"}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                            <UserCircle className="h-3.5 w-3.5" />
+                                                            <span>{quest.character_name}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <Badge className={cn("bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20")}>
+                                                            Étape {quest.current_step}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+
+                            <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+                                <DialogContent className="bg-zinc-950 border-zinc-800">
+                                    <DialogHeader>
+                                        <DialogTitle>Délier le compte Metamob ?</DialogTitle>
+                                        <DialogDescription>
+                                            Vous ne pourrez plus accéder à la Quête Ocre via SigilOS.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                        <Button variant="ghost" onClick={() => setShowUnlinkDialog(false)}>
+                                            Annuler
+                                        </Button>
+                                        <Button variant="destructive" onClick={handleUnlink} disabled={isUnlinking}>
+                                            {isUnlinking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                            Délier
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
                     </div>
                 ) : (
                     !readOnly && (

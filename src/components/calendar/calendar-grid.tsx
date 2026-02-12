@@ -32,7 +32,8 @@ import {
     Target,
     Wheat,
     CalendarDays,
-    LayoutGrid
+    LayoutGrid,
+    Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,6 +89,14 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         bg: "bg-emerald-500/15",
         border: "border-emerald-500/40",
         dot: "bg-emerald-500"
+    },
+    KRALAMOURE: {
+        label: "Kralamoure",
+        icon: Eye,
+        color: "text-pink-400",
+        bg: "bg-pink-500/15",
+        border: "border-pink-500/40",
+        dot: "bg-pink-500"
     },
 };
 

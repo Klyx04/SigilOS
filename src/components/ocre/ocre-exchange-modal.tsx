@@ -125,7 +125,7 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col bg-black/95 border-white/10 p-0 gap-0">
+            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] flex flex-col bg-black/95 border-white/10 p-0 gap-0">
                 <DialogHeader className="p-6 border-b border-white/10">
                     <div className="flex items-center justify-between mr-8">
                         <div>
@@ -174,8 +174,8 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                 </TabsList>
                             </div>
 
-                            <TabsContent value="monsters" className="mt-4 focus-visible:outline-none">
-                                <ScrollArea className="h-[60vh] px-6 pb-6 rounded-md">
+                            <TabsContent value="monsters" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
+                                <ScrollArea className="h-[50vh] sm:h-[60vh] px-6 pb-6 rounded-md">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {monstersList.map((monster) => (
                                             <div
@@ -251,8 +251,8 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                 </ScrollArea>
                             </TabsContent>
 
-                            <TabsContent value="members" className="mt-4 focus-visible:outline-none">
-                                <ScrollArea className="h-[60vh] px-6 pb-6 rounded-md">
+                            <TabsContent value="members" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
+                                <ScrollArea className="h-[50vh] sm:h-[60vh] px-6 pb-6 rounded-md">
                                     <div className="space-y-4">
                                         {partners.map((partner) => (
                                             <div

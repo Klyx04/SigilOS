@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 
 import {
     Dialog,
@@ -92,10 +92,8 @@ export function ProofUploadDialog({
         onOpenChange(false);
     };
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (!selectedFile) return;
-
+    // --- Refactored File Handler (Shared between Input, Drop, and Paste) ---
+    const validateAndSetFile = async (selectedFile: File) => {
         // Client-side validation
         const validTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
         if (!validTypes.includes(selectedFile.type)) {
@@ -116,7 +114,6 @@ export function ProofUploadDialog({
         try {
             const safety = await analyzeImageSafety(selectedFile);
             if (!safety.isSafe) {
-                // Warning message meant to be dissuasive
                 toast.error("INFRACTION DÉTECTÉE : Contenu inapproprié.", {
                     description: "Ce type de contenu est strictement interdit sur la plateforme. L'incident a été enregistré.",
                     duration: 8000,
@@ -127,13 +124,11 @@ export function ProofUploadDialog({
                     }
                 });
 
-                // Logging the incident (Fire and forget to not block UI)
-                const description = `Tentative d'upload NSFW par l'utilisateur (Fichier: ${selectedFile.name})`;
-
+                // Logging the incident
                 reportSecurityIncident(
                     guildId,
                     "NSFW_ATTEMPT",
-                    description,
+                    `Tentative d'upload NSFW par l'utilisateur (Fichier: ${selectedFile.name})`,
                     {
                         category: category || "Unknown",
                         reason: safety.reason,
@@ -144,7 +139,6 @@ export function ProofUploadDialog({
                     }
                 ).catch((err: Error) => console.error("Failed to log incident", err));
 
-
                 resetState();
                 onOpenChange(false);
                 return;
@@ -152,13 +146,42 @@ export function ProofUploadDialog({
         } finally {
             setIsCheckingSafety(false);
         }
-        // ------------------------------
 
         setFile(selectedFile);
         setPreview(URL.createObjectURL(selectedFile));
         setError(null);
         setOcrResult(null);
     };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            validateAndSetFile(selectedFile);
+        }
+    };
+
+    // --- Clipboard Paste Support ---
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+        if (!open) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            if (e.clipboardData && e.clipboardData.files.length > 0) {
+                const file = e.clipboardData.files[0];
+                if (file.type.startsWith("image/")) {
+                    e.preventDefault();
+                    validateAndSetFile(file);
+                    toast.info("Image collée depuis le presse-papier ! 📋");
+                }
+            }
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [open]);
+
 
     const handleUpload = async () => {
         if (!file) return;
@@ -167,19 +190,22 @@ export function ProofUploadDialog({
         setError(null);
 
         try {
-            // Convert to Base64
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+            // Convert to Base64 AND Compress
+            setState("analyzing"); // Re-using analyzing state for compression
 
-            const imageData = await base64Promise;
+            // Dynamic import to avoid SSR issues if any
+            const { compressImage } = await import("@/lib/image-compression");
+
+            // Compress: Max 1920x1080, 80% quality
+            const compressedDataUrl = await compressImage(file, {
+                maxWidth: 1920,
+                maxHeight: 1080,
+                quality: 0.8
+            });
 
             // 1. Submit to server action (which handles OCR + Storage)
             setState("uploading");
-            const result = await submitMissionProof(missionId, imageData, helperIds); // Pass helperIds
+            const result = await submitMissionProof(missionId, compressedDataUrl, helperIds); // Pass helperIds
 
             if (!result.success) {
                 throw new Error(result.error || "Échec de la soumission");
@@ -187,6 +213,7 @@ export function ProofUploadDialog({
 
             // 2. Update UI with server result
             if (result.data) {
+
                 setOcrResult(result.data.ocrResult);
 
                 toast.success(
@@ -222,7 +249,7 @@ export function ProofUploadDialog({
 
             if (fileInputRef.current) {
                 fileInputRef.current.files = dataTransfer.files;
-                handleFileSelect({ target: { files: dataTransfer.files } } as any);
+                validateAndSetFile(droppedFile); // Use the new function
             }
         }
     };
@@ -269,16 +296,22 @@ export function ProofUploadDialog({
 
                             <div
                                 className={cn(
-                                    "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors cursor-pointer",
+                                    "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors",
                                     isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
                                 )}
-                                onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
                                 onDrop={handleDrop}
                                 onDragOver={(e) => e.preventDefault()}
                             >
                                 <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
                                 <p className="text-sm text-slate-400 mb-2">
-                                    Glissez votre screenshot ici ou cliquez pour sélectionner
+                                    Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
+                                    <button
+                                        type="button"
+                                        onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
+                                        className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline focus:outline-none"
+                                    >
+                                        cliquez pour sélectionner
+                                    </button>
                                 </p>
                                 <p className="text-xs text-slate-500">
                                     PNG, JPEG, WebP ou GIF • Max 10MB

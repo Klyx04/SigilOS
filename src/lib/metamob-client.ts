@@ -185,10 +185,24 @@ const KralamoureEventSchema = z.object({
     event_datetime: z.string(),
     description: z.string().nullable().optional(),
     creator: z.string(),
-    participants_count: z.number(),
-    character_count: z.number(),
-    messages_count: z.number(),
+    participants_count: z.number().optional(),
+    character_count: z.number().optional(),
+    messages_count: z.number().optional(),
     server: ServerSchema,
+});
+
+const KralamoureParticipantSchema = z.object({
+    username: z.string(),
+    character_count: z.number(),
+});
+
+const KralamoureEventDetailsSchema = KralamoureEventSchema.extend({
+    participants: z.array(KralamoureParticipantSchema).optional(),
+    messages: z.array(z.object({
+        username: z.string(),
+        content: z.string(),
+        created_at: z.string(),
+    })).optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -209,6 +223,7 @@ export type MatchPartner = z.infer<typeof MatchPartnerSchema>;
 export type MatchMonster = z.infer<typeof MatchMonsterSchema>;
 export type Zone = z.infer<typeof ZoneSchema>;
 export type KralamoureEvent = z.infer<typeof KralamoureEventSchema>;
+export type KralamoureEventDetails = z.infer<typeof KralamoureEventDetailsSchema>;
 export type MonsterState = "MANQUANT" | "POSSEDE" | "DOUBLON";
 
 /** Legacy Compatibility Types */
@@ -568,7 +583,24 @@ export async function getKralamoureEvents(options?: FetchOptions & { serverId?: 
     if (options?.from) params.set("from", options.from);
     const qs = params.toString();
     const result = await fetchPaginatedApi(`/v1/kralove${qs ? `?${qs}` : ""}`, KralamoureEventSchema, options);
-    return result.data;
+    // Provide defaults for optional fields
+    return result.data.map(event => ({
+        ...event,
+        participants_count: event.participants_count ?? 0,
+        character_count: event.character_count ?? 0,
+        messages_count: event.messages_count ?? 0,
+    }));
+}
+
+export async function getKralamoureEventDetails(eventId: number, options?: FetchOptions): Promise<KralamoureEventDetails> {
+    const result = await fetchApi(`/v1/kralove/${eventId}`, KralamoureEventDetailsSchema, options);
+    // Provide defaults for optional fields
+    return {
+        ...result,
+        participants_count: result.participants_count ?? 0,
+        character_count: result.character_count ?? 0,
+        messages_count: result.messages_count ?? 0,
+    };
 }
 
 export async function getServers(options?: FetchOptions): Promise<Server[]> {

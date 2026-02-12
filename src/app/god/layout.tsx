@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
-import { GodHeader } from "@/components/admin/GodHeader";
+import { GodSidebar } from "@/components/layout/god-sidebar";
+import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
     const session = await auth();
@@ -24,16 +25,36 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     });
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-            <GodHeader />
-            <main className="container mx-auto px-4 py-8">
-                {children}
-            </main>
-            <footer className="border-t border-slate-800/50 py-6 mt-12">
-                <div className="container mx-auto px-4 text-center text-sm text-slate-500">
-                    SigilOS God Interface • Super-Admin Control Panel
-                </div>
-            </footer>
+        <div className="flex h-screen overflow-hidden bg-zinc-950 font-sans text-zinc-100">
+            {/* 1. DESKTOP SIDEBAR (Fixed) */}
+            <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <GodSidebar
+                    user={session.user}
+                    className="h-full border-r border-white/5"
+                />
+            </div>
+
+            {/* 2. MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full">
+
+                {/* Scrollable Main Content */}
+                <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-4rem)] flex flex-col">
+
+                        {/* Page Content */}
+                        <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
+                            {children}
+                        </div>
+
+
+
+                        {/* Footer at bottom of content */}
+                        <div className="mt-12 md:mt-24 border-t border-white/5 pt-6">
+                            <GalacticFooter />
+                        </div>
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }

@@ -50,6 +50,14 @@ const GuildEventSchema = z.object({
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
+}).refine(data => {
+    if (data.type === "RAID_OFFICIAL" && data.maxParticipants && data.maxParticipants > 16) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Les raids sont limités à 16 joueurs maximum",
+    path: ["maxParticipants"]
 });
 
 const RegisterEventSchema = z.object({
@@ -124,7 +132,16 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
             take: 500 // Limit max events per request
         });
 
-        return { success: true, events };
+        // Patch: Override type for Kralamoure events stored in DB
+        const patchedEvents = events.map(event => {
+            const meta = event.metadata as any;
+            if (meta?.isKralamoure) {
+                return { ...event, type: "KRALAMOURE" as any };
+            }
+            return event;
+        });
+
+        return { success: true, events: patchedEvents };
     } catch (error) {
         console.error("[Calendar] getEvents Error:", error);
         return { success: false, error: "Erreur serveur", events: [] };
@@ -137,6 +154,50 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 export async function getCalendarEventDetails(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+
+    // KRALAMOURE HANDLING
+    if (eventId.startsWith("krala-")) {
+        const kralaId = parseInt(eventId.split("-")[1]);
+        if (isNaN(kralaId)) return { success: false, error: "ID invalide" };
+
+        const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
+        const details = await getExternalKralamoureDetails(kralaId);
+
+        if (!details) return { success: false, error: "Événement Metamob introuvable" };
+
+        // Map to EventDetail structure
+        const event = {
+            id: eventId,
+            title: `Ouverture Kralamoure (${details.server.name})`,
+            description: details.description || "Pas de description",
+            type: "KRALAMOURE", // Special type we will handle in frontend
+            status: "PUBLISHED",
+            startDate: new Date(details.event_datetime),
+            endDate: new Date(new Date(details.event_datetime).getTime() + 60 * 60 * 1000), // Subtly incorrect but fine for display
+            location: "Antre du Kralamoure Géant (-60, -8)",
+            maxParticipants: 48,
+            creator: {
+                id: "metamob",
+                name: details.creator,
+                image: null
+            },
+            participants: (details.participants || []).map((p, i) => ({
+                id: `krala-part-${i}`,
+                status: "REGISTERED",
+                position: i + 1,
+                user: {
+                    id: `external-${i}`,
+                    name: `${p.username} (${p.character_count})`,
+                    image: null,
+                    profiles: []
+                }
+            })),
+            _count: { participants: details.participants_count }
+        };
+
+        return { success: true, event };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -170,7 +231,42 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        return { success: true, event };
+        // Clone event to allow modification
+        const eventData = { ...event };
+
+        // KRALAMOURE HANDLING (Imported Events)
+        const meta = eventData.metadata as any;
+        if (meta?.isKralamoure && meta?.metamobId) {
+            // Override type
+            (eventData as any).type = "KRALAMOURE";
+
+            // Try to fetch live participants from Metamob
+            try {
+                const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
+                const details = await getExternalKralamoureDetails(meta.metamobId);
+
+                if (details && details.participants) {
+                    // Replace participants with live data
+                    (eventData as any).participants = details.participants.map((p: any, i: number) => ({
+                        id: `krala-part-${i}`,
+                        status: "REGISTERED",
+                        position: i + 1,
+                        user: {
+                            id: `external-${i}`,
+                            name: `${p.username} (${p.character_count})`,
+                            image: null,
+                            profiles: []
+                        }
+                    }));
+                    (eventData as any)._count = { participants: details.participants_count };
+                }
+            } catch (err) {
+                console.error("Failed to refresh Kralamoure participants", err);
+                // Fallback to DB participants (likely empty/just creator)
+            }
+        }
+
+        return { success: true, event: eventData };
     } catch (error) {
         console.error("[Calendar] getEventDetails Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -221,6 +317,17 @@ export async function getUpcomingEvents(guildId: string, days: number = 7) {
 // ============================================
 
 /**
+ * Basic HTML sanitization to prevent XSS
+ */
+function sanitizeInput(str: string | null | undefined): string {
+    if (!str) return "";
+    return str
+        .replace(/<[^>]*>/g, "") // Strip tags
+        .replace(/javascript:/gi, "") // Strip JS protocol
+        .trim();
+}
+
+/**
  * Create a new guild event
  */
 export async function createCalendarEvent(guildId: string, data: GuildEventInput) {
@@ -243,6 +350,9 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         const event = await db.guildEvent.create({
             data: {
                 ...eventData,
+                title: sanitizeInput(eventData.title),
+                description: sanitizeInput(eventData.description || ""),
+                location: sanitizeInput(eventData.location || ""),
                 guildId: guildConfig.id,
                 creatorId: ctx.id!
             }
@@ -321,8 +431,35 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
                 creatorId: ctx.id!,
                 recurrence: "UNIQUE",
                 location: "Antre du Kralamoure Géant (-60, -8)",
+                metadata: {
+                    isKralamoure: true,
+                    metamobId: kralaEvent.id,
+                    serverName: kralaEvent.server.name,
+                    metamobCreator: kralaEvent.creator,
+                    metamobParticipants: [] // Will be populated below if possible
+                }
             }
         });
+
+        // Try to fetch participants immediately to populate metadata
+        try {
+            const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
+            const details = await getExternalKralamoureDetails(kralaEvent.id);
+
+            if (details && details.participants) {
+                await db.guildEvent.update({
+                    where: { id: event.id },
+                    data: {
+                        metadata: {
+                            ...(event.metadata as any),
+                            metamobParticipants: details.participants
+                        }
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("[Calendar] Failed to fetch initial participants:", err);
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         revalidatePath(`/dashboard/${guildId}/quete-ocre`); // Refresh widget too if needed?
@@ -331,6 +468,39 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
     } catch (error) {
         console.error("[Calendar] importKralaEvent Error:", error);
         return { success: false, error: "Erreur lors de l'import" };
+    }
+}
+
+/**
+ * Get list of already imported Kralamoure event IDs
+ */
+export async function getImportedKralamoureIds(guildId: string): Promise<{ success: boolean; ids: number[] }> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, ids: [] };
+
+        const events = await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                type: "EVENT_GUILD"
+            },
+            select: { metadata: true }
+        });
+
+        const importedIds = events
+            .filter(e => {
+                const meta = e.metadata as any;
+                return meta?.isKralamoure === true && meta?.metamobId;
+            })
+            .map(e => (e.metadata as any).metamobId as number);
+
+        return { success: true, ids: importedIds };
+    } catch (error) {
+        console.error("[Calendar] getImportedKralamoureIds Error:", error);
+        return { success: false, ids: [] };
     }
 }
 
@@ -357,7 +527,12 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
-            data: updateData
+            data: {
+                ...updateData,
+                title: sanitizeInput(updateData.title),
+                description: sanitizeInput(updateData.description || ""),
+                location: sanitizeInput(updateData.location || "")
+            }
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);

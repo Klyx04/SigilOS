@@ -4,8 +4,7 @@ import { GuildManager } from "./guild-manager";
 import { JanitorButton } from "./janitor-button";
 import { ActivityChart } from "./activity-chart";
 import { UserList } from "./user-list";
-import { SuperAdminHeader } from "./header";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
+// import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 export default async function SuperAdminPage() {
     const isAdmin = await isSuperAdmin();
@@ -24,8 +23,7 @@ export default async function SuperAdminPage() {
     ]);
 
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col">
-            <SuperAdminHeader />
+        <div className="min-h-screen bg-transparent text-white flex flex-col">
 
             <main className="flex-grow pt-24 pb-12 px-8">
                 <div className="max-w-7xl mx-auto space-y-12">
@@ -103,7 +101,6 @@ export default async function SuperAdminPage() {
                 </div>
             </main>
 
-            <GalacticFooter />
         </div>
     );
 }

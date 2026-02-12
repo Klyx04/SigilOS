@@ -101,10 +101,11 @@ export function JobsGrid({
                             </DialogHeader>
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="Récolte" className="h-full flex flex-col">
-                                    <TabsList className="grid w-full grid-cols-3 mb-6 bg-zinc-900/50">
+                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900/50">
                                         <TabsTrigger value="Récolte">Récolte</TabsTrigger>
                                         <TabsTrigger value="Artisanat">Artisanat</TabsTrigger>
                                         <TabsTrigger value="Forgemagie">Forgemagie</TabsTrigger>
+                                        <TabsTrigger value="Élevage">Élevage</TabsTrigger>
                                     </TabsList>
                                     {Object.entries(DOFUS_JOBS).map(([category, categoryJobs]) => (
                                         <TabsContent key={category} value={category} className="flex-1 overflow-hidden mt-0">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Upload, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from "lucide-react";
@@ -83,11 +83,19 @@ export function SuccessSync({
         reader.readAsDataURL(file);
 
         reader.onload = async () => {
-            const base64 = reader.result as string;
+            // const base64 = reader.result as string; // OLD
             try {
+                // NEW: Compression
+                const { compressImage } = await import("@/lib/image-compression");
+                const compressedBase64 = await compressImage(file, {
+                    maxWidth: 1920,
+                    maxHeight: 1080,
+                    quality: 0.8
+                });
+
                 const res = await syncMemberSuccessPoints({
                     guildId,
-                    imageData: base64,
+                    imageData: compressedBase64,
                 });
 
                 if (res.success) {
@@ -112,13 +120,19 @@ export function SuccessSync({
                     setLastScanResult({ error: res.error });
                 }
             } catch (err) {
-                toast.error("Une erreur est survenue lors de l'OCR.");
+                toast.error("Une erreur est survenue lors de l'envoi.");
             } finally {
                 setIsUploading(false);
                 setDragActive(false);
             }
         };
     };
+
+    const handleBrowseClick = () => {
+        const fileInput = document.getElementById("success-upload-input");
+        if (fileInput) fileInput.click();
+    };
+
 
     const onDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -136,6 +150,26 @@ export function SuccessSync({
             handleFile(e.dataTransfer.files[0]);
         }
     };
+
+    // START: Clipboard Paste Support
+    useEffect(() => {
+        if (readOnly) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            if (e.clipboardData && e.clipboardData.files.length > 0) {
+                const file = e.clipboardData.files[0];
+                if (file.type.startsWith("image/")) {
+                    e.preventDefault();
+                    handleFile(file);
+                    toast.info("Image collée depuis le presse-papier ! 📋");
+                }
+            }
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [readOnly, isUploading, lastScanResult]); // Re-bind if these change, though handleFile uses them
+    // END: Clipboard Paste Support
 
     if (readOnly && !successPoints) return null;
 
@@ -190,11 +224,21 @@ export function SuccessSync({
                                     </div>
                                     <div className="text-center space-y-1">
                                         <p className="text-base font-bold text-white/90">Déposez votre capture</p>
-                                        <p className="text-sm text-white/40">ou cliquez pour parcourir vos fichiers</p>
+                                        <p className="text-sm text-white/40">
+                                            coller (CTRL+V) ou{" "}
+                                            <button
+                                                type="button"
+                                                onClick={handleBrowseClick}
+                                                className="text-amber-400 hover:text-amber-300 font-medium hover:underline focus:outline-none"
+                                            >
+                                                cliquez pour sélectionner
+                                            </button>
+                                        </p>
                                     </div>
                                     <input
+                                        id="success-upload-input"
                                         type="file"
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        className="hidden"
                                         onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                                         accept="image/*"
                                     />
@@ -424,6 +468,6 @@ export function SuccessSync({
                     </div>
                 )}
             </CardContent>
-        </Card>
+        </Card >
     );
 }

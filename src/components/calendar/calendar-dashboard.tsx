@@ -5,6 +5,7 @@
  * Streamlined dashboard with grid/list toggle
  */
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
     Calendar as CalendarIcon,
@@ -60,6 +61,7 @@ const FILTER_TYPES: Record<string, string> = {
     EVENT_GUILD: "Event Guilde",
     SESSION_MISSIONS: "Missions Guilde",
     SORTIE_FARM: "Sortie Farm",
+    KRALAMOURE: "Kralamoure",
 };
 
 export function CalendarDashboard({ guildId, currentUserId, canManage }: CalendarDashboardProps) {
@@ -349,7 +351,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
                             <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div className="flex items-center gap-5">
-                                    <div className="relative group">
+                                    <div className="relative group shrink-0">
                                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
                                         <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20">
                                             <CalendarIcon className="h-7 w-7 text-amber-400" />
@@ -358,10 +360,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                                     <div>
                                         <h2 className="text-3xl font-bold text-zinc-50 tracking-tight">Agenda</h2>
                                         <p className="text-zinc-400 text-sm mt-1">
-                                            {filteredEvents.length} événements à venir
+                                            {filteredEvents.length} événements
                                         </p>
                                     </div>
                                 </div>
+
+
 
                                 <div className="flex items-center gap-3">
                                     {canManage && (
@@ -438,12 +442,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pl-0 md:pl-[76px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {groupedEvents[dateKey].map((event: any) => (
                                             <div
                                                 key={event.id}
                                                 onClick={() => handleEventClick(event.id)}
-                                                className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                                                className="cursor-pointer transition-all hover:opacity-90"
                                             >
                                                 <EventCard
                                                     event={event}
@@ -482,8 +486,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
             {/* ============ DETAIL MODAL ============ */}
             <EventDetailModal
                 event={selectedEvent}
-                open={!!selectedEventId && !!selectedEvent}
-                onOpenChange={(open) => !open && setSelectedEventId(null)}
+                open={!!selectedEventId}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedEventId(null);
+                        // Optional: Clear URL param
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete("event");
+                        window.history.replaceState({}, "", url);
+                    }
+                }}
                 currentUserId={currentUserId}
                 canManage={canManage}
                 discordRoles={discordRoles}

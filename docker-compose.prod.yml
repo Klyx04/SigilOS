@@ -81,7 +81,7 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
     logging: *default-logging
 
   db-beta:

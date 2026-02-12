@@ -186,46 +186,50 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[280px] p-0" align="end">
+                        <PopoverContent className="w-[340px] p-0" align="end">
                             <Command>
                                 <CommandInput placeholder="Chercher un métier..." />
                                 <CommandList>
                                     <CommandEmpty>Aucun métier trouvé.</CommandEmpty>
-                                    <CommandGroup>
+                                    <CommandGroup className="p-0">
                                         {Object.entries(DOFUS_JOBS).map(([category, jobs]) => (
-                                            <div key={category}>
-                                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-zinc-950/30">
+                                            <div key={category} className="mb-2">
+                                                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-zinc-950/30 border-y border-white/5 sticky top-0 z-10 backdrop-blur-md">
                                                     {category}
                                                 </div>
-                                                {jobs.map(job => (
-                                                    <CommandItem
-                                                        key={job.id}
-                                                        value={job.name}
-                                                        onSelect={() => {
-                                                            setSelectedJob(selectedJob === job.id ? null : job.id);
-                                                            setIsOpenJob(false);
-                                                        }}
-                                                        className="cursor-pointer"
-                                                    >
-                                                        <div className="mr-2 w-6 h-6 flex items-center justify-center">
-                                                            {job.icon.startsWith("/") ? (
-                                                                <Image
-                                                                    src={job.icon}
-                                                                    alt={job.name}
-                                                                    width={24}
-                                                                    height={24}
-                                                                    className="w-full h-full object-contain"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-lg">{job.icon}</span>
+                                                <div className="grid grid-cols-4 gap-1 p-2">
+                                                    {jobs.map(job => (
+                                                        <CommandItem
+                                                            key={job.id}
+                                                            value={job.name}
+                                                            onSelect={() => {
+                                                                setSelectedJob(selectedJob === job.id ? null : job.id);
+                                                                setIsOpenJob(false);
+                                                            }}
+                                                            className={cn(
+                                                                "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all gap-1 border h-auto",
+                                                                selectedJob === job.id
+                                                                    ? "bg-amber-500/20 border-amber-500/50 text-white aria-selected:bg-amber-500/30"
+                                                                    : "bg-zinc-900/50 border-transparent hover:bg-zinc-800 hover:border-white/10 text-zinc-400 hover:text-zinc-200 aria-selected:bg-zinc-800"
                                                             )}
-                                                        </div>
-                                                        <span>{job.name}</span>
-                                                        {selectedJob === job.id && (
-                                                            <Check className="ml-auto w-4 h-4 opacity-100" />
-                                                        )}
-                                                    </CommandItem>
-                                                ))}
+                                                        >
+                                                            <div className="relative w-8 h-8 flex items-center justify-center filter drop-shadow-lg">
+                                                                {job.icon.startsWith("/") ? (
+                                                                    <Image
+                                                                        src={job.icon}
+                                                                        alt={job.name}
+                                                                        fill
+                                                                        className="object-contain"
+                                                                        sizes="32px"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-2xl">{job.icon}</span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] font-medium truncate w-full text-center mt-1">{job.name}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </div>
                                             </div>
                                         ))}
                                     </CommandGroup>

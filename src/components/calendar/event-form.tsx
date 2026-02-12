@@ -423,10 +423,24 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                                 <div className="relative w-48">
                                     <Users className="absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         placeholder="∞"
                                         {...field}
                                         value={field.value || ""}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/[^0-9]/g, "");
+                                            const numValue = value ? parseInt(value) : undefined;
+
+                                            // Strict limit for Raids
+                                            if (selectedType === "RAID_OFFICIAL" && numValue && numValue > 16) {
+                                                field.onChange(16);
+                                                return;
+                                            }
+
+                                            field.onChange(numValue);
+                                        }}
                                         className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
                                     />
                                 </div>

@@ -94,7 +94,9 @@ export async function processRegistration(guildId: string, eventId: string, user
     // Update Discord Embed (Fire and Forget)
     updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
 
+    // Revalidate Calendar Page AND Dashboard Layout (for Ticker)
     revalidatePath(`/dashboard/${guildId}/calendar`);
+    revalidatePath(`/dashboard/${guildId}`, "layout");
     return { success: true, isReserve };
 }
 
@@ -154,7 +156,9 @@ export async function processUnregistration(guildId: string, eventId: string, us
     // Update Discord Embed (Fire and Forget)
     updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
 
+    // Revalidate Calendar Page AND Dashboard Layout (for Ticker)
     revalidatePath(`/dashboard/${guildId}/calendar`);
+    revalidatePath(`/dashboard/${guildId}`, "layout");
     return { success: true };
 }
 

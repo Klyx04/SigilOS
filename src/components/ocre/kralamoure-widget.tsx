@@ -30,9 +30,9 @@ import { cn } from "@/lib/utils";
 import { getGuildKralamoureEvents } from "@/server/actions/ocre-actions";
 import type { KralamoureEvent } from "@/lib/metamob-client";
 
-import { importKralaEvent } from "@/server/actions/calendar-actions";
+import { importKralaEvent, getImportedKralamoureIds } from "@/server/actions/calendar-actions";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { CalendarPlus, CalendarCheck } from "lucide-react";
 
 interface KralamoureWidgetProps {
     guildId: string;
@@ -44,6 +44,7 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
     const [events, setEvents] = useState<KralamoureEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [importedIds, setImportedIds] = useState<number[]>([]);
 
     const loadEvents = useCallback(async () => {
         setLoading(true);
@@ -56,6 +57,12 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
                 .filter((e) => new Date(e.event_datetime) > now)
                 .slice(0, maxEvents);
             setEvents(upcoming);
+
+            // Load imported IDs
+            const importedResult = await getImportedKralamoureIds(guildId);
+            if (importedResult.success) {
+                setImportedIds(importedResult.ids);
+            }
         } else {
             setError(result.error || "Erreur de chargement");
         }
@@ -118,6 +125,8 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
                                 index={index}
                                 canManageCalendar={canManageCalendar}
                                 guildId={guildId}
+                                isImported={importedIds.includes(event.id)}
+                                onImportSuccess={loadEvents}
                             />
                         ))}
                     </AnimatePresence>
@@ -136,9 +145,11 @@ interface KralamoureEventCardProps {
     index: number;
     canManageCalendar: boolean;
     guildId: string;
+    isImported: boolean;
+    onImportSuccess: () => void;
 }
 
-function KralamoureEventCard({ event, index, canManageCalendar, guildId }: KralamoureEventCardProps) {
+function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImported, onImportSuccess }: KralamoureEventCardProps) {
     const eventTime = new Date(event.event_datetime);
     const now = new Date();
     const [isImporting, setIsImporting] = useState(false);
@@ -163,6 +174,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId }: Krala
         });
         if (result.success) {
             toast.success("Événement importé dans le calendrier !");
+            onImportSuccess(); // Refresh to update imported status
         } else {
             toast.error(result.error || "Erreur lors de l'import");
         }
@@ -195,6 +207,16 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId }: Krala
                 </div>
             )}
 
+            {/* Imported indicator */}
+            {isImported && (
+                <div className="absolute -top-1 -left-1">
+                    <Badge className="bg-green-500 text-white text-[10px] font-bold">
+                        <CalendarCheck className="h-2.5 w-2.5 mr-0.5" />
+                        Importé
+                    </Badge>
+                </div>
+            )}
+
             <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                     {/* Event title/description */}
@@ -223,7 +245,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId }: Krala
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                        {event.messages_count > 0 && (
+                        {(event.messages_count ?? 0) > 0 && (
                             <span className="flex items-center gap-1">
                                 <MessageSquare className="h-3 w-3" />
                                 {event.messages_count}
@@ -265,15 +287,22 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId }: Krala
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-6 w-6 mt-1 border-white/10 hover:bg-purple-500/20 hover:text-purple-400"
+                            className={cn(
+                                "h-6 w-6 mt-1 border-white/10",
+                                isImported
+                                    ? "bg-green-500/20 text-green-400 cursor-not-allowed"
+                                    : "hover:bg-purple-500/20 hover:text-purple-400"
+                            )}
                             onClick={handleImport}
-                            disabled={isImporting}
-                            title="Importer dans le calendrier"
+                            disabled={isImporting || isImported}
+                            title={isImported ? "Déjà importé" : "Importer dans le calendrier"}
                         >
                             {isImporting ? (
                                 <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : isImported ? (
+                                <CalendarCheck className="h-3.5 w-3.5" />
                             ) : (
-                                <Plus className="h-3.5 w-3.5" />
+                                <CalendarPlus className="h-3.5 w-3.5" />
                             )}
                         </Button>
                     )}

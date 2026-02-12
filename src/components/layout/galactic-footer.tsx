@@ -53,7 +53,7 @@ export function GalacticFooter() {
     const getStatusConfig = (status: SystemStatus) => {
         switch (status) {
             case "online":
-                return { color: "bg-emerald-500", textColor: "text-emerald-500", label: "System Online" };
+                return { color: "bg-emerald-500", textColor: "text-emerald-500", label: "Système en ligne" };
             case "degraded":
                 return { color: "bg-amber-500", textColor: "text-amber-500", label: "Dégradé" };
             case "offline":

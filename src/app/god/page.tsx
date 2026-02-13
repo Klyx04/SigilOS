@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import {
     isSuperAdmin,
     getPlatformStats,
@@ -38,9 +39,26 @@ export default async function SuperAdminPage() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-sm text-green-400 font-medium">LIVE</span>
+                    <div className="flex items-center gap-3">
+                        {/* Quick Actions */}
+                        <Link
+                            href="/god/changelog"
+                            className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 hover:text-white transition-all flex items-center gap-2"
+                        >
+                            📝 Changelog
+                        </Link>
+                        <Link
+                            href="/god/docs"
+                            className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 hover:text-white transition-all flex items-center gap-2"
+                        >
+                            📚 Docs
+                        </Link>
+
+                        {/* Live Indicator */}
+                        <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-sm text-green-400 font-medium">LIVE</span>
+                        </div>
                     </div>
                 </div>
             </div>

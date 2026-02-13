@@ -17,6 +17,7 @@
 import { db } from '@/lib/prisma';
 import { isSuperAdmin } from './super-admin-actions';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/auth';
 
 export async function softDeleteGuild(
     guildId: string,
@@ -51,6 +52,22 @@ export async function softDeleteGuild(
                 archivedAt: new Date(),
                 archiveReason: 'GUILD_DELETED',
                 scheduledDeletion
+            }
+        });
+
+        // Audit log
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'GUILD_SOFT_DELETE',
+                targetType: 'GUILD',
+                targetId: guildId,
+                oldValue: { isActive: true },
+                newValue: { isActive: false, deletionReason: reason },
+                metadata: { graceDays }
             }
         });
 
@@ -93,6 +110,21 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
+        // Audit log
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'GUILD_REACTIVATE',
+                targetType: 'GUILD',
+                targetId: guildId,
+                oldValue: { isActive: false },
+                newValue: { isActive: true }
+            }
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -108,6 +140,22 @@ export async function hardDeleteGuild(guildId: string) {
     }
 
     try {
+        // Audit log BEFORE delete (can't access guild after deletion)
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'GUILD_HARD_DELETE',
+                targetType: 'GUILD',
+                targetId: guildId,
+                oldValue: { exists: true },
+                newValue: { exists: false },
+                metadata: { permanent: true }
+            }
+        });
+
         // Cascade delete configured in schema
         await db.guildConfig.delete({
             where: { id: guildId }
@@ -135,13 +183,29 @@ export async function softDeleteProfile(
         const scheduledDeletion = new Date();
         scheduledDeletion.setDate(scheduledDeletion.getDate() + graceDays);
 
-        await db.userProfile.update({
+        const profile = await db.userProfile.update({
             where: { id: profileId },
             data: {
                 status: 'ARCHIVED',
                 archivedAt: new Date(),
                 archiveReason: reason,
                 scheduledDeletion
+            }
+        });
+
+        // Audit log
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId: profile.guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'PROFILE_SOFT_DELETE',
+                targetType: 'PROFILE',
+                targetId: profileId,
+                oldValue: { status: 'ACTIVE' },
+                newValue: { status: 'ARCHIVED', archiveReason: reason },
+                metadata: { graceDays }
             }
         });
 
@@ -160,13 +224,28 @@ export async function reactivateProfile(profileId: string) {
     }
 
     try {
-        await db.userProfile.update({
+        const profile = await db.userProfile.update({
             where: { id: profileId },
             data: {
                 status: 'ACTIVE',
                 archivedAt: null,
                 archiveReason: null,
                 scheduledDeletion: null
+            }
+        });
+
+        // Audit log
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId: profile.guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'PROFILE_REACTIVATE',
+                targetType: 'PROFILE',
+                targetId: profileId,
+                oldValue: { status: 'ARCHIVED' },
+                newValue: { status: 'ACTIVE' }
             }
         });
 
@@ -185,6 +264,32 @@ export async function hardDeleteProfile(profileId: string) {
     }
 
     try {
+        // Get profile data BEFORE delete
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { guildId: true }
+        });
+
+        if (!profile) {
+            return { success: false, error: 'Profile not found' };
+        }
+
+        // Audit log BEFORE delete
+        const session = await auth();
+        await db.auditLog.create({
+            data: {
+                guildId: profile.guildId,
+                actorUserId: session?.user?.id || 'UNKNOWN',
+                actorName: session?.user?.name || 'Super Admin',
+                action: 'PROFILE_HARD_DELETE',
+                targetType: 'PROFILE',
+                targetId: profileId,
+                oldValue: { exists: true },
+                newValue: { exists: false },
+                metadata: { permanent: true }
+            }
+        });
+
         await db.userProfile.delete({
             where: { id: profileId }
         });

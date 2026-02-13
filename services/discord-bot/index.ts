@@ -12,9 +12,8 @@
 
 import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
 
-dotenv.config({ path: '../../.env' });
+// Env vars are injected by Docker Compose (env_file), no dotenv needed
 
 const db = new PrismaClient();
 

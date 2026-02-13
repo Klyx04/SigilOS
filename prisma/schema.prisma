@@ -990,3 +990,30 @@ model DocPage {
   @@index([category, order])
   @@index([slug])
 }
+
+// -- CHANGELOG MODULE --
+
+model ChangelogEntry {
+  id          String            @id @default(cuid())
+  version     String            // e.g., "v1.3.0"
+  title       String            // e.g., "Webhook Automation + Changelog"
+  summary     String            // Short marketing description (1-2 lines) for landing page
+  content     String            @db.Text // Full markdown content for detailed view
+  category    ChangelogCategory
+  publishedAt DateTime          @default(now())
+  publishedBy String            // Super-admin user ID
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([publishedAt])
+  @@index([category])
+}
+
+enum ChangelogCategory {
+  FEATURE      // New features
+  BUGFIX       // Bug fixes
+  SECURITY     // Security improvements
+  PERFORMANCE  // Performance optimizations
+  DOCUMENTATION // Documentation updates
+}

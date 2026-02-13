@@ -24,6 +24,7 @@ export type Option = {
     label: string;
     value: string;
     color?: number; // Optional color for badges
+    icon?: string | null; // Optional icon URL
 };
 
 type Props = {
@@ -58,22 +59,25 @@ export function MultiSelect({
                 >
                     <div className="flex gap-1 flex-wrap">
                         {selected.length === 0 && <span className="text-muted-foreground font-normal">{placeholder}</span>}
-                        {selected.length > 0 && selected.length <= 3 && (
+                        {selected.length > 0 && selected.length <= 5 && (
                             selected.map((itemValue) => {
                                 const option = options.find((o) => o.value === itemValue);
                                 return (
                                     <Badge
                                         variant="secondary"
                                         key={itemValue}
-                                        className="mr-1 mb-1"
+                                        className="mr-1 mb-1 pr-1"
                                         style={option?.color ? {
                                             borderColor: `#${option.color.toString(16).padStart(6, '0')}`,
                                             borderLeftWidth: '4px'
                                         } : {}}
                                     >
+                                        {option?.icon && (
+                                            <img src={option.icon} alt="" className="w-3.5 h-3.5 mr-1.5 object-contain" />
+                                        )}
                                         {option?.label || itemValue}
                                         <div
-                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer p-0.5 hover:bg-slate-700/50"
                                             onKeyDown={(e) => {
                                                 if (e.key === "Enter") {
                                                     handleUnselect(itemValue);
@@ -92,7 +96,7 @@ export function MultiSelect({
                                 );
                             })
                         )}
-                        {selected.length > 3 && (
+                        {selected.length > 5 && (
                             <Badge variant="secondary" className="mr-1 mb-1">
                                 {selected.length} séléctionnés
                             </Badge>
@@ -125,10 +129,14 @@ export function MultiSelect({
                                             selected.includes(option.value) ? "opacity-100" : "opacity-0"
                                         )}
                                     />
-                                    <span
-                                        className="w-2 h-2 rounded-full mr-2"
-                                        style={{ backgroundColor: option.color ? `#${option.color.toString(16).padStart(6, '0')}` : 'gray' }}
-                                    />
+                                    {option.icon ? (
+                                        <img src={option.icon} alt="" className="w-5 h-5 mr-2 object-contain" />
+                                    ) : (
+                                        <span
+                                            className="w-2 h-2 rounded-full mr-2"
+                                            style={{ backgroundColor: option.color ? `#${option.color.toString(16).padStart(6, '0')}` : 'gray' }}
+                                        />
+                                    )}
                                     {option.label}
                                 </CommandItem>
                             ))}

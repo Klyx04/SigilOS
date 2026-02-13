@@ -53,6 +53,34 @@ services:
         max-file: "3"
 
   # -----------------------------------------------------------------------------
+  # DISCORD BOT (Gateway Event Handler)
+  # -----------------------------------------------------------------------------
+  discord-bot:
+    container_name: sigilos-discord-bot
+    build:
+      context: .
+      dockerfile: services/discord-bot/Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # -----------------------------------------------------------------------------
   # REVERSE PROXY (Caddy - Automatic HTTPS)
   # -----------------------------------------------------------------------------
   caddy:
@@ -259,7 +287,8 @@ volumes:
   caddy_data:
   caddy_config:
   prometheus-data:
-  uploads-data: # ✅ New volume for storing user uploads
+  uploads-data:
+    # ✅ New volume for storing user uploads
 
 networks:
   internal-net:

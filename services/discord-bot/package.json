@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-        "start": "node --loader ts-node/esm index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
         "dev": "node --loader ts-node/esm --watch index.ts"
     },
     "dependencies": {

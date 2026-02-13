@@ -12,10 +12,20 @@
 
 import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
 // Env vars are injected by Docker Compose (env_file), no dotenv needed
 
-const db = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+    console.error('[Discord Bot] ❌ DATABASE_URL not found in environment variables');
+    process.exit(1);
+}
+
+const pool = new pg.Pool({ connectionString: databaseUrl });
+const adapter = new PrismaPg(pool);
+const db = new PrismaClient({ adapter });
 
 const client = new Client({
     intents: [

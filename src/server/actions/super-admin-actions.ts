@@ -179,22 +179,12 @@ export async function getPlatformStats() {
  * This replaces the ALLOWED_GUILD_IDS env check
  */
 export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
-    // First check if there are any allowed guilds in DB
-    const count = await db.allowedGuild.count();
-
-    // If no guilds in DB, fall back to env var (migration period)
-    if (count === 0) {
-        const envVar = process.env.ALLOWED_GUILD_IDS;
-        if (envVar === undefined) return true; // Dev mode: all allowed
-        const allowedIds = envVar.split(",").map(id => id.trim()).filter(Boolean);
-        return allowedIds.includes(discordGuildId);
-    }
-
-    // Check database
+    // Check if guild is in the AllowedGuild whitelist (managed via GOD dashboard)
     const guild = await db.allowedGuild.findUnique({
         where: { discordGuildId }
     });
 
+    // Guild must exist AND be active to be allowed
     return !!guild && guild.isActive;
 }
 /**

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
 import { LandingHeader } from "@/components/landing/landing-header";
+import { ChangelogWidget } from "@/components/changelog/changelog-widget";
 
 export default async function Home({
   searchParams,
@@ -43,6 +44,17 @@ export default async function Home({
               <p className="text-zinc-500">Rejoignez l'élite des guildes Dofus.</p>
             </div>
             <GuildDirectorySection guilds={guilds} />
+          </div>
+
+          {/* Changelog Widget Section */}
+          <div className="bg-zinc-950/50 border-t border-white/5 py-16">
+            <div className="container mx-auto px-4 max-w-4xl">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-white mb-4">Nouveautés</h2>
+                <p className="text-zinc-500">Découvrez les dernières fonctionnalités et améliorations</p>
+              </div>
+              <ChangelogWidget />
+            </div>
           </div>
         </main>
 

@@ -25,7 +25,7 @@ if (!databaseUrl) {
 
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
-const db = new PrismaClient({ adapter, datasourceUrl: databaseUrl });
+const db = new PrismaClient({ adapter });
 
 const client = new Client({
     intents: [

@@ -17,4 +17,7 @@ RUN npx prisma generate
 # 4. Copy bot source code
 COPY services/discord-bot/ ./
 
+# 5. Compile TypeScript to JavaScript
+RUN npm run build
+
 CMD ["npm", "start"]

@@ -6,13 +6,13 @@ WORKDIR /app
 COPY services/discord-bot/package*.json ./
 RUN npm install
 
-# 2. Setup Prisma (no config needed, use --schema flag)
+# 2. Setup Prisma
 COPY prisma/ ./prisma/
 # Ensure @prisma/client is installed
 RUN npm list @prisma/client || npm install @prisma/client
 
-# 3. Generate Prisma Client with explicit schema path
-RUN npx prisma generate --schema=./prisma/schema.prisma
+# 3. Generate Prisma Client (dummy URL for build-time only, real URL injected at runtime)
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate --schema=./prisma/schema.prisma
 
 # 4. Copy bot source code
 COPY services/discord-bot/ ./

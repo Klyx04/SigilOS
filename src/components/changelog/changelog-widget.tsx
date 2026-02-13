@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getChangelogEntries } from '@/server/actions/changelog-actions';
+
+export const dynamic = "force-dynamic";
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';

@@ -11,6 +11,8 @@ import { GuildDirectorySection } from "@/components/landing/guild-directory-sect
 import { LandingHeader } from "@/components/landing/landing-header";
 import { ChangelogWidget } from "@/components/changelog/changelog-widget";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home({
   searchParams,
 }: {

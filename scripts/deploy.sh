@@ -32,14 +32,14 @@ git pull origin $(git rev-parse --abbrev-ref HEAD)
 # 3. Lancement Docker selon l'environnement
 if [ "$TARGET" == "beta" ]; then
     echo "🧪 Mise à jour du laboratoire BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta discord-bot-beta
     echo "🧹 Synchronisation des migrations BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma migrate deploy
     echo "🌱 Seeding des données de jeu BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npm run seed:game-data
 else
     echo "🏰 Mise à jour de la PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod discord-bot-prod
     echo "🧹 Synchronisation des migrations PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma migrate deploy
     echo "🌱 Seeding des données de jeu PRODUCTION..."

@@ -11,15 +11,23 @@ const clean = (val) => {
     return val.replace(/^['"]|['"]$/g, '').trim();
 };
 
-const user = clean(process.env.POSTGRES_USER) || 'sigiluser';
-const pwd = clean(process.env.POSTGRES_PASSWORD);
-const db_name = clean(process.env.POSTGRES_DB) || 'sigilos';
-const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
+// Support both DATABASE_URL (CI/standalone) and individual env vars (Docker Compose)
+let url;
+if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+    // CI or standalone mode: use DATABASE_URL directly
+    url = process.env.DATABASE_URL;
+} else {
+    // Docker Compose mode: build URL from individual vars
+    const user = clean(process.env.POSTGRES_USER) || 'sigiluser';
+    const pwd = clean(process.env.POSTGRES_PASSWORD);
+    const db_name = clean(process.env.POSTGRES_DB) || 'sigilos';
+    const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
+    url = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+}
 
 module.exports = {
     schema: "prisma/schema.prisma",
     datasource: {
-        // encodeURIComponent est une fonction globale dans Node.js
-        url: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`,
+        url,
     },
 };

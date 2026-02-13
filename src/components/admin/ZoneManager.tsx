@@ -2,14 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import {
     getAdminZones,
     createZone,
     updateZone,
     deleteZone,
 } from "@/server/actions/game-data-admin-actions";
-import { MapPin, Trash2, Edit2, X, Check, Plus } from "lucide-react";
+import { MapPin, Trash2, Edit2, Plus, Search, MoreHorizontal } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Zone {
     id: string;
@@ -21,7 +35,9 @@ export default function ZoneManager() {
     const [zones, setZones] = useState<Zone[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
-    const [showForm, setShowForm] = useState(false);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
     const [formData, setFormData] = useState({
         name: "",
         level: 200,
@@ -49,6 +65,7 @@ export default function ZoneManager() {
         if (result.success) {
             toast.success(editing ? "Zone mise à jour" : "Zone créée");
             resetForm();
+            setIsSheetOpen(false);
             loadZones();
         } else {
             toast.error(result.error || "Erreur");
@@ -67,7 +84,6 @@ export default function ZoneManager() {
     function resetForm() {
         setFormData({ name: "", level: 200 });
         setEditing(null);
-        setShowForm(false);
     }
 
     function startEdit(zone: Zone) {
@@ -76,125 +92,144 @@ export default function ZoneManager() {
             name: zone.name,
             level: zone.level,
         });
-        setShowForm(true);
+        setIsSheetOpen(true);
     }
+
+    const filteredZones = zones.filter(z =>
+        z.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-green-400" />
-                    <h3 className="text-lg font-bold text-white">Zones</h3>
-                    <span className="text-xs bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">
-                        {zones.length}
-                    </span>
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                        placeholder="Rechercher une zone..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
+                    />
                 </div>
-                {!showForm && (
-                    <Button
-                        onClick={() => setShowForm(true)}
-                        size="sm"
-                        className="bg-indigo-600 hover:bg-indigo-700"
-                    >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Nouvelle
-                    </Button>
-                )}
+                <Button
+                    onClick={() => { resetForm(); setIsSheetOpen(true); }}
+                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
+                >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouvelle Zone
+                </Button>
             </div>
 
-            {/* Compact Form */}
-            {showForm && (
-                <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-bold text-white">
-                            {editing ? "Modifier" : "Nouvelle"} Zone
-                        </h4>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={resetForm}
-                            className="h-6 w-6 p-0"
+            {/* Grid List */}
+            {loading ? (
+                <div className="p-12 text-center text-slate-400 animate-pulse">Chargement des zones...</div>
+            ) : filteredZones.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 bg-slate-900/30 rounded-lg border border-dashed border-slate-700">
+                    Aucune zone trouvée
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredZones.map((zone) => (
+                        <div
+                            key={zone.id}
+                            className="group relative bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-900/10 transition-all duration-300"
                         >
-                            <X className="w-4 h-4" />
-                        </Button>
-                    </div>
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-slate-950/50 hover:bg-slate-800 text-slate-400">
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
+                                        <DropdownMenuItem onClick={() => startEdit(zone)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
+                                            <Edit2 className="w-4 h-4 mr-2 text-indigo-400" /> Modifier
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDelete(zone.id)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Nom</label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                                className="w-full px-3 py-1.5 text-sm bg-slate-900 border border-slate-600 rounded text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                                placeholder="Pandala"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Niveau</label>
-                            <input
-                                type="number"
-                                value={formData.level}
-                                onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
-                                required
-                                min={1}
-                                max={200}
-                                className="w-full px-3 py-1.5 text-sm bg-slate-900 border border-slate-600 rounded text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                        <Button type="submit" size="sm" className="bg-indigo-600 hover:bg-indigo-700 flex-1">
-                            <Check className="w-4 h-4 mr-1" />
-                            {editing ? "Mettre à jour" : "Créer"}
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={resetForm}>
-                            Annuler
-                        </Button>
-                    </div>
-                </form>
-            )}
-
-            {/* Compact List */}
-            <div className="bg-slate-800/30 border border-slate-700/30 rounded-lg overflow-hidden">
-                {loading ? (
-                    <div className="p-8 text-center text-slate-400">Chargement...</div>
-                ) : zones.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">Aucune zone</div>
-                ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3">
-                        {zones.map((zone) => (
-                            <div key={zone.id} className="flex items-center justify-between p-2 bg-slate-900/40 border border-slate-800 rounded hover:border-slate-600 transition-all group">
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-white text-sm truncate">{zone.name}</h4>
-                                    <p className="text-xs text-slate-400">Niv. {zone.level}</p>
+                            <div className="p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center border border-green-500/20 text-green-400 shrink-0">
+                                    <MapPin className="w-5 h-5" />
                                 </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => startEdit(zone)}
-                                        className="h-6 w-6 p-0 hover:bg-indigo-600/20"
-                                    >
-                                        <Edit2 className="w-3 h-3 text-indigo-400" />
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleDelete(zone.id)}
-                                        className="h-6 w-6 p-0 hover:bg-red-600/20"
-                                    >
-                                        <Trash2 className="w-3 h-3 text-red-400" />
-                                    </Button>
+
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-slate-200 truncate group-hover:text-green-300 transition-colors">
+                                        {zone.name}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Niveau {zone.level}
+                                    </p>
                                 </div>
                             </div>
-                        ))}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Form Sheet */}
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetContent className="w-full sm:max-w-md bg-slate-950 border-l-slate-800 p-0">
+                    <div className="p-6 h-full flex flex-col">
+                        <SheetHeader className="mb-6">
+                            <SheetTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                                {editing ? "✏️ Modifier la zone" : "➕ Nouvelle zone"}
+                            </SheetTitle>
+                            <SheetDescription className="text-slate-400">
+                                Ajoutez ou modifiez une zone géographique.
+                            </SheetDescription>
+                        </SheetHeader>
+
+                        <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-6">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Nom de la zone <span className="text-red-400">*</span></label>
+                                    <Input
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        required
+                                        placeholder="Ex: Pandala"
+                                        className="bg-slate-900 border-slate-700"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Niveau de zone <span className="text-red-400">*</span></label>
+                                    <Input
+                                        type="number"
+                                        value={formData.level}
+                                        onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
+                                        required
+                                        min={1}
+                                        max={200}
+                                        className="bg-slate-900 border-slate-700"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-6 mt-auto border-t border-slate-800">
+                                <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer"}
+                                </Button>
+                                {editing && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={resetForm}
+                                        className="border-slate-700 hover:bg-slate-800"
+                                    >
+                                        Annuler
+                                    </Button>
+                                )}
+                            </div>
+                        </form>
                     </div>
-                )}
-            </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

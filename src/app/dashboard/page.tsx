@@ -208,14 +208,20 @@ export default async function GuildSelectorPage() {
                                 Votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">QG Galactique</span>
                             </h1>
                             <p className="text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-                                Accédez à vos guildes actives ou déployez SigilOS sur de nouveaux secteurs.
+                                Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
                         </div>
 
-                        <div className="grid gap-8 lg:grid-cols-12">
+                        <div className={cn(
+                            "grid gap-8",
+                            pending.length > 0 ? "lg:grid-cols-12" : "lg:grid-cols-1"
+                        )}>
 
                             {/* ACTIVE GUILDS COLUMN */}
-                            <div className="lg:col-span-7 space-y-6">
+                            <div className={cn(
+                                "space-y-6",
+                                pending.length > 0 ? "lg:col-span-7" : "lg:col-span-12"
+                            )}>
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-xl font-bold text-white flex items-center gap-3">
                                         <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -274,46 +280,48 @@ export default async function GuildSelectorPage() {
                                 )}
                             </div>
 
-                            {/* PENDING GUILDS COLUMN */}
-                            <div className="lg:col-span-5 space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                            <PlusCircle className="w-5 h-5 text-amber-400" />
-                                        </div>
-                                        Déploiement
-                                    </h2>
-                                    <span className="text-xs font-medium px-2 py-1 rounded-md bg-zinc-900 border border-white/5 text-zinc-500">
-                                        Admin requis
-                                    </span>
-                                </div>
-
-                                <GlassPanel className="min-h-[200px] border-white/5 bg-zinc-900/40">
-                                    <div className="p-4 border-b border-white/5 bg-white/5 rounded-t-xl mb-2">
-                                        <p className="text-xs text-zinc-400 leading-relaxed">
-                                            Les serveurs ci-dessous sont éligibles pour l'installation de SigilOS car vous y disposez des droits d'administrateur.
-                                        </p>
-                                    </div>
-
-                                    <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                        {pending.length > 0 ? (
-                                            pending.map((guild) => (
-                                                <GuildSetupCard key={guild.id} guild={guild} clientId={clientId} />
-                                            ))
-                                        ) : (
-                                            <div className="py-12 px-6 text-center">
-                                                <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mx-auto mb-3">
-                                                    <Crown className="w-6 h-6 text-zinc-600" />
-                                                </div>
-                                                <p className="text-sm font-medium text-zinc-300">Aucun serveur éligible</p>
-                                                <p className="text-xs text-zinc-500 mt-1 max-w-[250px] mx-auto">
-                                                    Aucun nouveau serveur éligible trouvé. Assurez-vous d'être proprétaire ou administrateur.
-                                                </p>
+                            {/* PENDING GUILDS COLUMN - Only show if there are pending guilds */}
+                            {pending.length > 0 && (
+                                <div className="lg:col-span-5 space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                                <PlusCircle className="w-5 h-5 text-amber-400" />
                                             </div>
-                                        )}
+                                            Déploiement
+                                        </h2>
+                                        <span className="text-xs font-medium px-2 py-1 rounded-md bg-zinc-900 border border-white/5 text-zinc-500">
+                                            Admin requis
+                                        </span>
                                     </div>
-                                </GlassPanel>
-                            </div>
+
+                                    <GlassPanel className="min-h-[200px] border-white/5 bg-zinc-900/40">
+                                        <div className="p-4 border-b border-white/5 bg-white/5 rounded-t-xl mb-2">
+                                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                                Les serveurs ci-dessous sont éligibles pour l'installation de SigilOS car vous y disposez des droits d'administrateur.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                            {pending.length > 0 ? (
+                                                pending.map((guild) => (
+                                                    <GuildSetupCard key={guild.id} guild={guild} clientId={clientId} />
+                                                ))
+                                            ) : (
+                                                <div className="py-12 px-6 text-center">
+                                                    <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mx-auto mb-3">
+                                                        <Crown className="w-6 h-6 text-zinc-600" />
+                                                    </div>
+                                                    <p className="text-sm font-medium text-zinc-300">Aucun serveur éligible</p>
+                                                    <p className="text-xs text-zinc-500 mt-1 max-w-[250px] mx-auto">
+                                                        Aucun nouveau serveur éligible trouvé. Assurez-vous d'être proprétaire ou administrateur.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </GlassPanel>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

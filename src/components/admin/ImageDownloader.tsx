@@ -81,7 +81,7 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
     };
 
     // Map type to directory name for LocalImagePicker
-    const directory = type === "achievement" ? "achievements" : type === "dungeon" ? "dungeons" : "monsters";
+    // const directory = type === "achievement" ? "achievements" : type === "dungeon" ? "dungeons" : "monsters";
 
     return (
         <div className={cn("space-y-3", className)}>
@@ -99,7 +99,7 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
 
                 <TabsContent value="gallery" className="space-y-3 mt-4">
                     <LocalImagePicker
-                        directory={directory}
+                        type={type}
                         selected={imageUrl}
                         onImageSelect={(path) => {
                             onImageDownloaded(path);

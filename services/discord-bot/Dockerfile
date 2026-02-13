@@ -6,9 +6,8 @@ WORKDIR /app
 COPY services/discord-bot/package*.json ./
 RUN npm install
 
-# 2. Setup Prisma (schema + config required by Prisma 7.x)
+# 2. Setup Prisma (schema only - bot uses pg.Pool adapter, not prisma.config.js)
 COPY prisma/ ./prisma/
-COPY prisma.config.js ./
 # Ensure @prisma/client is installed (it should be in package.json, but just in case)
 RUN npm list @prisma/client || npm install @prisma/client
 

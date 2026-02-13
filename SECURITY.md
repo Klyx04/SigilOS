@@ -25,9 +25,17 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - ✅ OWASP Top 10:2025 compliance
 - ✅ Auth.js with Discord OAuth (httpOnly cookies, CSRF protection)
 - ✅ Guild-level permission isolation (RBAC)
+- ✅ **GOD Dashboard**: Super-admin verification on all lifecycle actions
 - ✅ Input validation with Zod
 - ✅ Prisma ORM (SQL injection prevention)
 - ✅ Security headers (X-Frame-Options, CSP, etc.)
+
+### GOD Dashboard Security (Super-Admin Actions)
+- ✅ All lifecycle actions (`reactivateGuild`, `hardDeleteGuild`, etc.) verify `isSuperAdmin()`
+- ✅ Hard delete confirmation modals before destructive operations
+- ✅ Guild isolation respected (actions scoped by `guildId`)
+- ✅ Server actions only, no client-side data manipulation
+- ✅ Audit trail ready (awaiting Audit Log implementation)
 
 ### Infrastructure Layer (VPS)
 - ✅ **SSH Hardening** : Port 2222, Password Auth Disabled, Root login Disabled.

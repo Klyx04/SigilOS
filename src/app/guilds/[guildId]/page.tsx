@@ -14,7 +14,12 @@ export async function generateMetadata({ params }: Props) {
     if (guild) {
         return {
             title: `${guild.name} | SigilOS`,
-            description: `Découvrez la guilde ${guild.name} sur SigilOS`,
+            description: `Découvrez la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert !' : ''}`,
+            openGraph: {
+                title: `${guild.name} - Guilde Dofus`,
+                description: `Rejoignez ${guild.name} sur ${guild.server || 'Dofus'}.`,
+                images: guild.bannerUrl ? [guild.bannerUrl] : (guild.iconUrl ? [guild.iconUrl] : []),
+            }
         };
     }
 
@@ -49,5 +54,28 @@ export default async function GuildPresentationPage({ params }: Props) {
         ? new Date(guild.foundedDate).getFullYear()
         : guild.createdAt.getFullYear();
 
-    return <GuildPublicView guild={guild} foundedYear={foundedYear} />;
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": guild.name,
+        "url": `https://sigilos.fr/guilds/${guild.id}`,
+        "logo": guild.iconUrl || "https://sigilos.fr/assets/ui/logo-v2.png",
+        "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : null,
+        "founder": guild.founder ? {
+            "@type": "Person",
+            "name": guild.founder
+        } : undefined,
+        "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''}`,
+        "sameAs": guild.discord ? [guild.discord] : []
+    };
+
+    return (
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <GuildPublicView guild={guild} foundedYear={foundedYear} />
+        </>
+    );
 }

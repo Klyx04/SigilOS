@@ -5,6 +5,8 @@ import { db } from "@/lib/prisma";
 import { z } from "zod";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { revalidatePath } from "next/cache";
+import { writeFileSync } from "fs";
+import { join } from "path";
 
 // --- Types ---
 
@@ -28,7 +30,7 @@ const ChallengeSchema = z.object({
     slug: z.string().min(1, "Slug requis").max(100).regex(/^[a-z0-9-]+$/, "Format: minuscules, chiffres, tirets uniquement"),
     description: z.string().optional(),
     iconUrl: z.string().optional().or(z.literal("")),
-    difficulty: z.number().min(1).max(5).optional(),
+
     conditions: z.record(z.any()).optional(),
 });
 
@@ -625,7 +627,7 @@ export async function exportGameData(): Promise<ActionResponse<any>> {
         });
 
         const exportData = {
-            version: "1.0",
+            version: "2.0",
             exportedAt: new Date().toISOString(),
             exportedBy: userId,
             data: { families, challenges, dungeons }
@@ -635,6 +637,67 @@ export async function exportGameData(): Promise<ActionResponse<any>> {
     } catch (error) {
         console.error('[exportGameData] Error:', error);
         return { success: false, error: 'Erreur lors de l\'export' };
+    }
+}
+
+/**
+ * Export game data directly to Git seed file
+ * Safe for use in development environment only
+ */
+export async function exportGameDataToGit(): Promise<ActionResponse<string>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    // Security: Only allow in development
+    if (process.env.NODE_ENV === 'production') {
+        return { success: false, error: "Cette fonction n'est disponible qu'en développement" };
+    }
+
+    try {
+        // Fetch all data with zones included
+        const zones = await db.zone.findMany();
+        const families = await db.monsterFamily.findMany({
+            include: {
+                zones: { select: { id: true } }
+            }
+        });
+        const challenges = await db.challenge.findMany();
+        const dungeons = await db.dungeon.findMany({
+            include: { achievements: true }
+        });
+
+        const exportData = {
+            version: "2.0",
+            exportedAt: new Date().toISOString(),
+            exportedBy: userId,
+            data: {
+                zones,
+                families: families.map(f => ({
+                    ...f,
+                    zones: undefined, // Remove relation, keep only metadata
+                    zoneIds: f.zones?.map(z => z.id) || []
+                })),
+                challenges,
+                dungeons
+            }
+        };
+
+        // Write to seed file
+        const seedFilePath = join(process.cwd(), 'prisma', 'seed-data', 'game-data.json');
+        writeFileSync(seedFilePath, JSON.stringify(exportData, null, 2), 'utf-8');
+
+        console.log(`✅ [EXPORT] Game data exported to ${seedFilePath}`);
+
+        return {
+            success: true,
+            data: `Export réussi ! Fichier sauvegardé dans prisma/seed-data/game-data.json\n\n` +
+                `Zones: ${zones.length} | Familles: ${families.length} | ` +
+                `Challenges: ${challenges.length} | Donjons: ${dungeons.length}\n\n` +
+                `💡 Commit ce fichier dans Git pour versionner tes données !`
+        };
+    } catch (error: any) {
+        console.error('[exportGameDataToGit] Error:', error);
+        return { success: false, error: `Erreur: ${error.message}` };
     }
 }
 
@@ -679,7 +742,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                         name: challenge.name,
                         description: challenge.description,
                         iconUrl: challenge.iconUrl,
-                        difficulty: challenge.difficulty,
+
                         conditions: challenge.conditions,
                     },
                     create: {
@@ -687,7 +750,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                         slug: challenge.slug,
                         description: challenge.description,
                         iconUrl: challenge.iconUrl,
-                        difficulty: challenge.difficulty,
+
                         conditions: challenge.conditions,
                     }
                 });

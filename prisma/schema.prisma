@@ -58,6 +58,11 @@ model User {
   eventParticipations EventParticipant[]
   notifications       Notification[]
 
+  // Lifecycle tracking (RGPD)
+  deletionRequestedAt DateTime?
+  scheduledDeletion   DateTime?
+  emailBackup         String?  // Pour contact avant suppression
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 }
@@ -126,6 +131,11 @@ model GuildConfig {
   presentationDiscordReq   Boolean   @default(false) // Discord required for recruitment
   presentationMinLevel     Int? // Min level (0-200)
   presentationMinSuccesses Int? // Min successes (0-25000)
+
+  // Lifecycle tracking
+  deletedAt         DateTime?
+  deletionReason    String?   // "SERVER_DELETED", "BOT_REMOVED", "ADMIN_REQUEST"
+  scheduledDeletion DateTime? // Date de hard delete planifiée
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -234,6 +244,9 @@ model UserProfile {
 
   // Alt Characters (up to 5-6 pseudos for other in-game characters)
   altPseudos Json? // String[] - ["AltName1", "AltName2", ...]
+
+  // Lifecycle tracking (uses existing archivedAt/archiveReason + scheduledDeletion)
+  scheduledDeletion DateTime? // Date de hard delete planifiée (for RGPD compliance)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -435,7 +448,7 @@ model Challenge {
   slug        String  @unique // Ex: "misanthrope", "premier"
   description String? @db.Text
   iconUrl     String?
-  difficulty  Int?    @default(3) // 1-5 estimation difficulté
+
 
   // Conditions générales du challenge (optionnel)
   conditions Json? // { "maxInvocations": 0, "maxAllies": 1, etc. }

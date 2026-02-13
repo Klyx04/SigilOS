@@ -11,14 +11,14 @@ interface LocalImage {
 }
 
 interface LocalImagePickerProps {
-    directory: string;
+    type: "monster" | "achievement" | "dungeon";
     selected?: string;
     onImageSelect: (path: string) => void;
     gridSize?: "small" | "medium" | "large";
     className?: string;
 }
 
-export function LocalImagePicker({ directory, selected, onImageSelect, gridSize = "medium", className = "" }: LocalImagePickerProps) {
+export function LocalImagePicker({ type, selected, onImageSelect, gridSize = "medium", className = "" }: LocalImagePickerProps) {
     const [images, setImages] = useState<LocalImage[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -28,14 +28,14 @@ export function LocalImagePicker({ directory, selected, onImageSelect, gridSize 
 
     useEffect(() => {
         loadImages();
-    }, [directory]);
+    }, [type]);
 
     async function loadImages() {
         setLoading(true);
         setError(null);
 
         try {
-            const res = await fetch(`/api/god/list-local-images?directory=${directory}`);
+            const res = await fetch(`/api/god/list-local-images?type=${type}`);
             const data = await res.json();
 
             if (data.success) {
@@ -69,7 +69,7 @@ export function LocalImagePicker({ directory, selected, onImageSelect, gridSize 
     if (images.length === 0) {
         return (
             <div className="p-8 text-center text-slate-400 text-sm">
-                Aucune image trouvée dans <code className="text-xs bg-slate-800 px-2 py-1 rounded">/game-data/{directory}/</code>
+                Aucune image trouvée dans <code className="text-xs bg-slate-800 px-2 py-1 rounded">/game-data/{type}s/</code>
             </div>
         );
     }

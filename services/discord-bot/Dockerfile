@@ -8,11 +8,12 @@ RUN npm install
 
 # 2. Setup Prisma
 COPY prisma/ ./prisma/
+COPY prisma.config.js ./
 # Ensure @prisma/client is installed
 RUN npm list @prisma/client || npm install @prisma/client
 
-# 3. Generate Prisma Client (dummy URL for build-time only, real URL injected at runtime)
-RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate --schema=./prisma/schema.prisma
+# 3. Generate Prisma Client (dummy vars for build-time only, real values injected at runtime)
+RUN POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma generate
 
 # 4. Copy bot source code
 COPY services/discord-bot/ ./

@@ -54,6 +54,27 @@ services:
           memory: 1G
     logging: *default-logging
 
+  discord-bot-prod:
+    container_name: sigilos-discord-bot-prod
+    build:
+      context: .
+      dockerfile: services/discord-bot/Dockerfile
+    restart: always
+    env_file: .env.prod
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    depends_on:
+      - db-prod
+    networks:
+      - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+    logging: *default-logging
+
   # ===========================================================================
   # 🟡 BETA ENVIRONMENT
   # ===========================================================================
@@ -98,6 +119,27 @@ services:
         limits:
           cpus: '1.0'
           memory: 1G
+    logging: *default-logging
+
+  discord-bot-beta:
+    container_name: sigilos-discord-bot-beta
+    build:
+      context: .
+      dockerfile: services/discord-bot/Dockerfile
+    restart: always
+    env_file: .env.beta
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    depends_on:
+      - db-beta
+    networks:
+      - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
     logging: *default-logging
 
   # ===========================================================================

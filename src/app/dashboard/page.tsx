@@ -55,22 +55,18 @@ async function getGuildsSeparated(userId: string) {
     });
 
     const { verifyGuildAccessibility } = await import("@/server/discord");
-    // Fetch allowed guilds for WhiteList check
-    const allowedGuildsDB = await db.allowedGuild.findMany({ select: { discordGuildId: true } });
+    // Fetch allowed guilds for WhiteList check (managed via GOD dashboard only)
+    const allowedGuildsDB = await db.allowedGuild.findMany({
+        where: { isActive: true },
+        select: { discordGuildId: true }
+    });
     const allowedIdsWhitelist = new Set(allowedGuildsDB.map(g => g.discordGuildId));
 
-    // Fallback to Env Var if DB is empty (Dev mode / Migration)
-    const useEnvFallback = allowedGuildsDB.length === 0;
-    const envAllowed = process.env.ALLOWED_GUILD_IDS ? process.env.ALLOWED_GUILD_IDS.split(",").map(id => id.trim()) : [];
-
-    // Check if a guild is allowed to be deployed
+    // Only show guilds that are explicitly whitelisted in GOD
     const isAllowedForDeployment = (guildId: string) => {
-        if (useEnvFallback) {
-            if (!process.env.ALLOWED_GUILD_IDS) return true; // Open Beta if undefined
-            return envAllowed.includes(guildId);
-        }
         return allowedIdsWhitelist.has(guildId);
     };
+
 
     // Run checks for Active (DB) guilds
     const validatedActive = await Promise.all(
@@ -108,13 +104,15 @@ async function getGuildsSeparated(userId: string) {
         });
 
         if (dbProfiles.length > 0) {
-            // User has active profiles, use those guilds
-            const activeFromDb: GuildData[] = dbProfiles.map(p => ({
-                id: p.guild.discordGuildId,
-                name: p.guild.name,
-                icon: p.guild.iconUrl,
-                isAdmin: false // Fallback: assumes member access only if API fails
-            }));
+            // User has active profiles, use those guilds (filtered by whitelist)
+            const activeFromDb: GuildData[] = dbProfiles
+                .filter(p => allowedIdsWhitelist.has(p.guild.discordGuildId))
+                .map(p => ({
+                    id: p.guild.discordGuildId,
+                    name: p.guild.name,
+                    icon: p.guild.iconUrl,
+                    isAdmin: false // Fallback: assumes member access only if API fails
+                }));
             return { active: activeFromDb, pending: [] };
         }
 
@@ -150,11 +148,11 @@ async function getGuildsSeparated(userId: string) {
         return { ...g, isBotPresent };
     }));
 
-    // Construct Active list: Intersection of (DB Active + Bot Accessible) AND (User is Member)
+    // Construct Active list: Intersection of (DB Active + Bot Accessible + Whitelisted) AND (User is Member)
     const userGuildIds = new Set(userGuilds.map(ug => ug.id));
 
     const active: GuildData[] = validatedActive
-        .filter(g => userGuildIds.has(g.discordGuildId))
+        .filter(g => userGuildIds.has(g.discordGuildId) && allowedIdsWhitelist.has(g.discordGuildId))
         .map(g => {
             const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);
             const perms = userGuild ? BigInt(userGuild.permissions) : 0n;

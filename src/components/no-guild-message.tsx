@@ -5,12 +5,23 @@ import Image from "next/image";
 import { LogOut, Home, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import { useEffect } from "react";
 
 interface NoGuildMessageProps {
     rateLimited?: boolean;
 }
 
 export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
+    // Auto-reload every 3 seconds when rate limited (Discord sync in progress)
+    useEffect(() => {
+        if (rateLimited) {
+            const interval = setInterval(() => {
+                window.location.reload();
+            }, 3000); // Reload every 3 seconds
+
+            return () => clearInterval(interval);
+        }
+    }, [rateLimited]);
     return (
         <div className="relative w-full flex flex-col items-center justify-center p-4">
 

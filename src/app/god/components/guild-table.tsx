@@ -288,10 +288,19 @@ function GuildRow({ guild, selected, onSelect }: {
 
             <td className="p-4">
                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 hover:bg-zinc-800 rounded-lg transition-colors" title="Voir">
-                        <ExternalLink className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 hover:bg-zinc-800 rounded-lg transition-colors" title="Plus">
+                    {/* SECURITY: Super admin should NOT have direct access to guild dashboards */}
+                    {/* TODO: Create /god/guilds/[id] for read-only admin inspection */}
+                    <button
+                        onClick={() => {
+                            // TODO: Implement dropdown menu with:
+                            // - View guild details (GOD admin read-only view)
+                            // - View audit log for this guild
+                            // - Soft delete / Reactivate
+                            alert('Menu actions GOD - à implémenter dans la phase webhooks');
+                        }}
+                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                        title="Actions admin"
+                    >
                         <MoreVertical className="w-4 h-4" />
                     </button>
                 </div>

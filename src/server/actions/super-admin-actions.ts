@@ -124,37 +124,55 @@ export async function toggleGuildActive(discordGuildId: string) {
 }
 
 /**
- * Get platform-wide statistics
+ * Get platform-wide statistics with trends
  */
 export async function getPlatformStats() {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
 
+    // Get current stats
     const [
-        allowedGuildsCount,
+        totalGuildsCount,
         activeGuildsCount,
         totalUsersCount,
         totalProfilesCount,
         activeProfilesCount,
         totalMissionsCount
     ] = await Promise.all([
-        db.allowedGuild.count(),
-        db.allowedGuild.count({ where: { isActive: true } }),
+        db.guildConfig.count(), // Count actual guilds, not whitelist
+        db.guildConfig.count({ where: { isActive: true } }),
         db.user.count(),
         db.userProfile.count(),
         db.userProfile.count({ where: { status: "ACTIVE" } }),
         db.mission.count()
     ]);
 
+    // Get stats from 24h ago for trends
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [
+        guildsTrend,
+        usersTrend,
+        missionsTrend
+    ] = await Promise.all([
+        db.guildConfig.count({ where: { createdAt: { gte: yesterday } } }),
+        db.user.count({ where: { createdAt: { gte: yesterday } } }),
+        db.mission.count({ where: { createdAt: { gte: yesterday } } })
+    ]);
+
     return {
-        allowedGuilds: allowedGuildsCount,
+        allowedGuilds: totalGuildsCount, // Renamed for compatibility
+        guildsTrend,
         activeGuilds: activeGuildsCount,
         totalUsers: totalUsersCount,
+        usersTrend,
         totalProfiles: totalProfilesCount,
         activeProfiles: activeProfilesCount,
-        totalMissions: totalMissionsCount
+        totalMissions: totalMissionsCount,
+        missionsTrend
     };
 }
+
 
 /**
  * Check if a guild is allowed (for use in layouts/middleware)

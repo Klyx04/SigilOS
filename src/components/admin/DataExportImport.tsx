@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { exportGameData, importGameData } from "@/server/actions/game-data-admin-actions";
+import { exportGameData, importGameData, exportGameDataToGit } from "@/server/actions/game-data-admin-actions";
 
 export default function DataExportImport() {
     const [exporting, setExporting] = useState(false);
+    const [exportingGit, setExportingGit] = useState(false);
     const [importing, setImporting] = useState(false);
 
     async function handleExport() {
@@ -29,6 +30,19 @@ export default function DataExportImport() {
         }
 
         setExporting(false);
+    }
+
+    async function handleExportToGit() {
+        setExportingGit(true);
+        const result = await exportGameDataToGit();
+
+        if (result.success) {
+            toast.success(result.data || "Export Git réussi", { duration: 5000 });
+        } else {
+            toast.error(result.error || "Erreur d'export Git");
+        }
+
+        setExportingGit(false);
     }
 
     async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -85,6 +99,33 @@ export default function DataExportImport() {
                         <p>✅ Inclut toutes les familles de monstres</p>
                         <p>✅ Inclut tous les challenges</p>
                         <p>✅ Inclut tous les donjons + succès associés</p>
+                    </div>
+                </div>
+
+                {/* Export to Git (Development Only) */}
+                <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 p-6 rounded-lg border border-green-500/30 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
+                            🌱 Export vers Git
+                            <span className="text-xs bg-green-600 px-2 py-0.5 rounded-full">DEV ONLY</span>
+                        </h4>
+                        <p className="text-sm text-slate-400 mb-4">
+                            Sauvegarder directement dans <code className="px-1.5 py-0.5 bg-slate-900 rounded text-green-400">prisma/seed-data/game-data.json</code>
+                        </p>
+                    </div>
+
+                    <Button
+                        onClick={handleExportToGit}
+                        disabled={exportingGit}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                        {exportingGit ? "⏳ Export en cours..." : "📦 Sauvegarder dans Git"}
+                    </Button>
+
+                    <div className="text-xs text-green-400/80 space-y-1">
+                        <p>✅ Sauvegarde dans le fichier de seed</p>
+                        <p>✅ Prêt pour commit Git</p>
+                        <p>✅ Auto-deployed via deploy.sh</p>
                     </div>
                 </div>
 

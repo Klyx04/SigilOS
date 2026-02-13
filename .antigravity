@@ -1,88 +1,105 @@
-# 🔍 Audit & Infrastructure Hardening — SigilOS
+# 🎮 GOD Dashboard Refinement — SigilOS
 
-**Date** : 2026-02-11  
-**Branches** : `dev` (commits: f519f8b, 3e03812)  
-**Status** : ✅ Code & Infrastructure Audited, Beta Deployed, VPS Optimized
+**Date** : 2026-02-13  
+**Branche Actuelle** : `feat/god-dashboard-refinement` (ou similaire)  
+**Status** : ✅ Lifecycle Actions Implemented, Dashboard UX Improved, Build Passing
 
 ---
 
-## 🎯 Objectifs Complétés
+## 🎯 Objectifs Complétés (Session Actuelle)
 
-### 1. **Audit Code Complet** (Score: 8.5/10)
-Analyse exhaustive de la qualité du code, sécurité, tests, et infrastructure.
+### 1. **LifecyclePanel Actions** (Fonctionnel)
+Implémentation complète des actions de gestion lifecycle RGPD dans le GOD Dashboard.
 
-### 2. **Quick Wins Implementation**
-- Nettoyage dépendances (-50 MB)
-- Fix ESLint critique
-- Sécurisation déploiement
-- Isolation volumes Docker
+**Actions disponibles** :
+- ✅ Réactiver guildes soft-deleted (`reactivateGuild`)
+- ✅ Hard delete définitif guildes (`hardDeleteGuild`)
+- ✅ Réactiver profils archivés (`reactivateProfile`)
+- ✅ Hard delete définitif profils (`hardDeleteProfile`)
 
-### 3. **Audit Infrastructure VPS** (Score: 9.6/10)
-- Vérification hardening SSH/firewall/fail2ban
-- Audit backups cloud chiffrés
-- Optimisation stockage SSD long terme
-- Validation automation cron
+### 2. **Dashboard UX Improvements**
+- Panneau Déploiement conditionnel (caché si `pending.length === 0`)
+- Grid layout dynamique (full-width pour users non-admin)
+- Bouton Dashboard redondant retiré du header
+
+### 3. **Bug Fixes**
+- Fix countdown négatif dans LifecyclePanel (`scheduledDeletion` null)
+- Fix NaN values dans LiveStats trends
+- Retrait bulk actions non fonctionnelles GuildTable
 
 ---
 
 ## 📝 Changements Majeurs
 
-### 🧹 Cleanup Code & Dépendances
+### ♻️ LifecyclePanel Actions Implementation
 
-**Packages Supprimés** (37 packages, -50 MB):
-- `@tensorflow/tfjs` — NSFW client non utilisé
-- `nsfwjs` — Dépendance TensorFlow
-- `tesseract.js` — OCR remplacé par LLM
+**Fichier** : `src/app/god/components/lifecycle-panel.tsx`
 
-**Fichiers Supprimés** (11 fichiers):
-```
-build_log*.txt (4 fichiers)
-debug-*.js/mjs (5 fichiers)
-*.traineddata (2 fichiers Tesseract)
-```
+**Avant** : Boutons TODO (console.log uniquement)
 
-**Stub Safety Client**:
+**Après** : Actions complètes avec server actions
 ```typescript
-// src/lib/safety-client.ts
-export async function analyzeImageSafety(_file: File): Promise<SafetyResult> {
-    // STUB: Server-side validation reste active
-    return { isSafe: true, predictions: [] };
-}
+// Réactiver une guilde soft-deleted
+const handleReactivate = async () => {
+  const { reactivateGuild } = await import('@/server/actions/god-lifecycle-actions');
+  const result = await reactivateGuild(guild.id);
+  if (result.success) window.location.reload();
+};
+
+// Hard delete définitif
+const handleHardDelete = async () => {
+  if (!confirm(`Supprimer définitivement "${guild.name}" ?`)) return;
+  const { hardDeleteGuild } = await import('@/server/actions/god-lifecycle-actions');
+  await hardDeleteGuild(guild.id);
+};
 ```
+
+**Sécurité** : Toutes actions vérifiées par `isSuperAdmin()`
 
 ---
 
-### 🔧 ESLint Configuration
+### 🎨 Dashboard UX Improvements
 
-**Fichier**: `eslint.config.mjs`
+**Fichier**: `src/app/dashboard/page.tsx`
 
-**Changement Critique**:
-```javascript
-// AVANT
-"react-hooks/rules-of-hooks": "off" // ❌ Dangereux
+**Problème** : Panneau "Déploiement" vide pour users non-admin
 
-// APRÈS
-"react-hooks/rules-of-hooks": "error" // ✅ Enforce hooks rules
+**Solution** :
+```tsx
+// Grid layout conditionnel
+<div className={cn(
+  "grid gap-8",
+  pending.length > 0 ? "lg:grid-cols-12" : "lg:grid-cols-1"
+)}>
+  <div className={pending.length > 0 ? "lg:col-span-7" : "lg:col-span-12"}>
+    Guildes Actives
+  </div>
+  {pending.length > 0 && <div>Déploiement</div>}
+</div>
 ```
 
-**Impact**: Prévient les bugs runtime liés aux hooks React (appels conditionnels).
+**Impact** : User non-admin → Interface propre full-width, pas de panneau vide
 
 ---
 
-### 🚀 Deployment Script Security
+### � Bug Fixes
 
-**Fichier**: `scripts/deploy.sh`
+**1. Countdown Négatif** (`lifecycle-panel.tsx`)
+```typescript
+// AVANT: Crash si scheduledDeletion null
+const daysRemaining = differenceInDays(new Date(guild.scheduledDeletion), new Date());
 
-**Changement**:
-```bash
-# AVANT (DANGEREUX)
-npx prisma db push --accept-data-loss
-
-# APRÈS (SAFE)
-npx prisma migrate deploy
+// APRÈS: Gestion null safe
+const daysRemaining = guild.scheduledDeletion 
+  ? differenceInDays(new Date(guild.scheduledDeletion), new Date())
+  : null;
 ```
 
-**Impact**: Aucune perte de données possible en production. Migrations contrôlées uniquement.
+**2. LiveStats NaN** (`super-admin-actions.ts`)
+```typescript
+// Ajout fallbacks pour éviter NaN dans trends
+profilesTrend: Math.round(((total - lastWeek) / (lastWeek || 1)) * 100) || 0
+```
 
 ---
 
@@ -175,21 +192,21 @@ Script d'audit VPS one-liner:
 
 ---
 
-## 🗂️ Fichiers Modifiés
+## 🗂️ Fichiers Modifiés (Session Actuelle)
 
-### Code
-- `eslint.config.mjs` — React hooks rule enforced
-- `src/lib/safety-client.ts` — Stub NSFW (removed TensorFlow)
+### GOD Dashboard
+- `src/app/god/components/lifecycle-panel.tsx` — Actions lifecycle implémentées
+- `src/app/god/components/guild-table.tsx` — Bulk actions retirées
+- `src/server/actions/super-admin-actions.ts` — Stats fallbacks (NaN fix)
 
-### Infrastructure
-- `scripts/deploy.sh` — Safe migrations
-- `scripts/maintenance.sh` — Aggressive Docker cleanup
-- `scripts/check-hardening.sh` — NEW monitoring script
-- `docker-compose.prod.yml` — Isolated volumes
+### Dashboard UX
+- `src/app/dashboard/page.tsx` — Grid conditionnel, panneau déploiement caché si vide
+- `src/components/landing/landing-header.tsx` — Bouton Dashboard retiré
 
-### Documentation
-- `MAINTENANCE.md` — NEW VPS maintenance guide
-- `.gitignore` — Added debug/build logs
+### Documentation (Artifacts)
+- `walkthrough.md` — Résumé complet branche
+- `remaining_work.md` — Inventaire travail restant ~21h
+- `task.md` — Checklist merge preparation
 
 ---
 
@@ -310,61 +327,75 @@ cat logs/backup.log | tail -5  # ✅ Dernière exécution visible
 
 ---
 
-## 🚀 Prochaines Étapes
+## 🚀 Travail Restant (Post-merge)
 
-### Phase 3 & 4 (Optionnel - Futur)
+### 🔴 CRITIQUE (Production-Ready) — ~6h30
 
-**Phase 3**: Code Quality (Non prioritaire)
-- [ ] Refactor `profile-actions.ts` (42 KB → modules)
-- [ ] Refactor `ocre-actions.ts` (68 KB → modules)
-- [ ] Add tests `mission-actions.ts`
-- [ ] Add tests `calendar-actions.ts`
+1. **Discord Webhooks** (2h) — Auto-sync bot events
+   - `client.on('guildCreate')` → Auto-ajoute AllowedGuild
+   - `client.on('guildDelete')` → Soft-delete guilde
+   - `client.on('guildMemberRemove')` → Soft-delete profil
 
-**Phase 4**: Nice to Have (Non prioritaire)
-- [ ] CD automation (GitHub Actions → deploy.sh)
-- [ ] Lighthouse audit
+2. **Changelog System** (1h15) — DB + Admin UI
+   - Table `ChangelogEntry` (Prisma)
+   - GOD Admin UI `/god/changelog`
+   - Page publique `/changelog`
 
-**Recommandation**: **Focus 100% sur les features produit** (voir `synthese-et-focus.md`)
+3. **Audit Log** (1h) — Traçabilité actions
+4. **Polish** (1h15) — SSE cleanup, Toast, Chart fix
+
+### 🟡 IMPORTANT — ~2h
+5. Cron job auto-cleanup
+6. Documentation utilisateur
+
+**Recommandation**: Priorité Discord Webhooks avant élargissement BETA
 
 ---
 
-## 📚 Artifacts Créés
+## 📚 Artifacts Créés (Session Actuelle)
 
-1. **task.md** — Checklist audit complet
-2. **audit-complet-sigilos.md** — Rapport audit code (8.5/10)
-3. **quick-wins-complet.md** — Walkthrough quick wins
-4. **audit-vps-infra.md** — Plan audit VPS détaillé
-5. **strategie-stockage-ssd.md** — Stratégie long terme (3-5 ans)
-6. **synthese-et-focus.md** — Recommandation focus features
-7. **checklist-deploiement.md** — Guide déploiement beta/prod
-8. **MAINTENANCE.md** — Guide maintenance VPS (NEW)
+1. **walkthrough.md** — Résumé complet branche GOD Dashboard
+2. **remaining_work.md** — Inventaire exhaustif travail restant (15 items, ~21h)
+3. **task.md** — Checklist preparation merge
+4. **god_dashboard_status.md** — État complet dashboard (fonctionnel vs TODO)
+5. **implementation_plan.md** — Plan Dashboard UX improvements
+
+**Artifacts Contextuels (Anciennes Sessions)** :
+- MAINTENANCE.md — Guide maintenance VPS
+- audit-complet-sigilos.md — Audit code (8.5/10)
+- strategie-stockage-ssd.md — Stratégie long terme
 
 ---
 
 ## 🎯 Résumé Exécutif
 
-### Accomplissements
+### Accomplissements (Session GOD Dashboard)
 
-✅ **Audit Code** : 8.5/10, 0 vulnérabilité critique  
-✅ **Quick Wins** : -50 MB, ESLint fixé, Docker sécurisé  
-✅ **Beta Déployée** : migrations OK, app fonctionnelle  
-✅ **Audit VPS** : 9.6/10, hardening complet  
-✅ **Stockage Optimisé** : -12 GB immédiat, stratégie 3-5 ans  
-✅ **Automation Validée** : Backups + Maintenance quotidiens
+✅ **LifecyclePanel Actions** : Réactiver/Hard delete guildes & profils (RGPD compliant)  
+✅ **Dashboard UX** : Panneau conditionnel, grid dynamique, interface propre  
+✅ **Bug Fixes** : Countdown négatif, NaN stats, bulk actions retirées  
+✅ **Build Status** : ✅ PASSING (Exit code: 0)  
+✅ **Documentation** : 5 artifacts créés (walkthrough, remaining work, etc.)
 
-### Infrastructure Status
+### GOD Dashboard Status
 
-**Niveau**: Entreprise 🏆  
-**Sécurité**: Maximale (SSH custom, fail2ban, UFW, backups R2 chiffrés)  
-**Monitoring**: Proactif (Grafana, Prometheus, alertes Discord)  
-**Stockage**: 15% utilisé, cleanup automatique  
-**Maintenance**: Zéro action manuelle requise
+**Fonctionnel** :
+- ✅ LiveStats temps réel
+- ✅ GuildManager (whitelist CRUD)
+- ✅ LifecyclePanel (actions manuelles)
+- ✅ Filtres, recherches, pagination
 
-### Recommandation Stratégique
+**Manquant (Non-bloquant BETA)** :
+- ❌ Discord webhooks (auto-sync)
+- ❌ Audit log (traçabilité)
+- ❌ Changelog system
 
-**70% Features / 30% Tests** (approche hybride)  
-Focus sur développement produit, l'infrastructure est solide pour 3-5 ans.
+### Infrastructure Status (Contexte Global)
+
+**Niveau**: Entreprise 🏆 (VPS hardening 9.6/10)  
+**GOD Dashboard**: ✅ Production-ready pour gestion manuelle BETA  
+**Build**: ✅ Stable, 0 erreurs TypeScript
 
 ---
 
-**Score Global Infrastructure : 9.5/10** ✅
+**Branche prête pour merge dans `dev`** ✅

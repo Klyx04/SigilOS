@@ -1,0 +1,373 @@
+{
+  "version": "2.0",
+  "exportedAt": "2026-02-12T22:59:06.422Z",
+  "exportedBy": "cmlhv72x600004gogy9rfiz3n",
+  "data": {
+    "zones": [
+      {
+        "id": "cmljshkyh0004y0ogez40wpdk",
+        "name": "Massif de cania",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-02-12T18:25:46.072Z",
+        "updatedAt": "2026-02-12T18:25:46.072Z"
+      }
+    ],
+    "families": [
+      {
+        "id": "cmljsk9ho0006y0ogqj73qnhy",
+        "name": "Blops",
+        "description": "",
+        "imageUrl": "/game-data/monsters/blop.webp",
+        "createdAt": "2026-02-12T18:27:51.178Z",
+        "updatedAt": "2026-02-12T18:27:51.178Z",
+        "zoneIds": [
+          "cmljshkyh0004y0ogez40wpdk"
+        ]
+      },
+      {
+        "id": "cmlk28jm90000j4ogn6w02ztb",
+        "name": "test",
+        "description": "",
+        "imageUrl": null,
+        "createdAt": "2026-02-12T22:58:40.589Z",
+        "updatedAt": "2026-02-12T22:58:40.589Z",
+        "zoneIds": []
+      }
+    ],
+    "challenges": [
+      {
+        "id": "cmljsssaw0008y0og4tswsxhk",
+        "name": "Barbare",
+        "slug": "barbare",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/barbare.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.808Z",
+        "updatedAt": "2026-02-12T18:34:28.808Z"
+      },
+      {
+        "id": "cmljsssb70009y0ogklhkxxzs",
+        "name": "Blitzkrieg",
+        "slug": "blitzkrieg",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/blitzkrieg.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.819Z",
+        "updatedAt": "2026-02-12T18:34:28.819Z"
+      },
+      {
+        "id": "cmljsssbb000ay0og8by4d3si",
+        "name": "Chrono",
+        "slug": "chrono",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/chrono.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.823Z",
+        "updatedAt": "2026-02-12T18:34:28.823Z"
+      },
+      {
+        "id": "cmljsssbf000by0ogjfody161",
+        "name": "Circulez",
+        "slug": "circulez",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/circulez.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.827Z",
+        "updatedAt": "2026-02-12T18:34:28.827Z"
+      },
+      {
+        "id": "cmljsssbj000cy0ogsyvoz2gc",
+        "name": "Collant",
+        "slug": "collant",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/collant.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.831Z",
+        "updatedAt": "2026-02-12T18:34:28.831Z"
+      },
+      {
+        "id": "cmljsssbo000dy0og7xdqsygr",
+        "name": "Compagnon",
+        "slug": "compagnon",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/compagnon.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.836Z",
+        "updatedAt": "2026-02-12T18:34:28.836Z"
+      },
+      {
+        "id": "cmljsssbs000ey0ogidhbm810",
+        "name": "Dernier",
+        "slug": "dernier",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/dernier.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.840Z",
+        "updatedAt": "2026-02-12T18:34:28.840Z"
+      },
+      {
+        "id": "cmljsssbw000fy0ogkx0y9ze3",
+        "name": "Duel",
+        "slug": "duel",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/duel.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.844Z",
+        "updatedAt": "2026-02-12T18:34:28.844Z"
+      },
+      {
+        "id": "cmljsssc1000gy0og5pe3fadh",
+        "name": "Duo",
+        "slug": "duo",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/duo.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.849Z",
+        "updatedAt": "2026-02-12T18:34:28.849Z"
+      },
+      {
+        "id": "cmljsssc6000hy0oged75qckz",
+        "name": "Focus",
+        "slug": "focus",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/focus.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.854Z",
+        "updatedAt": "2026-02-12T18:34:28.854Z"
+      },
+      {
+        "id": "cmljsssca000iy0ogvcqhns48",
+        "name": "Hardi",
+        "slug": "hardi",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/hardi.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.858Z",
+        "updatedAt": "2026-02-12T18:34:28.858Z"
+      },
+      {
+        "id": "cmljsssce000jy0og21ba6rl2",
+        "name": "Liberte",
+        "slug": "liberte",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/liberte.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.862Z",
+        "updatedAt": "2026-02-12T18:34:28.862Z"
+      },
+      {
+        "id": "cmljssscj000ky0ogvs4jdz8c",
+        "name": "Mains-propres",
+        "slug": "mains-propres",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/mains-propres.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.867Z",
+        "updatedAt": "2026-02-12T18:34:28.867Z"
+      },
+      {
+        "id": "cmljssscn000ly0ogy9r9blia",
+        "name": "Misanthrope",
+        "slug": "misanthrope",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/misanthrope.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.871Z",
+        "updatedAt": "2026-02-12T18:34:28.871Z"
+      },
+      {
+        "id": "cmljssscs000my0og3m1pzfrn",
+        "name": "Mystique",
+        "slug": "mystique",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/mystique.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.876Z",
+        "updatedAt": "2026-02-12T18:34:28.876Z"
+      },
+      {
+        "id": "cmljssscy000ny0ognbc08epf",
+        "name": "Nomade",
+        "slug": "nomade",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/nomade.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.882Z",
+        "updatedAt": "2026-02-12T18:34:28.882Z"
+      },
+      {
+        "id": "cmljsssd3000oy0og3qnf9db0",
+        "name": "Premier",
+        "slug": "premier",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/premier.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.887Z",
+        "updatedAt": "2026-02-12T18:34:28.887Z"
+      },
+      {
+        "id": "cmljsssd8000py0oggm7rdlan",
+        "name": "Prudent",
+        "slug": "prudent",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/prudent.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.891Z",
+        "updatedAt": "2026-02-12T18:34:28.891Z"
+      },
+      {
+        "id": "cmljsssdd000qy0oguut4o730",
+        "name": "Quatuor",
+        "slug": "quatuor",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/quatuor.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.897Z",
+        "updatedAt": "2026-02-12T18:34:28.897Z"
+      },
+      {
+        "id": "cmljsssdj000ry0ogawfkdlj7",
+        "name": "Spécial",
+        "slug": "special",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/spécial.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.903Z",
+        "updatedAt": "2026-02-12T18:34:28.903Z"
+      },
+      {
+        "id": "cmljsssdo000sy0ogkj58eo26",
+        "name": "Statue",
+        "slug": "statue",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/statue.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.908Z",
+        "updatedAt": "2026-02-12T18:34:28.908Z"
+      },
+      {
+        "id": "cmljsssdt000ty0og0m0ac7ej",
+        "name": "Survivant",
+        "slug": "survivant",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/survivant.png",
+        "difficulty": 2,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.913Z",
+        "updatedAt": "2026-02-12T18:34:28.913Z"
+      },
+      {
+        "id": "cmljsssdy000uy0ogkyiqz3dj",
+        "name": "Trio",
+        "slug": "trio",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/trio.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.918Z",
+        "updatedAt": "2026-02-12T18:34:28.918Z"
+      },
+      {
+        "id": "cmljssse3000vy0og382p90cv",
+        "name": "Versatile",
+        "slug": "versatile",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/versatile.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.923Z",
+        "updatedAt": "2026-02-12T18:34:28.923Z"
+      },
+      {
+        "id": "cmljssse7000wy0ogg8l61oi0",
+        "name": "Zombie",
+        "slug": "zombie",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/zombie.png",
+        "difficulty": 3,
+        "conditions": {},
+        "createdAt": "2026-02-12T18:34:28.927Z",
+        "updatedAt": "2026-02-12T18:34:28.927Z"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": "cmljtnyn9000xy0og3fv5174w",
+        "name": "Antichambre des Gloursons",
+        "bossName": "Glourséleste",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/glourseleste.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-12T18:58:43.363Z",
+        "updatedAt": "2026-02-12T18:58:43.363Z",
+        "achievements": [
+          {
+            "id": "cmljtnynf000yy0ogvgx062f5",
+            "dungeonId": "cmljtnyn9000xy0og3fv5174w",
+            "challengeId": "cmljsssd3000oy0og3qnf9db0",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-12T18:58:43.363Z"
+          },
+          {
+            "id": "cmljtnynf000zy0ogs1aem6hl",
+            "dungeonId": "cmljtnyn9000xy0og3fv5174w",
+            "challengeId": "cmljsssbo000dy0og7xdqsygr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-12T18:58:43.363Z"
+          },
+          {
+            "id": "cmljtnynf0010y0ogjy2mcogt",
+            "dungeonId": "cmljtnyn9000xy0og3fv5174w",
+            "challengeId": "cmljsssbj000cy0ogsyvoz2gc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-12T18:58:43.363Z"
+          },
+          {
+            "id": "cmljtnynf0011y0og3sm254e6",
+            "dungeonId": "cmljtnyn9000xy0og3fv5174w",
+            "challengeId": "cmljsssc1000gy0og5pe3fadh",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-12T18:58:43.363Z"
+          },
+          {
+            "id": "cmljtnynf0012y0oge0hpmo9s",
+            "dungeonId": "cmljtnyn9000xy0og3fv5174w",
+            "challengeId": "cmljsssdj000ry0ogawfkdlj7",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-12T18:58:43.363Z"
+          }
+        ]
+      }
+    ]
+  }
+}

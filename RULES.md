@@ -11,6 +11,7 @@
 | **Auth on every action** | `await auth()` or `getUserContext(guildId)` at start |
 | **Guild isolation** | All DB queries MUST filter by `guildId` |
 | **Admin check for mutations** | `if (!user.isAdmin) return 403` |
+| **Super-admin for GOD actions** | `await isSuperAdmin()` on lifecycle operations |
 | **Input validation** | Zod schemas on all user input |
 | **No secrets client-side** | Only `NEXT_PUBLIC_*` in browser code |
 | **No raw SQL** | Use Prisma ORM only |
@@ -150,6 +151,17 @@ await db.entity.findMany({
         ...otherFilters 
     }
 });
+```
+
+### 4. GOD Dashboard (Super-Admin)
+```typescript
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+
+const isAdmin = await isSuperAdmin();
+if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+// Proceed with lifecycle action
+await db.guildConfig.delete({ where: { id: guildId } });
 ```
 
 ---

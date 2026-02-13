@@ -16,7 +16,7 @@ export function LandingHeader({ user }: { user?: User }) {
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
                             fill
-                            className="object-contain drop-shadow-[0_0_35px_rgba(168,85,247,1)] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] brightness-125 animate-pulse-slow"
+                            className="object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.5)] brightness-110"
                             priority
                         />
                     </div>
@@ -38,13 +38,6 @@ export function LandingHeader({ user }: { user?: User }) {
             <div className="flex items-center gap-4">
                 {user ? (
                     <div className="flex items-center gap-3">
-                        <Link
-                            href="/dashboard"
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/50 text-sm font-bold text-white transition-all hover:scale-105 shadow-lg shadow-indigo-500/20"
-                        >
-                            <LayoutDashboard className="w-4 h-4" />
-                            <span>Dashboard</span>
-                        </Link>
                         <Link
                             href="/api/auth/signout"
                             className="p-2.5 rounded-full bg-zinc-900/50 hover:bg-red-500/10 border border-white/5 hover:border-red-500/50 text-zinc-400 hover:text-red-400 transition-all"

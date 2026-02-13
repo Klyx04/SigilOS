@@ -18,6 +18,8 @@ const categoryConfig: Record<ChangelogCategory, { label: string; color: string }
     DOCUMENTATION: { label: 'Documentation', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ChangelogPage() {
     const allEntries = await getChangelogEntries();
     const session = await auth();

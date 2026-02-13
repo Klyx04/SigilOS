@@ -4,7 +4,7 @@ WORKDIR /app
 
 # 1. Install dependencies
 COPY services/discord-bot/package*.json ./
-RUN npm install --production
+RUN npm install
 
 # 2. Setup Prisma
 COPY prisma/ ./prisma/

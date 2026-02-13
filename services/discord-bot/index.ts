@@ -15,13 +15,18 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 
-// Env vars are injected by Docker Compose (env_file), no dotenv needed
+// Build connection URL from individual env vars (handles special chars in password)
+const pgUser = process.env.POSTGRES_USER;
+const pgPassword = process.env.POSTGRES_PASSWORD;
+const pgDb = process.env.POSTGRES_DB;
+const pgHost = process.env.DB_HOST || 'localhost';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-    console.error('[Discord Bot] ❌ DATABASE_URL not found in environment variables');
+if (!pgUser || !pgPassword || !pgDb) {
+    console.error('[Discord Bot] ❌ Missing POSTGRES_USER, POSTGRES_PASSWORD, or POSTGRES_DB');
     process.exit(1);
 }
+
+const databaseUrl = `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:5432/${pgDb}`;
 
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);

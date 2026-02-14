@@ -13,7 +13,8 @@ import { PrismaClient } from '@prisma/client';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
-const db = new PrismaClient();
+// Prisma client will be instantiated inside main() for better reliability.
+let db: PrismaClient;
 
 interface SeedData {
     version: string;
@@ -30,6 +31,13 @@ interface SeedData {
 const SEED_FILE = join(__dirname, 'game-data.json');
 
 async function main() {
+    if (!process.env.DATABASE_URL) {
+        console.error('❌ [SEED] DATABASE_URL is not defined in the environment.');
+        process.exit(1);
+    }
+
+    db = new PrismaClient();
+
     console.log('🌱 [SEED] Starting game data seeding...');
     console.log(`📂 [SEED] Reading: ${SEED_FILE}`);
 

@@ -13,6 +13,8 @@
     "prepare": "husky",
     "seed": "npx -y tsx prisma/seed.ts",
     "seed:game-data": "npx -y tsx prisma/seed-data/seed.ts",
+    "seed:game-data:prod": "node prisma/seed-data/seed.js",
+    "build:seeds": "esbuild prisma/seed-data/seed.ts --bundle --platform=node --outfile=prisma/seed-data/seed.js --external:@prisma/client && esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --external:@prisma/client",
     "export-seeds": "bash scripts/export-seeds.sh local"
   },
   "dependencies": {
@@ -84,6 +86,7 @@
     "@types/react-dom": "^19",
     "@types/sharp": "^0.32.0",
     "@vitejs/plugin-react": "^5.1.4",
+    "esbuild": "^0.24.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "husky": "^9.1.7",

@@ -300,15 +300,6 @@ async function main() {
                         for (const ach of dungeon.achievements) {
                             if (!ach.challengeId) continue;
 
-                            await tx.dungeonAchievement.upsert({
-                                where: {
-                                    dungeonId_challengeId: {
-                                        dungeonId: upsertedDungeon.id,
-                                        challengeId: challengeIdMap.get(ach.challengeId) || ach.challengeId
-                                    }
-                                }
-                            });
-
                             // Ensure current database ID is used
                             const dbChallengeId = challengeIdMap.get(ach.challengeId);
                             if (!dbChallengeId) {

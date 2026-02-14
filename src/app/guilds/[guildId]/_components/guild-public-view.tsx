@@ -29,6 +29,7 @@ import type { GuildPresentation } from "@/server/actions/presentation-actions";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 // Activity icons mapping
@@ -117,23 +118,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
             </div>
 
             {/* Sticky Header Nav (Consistent with Directory) */}
-            <header className="fixed top-0 left-0 right-0 z-50 bg-[#020202]/80 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-8">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <img src="/assets/ui/logo_sigilos_v2.png" alt="SigilOS" className="w-8 h-8 object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.5)] group-hover:scale-110 transition-transform" />
-                        <span className="text-xl font-black tracking-widest text-white">
-                            SIGIL<span className="text-purple-400">OS</span>
-                        </span>
-                    </Link>
-                    <Link
-                        href="/guilds"
-                        className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all group"
-                    >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        Annuaire
-                    </Link>
-                </div>
-            </header>
+            <PublicHeader backHref="/guilds" backLabel="Annuaire" />
 
             {/* Guild Header Content (Overlapping Hero) */}
             <div className="relative z-20 -mt-32 md:-mt-40 max-w-7xl mx-auto px-6 md:px-8 pb-12">

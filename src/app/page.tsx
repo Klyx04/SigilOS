@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
-import { LandingHeader } from "@/components/landing/landing-header";
+import { PublicHeader } from "@/components/layout/public-header";
 import { ChangelogWidget } from "@/components/changelog/changelog-widget";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ export default async function Home({
 
 
 
-        <LandingHeader user={session?.user} />
+        <PublicHeader user={session?.user} variant="hero" />
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
           <SaasHero user={session?.user} />

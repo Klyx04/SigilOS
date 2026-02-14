@@ -11,8 +11,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky",
-    "seed": "npx tsx prisma/seed.ts",
-    "seed:game-data": "npx tsx --env-file=.env prisma/seed-data/seed.ts",
+    "seed": "npx -y tsx prisma/seed.ts",
+    "seed:game-data": "npx -y tsx --env-file=.env prisma/seed-data/seed.ts",
     "export-seeds": "bash scripts/export-seeds.sh local"
   },
   "dependencies": {

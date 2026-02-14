@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { configureSlashCommand } from "./extensions/slash-command";
 import { ResizableImage } from "./extensions/resizable-image";
+import { Callout } from "./extensions/callout";
 import {
     Bold,
     Italic,
@@ -26,9 +27,15 @@ import {
     ImageIcon,
     Link as LinkIcon,
     Undo,
-    Redo
+    Redo,
+    Smile
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface AdvancedEditorProps {
     initialContent?: string;
@@ -64,6 +71,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
             Typography,
             BubbleMenuExtension,
             configureSlashCommand(),
+            Callout,
         ],
         content: initialContent,
         editable,
@@ -155,6 +163,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                         icon={Code}
                         tooltip="Bloc de code"
                     />
+                    <EmojiPicker onSelect={(emoji: string) => editor.chain().focus().insertContent(emoji).run()} />
                     <div className="w-px h-6 bg-white/10 mx-1 ml-auto" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().undo().run()}
@@ -215,7 +224,6 @@ function ToolbarButton({
             variant="ghost"
             size="sm"
             onClick={(e) => {
-                e.stopPropagation(); // Prevent bubbling issues
                 onClick();
             }}
             onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
@@ -270,4 +278,52 @@ function EditorBubbleMenu({ editor }: { editor: any }) {
             />
         </BubbleMenu>
     )
+}
+
+function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
+    const categories = [
+        { label: "Faces", emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😜", "🧐", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕"] },
+        { label: "Nature", emojis: ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐜", "🦗", "🕷", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🐘", "🦏", "🦛", "🦒", "🐃", "🐂", "🐄", "🐎", "🐖", "🐏", "🐑", "🐐", "🐪", "🐫", "🦙", "🦘", "🦡", "🐁", "🐀", "🐿", "🦔", "🐾", "🐉", "🐲", "🌵", "🎄", "🌲", "🌳", "🌴", "🌱", "🌿", "☘️", "🍀", "🎍", "🎋", "🍃", "🍂", "🍁", "🍄", "🌾", "💐", "🌷", "🌹", "🥀", "🌺", "🌸", "🌼", "🌻", "🌞", "🌝", "🌛", "🌜", "🌚", "🌕", "🌖", "🌗", "🌘", "🌑", "🌒", "🌓", "🌔", "🌙", "🌎", "🌍", "🌏", "🪐", "💫", "⭐️", "🌟", "✨", "⚡️", "☄️", "💥", "🔥", "🌪", "🌈", "☀️", "🌤", "⛅️", "🌥", "☁️", "🌦", "🌧", "🌨", "🌩", "💨", "🌊", "💧", "💦", "☔️"] },
+        { label: "Food", emojis: ["🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶", "🌽", "🥕", "🧄", "🧅", "🥔", "🍠", "🥐", "🥯", "🍞", "🥖", "🥨", "🧀", "🥚", "🍳", "🧈", "🥞", "🧇", "🥓", "🥩", "🍗", "🍖", "🦴", "🌭", "🍔", "🍟", "🍕", "🥪", "🥙", "🧆", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🥟", "🦪", "🍤", "🍙", "🍚", "🍘", "🍥", "🥠", "🥮", "🍢", "🍡", "🍧", "🍨", "🍦", "🥧", "🧁", "🍰", "🎂", "🍮", "🍭", "🍬", "🍫", "🍿", "🍩", "🍪", "🌰", "🥜", "🍯", "🥛", "☕️", "🍵", "🧃", "🥤", "🍶", "🍺", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🧉", "🍾", "🧊", "🥄", "🍴", "🍽", "🥣", "🥡", "🥢", "🧂"] },
+        { label: "Symbols", emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "🖲", "🔝", "🔙", "🔛", "🔜", "🔚", "🔔", "🔕", "📢", "📣", "💬", "💭", "🗯", "🃏", "🀄️", "🎴", "🎭", "🖼", "🎨", "🧵", "🧶", "🎹", "🎸", "🎷", "🎺", "🎻", "🪕", "🥁", "🎬", "🏹", "🥊", "🥋", "🥅", "⛳️", "⛸", "🎣", "🤿", "🎽", "🎿", "🛷", "🥌", "🎯", "🪀", "🪁", "🎱", "🔮", "🧿", "🎮", "🕹", "🎰", "🎲", "🧩", "🧸", "♠️", "♥️", "♦️", "♣️", "🃏", "🀄️", "🎴", "🎭", "🖼", "🎨", "🧵", "🧶", "🎼", "🎹", "🎸", "🎷", "🎺", "🎻", "🪕", "🥁", "🎬", "🏹"] },
+    ];
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <div className="inline-block">
+                    <ToolbarButton
+                        onClick={() => { }}
+                        icon={Smile}
+                        tooltip="Insérer un Emoji"
+                    />
+                </div>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[320px] p-0 bg-zinc-900 border-white/10 shadow-2xl overflow-hidden">
+                <div className="p-3 border-b border-white/5 bg-zinc-950/50 flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Emoji Base</span>
+                    <Smile className="w-3 h-3 text-zinc-500" />
+                </div>
+                <div className="h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 p-2 space-y-4">
+                    {categories.map((cat) => (
+                        <div key={cat.label} className="space-y-2">
+                            <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter ml-1">{cat.label}</h4>
+                            <div className="grid grid-cols-8 gap-1">
+                                {cat.emojis.map((emoji) => (
+                                    <button
+                                        key={emoji}
+                                        onClick={() => onSelect(emoji)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        className="h-8 w-8 flex items-center justify-center text-lg hover:bg-white/10 rounded-md transition-all active:scale-90"
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
 }

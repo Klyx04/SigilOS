@@ -1,46 +1,42 @@
+import { DocContent } from "@/components/doc/doc-content";
 import Link from "next/link";
-// import { AuroraBackground } from "@/components/ui/aurora-background";
+
+const INTRO_CONTENT = `
+# Introduction à SigilOS
+
+<p class="lead">Bienvenue dans la documentation officielle de SigilOS, le système d'exploitation pour guildes Dofus.</p>
+
+SigilOS est une plateforme conçue pour simplifier la gestion de votre guilde, le suivi de vos membres et l'organisation de vos activités en jeu (Missions, Songes Infinis, Quête de l'Ocre).
+
+## Pour qui est cette documentation ?
+- **Nouveaux Membres** : Apprenez à rejoindre votre guilde et configurer votre profil.
+- **Meneurs & Officiers** : Découvrez les outils d'administration et de gestion.
+- **Développeurs** : Comprenez l'architecture si vous souhaitez contribuer.
+
+<div class="callout callout-info">
+<strong>🛡️ Gouvernance</strong>
+Cette documentation est "Open Source" au sein de la guilde. Si vous trouvez une erreur ou souhaitez ajouter un guide, contactez l'équipe de développement sur Discord.
+</div>
+`;
 
 export default function IntroPage() {
     return (
-        <div className="relative">
-            {/* <AuroraBackground className="absolute -inset-10 opacity-20 pointer-events-none" /> */}
+        <div className="max-w-4xl">
+            <DocContent content={INTRO_CONTENT} />
 
-            <div className="relative z-10">
-                <h1 className="text-4xl font-bold mb-6 text-white">Introduction à SigilOS</h1>
-                <p className="lead text-xl text-zinc-200 mb-8">
-                    Bienvenue dans la documentation officielle de SigilOS, le système d'exploitation pour guildes Dofus.
-                </p>
-
-                <div className="space-y-6 text-zinc-300">
-                    <p>
-                        SigilOS est une plateforme conçue pour simplifier la gestion de votre guilde, le suivi de vos membres et l'organisation de vos activités en jeu (Missions, Songes Infinis, Quête de l'Ocre).
-                    </p>
-
-                    <h2 className="text-2xl font-semibold text-white mt-8 mb-4">Pour qui est cette documentation ?</h2>
-                    <ul className="list-disc pl-6 space-y-2">
-                        <li><strong className="text-white">Nouveaux Membres :</strong> Apprenez à rejoindre votre guilde et configurer votre profil.</li>
-                        <li><strong className="text-white">Meneurs & Officiers :</strong> Découvrez les outils d'administration et de gestion.</li>
-                        <li><strong className="text-white">Développeurs :</strong> Comprenez l'architecture si vous souhaitez contribuer.</li>
-                    </ul>
-
-                    <h2 className="text-2xl font-semibold text-white mt-8 mb-4">Comment contribuer ?</h2>
-                    <p>
-                        Cette documentation est "Open Source" au sein de la guilde. Si vous trouvez une erreur ou souhaitez ajouter un guide, contactez l'équipe de développement sur Discord.
-                    </p>
+            <div className="not-prose mt-12 p-8 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10 flex flex-col md:flex-row items-center gap-8 backdrop-blur-3xl shadow-2xl transition-all hover:bg-indigo-500/10 group">
+                <div className="h-16 w-16 rounded-full bg-indigo-500/20 flex items-center justify-center text-3xl shrink-0 group-hover:scale-110 transition-transform">
+                    🚀
                 </div>
-
-                <div className="not-prose mt-12 p-6 rounded-2xl bg-zinc-900 border border-white/10 flex items-center gap-6">
-                    <div className="h-12 w-12 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-                        <span className="text-2xl">🚀</span>
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-white mb-1">Prêt à démarrer ?</h3>
-                        <p className="text-sm text-zinc-400 mb-3">Passez à l'étape suivante pour rejoindre votre première guilde.</p>
-                        <Link href="/docs/guilds/join" className="text-sm font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                            Lire le guide →
-                        </Link>
-                    </div>
+                <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-xl font-black text-white mb-2">Prêt à démarrer l'aventure ?</h3>
+                    <p className="text-zinc-400 mb-4 max-w-md">Passez à l'étape suivante pour rejoindre votre première guilde et configurer votre profil SigilOS.</p>
+                    <Link
+                        href="/docs/guilds/join"
+                        className="inline-flex items-center gap-2 px-6 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                        Rejoindre une Guilde →
+                    </Link>
                 </div>
             </div>
         </div>

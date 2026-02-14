@@ -40,7 +40,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
     const relevantSegments = segments.slice(1);
 
     return (
-        <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-md border-b border-white/5 h-20 px-4 md:px-6 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-3xl backdrop-saturate-150 border-b border-white/10 h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500">
 
             {/* LEFT: Mobile Trigger & Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">

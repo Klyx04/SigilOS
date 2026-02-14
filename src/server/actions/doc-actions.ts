@@ -14,6 +14,8 @@ export type DocPageData = {
     category: string;
     order: number;
     isPublished: boolean;
+    accessLevel: "PUBLIC" | "ADMIN";
+    guildId?: string | null;
     updatedAt: Date;
     createdAt: Date;
 };
@@ -25,44 +27,80 @@ export type CreateDocInput = {
     category: string;
     order?: number;
     isPublished?: boolean;
+    accessLevel?: "PUBLIC" | "ADMIN";
+    guildId?: string | null;
 };
 
 // --- PUBLIC FETCHERS ---
 
-export async function getDocBySlug(slug: string): Promise<DocPageData | null> {
+export async function getDocBySlug(slug: string, guildId?: string): Promise<DocPageData | null> {
     try {
-        const doc = await db.docPage.findUnique({
+        const ctx = await getUserContext(guildId);
+        const doc = await (db.docPage as any).findUnique({
             where: { slug }
         });
+
         if (!doc || !doc.isPublished) return null;
-        return doc;
+
+        // RBAC Check
+        if ((doc as any).accessLevel === "ADMIN") {
+            if (!ctx.isAdmin) return null;
+        }
+
+        // Guild Isolation Check
+        if ((doc as any).guildId && (doc as any).guildId !== guildId) return null;
+
+        return doc as unknown as DocPageData;
     } catch (error) {
         console.error("Error fetching doc:", error);
         return null;
     }
 }
 
-export async function getAllDocs(): Promise<Omit<DocPageData, "content" | "updatedAt" | "createdAt">[]> {
+export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "content" | "updatedAt" | "createdAt">[]> {
     const start = performance.now();
     try {
-        const docs = await db.docPage.findMany({
-            where: { isPublished: true },
+        const ctx = await getUserContext(guildId);
+
+        // 🛡️ Build structural WHERE clause
+        const where: any = { isPublished: true };
+
+        // 1. RBAC Check: Members only see PUBLIC docs
+        if (!ctx.isAdmin) {
+            where.accessLevel = "PUBLIC";
+        }
+
+        // 2. Guild Isolation: Global docs (null) + Current Guild
+        if (guildId) {
+            where.OR = [
+                { guildId: null },
+                { guildId: guildId }
+            ];
+        } else {
+            where.guildId = null;
+        }
+
+        const docs = await (db.docPage as any).findMany({
+            where,
             select: {
                 id: true,
                 slug: true,
                 title: true,
                 category: true,
                 order: true,
-                isPublished: true
+                isPublished: true,
+                accessLevel: true,
+                guildId: true
             },
             orderBy: [
                 { category: 'asc' },
                 { order: 'asc' }
             ]
         });
+
         const end = performance.now();
         console.log(`[getAllDocs] Fetched ${docs.length} docs in ${end - start}ms`);
-        return docs;
+        return docs as any;
     } catch (error) {
         console.error("Error fetching all docs:", error);
         return [];
@@ -70,25 +108,36 @@ export async function getAllDocs(): Promise<Omit<DocPageData, "content" | "updat
 }
 
 // Optimized for search (lightweight but deep)
-export async function getSearchableDocs() {
+export async function getSearchableDocs(guildId?: string) {
     try {
-        const docs = await db.docPage.findMany({
-            where: { isPublished: true },
+        const ctx = await getUserContext(guildId);
+        const where: any = { isPublished: true };
+
+        if (!ctx.isAdmin) where.accessLevel = "PUBLIC";
+        if (guildId) {
+            where.OR = [{ guildId: null }, { guildId: guildId }];
+        } else {
+            where.guildId = null;
+        }
+
+        const docs = await (db.docPage as any).findMany({
+            where,
             select: { title: true, slug: true, category: true, content: true },
             orderBy: { title: 'asc' }
         });
 
-        // Process content to create lightweight text excerpts
-        return docs.map(doc => {
-            // Strip markdown chars roughly
+        return docs.map((doc: any) => {
             const plainText = doc.content
-                ?.replace(/#{1,6}\s/g, '') // Headers
-                .replace(/(\*\*|__)(.*?)\1/g, '$2') // Bold
-                .replace(/(\*|_)(.*?)\1/g, '$2') // Italic
-                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links
-                .replace(/`{1,3}[^`]*`{1,3}/g, '') // Code blocks (remove entirely or keep content? removing for noise)
-                .replace(/\n/g, ' ') // Newlines to spaces
-                .slice(0, 300) || ""; // Limit to 300 chars
+                ?.replace(/<[^>]*>/g, " ") // Strip HTML tags
+                .replace(/#{1,6}\s/g, "")
+                .replace(/(\*\*|__)(.*?)\1/g, "$2")
+                .replace(/(\*|_)(.*?)\1/g, "$2")
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+                .replace(/`{1,3}[^`]*`{1,3}/g, "")
+                .replace(/\n/g, " ")
+                .replace(/\s+/g, " ") // Clean up spaces
+                .trim()
+                .slice(0, 200) || "";
 
             return {
                 title: doc.title,
@@ -117,10 +166,10 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
     const sanitizedContent = sanitizeHtml(data.content, 100000, false) || "";
 
     try {
-        let doc;
+        let doc: any;
         if (data.id) {
             // Update
-            doc = await db.docPage.update({
+            doc = await (db.docPage as any).update({
                 where: { id: data.id },
                 data: {
                     slug: data.slug,
@@ -128,7 +177,9 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
                     content: sanitizedContent,
                     category: data.category,
                     order: data.order ?? 0,
-                    isPublished: data.isPublished ?? true
+                    isPublished: data.isPublished ?? true,
+                    accessLevel: data.accessLevel || "PUBLIC",
+                    guildId: data.guildId
                 }
             });
         } else {
@@ -137,21 +188,23 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
             const existing = await db.docPage.findUnique({ where: { slug: data.slug } });
             if (existing) return { success: false, error: "Slug already exists" };
 
-            doc = await db.docPage.create({
+            doc = await (db.docPage as any).create({
                 data: {
                     slug: data.slug,
                     title: data.title,
                     content: sanitizedContent,
                     category: data.category,
                     order: data.order ?? 0,
-                    isPublished: data.isPublished ?? true
+                    isPublished: data.isPublished ?? true,
+                    accessLevel: data.accessLevel || "PUBLIC",
+                    guildId: data.guildId
                 }
             });
         }
 
         revalidatePath("/docs");
         revalidatePath(`/docs/${doc.slug}`);
-        return { success: true, data: doc };
+        return { success: true, data: doc as unknown as DocPageData };
 
     } catch (error) {
         console.error("Error saving doc:", error);
@@ -177,10 +230,12 @@ export async function getAdminDocs(): Promise<DocPageData[]> {
     const ctx = await getUserContext();
     if (!ctx.isAdmin) return [];
 
-    return await db.docPage.findMany({
+    const docs = await (db.docPage as any).findMany({
         orderBy: [
             { category: 'asc' },
             { order: 'asc' }
         ]
     });
+
+    return docs as DocPageData[];
 }

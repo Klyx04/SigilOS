@@ -117,11 +117,10 @@ export function GalacticHeader({
 
     return (
         <header className={cn(
-            "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-            // V3: Background is darker/solid to separate from content. Border is explicit.
-            "bg-[#030304]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl py-2"
+            "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+            "bg-black/60 backdrop-blur-3xl backdrop-saturate-150 border-b border-white/10 shadow-2xl py-1"
         )}>
-            <div className="max-w-[1920px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+            <div className="max-w-[1920px] mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-4">
 
                 {/* --- ZONE A: BRANDING & CONTEXT (Left) --- */}
                 <div className="flex items-center gap-6 shrink-0">

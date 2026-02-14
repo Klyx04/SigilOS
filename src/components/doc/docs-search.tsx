@@ -72,7 +72,7 @@ export function DocsSearch() {
                                 key={doc.slug}
                                 onSelect={() => runCommand(() => router.push(`/docs/${doc.slug}`))}
                                 value={`${doc.title} ${doc.category} ${doc.excerpt}`}
-                                className="group items-start py-3"
+                                className="group items-start py-3 data-[selected=true]:bg-indigo-500/10 data-[selected=true]:text-white select-none cursor-pointer"
                             >
                                 <FileText className="mr-2 h-4 w-4 text-indigo-400 mt-1 shrink-0" />
                                 <div className="flex flex-col gap-0.5">

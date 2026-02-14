@@ -30,6 +30,7 @@ export type UserContext = {
     // Calendar Permissions
     canViewCalendar: boolean;
     canManageCalendar: boolean;
+    canViewAdminDocs: boolean;
     isAdmin: boolean;
     isMember: boolean;
     guildName?: string;
@@ -48,18 +49,18 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
     }
 
     const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
 
     // --- SECURITY: DEEP WHITELIST CHECK (Database-based) ---
     const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
     const allowed = await isGuildAllowed(targetGuildId);
     if (!allowed) {
         console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
     }
 
     // 1. Get Guild Config for Mappings
@@ -80,7 +81,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
 
     if (!account) {
         // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
     }
 
     const discordUserId = account.providerAccountId;
@@ -207,7 +208,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
             }
 
             // Return as non-member
-            return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false };
+            return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
         }
     }
 
@@ -342,6 +343,9 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const canViewCalendar = myPerms.has(PERMISSIONS.CALENDAR_VIEW) || isAdmin;
     const canManageCalendar = myPerms.has(PERMISSIONS.CALENDAR_MANAGE) || isAdmin;
 
+    // Documentation Permissions
+    const canViewAdminDocs = myPerms.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdmin;
+
     return {
         isAuthenticated: true,
         id: session.user.id,
@@ -366,6 +370,7 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         canEditPresentation,
         canViewCalendar,
         canManageCalendar,
+        canViewAdminDocs,
         isAdmin,
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",

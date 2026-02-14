@@ -3,11 +3,11 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-// import Image from "@tiptap/extension-image"; // Replaced by custom ResizableImage
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
-import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { configureSlashCommand } from "./extensions/slash-command";
@@ -24,11 +24,14 @@ import {
     Heading1,
     Heading2,
     Heading3,
-    ImageIcon,
-    Link as LinkIcon,
     Undo,
     Redo,
-    Smile
+    Smile,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
+    Palette,
+    Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +39,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { EmojiPicker } from "./emoji-picker";
 
 interface AdvancedEditorProps {
     initialContent?: string;
@@ -69,9 +73,10 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                 placeholder: "Tapez '/' pour les commandes ou commencez à écrire...",
             }),
             Typography,
-            BubbleMenuExtension,
             configureSlashCommand(),
             Callout,
+            TextStyle,
+            Color,
         ],
         content: initialContent,
         editable,
@@ -96,7 +101,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
     }
 
     return (
-        <div className="relative border border-white/10 rounded-lg bg-zinc-950/50 overflow-hidden flex flex-col min-h-[500px]">
+        <div className="relative border border-white/10 rounded-lg bg-zinc-950/50 flex flex-col min-h-[500px]">
             {/* TOOLBAR (Visible on top) */}
             {editable && (
                 <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-zinc-900/90 backdrop-blur-md flex-wrap z-20 sticky top-0">
@@ -163,7 +168,36 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                         icon={Code}
                         tooltip="Bloc de code"
                     />
-                    <EmojiPicker onSelect={(emoji: string) => editor.chain().focus().insertContent(emoji).run()} />
+                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <input
+                        type="color"
+                        onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
+                        value={editor.getAttributes('textStyle').color || '#ffffff'}
+                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 cursor-pointer p-1 hover:bg-white/10 transition-colors"
+                        title="Couleur du texte"
+                    />
+                    <ToolbarButton
+                        onClick={() => {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/*";
+                            input.onchange = async () => {
+                                if (input.files?.length) {
+                                    const file = input.files[0];
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        const src = e.target?.result as string;
+                                        editor.chain().focus().setImage({ src }).run();
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            };
+                            input.click();
+                        }}
+                        icon={ImageIcon}
+                        tooltip="Insérer une image"
+                    />
+                    <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
                     <div className="w-px h-6 bg-white/10 mx-1 ml-auto" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().undo().run()}
@@ -182,7 +216,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
 
             {/* BUBBLE MENU (Floating on selection) */}
             {editable && editor && (
-                <EditorBubbleMenu editor={editor} />
+                <UnifiedBubbleMenu key="unified-editor-menu" editor={editor} />
             )}
 
             {/* EDITOR CONTENT */}
@@ -242,88 +276,92 @@ function ToolbarButton({
     )
 }
 
-function EditorBubbleMenu({ editor }: { editor: any }) {
+function UnifiedBubbleMenu({ editor }: { editor: any }) {
     if (!editor) return null;
 
+    const isImage = editor.isActive("image");
+
     return (
-        <BubbleMenu editor={editor} className="flex overflow-hidden rounded-md border border-white/10 bg-zinc-900 shadow-xl">
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                isActive={editor.isActive("bold")}
-                icon={Bold}
-                tooltip="Gras"
-                size="sm"
-            />
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                isActive={editor.isActive("italic")}
-                icon={Italic}
-                tooltip="Italique"
-                size="sm"
-            />
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                isActive={editor.isActive("strike")}
-                icon={Strikethrough}
-                tooltip="Barré"
-                size="sm"
-            />
-            <div className="w-px bg-white/10 my-1" />
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                isActive={editor.isActive("heading", { level: 2 })}
-                icon={Heading2}
-                tooltip="Titre 2"
-                size="sm"
-            />
+        <BubbleMenu
+            pluginKey="unified-menu-v3"
+            editor={editor}
+            className="flex items-center gap-1 overflow-hidden rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-200"
+            // @ts-expect-error - Tiptap types can be strict with tippyOptions
+            tippyOptions={{
+                duration: 100,
+                placement: 'top',
+                offset: [0, 10],
+                zIndex: 50,
+                boundary: 'viewport',
+            }}
+            shouldShow={({ editor, from, to }: any) => {
+                // Determine if we should show the menu
+                const isSelection = from !== to;
+                const isImg = editor.isActive("image");
+                return isImg || isSelection;
+            }}
+        >
+            {isImage ? (
+                <>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'left' }).run(); }}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", editor.getAttributes("image").layout === 'left' ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        title="Aligner à gauche (Habillage texte)"
+                    >
+                        <AlignLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'block' }).run(); }}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", (editor.getAttributes("image").layout === 'block' || !editor.getAttributes("image").layout) ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        title="Centrer (Bloc)"
+                    >
+                        <AlignCenter className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'right' }).run(); }}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", editor.getAttributes("image").layout === 'right' ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        title="Aligner à droite (Habillage texte)"
+                    >
+                        <AlignRight className="w-4 h-4" />
+                    </button>
+                </>
+            ) : (
+                <>
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                        isActive={editor.isActive("bold")}
+                        icon={Bold}
+                        tooltip="Gras"
+                        size="sm"
+                    />
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                        isActive={editor.isActive("italic")}
+                        icon={Italic}
+                        tooltip="Italique"
+                        size="sm"
+                    />
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().toggleStrike().run()}
+                        isActive={editor.isActive("strike")}
+                        icon={Strikethrough}
+                        tooltip="Barré"
+                        size="sm"
+                    />
+                    <div className="w-px h-4 bg-white/10 mx-1" />
+                    <input
+                        type="color"
+                        onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
+                        value={editor.getAttributes('textStyle').color || '#ffffff'}
+                        className="w-6 h-6 rounded-md bg-zinc-950 border border-white/5 cursor-pointer p-0.5"
+                    />
+                    <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
+                </>
+            )}
         </BubbleMenu>
     )
 }
 
-function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
-    const categories = [
-        { label: "Faces", emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😜", "🧐", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕"] },
-        { label: "Nature", emojis: ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐜", "🦗", "🕷", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🐘", "🦏", "🦛", "🦒", "🐃", "🐂", "🐄", "🐎", "🐖", "🐏", "🐑", "🐐", "🐪", "🐫", "🦙", "🦘", "🦡", "🐁", "🐀", "🐿", "🦔", "🐾", "🐉", "🐲", "🌵", "🎄", "🌲", "🌳", "🌴", "🌱", "🌿", "☘️", "🍀", "🎍", "🎋", "🍃", "🍂", "🍁", "🍄", "🌾", "💐", "🌷", "🌹", "🥀", "🌺", "🌸", "🌼", "🌻", "🌞", "🌝", "🌛", "🌜", "🌚", "🌕", "🌖", "🌗", "🌘", "🌑", "🌒", "🌓", "🌔", "🌙", "🌎", "🌍", "🌏", "🪐", "💫", "⭐️", "🌟", "✨", "⚡️", "☄️", "💥", "🔥", "🌪", "🌈", "☀️", "🌤", "⛅️", "🌥", "☁️", "🌦", "🌧", "🌨", "🌩", "💨", "🌊", "💧", "💦", "☔️"] },
-        { label: "Food", emojis: ["🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶", "🌽", "🥕", "🧄", "🧅", "🥔", "🍠", "🥐", "🥯", "🍞", "🥖", "🥨", "🧀", "🥚", "🍳", "🧈", "🥞", "🧇", "🥓", "🥩", "🍗", "🍖", "🦴", "🌭", "🍔", "🍟", "🍕", "🥪", "🥙", "🧆", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🥟", "🦪", "🍤", "🍙", "🍚", "🍘", "🍥", "🥠", "🥮", "🍢", "🍡", "🍧", "🍨", "🍦", "🥧", "🧁", "🍰", "🎂", "🍮", "🍭", "🍬", "🍫", "🍿", "🍩", "🍪", "🌰", "🥜", "🍯", "🥛", "☕️", "🍵", "🧃", "🥤", "🍶", "🍺", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🧉", "🍾", "🧊", "🥄", "🍴", "🍽", "🥣", "🥡", "🥢", "🧂"] },
-        { label: "Symbols", emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "🖲", "🔝", "🔙", "🔛", "🔜", "🔚", "🔔", "🔕", "📢", "📣", "💬", "💭", "🗯", "🃏", "🀄️", "🎴", "🎭", "🖼", "🎨", "🧵", "🧶", "🎹", "🎸", "🎷", "🎺", "🎻", "🪕", "🥁", "🎬", "🏹", "🥊", "🥋", "🥅", "⛳️", "⛸", "🎣", "🤿", "🎽", "🎿", "🛷", "🥌", "🎯", "🪀", "🪁", "🎱", "🔮", "🧿", "🎮", "🕹", "🎰", "🎲", "🧩", "🧸", "♠️", "♥️", "♦️", "♣️", "🃏", "🀄️", "🎴", "🎭", "🖼", "🎨", "🧵", "🧶", "🎼", "🎹", "🎸", "🎷", "🎺", "🎻", "🪕", "🥁", "🎬", "🏹"] },
-    ];
-
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <div className="inline-block">
-                    <ToolbarButton
-                        onClick={() => { }}
-                        icon={Smile}
-                        tooltip="Insérer un Emoji"
-                    />
-                </div>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[320px] p-0 bg-zinc-900 border-white/10 shadow-2xl overflow-hidden">
-                <div className="p-3 border-b border-white/5 bg-zinc-950/50 flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Emoji Base</span>
-                    <Smile className="w-3 h-3 text-zinc-500" />
-                </div>
-                <div className="h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 p-2 space-y-4">
-                    {categories.map((cat) => (
-                        <div key={cat.label} className="space-y-2">
-                            <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter ml-1">{cat.label}</h4>
-                            <div className="grid grid-cols-8 gap-1">
-                                {cat.emojis.map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        onClick={() => onSelect(emoji)}
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        className="h-8 w-8 flex items-center justify-center text-lg hover:bg-white/10 rounded-md transition-all active:scale-90"
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
-}

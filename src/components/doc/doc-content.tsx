@@ -3,8 +3,7 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
+import { sanitizeHtml } from "@/lib/security";
 
 interface DocContentProps {
     content: string;
@@ -186,13 +185,14 @@ export function DocContent({ content, className }: DocContentProps) {
                 // Table of Contents anchoring
                 "scroll-mt-32",
 
+                // Custom Style Overrides (Ensure colors and floats stick)
+                "[&_span[style]]:!opacity-100",
+                "[&_img[style]]:!max-w-none",
+
                 className
             )}
             ref={contentRef}
-        >
-            <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                {content}
-            </ReactMarkdown>
-        </div>
+            dangerouslySetInnerHTML={{ __html: content }}
+        />
     );
 }

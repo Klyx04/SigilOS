@@ -31,13 +31,7 @@ interface SeedData {
 const SEED_FILE = join(__dirname, 'game-data.json');
 
 async function main() {
-    db = new PrismaClient({
-        datasources: {
-            db: {
-                url: process.env.DATABASE_URL,
-            },
-        },
-    });
+    db = new PrismaClient();
 
     console.log('🌱 [SEED] Starting game data seeding...');
     console.log(`📂 [SEED] Reading: ${SEED_FILE}`);

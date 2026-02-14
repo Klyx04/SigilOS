@@ -50,6 +50,9 @@ next-env.d.ts
 
 # Prisma generated
 /src/generated/prisma
+/prisma/*.js
+/prisma/seed-data/*.js
+/prisma/seeds/*.js
 
 # Uploads (ephemeral user content)
 /public/uploads/proofs/temp/

@@ -56,9 +56,9 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
     }, []);
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <StatCard
-                label="Guildes"
+                label="Guildes Totales"
                 value={stats.guilds}
                 trend={stats.guildsTrend}
                 color="violet"
@@ -67,7 +67,7 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
             />
 
             <StatCard
-                label="Guildes Actives"
+                label="Unités Actives"
                 value={stats.activeGuilds}
                 color="green"
                 icon="✨"
@@ -75,7 +75,7 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
             />
 
             <StatCard
-                label="Utilisateurs"
+                label="Aventuriers"
                 value={stats.users}
                 trend={stats.usersTrend}
                 color="cyan"
@@ -84,7 +84,7 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
             />
 
             <StatCard
-                label="Profils Actifs"
+                label="Profils Synchro"
                 value={stats.activeProfiles}
                 color="green"
                 icon="👤"
@@ -92,7 +92,7 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
             />
 
             <StatCard
-                label="Missions"
+                label="Missions Actives"
                 value={stats.missions}
                 trend={stats.missionsTrend}
                 color="amber"
@@ -166,15 +166,15 @@ function StatCard({ label, value, trend, color, icon, realtime }: StatCardProps)
 
     return (
         <motion.div
-            whileHover={{ scale: 1.02, y: -2 }}
+            whileHover={{ scale: 1.05, y: -5 }}
             className={`
-        relative overflow-hidden rounded-xl
-        bg-zinc-900/50 backdrop-blur-sm
+        relative overflow-hidden rounded-3xl
+        bg-zinc-900/30 backdrop-blur-xl
         border ${colorConfig.border}
-        shadow-lg ${colorConfig.glow}
-        p-5
+        shadow-2xl ${colorConfig.glow}
+        p-8
         group
-        transition-all duration-300
+        transition-all duration-500
       `}
         >
             {/* Animated gradient background */}
@@ -186,26 +186,29 @@ function StatCard({ label, value, trend, color, icon, realtime }: StatCardProps)
 
             {/* Content */}
             <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                    <div className={`text-2xl ${colorConfig.icon}`}>
+                <div className="flex items-center justify-between mb-6">
+                    <div className={`text-4xl ${colorConfig.icon} drop-shadow-lg group-hover:scale-110 transition-transform`}>
                         {icon}
                     </div>
 
                     {realtime && (
-                        <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            className="w-2 h-2 rounded-full bg-green-500"
-                        />
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <motion.div
+                                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="w-2 h-2 rounded-full bg-emerald-500"
+                            />
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Live</span>
+                        </div>
                     )}
                 </div>
 
-                <div className={`text-3xl font-bold ${colorConfig.text} mb-1`}>
+                <div className={`text-4xl md:text-5xl font-black ${colorConfig.text} mb-2 tracking-tighter leading-none`}>
                     {isNaN(displayValue) ? '0' : Math.round(displayValue).toLocaleString()}
                 </div>
 
                 <div className="flex items-center justify-between">
-                    <div className="text-xs text-zinc-500 uppercase tracking-wider">
+                    <div className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
                         {label}
                     </div>
 

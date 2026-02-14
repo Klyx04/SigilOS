@@ -448,3 +448,85 @@ export async function cleanupOldAuditLogs(
         return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }
+/**
+ * Get platform-wide audit logs (Super-admin only)
+ */
+export async function getGlobalAuditLogs(
+    options?: Partial<GetLogsInput>
+): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean }>> {
+    try {
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const parsed = GetLogsSchema.safeParse(options || {});
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo } = parsed.success
+            ? parsed.data
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined };
+
+        const where: any = {};
+        if (actionFilter) where.action = actionFilter;
+        if (actorFilter) where.actorUserId = actorFilter;
+        if (dateFrom || dateTo) {
+            where.createdAt = {};
+            if (dateFrom) where.createdAt.gte = dateFrom;
+            if (dateTo) where.createdAt.lte = dateTo;
+        }
+
+        const [total, logs] = await Promise.all([
+            db.auditLog.count({ where }),
+            db.auditLog.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    guild: { select: { name: true, discordGuildId: true } }
+                }
+            })
+        ]);
+
+        return {
+            success: true,
+            data: {
+                logs: logs as any[],
+                total,
+                hasMore: page * limit < total
+            }
+        };
+    } catch (error) {
+        console.error("[getGlobalAuditLogs] Error:", error);
+        return { success: false, error: "Erreur" };
+    }
+}
+
+/**
+ * Cleanup old audit logs platform-wide (Retention policy)
+ */
+export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deletedCount: number }>> {
+    try {
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+        const cutoffDate = new Date();
+        const RETENTION_DAYS = 30; // 30 days retention for audit logs
+        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
+
+        const result = await db.auditLog.deleteMany({
+            where: {
+                createdAt: { lt: cutoffDate }
+            }
+        });
+
+        return {
+            success: true,
+            data: { deletedCount: result.count }
+        };
+    } catch (error) {
+        console.error("[cleanupGlobalAuditLogs] Error:", error);
+        return { success: false, error: "Erreur" };
+    }
+}

@@ -13,7 +13,7 @@ export default async function AdminDocEditPage({ params }: { params: Promise<{ i
 
     return (
         <div className="flex flex-col font-sans selection:bg-purple-500/30">
-            <main className="flex-1 container max-w-7xl mx-auto px-4 pb-12">
+            <main className="flex-1 w-full mx-auto px-4 pb-12">
                 <div className="mb-8">
                     <h1 className="text-3xl font-black text-white font-heading">
                         {id === "new" ? "Nouvelle Page" : "Éditer la page"}

@@ -22,26 +22,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function DocPage({ params }: Props) {
     const { slug } = await params;
     const docSlug = slug.join("/");
-    const doc = await getDocBySlug(docSlug);
+
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const { getAllDocs, getDocBySlug } = await import("@/server/actions/doc-actions");
+
+    const [doc, allDocs, ctx] = await Promise.all([
+        getDocBySlug(docSlug),
+        getAllDocs(),
+        getUserContext()
+    ]);
 
     if (!doc) {
-        // Fallback for hardcoded pages if they still exist in file system?
-        // Actually, if we use Catch-all segments, they override file system if they match?
-        // No, specific files 'intro/page.tsx' take precedence over '[...slug]'.
-        // So this will only trigger for non-existant files.
         notFound();
     }
 
-    // We use a simple server-side Markdown processor here?
-    // Or just render raw if we don't want to add server-side logic?
-    // User asked for "GUI based", so we store Markdown.
-    // For Viewer, we need to render it. 
-    // Since 'react-markdown' is client-side usually (or universal), we can use it here too if we make this a client component, 
-    // OR we use a server-friendly way.
-    // Making it a client component for rendering is fine for docs.
+    // Calculate Pagination (Sequential Navigation)
+    const currentIndex = allDocs.findIndex(d => d.slug === docSlug);
+    const prevDoc = currentIndex > 0 ? allDocs[currentIndex - 1] : null;
+    const nextDoc = currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null;
 
-    const { getUserContext } = await import("@/server/actions/user-actions");
-    const ctx = await getUserContext();
+    // Generate Breadcrumbs (Hierarchy: Docs > Category > Title)
+    const breadcrumbs = [
+        { label: doc.category, href: `/docs` }, // Categories point to docs home for now
+        { label: doc.title, href: `/docs/${doc.slug}` }
+    ];
 
     return <DocViewer
         content={doc.content}
@@ -49,6 +53,9 @@ export default async function DocPage({ params }: Props) {
         lastUpdate={doc.updatedAt}
         canEdit={ctx.isAdmin}
         editUrl={`/god/docs/${doc.id}`}
+        prev={prevDoc}
+        next={nextDoc}
+        breadcrumbs={breadcrumbs}
     />;
 }
 

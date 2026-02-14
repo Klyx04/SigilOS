@@ -10,8 +10,30 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+
+// Clean helper for environment variables
+const cleanEnv = (val: string | undefined) => {
+    if (!val) return '';
+    return val.replace(/^['"]|['"]$/g, '').trim();
+};
+
+// URL construction logic (aligned with prisma.config.js)
+const getConnectionString = () => {
+    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+        return cleanEnv(process.env.DATABASE_URL);
+    }
+
+    const user = cleanEnv(process.env.POSTGRES_USER) || 'sigiluser';
+    const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
+    const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
+    const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
+
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+};
 
 // Prisma client will be instantiated inside main() for better reliability.
 let db: PrismaClient;
@@ -31,12 +53,12 @@ interface SeedData {
 const SEED_FILE = join(__dirname, 'game-data.json');
 
 async function main() {
-    if (!process.env.DATABASE_URL) {
-        console.error('❌ [SEED] DATABASE_URL is not defined in the environment.');
-        process.exit(1);
-    }
+    const connectionString = getConnectionString();
 
-    db = new PrismaClient();
+    // Initialize Prisma with Adapter
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    db = new PrismaClient({ adapter });
 
     console.log('🌱 [SEED] Starting game data seeding...');
     console.log(`📂 [SEED] Reading: ${SEED_FILE}`);

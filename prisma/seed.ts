@@ -68,26 +68,26 @@ interface SeedData {
 }
 
 async function seed() {
-    console.log('🌱 Starting database seed...');
+    console.error('🌱 Starting database seed...');
 
     const seedFilePath = path.join(process.cwd(), 'prisma', 'seeds', 'game-data.json');
 
     if (!fs.existsSync(seedFilePath)) {
-        console.log('⚠️  No seed file found at:', seedFilePath);
-        console.log('ℹ️  Run npm run export-seeds first to generate the seed file');
+        console.error('⚠️  No seed file found at:', seedFilePath);
+        console.error('ℹ️  Run npm run export-seeds first to generate the seed file');
         return;
     }
 
     const seedData: SeedData = JSON.parse(fs.readFileSync(seedFilePath, 'utf-8'));
 
-    console.log('📊 Seed file metadata:');
-    console.log('  - Exported:', seedData._meta.exportedAt);
-    console.log('  - Environment:', seedData._meta.environment);
-    console.log('  - Counts:', seedData._meta.counts);
-    console.log('');
+    console.error('📊 Seed file metadata:');
+    console.error('  - Exported:', seedData._meta.exportedAt);
+    console.error('  - Environment:', seedData._meta.environment);
+    console.error('  - Counts:', seedData._meta.counts);
+    console.error('');
 
     // 1. Seed Zones (use 'name' as unique key)
-    console.log('🗺️  Seeding Zones...');
+    console.error('🗺️  Seeding Zones...');
     for (const zone of seedData.zones) {
         await prisma.zone.upsert({
             where: { name: zone.name },

@@ -60,13 +60,13 @@ async function main() {
     const adapter = new PrismaPg(pool);
     db = new PrismaClient({ adapter });
 
-    console.log('🌱 [SEED] Starting game data seeding...');
-    console.log(`📂 [SEED] Reading: ${SEED_FILE}`);
+    console.error('🌱 [SEED] Starting game data seeding...');
+    console.error(`📂 [SEED] Reading: ${SEED_FILE}`);
 
     // Check file exists
     if (!existsSync(SEED_FILE)) {
-        console.log('⚠️  [SEED] No seed file found. Skipping...');
-        console.log('💡 [SEED] Export data from /god/game-data to generate seed file.');
+        console.error('⚠️  [SEED] No seed file found. Skipping...');
+        console.error('💡 [SEED] Export data from /god/game-data to generate seed file.');
         return;
     }
 
@@ -317,13 +317,13 @@ async function main() {
     });
 
     // Summary
-    console.log('\n' + '='.repeat(60));
-    console.log('✅ [SEED] Seeding completed successfully!');
-    console.log(`📊 [SEED] Total processed: ${totalProcessed}`);
-    console.log(`➕ [SEED] Created: ${totalCreated}`);
-    console.log(`✏️  [SEED] Updated: ${totalUpdated}`);
-    console.log(`⚠️  [SEED] Skipped: ${totalSkipped}`);
-    console.log('='.repeat(60));
+    console.error('\n' + '='.repeat(60));
+    console.error('✅ [SEED] Seeding completed successfully!');
+    console.error(`📊 [SEED] Total processed: ${totalProcessed}`);
+    console.error(`➕ [SEED] Created: ${totalCreated}`);
+    console.error(`✏️  [SEED] Updated: ${totalUpdated}`);
+    console.error(`⚠️  [SEED] Skipped: ${totalSkipped}`);
+    console.error('='.repeat(60));
 }
 
 main()

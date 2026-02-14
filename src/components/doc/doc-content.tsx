@@ -1,6 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import * as React from "react";
+import { Check, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 interface DocContentProps {
     content: string;
@@ -8,6 +11,57 @@ interface DocContentProps {
 }
 
 export function DocContent({ content, className }: DocContentProps) {
+    const contentRef = React.useRef<HTMLDivElement>(null);
+    const [processedContent, setProcessedContent] = React.useState(content);
+
+    // 1. Process Headings to add IDs for TOC anchoring
+    React.useEffect(() => {
+        if (!content) return;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        const headings = doc.querySelectorAll('h2, h3');
+
+        headings.forEach(h => {
+            if (!h.id) {
+                h.id = (h.textContent || "").toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            }
+        });
+
+        setProcessedContent(doc.body.innerHTML);
+    }, [content]);
+
+    // 2. Code Copy Logic (Market Standard UX)
+    React.useEffect(() => {
+        if (!contentRef.current) return;
+
+        const preBlocks = contentRef.current.querySelectorAll('pre');
+        preBlocks.forEach((pre) => {
+            if (pre.querySelector('.copy-button')) return;
+
+            // Wrapper for positioning
+            pre.style.position = 'relative';
+            pre.classList.add('group'); // Enable hover utility
+
+            const button = document.createElement('button');
+            button.className = 'copy-button absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-xl backdrop-blur-md';
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+
+            button.onclick = (e) => {
+                e.preventDefault();
+                const code = pre.querySelector('code')?.innerText || pre.innerText;
+                navigator.clipboard.writeText(code);
+                toast.success("Code copié !");
+
+                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg>';
+                setTimeout(() => {
+                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+                }, 2000);
+            };
+
+            pre.appendChild(button);
+        });
+    }, [processedContent]);
+
     if (!content) return null;
 
     return (
@@ -36,21 +90,21 @@ export function DocContent({ content, className }: DocContentProps) {
                 "prose-code:text-indigo-300 prose-code:bg-indigo-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none",
                 "prose-pre:bg-zinc-900/80 prose-pre:border prose-pre:border-white/5 prose-pre:rounded-xl prose-pre:p-4 prose-pre:shadow-lg",
 
-                // Quotes / Callouts
-                "prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-500/5 prose-blockquote:pl-6 prose-blockquote:py-4 prose-blockquote:rounded-r-lg prose-blockquote:italic prose-blockquote:text-zinc-300 prose-blockquote:not-italic",
+                // Callouts / Alerts - Market Standard
+                "[&_.callout]:my-8 [&_.callout]:p-6 [&_.callout]:rounded-xl [&_.callout]:border-l-4 [&_.callout]:bg-opacity-5 [&_.callout]:backdrop-blur-sm",
+                "[&_.callout-info]:bg-blue-500/10 [&_.callout-info]:border-blue-500 [&_.callout-info]:text-blue-100",
+                "[&_.callout-tip]:bg-emerald-500/10 [&_.callout-tip]:border-emerald-500 [&_.callout-tip]:text-emerald-100",
+                "[&_.callout-warning]:bg-amber-500/10 [&_.callout-warning]:border-amber-500 [&_.callout-warning]:text-amber-100",
+                "[&_.callout-danger]:bg-red-500/10 [&_.callout-danger]:border-red-500 [&_.callout-danger]:text-red-100",
+                "[&_.callout\ strong]:text-white [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-xs [&_.callout\ strong]:mb-2 [&_.callout\ strong]:block",
 
-                // Media
-                "prose-img:rounded-xl prose-img:shadow-2xl prose-img:border prose-img:border-white/10 prose-img:my-8",
-
-                // Tables
-                "prose-table:w-full prose-table:my-8 prose-table:border-collapse",
-                "prose-thead:bg-white/5 prose-thead:border-b prose-thead:border-white/10",
-                "prose-th:p-4 prose-th:text-left prose-th:font-bold prose-th:text-white",
-                "prose-td:p-4 prose-td:border-b prose-td:border-white/5 prose-td:text-zinc-300",
+                // Table of Contents anchoring
+                "scroll-mt-32",
 
                 className
             )}
-            dangerouslySetInnerHTML={{ __html: content }}
+            ref={contentRef}
+            dangerouslySetInnerHTML={{ __html: processedContent }}
         />
     );
 }

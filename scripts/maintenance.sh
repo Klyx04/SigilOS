@@ -55,4 +55,10 @@ if [ "$DISK_USAGE" -gt 85 ]; then
     send_alert "Attention ! L'espace disque du VPS est saturé à **$DISK_USAGE%**. Un nettoyage manuel ou un agrandissement du disque est recommandé."
 fi
 
+# 5. Nettoyage de la base de données (Janitor)
+echo "🧹 Janitor de la base de données (GDPR + Logs)..."
+# Exécution via Docker pour avoir toutes les dépendances
+# Note: --execute est nécessaire pour passer du dry-run à la suppression réelle
+sudo docker exec sigilos-prod npx tsx scripts/database-janitor.ts --execute
+
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"

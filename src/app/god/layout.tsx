@@ -27,7 +27,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     return (
         <div className="flex h-screen overflow-hidden bg-zinc-950 font-sans text-zinc-100">
             {/* 1. DESKTOP SIDEBAR (Fixed) */}
-            <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
+            <div className="hidden md:flex w-[240px] flex-col fixed inset-y-0 z-50">
                 <GodSidebar
                     user={session.user}
                     className="h-full border-r border-white/5"
@@ -35,18 +35,16 @@ export default async function GodLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full">
+            <div className="flex-1 flex flex-col md:pl-[240px] transition-all duration-300 ease-in-out h-full">
 
                 {/* Scrollable Main Content */}
                 <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-4rem)] flex flex-col">
+                    <div className="w-full p-2 md:p-8 min-h-[calc(100vh-4rem)] flex flex-col">
 
                         {/* Page Content */}
                         <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
                             {children}
                         </div>
-
-
 
                         {/* Footer at bottom of content */}
                         <div className="mt-12 md:mt-24 border-t border-white/5 pt-6">

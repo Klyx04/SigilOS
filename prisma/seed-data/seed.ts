@@ -13,8 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
-// Prisma client will be instantiated inside main() for better env-file compatibility.
-let db: PrismaClient;
+const db = new PrismaClient();
 
 interface SeedData {
     version: string;
@@ -31,8 +30,6 @@ interface SeedData {
 const SEED_FILE = join(__dirname, 'game-data.json');
 
 async function main() {
-    db = new PrismaClient();
-
     console.log('🌱 [SEED] Starting game data seeding...');
     console.log(`📂 [SEED] Reading: ${SEED_FILE}`);
 

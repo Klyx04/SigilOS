@@ -18,7 +18,8 @@ import {
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import ReactMarkdown from 'react-markdown';
+import { DocContent } from '@/components/doc/doc-content';
+import { AdvancedEditor } from '@/components/editor/advanced-editor';
 
 const categoryLabels: Record<ChangelogCategory, string> = {
     FEATURE: 'Fonctionnalité',
@@ -115,17 +116,26 @@ export default function GODChangelogPage() {
     }
 
     return (
-        <div className="p-8 space-y-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">📝 Gestion Changelog</h1>
-                    <p className="text-zinc-400 mt-1">Créer et gérer les entrées changelog</p>
+        <div className="p-8 md:p-12 md:pt-16 space-y-16">
+            {/* Header - Scaled */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-12">
+                <div className="space-y-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-black text-amber-400 uppercase tracking-widest">
+                        <Plus className="w-4 h-4" />
+                        <span>Gestionnaire de Version</span>
+                    </div>
+                    <h1 className="text-5xl md:text-7xl font-black text-white font-heading tracking-tighter leading-none">
+                        Changelog <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600">Engine</span>
+                    </h1>
+                    <p className="text-xl md:text-2xl text-zinc-500 max-w-2xl leading-relaxed font-medium">
+                        Initialisez, modifiez et orchestrez les annonces de mise à jour pour la communauté.
+                    </p>
                 </div>
                 {!isCreating && (
-                    <Button onClick={() => setIsCreating(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nouvelle entrée
+                    <Button onClick={() => setIsCreating(true)} className="px-8 py-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-amber-500/20">
+                        <Plus className="w-6 h-6 mr-3" />
+                        Nouvelle Entrée
                     </Button>
                 )}
             </div>
@@ -195,46 +205,36 @@ export default function GODChangelogPage() {
                             </div>
 
                             {/* SUMMARY - Marketing (highlighted in green) */}
-                            <div className="border-2 border-emerald-500/30 bg-emerald-500/5 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                    <Label htmlFor="summary" className="text-emerald-400 font-bold">
+                            <div className="border-2 border-emerald-500/30 bg-emerald-500/5 rounded-3xl p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                    <Label htmlFor="summary" className="text-xl text-emerald-400 font-black uppercase tracking-widest">
                                         📣 Résumé Marketing (Landing Page)
                                     </Label>
                                 </div>
-                                <Textarea
-                                    id="summary"
-                                    placeholder="Ajout du système de changelog public + webhooks Discord automatiques. Synchronisation en temps réel des guildes et membres."
-                                    value={summary}
-                                    onChange={(e) => setSummary(e.target.value)}
-                                    rows={3}
-                                    className="bg-zinc-900/50 border-emerald-500/20"
-                                    required
+                                <AdvancedEditor
+                                    initialContent={summary}
+                                    onChange={setSummary}
                                 />
-                                <p className="text-xs text-emerald-400/80 mt-2">
-                                    ✨ Court et accrocheur (2-3 lignes max) - Visible par tous les visiteurs
+                                <p className="text-sm text-emerald-400/60 mt-4 font-medium italic">
+                                    ✨ Court et accrocheur - Sera affiché comme accroche sur la page publique.
                                 </p>
                             </div>
 
                             {/* CONTENT - Technical (highlighted in blue) */}
-                            <div className="border-2 border-blue-500/30 bg-blue-500/5 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                    <Label htmlFor="content" className="text-blue-400 font-bold">
-                                        📝 Contenu Technique Complet (Markdown)
+                            <div className="border-2 border-blue-500/30 bg-blue-500/5 rounded-3xl p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                                    <Label htmlFor="content" className="text-xl text-blue-400 font-black uppercase tracking-widest">
+                                        📝 Contenu Technique Complet
                                     </Label>
                                 </div>
-                                <Textarea
-                                    id="content"
-                                    placeholder="## Nouveautés&#10;&#10;- Auto-sync Discord (GUILD_CREATE, GUILD_DELETE)&#10;- Audit trail complet&#10;- Changelog avec markdown editor&#10;&#10;## Détails Techniques&#10;&#10;[...]"
-                                    value={content}
-                                    onChange={(e) => setContent(e.target.value)}
-                                    rows={14}
-                                    className="font-mono text-sm bg-zinc-900/50 border-blue-500/20"
-                                    required
+                                <AdvancedEditor
+                                    initialContent={content}
+                                    onChange={setContent}
                                 />
-                                <p className="text-xs text-blue-400/80 mt-2">
-                                    🛠️ Détails techniques avec markdown - Visible sur /changelog
+                                <p className="text-sm text-blue-400/60 mt-4 font-medium italic">
+                                    🛠️ Détails techniques complets - Utilisez '/' pour insérer des blocs riches ou des callouts.
                                 </p>
                             </div>
 
@@ -252,16 +252,16 @@ export default function GODChangelogPage() {
                             <p className="text-sm text-zinc-400 font-mono">{version || 'Version...'}</p>
 
                             {/* Summary Preview */}
-                            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
-                                <p className="text-sm font-semibold text-indigo-400 mb-1">Résumé (Landing Page)</p>
-                                <p className="text-zinc-300">{summary || 'Résumé marketing...'}</p>
+                            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-6">
+                                <p className="text-sm font-black text-indigo-400 uppercase tracking-widest mb-4">Résumé (Public Snapshot)</p>
+                                <DocContent content={summary} />
                             </div>
 
                             {/* Full Content */}
                             <div>
-                                <p className="text-sm font-semibold text-zinc-400 mb-2">Contenu Complet</p>
-                                <div className="prose prose-invert prose-zinc max-w-none">
-                                    <ReactMarkdown>{content || '*Pas de contenu...*'}</ReactMarkdown>
+                                <p className="text-sm font-black text-zinc-500 uppercase tracking-widest mb-4">Contenu Complet (Full Release)</p>
+                                <div className="bg-zinc-950/30 border border-white/5 rounded-2xl p-8">
+                                    <DocContent content={content} />
                                 </div>
                             </div>
                         </div>
@@ -269,53 +269,69 @@ export default function GODChangelogPage() {
                 </form>
             )}
 
-            {/* Entries List */}
-            <div className="space-y-4">
-                <h2 className="text-xl font-bold text-white">Entrées existantes ({entries.length})</h2>
+            {/* Entries List - Scaled */}
+            <div className="space-y-6">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-4">
+                        <div className="w-2 h-10 bg-amber-500 rounded-full" />
+                        Archives du Système ({entries.length})
+                    </h2>
+                </div>
+
                 {entries.length === 0 ? (
-                    <p className="text-zinc-500 text-center py-8">Aucune entrée changelog</p>
+                    <div className="text-center py-24 bg-zinc-900/30 border border-white/5 rounded-3xl">
+                        <p className="text-zinc-500 text-xl font-medium italic">Aucun log enregistré dans les archives temporaires.</p>
+                    </div>
                 ) : (
-                    entries.map((entry) => (
-                        <div
-                            key={entry.id}
-                            className="bg-zinc-900/30 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-lg font-bold text-white">{entry.title}</h3>
-                                        <Badge variant="outline">{categoryLabels[entry.category]}</Badge>
+                    <div className="grid grid-cols-1 gap-6">
+                        {entries.map((entry) => (
+                            <div
+                                key={entry.id}
+                                className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 hover:bg-zinc-900/60 hover:border-amber-500/30 transition-all duration-300 group"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <h3 className="text-2xl font-black text-white group-hover:text-amber-300 transition-colors uppercase tracking-tight">{entry.title}</h3>
+                                            <Badge variant="outline" className="px-4 py-1 rounded-full border-amber-500/30 bg-amber-500/10 text-amber-400 font-black uppercase tracking-widest text-[10px]">
+                                                {categoryLabels[entry.category]}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-6 text-base text-zinc-500 font-medium">
+                                            <span className="font-mono bg-zinc-800/80 px-3 py-1 rounded-lg text-amber-500/80 text-sm font-black tracking-widest uppercase">
+                                                {entry.version}
+                                            </span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                                            <time className="flex items-center gap-2">
+                                                {formatDistanceToNow(new Date(entry.publishedAt), {
+                                                    addSuffix: true,
+                                                    locale: fr,
+                                                })}
+                                            </time>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm text-zinc-400">
-                                        <span className="font-mono">{entry.version}</span>
-                                        <span>•</span>
-                                        <time>
-                                            {formatDistanceToNow(new Date(entry.publishedAt), {
-                                                addSuffix: true,
-                                                locale: fr,
-                                            })}
-                                        </time>
+                                    <div className="flex gap-3">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleEdit(entry)}
+                                            className="h-12 w-12 rounded-2xl bg-white/5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400 border border-transparent hover:border-amber-500/20 transition-all"
+                                        >
+                                            <Edit className="w-5 h-5" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleDelete(entry.id)}
+                                            className="h-12 w-12 rounded-2xl bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </Button>
                                     </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleEdit(entry)}
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleDelete(entry.id)}
-                                    >
-                                        <Trash2 className="w-4 h-4 text-red-400" />
-                                    </Button>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

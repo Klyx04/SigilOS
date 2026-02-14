@@ -1,10 +1,9 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw, LayoutDashboard } from "lucide-react";
+import { PublicHeader } from "@/components/layout/public-header";
+import { useSession } from "next-auth/react";
 
 interface HealthData {
     status: "healthy" | "degraded" | "unhealthy";
@@ -31,6 +30,7 @@ function StatusDot({ status }: { status: "up" | "down" | "degraded" }) {
 }
 
 export default function StatusPage() {
+    const { data: session } = useSession();
     const [health, setHealth] = useState<HealthData | null>(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -75,25 +75,7 @@ export default function StatusPage() {
 
     return (
         <div className="min-h-screen bg-black flex flex-col">
-            {/* Simple Header */}
-            <header className="border-b border-white/5 bg-black/60 backdrop-blur-md">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <ArrowLeft className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
-                        <Image
-                            src="/assets/ui/logo-v2.png"
-                            alt="SigilOS"
-                            width={32}
-                            height={32}
-                            className="rounded-lg"
-                        />
-                        <span className="font-bold text-white">SigilOS</span>
-                    </Link>
-                    <span className="text-xs text-zinc-500 font-mono">
-                        {health?.version || "v1.0.0"}
-                    </span>
-                </div>
-            </header>
+            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
 
             {/* Main Content */}
             <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">

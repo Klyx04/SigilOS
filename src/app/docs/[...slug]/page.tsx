@@ -56,6 +56,7 @@ export default async function DocPage({ params }: Props) {
         prev={prevDoc}
         next={nextDoc}
         breadcrumbs={breadcrumbs}
+        guildId={ctx.guildId}
     />;
 }
 

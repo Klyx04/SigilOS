@@ -114,50 +114,82 @@
 
 .dark {
   /* Inherit same values as root since it is dark by default */
-  --background: oklch(0.14 0.04 260);
+  /* Dofus Premium Palette - Deep Indigo, Teal and Purples */
+  --background: oklch(0.12 0.04 260);
   --foreground: oklch(0.95 0.02 260);
   --card: oklch(0.16 0.04 260);
-  --card-foreground: oklch(0.95 0.02 260);
+  --card-foreground: oklch(0.98 0.02 260);
   --popover: oklch(0.16 0.04 260);
   --popover-foreground: oklch(0.95 0.02 260);
-  --primary: oklch(0.65 0.25 300);
+  --primary: oklch(0.70 0.30 300);
+  /* Vibrant Magical Purple */
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.25 0.10 260);
   --secondary-foreground: oklch(0.95 0.02 260);
   --muted: oklch(0.20 0.05 260);
   --muted-foreground: oklch(0.70 0.05 260);
-  --accent: oklch(0.25 0.10 260);
+  --accent: oklch(0.30 0.05 260);
+  /* Substrate Indigo/Zinc for subtle highlights */
   --accent-foreground: oklch(0.95 0.02 260);
   --destructive: oklch(0.6 0.25 20);
   --border: oklch(0.25 0.05 260);
   --input: oklch(0.25 0.05 260);
-  --ring: oklch(0.65 0.25 300);
-  --chart-1: oklch(0.65 0.25 300);
+  --ring: oklch(0.70 0.30 300);
+  --chart-1: oklch(0.70 0.30 300);
   --chart-2: oklch(0.7 0.15 200);
   --chart-3: oklch(0.8 0.15 70);
   --chart-4: oklch(0.5 0.20 320);
   --chart-5: oklch(0.6 0.15 260);
-  --sidebar: oklch(0.14 0.04 260);
+  --sidebar: oklch(0.12 0.04 260);
   --sidebar-foreground: oklch(0.95 0.02 260);
-  --sidebar-primary: oklch(0.65 0.25 300);
+  --sidebar-primary: oklch(0.70 0.30 300);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.25 0.10 260);
   --sidebar-accent-foreground: oklch(0.95 0.02 260);
   --sidebar-border: oklch(0.25 0.05 260);
-  --sidebar-ring: oklch(0.65 0.25 300);
+  --sidebar-ring: oklch(0.70 0.30 300);
+}
+
+@layer utilities {
+  .magic-glow {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .magic-glow::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(to right, oklch(0.7 0.3 300 / 0.1), oklch(0.7 0.2 200 / 0.1));
+    border-radius: inherit;
+    filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: -1;
+  }
+
+  .magic-glow:hover::after {
+    opacity: 1;
+  }
+
+  .noise-overlay {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    mask-image: radial-gradient(circle at center, transparent, black);
+  }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-  }
-
-  html {
-    /* overflow-y: scroll; Removed to prevent double scrollbars in dashboard */
+    border-color: var(--border);
+    outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -258,12 +290,93 @@
   backdrop-filter: blur(4px) !important;
 }
 
-.callout-info { background-color: rgba(59, 130, 246, 0.1) !important; border-color: #3b82f6 !important; }
-.callout-tip { background-color: rgba(16, 185, 129, 0.1) !important; border-color: #10b981 !important; }
-.callout-warning { background-color: rgba(245, 158, 11, 0.1) !important; border-color: #f59e0b !important; }
-.callout-danger { background-color: rgba(239, 68, 68, 0.1) !important; border-color: #ef4444 !important; }
+.callout-info {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-color: #3b82f6 !important;
+}
 
-.callout p { margin: 0 !important; }
+.callout-tip {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10b981 !important;
+}
+
+.callout-success {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10b981 !important;
+}
+
+.callout-warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-color: #f59e0b !important;
+}
+
+.callout-important {
+  background-color: rgba(168, 85, 247, 0.1) !important;
+  border-color: #a855f7 !important;
+}
+
+.callout-caution,
+.callout-danger,
+.callout-error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+}
+
+.callout-abstract {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+  border-color: #06b6d4 !important;
+}
+
+.callout-question {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  border-color: #6366f1 !important;
+}
+
+.callout-bug {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+  border-color: #f43f5e !important;
+}
+
+.callout-todo {
+  background-color: rgba(20, 184, 166, 0.1) !important;
+  border-color: #14b8a6 !important;
+}
+
+.callout-note {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: #71717a !important;
+}
+
+/* Editor Specifics */
+.editor-callout {
+  position: relative;
+  border-radius: 0.75rem;
+  padding: 1.5rem !important;
+  margin: 2rem 0;
+  border-left: 4px solid;
+  transition: all 0.2s;
+}
+
+.editor-callout:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.callout-label-wrapper {
+  margin-bottom: 0.5rem;
+  user-select: none;
+}
+
+.callout-label-wrapper strong {
+  font-size: 0.7rem;
+  letter-spacing: 0.1rem;
+  color: white;
+  font-weight: 900;
+}
+
+.callout p {
+  margin: 0 !important;
+}
+
 .callout strong {
   color: white !important;
   font-weight: 800 !important;

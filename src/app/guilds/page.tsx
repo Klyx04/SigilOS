@@ -2,12 +2,14 @@ import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import Link from "next/link";
 import Image from "next/image";
 import { Users, Gamepad2, Compass, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { auth } from "@/auth";
 
 export const metadata = {
     title: "Annuaire des Guildes | SigilOS",
@@ -16,29 +18,11 @@ export const metadata = {
 
 export default async function GuildsDirectoryPage() {
     const guilds = await getPublicGuilds();
+    const session = await auth();
 
     return (
         <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col">
-
-            {/* Header (Consistent with Landing) */}
-            <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex justify-between items-center bg-zinc-950/80 backdrop-blur-md border-b border-white/5">
-                <div className="flex items-center gap-8">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <div className="relative w-8 h-8 transition-transform group-hover:scale-110 duration-300">
-                            <img src="/assets/ui/logo_sigilos_v2.png" alt="SigilOS" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
-                        </div>
-                        <div className="text-xl font-black tracking-widest text-white font-heading">
-                            SIGIL<span className="text-purple-400">OS</span>
-                        </div>
-                    </Link>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
-                        Retour à l'accueil
-                    </Link>
-                </div>
-            </header>
+            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
 
             {/* Main Content */}
             <main className="flex-1 w-full relative z-10 pt-32 pb-24 px-6 md:px-8">

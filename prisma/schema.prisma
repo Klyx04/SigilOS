@@ -988,20 +988,28 @@ enum MentionType {
 
 // -- DOCUMENTATION MODULE --
 
+enum DocAccessLevel {
+  PUBLIC
+  ADMIN
+}
+
 model DocPage {
-  id          String   @id @default(cuid())
-  slug        String   @unique // e.g., "intro", "guilds/join"
+  id          String         @id @default(cuid())
+  slug        String         @unique // e.g., "intro", "guilds/join"
   title       String
-  content     String   @db.Text // Markdown content
-  category    String   // e.g., "Démarrage", "Fonctionnalités"
-  order       Int      @default(0)
-  isPublished Boolean  @default(true)
-  
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  content     String         @db.Text // Markdown content
+  category    String // e.g., "Démarrage", "Fonctionnalités"
+  order       Int            @default(0)
+  isPublished Boolean        @default(true)
+  accessLevel DocAccessLevel @default(PUBLIC)
+  guildId     String? // If null, global/system doc. If set, specific to a guild.
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 
   @@index([category, order])
   @@index([slug])
+  @@index([guildId, accessLevel])
 }
 
 // -- CHANGELOG MODULE --

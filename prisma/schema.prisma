@@ -85,6 +85,19 @@ model AllowedGuild {
   @@index([isActive])
 }
 
+// Global platform-level bans
+model PlatformBan {
+  id         String   @id @default(cuid())
+  entityType String   // "GUILD" | "USER"
+  discordId  String   @unique
+  reason     String
+  bannedBy   String   // Super-admin ID
+  createdAt  DateTime @default(now())
+
+  @@index([discordId])
+  @@index([entityType])
+}
+
 model GuildConfig {
   id               String  @id @default(cuid())
   discordGuildId   String  @unique

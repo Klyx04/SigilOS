@@ -3,6 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 
 # 1. Install dependencies
+COPY .npmrc* ./
 COPY services/discord-bot/package*.json ./
 RUN npm install
 

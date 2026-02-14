@@ -1,4 +1,4 @@
-import { LandingHeader } from "@/components/landing/landing-header";
+import { PublicHeader } from "@/components/layout/public-header";
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import Link from "next/link";
@@ -7,6 +7,7 @@ import { getAllDocs } from "@/server/actions/doc-actions";
 import { redirect } from "next/navigation";
 import { ResizableSidebar } from "./_components/resizable-sidebar";
 import { DocsSearch } from "@/components/doc/docs-search";
+import { cn } from "@/lib/utils";
 
 export default async function DocsLayout({
     children,
@@ -34,9 +35,9 @@ export default async function DocsLayout({
 
     return (
         <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-purple-500/30 flex flex-col">
-            <LandingHeader user={session?.user} />
+            <PublicHeader user={session?.user} />
 
-            <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-12 flex flex-col lg:flex-row gap-8">
+            <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-12 flex flex-col lg:flex-row gap-8">
                 {/* Sidebar Navigation */}
                 <ResizableSidebar className="hidden lg:block w-64 shrink-0">
                     <div className="sticky top-24 pr-4">
@@ -76,18 +77,24 @@ export default async function DocsLayout({
                                 <div key={category}>
                                     <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-4 px-2">{category}</h4>
                                     <ul className="space-y-1">
-                                        {groupedDocs[category].map(doc => (
-                                            <li key={doc.id}>
-                                                <Link
-                                                    href={`/docs/${doc.slug}`}
-                                                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors truncate"
-                                                    title={doc.title}
-                                                >
-                                                    <FileText className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
-                                                    {doc.title}
-                                                </Link>
-                                            </li>
-                                        ))}
+                                        {groupedDocs[category].map(doc => {
+                                            const isSubPage = doc.slug.includes("/");
+                                            return (
+                                                <li key={doc.id}>
+                                                    <Link
+                                                        href={`/docs/${doc.slug}`}
+                                                        className={cn(
+                                                            "flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors truncate group",
+                                                            isSubPage && "ml-4 border-l border-white/5 rounded-l-none pl-4"
+                                                        )}
+                                                        title={doc.title}
+                                                    >
+                                                        <FileText className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
+                                                        {doc.title}
+                                                    </Link>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             ))}

@@ -44,64 +44,66 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
     };
 
     return (
-        <div className="h-[calc(100vh-140px)]">
-            <ResizablePanelGroup orientation="horizontal" className="rounded-lg border border-white/5 bg-zinc-950/30">
+        <div className="h-[calc(100vh-180px)] space-y-8">
+            <ResizablePanelGroup orientation="horizontal" className="rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-xl shadow-2xl overflow-hidden">
                 {/* EDITOR PANEL */}
                 <ResizablePanel defaultSize={60} minSize={30}>
-                    <form onSubmit={handleSubmit} className="space-y-8 h-full overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-white/10">
-                        {/* HEADERS CARD */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-xl border border-white/5 bg-white/5">
-                            <div className="space-y-2">
-                                <Label>Titre de la page</Label>
+                    <form onSubmit={handleSubmit} className="space-y-10 h-full overflow-y-auto p-10 scrollbar-thin scrollbar-thumb-white/10">
+                        {/* HEADERS CARD - Premium Scale & Refined Alignment */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 p-8 rounded-3xl border border-white/5 bg-white/[0.03] shadow-inner items-end">
+                            <div className="space-y-3">
+                                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Titre du Document</Label>
                                 <Input
                                     value={formData.title}
                                     onChange={e => handleChange("title", e.target.value)}
-                                    placeholder="Ex: Guide du débutant"
+                                    placeholder="Ex: Protocoles de Sécurité"
                                     required
-                                    className="bg-zinc-950/50 border-white/10"
+                                    className="h-14 bg-zinc-950/50 border-white/10 rounded-2xl text-lg font-bold focus:ring-indigo-500/20 px-6 transition-all"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Slug (URL)</Label>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-zinc-500 font-mono">/docs/</span>
+                            <div className="space-y-3">
+                                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Point d'accès (Slug)</Label>
+                                <div className="relative flex items-center">
+                                    <span className="absolute left-6 text-sm text-zinc-600 font-mono font-bold">/docs/</span>
                                     <Input
                                         value={formData.slug}
                                         onChange={e => handleChange("slug", e.target.value)}
-                                        placeholder="general/debutant"
+                                        placeholder="securite/standard"
                                         required
-                                        className="bg-zinc-950/50 border-white/10 font-mono text-sm"
+                                        className="h-14 bg-zinc-950/50 border-white/10 rounded-2xl font-mono text-sm pl-20 pr-6 focus:ring-indigo-500/20 transition-all font-bold"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Catégorie</Label>
+                            <div className="space-y-3">
+                                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Classification / Catégorie</Label>
                                 <Input
                                     value={formData.category}
                                     onChange={e => handleChange("category", e.target.value)}
-                                    placeholder="Ex: Général"
+                                    placeholder="Ex: Sécurité"
                                     required
-                                    className="bg-zinc-950/50 border-white/10"
+                                    className="h-14 bg-zinc-950/50 border-white/10 rounded-2xl font-bold px-6 transition-all"
                                 />
                             </div>
 
-                            <div className="flex items-end gap-6">
-                                <div className="space-y-2 flex-1">
-                                    <Label>Ordre d'affichage</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Priorité</Label>
                                     <Input
                                         type="number"
                                         value={formData.order}
                                         onChange={e => handleChange("order", parseInt(e.target.value))}
-                                        className="bg-zinc-950/50 border-white/10"
+                                        className="h-14 bg-zinc-950/50 border-white/10 rounded-2xl font-bold px-4 transition-all"
                                     />
                                 </div>
-                                <div className="flex items-center gap-3 pb-2.5">
-                                    <Switch
-                                        checked={formData.isPublished}
-                                        onCheckedChange={v => handleChange("isPublished", v)}
-                                    />
-                                    <Label>Publié en ligne</Label>
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Public</Label>
+                                    <div className="flex items-center justify-center bg-zinc-950/40 rounded-2xl border border-white/10 h-14">
+                                        <Switch
+                                            checked={formData.isPublished}
+                                            onCheckedChange={v => handleChange("isPublished", v)}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -123,21 +125,22 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                             </div>
                         </div>
 
-                        {/* ACTION BAR */}
-                        <div className="flex items-center justify-end gap-4 pt-4 border-t border-white/5">
+                        {/* ACTION BAR - Scaled */}
+                        <div className="flex items-center justify-end gap-6 pt-10 border-t border-white/5">
                             <Button
                                 type="button"
                                 variant="ghost"
                                 onClick={() => router.back()}
+                                className="px-8 py-6 rounded-2xl text-zinc-500 hover:text-white hover:bg-white/5 font-black uppercase tracking-widest transition-all"
                             >
-                                Annuler
+                                Abandonner
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="bg-primary hover:bg-primary/90 text-white min-w-[150px]"
+                                className="px-12 py-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-indigo-500/20 min-w-[240px]"
                             >
-                                {loading ? "Sauvegarde..." : "Publier les changements"}
+                                {loading ? "Phase en cours..." : "Sauvegarder dans l'Index"}
                             </Button>
                         </div>
                     </form>
@@ -146,12 +149,12 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                 <ResizableHandle withHandle />
 
                 {/* PREVIEW PANEL (Admin Only) */}
-                <ResizablePanel defaultSize={40} minSize={20} className="hidden lg:block bg-zinc-900/20">
+                <ResizablePanel defaultSize={50} minSize={20} className="hidden lg:block bg-zinc-900/20">
                     <div className="h-full flex flex-col">
                         <div className="p-4 border-b border-white/5 bg-white/[0.02]">
                             <Label className="text-zinc-500 uppercase tracking-wider text-xs font-bold">Aperçu en direct</Label>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-white/10">
+                        <div className="flex-1 overflow-y-auto p-6 md:p-12 scrollbar-thin scrollbar-thumb-white/10">
                             <DocContent content={formData.content} />
                         </div>
                     </div>

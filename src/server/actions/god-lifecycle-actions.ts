@@ -10,6 +10,11 @@
  * - softDeleteProfile
  * - reactivateProfile
  * - hardDeleteProfile
+ * - getSoftDeletedGuilds
+ * - getSoftDeletedProfiles
+ * - getArchivedProfiles
+ * - getPlatformBans
+ * - getActiveGuilds
  */
 
 'use server';
@@ -339,4 +344,94 @@ export async function getSoftDeletedProfiles() {
         },
         orderBy: { scheduledDeletion: 'asc' }
     });
+}
+
+/**
+ * Get all archived profiles (not just soft-deleted)
+ */
+export async function getArchivedProfiles() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    return db.userProfile.findMany({
+        where: { status: 'ARCHIVED' },
+        include: {
+            guild: { select: { name: true } },
+            user: { select: { name: true } }
+        },
+        orderBy: { archivedAt: 'desc' },
+        take: 100
+    });
+}
+
+/**
+ * Get all active guilds for the control panel
+ */
+export async function getActiveGuilds() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    return db.guildConfig.findMany({
+        where: { isActive: true },
+        include: {
+            _count: { select: { profiles: true } }
+        },
+        orderBy: { name: 'asc' }
+    });
+}
+
+/**
+ * Get all platform-level bans
+ */
+export async function getPlatformBans() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    return db.platformBan.findMany({
+        orderBy: { createdAt: 'desc' }
+    });
+}
+
+/**
+ * Ban an entity (Guild or User) at the platform level
+ */
+export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reason: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        const session = await auth();
+        await db.platformBan.create({
+            data: {
+                entityType: type,
+                discordId,
+                reason,
+                bannedBy: session?.user?.id || 'UNKNOWN'
+            }
+        });
+
+        revalidatePath('/god');
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: 'Failed to ban entity' };
+    }
+}
+
+/**
+ * Unban an entity
+ */
+export async function unbanEntity(banId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        await db.platformBan.delete({
+            where: { id: banId }
+        });
+
+        revalidatePath('/god');
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: 'Failed to unban entity' };
+    }
 }

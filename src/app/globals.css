@@ -247,3 +247,29 @@
   color: inherit !important;
   padding: 0 !important;
 }
+
+/* Callouts / Alerts - Global SaaS Standards */
+.callout {
+  margin: 2rem 0 !important;
+  padding: 1.5rem !important;
+  border-radius: 0.75rem !important;
+  border-left-width: 4px !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.callout-info { background-color: rgba(59, 130, 246, 0.1) !important; border-color: #3b82f6 !important; }
+.callout-tip { background-color: rgba(16, 185, 129, 0.1) !important; border-color: #10b981 !important; }
+.callout-warning { background-color: rgba(245, 158, 11, 0.1) !important; border-color: #f59e0b !important; }
+.callout-danger { background-color: rgba(239, 68, 68, 0.1) !important; border-color: #ef4444 !important; }
+
+.callout p { margin: 0 !important; }
+.callout strong {
+  color: white !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-size: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  display: block !important;
+}

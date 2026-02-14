@@ -280,30 +280,30 @@ const getSuggestionItems = ({ query }: { query: string }) => {
                 editor.chain().focus().deleteRange(range).insertContent("💎 ").run();
             },
         },
-        // {
-        //   title: "Image",
-        //   description: "Upload an image from your computer.",
-        //   searchTerms: ["photo", "picture", "media"],
-        //   icon: <ImageIcon size={18} />,
-        //   command: ({ editor, range }: any) => {
-        //     editor.chain().focus().deleteRange(range).run();
-        //     // upload image
-        //     const input = document.createElement("input");
-        //     input.type = "file";
-        //     input.accept = "image/*";
-        //     input.onchange = async () => {
-        //       if (input.files?.length) {
-        //         const file = input.files[0];
-        //         const pos = editor.view.state.selection.from;
-        //         // Should create logic for uploading here or triggering external upload logic
-        //         // Since we don't have direct access here easily without configuring props
-        //         // We might implement drag and drop separately.
-        //         // For now, simpler to just rely on paste/drag for images or a button.
-        //       }
-        //     };
-        //     input.click();
-        //   },
-        // },
+        {
+            title: "Image",
+            description: "Ajouter une image depuis votre ordinateur.",
+            searchTerms: ["photo", "picture", "media", "image"],
+            icon: <ImageIcon size={18} />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).run();
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "image/*";
+                input.onchange = async () => {
+                    if (input.files?.length) {
+                        const file = input.files[0];
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const src = e.target?.result as string;
+                            editor.chain().focus().setImage({ src }).run();
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+                input.click();
+            },
+        },
     ].filter((item) => {
         if (typeof query === "string" && query.length > 0) {
             const search = query.toLowerCase();

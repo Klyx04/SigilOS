@@ -7,15 +7,15 @@ import { GripVertical, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 // 1. The React Component for the Node View
 const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewProps) => {
     const [width, setWidth] = useState<number | string>(node.attrs.width || "100%");
-    const [textAlign, setTextAlign] = useState<string>(node.attrs.textAlign || "center");
+    const [layout, setLayout] = useState<'block' | 'left' | 'right'>(node.attrs.layout || "block");
     const containerRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
 
     // Sync local state with node attributes if they change externally (e.g. undo/redo)
     useEffect(() => {
         setWidth(node.attrs.width);
-        setTextAlign(node.attrs.textAlign);
-    }, [node.attrs.width, node.attrs.textAlign]);
+        setLayout(node.attrs.layout || "block");
+    }, [node.attrs.width, node.attrs.layout]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -47,13 +47,20 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
         document.addEventListener("mouseup", onMouseUp);
     }, [updateAttributes]);
 
-    const setAlignment = (align: 'left' | 'center' | 'right') => {
-        setTextAlign(align);
-        updateAttributes({ textAlign: align });
+    const setLayoutMode = (mode: 'block' | 'left' | 'right') => {
+        setLayout(mode);
+        updateAttributes({ layout: mode });
     };
 
     return (
-        <NodeViewWrapper className="relative flex leading-none max-w-full my-4" style={{ justifyContent: textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center' }}>
+        <NodeViewWrapper
+            className={cn(
+                "relative leading-none max-w-full my-4 transition-all duration-300",
+                layout === 'left' ? "float-left mr-6 mb-4 clear-left" :
+                    layout === 'right' ? "float-right ml-6 mb-4 clear-right" :
+                        "flex justify-center flex-col items-center clear-both"
+            )}
+        >
             <div
                 ref={containerRef}
                 className={cn(
@@ -79,19 +86,6 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                         >
                             <GripVertical className="w-4 h-4 text-white" />
                         </div>
-
-                        {/* Alignment Toolbar */}
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-zinc-900/90 backdrop-blur border border-white/20 rounded-md shadow-xl z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button type="button" onClick={(e) => { e.preventDefault(); setAlignment('left'); }} className={cn("p-1 rounded hover:bg-white/10", textAlign === 'left' && "bg-white/20 text-indigo-400")}>
-                                <AlignLeft className="w-4 h-4 text-white" />
-                            </button>
-                            <button type="button" onClick={(e) => { e.preventDefault(); setAlignment('center'); }} className={cn("p-1 rounded hover:bg-white/10", textAlign === 'center' && "bg-white/20 text-indigo-400")}>
-                                <AlignCenter className="w-4 h-4 text-white" />
-                            </button>
-                            <button type="button" onClick={(e) => { e.preventDefault(); setAlignment('right'); }} className={cn("p-1 rounded hover:bg-white/10", textAlign === 'right' && "bg-white/20 text-indigo-400")}>
-                                <AlignRight className="w-4 h-4 text-white" />
-                            </button>
-                        </div>
                     </>
                 )}
             </div>
@@ -103,25 +97,45 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
 export const ResizableImage = Image.extend({
     addAttributes() {
         return {
-            ...this.parent?.(),
-            width: {
-                default: "100%",
-                renderHTML: (attributes) => {
-                    return {
-                        width: attributes.width,
-                        style: `width: ${attributes.width}`
-                    };
-                },
+            src: {
+                default: null,
+                parseHTML: element => element.getAttribute('src'),
             },
-            textAlign: {
-                default: 'center',
-                renderHTML: (attributes) => {
-                    return {
-                        style: `text-align: ${attributes.textAlign}`
-                    }
-                }
-            }
+            alt: {
+                default: null,
+                parseHTML: element => element.getAttribute('alt'),
+            },
+            width: {
+                default: '100%',
+                parseHTML: element => element.style.width || element.getAttribute('data-width') || "100%",
+            },
+            layout: {
+                default: 'block',
+                parseHTML: element => (element.getAttribute('data-layout') as any) || "block",
+            },
         };
+    },
+    renderHTML({ HTMLAttributes }) {
+        const { src, alt, width, layout } = HTMLAttributes;
+        const styles: string[] = [];
+
+        if (width) styles.push(`width: ${width}`);
+        styles.push('max-width: 100%');
+
+        if (layout === 'left') styles.push('float: left', 'margin-right: 1.5rem', 'margin-bottom: 1rem', 'clear: left');
+        else if (layout === 'right') styles.push('float: right', 'margin-left: 1.5rem', 'margin-bottom: 1rem', 'clear: right');
+        else if (layout === 'block') styles.push('margin: 1.5rem auto', 'display: block', 'clear: both');
+
+        return [
+            'img',
+            {
+                src,
+                alt,
+                style: styles.join('; '),
+                'data-layout': layout,
+                'data-width': width,
+            }
+        ];
     },
     addNodeView() {
         return ReactNodeViewRenderer(ResizableImageComponent);

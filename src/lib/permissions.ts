@@ -28,6 +28,9 @@ export const PERMISSIONS = {
     // Calendrier
     CALENDAR_VIEW: "calendar:view", // Accès au calendrier
     CALENDAR_MANAGE: "calendar:manage", // Créer/Editer/Supprimer des events
+
+    // Documentation
+    DOCS_VIEW_ADMIN: "docs:view_admin", // Voir les pages de doc Admin
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -115,6 +118,11 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Gérer le Calendrier",
         description: "Créer, modifier et supprimer des événements dans l'agenda.",
         module: "calendar",
+    },
+    [PERMISSIONS.DOCS_VIEW_ADMIN]: {
+        label: "Voir Documentation Admin",
+        description: "Permet de consulter les pages de documentation réservées à l'administration.",
+        module: "admin",
     },
 };
 

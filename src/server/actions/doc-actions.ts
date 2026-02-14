@@ -42,9 +42,15 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
 
         if (!doc || !doc.isPublished) return null;
 
-        // RBAC Check
+        // RBAC Check (Admin pages)
         if ((doc as any).accessLevel === "ADMIN") {
-            if (!ctx.isAdmin) return null;
+            // Priority 1: Super Admin (God mode)
+            const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+            const isGod = await isSuperAdmin();
+            if (isGod) return doc as unknown as DocPageData;
+
+            // Priority 2: Delegated Admin Access (Guild Admins or specialized roles)
+            if (!ctx.canViewAdminDocs) return null;
         }
 
         // Guild Isolation Check
@@ -65,9 +71,14 @@ export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "c
         // 🛡️ Build structural WHERE clause
         const where: any = { isPublished: true };
 
-        // 1. RBAC Check: Members only see PUBLIC docs
-        if (!ctx.isAdmin) {
-            where.accessLevel = "PUBLIC";
+        // 1. RBAC Check: Members only see PUBLIC docs unless they have admin view right
+        if (!ctx.canViewAdminDocs) {
+            // Check if Super Admin (God mode)
+            const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+            const isGod = await isSuperAdmin();
+            if (!isGod) {
+                where.accessLevel = "PUBLIC";
+            }
         }
 
         // 2. Guild Isolation: Global docs (null) + Current Guild
@@ -113,7 +124,14 @@ export async function getSearchableDocs(guildId?: string) {
         const ctx = await getUserContext(guildId);
         const where: any = { isPublished: true };
 
-        if (!ctx.isAdmin) where.accessLevel = "PUBLIC";
+        if (!ctx.canViewAdminDocs) {
+            // Double check if Super Admin for search
+            const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+            const isGod = await isSuperAdmin();
+            if (!isGod) {
+                where.accessLevel = "PUBLIC";
+            }
+        }
         if (guildId) {
             where.OR = [{ guildId: null }, { guildId: guildId }];
         } else {
@@ -155,15 +173,16 @@ export async function getSearchableDocs(guildId?: string) {
 // --- ADMIN ACTIONS ---
 
 export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<ActionResponse<DocPageData>> {
-    const ctx = await getUserContext();
-    if (!ctx.isAdmin) return { success: false, error: "Unauthorized: Admins only" };
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Unauthorized: Admins only" };
 
     const { sanitizeHtml } = await import("@/lib/security");
 
     // Sanitize content (allow rich HTML but strip scripts)
     // No length limit specified in original (database likely text/varchar)
     // Default limit in lib is 20000 chars, let's bump it for docs or leave undefined
-    const sanitizedContent = sanitizeHtml(data.content, 100000, false) || "";
+    const sanitizedContent = sanitizeHtml(data.content, 5000000, false) || "";
 
     try {
         let doc: any;

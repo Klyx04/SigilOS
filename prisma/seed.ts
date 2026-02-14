@@ -1,8 +1,33 @@
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
+// Clean helper for environment variables
+const cleanEnv = (val: string | undefined) => {
+    if (!val) return '';
+    return val.replace(/^['"]|['"]$/g, '').trim();
+};
+
+// URL construction logic
+const getConnectionString = () => {
+    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+        return cleanEnv(process.env.DATABASE_URL);
+    }
+
+    const user = cleanEnv(process.env.POSTGRES_USER) || 'sigiluser';
+    const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
+    const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
+    const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
+
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+};
+
+const connectionString = getConnectionString();
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 interface SeedData {
     _meta: {

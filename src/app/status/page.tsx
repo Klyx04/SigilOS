@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from "react";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { ArrowLeft, RefreshCw, LayoutDashboard } from "lucide-react";

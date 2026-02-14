@@ -35,6 +35,7 @@ export type UserContext = {
     guildName?: string;
     dofusServerId?: string | null;
     joinedAt?: Date | null;
+    guildId?: string;
 };
 
 export type ActionResponse<T = any> = {
@@ -369,7 +370,8 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
         isMember: memberRes.ok,
         guildName: guildInfo?.name || guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
-        joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null
+        joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null,
+        guildId: targetGuildId
     };
 };
 

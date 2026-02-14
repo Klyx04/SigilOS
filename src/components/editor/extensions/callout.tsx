@@ -1,17 +1,24 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
-export type CalloutType = "info" | "tip" | "warning" | "danger";
+export type CalloutType =
+    | "info"
+    | "tip"
+    | "success"
+    | "warning"
+    | "caution"
+    | "danger"
+    | "error"
+    | "important"
+    | "note"
+    | "abstract"
+    | "question"
+    | "bug"
+    | "todo";
 
 declare module "@tiptap/core" {
     interface Commands<ReturnType> {
         callout: {
-            /**
-             * Set a callout node
-             */
             setCallout: (attributes?: { type: CalloutType }) => ReturnType;
-            /**
-             * Toggle a callout node
-             */
             toggleCallout: (attributes?: { type: CalloutType }) => ReturnType;
         };
     }
@@ -38,11 +45,16 @@ export const Callout = Node.create({
     parseHTML() {
         return [
             {
-                tag: 'div[data-type="callout"]',
+                tag: 'div[class*="callout"]',
+                getAttrs: (node) => {
+                    const element = node as HTMLElement;
+                    const typeClass = Array.from(element.classList).find(c => c.startsWith('callout-'));
+                    return { type: typeClass?.replace('callout-', '') || 'info' };
+                }
             },
             {
                 tag: "blockquote",
-                priority: 51, // Higher than default blockquote
+                priority: 51,
                 getAttrs: (node) => {
                     const element = node as HTMLElement;
                     if (element.classList.contains("callout")) {
@@ -55,13 +67,19 @@ export const Callout = Node.create({
     },
 
     renderHTML({ HTMLAttributes }) {
+        const type = HTMLAttributes["data-type"] || "info";
         return [
             "div",
             mergeAttributes(HTMLAttributes, {
-                class: `callout callout-${HTMLAttributes["data-type"] || "info"} border-l-4 p-6 my-8 rounded-r-xl bg-white/5`,
-                "data-type": HTMLAttributes["data-type"] || "info",
+                class: `callout callout-${type} editor-callout`,
+                "data-type": type,
             }),
-            0,
+            [
+                "div",
+                { class: "callout-label-wrapper not-prose" },
+                ["strong", {}, type.toUpperCase()]
+            ],
+            ["div", { class: "callout-content" }, 0],
         ];
     },
 
@@ -76,8 +94,7 @@ export const Callout = Node.create({
                             content: [
                                 {
                                     type: "paragraph",
-                                    content: [{ type: "text", text: (attributes?.type || "info").toUpperCase() + ": " }],
-                                },
+                                }
                             ],
                         });
                     },

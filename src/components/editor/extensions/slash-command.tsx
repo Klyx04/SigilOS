@@ -116,6 +116,170 @@ const getSuggestionItems = ({ query }: { query: string }) => {
                 editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
             },
         },
+        // --- ELITE CALLOUTS ---
+        {
+            title: "Note (Info)",
+            description: "Information générale ou neutre.",
+            searchTerms: ["info", "callout", "note"],
+            icon: <Type size={18} className="text-blue-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "info" }).run();
+            },
+        },
+        {
+            title: "Astuce (Tip)",
+            description: "Conseils et bonnes pratiques.",
+            searchTerms: ["tip", "hint", "astuce"],
+            icon: <Type size={18} className="text-emerald-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "tip" }).run();
+            },
+        },
+        {
+            title: "Succès (Success)",
+            description: "Confirmation ou réussite.",
+            searchTerms: ["success", "done", "ok"],
+            icon: <CheckSquare size={18} className="text-emerald-500" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "success" }).run();
+            },
+        },
+        {
+            title: "Question (FAQ)",
+            description: "Interrogations ou FAQ.",
+            searchTerms: ["question", "help", "faq"],
+            icon: <MessageSquareQuote size={18} className="text-indigo-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "question" }).run();
+            },
+        },
+        {
+            title: "Important",
+            description: "Point critique à ne pas manquer.",
+            searchTerms: ["important", "alert", "must"],
+            icon: <Heading1 size={18} className="text-purple-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "important" }).run();
+            },
+        },
+        {
+            title: "Avertissement (Warning)",
+            description: "Attention particulière requise.",
+            searchTerms: ["warning", "warn", "attention"],
+            icon: <Heading2 size={18} className="text-amber-500" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "warning" }).run();
+            },
+        },
+        {
+            title: "Danger / Erreur",
+            description: "Risques élevés ou erreurs.",
+            searchTerms: ["danger", "error", "stop"],
+            icon: <Heading3 size={18} className="text-red-500" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "danger" }).run();
+            },
+        },
+        {
+            title: "Bug",
+            description: "Signalement d'un problème technique.",
+            searchTerms: ["bug", "issue", "fix"],
+            icon: <Code size={18} className="text-rose-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "bug" }).run();
+            },
+        },
+        {
+            title: "Todo (Liste de tâches)",
+            description: "Choses à faire.",
+            searchTerms: ["todo", "task", "plan"],
+            icon: <List size={18} className="text-teal-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "todo" }).run();
+            },
+        },
+        {
+            title: "Résumé (Abstract)",
+            description: "Introduction ou résumé global.",
+            searchTerms: ["abstract", "summary", "intro"],
+            icon: <MessageSquareQuote size={18} className="text-cyan-400" />,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).setCallout({ type: "abstract" }).run();
+            },
+        },
+        // --- EMOJIS & SYMBOLS ---
+        {
+            title: "Emoji: Info",
+            description: "💡 Ampoule / Idée",
+            searchTerms: ["emoji", "bulb", "idea", "info"],
+            icon: <div className="text-lg">💡</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("💡 ").run();
+            },
+        },
+        {
+            title: "Emoji: Succès",
+            description: "✅ Validation",
+            searchTerms: ["emoji", "check", "ok", "success"],
+            icon: <div className="text-lg">✅</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("✅ ").run();
+            },
+        },
+        {
+            title: "Emoji: Warning",
+            description: "⚠️ Attention",
+            searchTerms: ["emoji", "warn", "warning", "attention"],
+            icon: <div className="text-lg">⚠️</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("⚠️ ").run();
+            },
+        },
+        {
+            title: "Emoji: Rocket",
+            description: "🚀 Performance / Start",
+            searchTerms: ["emoji", "rocket", "fast", "start"],
+            icon: <div className="text-lg">🚀</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("🚀 ").run();
+            },
+        },
+        {
+            title: "Emoji: Fire",
+            description: "🔥 Populaire / Urgent",
+            searchTerms: ["emoji", "fire", "hot", "urgent"],
+            icon: <div className="text-lg">🔥</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("🔥 ").run();
+            },
+        },
+        {
+            title: "Emoji: Lock",
+            description: "🔒 Sécurité / Privé",
+            searchTerms: ["emoji", "lock", "security", "private"],
+            icon: <div className="text-lg">🔒</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("🔒 ").run();
+            },
+        },
+        {
+            title: "Emoji: Sparkles",
+            description: "✨ Nouveau / Magique",
+            searchTerms: ["emoji", "sparkles", "new", "magic"],
+            icon: <div className="text-lg">✨</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("✨ ").run();
+            },
+        },
+        {
+            title: "Emoji: Dofus (Diamond)",
+            description: "💎 Premium / Rare",
+            searchTerms: ["emoji", "diamond", "dofus", "premium", "rare"],
+            icon: <div className="text-lg">💎</div>,
+            command: ({ editor, range }: any) => {
+                editor.chain().focus().deleteRange(range).insertContent("💎 ").run();
+            },
+        },
         // {
         //   title: "Image",
         //   description: "Upload an image from your computer.",

@@ -6214,21 +6214,21 @@ var adapter = new PrismaPgAdapterFactory(pool);
 var prisma = new import_client.PrismaClient({ adapter });
 async function seed() {
   console.error("\u{1F331} Starting database seed...");
-  const seedFilePath = path.join(process.cwd(), "prisma", "seeds", "game-data.json");
+  const seedFilePath = path.join(process.cwd(), "prisma", "seed-data", "game-data.json");
   if (!fs.existsSync(seedFilePath)) {
     console.error("\u26A0\uFE0F  No seed file found at:", seedFilePath);
-    console.error("\u2139\uFE0F  Run npm run export-seeds first to generate the seed file");
     return;
   }
   const seedData = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
   console.error("\u{1F4CA} Seed file metadata:");
-  console.error("  - Exported:", seedData._meta.exportedAt);
-  console.error("  - Environment:", seedData._meta.environment);
-  console.error("  - Counts:", seedData._meta.counts);
+  console.error("  - Exported:", seedData.exportedAt);
+  console.error("  - Version:", seedData.version);
   console.error("");
+  const zoneIdMap = /* @__PURE__ */ new Map();
+  const challengeIdMap = /* @__PURE__ */ new Map();
   console.error("\u{1F5FA}\uFE0F  Seeding Zones...");
-  for (const zone of seedData.zones) {
-    await prisma.zone.upsert({
+  for (const zone of seedData.data.zones) {
+    const upserted = await prisma.zone.upsert({
       where: { name: zone.name },
       update: {
         level: zone.level,
@@ -6240,62 +6240,55 @@ async function seed() {
         dpnlUrl: zone.dpnlUrl
       }
     });
+    zoneIdMap.set(zone.id, upserted.id);
   }
-  console.log(`\u2705 ${seedData.zones.length} zones seeded`);
-  console.log("\u{1F47E} Seeding Monster Families...");
-  for (const mf of seedData.monsterFamilies) {
+  console.error(`\u2705 ${seedData.data.zones.length} zones seeded`);
+  console.error("\u{1F47E} Seeding Monster Families...");
+  for (const mf of seedData.data.families) {
     await prisma.monsterFamily.upsert({
       where: { name: mf.name },
       update: {
         description: mf.description,
-        imageUrl: mf.imageUrl
+        imageUrl: mf.imageUrl,
+        zones: mf.zoneIds ? {
+          set: mf.zoneIds.map((id) => zoneIdMap.get(id)).filter((id) => !!id).map((id) => ({ id }))
+        } : void 0
       },
       create: {
         name: mf.name,
         description: mf.description,
-        imageUrl: mf.imageUrl
+        imageUrl: mf.imageUrl,
+        zones: mf.zoneIds ? {
+          connect: mf.zoneIds.map((id) => zoneIdMap.get(id)).filter((id) => !!id).map((id) => ({ id }))
+        } : void 0
       }
     });
-    const family = await prisma.monsterFamily.findUnique({
-      where: { name: mf.name },
-      include: { zones: true }
-    });
-    if (family && mf.zoneNames && mf.zoneNames.length > 0) {
-      const zones = await prisma.zone.findMany({
-        where: { name: { in: mf.zoneNames } }
-      });
-      await prisma.monsterFamily.update({
-        where: { id: family.id },
-        data: {
-          zones: {
-            set: zones.map((z) => ({ id: z.id }))
-          }
-        }
-      });
-    }
   }
-  console.log(`\u2705 ${seedData.monsterFamilies.length} monster families seeded`);
-  console.log("\u{1F3C6} Seeding Challenges...");
-  for (const challenge of seedData.challenges) {
-    await prisma.challenge.upsert({
+  console.error(`\u2705 ${seedData.data.families.length} monster families seeded`);
+  console.error("\u{1F3C6} Seeding Challenges...");
+  for (const challenge of seedData.data.challenges) {
+    const upserted = await prisma.challenge.upsert({
       where: { slug: challenge.slug },
       update: {
         name: challenge.name,
         description: challenge.description,
-        iconUrl: challenge.iconUrl
+        iconUrl: challenge.iconUrl,
+        conditions: challenge.conditions
       },
       create: {
         slug: challenge.slug,
         name: challenge.name,
         description: challenge.description,
-        iconUrl: challenge.iconUrl
+        iconUrl: challenge.iconUrl,
+        conditions: challenge.conditions
       }
     });
+    challengeIdMap.set(challenge.id, upserted.id);
   }
-  console.log(`\u2705 ${seedData.challenges.length} challenges seeded`);
-  console.log("\u{1F3F0} Seeding Dungeons...");
-  for (const dungeon of seedData.dungeons) {
-    await prisma.dungeon.upsert({
+  console.error(`\u2705 ${seedData.data.challenges.length} challenges seeded`);
+  console.error("\u{1F3F0} Seeding Dungeons...");
+  for (const dungeon of seedData.data.dungeons) {
+    const upsertedDungeon = await prisma.dungeon.upsert({
       where: { name: dungeon.name },
       update: {
         bossName: dungeon.bossName,
@@ -6317,26 +6310,30 @@ async function seed() {
         expeditionMechanics: dungeon.expeditionMechanics
       }
     });
-    const dbDungeon = await prisma.dungeon.findUnique({ where: { name: dungeon.name } });
-    if (dbDungeon && dungeon.challengeSlugs && dungeon.challengeSlugs.length > 0) {
-      const challenges = await prisma.challenge.findMany({
-        where: { slug: { in: dungeon.challengeSlugs } },
-        select: { id: true }
-      });
-      await prisma.dungeonAchievement.deleteMany({
-        where: { dungeonId: dbDungeon.id }
-      });
-      await prisma.dungeonAchievement.createMany({
-        data: challenges.map((c) => ({
-          dungeonId: dbDungeon.id,
-          challengeId: c.id
-        }))
-      });
+    if (dungeon.achievements && Array.isArray(dungeon.achievements)) {
+      for (const ach of dungeon.achievements) {
+        const dbChallengeId = challengeIdMap.get(ach.challengeId);
+        if (!dbChallengeId) continue;
+        await prisma.dungeonAchievement.upsert({
+          where: {
+            dungeonId_challengeId: {
+              dungeonId: upsertedDungeon.id,
+              challengeId: dbChallengeId
+            }
+          },
+          update: { points: ach.points },
+          create: {
+            dungeonId: upsertedDungeon.id,
+            challengeId: dbChallengeId,
+            points: ach.points
+          }
+        });
+      }
     }
   }
-  console.log(`\u2705 ${seedData.dungeons.length} dungeons seeded`);
-  console.log("");
-  console.log("\u{1F389} Database seeding completed successfully!");
+  console.error(`\u2705 ${seedData.data.dungeons.length} dungeons seeded`);
+  console.error("");
+  console.error("\u{1F389} Database seeding completed successfully!");
 }
 seed().catch((e) => {
   console.error("\u274C Seeding failed:", e);

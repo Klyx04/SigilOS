@@ -95,6 +95,10 @@ async function main() {
 
     // Transaction: All or nothing
     await db.$transaction(async (tx) => {
+        // Maps for ID resolution
+        const zoneIdMap = new Map<string, string>();
+        const challengeIdMap = new Map<string, string>();
+
         // === ZONES ===
         if (seedData.data.zones && Array.isArray(seedData.data.zones)) {
             console.log(`\n🗺️  [ZONES] Processing ${seedData.data.zones.length} zones...`);
@@ -111,7 +115,7 @@ async function main() {
                         where: { name: zone.name }
                     });
 
-                    await tx.zone.upsert({
+                    const upsertedZone = await tx.zone.upsert({
                         where: { name: zone.name },
                         update: {
                             level: zone.level,
@@ -123,6 +127,9 @@ async function main() {
                             dpnlUrl: zone.dpnlUrl,
                         }
                     });
+
+                    // Map JSON ID to DB ID
+                    zoneIdMap.set(zone.id, upsertedZone.id);
 
                     if (existing) {
                         console.log(`  ✏️  Updated: ${zone.name}`);
@@ -160,11 +167,23 @@ async function main() {
                         update: {
                             description: family.description,
                             imageUrl: family.imageUrl,
+                            zones: family.zoneIds ? {
+                                set: family.zoneIds
+                                    .map((id: string) => zoneIdMap.get(id))
+                                    .filter((id: string | undefined): id is string => !!id)
+                                    .map((id: string) => ({ id }))
+                            } : undefined
                         },
                         create: {
                             name: family.name,
                             description: family.description,
                             imageUrl: family.imageUrl,
+                            zones: family.zoneIds ? {
+                                connect: family.zoneIds
+                                    .map((id: string) => zoneIdMap.get(id))
+                                    .filter((id: string | undefined): id is string => !!id)
+                                    .map((id: string) => ({ id }))
+                            } : undefined
                         }
                     });
 
@@ -202,7 +221,7 @@ async function main() {
                     // Remove deprecated fields
                     const { difficulty, ...cleanChallenge } = challenge;
 
-                    await tx.challenge.upsert({
+                    const upsertedChallenge = await tx.challenge.upsert({
                         where: { slug: challenge.slug },
                         update: {
                             name: cleanChallenge.name,
@@ -218,6 +237,9 @@ async function main() {
                             conditions: cleanChallenge.conditions,
                         }
                     });
+
+                    // Map JSON ID to DB ID
+                    challengeIdMap.set(challenge.id, upsertedChallenge.id);
 
                     if (existing) {
                         console.log(`  ✏️  Updated: ${challenge.name}`);
@@ -278,11 +300,18 @@ async function main() {
                         for (const ach of dungeon.achievements) {
                             if (!ach.challengeId) continue;
 
+                            // Ensure current database ID is used
+                            const dbChallengeId = challengeIdMap.get(ach.challengeId);
+                            if (!dbChallengeId) {
+                                console.warn(`  ⚠️  Challenge ID not found for ach: ${ach.challengeId}. Skipping achievement.`);
+                                continue;
+                            }
+
                             await tx.dungeonAchievement.upsert({
                                 where: {
                                     dungeonId_challengeId: {
                                         dungeonId: upsertedDungeon.id,
-                                        challengeId: ach.challengeId
+                                        challengeId: dbChallengeId
                                     }
                                 },
                                 update: {
@@ -290,7 +319,7 @@ async function main() {
                                 },
                                 create: {
                                     dungeonId: upsertedDungeon.id,
-                                    challengeId: ach.challengeId,
+                                    challengeId: dbChallengeId,
                                     points: ach.points
                                 }
                             });

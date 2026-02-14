@@ -6,7 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { LandingHeader } from '@/components/landing/landing-header';
+import { PublicHeader } from '@/components/layout/public-header';
 import { GalacticFooter } from '@/components/layout/galactic-footer';
 import { auth } from '@/auth';
 
@@ -26,7 +26,7 @@ export default async function ChangelogPage() {
 
     return (
         <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
-            <LandingHeader user={session?.user} />
+            <PublicHeader user={session?.user} />
 
             <main className="flex-1 pt-24 pb-12">
                 <div className="max-w-4xl mx-auto px-6">

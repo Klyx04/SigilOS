@@ -94,7 +94,10 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
     const textY = useTransform(scrollY, [0, 500], [0, 100]); // Slower parallax for text
 
     return (
-        <div className="relative min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden selection:bg-indigo-500/30 font-sans">
+        <div className="relative min-h-screen bg-black text-white selection:bg-indigo-500/30 font-sans flex flex-col overflow-x-hidden">
+            {/* Ambient Background Layer (2026 Standard) */}
+            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
+            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
 
             {/* Hero Image / Banner */}
             <div className="relative h-[40vh] md:h-[50vh] min-h-[350px] overflow-hidden">
@@ -111,9 +114,9 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                             priority
                         />
                     ) : (
-                        <div className="absolute inset-0 bg-zinc-900" />
+                        <div className="absolute inset-0 bg-zinc-950" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent z-10" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
                 </motion.div>
             </div>
 

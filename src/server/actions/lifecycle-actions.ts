@@ -229,15 +229,27 @@ export async function handleGdprDeletionRequest() {
     const userId = session.user.id;
 
     try {
+        // Get Discord ID for correct owner check
+        const account = await db.account.findFirst({
+            where: { userId, provider: "discord" }
+        });
+        const discordId = account?.providerAccountId;
+
         // Owner-Guard: Block deletion if user is the GuildConfig.ownerId
+        // We check both internal ID and Discord ID to be safe
         const ownedGuilds = await db.guildConfig.findMany({
-            where: { ownerId: userId }
+            where: {
+                OR: [
+                    { ownerId: userId },
+                    { ownerId: discordId ?? "none" }
+                ]
+            }
         });
 
         if (ownedGuilds.length > 0) {
             return {
                 success: false,
-                error: `Impossible de supprimer le compte : vous êtes propriétaire de ${ownedGuilds.length} guilde(s). Transférez la propriété d'abord.`
+                error: `Impossible de supprimer le compte : vous êtes propriétaire de ${ownedGuilds.length} guilde(s) (ex: ${ownedGuilds[0].name}). Veuillez transférer la propriété avant de supprimer votre compte.`
             };
         }
 

@@ -240,7 +240,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
             </div>
 
             {/* Table */}
-            <div className="bg-zinc-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl">
+            <div className="bg-zinc-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl max-h-[600px] overflow-y-auto">
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-white/5">
                         <tr>

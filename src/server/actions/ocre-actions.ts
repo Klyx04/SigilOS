@@ -958,14 +958,17 @@ export async function getProfileMatchingArchis(
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
         if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
-        // 1. Get Me and Target
+        // 1. Get Me and Target (scoped to this guild to prevent cross-guild probing)
         const [me, target] = await Promise.all([
             db.userProfile.findFirst({
                 where: { userId: session.user.id, guild: { discordGuildId: guildId } },
                 include: { guild: { select: { metamobApiKey: true } } }
             }),
-            db.userProfile.findUnique({
-                where: { id: targetProfileId },
+            db.userProfile.findFirst({
+                where: {
+                    id: targetProfileId,
+                    guild: { discordGuildId: guildId } // 👈 CRITICAL: MUST BE IN SAME GUILD
+                },
                 include: { user: true }
             })
         ]);

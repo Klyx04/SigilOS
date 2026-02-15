@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { isGuildAllowed } from "./super-admin-actions";
 
 export type GuardResult = {
     isAuthorized: boolean;
@@ -20,6 +21,12 @@ export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
     const session = await auth();
     if (!session?.user?.id) {
         return { isAuthorized: false, error: "Unauthorized" };
+    }
+
+    // Platform Guard: Is the guild allowed/active?
+    const allowed = await isGuildAllowed(guildId);
+    if (!allowed) {
+        return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
     }
 
     const account = await db.account.findFirst({
@@ -78,6 +85,12 @@ export async function requireGuildMember(guildId: string): Promise<GuardResult> 
     const session = await auth();
     if (!session?.user?.id) {
         return { isAuthorized: false, error: "Unauthorized" };
+    }
+
+    // Platform Guard: Is the guild allowed/active?
+    const allowed = await isGuildAllowed(guildId);
+    if (!allowed) {
+        return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
     }
 
     const account = await db.account.findFirst({

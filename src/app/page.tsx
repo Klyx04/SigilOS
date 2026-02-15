@@ -31,7 +31,7 @@ export default async function Home({
 
   return (
     <NebulaClientWrapper>
-      <div className="min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col">
+      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-purple-500/30 font-sans flex flex-col overflow-x-hidden">
 
 
 
@@ -40,7 +40,7 @@ export default async function Home({
         <main className="flex-1 w-full relative z-10 flex flex-col">
           <SaasHero user={session?.user} />
           <SaasFeatures />
-          <div className="bg-zinc-900/30 border-t border-white/5 py-24">
+          <div className="bg-zinc-900/10 border-t border-white/5 py-24">
             <div className="container mx-auto px-4 text-center mb-12">
               <h2 className="text-3xl font-bold text-white mb-4">Ils nous font confiance</h2>
               <p className="text-zinc-500">Rejoignez l'élite des guildes Dofus.</p>

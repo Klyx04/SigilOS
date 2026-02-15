@@ -64,8 +64,6 @@
 }
 
 /* Define the actual values for the variables mapped above */
-/* Define the actual values for the variables mapped above */
-/* Define the actual values for the variables mapped above */
 :root {
   --radius: 0.625rem;
 
@@ -116,9 +114,16 @@
   --sidebar-ring: oklch(0.70 0.25 300);
 }
 
-.dark {
-  /* Inherit from :root which is already dark */
+.landing-theme {
+  --background: oklch(0 0 0);
+  /* Pure Black Landing */
+  --foreground: oklch(0.98 0 0);
+  --muted: oklch(0.08 0 0);
+  --border: oklch(0.12 0 0);
+  --primary: oklch(0.70 0.25 300);
+  /* Keep amethyst primary for brand */
 }
+
 
 @layer utilities {
   .magic-glow {
@@ -146,17 +151,30 @@
 
   .noise-overlay {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    mask-image: radial-gradient(circle at center, transparent, black);
-    opacity: 0.1;
+    mask-image: radial-gradient(circle at center, black, transparent);
+    opacity: 0.02;
     mix-blend-mode: overlay;
+    pointer-events: none;
   }
 
   .glass-premium {
-    @apply bg-zinc-950/40 backdrop-blur-3xl border border-white/10 shadow-2xl;
+    @apply backdrop-blur-3xl;
+    background: linear-gradient(135deg, oklch(0.15 0.05 260 / 0.5), oklch(0.10 0.04 260 / 0.3));
+    border: 1px solid oklch(0.98 0.01 260 / 0.12);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow:
+      0 10px 40px -10px rgba(0, 0, 0, 0.5),
+      inset 0 1px 1px 0 oklch(1 0 0 / 0.05);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-premium:hover {
+    border-color: oklch(0.70 0.25 300 / 0.3);
+    background: linear-gradient(135deg, oklch(0.18 0.06 260 / 0.6), oklch(0.12 0.05 260 / 0.4));
+    box-shadow:
+      0 20px 50px -12px rgba(0, 0, 0, 0.6),
+      inset 0 1px 1px 0 oklch(1 0 0 / 0.1);
   }
 
   .glass-premium::before {

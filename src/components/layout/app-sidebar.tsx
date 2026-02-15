@@ -66,10 +66,10 @@ export function AppSidebar({
     // --- NAVIGATION GROUPS ---
 
     const NAV_CORE = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, visible: user.isMember || user.canViewCalendar },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, visible: user.canViewRoster },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-blue-400" },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-blue-400" },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-blue-400", visible: user.isMember || user.canViewCalendar },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-blue-400", visible: user.canViewRoster },
     ];
 
     const NAV_FEATURES = [
@@ -80,19 +80,19 @@ export function AppSidebar({
     ];
 
     const NAV_TOOLS = [
-        { name: "Services", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-orange-400", visible: true },
-        { name: "Recherche", href: `/dashboard/${guildId}/finder`, icon: Compass, visible: true },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, visible: true },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, visible: true },
+        { name: "Services", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: true },
+        { name: "Recherche", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-cyan-400", visible: true },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-cyan-400", visible: true },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: true },
     ];
 
     const NAV_ADMIN = [
-        { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, visible: user.isAdmin },
-        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
-        { name: "Éditer Présentation", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
-        { name: "Centre Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
-        { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
-        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin },
+        { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin },
+        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "text-rose-500", visible: user.isAdmin },
+        { name: "Éditer Présentation", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "text-rose-500", visible: user.isAdmin || user.canEditPresentation },
+        { name: "Centre Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, color: "text-rose-500", visible: user.canValidateMissions || user.isAdmin },
+        { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "text-rose-500", visible: user.canManageMissions },
+        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "text-rose-500", visible: user.isAdmin },
     ];
 
     const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
@@ -199,8 +199,8 @@ export function AppSidebar({
                     {/* CORE */}
                     <div className="space-y-1.5 peer">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Général</h4>
+                            <div className="h-px flex-1 bg-gradient-to-r from-blue-500/30 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/60">Général</h4>
                         </div>
                         {NAV_CORE.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
@@ -210,8 +210,8 @@ export function AppSidebar({
                     {/* FEATURES */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Fonctionnalités</h4>
+                            <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Fonctionnalités</h4>
                         </div>
                         {NAV_FEATURES.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
@@ -221,8 +221,8 @@ export function AppSidebar({
                     {/* TOOLS */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Outils</h4>
+                            <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/30 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Outils</h4>
                         </div>
                         {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
@@ -316,14 +316,14 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
             className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
                 isActive
-                    ? "bg-white/[0.04] text-white shadow-[0_4px_12px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-white/10"
+                    ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
                     : "text-zinc-400 hover:text-white hover:bg-white/[0.02]"
             )}
         >
             {/* Active Glow Indicator */}
             {isActive && (
                 <div className={cn(
-                    "absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full shadow-[0_0_12px_rgba(var(--primary-rgb),0.8)]",
+                    "absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full animate-pulse shadow-[0_0_12px_currentColor]",
                     item.color ? item.color.replace("text-", "bg-") : "bg-primary"
                 )} />
             )}
@@ -333,7 +333,7 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
                     "h-4 w-4 shrink-0 transition-all duration-300",
                     isActive
                         ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
-                        : cn(item.color ? `${item.color} opacity-40 group-hover:opacity-80` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110")
+                        : cn(item.color ? `${item.color} opacity-40 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3")
                 )}
             />
             <span className={cn(
@@ -342,6 +342,14 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
             )}>
                 {item.name}
             </span>
+
+            {/* Subtle glow behind text on active */}
+            {isActive && (
+                <div className={cn(
+                    "absolute inset-0 opacity-[0.03] pointer-events-none bg-gradient-to-r from-transparent via-current to-transparent",
+                    item.color ? item.color : "text-primary"
+                )} />
+            )}
 
             {/* Subtle light effect on hover */}
             {!isActive && (

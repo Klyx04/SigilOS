@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { ArrowLeft, RefreshCw, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, RefreshCw, LayoutDashboard, Database, Activity, ShieldCheck } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 import { useSession } from "next-auth/react";
 
 interface HealthData {
@@ -74,8 +75,11 @@ export default function StatusPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black flex flex-col">
-            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
+        <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
+
+            <PublicHeader user={session?.user} activePage="status" />
 
             {/* Main Content */}
             <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
@@ -90,63 +94,73 @@ export default function StatusPage() {
                 </div>
 
                 {/* Global Status Card */}
-                <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/10 rounded-2xl p-6 mb-8">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <StatusDot status={globalStatus} />
+                <div className="glass-premium p-8 rounded-3xl border border-white/5 bg-zinc-900/40 backdrop-blur-2xl relative overflow-hidden mb-8 group transition-all hover:scale-[1.01]">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-3xl blur opacity-0 group-hover:opacity-100 transition duration-1000" />
+
+                    <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-6">
+                            <div className="relative">
+                                <StatusDot status={globalStatus} />
+                                <div className={`absolute inset-0 rounded-full blur-sm opacity-50 animate-pulse ${globalStatus === "up" ? "bg-emerald-500" : "bg-red-500"}`} />
+                            </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-white">
+                                <h2 className="text-xl font-black text-white uppercase tracking-tight">
                                     {globalStatus === "up" ? "Tous les systèmes sont opérationnels" :
                                         globalStatus === "degraded" ? "Performance dégradée" :
                                             "Incident en cours"}
                                 </h2>
-                                <p className="text-sm text-zinc-400">
+                                <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
                                     {lastUpdated ? `Vérifié à ${lastUpdated.toLocaleTimeString("fr-FR")}` : "Vérification..."}
                                 </p>
                             </div>
                         </div>
                         <button
                             onClick={fetchHealth}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                            className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5 hover:border-white/10"
                             title="Rafraîchir"
                         >
-                            <RefreshCw className="w-4 h-4 text-zinc-400" />
+                            <RefreshCw className={`w-5 h-5 text-zinc-400 ${loading ? "animate-spin" : ""}`} />
                         </button>
                     </div>
                 </div>
 
                 {/* Services List */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-4">
-                        Services
+                    <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                        <Activity className="w-3 h-3" />
+                        Services de la plateforme
                     </h3>
 
                     {/* Site Web */}
-                    <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-2.5 h-2.5 rounded-full ${siteStatus === "up" ? "bg-emerald-500" : "bg-red-500"}`} />
-                            <span className="font-medium text-white">Site Web</span>
+                    <div className="flex items-center justify-between p-6 bg-zinc-900/30 border border-white/5 rounded-2xl hover:bg-zinc-900/50 transition-colors group">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2.5 rounded-xl bg-zinc-950/50 border border-white/5">
+                                <Database className="w-4 h-4 text-indigo-400" />
+                            </div>
+                            <span className="font-bold text-white tracking-tight">Core API & Database</span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-6">
                             {health?.services.database.latency && (
-                                <span className="text-xs text-zinc-500 font-mono">{health.services.database.latency}ms</span>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{health.services.database.latency}ms latency</span>
                             )}
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${siteStatus === "up" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                            <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${siteStatus === "up" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"
                                 }`}>
                                 {siteStatus === "up" ? "Opérationnel" : "Hors ligne"}
-                            </span>
+                            </div>
                         </div>
                     </div>
 
                     {/* Bot Discord */}
-                    <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                            <span className="font-medium text-white">Bot Discord</span>
+                    <div className="flex items-center justify-between p-6 bg-zinc-900/30 border border-white/5 rounded-2xl hover:bg-zinc-900/50 transition-colors group">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2.5 rounded-xl bg-zinc-950/50 border border-white/5">
+                                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                            </div>
+                            <span className="font-bold text-white tracking-tight">Discord Integration</span>
                         </div>
-                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400">
+                        <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border bg-emerald-500/5 border-emerald-500/20 text-emerald-400`}>
                             Connecté
-                        </span>
+                        </div>
                     </div>
                 </div>
 

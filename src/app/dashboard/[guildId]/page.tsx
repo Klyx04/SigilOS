@@ -6,6 +6,7 @@ import { getActivityLadder } from "@/server/actions/ladder-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
+import { getUserProfile } from "@/server/actions/profile-actions";
 import { EchoDuSigil } from "./_components/echo-du-sigil";
 import { PresenceFacepile } from "./_components/presence-facepile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,9 @@ import { AccessDenied } from "@/components/layout/access-denied";
 import { LadderPreview } from "./_components/ladder-preview";
 import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
 import { Suspense } from "react";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { StatProgress } from "./_components/stat-progress";
+import { GuidePulse } from "@/components/dashboard/guide-pulse";
 
 export default async function DashboardPage({
     params,
@@ -42,16 +45,30 @@ export default async function DashboardPage({
         return <AccessDenied />;
     }
 
+    // CAPACITY CHECK: If guild is full and user is just joining
+    if (user.isCapacityFull) {
+        return (
+            <AccessDenied
+                title="Guilde Pleine"
+                message="Désolé, cette guilde a atteint sa capacité maximale sur SigilOS (350 membres). Contactez le support pour augmenter la limite."
+                variant="lock"
+                action={<SignOutButton />}
+            />
+        );
+    }
+
     // Parallel data fetching
-    const [presenceData, ladderResult, focusData, guildStatsResult] = await Promise.all([
+    const [presenceData, ladderResult, focusData, guildStatsResult, profileResult] = await Promise.all([
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
         getDashboardFocus(guildId, user.id!),
-        getGuildStats(guildId)
+        getGuildStats(guildId),
+        getUserProfile(guildId)
     ]);
 
     const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
     const guildStats = guildStatsResult.success && guildStatsResult.data ? guildStatsResult.data : null;
+    const profile = profileResult.success && profileResult.data ? profileResult.data : null;
 
     const ocreProgress = await getMyOcreProgress(guildId);
 
@@ -66,23 +83,13 @@ export default async function DashboardPage({
                 {/* --- HEADER LAYER : IDENTITY & PRESENCE --- */}
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
                     <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 font-black uppercase tracking-widest text-[10px] py-1 bg-indigo-500/5 backdrop-blur-sm">
-                                Port d'Attache
-                            </Badge>
-                            <div className="h-px w-8 bg-zinc-800" />
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">SigilOS v2.4</span>
-                        </div>
                         <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-sm">
-                            Dashboard <span className="text-zinc-600">_</span>
+                            Dashboard
                         </h1>
                     </div>
 
                     <div className="flex flex-col items-start md:items-end gap-3 group">
-                        <div className="flex items-center gap-4 py-2 px-4 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-sm hover:border-white/10 transition-colors">
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hidden sm:inline">Gardite en ligne</span>
-                            <PresenceFacepile users={presenceData.data} />
-                        </div>
+                        {/* Presence removed here to avoid redundancy with the TopNav */}
                     </div>
                 </header>
 
@@ -91,40 +98,63 @@ export default async function DashboardPage({
                     <EchoDuSigil data={focusData} />
                 </section>
 
-                {/* --- 2. BENTO GRID 2.0 --- */}
-                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-
-                    {/* Admin Onboarding - Dynamic Row Span */}
+                {/* --- ONBOARDING LAYER (Admin & Member) --- */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
                     {user.isAdmin && (
-                        <div className="md:col-span-12 lg:col-span-8 row-span-1">
+                        <div className="md:col-span-12">
                             <OnboardingBanner
                                 guildId={guildId}
                                 steps={[
-                                    { id: "discord", title: "Bot", description: "Config sync", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
-                                    { id: "missions", title: "Missions", description: "Engagement", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.missionsValidatedThisWeek ?? 0) > 0, icon: "scroll-text" },
-                                    { id: "wiki", title: "Doc", description: "Héritage", href: `/docs`, completed: (guildStats?.activityPointsThisWeek ?? 0) > 100, icon: "book-open" }
+                                    { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
+                                    { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.missionsValidatedThisWeek ?? 0) > 0, icon: "scroll-text" },
+                                    { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.activityPointsThisWeek ?? 0) > 100, icon: "book-open" }
                                 ]}
                             />
                         </div>
                     )}
 
-                    {/* Missions (Main landscape) */}
-                    <div className="md:col-span-6 lg:col-span-4 row-span-1">
+                    {!user.isAdmin && profile && (!profile.pseudoDofus || !profile.metamobVerified) && (
+                        <div className="md:col-span-12">
+                            <OnboardingBanner
+                                guildId={guildId}
+                                title="Bienvenue"
+                                subtitle="Premiers pas"
+                                checklistLabel="Checklist de membre"
+                                steps={[
+                                    { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: profile.metamobVerified, icon: "infinity" },
+                                    { id: "profile", title: "Profil", description: "Renseigner mon pseudo/classe", href: `/dashboard/${guildId}/profile`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
+                                    { id: "docs", title: "Aide", description: "Découvrir le fonctionnement", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
+                                ]}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* --- 2. BENTO GRID 2.0 --- */}
+                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+
+                    {/* Missions (Main landscape - Priority 1) */}
+                    <div className="md:col-span-12 lg:col-span-8 row-span-1">
                         <Link href={`/dashboard/${guildId}/missions`} className="block h-full">
-                            <Card className="glass-premium h-full hover:border-emerald-500/50 transition-all cursor-pointer group bg-zinc-950/20 relative overflow-hidden">
+                            <Card className="glass-premium h-full hover:border-emerald-500/50 transition-all cursor-pointer group relative overflow-hidden">
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-zinc-200 group-hover:text-emerald-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
                                             <ScrollText className="w-4 h-4" />
                                             Missions
+                                            <GuidePulse
+                                                description="C'est ici que vous validez vos défis hebdomadaires pour faire progresser la guilde."
+                                                className="ml-1"
+                                                side="right"
+                                            />
                                         </CardTitle>
                                         <Badge variant="outline" className="border-emerald-500/20 text-emerald-400/60 text-[8px] font-black">ACTIF</Badge>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">Parchemins de guilde en attente.</p>
+                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">Objectifs et défis hebdomadaires.</p>
                                     <div className="flex items-center text-[10px] text-emerald-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
-                                        Voir les contrats <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                        Voir les missions <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </CardContent>
                                 <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -134,14 +164,18 @@ export default async function DashboardPage({
                         </Link>
                     </div>
 
-                    {/* Guild Stats (Vertical Focus) */}
-                    <div className="md:col-span-6 lg:col-span-4 row-span-2">
-                        <Card className="glass-premium h-full saturate-boost bg-zinc-950/40 relative overflow-hidden border-white/5">
+                    {/* Guild Stats (Vertical Focus - Side Column) */}
+                    <div className="md:col-span-12 lg:col-span-4 lg:row-span-2">
+                        <Card className="glass-premium h-full saturate-boost relative overflow-hidden border-white/10">
                             <BorderBeam size={150} duration={8} delay={2} colorFrom="#6366f1" colorTo="#a855f7" />
                             <CardHeader className="pb-8 pt-6">
                                 <CardTitle className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
                                     <Target className="h-4 w-4" />
-                                    Chronologie de Guilde
+                                    Activité Hebdomadaire
+                                    <GuidePulse
+                                        description="Suivez la progression collective de la guilde et votre contribution personnelle en XP."
+                                        side="top"
+                                    />
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-8">
@@ -163,8 +197,8 @@ export default async function DashboardPage({
                                         </div>
                                         <div className="pt-4 border-t border-white/5">
                                             <div className="flex items-center justify-between text-[10px] text-zinc-500 font-black uppercase">
-                                                <span>Runs Songes</span>
-                                                <span className="text-purple-400 font-black">{guildStats.activeSongesRuns} Actives</span>
+                                                <span>Songes actifs</span>
+                                                <span className="text-purple-400 font-black">{guildStats.activeSongesRuns} Actifs</span>
                                             </div>
                                             <StatProgress value={65} color="bg-purple-500" glowColor="rgba(168,85,247,0.5)" />
                                         </div>
@@ -178,20 +212,24 @@ export default async function DashboardPage({
                         </Card>
                     </div>
 
-                    {/* Songes (Main landscape) */}
-                    <div className="md:col-span-6 lg:col-span-4 row-span-1">
+                    {/* Songes (Main landscape - Priority 2) */}
+                    <div className="md:col-span-6 lg:col-span-8 row-span-1">
                         <Link href={`/dashboard/${guildId}/songes`} className="block h-full">
-                            <Card className="glass-premium h-full hover:border-purple-500/50 transition-all cursor-pointer group bg-zinc-950/20 relative overflow-hidden">
+                            <Card className="glass-premium h-full hover:border-purple-500/50 transition-all cursor-pointer group relative overflow-hidden">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-zinc-200 group-hover:text-purple-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
                                         <InfinityIcon className="w-5 h-5" />
                                         Songes
+                                        <GuidePulse
+                                            description="Gérez vos runs de songes infinis et trouvez des partenaires de combat."
+                                            side="right"
+                                        />
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">L'abysse vous appelle.</p>
+                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">Gestion des étages et recrutement.</p>
                                     <div className="flex items-center text-[10px] text-purple-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
-                                        Explorer les puits <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                        Voir les runs <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </CardContent>
                                 <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
@@ -201,15 +239,15 @@ export default async function DashboardPage({
                         </Link>
                     </div>
 
-                    {/* Ladder Preview (Horizontal bottom row) */}
-                    <div className="md:col-span-12 lg:col-span-8 row-span-1">
+                    {/* Ladder Preview (Horizontal row) */}
+                    <div className="md:col-span-6 lg:col-span-8 row-span-1">
                         <LadderPreview guildId={guildId} topLadder={topLadder} />
                     </div>
 
                     {/* Tertiary Quick Modules */}
                     <div className="md:col-span-12 lg:col-span-4 row-span-1 grid grid-cols-2 gap-4">
                         <Link href={`/dashboard/${guildId}/archimonstres`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-amber-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                            <Card className="glass-premium h-full hover:border-amber-500/50 transition-all group overflow-hidden relative">
                                 <CardHeader className="p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <Bug className="w-5 h-5 text-amber-500" />
@@ -219,7 +257,13 @@ export default async function DashboardPage({
                                             </span>
                                         )}
                                     </div>
-                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Archimonstres</CardTitle>
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                                        Quête Ocre
+                                        <GuidePulse
+                                            description="Gardez un œil sur votre progression de la quête Ocre via Metamob."
+                                            side="top"
+                                        />
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="px-4 pb-4 pt-0">
                                     <p className="text-[10px] text-zinc-500 font-bold leading-tight">
@@ -231,7 +275,7 @@ export default async function DashboardPage({
                             </Card>
                         </Link>
                         <Link href={`/dashboard/${guildId}/profile`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-blue-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                            <Card className="glass-premium h-full hover:border-blue-500/50 transition-all group overflow-hidden relative">
                                 <CardHeader className="p-4">
                                     <Sparkles className="w-5 h-5 text-blue-500 mb-2" />
                                     <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Profil</CardTitle>
@@ -242,7 +286,7 @@ export default async function DashboardPage({
                             </Card>
                         </Link>
                         <Link href={`/dashboard/${guildId}/members`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-pink-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                            <Card className="glass-premium h-full hover:border-pink-500/50 transition-all group overflow-hidden relative">
                                 <CardHeader className="p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <Users className="w-5 h-5 text-pink-500" />
@@ -260,7 +304,7 @@ export default async function DashboardPage({
                             </Card>
                         </Link>
                         <Link href={`/docs`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-zinc-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                            <Card className="glass-premium h-full hover:border-zinc-500/50 transition-all group overflow-hidden relative">
                                 <CardHeader className="p-4">
                                     <BookOpen className="w-5 h-5 text-zinc-400 mb-2" />
                                     <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Wiki</CardTitle>

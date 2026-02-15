@@ -3,18 +3,18 @@
 import { useEffect } from "react";
 import { updateHeartbeat } from "@/server/actions/presence-actions";
 
-export function PresenceHeartbeat({ guildId, userId }: { guildId: string, userId: string }) {
+export function PresenceHeartbeat({ guildId }: { guildId: string }) {
     useEffect(() => {
         // Initial heartbeat
-        updateHeartbeat(guildId, userId);
+        updateHeartbeat(guildId);
 
-        // Heartbeat every 5 minutes
+        // Heartbeat every 45 seconds
         const interval = setInterval(() => {
-            updateHeartbeat(guildId, userId);
-        }, 5 * 60 * 1000);
+            updateHeartbeat(guildId);
+        }, 45 * 1000);
 
         return () => clearInterval(interval);
-    }, [guildId, userId]);
+    }, [guildId]);
 
     return null; // Silent component
 }

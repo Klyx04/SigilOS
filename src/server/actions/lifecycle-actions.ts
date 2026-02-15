@@ -264,12 +264,10 @@ export async function handleGdprDeletionRequest() {
         console.log(`[GDPR Deletion] ✅ User ${userId} successfully deleted`);
         return { success: true };
     } catch (e: any) {
-        console.error("[GDPR Deletion] CRITICAL ERROR:", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        const code = e?.code || "Unknown";
+        console.error("[GDPR Deletion] FATAL:", e);
         return {
             success: false,
-            error: `Erreur interne (${code}) : ${msg.split('\n')[0].substring(0, 100)}`
+            error: "Une erreur interne s'est produite lors de la suppression. Veuillez contacter un administrateur."
         };
     }
 }

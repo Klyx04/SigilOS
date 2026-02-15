@@ -10,13 +10,28 @@ import {
     AlertCircle,
     Key,
     Settings,
+    Terminal,
+    Plus,
+    Minus,
     Search,
+    Filter,
+    X,
     ChevronLeft,
     ChevronRight,
-    Terminal
+    Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
+import { useEffect, useCallback } from "react";
 
 interface AuditLog {
     id: string;
@@ -40,16 +55,111 @@ interface LogViewerProps {
     initialTotal: number;
 }
 
+const ITEMS_PER_PAGE = 50;
+
+const ACTION_OPTIONS = [
+    { value: "all", label: "Toutes les actions" },
+    { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
+    { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
+    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
+    { value: "CONFIG_UPDATED", label: "Configuration" },
+    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
+];
+
 export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
     const [logs, setLogs] = useState(initialLogs);
+    const [total, setTotal] = useState(initialTotal);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
 
+    // Filters
+    const [actionFilter, setActionFilter] = useState<string>("all");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Fetch logs when filters or page change
+    const fetchLogs = useCallback(async () => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: ITEMS_PER_PAGE.toString(),
+            });
+
+            if (actionFilter && actionFilter !== "all") {
+                params.set("action", actionFilter);
+            }
+            if (debouncedSearch) {
+                params.set("search", debouncedSearch);
+            }
+
+            const res = await fetch(`/api/god/audit-logs?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                setLogs(data.logs);
+                setTotal(data.total);
+            }
+        } catch (error) {
+            console.error("Failed to fetch logs:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [page, actionFilter, debouncedSearch]);
+
+    useEffect(() => {
+        // Skip initial fetch since we have initialLogs
+        if (page === 1 && actionFilter === "all" && !debouncedSearch) {
+            return;
+        }
+        fetchLogs();
+    }, [page, actionFilter, debouncedSearch, fetchLogs]);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [actionFilter, debouncedSearch]);
+
+    const clearFilters = () => {
+        setActionFilter("all");
+        setSearchQuery("");
+        setDebouncedSearch("");
+        setPage(1);
+    };
+
+    const hasActiveFilters = actionFilter !== "all" || debouncedSearch;
+
+    const getActionColors = (action: string) => {
+        if (action.includes("RBAC")) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+        if (action.includes("SECURITY")) return "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse";
+        if (action.includes("CONFIG")) return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        if (action === "WEBHOOK_MEMBER_ADD") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+        if (action === "WEBHOOK_MEMBER_REMOVE") return "bg-zinc-500/10 text-zinc-400 border-white/10";
+        return "bg-zinc-500/10 text-zinc-400 border-white/5";
+    };
+
     const getActionIcon = (action: string) => {
-        if (action.includes("RBAC")) return <Key className="w-4 h-4 text-amber-400" />;
-        if (action.includes("SECURITY")) return <AlertCircle className="w-4 h-4 text-red-500" />;
-        if (action.includes("CONFIG")) return <Settings className="w-4 h-4 text-blue-400" />;
-        return <Terminal className="w-4 h-4 text-zinc-400" />;
+        if (action.includes("RBAC")) return <Key className="w-3.5 h-3.5" />;
+        if (action.includes("SECURITY")) return <AlertCircle className="w-3.5 h-3.5" />;
+        if (action.includes("CONFIG")) return <Settings className="w-3.5 h-3.5" />;
+        if (action.includes("MEMBER_ADD")) return <Plus className="w-3.5 h-3.5" />;
+        if (action.includes("MEMBER_REMOVE")) return <Minus className="w-3.5 h-3.5" />;
+        return <Terminal className="w-3.5 h-3.5" />;
+    };
+
+    const formatActionLabel = (action: string) => {
+        if (action === "WEBHOOK_MEMBER_ADD") return "Arrivée Membre";
+        if (action === "WEBHOOK_MEMBER_REMOVE") return "Départ Membre";
+        return action.replace(/_/g, " ");
     };
 
     const formatValue = (val: any) => {
@@ -59,6 +169,76 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
 
     return (
         <div className="space-y-4">
+            {/* Filters Toolbar */}
+            <div className="flex flex-wrap items-center gap-3 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
+                <div className="flex items-center gap-2 px-2 border-r border-white/10 mr-2">
+                    <Filter className="h-4 w-4 text-zinc-500" />
+                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Filtres</span>
+                </div>
+
+                <Select value={actionFilter} onValueChange={setActionFilter}>
+                    <SelectTrigger className="w-[180px] h-9 text-[11px] font-bold bg-zinc-800/50 border-white/10 rounded-xl">
+                        <SelectValue placeholder="Type d'action" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-white/10">
+                        {ACTION_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                    <Input
+                        type="text"
+                        placeholder="Rechercher par acteur, guilde..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="h-9 w-[260px] pl-9 text-[11px] font-bold bg-zinc-800/50 border-white/10 rounded-xl"
+                    />
+                </div>
+
+                {hasActiveFilters && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="h-9 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest"
+                    >
+                        <X className="h-3 w-3 mr-2" />
+                        Réinitialiser
+                    </Button>
+                )}
+
+                <div className="ml-auto flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                        Page <span className="text-zinc-300">{page}</span> / <span className="text-zinc-300">{totalPages || 1}</span>
+                    </div>
+                    <div className="flex gap-1">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1 || loading}
+                            className="h-8 w-8 p-0 bg-zinc-800/50 border-white/10 rounded-lg disabled:opacity-30"
+                        >
+                            <ChevronLeft className="h-4 h-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages || loading}
+                            className="h-8 w-8 p-0 bg-zinc-800/50 border-white/10 rounded-lg disabled:opacity-30"
+                        >
+                            <ChevronRight className="h-4 h-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
             {/* Table */}
             <div className="bg-zinc-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl">
                 <table className="w-full text-left border-collapse">
@@ -82,12 +262,19 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                             <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-zinc-800/50 border border-white/5 group-hover:border-white/10 transition-colors">
+                                        <div className={cn(
+                                            "flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300",
+                                            getActionColors(log.action)
+                                        )}>
                                             {getActionIcon(log.action)}
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-zinc-200 uppercase tracking-tight">{log.action.replace(/_/g, " ")}</span>
-                                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{log.targetType}</span>
+                                            <span className="text-[11px] font-black uppercase tracking-tight text-white leading-none">
+                                                {formatActionLabel(log.action)}
+                                            </span>
+                                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+                                                {log.targetType}
+                                            </span>
                                         </div>
                                     </div>
                                 </td>
@@ -128,20 +315,10 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                 </table>
             </div>
 
-            {/* Pagination Placeholder */}
-            {initialTotal > 50 && (
-                <div className="flex items-center justify-between text-zinc-500 text-xs font-bold uppercase tracking-widest px-2">
-                    <span>Affichage de 1 à {logs.length} sur {initialTotal} entrées</span>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled className="bg-zinc-900 border-white/5 text-zinc-500">
-                            <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" disabled className="bg-zinc-900 border-white/5 text-zinc-500">
-                            <ChevronRight className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div>
-            )}
+            {/* Bottom Info */}
+            <div className="flex items-center justify-between text-[10px] font-black text-zinc-600 uppercase tracking-widest px-2">
+                <span>Affichage de <span className="text-zinc-400">{logs.length}</span> entrées sur un total de <span className="text-zinc-400">{total}</span></span>
+            </div>
         </div>
     );
 }

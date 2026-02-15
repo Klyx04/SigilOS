@@ -50,8 +50,14 @@ async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>
         );
 
         if (!res.ok) {
-            console.error(`[Sync] Failed to fetch members: ${res.status}`);
-            throw new Error(`Discord API error: ${res.status}`);
+            const errText = await res.text();
+            console.error(`[Sync] Failed to fetch members: ${res.status} - ${errText}`);
+
+            if (res.status === 403) {
+                throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
+            }
+
+            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
         }
 
         const members = await res.json();
@@ -67,6 +73,7 @@ async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>
         }
     }
 
+    console.log(`[Sync] Successfully fetched ${memberIds.size} unique member IDs from Discord.`);
     return memberIds;
 }
 

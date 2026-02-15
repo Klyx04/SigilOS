@@ -74,6 +74,45 @@ async function main() {
             }
         }
 
+        // 3. Scheduled Hard Deletions (Guilds & Profiles)
+        const now = new Date();
+
+        // Guilds
+        const expiredGuilds = await db.guildConfig.findMany({
+            where: { scheduledDeletion: { lt: now } },
+            select: { id: true, name: true }
+        });
+
+        console.log(`[Lifecycle] Found ${expiredGuilds.length} expired guild(s) for hard deletion.`);
+        if (expiredGuilds.length > 0) {
+            if (isDryRun) {
+                expiredGuilds.forEach(g => console.log(`  [DRY] Would hard delete guild: ${g.name} (${g.id})`));
+            } else {
+                for (const g of expiredGuilds) {
+                    await db.guildConfig.delete({ where: { id: g.id } });
+                    console.log(`  [DEL] Hard deleted guild: ${g.name}`);
+                }
+            }
+        }
+
+        // Profiles
+        const expiredProfiles = await db.userProfile.findMany({
+            where: { scheduledDeletion: { lt: now } },
+            select: { id: true, userId: true, guildId: true }
+        });
+
+        console.log(`[Lifecycle] Found ${expiredProfiles.length} expired profile(s) for hard deletion.`);
+        if (expiredProfiles.length > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would hard delete ${expiredProfiles.length} profiles.`);
+            } else {
+                const result = await db.userProfile.deleteMany({
+                    where: { id: { in: expiredProfiles.map(p => p.id) } }
+                });
+                console.log(`  [DEL] Successfully hard deleted ${result.count} profile(s).`);
+            }
+        }
+
         console.log('--------------------------------------------------');
         console.log(`✨ Janitor finished! ${isDryRun ? 'Dry run complete.' : 'Maintenance executed successfully.'}`);
     } catch (error) {

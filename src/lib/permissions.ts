@@ -10,6 +10,7 @@ export const PERMISSIONS = {
 
     // User Profile
     PROFILE_VIEW_ALL: "profile:view_all", // See full guild roster
+    MEMBER_MANAGE: "admin:member_manage", // Gérer le cycle de vie (Archive, Ban, Purge)
 
     // Archimonstres / Quête Ocre
     ARCHIS_VIEW: "archis:view", // Accès à la Bourse aux Archis
@@ -78,6 +79,11 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Voir l'Annuaire",
         description: "Consulter la liste de tous les membres de la guilde.",
         module: "profile",
+    },
+    [PERMISSIONS.MEMBER_MANAGE]: {
+        label: "Gérer les Membres",
+        description: "Archiver, bannir ou supprimer définitivement des membres.",
+        module: "admin",
     },
     [PERMISSIONS.ARCHIS_VIEW]: {
         label: "Bourse aux Archis",

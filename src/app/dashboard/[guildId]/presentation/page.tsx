@@ -5,9 +5,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Edit, Users, MessageSquare, Swords, Globe, Calendar, Server, BookOpen } from "lucide-react";
+import { ExternalLink, Edit, Users, MessageSquare, Swords, Globe, Calendar, Server, BookOpen, Eye, EyeOff, Sparkles } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -15,7 +18,7 @@ type Props = {
 
 export default async function GuildMemberPresentationPage({ params }: Props) {
     const { guildId } = await params;
-    const guild = await getGuildPresentation(guildId);
+    const guild = await getGuildPresentation(guildId, false);
     const user = await getUserContext(guildId);
 
     if (!guild) {
@@ -33,16 +36,37 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                 iconColor="#a855f7"
                 backHref={`/dashboard/${guildId}`}
                 actions={
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-3">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className={cn(
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+                                        guild.isRecruiting
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                            : "bg-zinc-500/10 border-white/10 text-zinc-500"
+                                    )}>
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", guild.isRecruiting ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                                        {guild.isRecruiting ? "Public" : "Désactivé"}
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-medium text-zinc-300">
+                                    {guild.isRecruiting
+                                        ? "Visible dans l'annuaire public"
+                                        : "Caché. Activez-le dans la configuration."}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
                         <Link href={`/guilds/${guildId}`} target="_blank">
-                            <Button variant="outline" size="sm" className="gap-2">
+                            <Button variant="outline" size="sm" className="gap-2 border-white/10 hover:bg-white/5 h-9">
                                 <ExternalLink className="w-4 h-4" />
-                                Voir page publique
+                                <span className="hidden md:inline">Voir page publique</span>
                             </Button>
                         </Link>
                         {canEdit && (
                             <Link href={`/dashboard/${guildId}/admin/presentation`}>
-                                <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+                                <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-black h-9">
                                     <Edit className="w-4 h-4" />
                                     Modifier
                                 </Button>
@@ -51,6 +75,16 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </div>
                 }
             />
+
+            {!guild.history && (
+                <Alert className="bg-indigo-500/5 border-indigo-500/20 text-indigo-400">
+                    <Sparkles className="h-4 w-4" />
+                    <AlertTitle className="text-xs font-black uppercase tracking-widest">Page non configurée</AlertTitle>
+                    <AlertDescription className="text-sm font-medium opacity-80">
+                        Votre présentation est actuellement vide. Personnalisez votre histoire et votre équipe pour attirer de nouvelles recrues !
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Info Column */}
@@ -101,7 +135,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </Card>
 
                     {/* History */}
-                    {guild.history && (
+                    {guild.history ? (
                         <Card className="border-zinc-800 bg-zinc-900/50">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
@@ -116,6 +150,14 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                                     </p>
                                 </div>
                             </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="border-zinc-800 border-dashed bg-zinc-900/20 py-12 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                                <BookOpen className="w-6 h-6 text-zinc-600" />
+                            </div>
+                            <h3 className="text-sm font-bold text-zinc-400 mb-1">Aucune histoire racontée</h3>
+                            <p className="text-xs text-zinc-500 max-w-xs">Partagez l'épopée de votre guilde avec le monde.</p>
                         </Card>
                     )}
 

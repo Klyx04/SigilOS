@@ -65,90 +65,59 @@
 
 /* Define the actual values for the variables mapped above */
 /* Define the actual values for the variables mapped above */
+/* Define the actual values for the variables mapped above */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.13 0.06 260);
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.13 0.06 260);
+  /* Dofus Premium Palette - Deep Indigo/Amethyst */
+  --background: oklch(0.08 0.08 260);
+  --foreground: oklch(0.98 0.01 260);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.06 260);
+  --card: oklch(0.12 0.06 260);
+  --card-foreground: oklch(0.98 0.01 260);
 
-  --primary: oklch(0.25 0.10 260);
-  /* Deep blue for primary in light mode */
+  --popover: oklch(0.10 0.07 260);
+  --popover-foreground: oklch(0.98 0.01 260);
+
+  --primary: oklch(0.70 0.25 300);
+  /* Magical Amethyst 紫 */
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.95 0.05 260);
-  --secondary-foreground: oklch(0.25 0.10 260);
+  --secondary: oklch(0.15 0.08 260);
+  --secondary-foreground: oklch(0.98 0.01 260);
 
-  --muted: oklch(0.95 0.05 260);
-  --muted-foreground: oklch(0.50 0.05 260);
+  --muted: oklch(0.14 0.05 260);
+  --muted-foreground: oklch(0.80 0.02 260);
 
-  --accent: oklch(0.95 0.05 260);
-  --accent-foreground: oklch(0.25 0.10 260);
+  --accent: oklch(0.18 0.12 260);
+  /* Vibrant accent */
+  --accent-foreground: oklch(0.98 0.01 260);
 
-  --destructive: oklch(0.6 0.25 20);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 260);
 
-  --border: oklch(0.90 0.05 260);
-  --input: oklch(0.90 0.05 260);
-  --ring: oklch(0.25 0.10 260);
+  --border: oklch(0.18 0.06 260);
+  --input: oklch(0.16 0.06 260);
+  --ring: oklch(0.70 0.25 300);
 
-  --chart-1: oklch(0.65 0.25 300);
+  --chart-1: oklch(0.70 0.25 300);
   --chart-2: oklch(0.7 0.15 200);
   --chart-3: oklch(0.8 0.15 70);
   --chart-4: oklch(0.5 0.20 320);
   --chart-5: oklch(0.6 0.15 260);
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.25 0.10 260);
-  --sidebar-primary: oklch(0.25 0.10 260);
+  --sidebar: oklch(0.12 0.05 260);
+  --sidebar-foreground: oklch(0.95 0.02 260);
+  --sidebar-primary: oklch(0.70 0.25 300);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.95 0.05 260);
-  --sidebar-accent-foreground: oklch(0.25 0.10 260);
-  --sidebar-border: oklch(0.90 0.05 260);
-  --sidebar-ring: oklch(0.25 0.10 260);
+  --sidebar-accent: oklch(0.25 0.08 260);
+  --sidebar-accent-foreground: oklch(0.95 0.02 260);
+  --sidebar-border: oklch(0.25 0.08 260);
+  --sidebar-ring: oklch(0.70 0.25 300);
 }
 
 .dark {
-  /* Inherit same values as root since it is dark by default */
-  /* Dofus Premium Palette - Deep Indigo, Teal and Purples */
-  --background: oklch(0.10 0.02 260);
-  /* Deeper black */
-  --foreground: oklch(0.95 0.02 260);
-  --card: oklch(0.16 0.04 260);
-  --card-foreground: oklch(0.98 0.02 260);
-  --popover: oklch(0.16 0.04 260);
-  --popover-foreground: oklch(0.95 0.02 260);
-  --primary: oklch(0.70 0.30 300);
-  /* Vibrant Magical Purple */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.25 0.10 260);
-  --secondary-foreground: oklch(0.95 0.02 260);
-  --muted: oklch(0.20 0.05 260);
-  --muted-foreground: oklch(0.70 0.05 260);
-  --accent: oklch(0.30 0.05 260);
-  /* Substrate Indigo/Zinc for subtle highlights */
-  --accent-foreground: oklch(0.95 0.02 260);
-  --destructive: oklch(0.6 0.25 20);
-  --border: oklch(0.25 0.05 260);
-  --input: oklch(0.25 0.05 260);
-  --ring: oklch(0.70 0.30 300);
-  --chart-1: oklch(0.70 0.30 300);
-  --chart-2: oklch(0.7 0.15 200);
-  --chart-3: oklch(0.8 0.15 70);
-  --chart-4: oklch(0.5 0.20 320);
-  --chart-5: oklch(0.6 0.15 260);
-  --sidebar: oklch(0.12 0.04 260);
-  --sidebar-foreground: oklch(0.95 0.02 260);
-  --sidebar-primary: oklch(0.70 0.30 300);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.25 0.10 260);
-  --sidebar-accent-foreground: oklch(0.95 0.02 260);
-  --sidebar-border: oklch(0.25 0.05 260);
-  --sidebar-ring: oklch(0.70 0.30 300);
+  /* Inherit from :root which is already dark */
 }
 
 @layer utilities {
@@ -219,8 +188,7 @@
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
-    background-color: #000000 !important;
-    /* Force black to eliminate grey veil */
+    background-color: var(--background) !important;
     color: var(--foreground);
     display: flex;
     flex-direction: column;

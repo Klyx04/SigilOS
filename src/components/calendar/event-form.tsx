@@ -455,7 +455,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                     control={form.control}
                     name="publishOnDiscord"
                     render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border bg-background/50 p-4">
                             <div className="space-y-0.5">
                                 <FormLabel className="text-base text-zinc-100">
                                     Publier sur Discord

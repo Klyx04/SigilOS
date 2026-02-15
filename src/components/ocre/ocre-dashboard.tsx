@@ -24,6 +24,9 @@ import {
     ChevronRight,
     ArrowRightLeft,
     Loader2,
+    Sparkles,
+    Check,
+    User,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -33,6 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { OcreStatCard, StatsGrid } from "./ocre-stats";
 import { OcreMonsterCard } from "./ocre-monster-card";
 import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } from "./ocre-filter-bar";
+import { OcreExchangeModal } from "./ocre-exchange-modal";
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
@@ -279,25 +283,36 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                                 <div
                                     key={quest.slug}
                                     onClick={() => handleSwitch(quest.slug)}
-                                    className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 cursor-pointer transition-all group"
+                                    className="flex flex-col p-4 rounded-2xl border border-border bg-muted/30 hover:bg-accent/20 hover:border-amber-500/30 cursor-pointer transition-all group"
                                 >
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-zinc-200">{quest.server.name}</span>
-                                            <Badge variant="secondary" className="text-[10px] h-5 bg-black/20">
-                                                {quest.quest_template.id === 1 ? "Unity" : quest.quest_template.id === 2 ? "Rétro" : "Custom"}
-                                            </Badge>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-110 transition-transform">
+                                                <User className="h-5 w-5 text-amber-500" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-foreground">{quest.character_name}</span>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <span>{quest.server.name}</span>
+                                                    <span className="opacity-30">•</span>
+                                                    <Badge variant="secondary" className="text-[9px] h-4 px-1 bg-background/50">
+                                                        {quest.quest_template.id === 1 ? "Unity" : "Rétro"}
+                                                    </Badge>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <UserCircle className="h-3.5 w-3.5" />
-                                            <span>{quest.character_name}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 px-2 py-0.5 text-[10px] font-bold">
                                             Étape {quest.current_step}
                                         </Badge>
                                     </div>
+
+                                    <Button
+                                        size="sm"
+                                        className="w-full h-9 rounded-xl text-xs font-bold gap-2 bg-background border border-border hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"
+                                    >
+                                        <Check className="h-3 w-3" />
+                                        Activer cette quête
+                                    </Button>
                                 </div>
                             ))
                         )}
@@ -306,47 +321,62 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
             </Dialog>
 
             {/* Header with Progress (Metamob Style) */}
-            <div className="flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card/50 to-card/30 border border-amber-500/20 backdrop-blur-xl">
-                <div className="flex-1 md:w-1/2">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-                            Quête de l&apos;Éternelle Moisson
-                        </h2>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
-                            title="Changer de quête"
-                            onClick={handleOpenSwitch}
-                        >
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                        </Button>
+            <div className="relative overflow-hidden p-6 rounded-2xl bg-card border border-border shadow-xl">
+                {/* Background Decoration */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-3xl -mr-32 -mt-32 pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col md:flex-row gap-8">
+                    {/* Left Side: Character & Quest Info */}
+                    <div className="flex-1 space-y-4">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500/20" />
+                                Quête de l&apos;Éternelle Moisson
+                            </h2>
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <span className="font-semibold text-foreground">{data.questInfo.characterName}</span>
+                                <span className="opacity-40">•</span>
+                                <span>{data.questInfo.serverName}</span>
+                                <Badge variant="outline" className="ml-2 border-amber-500/30 text-amber-500 text-[10px] h-5 px-1.5">
+                                    Unity
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Étape Actuelle</span>
+                                <span className="text-lg font-bold text-amber-500">{data.questInfo.currentStep}<span className="text-muted-foreground/30 text-xs ml-1">/ {data.questInfo.totalSteps}</span></span>
+                            </div>
+                            <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
+                                <span className="text-lg font-bold text-emerald-500">{data.stats.progressPercent}%</span>
+                            </div>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-10 px-4 rounded-xl border-dashed border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
+                                onClick={handleOpenSwitch}
+                            >
+                                <ArrowRightLeft className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+                                <span className="text-xs font-semibold">Changer de quête / perso</span>
+                            </Button>
+                        </div>
                     </div>
-                    <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                        <span>{data.questInfo.characterName}</span>
-                        <span className="text-zinc-600">•</span>
-                        <span>{data.questInfo.serverName}</span>
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                        <Badge variant="outline" className="border-amber-500/30 text-amber-400">
-                            📍 Étape {data.questInfo.currentStep}/{data.questInfo.totalSteps}
-                        </Badge>
-                        {data.questInfo.parallelQuests > 1 && (
-                            <Badge variant="outline" className="border-blue-500/30 text-blue-400">
-                                🔄 {data.questInfo.parallelQuests} quêtes parallèles
-                            </Badge>
-                        )}
-                        <Badge variant="outline" className="border-purple-500/30 text-purple-400">
-                            ⚡ {data.stats.progressPercent}% Global
-                        </Badge>
+
+                    {/* Right Side: Progress Bars */}
+                    <div className="w-full md:w-[350px] space-y-3 bg-background/30 p-4 rounded-2xl border border-border/50">
+                        {renderProgressBar("Monstres", data.stats.monsters)}
+                        {renderProgressBar("Gardiens", data.stats.bosses)}
+                        {renderProgressBar("Archimonstres", data.stats.archis)}
                     </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-2 md:gap-1">
-                    <span className="text-xs text-muted-foreground/60 font-medium uppercase tracking-wider hidden md:block">
-                        Dernière synchro
-                    </span>
-                    <span className="text-xs text-zinc-400 bg-black/20 px-2 py-1 rounded-md border border-white/5 font-mono whitespace-nowrap">
+                {/* Last Sync Info - Discreet Corner */}
+                <div className="absolute bottom-2 right-4 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                    <span className="text-[10px] font-medium uppercase tracking-tighter">Dernière synchro :</span>
+                    <span className="text-[10px] font-mono">
                         {data.lastSync ? new Date(data.lastSync).toLocaleString("fr-FR", {
                             day: "2-digit",
                             month: "2-digit",
@@ -354,19 +384,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                             minute: "2-digit"
                         }) : "Jamais"}
                     </span>
-
-                    {/* Compact stats for mobile/tablet */}
-                    <div className="md:hidden flex items-center gap-2 mt-2">
-                        <Badge variant="secondary" className="bg-black/40 text-xs">
-                            {data.stats.possedes}/{data.stats.total}
-                        </Badge>
-                    </div>
-                </div>
-
-                <div className="w-full md:w-1/2 grid gap-4 hidden md:grid">
-                    {renderProgressBar("Monstres", data.stats.monsters)}
-                    {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
-                    {renderProgressBar("Archimonstres", data.stats.archis)}
                 </div>
             </div>
 
@@ -377,149 +394,191 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                 {renderProgressBar("Archimonstres", data.stats.archis)}
             </div>
 
-            {/* Stats Grid */}
-            <StatsGrid>
-                <OcreStatCard
-                    label="Total Monstres"
-                    value={data.stats.total}
-                    icon={Bug}
-                    color="purple"
-                    delay={0}
-                />
-                <OcreStatCard
-                    label="Manquants"
-                    value={data.stats.manquants}
-                    icon={AlertTriangle}
-                    color="red"
-                    delay={0.1}
-                />
-                <OcreStatCard
-                    label="Possédés (Min 1)"
-                    value={data.stats.possedes}
-                    icon={Package}
-                    color="green"
-                    delay={0.2}
-                />
-                <OcreStatCard
-                    label="Doublons (Min 2)"
-                    value={data.stats.doublons}
-                    icon={Gift}
-                    color="amber"
-                    delay={0.3}
-                />
-            </StatsGrid>
-
-            {/* Filter Bar */}
-            <OcreFilterBar
-                filters={filters}
-                onFiltersChange={setFilters}
-                steps={steps}
-                zones={zones}
-                isRefreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                guildId={guildId}
-            />
-
-            {/* Tabs */}
-            <Tabs defaultValue="manquants" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-card/30 backdrop-blur-sm border border-white/10">
-                    <TabsTrigger value="manquants" className="gap-2 data-[state=active]:bg-zinc-800">
-                        <span className="text-zinc-400">●</span>
-                        <span className="hidden sm:inline">Manquants</span>
-                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                            {filterMonsters(manquants).length}
-                        </Badge>
+            {/* Main Navigation Sub-menu */}
+            <Tabs defaultValue="progression" className="w-full space-y-8">
+                <TabsList className="flex items-center justify-start h-auto p-1 bg-transparent border-b border-border rounded-none w-full gap-8 overflow-x-auto no-scrollbar">
+                    <TabsTrigger
+                        value="progression"
+                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                    >
+                        Progression
                     </TabsTrigger>
-                    <TabsTrigger value="possedes" className="gap-2 data-[state=active]:bg-emerald-500/20">
-                        <span className="text-emerald-400">●</span>
-                        <span className="hidden sm:inline">Possédés</span>
-                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                            {filterMonsters(possedes).length}
-                        </Badge>
+                    <TabsTrigger
+                        value="monstres"
+                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                    >
+                        Bestiaire
                     </TabsTrigger>
-                    <TabsTrigger value="doublons" className="gap-2 data-[state=active]:bg-amber-500/20">
-                        <span className="text-amber-400">●</span>
-                        <span className="hidden sm:inline">Doublons</span>
-                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                            {filterMonsters(doublons).length}
-                        </Badge>
+                    <TabsTrigger
+                        value="echanges"
+                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                    >
+                        Échanges
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="manquants" className="mt-6">
-                    <MonsterGrid
-                        monsters={filterMonsters(manquants)}
-                        guildId={guildId}
-                        exchangeMap={exchangeMap}
-                        emptyMessage={
-                            filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
-                                ? "Aucun monstre ne correspond aux filtres"
-                                : "Félicitations ! Vous avez tous les monstres ! 🎉"
-                        }
-                        currentPage={currentPage}
-                        onPageChange={setCurrentPage}
-                        onFindExchanges={handleFindExchanges}
-                    />
+                {/* Tab: Summary & Global Stats */}
+                <TabsContent value="progression" className="space-y-8 outline-none mt-0">
+                    <div className="grid gap-6">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/50">Vue d&apos;ensemble</h3>
+                        <StatsGrid>
+                            <OcreStatCard
+                                label="Total Monstres"
+                                value={data.stats.total}
+                                icon={Bug}
+                                color="purple"
+                                delay={0}
+                            />
+                            <OcreStatCard
+                                label="Manquants"
+                                value={data.stats.manquants}
+                                icon={AlertTriangle}
+                                color="red"
+                                delay={0.1}
+                            />
+                            <OcreStatCard
+                                label="Possédés (Min 1)"
+                                value={data.stats.possedes}
+                                icon={Package}
+                                color="green"
+                                delay={0.2}
+                            />
+                            <OcreStatCard
+                                label="Doublons (Min 2)"
+                                value={data.stats.doublons}
+                                icon={Gift}
+                                color="amber"
+                                delay={0.3}
+                            />
+                        </StatsGrid>
+                    </div>
+
+                    <div className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                            <Sparkles className="h-6 w-6 text-amber-500" />
+                        </div>
+                        <div className="max-w-xs">
+                            <h4 className="font-bold text-foreground">Astuce Ocre</h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Utilisez la synchronisation Metamob pour mettre à jour vos captures automatiquement et trouver des partenaires d&apos;échange dans la guilde.
+                            </p>
+                        </div>
+                    </div>
                 </TabsContent>
 
-                <TabsContent value="possedes" className="mt-6">
-                    <MonsterGrid
-                        monsters={filterMonsters(possedes)}
+                {/* Tab: Monsters & Search */}
+                <TabsContent value="monstres" className="space-y-6 outline-none mt-0">
+                    {/* Filter Bar */}
+                    <OcreFilterBar
+                        filters={filters}
+                        onFiltersChange={setFilters}
+                        steps={steps}
+                        zones={zones}
+                        isRefreshing={isRefreshing}
+                        onRefresh={handleRefresh}
                         guildId={guildId}
-                        exchangeMap={{}}
-                        emptyMessage={
-                            filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
-                                ? "Aucun monstre ne correspond aux filtres"
-                                : "Vous n'avez encore aucun monstre possédé"
-                        }
-                        showExchangeButton={false}
-                        currentPage={currentPage}
-                        onPageChange={setCurrentPage}
                     />
+
+                    {/* Secondary Tabs (Grid) */}
+                    <Tabs defaultValue="manquants" className="w-full">
+                        <TabsList className="inline-flex w-auto bg-muted/30 backdrop-blur-sm border border-border p-1 rounded-xl">
+                            <TabsTrigger value="manquants" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                <span className="hidden sm:inline">Manquants</span>
+                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none">
+                                    {filterMonsters(manquants).length}
+                                </Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="possedes" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                <span className="hidden sm:inline">Possédés</span>
+                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none">
+                                    {filterMonsters(possedes).length}
+                                </Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="doublons" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                <span className="hidden sm:inline">Doublons</span>
+                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none">
+                                    {filterMonsters(doublons).length}
+                                </Badge>
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="manquants" className="mt-6 outline-none">
+                            <MonsterGrid
+                                monsters={filterMonsters(manquants)}
+                                guildId={guildId}
+                                exchangeMap={exchangeMap}
+                                emptyMessage={
+                                    filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
+                                        ? "Aucun monstre ne correspond aux filtres"
+                                        : "Félicitations ! Vous avez tous les monstres ! 🎉"
+                                }
+                                currentPage={currentPage}
+                                onPageChange={setCurrentPage}
+                                onFindExchanges={handleFindExchanges}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="possedes" className="mt-6 outline-none">
+                            <MonsterGrid
+                                monsters={filterMonsters(possedes)}
+                                guildId={guildId}
+                                exchangeMap={{}}
+                                emptyMessage={
+                                    filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
+                                        ? "Aucun monstre ne correspond aux filtres"
+                                        : "Vous n'avez encore aucun monstre possédé"
+                                }
+                                showExchangeButton={false}
+                                currentPage={currentPage}
+                                onPageChange={setCurrentPage}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="doublons" className="mt-6 outline-none">
+                            <MonsterGrid
+                                monsters={filterMonsters(doublons)}
+                                guildId={guildId}
+                                exchangeMap={{}}
+                                emptyMessage={
+                                    filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
+                                        ? "Aucun doublon ne correspond aux filtres"
+                                        : "Vous n'avez pas de doublons à proposer"
+                                }
+                                showExchangeButton={false}
+                                currentPage={currentPage}
+                                onPageChange={setCurrentPage}
+                            />
+                        </TabsContent>
+                    </Tabs>
                 </TabsContent>
 
-                <TabsContent value="doublons" className="mt-6">
-                    <MonsterGrid
-                        monsters={filterMonsters(doublons)}
-                        guildId={guildId}
-                        exchangeMap={{}}
-                        emptyMessage={
-                            filters.searchQuery || filters.selectedType !== "all" || filters.selectedStep !== "all"
-                                ? "Aucun doublon ne correspond aux filtres"
-                                : "Vous n'avez pas de doublons à proposer"
-                        }
-                        showExchangeButton={false}
-                        currentPage={currentPage}
-                        onPageChange={setCurrentPage}
-                    />
+                {/* Tab: Exchange Hub (Coming soon / Marketplace Integrated) */}
+                <TabsContent value="echanges" className="outline-none mt-0">
+                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+                        <div className="h-20 w-20 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                            <ArrowRightLeft className="h-10 w-10 text-emerald-500" />
+                        </div>
+                        <div className="max-w-sm space-y-2">
+                            <h3 className="text-xl font-bold">Place de Marché de Guilde</h3>
+                            <p className="text-muted-foreground text-sm">
+                                Retrouvez bientôt ici un récapitulatif complet des échanges possibles au sein de votre guilde pour terminer votre quête plus rapidement.
+                            </p>
+                        </div>
+                        <OcreExchangeModal
+                            guildId={guildId}
+                            trigger={
+                                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-12 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.05]">
+                                    Ouvrir la liste des échanges
+                                </Button>
+                            }
+                        />
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
 
-// -----------------------------------------------------------------------------
-// Helper Components
-// -----------------------------------------------------------------------------
-
-function UserCircle({ className }: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-        >
-            <circle cx="12" cy="12" r="10" />
-            <circle cx="12" cy="10" r="3" />
-            <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
-        </svg>
-    );
-}
 
 // -----------------------------------------------------------------------------
 // Monster Grid Sub-component with Pagination

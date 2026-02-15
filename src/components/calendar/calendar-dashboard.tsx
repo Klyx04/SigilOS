@@ -472,7 +472,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
             {/* ============ CREATE DIALOG ============ */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogTitle className="text-xl font-bold text-zinc-100">
                         Créer un événement
                     </DialogTitle>

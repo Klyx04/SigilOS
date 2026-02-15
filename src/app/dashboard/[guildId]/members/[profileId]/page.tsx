@@ -56,6 +56,9 @@ export default async function MemberProfilePage({
     const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
     const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
 
+    // Online Status (Active in last 2 minutes)
+    const isOnline = profile.lastActivityAt && (now.getTime() - new Date(profile.lastActivityAt).getTime() < 2 * 60 * 1000);
+
     return (
         <div className="p-6 space-y-6">
             {/* Vacation Banner */}
@@ -71,8 +74,14 @@ export default async function MemberProfilePage({
             )}
 
             <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold">Profil de {displayName}</h1>
+                    {isOnline && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">En ligne</span>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Lock, ArrowLeft, MessageSquare } from "lucide-react";
+import { AuroraBackground } from "@/components/ui/aurora-background";
+import { PublicHeader } from "@/components/layout/public-header";
+import { useSession } from "next-auth/react";
 
 interface AccessDeniedProps {
     title?: string;
@@ -17,8 +20,12 @@ export function AccessDenied({
     variant = "lock",
     action
 }: AccessDeniedProps) {
+    const { data: session } = useSession();
+
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-center p-4 relative overflow-hidden">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-center relative overflow-hidden">
+            <PublicHeader user={session?.user} />
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
             {/* Ambient Noise Overlay */}
             <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
 
@@ -65,7 +72,7 @@ export function AccessDenied({
                     <Button asChild className="h-12 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-black uppercase tracking-[0.1em] text-xs shadow-lg shadow-[#5865F2]/20">
                         <Link href="https://discord.gg/uX7G6SUDgN" target="_blank">
                             <MessageSquare className="w-4 h-4 mr-2" />
-                            Rejoindre le Discord Support
+                            Contacter le Support
                         </Link>
                     </Button>
                 </div>

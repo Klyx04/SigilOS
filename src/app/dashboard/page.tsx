@@ -10,7 +10,7 @@ import { GuildSetupCard } from "@/components/guild-setup-card";
 import { NoGuildMessage } from "@/components/no-guild-message";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { LandingHeader } from "@/components/landing/landing-header";
+import { PublicHeader } from "@/components/layout/public-header";
 import { Button } from "@/components/ui/button";
 
 type GuildData = {
@@ -185,11 +185,13 @@ export default async function GuildSelectorPage() {
     const isEmpty = active.length === 0 && pending.length === 0;
 
     return (
-        <div className="relative min-h-screen w-full overflow-y-auto flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
-            <LandingHeader user={session.user} />
+        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50% )]" />
 
-            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-12">
-                <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <PublicHeader user={session.user} dashboardHref="/dashboard" />
+
+            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-12 overflow-y-auto custom-scrollbar">
 
                 {isEmpty ? (
                     <NoGuildMessage rateLimited={rateLimited} />

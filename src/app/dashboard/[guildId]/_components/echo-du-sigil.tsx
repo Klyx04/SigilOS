@@ -13,9 +13,9 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
     return (
         <div className="relative group">
             {/* Ambient Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-emerald-500/20 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-emerald-500/30 rounded-2xl blur-2xl opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
 
-            <div className="relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden bg-zinc-950/40 backdrop-blur-2xl">
+            <div className="relative glass-premium p-6 md:p-8 rounded-2xl border border-white/15 overflow-hidden backdrop-blur-3xl">
                 {/* Micro-texture Noise Overlay */}
                 <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
 
@@ -34,7 +34,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                                 <Sparkles className="w-5 h-5 text-indigo-400" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80">L'Écho du Sigil</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80">Recommandation</span>
                                 <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white">
                                     {data.title}
                                 </h2>
@@ -65,37 +65,44 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
 
                     {/* Visual Progress/Scoring Indicator */}
                     <div className="hidden lg:flex flex-col items-center gap-2">
-                        <div className="relative w-32 h-32">
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle
-                                    cx="64"
-                                    cy="64"
-                                    r="60"
-                                    fill="transparent"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    className="text-white/5"
-                                />
-                                <motion.circle
-                                    cx="64"
-                                    cy="64"
-                                    r="60"
-                                    fill="transparent"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    strokeDasharray="377"
-                                    initial={{ strokeDashoffset: 377 }}
-                                    animate={{ strokeDashoffset: 377 - (377 * (data.priority / 100)) }}
-                                    transition={{ duration: 1.5, ease: "easeOut" }}
-                                    className="text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]"
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-[10px] font-black text-zinc-500 uppercase">Urgence</span>
-                                <span className="text-2xl font-black text-white">{data.priority}%</span>
+                        {data.type === "OCRE_STEP" ? (
+                            <div className="relative w-32 h-32">
+                                <svg className="w-full h-full transform -rotate-90">
+                                    <circle
+                                        cx="64"
+                                        cy="64"
+                                        r="60"
+                                        fill="transparent"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        className="text-white/5"
+                                    />
+                                    <motion.circle
+                                        cx="64"
+                                        cy="64"
+                                        r="60"
+                                        fill="transparent"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                        strokeDasharray="377"
+                                        initial={{ strokeDashoffset: 377 }}
+                                        animate={{ strokeDashoffset: 377 - (377 * (data.priority / 100)) }}
+                                        transition={{ duration: 1.5, ease: "easeOut" }}
+                                        className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-[10px] font-black text-zinc-500 uppercase">Progression</span>
+                                    <span className="text-2xl font-black text-white">{Math.round(data.priority)}%</span>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="w-32 h-32 flex items-center justify-center opacity-20">
+                                {data.type === "SONGES_RECRUIT" && <InfinityIcon className="w-16 h-16 text-purple-400" />}
+                                {data.type === "WELCOME" && <Zap className="w-16 h-16 text-yellow-400" />}
+                            </div>
+                        )}
                     </div>
                 </div>
 

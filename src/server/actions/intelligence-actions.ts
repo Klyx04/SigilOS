@@ -35,11 +35,11 @@ export async function getDashboardFocus(guildId: string, userId: string): Promis
             if (stats.progressPercent > 80 && stats.progressPercent < 100) {
                 cards.push({
                     type: "OCRE_STEP",
-                    title: "L'Éternelle Moisson : Presque là !",
-                    description: `Tu as fini ${stats.progressPercent}% de ta quête. Plus que ${stats.manquants} monstres pour avancer.`,
-                    actionLabel: "Lancer un échange",
+                    title: "Quête Ocre : Prochaine étape",
+                    description: `Vous avez complété ${stats.progressPercent}% de la quête. Plus que ${stats.manquants} monstres pour valider l'étape.`,
+                    actionLabel: "Voir les monstres",
                     actionHref: `/dashboard/${guildId}/archimonstres`,
-                    priority: 90
+                    priority: stats.progressPercent // Using factual progress
                 });
             }
         }
@@ -47,25 +47,39 @@ export async function getDashboardFocus(guildId: string, userId: string): Promis
         // 2. Check Songes Runs in recruitment
         const songes = await getDreamRuns(guildId, ["RECRUITING"]);
         if (songes.success && songes.runs && songes.runs.length > 0) {
-            const accessibleRun = songes.runs.find((run: any) => run.status === "RECRUITING" && run.members.length < 4);
-            if (accessibleRun) {
-                const missing = 4 - accessibleRun.members.length;
-                cards.push({
-                    type: "SONGES_RECRUIT",
-                    title: "Une expédition t'attend",
-                    description: `Une run Songes (${accessibleRun.difficulty}) cherche ${missing} ${missing > 1 ? 'joueurs' : 'joueur'}.`,
-                    actionLabel: "Rejoindre la run",
-                    actionHref: `/dashboard/${guildId}/songes`,
-                    priority: 85
-                });
+            const recruitingRuns = songes.runs.filter((run: any) => run.status === "RECRUITING" && run.members.length < 4);
+
+            if (recruitingRuns.length > 0) {
+                if (recruitingRuns.length === 1) {
+                    const run = recruitingRuns[0];
+                    const missing = 4 - run.members.length;
+                    cards.push({
+                        type: "SONGES_RECRUIT",
+                        title: "Recrutement Songes",
+                        description: `Un groupe pour une run ${run.difficulty} cherche ${missing} ${missing > 1 ? 'joueurs' : 'joueur'}.`,
+                        actionLabel: "Consulter la run",
+                        actionHref: `/dashboard/${guildId}/songes`,
+                        priority: 85 // High weight for sorting, but UI will hide the %
+                    });
+                } else {
+                    const totalMissing = recruitingRuns.reduce((acc: number, run: any) => acc + (4 - run.members.length), 0);
+                    cards.push({
+                        type: "SONGES_RECRUIT",
+                        title: "Recrutements Songes",
+                        description: `${recruitingRuns.length} groupes de runs cherchent actuellement un total de ${totalMissing} joueurs.`,
+                        actionLabel: "Voir les runs",
+                        actionHref: `/dashboard/${guildId}/songes`,
+                        priority: 88
+                    });
+                }
             }
         }
 
         // 3. Fallback: Welcome / Activities
         cards.push({
             type: "WELCOME",
-            title: "Prêt pour l'aventure ?",
-            description: "Consulte les missions de la semaine pour faire briller ta guilde.",
+            title: "Objectifs de Guilde",
+            description: "Consultez les missions disponibles pour cette semaine et participez à l'effort collectif.",
             actionLabel: "Voir les missions",
             actionHref: `/dashboard/${guildId}/missions`,
             priority: 10

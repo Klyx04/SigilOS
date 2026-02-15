@@ -149,16 +149,25 @@ export async function getPlatformStats() {
 
     // Get stats from 24h ago for trends
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
         guildsTrend,
         usersTrend,
-        missionsTrend
+        missionsTrend,
+        weeklyActiveUsers
     ] = await Promise.all([
         db.guildConfig.count({ where: { createdAt: { gte: yesterday } } }),
         db.user.count({ where: { createdAt: { gte: yesterday } } }),
-        db.mission.count({ where: { createdAt: { gte: yesterday } } })
+        db.mission.count({ where: { createdAt: { gte: yesterday } } }),
+        db.auditLog.groupBy({
+            by: ['actorUserId'],
+            where: { createdAt: { gte: lastWeek } }
+        }).then(res => res.length)
     ]);
+
+    const retentionRate = totalUsersCount > 0 ? (activeProfilesCount / totalUsersCount) * 100 : 0;
+    const density = totalGuildsCount > 0 ? totalProfilesCount / totalGuildsCount : 0;
 
     return {
         allowedGuilds: totalGuildsCount, // Renamed for compatibility
@@ -169,7 +178,10 @@ export async function getPlatformStats() {
         totalProfiles: totalProfilesCount,
         activeProfiles: activeProfilesCount,
         totalMissions: totalMissionsCount,
-        missionsTrend
+        missionsTrend,
+        weeklyActiveUsers,
+        retentionRate: Math.round(retentionRate),
+        density: Number(density.toFixed(1))
     };
 }
 
@@ -179,7 +191,13 @@ export async function getPlatformStats() {
  * This replaces the ALLOWED_GUILD_IDS env check
  */
 export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
-    // Check if guild is in the AllowedGuild whitelist (managed via GOD dashboard)
+    // 1. Check Platform Bans (Highest Priority)
+    const ban = await db.platformBan.findUnique({
+        where: { discordId: discordGuildId }
+    });
+    if (ban && ban.entityType === "GUILD") return false;
+
+    // 2. Check if guild is in the AllowedGuild whitelist (managed via GOD dashboard)
     const guild = await db.allowedGuild.findUnique({
         where: { discordGuildId }
     });
@@ -259,40 +277,59 @@ export async function getGhostUsers() {
 }
 
 /**
- * Get Registration Stats for Charts
- * Returns daily registrations for the last 30 days
+ * Get Platform Activity (Pulse) Stats for Charts
+ * Combines new registrations and total audit log activity
  */
-export async function getRegistrationStats() {
+export async function getPlatformActivityStats() {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return [];
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+    // Fetch new users
     const users = await db.user.findMany({
         where: { createdAt: { gte: thirtyDaysAgo } },
         select: { createdAt: true }
     });
 
-    // Group by date
-    const statsMap = new Map<string, number>();
+    // Fetch all audit activity (engagement pulse)
+    const logs = await db.auditLog.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { createdAt: true }
+    });
 
-    // Initialize last 30 days with 0
+    const statsMap = new Map<string, { users: number; pulse: number }>();
+
+    // Initialize last 30 days
     for (let i = 0; i < 30; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        statsMap.set(d.toISOString().split("T")[0], 0);
+        statsMap.set(d.toISOString().split("T")[0], { users: 0, pulse: 0 });
     }
 
     users.forEach((u) => {
         const dateKey = u.createdAt.toISOString().split("T")[0];
         if (statsMap.has(dateKey)) {
-            statsMap.set(dateKey, (statsMap.get(dateKey) || 0) + 1);
+            const current = statsMap.get(dateKey)!;
+            statsMap.set(dateKey, { ...current, users: current.users + 1 });
         }
     });
 
-    // Convert to array and sort
+    logs.forEach((l) => {
+        const dateKey = l.createdAt.toISOString().split("T")[0];
+        if (statsMap.has(dateKey)) {
+            const current = statsMap.get(dateKey)!;
+            // Normalizing pulse (diving by 10 to keep scale coherent on chart)
+            statsMap.set(dateKey, { ...current, pulse: current.pulse + 1 });
+        }
+    });
+
     return Array.from(statsMap.entries())
-        .map(([date, count]) => ({ date, users: count }))
+        .map(([date, data]) => ({
+            date,
+            users: data.users,
+            pulse: Number(data.pulse.toFixed(1))
+        }))
         .sort((a, b) => a.date.localeCompare(b.date));
 }
 

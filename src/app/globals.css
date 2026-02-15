@@ -64,6 +64,23 @@
 }
 
 /* Define the actual values for the variables mapped above */
+/* --- Performance Mode (Reduce Motion & Blur) --- */
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+  backdrop-filter: none !important;
+}
+
+.reduce-motion .animate-pulse,
+.reduce-motion .animate-spin,
+.reduce-motion .animate-bounce,
+.reduce-motion .animate-aurora,
+.reduce-motion .animate-border-beam {
+  animation: none !important;
+}
+
 :root {
   --radius: 0.625rem;
 

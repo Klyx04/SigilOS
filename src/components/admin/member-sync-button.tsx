@@ -4,6 +4,7 @@ import { useState } from "react";
 import { RefreshCw, CheckCircle2, AlertCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { syncMembershipStatus } from "@/server/actions/sync-actions";
+import { toast } from "sonner";
 
 interface SyncButtonProps {
     guildId: string;
@@ -21,6 +22,7 @@ export function MemberSyncButton({ guildId }: SyncButtonProps) {
     async function handleSync() {
         setIsLoading(true);
         setResult(null);
+        const toastId = toast.loading("Synchronisation des membres en cours...");
 
         try {
             const syncResult = await syncMembershipStatus(guildId);
@@ -30,13 +32,27 @@ export function MemberSyncButton({ guildId }: SyncButtonProps) {
                 reactivated: syncResult.reactivated,
                 message: syncResult.errors.length > 0 ? syncResult.errors[0] : undefined
             });
+
+            if (syncResult.success) {
+                toast.success("Synchronisation terminée", {
+                    id: toastId,
+                    description: `${syncResult.archived} archivés, ${syncResult.reactivated} réactivés.`
+                });
+            } else {
+                toast.error("Échec de la synchronisation", {
+                    id: toastId,
+                    description: syncResult.errors[0]
+                });
+            }
         } catch (error) {
+            const msg = error instanceof Error ? error.message : "Erreur inconnue";
             setResult({
                 success: false,
                 archived: 0,
                 reactivated: 0,
-                message: error instanceof Error ? error.message : "Erreur inconnue"
+                message: msg
             });
+            toast.error("Erreur système", { id: toastId, description: msg });
         } finally {
             setIsLoading(false);
         }

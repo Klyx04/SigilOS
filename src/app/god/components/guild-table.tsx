@@ -12,9 +12,20 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink } from 'lucide-react';
+import { Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { softDeleteGuild, reactivateGuild, hardDeleteGuild } from '@/server/actions/god-lifecycle-actions';
+import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface Guild {
     id: string;
@@ -26,6 +37,7 @@ interface Guild {
     deletionReason: string | null;
     scheduledDeletion: Date | null;
     createdAt: Date;
+    maxMembers: number;
     _count: {
         profiles: number;
     };
@@ -183,7 +195,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                     Guilde
                                 </th>
                                 <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                    Membres
+                                    Membres / Capacité
                                 </th>
                                 <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                                     Status
@@ -226,6 +238,49 @@ function GuildRow({ guild, selected, onSelect }: {
     selected: boolean;
     onSelect: () => void;
 }) {
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    const handleSoftDelete = async () => {
+        if (!confirm(`Soft delete guild "${guild.name}"? This will archive it for 30 days.`)) return;
+        setIsUpdating(true);
+        try {
+            await softDeleteGuild(guild.id, "GOD_ADMIN_SOFT_DELETE");
+            toast.success("Guilde mise en pause (archivée)");
+        } catch (e) {
+            toast.error("Échec de l'action");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleReactivate = async () => {
+        setIsUpdating(true);
+        try {
+            await reactivateGuild(guild.id);
+            toast.success("Guilde réactivée");
+        } catch (e) {
+            toast.error("Échec de l'action");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleHardDelete = async () => {
+        if (!confirm(`⚠️ HARD DELETE guild "${guild.name}"? This is irreversible.`)) return;
+        const confirmText = prompt("Type DELETE to confirm:");
+        if (confirmText !== 'DELETE') return;
+
+        setIsUpdating(true);
+        try {
+            await hardDeleteGuild(guild.id);
+            toast.success("Guilde supprimée définitivement");
+        } catch (e) {
+            toast.error("Échec de l'action");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
     const statusConfig = guild.deletedAt
         ? { label: '🗑️ Supprimée', color: 'text-red-400 bg-red-500/10 border-red-500/30' }
         : guild._count.profiles === 0
@@ -238,7 +293,7 @@ function GuildRow({ guild, selected, onSelect }: {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group"
+            className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
         >
             <td className="p-4">
                 <input
@@ -251,17 +306,22 @@ function GuildRow({ guild, selected, onSelect }: {
 
             <td className="p-4">
                 <div className="flex items-center gap-3">
-                    {guild.iconUrl ? (
-                        <img
-                            src={`https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconUrl}.png?size=64`}
-                            alt={guild.name}
-                            className="w-10 h-10 rounded-full"
-                        />
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white font-bold">
+                    <div className="relative group/icon">
+                        {guild.iconUrl && guild.iconUrl.length > 5 ? (
+                            <img
+                                src={`https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconUrl}.png?size=128`}
+                                alt=""
+                                className="w-10 h-10 rounded-xl border border-white/10 group-hover/icon:scale-110 transition-transform bg-zinc-800"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                                }}
+                            />
+                        ) : null}
+                        <div className={`${guild.iconUrl && guild.iconUrl.length > 5 ? 'hidden' : ''} fallback-icon w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white font-bold text-lg border border-white/10`}>
                             {guild.name[0]}
                         </div>
-                    )}
+                    </div>
                     <div>
                         <div className="font-medium">{guild.name}</div>
                         <div className="text-xs text-zinc-500 font-mono">{guild.discordGuildId}</div>
@@ -270,9 +330,24 @@ function GuildRow({ guild, selected, onSelect }: {
             </td>
 
             <td className="p-4">
-                <div className="flex items-center gap-2 text-sm">
-                    <Users className="w-4 h-4 text-zinc-500" />
-                    <span className="font-medium">{guild._count.profiles}</span>
+                <div className="space-y-1.5 min-w-[120px]">
+                    <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 font-medium">
+                            <Users className="w-3.5 h-3.5 text-zinc-500" />
+                            <span>{guild._count.profiles}</span>
+                        </div>
+                        <span className="text-zinc-500 font-mono text-[10px]">/{guild.maxMembers}</span>
+                    </div>
+                    {/* Capacity Bar */}
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full rounded-full transition-all duration-1000 ${(guild._count.profiles / guild.maxMembers) >= 0.95 ? "bg-red-500" :
+                                (guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-amber-500" :
+                                    "bg-emerald-500"
+                                }`}
+                            style={{ width: `${Math.min(100, (guild._count.profiles / guild.maxMembers) * 100)}%` }}
+                        />
+                    </div>
                 </div>
             </td>
 
@@ -290,21 +365,59 @@ function GuildRow({ guild, selected, onSelect }: {
                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {/* SECURITY: Super admin should NOT have direct access to guild dashboards */}
                     {/* TODO: Create /god/guilds/[id] for read-only admin inspection */}
-                    <button
-                        onClick={() => {
-                            // TODO: Implement dropdown menu with:
-                            // - View guild details (GOD admin read-only view)
-                            // - View audit log for this guild
-                            // - Soft delete / Reactivate
-                            alert('Menu actions GOD - à implémenter dans la phase webhooks');
-                        }}
-                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-                        title="Actions admin"
-                    >
-                        <MoreVertical className="w-4 h-4" />
-                    </button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                                <MoreVertical className="w-4 h-4" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-white/10 text-zinc-300 shadow-2xl">
+                            <DropdownMenuLabel className="text-xs text-zinc-500 uppercase tracking-widest p-3">Actions God Mode</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/5" />
+
+                            <DropdownMenuItem asChild className="gap-3 p-3 cursor-pointer focus:bg-violet-500/10 focus:text-violet-400">
+                                <Link href={`/god/guilds/${guild.id}`}>
+                                    <Eye className="w-4 h-4" />
+                                    Voir le Roster
+                                </Link>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem className="gap-3 p-3 cursor-pointer focus:bg-blue-500/10 focus:text-blue-400">
+                                <Calendar className="w-4 h-4" />
+                                Journal d'Audit
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator className="bg-white/5" />
+
+                            {!guild.deletedAt ? (
+                                <DropdownMenuItem
+                                    onClick={handleSoftDelete}
+                                    className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
+                                >
+                                    <Archive className="w-4 h-4" />
+                                    Mettre en pause
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem
+                                    onClick={handleReactivate}
+                                    className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
+                                >
+                                    <RotateCcw className="w-4 h-4" />
+                                    Réactiver
+                                </DropdownMenuItem>
+                            )}
+
+                            <DropdownMenuItem
+                                onClick={handleHardDelete}
+                                className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Hard Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </td>
-        </motion.tr>
+        </motion.tr >
     );
 }

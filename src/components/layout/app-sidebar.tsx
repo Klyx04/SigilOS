@@ -292,9 +292,11 @@ export function AppSidebar({
                             </Link>
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem className="focus:bg-white/5 cursor-pointer">
-                            <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                            <span className="font-bold">Paramètres</span>
+                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                            <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
+                                <Settings className="mr-2 h-4 w-4 text-zinc-500" />
+                                <span className="font-bold">Paramètres</span>
+                            </Link>
                         </DropdownMenuItem>
 
                         <DropdownMenuSeparator className="bg-white/10" />

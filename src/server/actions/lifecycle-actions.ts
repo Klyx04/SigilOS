@@ -229,14 +229,16 @@ export async function handleGdprDeletionRequest() {
     const userId = session.user.id;
 
     try {
+        console.log(`[GDPR Deletion] Starting deletion for user ${userId}`);
+
         // Get Discord ID for correct owner check
         const account = await db.account.findFirst({
             where: { userId, provider: "discord" }
         });
         const discordId = account?.providerAccountId;
+        console.log(`[GDPR Deletion] Discord ID found: ${discordId || 'None'}`);
 
         // Owner-Guard: Block deletion if user is the GuildConfig.ownerId
-        // We check both internal ID and Discord ID to be safe
         const ownedGuilds = await db.guildConfig.findMany({
             where: {
                 OR: [
@@ -247,9 +249,10 @@ export async function handleGdprDeletionRequest() {
         });
 
         if (ownedGuilds.length > 0) {
+            console.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedGuilds.length} guilds`);
             return {
                 success: false,
-                error: `Impossible de supprimer le compte : vous êtes propriétaire de ${ownedGuilds.length} guilde(s) (ex: ${ownedGuilds[0].name}). Veuillez transférer la propriété avant de supprimer votre compte.`
+                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedGuilds.length} guilde(s) (ex: ${ownedGuilds[0].name}). Transférez la propriété d'abord.`
             };
         }
 
@@ -258,10 +261,14 @@ export async function handleGdprDeletionRequest() {
             where: { id: userId }
         });
 
+        console.log(`[GDPR Deletion] ✅ User ${userId} successfully deleted`);
         return { success: true };
-    } catch (e) {
-        console.error("[GDPR Deletion] Error:", e);
-        return { success: false, error: "Erreur lors de la suppression du compte" };
+    } catch (e: any) {
+        console.error("[GDPR Deletion] FATAL:", e);
+        return {
+            success: false,
+            error: "Une erreur interne s'est produite lors de la suppression. Veuillez contacter un administrateur."
+        };
     }
 }
 

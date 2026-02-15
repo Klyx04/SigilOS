@@ -27,23 +27,22 @@ export type ActionResponse<T = any> = {
 
 const MissionSchema = z.object({
     slotIndex: z.number().min(0).max(11),
-    // Use string enum for safer runtime validation vs Prisma object
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
-    tier: z.number().min(1).max(5), // Palier 1-5 (Dofus Update)
-    rank: z.number().min(1).max(4).default(1), // Rang 1-4 (Content Level)
+    tier: z.number().min(1).max(5),
+    rank: z.number().min(1).max(4).default(1),
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
-    payload: z.record(z.any()), // Flexible JSON payload
-});
+    payload: z.record(z.any()),
+}).strict(); // Enforce NO extra fields (2026 Security)
 
 const CreateWeekSchema = z.object({
     guildId: z.string(),
     weekNumber: z.number().min(1).max(53),
     year: z.number().min(2025),
     missions: z.array(MissionSchema).min(1).max(12),
-    updateGuildTier: z.number().min(1).max(5).optional(), // New field to sync global tier
-});
+    updateGuildTier: z.number().min(1).max(5).optional(),
+}).strict();
 
 async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
     try {
@@ -112,9 +111,15 @@ export async function createWeekMissions(
 
     try {
         await db.$transaction(async (tx) => {
+            // DEEP ISOLATION: Ensure we only touch the specific discordGuildId provided
             const guild = await tx.guildConfig.findUniqueOrThrow({
                 where: { discordGuildId: data.guildId }
             });
+
+            // Double check that this guild is actually the one intended (Secondary check)
+            if (guild.discordGuildId !== data.guildId) {
+                throw new Error("Multi-tenant violation detected.");
+            }
 
             // Update Guild Tier if provided
             if (data.updateGuildTier) {
@@ -461,6 +466,21 @@ export async function submitMissionProof(
         if (!base64Data) return { success: false, error: "Données d'image corrompues." };
 
         const buffer = Buffer.from(base64Data, 'base64');
+
+        // SECURITY: Verify HelperIds integrity (Multi-tenant check)
+        if (helperIds.length > 0) {
+            const helperProfiles = await db.userProfile.findMany({
+                where: {
+                    id: { in: helperIds },
+                    guildId: mission.guildId // MUST be in the same guild
+                },
+                select: { id: true }
+            });
+
+            if (helperProfiles.length !== helperIds.length) {
+                return { success: false, error: "Certains aidants ne font pas partie de votre guilde." };
+            }
+        }
 
         // SECURITY: Validate Magic Bytes
         // We import dynamically to avoid circular deps if any (though lib is clean)

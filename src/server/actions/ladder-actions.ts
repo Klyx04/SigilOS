@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { z } from "zod";
+import { withCache } from "@/lib/cache";
 
 // ============================================================================
 // TYPES
@@ -68,84 +69,59 @@ export async function getActivityLadder(
             let startDate: Date;
 
             if (view === "weekly") {
-                // Start of week (Monday)
-                const day = now.getDay(); // 0 (Sun) - 6 (Sat)
-                const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+                const day = now.getDay();
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
                 startDate = new Date(now.setDate(diff));
                 startDate.setHours(0, 0, 0, 0);
             } else {
-                // Start of month
                 startDate = new Date(now.getFullYear(), now.getMonth(), 1);
             }
 
-            // Get all validated submissions in this period with their XP rewards
-            // IMPORTANT: Use updatedAt (validation date) instead of createdAt
-            const monthlyStats = await db.submission.groupBy({
-                by: ["profileId"],
-                where: {
-                    status: "VALIDATED",
-                    updatedAt: { gte: startDate },
-                    profile: {
-                        guildId: guildConfig.id,
-                        status: "ACTIVE"
-                    }
-                },
-                _count: true
-            });
-
-            // Get profile details and calculate XP based on mission rewards
-            const profileIds = monthlyStats.map(s => s.profileId);
-
-            const profiles = await db.userProfile.findMany({
-                where: {
-                    id: { in: profileIds },
-                    status: "ACTIVE"
-                },
-                select: {
-                    id: true,
-                    discordNickname: true,
-                    discordRoleColor: true,
-                    discordRoleName: true,
-                    discordJoinedAt: true,
-                    pseudoDofus: true,
-                    classe: true,
-                    user: {
-                        select: { image: true }
-                    },
-                    submissions: {
-                        where: {
-                            status: "VALIDATED",
-                            updatedAt: { gte: startDate } // Match the period
-                        },
-                        select: {
-                            mission: {
-                                select: { xpReward: true }
-                            }
+            const cacheKey = `ladder:activity:${guildId}:${view}:${startDate.getTime()}`;
+            const ladder = await withCache(cacheKey, 300, async () => {
+                // Get all validated submissions in this period
+                const monthlyStats = await db.submission.groupBy({
+                    by: ["profileId"],
+                    where: {
+                        status: "VALIDATED",
+                        updatedAt: { gte: startDate },
+                        profile: {
+                            guildId: guildConfig.id,
+                            status: "ACTIVE"
                         }
-                    }
-                }
-            });
-
-            // Calculate period XP per profile
-            const rankedProfiles = profiles.map(p => ({
-                ...p,
-                periodXp: p.submissions.reduce((sum, sub) => sum + (sub.mission.xpReward || 0), 0)
-            }))
-                .sort((a, b) => {
-                    // Sort by XP DESC, then by joinedAt ASC (older wins ties)
-                    if (b.periodXp !== a.periodXp) return b.periodXp - a.periodXp;
-                    const aJoined = a.discordJoinedAt?.getTime() || Infinity;
-                    const bJoined = b.discordJoinedAt?.getTime() || Infinity;
-                    return aJoined - bJoined;
+                    },
+                    _count: true
                 });
 
-            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                const profileIds = monthlyStats.map(s => s.profileId);
+                const profiles = await db.userProfile.findMany({
+                    where: { id: { in: profileIds }, status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        discordNickname: true,
+                        discordRoleColor: true,
+                        discordRoleName: true,
+                        discordJoinedAt: true,
+                        pseudoDofus: true,
+                        classe: true,
+                        user: { select: { image: true } },
+                        submissions: {
+                            where: { status: "VALIDATED", updatedAt: { gte: startDate } },
+                            select: { mission: { select: { xpReward: true } } }
+                        }
+                    }
+                });
 
-            const ladder: LadderEntry[] = rankedProfiles.map((p, idx) => {
-                const isAdmin = p.discordRoleName === "Administrateur" ||
-                    Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                const rankedProfiles = profiles.map(p => ({
+                    ...p,
+                    periodXp: p.submissions.reduce((sum, sub) => sum + (sub.mission.xpReward || 0), 0)
+                })).sort((a, b) => {
+                    if (b.periodXp !== a.periodXp) return b.periodXp - a.periodXp;
+                    return (a.discordJoinedAt?.getTime() || Infinity) - (b.discordJoinedAt?.getTime() || Infinity);
+                });
 
-                return {
+                const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                return rankedProfiles.map((p, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
                     discordNickname: p.discordNickname,
@@ -154,46 +130,40 @@ export async function getActivityLadder(
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.periodXp,
-                    isCurrentUser: p.id === currentProfile?.id,
-                    isAdmin: !!isAdmin
-                };
+                    isAdmin: p.discordRoleName === "Administrateur" ||
+                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                }));
             });
 
-            return { success: true, data: ladder };
+            // Post-process to add isCurrentUser
+            const enrichedLadder = ladder.map((entry: any) => ({
+                ...entry,
+                isCurrentUser: entry.profileId === currentProfile?.id
+            }));
+
+            return { success: true, data: enrichedLadder };
         } else {
             // All-time: use cumulative XP field
-            const profiles = await db.userProfile.findMany({
-                where: {
-                    guildId: guildConfig.id,
-                    status: "ACTIVE",
-                    xp: { gt: 0 }
-                },
-                select: {
-                    id: true,
-                    discordNickname: true,
-                    discordRoleColor: true,
-                    discordRoleName: true,
-                    discordJoinedAt: true,
-                    pseudoDofus: true,
-                    classe: true,
-                    xp: true,
-                    user: {
-                        select: { image: true }
-                    }
-                },
-                orderBy: [
-                    { xp: "desc" },
-                    { discordJoinedAt: "asc" } // Tie-breaker
-                ]
-            });
+            const cacheKey = `ladder:activity:${guildId}:alltime`;
+            const ladder = await withCache(cacheKey, 600, async () => {
+                const profiles = await db.userProfile.findMany({
+                    where: { guildId: guildConfig.id, status: "ACTIVE", xp: { gt: 0 } },
+                    select: {
+                        id: true,
+                        discordNickname: true,
+                        discordRoleColor: true,
+                        discordRoleName: true,
+                        discordJoinedAt: true,
+                        pseudoDofus: true,
+                        classe: true,
+                        xp: true,
+                        user: { select: { image: true } }
+                    },
+                    orderBy: [{ xp: "desc" }, { discordJoinedAt: "asc" }]
+                });
 
-            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-
-            const ladder: LadderEntry[] = profiles.map((p, idx) => {
-                const isAdmin = p.discordRoleName === "Administrateur" ||
-                    Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
-
-                return {
+                const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                return profiles.map((p, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
                     discordNickname: p.discordNickname,
@@ -202,12 +172,17 @@ export async function getActivityLadder(
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.xp,
-                    isCurrentUser: p.id === currentProfile?.id,
-                    isAdmin: !!isAdmin
-                };
+                    isAdmin: p.discordRoleName === "Administrateur" ||
+                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                }));
             });
 
-            return { success: true, data: ladder };
+            const enrichedLadder = ladder.map((entry: any) => ({
+                ...entry,
+                isCurrentUser: entry.profileId === currentProfile?.id
+            }));
+
+            return { success: true, data: enrichedLadder };
         }
     } catch (error) {
         console.error("[getActivityLadder] Error:", error);

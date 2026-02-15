@@ -39,7 +39,7 @@ export default async function DocsLayout({
         <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-purple-500/30 flex flex-col">
             <PublicHeader user={session?.user} dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"} />
 
-            <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-12 flex flex-col lg:flex-row gap-8">
+            <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-32 flex flex-col lg:flex-row gap-8">
                 {/* Sidebar Navigation */}
                 <ResizableSidebar className="hidden lg:block w-64 shrink-0">
                     <div className="sticky top-24 pr-4">

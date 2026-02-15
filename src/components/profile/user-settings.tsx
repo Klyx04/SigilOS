@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { archiveProfile, handleGdprDeletionRequest } from "@/server/actions/lifecycle-actions";
 import { useRouter } from "next/navigation";
+import { DiscordOwnershipModal } from "./discord-ownership-modal";
 
 interface UserSettingsProps {
     guildId: string;
@@ -38,6 +39,7 @@ interface UserSettingsProps {
 export function UserSettings({ guildId, guildName, profileId }: UserSettingsProps) {
     const [performanceMode, setPerformanceMode] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showOwnershipModal, setShowOwnershipModal] = useState(false);
     const router = useRouter();
 
     // Load performance mode from localStorage
@@ -84,7 +86,14 @@ export function UserSettings({ guildId, guildName, profileId }: UserSettingsProp
                 toast.success("Compte supprimé définitivement. Adieu !");
                 window.location.href = "/"; // Global redirect to home
             } else {
-                toast.error(res.error || "Une erreur est survenue");
+                // Check if the error is about ownership to show the tutorial modal
+                const isOwnershipError = res.error?.toLowerCase().includes("proprié");
+
+                if (isOwnershipError) {
+                    setShowOwnershipModal(true);
+                } else {
+                    toast.error(res.error || "Une erreur est survenue");
+                }
             }
         } catch (error) {
             toast.error("Erreur de communication avec le serveur");
@@ -226,6 +235,12 @@ export function UserSettings({ guildId, guildName, profileId }: UserSettingsProp
                     </div>
                 </div>
             </div>
+
+            <DiscordOwnershipModal
+                isOpen={showOwnershipModal}
+                onClose={() => setShowOwnershipModal(false)}
+                guildName={guildName}
+            />
         </div>
     );
 }

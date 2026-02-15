@@ -211,8 +211,8 @@ export function MetamobLink({
                                         <Settings className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-zinc-800">
-                                    <DropdownMenuLabel>Mon compte Metamob</DropdownMenuLabel>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuLabel className="text-foreground font-bold">Mon compte Metamob</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="bg-white/10" />
 
                                     <DropdownMenuItem asChild>
@@ -250,7 +250,7 @@ export function MetamobLink({
 
                             {/* Dialogs kept in DOM but triggered via state/menu */}
                             <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-                                <DialogContent className="max-w-md bg-zinc-950 border-zinc-800">
+                                <DialogContent className="max-w-md">
                                     <DialogHeader>
                                         <DialogTitle>Choisir la quête active</DialogTitle>
                                         <DialogDescription>
@@ -299,7 +299,7 @@ export function MetamobLink({
                             </Dialog>
 
                             <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-                                <DialogContent className="bg-zinc-950 border-zinc-800">
+                                <DialogContent>
                                     <DialogHeader>
                                         <DialogTitle>Délier le compte Metamob ?</DialogTitle>
                                         <DialogDescription>

@@ -65,89 +65,59 @@
 
 /* Define the actual values for the variables mapped above */
 /* Define the actual values for the variables mapped above */
+/* Define the actual values for the variables mapped above */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.13 0.06 260);
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.13 0.06 260);
+  /* Dofus Premium Palette - Deep Indigo/Amethyst */
+  --background: oklch(0.08 0.08 260);
+  --foreground: oklch(0.98 0.01 260);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.06 260);
+  --card: oklch(0.12 0.06 260);
+  --card-foreground: oklch(0.98 0.01 260);
 
-  --primary: oklch(0.25 0.10 260);
-  /* Deep blue for primary in light mode */
+  --popover: oklch(0.10 0.07 260);
+  --popover-foreground: oklch(0.98 0.01 260);
+
+  --primary: oklch(0.70 0.25 300);
+  /* Magical Amethyst 紫 */
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.95 0.05 260);
-  --secondary-foreground: oklch(0.25 0.10 260);
+  --secondary: oklch(0.15 0.08 260);
+  --secondary-foreground: oklch(0.98 0.01 260);
 
-  --muted: oklch(0.95 0.05 260);
-  --muted-foreground: oklch(0.50 0.05 260);
+  --muted: oklch(0.14 0.05 260);
+  --muted-foreground: oklch(0.80 0.02 260);
 
-  --accent: oklch(0.95 0.05 260);
-  --accent-foreground: oklch(0.25 0.10 260);
+  --accent: oklch(0.18 0.12 260);
+  /* Vibrant accent */
+  --accent-foreground: oklch(0.98 0.01 260);
 
-  --destructive: oklch(0.6 0.25 20);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 260);
 
-  --border: oklch(0.90 0.05 260);
-  --input: oklch(0.90 0.05 260);
-  --ring: oklch(0.25 0.10 260);
+  --border: oklch(0.18 0.06 260);
+  --input: oklch(0.16 0.06 260);
+  --ring: oklch(0.70 0.25 300);
 
-  --chart-1: oklch(0.65 0.25 300);
+  --chart-1: oklch(0.70 0.25 300);
   --chart-2: oklch(0.7 0.15 200);
   --chart-3: oklch(0.8 0.15 70);
   --chart-4: oklch(0.5 0.20 320);
   --chart-5: oklch(0.6 0.15 260);
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.25 0.10 260);
-  --sidebar-primary: oklch(0.25 0.10 260);
+  --sidebar: oklch(0.12 0.05 260);
+  --sidebar-foreground: oklch(0.95 0.02 260);
+  --sidebar-primary: oklch(0.70 0.25 300);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.95 0.05 260);
-  --sidebar-accent-foreground: oklch(0.25 0.10 260);
-  --sidebar-border: oklch(0.90 0.05 260);
-  --sidebar-ring: oklch(0.25 0.10 260);
+  --sidebar-accent: oklch(0.25 0.08 260);
+  --sidebar-accent-foreground: oklch(0.95 0.02 260);
+  --sidebar-border: oklch(0.25 0.08 260);
+  --sidebar-ring: oklch(0.70 0.25 300);
 }
 
 .dark {
-  /* Inherit same values as root since it is dark by default */
-  /* Dofus Premium Palette - Deep Indigo, Teal and Purples */
-  --background: oklch(0.12 0.04 260);
-  --foreground: oklch(0.95 0.02 260);
-  --card: oklch(0.16 0.04 260);
-  --card-foreground: oklch(0.98 0.02 260);
-  --popover: oklch(0.16 0.04 260);
-  --popover-foreground: oklch(0.95 0.02 260);
-  --primary: oklch(0.70 0.30 300);
-  /* Vibrant Magical Purple */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.25 0.10 260);
-  --secondary-foreground: oklch(0.95 0.02 260);
-  --muted: oklch(0.20 0.05 260);
-  --muted-foreground: oklch(0.70 0.05 260);
-  --accent: oklch(0.30 0.05 260);
-  /* Substrate Indigo/Zinc for subtle highlights */
-  --accent-foreground: oklch(0.95 0.02 260);
-  --destructive: oklch(0.6 0.25 20);
-  --border: oklch(0.25 0.05 260);
-  --input: oklch(0.25 0.05 260);
-  --ring: oklch(0.70 0.30 300);
-  --chart-1: oklch(0.70 0.30 300);
-  --chart-2: oklch(0.7 0.15 200);
-  --chart-3: oklch(0.8 0.15 70);
-  --chart-4: oklch(0.5 0.20 320);
-  --chart-5: oklch(0.6 0.15 260);
-  --sidebar: oklch(0.12 0.04 260);
-  --sidebar-foreground: oklch(0.95 0.02 260);
-  --sidebar-primary: oklch(0.70 0.30 300);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.25 0.10 260);
-  --sidebar-accent-foreground: oklch(0.95 0.02 260);
-  --sidebar-border: oklch(0.25 0.05 260);
-  --sidebar-ring: oklch(0.70 0.30 300);
+  /* Inherit from :root which is already dark */
 }
 
 @layer utilities {
@@ -172,9 +142,33 @@
     opacity: 1;
   }
 
+  /* --- LIQUID GLASS & MICRO-TEXTURES (Rescue Mode) --- */
+
   .noise-overlay {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     mask-image: radial-gradient(circle at center, transparent, black);
+    opacity: 0.1;
+    mix-blend-mode: overlay;
+  }
+
+  .glass-premium {
+    @apply bg-zinc-950/40 backdrop-blur-3xl border border-white/10 shadow-2xl;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-premium::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.03), transparent);
+    pointer-events: none;
+  }
+
+  .saturate-boost {
+    backdrop-filter: saturate(150%) blur(24px);
   }
 }
 
@@ -184,12 +178,24 @@
     outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
   }
 
+  html {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
   body {
-    background-color: var(--background);
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background-color: var(--background) !important;
     color: var(--foreground);
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    position: fixed !important;
+    width: 100%;
+    top: 0;
+    left: 0;
   }
 }
 

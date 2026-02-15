@@ -82,7 +82,9 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
             <div className={cn("relative flex items-center justify-center w-full h-full", className)}>
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
                 )}
                 <span className="sr-only">Notifications</span>
             </div>
@@ -112,7 +114,9 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                 <Button variant="ghost" size="icon" className={cn("relative text-zinc-400 hover:text-white transition-colors", className)}>
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
                     )}
                     <span className="sr-only">Notifications</span>
                 </Button>

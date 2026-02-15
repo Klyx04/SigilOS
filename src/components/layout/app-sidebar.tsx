@@ -98,7 +98,7 @@ export function AppSidebar({
     const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
 
     return (
-        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/5", className)}>
+        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/5 shadow-[4px_0_24px_rgba(0,0,0,0.5)]", className)}>
 
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
@@ -144,35 +144,48 @@ export function AppSidebar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
-                        className="w-60 bg-zinc-950 border-zinc-800 text-zinc-200 max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+                        className="w-64 bg-zinc-950 border-zinc-500/20 text-zinc-200 shadow-[0_0_40px_rgba(0,0,0,0.8)] p-1 backdrop-blur-3xl"
                         align="start"
+                        sideOffset={8}
                     >
-                        <DropdownMenuLabel className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+                        <DropdownMenuLabel className="px-3 py-2 text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
                             Changer de guilde
                         </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        {userGuilds.map((g) => (
-                            <DropdownMenuItem key={g.id} asChild>
-                                <Link
-                                    href={`/dashboard/${g.id}`}
-                                    className="flex items-center gap-2 cursor-pointer focus:bg-white/5 focus:text-white"
-                                >
-                                    <Avatar className="h-5 w-5 rounded-md border border-white/10">
-                                        <AvatarImage src={g.iconUrl || undefined} />
-                                        <AvatarFallback className="text-[8px] bg-zinc-900 text-zinc-500">
-                                            {g.name?.substring(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className={cn("text-xs font-medium", g.id === guildId ? "text-primary font-bold" : "")}>
-                                        {g.name}
-                                    </span>
-                                    {g.id === guildId && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
-                                </Link>
-                            </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        <DropdownMenuItem className="text-xs text-zinc-500 cursor-not-allowed opacity-50">
-                            <Plus className="h-3 w-3 mr-2" />
+                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                        <div className="space-y-0.5 p-1">
+                            {userGuilds.map((g) => (
+                                <DropdownMenuItem key={g.id} asChild>
+                                    <Link
+                                        href={`/dashboard/${g.id}`}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200",
+                                            g.id === guildId
+                                                ? "bg-primary/10 border border-primary/20 text-white"
+                                                : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"
+                                        )}
+                                    >
+                                        <Avatar className="h-6 w-6 rounded-md border border-white/10">
+                                            <AvatarImage src={g.iconUrl || undefined} />
+                                            <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
+                                                {g.name?.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className={cn("text-xs font-black truncate", g.id === guildId ? "text-primary" : "")}>
+                                                {g.name}
+                                            </span>
+                                            {g.id === guildId && <span className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Connecté</span>}
+                                        </div>
+                                        {g.id === guildId && (
+                                            <div className="ml-auto w-1 h-4 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
+                                        )}
+                                    </Link>
+                                </DropdownMenuItem>
+                            ))}
+                        </div>
+                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                        <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
+                            <Plus className="h-3.5 w-3.5" />
                             Rejoindre une guilde
                         </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -180,28 +193,37 @@ export function AppSidebar({
             </div>
 
             {/* 2. SCROLLABLE NAVIGATION */}
-            <ScrollArea className="flex-1 px-3 py-2 overflow-hidden">
-                <nav className="space-y-6">
+            <ScrollArea className="flex-1 px-3 py-4 overflow-hidden">
+                <nav className="space-y-8">
 
                     {/* CORE */}
-                    <div className="space-y-1">
-                        <h4 className="px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Général</h4>
+                    <div className="space-y-1.5 peer">
+                        <div className="flex items-center gap-2 px-2 mb-3">
+                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Général</h4>
+                        </div>
                         {NAV_CORE.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
                         ))}
                     </div>
 
                     {/* FEATURES */}
-                    <div className="space-y-1">
-                        <h4 className="px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Fonctionnalités</h4>
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 px-2 mb-3">
+                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Fonctionnalités</h4>
+                        </div>
                         {NAV_FEATURES.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
                         ))}
                     </div>
 
                     {/* TOOLS */}
-                    <div className="space-y-1">
-                        <h4 className="px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Outils</h4>
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 px-2 mb-3">
+                            <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/50 to-transparent" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Outils</h4>
+                        </div>
                         {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
                         ))}
@@ -209,11 +231,14 @@ export function AppSidebar({
 
                     {/* ADMIN */}
                     {hasAnyAdminPermission && (
-                        <div className="space-y-1">
-                            <h4 className="px-2 text-[10px] font-black uppercase tracking-widest text-amber-500/70 mb-2 mt-4 flex items-center gap-2">
-                                <Shield className="w-3 h-3" />
-                                Administration
-                            </h4>
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-amber-500/20 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2">
+                                    <Shield className="w-3 h-3" />
+                                    Admin
+                                </h4>
+                            </div>
                             {NAV_ADMIN.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
                             ))}
@@ -223,51 +248,59 @@ export function AppSidebar({
                 </nav>
             </ScrollArea>
 
-            {/* 3. FOOTER: USER PROFILE */}
-            <div className="p-4 border-t border-white/5 bg-zinc-950/50 backdrop-blur-md">
+            {/* 3. FOOTER: USER ISLAND */}
+            <div className="p-4 mt-auto">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/5 group">
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
+                        >
                             <div className="flex items-center gap-3 w-full">
                                 <div className="relative">
-                                    <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover:border-white/20 transition-colors">
+                                    <Avatar className="h-9 w-9 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
                                         <AvatarImage src={user.image} />
-                                        <AvatarFallback className="bg-zinc-800 text-xs font-bold text-zinc-400">
+                                        <AvatarFallback className="bg-zinc-800 text-xs font-black text-zinc-400">
                                             {user.name?.slice(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+                                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                                 </div>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                    <span className="text-xs font-bold text-zinc-200 truncate w-full group-hover:text-white transition-colors">
+                                    <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
                                         {user.name}
                                     </span>
-                                    <span className="text-[10px] text-zinc-500 truncate w-full">
+                                    <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
                                         {user.roleName || "Membre"}
                                     </span>
                                 </div>
-                                <Settings className="h-4 w-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+                                <ChevronsUpDown className="h-4 w-4 text-zinc-500 group-hover/island:text-white transition-all shrink-0" />
                             </div>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200" align="end" side="right" sideOffset={10}>
-                        <div className="px-2 py-1.5 flex items-center gap-2 text-xs text-zinc-400 bg-white/5 rounded-md mb-1">
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            Connecté en tant que <span className="font-bold text-white">{user.name}</span>
+                    <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl" align="end" side="right" sideOffset={12}>
+                        <div className="px-2 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-white/5 rounded-md mb-1 mx-1 mt-1">
+                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Session Active</span>
                         </div>
                         <DropdownMenuSeparator className="bg-white/10" />
 
-                        <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/${guildId}/profile`} className="cursor-pointer focus:bg-white/5">
-                                <LayoutDashboard className="mr-2 h-4 w-4" />
-                                Mon Profil
+                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                            <Link href={`/dashboard/${guildId}/profile`}>
+                                <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
+                                <span className="font-bold">Mon Profil</span>
                             </Link>
                         </DropdownMenuItem>
 
+                        <DropdownMenuItem className="focus:bg-white/5 cursor-pointer">
+                            <Settings className="mr-2 h-4 w-4 text-zinc-500" />
+                            <span className="font-bold">Paramètres</span>
+                        </DropdownMenuItem>
+
                         <DropdownMenuSeparator className="bg-white/10" />
-                        <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-400 focus:bg-red-950/20 cursor-pointer">
+                        <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
                             <LogOut className="mr-2 h-4 w-4" />
-                            Déconnexion
+                            <span className="font-black">Déconnexion</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -281,21 +314,39 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
         <Link
             href={item.href}
             className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 group relative overflow-hidden",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
                 isActive
-                    ? "bg-white/5 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.02]"
+                    ? "bg-white/[0.04] text-white shadow-[0_4px_12px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-white/10"
+                    : "text-zinc-400 hover:text-white hover:bg-white/[0.02]"
             )}
         >
-            {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />}
+            {/* Active Glow Indicator */}
+            {isActive && (
+                <div className={cn(
+                    "absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full shadow-[0_0_12px_rgba(var(--primary-rgb),0.8)]",
+                    item.color ? item.color.replace("text-", "bg-") : "bg-primary"
+                )} />
+            )}
 
             <item.icon
                 className={cn(
-                    "h-4 w-4 shrink-0 transition-colors",
-                    isActive ? (item.color || "text-primary") : "text-zinc-500 group-hover:text-zinc-300"
+                    "h-4 w-4 shrink-0 transition-all duration-300",
+                    isActive
+                        ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
+                        : cn(item.color ? `${item.color} opacity-40 group-hover:opacity-80` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110")
                 )}
             />
-            <span className="text-sm font-medium">{item.name}</span>
+            <span className={cn(
+                "text-sm transition-all duration-300",
+                isActive ? "font-black tracking-tight" : "font-bold"
+            )}>
+                {item.name}
+            </span>
+
+            {/* Subtle light effect on hover */}
+            {!isActive && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            )}
         </Link>
     );
 }

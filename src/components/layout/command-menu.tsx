@@ -13,7 +13,10 @@ import {
     FileText,
     LayoutDashboard,
     Server,
-    Book
+    Book,
+    Target,
+    ScrollText,
+    InfinityIcon
 } from "lucide-react";
 
 import {
@@ -112,6 +115,32 @@ export function CommandMenu() {
                         >
                             <Book className="mr-2 h-4 w-4 text-amber-400" />
                             <span className="font-medium">Documentation</span>
+                        </CommandItem>
+                    </CommandGroup>
+
+                    <CommandSeparator className="bg-white/5" />
+
+                    <CommandGroup heading="Actions Rapides" className="text-zinc-400">
+                        <CommandItem
+                            onSelect={() => runCommand(() => router.push(`/dashboard/ocre/sync`))}
+                            value="Synchroniser Ocre Metamob"
+                        >
+                            <Target className="mr-2 h-4 w-4 text-amber-400" />
+                            <span className="font-medium">Synchroniser Ocre</span>
+                        </CommandItem>
+                        <CommandItem
+                            onSelect={() => runCommand(() => router.push(`/dashboard/missions/manage`))}
+                            value="Gérer Missions Administration"
+                        >
+                            <ScrollText className="mr-2 h-4 w-4 text-emerald-400" />
+                            <span className="font-medium">Gérer les Missions</span>
+                        </CommandItem>
+                        <CommandItem
+                            onSelect={() => runCommand(() => router.push(`/dashboard/songes`))}
+                            value="Créer Run Songes Recruter"
+                        >
+                            <InfinityIcon className="mr-2 h-4 w-4 text-purple-400" />
+                            <span className="font-medium">Lancer une Run Songes</span>
                         </CommandItem>
                     </CommandGroup>
 

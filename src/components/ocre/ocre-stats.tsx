@@ -78,22 +78,22 @@ export function OcreStatCard({
             {/* Subtle gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
 
-            <div className="relative p-4 flex items-center gap-3">
-                <div className={cn("p-2 rounded-lg bg-black/20", colors.icon)}>
-                    <Icon className="h-5 w-5" />
+            <div className="relative p-3 flex items-center gap-3">
+                <div className={cn("shrink-0", colors.icon)}>
+                    <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <motion.p
-                        className="text-2xl font-bold"
+                        className="text-xl font-bold leading-tight"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: delay + 0.2 }}
                     >
                         {value.toLocaleString("fr-FR")}
                     </motion.p>
-                    <p className="text-xs text-muted-foreground truncate">{label}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-bold truncate">{label}</p>
                     {subValue && (
-                        <p className={cn("text-xs font-medium mt-0.5", colors.icon)}>
+                        <p className={cn("text-[10px] font-medium mt-0.5", colors.icon)}>
                             ✨ {subValue}
                         </p>
                     )}

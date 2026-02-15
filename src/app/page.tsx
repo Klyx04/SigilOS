@@ -49,7 +49,7 @@ export default async function Home({
           </div>
 
           {/* Changelog Widget Section */}
-          <div className="bg-zinc-950/50 border-t border-white/5 py-16">
+          <div className="bg-zinc-950/50 border-t border-white/5 py-16 pb-32">
             <div className="container mx-auto px-4 max-w-4xl">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-white mb-4">Nouveautés</h2>

@@ -1,8 +1,24 @@
-# 🎮 GOD Dashboard Refinement — SigilOS
+# 🎮 Seeding Robustness & CI Compliance — SigilOS
 
-**Date** : 2026-02-13  
-**Branche Actuelle** : `feat/god-dashboard-refinement` (ou similaire)  
-**Status** : ✅ Lifecycle Actions Implemented, Dashboard UX Improved, Build Passing
+**Date** : 2026-02-15  
+**Branche Actuelle** : `dev` (Mergié)  
+**Status** : ✅ Seeding Robust (Bundled), CI 100% Green, P2003 Resolved
+
+---
+
+## 🎯 Objectifs Complétés (Session Actuelle)
+
+### 1. **Robust Seeding Infrastructure**
+Résolution des erreurs critiques de seeding sur VPS (Prisma Initialization, Module Not Found).
+- ✅ **Bundling esbuild** : Scripts de seed compilés en fichiers `.js` autonomes (`prisma/seed.js`, `prisma/seed-data/seed.js`).
+- ✅ **Prisma Driver Adapter** : Initialisation correcte via `PrismaPg` pour assurer la compatibilité VPS/Docker.
+- ✅ **ID Mapping Dynamic** : Résolution de l'erreur **P2003** (Foreign Key) en mappant les IDs statiques du JSON vers les CUIDs générés en DB.
+
+### 2. **CI/CD & Code Quality**
+- ✅ **Sync Lockfile** : Alignement de `package-lock.json` pour corriger les échecs `npm ci` sur GitHub.
+- ✅ **Node.js Update** : Passage de la CI en Node v22 pour matcher les pré-requis du projet.
+- ✅ **Lint Compliance** : Suppression de tous les `console.log` dans les scripts (interdits par `RULES.md`).
+- ✅ **ESLint Optimization** : Configuration pour ignorer les bundles JS générés.
 
 ---
 

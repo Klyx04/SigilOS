@@ -8,7 +8,8 @@ import { ResetCountdown } from "./reset-countdown";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
-import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles, RefreshCcw } from "lucide-react";
+import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles, RefreshCcw, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface MissionBoardProps {
     missions: (Mission & {
@@ -185,13 +186,16 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                     </div>
                 ))}
 
-                {/* Empty State */}
-                {filteredMissions.length === 0 && (
-                    <div className="col-span-full h-40 flex flex-col items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
-                        <Filter className="w-8 h-8 mb-2 opacity-50" />
-                        <p>Aucune mission ne correspond à ces filtres.</p>
+                {filteredMissions.length === 0 ? (
+                    <div className="col-span-full py-12">
+                        <EmptyState
+                            icon={SearchX}
+                            title="Aucune mission trouvée"
+                            description="Ajustez vos filtres ou revenez plus tard pour voir les nouveaux défis."
+                            variant="glow"
+                        />
                     </div>
-                )}
+                ) : null}
             </div>
 
             {/* Interest Modal */}

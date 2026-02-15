@@ -1,6 +1,7 @@
 import { getAllDocs } from "@/server/actions/doc-actions";
 import Link from "next/link";
 import { Folder, FileText, ArrowRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function DocsHubPage() {
     const allDocs = await getAllDocs();
@@ -30,9 +31,13 @@ export default async function DocsHubPage() {
             </div>
 
             {categories.length === 0 && (
-                <div className="text-center py-12">
-                    <p className="text-zinc-500 italic">La documentation est en cours de rédaction.</p>
-                </div>
+                <EmptyState
+                    icon={FileText}
+                    title="Aucun guide pour le moment"
+                    description="La documentation est en cours de rédaction. Revenez plus tard pour découvrir nos tutoriels."
+                    variant="glow"
+                    className="mt-8 border-indigo-500/10"
+                />
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

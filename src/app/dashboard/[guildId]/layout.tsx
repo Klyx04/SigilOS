@@ -53,6 +53,17 @@ export default async function DashboardLayout({
         );
     }
 
+    if (user.isCapacityFull) {
+        return (
+            <AccessDenied
+                title="Guilde Pleine"
+                message="Désolé, cette guilde a atteint sa capacité maximale sur SigilOS (350 membres). Contactez un administrateur pour augmenter la limite."
+                variant="lock"
+                action={<SignOutButton />}
+            />
+        );
+    }
+
     return (
         <NebulaClientWrapper>
             <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
@@ -69,7 +80,7 @@ export default async function DashboardLayout({
                 </div>
 
                 {/* Silent Presence Update Hook */}
-                <PresenceHeartbeat guildId={guildId} userId={user.id!} />
+                <PresenceHeartbeat guildId={guildId} />
 
                 {/* 2. MAIN CONTENT AREA (Offset by Sidebar width) */}
                 <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black">

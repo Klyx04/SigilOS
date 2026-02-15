@@ -22,7 +22,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
     if (!users || users.length === 0) return (
         <div className="flex items-center gap-3 pl-1 pr-2">
             <div className="h-1.5 w-1.5 rounded-full bg-zinc-700 animate-pulse ml-1" />
-            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Seul dans l'immensité</span>
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Aucun membre actif</span>
         </div>
     );
 

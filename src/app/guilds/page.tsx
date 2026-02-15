@@ -21,11 +21,14 @@ export default async function GuildsDirectoryPage() {
     const session = await auth();
 
     return (
-        <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col">
+        <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col overflow-hidden">
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
+
             <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
 
             {/* Main Content */}
-            <main className="flex-1 w-full relative z-10 pt-32 pb-24 px-6 md:px-8">
+            <main className="flex-1 w-auto relative z-10 pt-32 pb-24 px-6 md:px-8 overflow-y-auto custom-scrollbar">
                 <div className="max-w-7xl mx-auto space-y-16">
 
                     {/* Hero Section */}

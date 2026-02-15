@@ -38,14 +38,14 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
         }
     });
 
-    // Count recently active users (within last 15 minutes)
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    // Count recently active users (within last 2 minutes)
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     const activeCount = await db.userProfile.count({
         where: {
             guildId: guildConfig.id,
             status: "ACTIVE",
             lastActivityAt: {
-                gte: fifteenMinutesAgo
+                gte: twoMinutesAgo
             }
         }
     });

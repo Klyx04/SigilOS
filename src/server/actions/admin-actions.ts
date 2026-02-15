@@ -76,8 +76,9 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             data: {
                 discordGuildId: guildId,
                 name: guildInfo.name,
+                ownerId: guildInfo.owner_id,
                 iconUrl: guildInfo.icon ? `https://cdn.discordapp.com/icons/${guildInfo.id}/${guildInfo.icon}.png` : null,
-            }
+            } as any
         });
 
         revalidatePath("/dashboard");

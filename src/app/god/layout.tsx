@@ -39,7 +39,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
 
                 {/* Scrollable Main Content */}
                 <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <div className="w-full p-2 md:p-8 min-h-[calc(100vh-4rem)] flex flex-col">
+                    <div className="w-full p-2 md:p-8 pb-32 min-h-[calc(100vh-4rem)] flex flex-col">
 
                         {/* Page Content */}
                         <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">

@@ -3,23 +3,31 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { getActivityLadder } from "@/server/actions/ladder-actions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { getActivePresence } from "@/server/actions/presence-actions";
+import { getDashboardFocus } from "@/server/actions/intelligence-actions";
+import { getMyOcreProgress } from "@/server/actions/ocre-actions";
+import { EchoDuSigil } from "./_components/echo-du-sigil";
+import { PresenceFacepile } from "./_components/presence-facepile";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
     ArrowRight,
-    Shield,
     Users,
     ScrollText,
-    Trophy,
     Bug,
     InfinityIcon,
     Sparkles,
-    Target
+    Target,
+    BookOpen,
+    CircleDashed,
+    Flame
 } from "lucide-react";
 import Link from "next/link";
-import AccessDenied from "@/components/access-denied";
+import { AccessDenied } from "@/components/layout/access-denied";
 import { LadderPreview } from "./_components/ladder-preview";
+import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
+import { Suspense } from "react";
+import { StatProgress } from "./_components/stat-progress";
 
 export default async function DashboardPage({
     params,
@@ -34,218 +42,237 @@ export default async function DashboardPage({
         return <AccessDenied />;
     }
 
-    // Parallel data fetching for performance
-    const [guildStatsResult, ladderResult] = await Promise.all([
-        getGuildStats(guildId),
-        getActivityLadder(guildId, "monthly")
+    // Parallel data fetching
+    const [presenceData, ladderResult, focusData, guildStatsResult] = await Promise.all([
+        getActivePresence(guildId),
+        getActivityLadder(guildId, "monthly"),
+        getDashboardFocus(guildId, user.id!),
+        getGuildStats(guildId)
     ]);
 
-    const guildStats = guildStatsResult.success && guildStatsResult.data ? guildStatsResult.data : null;
     const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
+    const guildStats = guildStatsResult.success && guildStatsResult.data ? guildStatsResult.data : null;
 
-    const roleColorHex = user.roleColor && user.roleColor !== 0
-        ? `#${user.roleColor.toString(16).padStart(6, '0')}`
-        : "var(--primary)";
+    const ocreProgress = await getMyOcreProgress(guildId);
 
     return (
-        <div className="relative w-full overflow-hidden rounded-md">
-            {/* Aurora Background */}
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-40" />
+        <div className="relative w-full min-h-full pb-20">
+            {/* Ambient Background Layer */}
+            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
+            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
 
-            <div className="relative z-10 p-2">
+            <div className="relative z-10 p-4 md:p-6 space-y-10 max-w-[1600px] mx-auto">
 
-                {/* Main Grid Layout: 2/3 Left, 1/3 Right */}
-                <div className="grid md:grid-cols-3 gap-6">
-
-                    {/* LEFT COLUMN (Content & Modules) */}
-                    <div className="md:col-span-2 flex flex-col gap-6">
-
-                        {/* Compact Welcome Banner */}
-                        <Card className="bg-card/40 border-border backdrop-blur-md shadow-lg relative overflow-hidden group">
-                            <BorderBeam size={200} duration={15} delay={9} colorFrom="var(--primary)" colorTo="var(--purple-500)" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                            <CardContent className="p-6 flex items-center justify-center relative z-10">
-                                <div className="text-center">
-                                    <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60 mb-1 ">
-                                        Bienvenue <span style={{ color: roleColorHex }}>{user.name}</span>
-                                    </h1>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Module Grid - Main Action Area */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Missions Module */}
-                            {user.canViewMissions && (
-                                <Link href={`/dashboard/${guildId}/missions`}>
-                                    <Card className="bg-card/20 border-border hover:border-blue-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="group-hover:text-blue-400 transition-colors flex items-center gap-2 text-base">
-                                                <ScrollText className="w-5 h-5" />
-                                                Missions
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                Quêtes hebdomadaires de guilde
-                                            </p>
-                                            <div className="mt-4 flex items-center text-xs text-blue-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                                Voir les objectifs <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            )}
-
-                            {/* Songes Module */}
-                            {user.canViewSonges && (
-                                <Link href={`/dashboard/${guildId}/songes`}>
-                                    <Card className="bg-card/20 border-border hover:border-purple-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="group-hover:text-purple-400 transition-colors flex items-center gap-2 text-base">
-                                                <InfinityIcon className="w-5 h-5" />
-                                                Songes Infinis
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                Runs de groupe et recrutement
-                                            </p>
-                                            <div className="mt-4 flex items-center text-xs text-purple-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                                Trouver un groupe <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            )}
-
-                            {/* Archis Module */}
-                            {user.canViewArchis && (
-                                <Link href={`/dashboard/${guildId}/archimonstres`}>
-                                    <Card className="bg-card/20 border-border hover:border-amber-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="group-hover:text-amber-400 transition-colors flex items-center gap-2 text-base">
-                                                <Bug className="w-5 h-5" />
-                                                Bourse Archis
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                Échanges d'archimonstres
-                                            </p>
-                                            <div className="mt-4 flex items-center text-xs text-amber-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                                Consulter la bourse <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            )}
-
-                            {/* Ladder Module */}
-                            {user.canViewLadder && (
-                                <Link href={`/dashboard/${guildId}/ladder`}>
-                                    <Card className="bg-card/20 border-border hover:border-cyan-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="group-hover:text-cyan-400 transition-colors flex items-center gap-2 text-base">
-                                                <Trophy className="w-5 h-5" />
-                                                Ladder
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                Classements de la guilde
-                                            </p>
-                                            <div className="mt-4 flex items-center text-xs text-cyan-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                                Voir le top classement <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            )}
-
-                            {/* Annuaire (If visible) */}
-                            {user.canViewRoster && (
-                                <Link href={`/dashboard/${guildId}/members`}>
-                                    <Card className="bg-card/20 border-border hover:border-pink-500/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="group-hover:text-pink-400 transition-colors flex items-center gap-2 text-base">
-                                                <Users className="w-5 h-5" />
-                                                Annuaire
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                Liste des membres
-                                            </p>
-                                            <div className="mt-4 flex items-center text-xs text-pink-400 font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                                Parcourir l'annuaire <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            )}
-
-                            {/* Profile Card (Always visible) */}
-                            <Link href={`/dashboard/${guildId}/profile`}>
-                                <Card className="bg-card/20 border-border hover:border-primary/50 transition-all cursor-pointer group h-full hover:bg-card/30">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="group-hover:text-primary transition-colors flex items-center gap-2 text-base">
-                                            <Sparkles className="w-5 h-5" />
-                                            Mon Profil
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-muted-foreground">
-                                            Fiche personnage & stats
-                                        </p>
-                                        <div className="mt-4 flex items-center text-xs text-primary font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                            Gérer mon profil <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
+                {/* --- HEADER LAYER : IDENTITY & PRESENCE --- */}
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 font-black uppercase tracking-widest text-[10px] py-1 bg-indigo-500/5 backdrop-blur-sm">
+                                Port d'Attache
+                            </Badge>
+                            <div className="h-px w-8 bg-zinc-800" />
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">SigilOS v2.4</span>
                         </div>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-sm">
+                            Dashboard <span className="text-zinc-600">_</span>
+                        </h1>
                     </div>
 
-                    {/* RIGHT COLUMN (Stats & Information) */}
-                    <div className="flex flex-col gap-6">
-                        {/* Guild Stats Panel */}
-                        <Card className="bg-card/40 border-border backdrop-blur-md relative overflow-hidden flex-shrink-0">
-                            <BorderBeam size={150} duration={10} delay={3} colorFrom="#10b981" colorTo="#34d399" />
-                            <CardHeader className="pb-3 pt-4">
-                                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                    <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-                                    Stats Guilde Semaine
+                    <div className="flex flex-col items-start md:items-end gap-3 group">
+                        <div className="flex items-center gap-4 py-2 px-4 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-sm hover:border-white/10 transition-colors">
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hidden sm:inline">Gardite en ligne</span>
+                            <PresenceFacepile users={presenceData.data} />
+                        </div>
+                    </div>
+                </header>
+
+                {/* --- 1. THE ECHO (Intelligence Focus) --- */}
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                    <EchoDuSigil data={focusData} />
+                </section>
+
+                {/* --- 2. BENTO GRID 2.0 --- */}
+                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+
+                    {/* Admin Onboarding - Dynamic Row Span */}
+                    {user.isAdmin && (
+                        <div className="md:col-span-12 lg:col-span-8 row-span-1">
+                            <OnboardingBanner
+                                guildId={guildId}
+                                steps={[
+                                    { id: "discord", title: "Bot", description: "Config sync", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
+                                    { id: "missions", title: "Missions", description: "Engagement", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.missionsValidatedThisWeek ?? 0) > 0, icon: "scroll-text" },
+                                    { id: "wiki", title: "Doc", description: "Héritage", href: `/docs`, completed: (guildStats?.activityPointsThisWeek ?? 0) > 100, icon: "book-open" }
+                                ]}
+                            />
+                        </div>
+                    )}
+
+                    {/* Missions (Main landscape) */}
+                    <div className="md:col-span-6 lg:col-span-4 row-span-1">
+                        <Link href={`/dashboard/${guildId}/missions`} className="block h-full">
+                            <Card className="glass-premium h-full hover:border-emerald-500/50 transition-all cursor-pointer group bg-zinc-950/20 relative overflow-hidden">
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-zinc-200 group-hover:text-emerald-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
+                                            <ScrollText className="w-4 h-4" />
+                                            Missions
+                                        </CardTitle>
+                                        <Badge variant="outline" className="border-emerald-500/20 text-emerald-400/60 text-[8px] font-black">ACTIF</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">Parchemins de guilde en attente.</p>
+                                    <div className="flex items-center text-[10px] text-emerald-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
+                                        Voir les contrats <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </CardContent>
+                                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <Flame className="w-16 h-16 text-emerald-500" />
+                                </div>
+                            </Card>
+                        </Link>
+                    </div>
+
+                    {/* Guild Stats (Vertical Focus) */}
+                    <div className="md:col-span-6 lg:col-span-4 row-span-2">
+                        <Card className="glass-premium h-full saturate-boost bg-zinc-950/40 relative overflow-hidden border-white/5">
+                            <BorderBeam size={150} duration={8} delay={2} colorFrom="#6366f1" colorTo="#a855f7" />
+                            <CardHeader className="pb-8 pt-6">
+                                <CardTitle className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <Target className="h-4 w-4" />
+                                    Chronologie de Guilde
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4 pb-5">
+                            <CardContent className="space-y-8">
                                 {guildStats ? (
                                     <>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground text-sm font-medium">Missions validées</span>
-                                            <span className="text-xl font-bold text-emerald-400 bg-emerald-500/10 px-2 rounded">{guildStats.missionsValidatedThisWeek}</span>
+                                        <div className="group/stat">
+                                            <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Progression Hebdo</p>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-4xl font-black text-white leading-none tracking-tighter">{guildStats.missionsValidatedThisWeek}</span>
+                                                <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">Missions</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground text-sm font-medium">Points d'activités</span>
-                                            <span className="font-bold text-yellow-400 bg-yellow-500/10 px-2 rounded">+{guildStats.activityPointsThisWeek} XP</span>
+                                        <div className="group/stat">
+                                            <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Points de Gloire</p>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-4xl font-black text-yellow-400 leading-none tracking-tighter">+{guildStats.activityPointsThisWeek}</span>
+                                                <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">XP</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground text-sm font-medium">Runs Songes actifs</span>
-                                            <span className="font-bold text-purple-400 bg-purple-500/10 px-2 rounded">{guildStats.activeSongesRuns}</span>
+                                        <div className="pt-4 border-t border-white/5">
+                                            <div className="flex items-center justify-between text-[10px] text-zinc-500 font-black uppercase">
+                                                <span>Runs Songes</span>
+                                                <span className="text-purple-400 font-black">{guildStats.activeSongesRuns} Actives</span>
+                                            </div>
+                                            <StatProgress value={65} color="bg-purple-500" glowColor="rgba(168,85,247,0.5)" />
                                         </div>
                                     </>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">Chargement...</p>
+                                    <div className="flex items-center gap-2 text-zinc-600 italic text-sm py-10">
+                                        <CircleDashed className="animate-spin w-4 h-4" /> Collecte des échos...
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
-
-                        {/* Ladder Preview - Fills remaining height if needed */}
-                        <div className="w-full">
-                            <LadderPreview guildId={guildId} topLadder={topLadder} />
-                        </div>
                     </div>
-                </div>
+
+                    {/* Songes (Main landscape) */}
+                    <div className="md:col-span-6 lg:col-span-4 row-span-1">
+                        <Link href={`/dashboard/${guildId}/songes`} className="block h-full">
+                            <Card className="glass-premium h-full hover:border-purple-500/50 transition-all cursor-pointer group bg-zinc-950/20 relative overflow-hidden">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-zinc-200 group-hover:text-purple-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
+                                        <InfinityIcon className="w-5 h-5" />
+                                        Songes
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-zinc-500 font-bold text-[11px] mb-4">L'abysse vous appelle.</p>
+                                    <div className="flex items-center text-[10px] text-purple-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
+                                        Explorer les puits <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </CardContent>
+                                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                                    <InfinityIcon className="w-24 h-24 text-purple-500" />
+                                </div>
+                            </Card>
+                        </Link>
+                    </div>
+
+                    {/* Ladder Preview (Horizontal bottom row) */}
+                    <div className="md:col-span-12 lg:col-span-8 row-span-1">
+                        <LadderPreview guildId={guildId} topLadder={topLadder} />
+                    </div>
+
+                    {/* Tertiary Quick Modules */}
+                    <div className="md:col-span-12 lg:col-span-4 row-span-1 grid grid-cols-2 gap-4">
+                        <Link href={`/dashboard/${guildId}/archimonstres`} className="h-full">
+                            <Card className="glass-premium h-full hover:border-amber-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                                <CardHeader className="p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Bug className="w-5 h-5 text-amber-500" />
+                                        {ocreProgress.success && ocreProgress.data && (
+                                            <span className="text-[10px] font-black text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                                {ocreProgress.data.stats.progressPercent}%
+                                            </span>
+                                        )}
+                                    </div>
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Archimonstres</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4 pt-0">
+                                    <p className="text-[10px] text-zinc-500 font-bold leading-tight">
+                                        {ocreProgress.success && ocreProgress.data
+                                            ? `${ocreProgress.data.stats.manquants} manquants pour l'étape.`
+                                            : "Liez Metamob pour suivre."}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                        <Link href={`/dashboard/${guildId}/profile`} className="h-full">
+                            <Card className="glass-premium h-full hover:border-blue-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                                <CardHeader className="p-4">
+                                    <Sparkles className="w-5 h-5 text-blue-500 mb-2" />
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Profil</CardTitle>
+                                </CardHeader>
+                                <div className="absolute -bottom-2 -right-2 opacity-5">
+                                    <Sparkles className="w-12 h-12 text-blue-500" />
+                                </div>
+                            </Card>
+                        </Link>
+                        <Link href={`/dashboard/${guildId}/members`} className="h-full">
+                            <Card className="glass-premium h-full hover:border-pink-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                                <CardHeader className="p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Users className="w-5 h-5 text-pink-500" />
+                                        {guildStats && (
+                                            <span className="text-[10px] font-black text-pink-500/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
+                                                {guildStats.totalMembers}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Annuaire</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4 pt-0">
+                                    <p className="text-[10px] text-zinc-500 font-bold leading-tight">Membres & Métiers.</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                        <Link href={`/docs`} className="h-full">
+                            <Card className="glass-premium h-full hover:border-zinc-500/50 transition-all group bg-zinc-950/20 overflow-hidden relative">
+                                <CardHeader className="p-4">
+                                    <BookOpen className="w-5 h-5 text-zinc-400 mb-2" />
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Wiki</CardTitle>
+                                </CardHeader>
+                                <div className="absolute -bottom-2 -right-2 opacity-5">
+                                    <BookOpen className="w-12 h-12 text-zinc-400" />
+                                </div>
+                            </Card>
+                        </Link>
+                    </div>
+
+                </main>
             </div>
         </div>
     );

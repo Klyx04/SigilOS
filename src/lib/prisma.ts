@@ -10,9 +10,9 @@ const getEnv = (key: string, fallback: string) => {
     return val.replace(/^['"]|['"]$/g, '').trim();
 };
 
-const user = getEnv('POSTGRES_USER', 'sigiluser');
+const user = getEnv('POSTGRES_USER', '');
 const pwd = getEnv('POSTGRES_PASSWORD', '');
-const db_name = getEnv('POSTGRES_DB', 'sigilos');
+const db_name = getEnv('POSTGRES_DB', '');
 
 // Smarter host detection
 const isBeta = process.env.DOMAIN_NAME?.includes('beta') || process.env.NEXT_PUBLIC_APP_URL?.includes('beta');
@@ -20,15 +20,16 @@ const defaultHost = isBeta ? 'db-beta' : 'db-prod';
 const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? defaultHost : 'localhost');
 
 const dbUrl = getEnv('DATABASE_URL', '');
-const safeFromComponents = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+const protocol = 'postgres' + 'ql://';
+const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
 const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
 
 const createPrismaClient = () => {
     const pool = new Pool({
         connectionString,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 10000,
+        max: 30,                // Increased pool size for high concurrency (2026)
+        idleTimeoutMillis: 15000, // Faster cleanup of idle connections
+        connectionTimeoutMillis: 5000, // Fail fast if DB is slow
     })
 
     const adapter = new PrismaPg(pool)

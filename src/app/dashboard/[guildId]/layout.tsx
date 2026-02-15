@@ -8,6 +8,7 @@ import { isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { AlmanaxWidget } from "@/components/layout/almanax-widget";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { Suspense } from "react";
+import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
 
@@ -54,7 +55,7 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
-            <div className="flex h-screen overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100">
+            <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
                 <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
@@ -67,35 +68,40 @@ export default async function DashboardLayout({
                     />
                 </div>
 
+                {/* Silent Presence Update Hook */}
+                <PresenceHeartbeat guildId={guildId} userId={user.id!} />
+
                 {/* 2. MAIN CONTENT AREA (Offset by Sidebar width) */}
-                <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full">
+                <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black">
 
-                    {/* Top Navigation */}
-                    <TopNav
-                        userId={user.id || ""}
-                        sidebarProps={{ guildId, user, guildData, userGuilds }}
-                        events={events}
-                    >
-                        {/* Pass Almanax Widget as child to TopNav (Right Side) */}
-                        <div className="scale-90 origin-right">
-                            <Suspense fallback={<div className="h-8 w-8 bg-white/5 rounded-full animate-pulse" />}>
-                                {/* Just a trigger here? Or the full widget? */}
-                                <AlmanaxWidget />
-                            </Suspense>
-                        </div>
-                    </TopNav>
+                    {/* Top Navigation - Fixed at top of content area */}
+                    <div className="flex-shrink-0 z-50">
+                        <TopNav
+                            userId={user.id || ""}
+                            sidebarProps={{ guildId, user, guildData, userGuilds }}
+                            events={events}
+                        >
+                            <div className="relative">
+                                <Suspense fallback={<div className="h-8 w-8 bg-white/5 rounded-full animate-pulse" />}>
+                                    <AlmanaxWidget />
+                                </Suspense>
+                            </div>
+                        </TopNav>
+                    </div>
 
-                    {/* Scrollable Main Content */}
-                    <main className="flex-1 overflow-y-scroll overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-4rem)] flex flex-col">
+                    {/* Scrollable Main Content - THE ONLY SCROLLABLE AREA */}
+                    <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
 
                             {/* Page Content */}
                             <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
-                                {children}
+                                <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
+                                    {children}
+                                </Suspense>
                             </div>
 
-                            {/* Footer at bottom of content */}
-                            <div className="mt-12 md:mt-24">
+                            {/* Footer at bottom of content - Increased pb to 32 (128px) for safe dock area */}
+                            <div className="mt-12 md:mt-24 pb-32">
                                 <GalacticFooter />
                             </div>
                         </div>

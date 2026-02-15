@@ -23,13 +23,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             void account;
             return true;
         },
-        async jwt({ token, account }) {
+        async jwt({ token, account, user, trigger, session }) {
             if (account) {
                 token.accessToken = account.access_token;
                 token.refreshToken = account.refresh_token;
                 token.expiresAt = account.expires_at;
                 token.scope = account.scope;
             }
+
+            // SECURITY: Session Fingerprinting (2026)
+            // We can't easily get headers here in 'auth' callbacks in some environments, 
+            // but if we are in a request context, it might work.
+            // If not, we'll use it as a placeholder for when we implement custom crypto-tokens.
             return token;
         },
         async session({ session, token }) {

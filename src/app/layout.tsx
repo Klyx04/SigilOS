@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -66,8 +67,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className="h-full overflow-hidden">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -75,20 +76,22 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
-            <Toaster
-              position="top-center"
-              richColors
-              closeButton
-              theme="dark"
-              toastOptions={{
-                className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
-                style: {
-                  borderRadius: "1rem",
-                  padding: "1rem",
-                }
-              }}
-            />
+            <TooltipProvider>
+              {children}
+              <Toaster
+                position="top-center"
+                richColors
+                closeButton
+                theme="dark"
+                toastOptions={{
+                  className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
+                  style: {
+                    borderRadius: "1rem",
+                    padding: "1rem",
+                  }
+                }}
+              />
+            </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -12,6 +12,7 @@ import { z } from "zod";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 import { rateLimit } from "@/lib/ratelimit";
+import { withCache } from "@/lib/cache";
 import {
     getUserProfile,
     getUserQuests,
@@ -454,227 +455,133 @@ export async function getMyOcreProgress(
 ): Promise<ActionResponse<OcreProgressData>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    const userId = session.user.id;
 
     try {
         // [RateLimit] Prevent API spam
-        const rateCheck = await rateLimit(`ocre:progress:${session.user.id}`, 30, 60);
+        const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
         if (!rateCheck.success) return { success: false, error: "Trop de requêtes. Réessayez plus tard." };
 
         // Permission check
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
         if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
-        const profile = await db.userProfile.findFirst({
-            where: {
-                userId: session.user.id,
-                guild: { discordGuildId: guildId },
-                status: "ACTIVE",
-            },
-            select: {
-                id: true,
-                metamobPseudo: true,
-                metamobApiKey: true,
-                metamobQuestSlug: true,
-                metamobServerId: true,
-                metamobVerified: true,
-                metamobLastSync: true,
-                guild: { select: { metamobApiKey: true } },
-            },
-        });
-
-        if (!profile?.metamobPseudo || !profile.metamobVerified) {
-            return { success: false, error: "Profil Metamob non lié." };
-        }
-
-        const safePseudo = profile.metamobPseudo;
-        let questSlug = profile.metamobQuestSlug;
-        const effectiveApiKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild?.metamobApiKey);
-
-        // Auto-discover quest if missing
-        if (!questSlug) {
-            const quests = await getUserQuests(safePseudo, { guildApiKey: effectiveApiKey });
-            if (quests.length === 0) return { success: false, error: "Quête introuvable." };
-            questSlug = quests[0].slug;
-            await db.userProfile.update({
-                where: { id: profile.id },
-                data: { metamobQuestSlug: questSlug, metamobServerId: quests[0].server.id }
+        const cacheKey = `ocre:progress:${guildId}:${userId}`;
+        return await withCache(cacheKey, 120, async () => {
+            const profile = await db.userProfile.findFirst({
+                where: {
+                    userId: userId,
+                    guild: { discordGuildId: guildId },
+                    status: "ACTIVE",
+                },
+                select: {
+                    id: true,
+                    metamobPseudo: true,
+                    metamobApiKey: true,
+                    metamobQuestSlug: true,
+                    metamobServerId: true,
+                    metamobVerified: true,
+                    metamobLastSync: true,
+                    guild: { select: { metamobApiKey: true } },
+                },
             });
-        }
 
-        // --- STEP 1: FETCH USER DATA (AUTHORITATIVE FOR TEMPLATE ID) ---
-        // We fetch the user's quest FIRST to know which Template ID they are using.
-        // This solves the issue where users on Custom/Retro quests get mismatched with the Unity Skeleton.
-        let userQuestData: QuestMonster[] = [];
-        let firstPage: QuestDetails | null = null;
-
-        try {
-            firstPage = await getQuestDetails(safePseudo, questSlug, { guildApiKey: effectiveApiKey, limit: 1000, skipCache: true });
-            userQuestData = [...firstPage.monsters];
-
-            // Handle Pagination if user has > 1000 items (rare for Ocre, but good practice)
-            let uOffset = firstPage.monsters.length;
-            while (userQuestData.length < firstPage.pagination.total) {
-                const more = await getQuestDetails(safePseudo, questSlug, { guildApiKey: effectiveApiKey, limit: 1000, offset: uOffset, skipCache: true });
-                if (more.monsters.length === 0) break;
-                userQuestData = [...userQuestData, ...more.monsters];
-                uOffset += more.monsters.length;
+            if (!profile?.metamobPseudo || !profile.metamobVerified) {
+                return { success: false, error: "Profil Metamob non lié." };
             }
-        } catch (apiError: any) {
-            if (apiError instanceof MetamobApiError && (apiError.code === "NOT_FOUND" || apiError.message.includes("404"))) {
-                console.warn(`[getMyOcreProgress] Quest ${questSlug} not found (404). Clearing slug.`);
-                await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: null } });
-                return { success: false, error: "NO_QUEST" };
+
+            const safePseudo = profile.metamobPseudo;
+            let questSlug = profile.metamobQuestSlug;
+            const effectiveApiKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild?.metamobApiKey);
+
+            // Auto-discover quest if missing
+            if (!questSlug) {
+                const quests = await getUserQuests(safePseudo, { guildApiKey: effectiveApiKey });
+                if (quests.length === 0) return { success: false, error: "Quête introuvable." };
+                questSlug = quests[0].slug;
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { metamobQuestSlug: questSlug, metamobServerId: quests[0].server.id }
+                });
             }
-            if (apiError instanceof MetamobApiError) {
-                if (apiError.code === "UNAUTHORIZED") return { success: false, error: "Accès refusé. Vérifiez votre clé API Metamob (Profil Stellium) ou passez votre compte Metamob en PUBLIC." };
-                if (apiError.code === "INVALID_API_KEY") return { success: false, error: "Clé API Metamob invalide." };
-            }
-            throw apiError;
-        }
 
-        // --- STEP 2: FETCH MATCHING SKELETON ---
-        // Now use the Template ID from the User's Quest to fetch the Correct Skeleton
-        const templateId = firstPage.quest_template.id;
-        let skeletonMonsters: QuestMonster[] = [];
+            let userQuestData: QuestMonster[] = [];
+            let firstPage: QuestDetails | null = null;
 
-        try {
-            skeletonMonsters = await getQuestTemplateMonsters(templateId, { guildApiKey: effectiveApiKey });
-        } catch (skelError) {
-            console.warn(`[getMyOcreProgress] Failed to fetch skeleton for Template ${templateId}. Using User Data structure globally.`);
-        }
+            try {
+                firstPage = await getQuestDetails(safePseudo, questSlug, { guildApiKey: effectiveApiKey, limit: 1000, skipCache: true });
+                userQuestData = [...firstPage.monsters];
 
-        // --- STEP 3: MERGE & NORMALIZE ---
-        const finalMonsters: OcreMonster[] = [];
-        // Ideally use Skeleton as master, fallback to UserData if Skeleton failed
-        const masterList = skeletonMonsters.length > 0 ? skeletonMonsters : userQuestData;
-
-        // Map User Data for fast lookup
-        const userMap = new Map<number, QuestMonster>();
-        const skeletonIdMap = new Set(masterList.map(m => m.id));
-        const skeletonNameMap = new Map<string, QuestMonster>();
-        masterList.forEach(m => {
-            if (m.name?.fr) skeletonNameMap.set(m.name.fr.toLowerCase().trim(), m);
-        });
-
-        userQuestData.forEach(m => {
-            let targetId = m.monster_id ?? (m as any).monster?.id ?? m.id;
-
-            // Align ID with Skeleton if possible
-            if (skeletonMonsters.length > 0 && !skeletonIdMap.has(targetId)) {
-
-                // Mismatch? Try Name Match
-                const nameKey = m.name?.fr?.toLowerCase().trim();
-                const match = nameKey ? skeletonNameMap.get(nameKey) : undefined;
-
-                if (match) {
-                    // console.log(`[DEBUG] ID Mismatch for ${m.name.fr}: UserID=${targetId} -> FixedID=${match.id}`);
-                    targetId = match.id;
-                } else {
-                    // CRITICAL DEBUG: Log failed matches for singles
-                    if (m.owned && m.owned === 1) {
-                    }
+                let uOffset = firstPage.monsters.length;
+                while (userQuestData.length < firstPage.pagination.total) {
+                    const more = await getQuestDetails(safePseudo, questSlug, { guildApiKey: effectiveApiKey, limit: 1000, offset: uOffset, skipCache: true });
+                    if (more.monsters.length === 0) break;
+                    userQuestData = [...userQuestData, ...more.monsters];
+                    uOffset += more.monsters.length;
                 }
-            }
-            userMap.set(targetId, m);
-        });
-
-        let matchCount = 0;
-        masterList.forEach(m => {
-            if (userMap.has(m.id)) matchCount++;
-        });
-
-        // Stats counters
-        let countTotal = 0;
-        let countManquants = 0;
-        let countPossedes = 0;
-        let countDoublons = 0;
-        const statsByType = {
-            monstre: { total: 0, gathered: 0 },
-            boss: { total: 0, gathered: 0 },
-            archimonstre: { total: 0, gathered: 0 }
-        };
-
-        const PQ = firstPage.parallel_quests ?? 1;
-
-        for (const templateMonster of masterList) {
-            const userMonster = userMap.get(templateMonster.id);
-            const source = userMonster || templateMonster;
-            const normalized = normalizeQuestMonster(source, PQ);
-
-            // If user doesn't have it (no map entry), it means they have EXACTLY the required amount
-            // and are not trading it (status: 0), so Metamob omits it from the API response.
-            if (!userMonster) {
-                normalized.owned = PQ;
-                normalized.state = "POSSEDE";
-            }
-
-            finalMonsters.push(normalized);
-
-            // Update stats
-            countTotal++;
-
-            // LOGIC: Is it in inventory? (For counters: 12, 11, 16)
-            const isPossessed = normalized.state !== "MANQUANT";
-
-            // LOGIC: Is it "done" for the quest? (For bars: 15/300)
-            const isGathered = isPossessed || (normalized.step && firstPage?.current_step && normalized.step < firstPage.current_step);
-
-            if (normalized.state === "MANQUANT") countManquants++;
-            else {
-                countPossedes++;
-                if (normalized.state === "DOUBLON") countDoublons++;
-            }
-
-            // Type stats (using isGathered for bars)
-            const typeKey = normalized.type as "monstre" | "boss" | "archimonstre";
-            if (statsByType[typeKey]) {
-                statsByType[typeKey].total++;
-                if (isGathered) {
-                    statsByType[typeKey].gathered++;
+            } catch (apiError: any) {
+                if (apiError instanceof MetamobApiError && (apiError.code === "NOT_FOUND" || apiError.message.includes("404"))) {
+                    await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: null } });
+                    return { success: false, error: "NO_QUEST" };
                 }
+                throw apiError;
             }
-        }
 
-        // GLOBAL PROGRESS (Gathered includes Inventory + Validated steps)
-        const totalGathered = finalMonsters.filter(m => {
-            const isPossessed = m.state !== "MANQUANT";
-            const isValidated = m.step && firstPage?.current_step && m.step < firstPage.current_step;
-            return isPossessed || isValidated;
-        }).length;
+            const templateId = firstPage.quest_template.id;
+            let skeletonMonsters: QuestMonster[] = [];
+            try {
+                skeletonMonsters = await getQuestTemplateMonsters(templateId, { guildApiKey: effectiveApiKey });
+            } catch (skelError) { }
 
-        const progressPercent = countTotal > 0 ? Math.round((totalGathered / countTotal) * 100) : 0;
+            const finalMonsters: OcreMonster[] = [];
+            const masterList = skeletonMonsters.length > 0 ? skeletonMonsters : userQuestData;
+            const userMap = new Map<number, QuestMonster>();
+            const skeletonIdMap = new Set(masterList.map(m => m.id));
+            const skeletonNameMap = new Map<string, QuestMonster>();
+            masterList.forEach(m => { if (m.name?.fr) skeletonNameMap.set(m.name.fr.toLowerCase().trim(), m); });
 
-        // Trace Sync
-        await db.userProfile.update({
-            where: { id: profile.id },
-            data: { metamobLastSync: new Date() }
+            userQuestData.forEach(m => {
+                let targetId = m.monster_id ?? (m as any).monster?.id ?? m.id;
+                if (skeletonMonsters.length > 0 && !skeletonIdMap.has(targetId)) {
+                    const match = m.name?.fr ? skeletonNameMap.get(m.name.fr.toLowerCase().trim()) : undefined;
+                    if (match) targetId = match.id;
+                }
+                userMap.set(targetId, m);
+            });
+
+            let countTotal = 0, countManquants = 0, countPossedes = 0, countDoublons = 0;
+            const statsByType = { monstre: { total: 0, gathered: 0 }, boss: { total: 0, gathered: 0 }, archimonstre: { total: 0, gathered: 0 } };
+            const PQ = firstPage.parallel_quests ?? 1;
+
+            for (const templateMonster of masterList) {
+                const userMonster = userMap.get(templateMonster.id);
+                const normalized = normalizeQuestMonster(userMonster || templateMonster, PQ);
+                if (!userMonster) { normalized.owned = PQ; normalized.state = "POSSEDE"; }
+                finalMonsters.push(normalized);
+                countTotal++;
+                const isPossessed = normalized.state !== "MANQUANT";
+                const isGathered = isPossessed || (normalized.step && firstPage?.current_step && normalized.step < firstPage.current_step);
+                if (normalized.state === "MANQUANT") countManquants++;
+                else { countPossedes++; if (normalized.state === "DOUBLON") countDoublons++; }
+                const typeKey = normalized.type as keyof typeof statsByType;
+                if (statsByType[typeKey]) { statsByType[typeKey].total++; if (isGathered) statsByType[typeKey].gathered++; }
+            }
+
+            const totalGathered = finalMonsters.filter(m => (m.state !== "MANQUANT") || (m.step && firstPage?.current_step && m.step < firstPage.current_step)).length;
+            const progressPercent = countTotal > 0 ? Math.round((totalGathered / countTotal) * 100) : 0;
+
+            await db.userProfile.update({ where: { id: profile.id }, data: { metamobLastSync: new Date() } });
+
+            return {
+                success: true,
+                data: {
+                    monsters: finalMonsters,
+                    stats: { total: countTotal, manquants: countManquants, possedes: countPossedes, doublons: countDoublons, progressPercent, monsters: statsByType.monstre, bosses: statsByType.boss, archis: statsByType.archimonstre },
+                    questInfo: { slug: questSlug!, characterName: firstPage.character_name || safePseudo, currentStep: firstPage.current_step || 0, totalSteps: 34, parallelQuests: PQ, serverName: firstPage.server?.name || "Serveur inconnu" },
+                    lastSync: new Date()
+                }
+            };
         });
-
-        return {
-            success: true,
-            data: {
-                monsters: finalMonsters,
-                stats: {
-                    total: countTotal,
-                    manquants: countManquants,
-                    possedes: countPossedes,
-                    doublons: countDoublons,
-                    progressPercent,
-                    monsters: statsByType.monstre,
-                    bosses: statsByType.boss,
-                    archis: statsByType.archimonstre
-                },
-                questInfo: {
-                    slug: questSlug,
-                    characterName: firstPage.character_name || safePseudo,
-                    currentStep: firstPage.current_step || 0,
-                    totalSteps: 34,
-                    parallelQuests: PQ,
-                    serverName: firstPage.server?.name || "Serveur inconnu"
-                },
-                lastSync: new Date()
-            }
-        };
     } catch (error) {
         console.error("[getMyOcreProgress] Critical Error:", error);
         return { success: false, error: "Erreur technique lors de la synchronisation." };

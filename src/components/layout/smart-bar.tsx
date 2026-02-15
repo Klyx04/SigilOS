@@ -33,43 +33,37 @@ export function SmartBar({ almanax, memberCount, onlineCount }: SmartBarProps) {
     }, []);
 
     return (
-        <div className="hidden md:flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/5 rounded-full p-1 shadow-inner">
+        <div className="hidden md:flex items-center gap-1.5 p-1">
 
             {/* 1. Almanax Slot */}
-            <div className="flex items-center">
+            <div className="flex items-center pl-1">
                 {almanax}
             </div>
 
             {/* DIVIDER */}
             {(memberCount !== undefined || onlineCount !== undefined) && (
-                <div className="h-6 w-px bg-white/5 mx-1" />
+                <div className="h-4 w-px bg-white/10 mx-0.5" />
             )}
 
             {/* 2. Guild Stats */}
             {(memberCount !== undefined || onlineCount !== undefined) && (
-                <div className="flex items-center gap-3 px-3">
-                    <div className="flex flex-col items-center leading-none">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Membres</span>
-                        <span className="text-xs font-bold text-zinc-300">
-                            <span className="text-emerald-400">{onlineCount ?? 0}</span>
-                            <span className="text-zinc-600 mx-1">/</span>
-                            {memberCount ?? 0}
-                        </span>
+                <div className="flex items-center px-2">
+                    <div className="flex flex-col items-center justify-center leading-none">
+                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest scale-90 mb-0.5">Membres</span>
+                        <div className="flex items-center gap-1 text-[11px] font-black text-zinc-300">
+                            <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">{onlineCount ?? 0}</span>
+                            <span className="text-zinc-700">/</span>
+                            <span>{memberCount ?? 0}</span>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* DIVIDER */}
-            <div className="h-6 w-px bg-white/5 mx-1" />
-
-            {/* 3. Server Time */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/5 text-xs font-mono text-zinc-300 min-w-[90px] justify-center shadow-sm">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{time || "--:--"}</span>
+            {/* 3. Server Time (Pure Flat) */}
+            <div className="flex items-center gap-2 px-3 text-[11px] font-black text-zinc-300 min-w-[70px] justify-center group/time">
+                <Clock className="w-3.5 h-3.5 text-indigo-400 group-hover/time:rotate-12 transition-transform" />
+                <span className="tracking-tighter font-mono">{time || "--:--"}</span>
             </div>
-
-            {/* 4. Command Hint */}
-            {/* Command Hint removed based on user feedback */}
         </div>
     );
 }

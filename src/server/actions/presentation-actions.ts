@@ -117,17 +117,23 @@ export type GuildPresentation = {
  * Get public presentation data for a specific guild
  */
 export async function getGuildPresentation(
-    guildId: string
+    guildId: string,
+    checkEnabled: boolean = true
 ): Promise<GuildPresentation | null> {
+    const whereClause: any = {
+        OR: [
+            { id: guildId },
+            { discordGuildId: guildId },
+        ],
+        isActive: true,
+    };
+
+    if (checkEnabled) {
+        whereClause.presentationEnabled = true;
+    }
+
     const guild = await db.guildConfig.findFirst({
-        where: {
-            OR: [
-                { id: guildId },
-                { discordGuildId: guildId },
-            ],
-            isActive: true,
-            presentationEnabled: true,
-        },
+        where: whereClause,
         select: {
             id: true,
             discordGuildId: true,

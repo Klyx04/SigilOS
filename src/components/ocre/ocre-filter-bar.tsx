@@ -131,7 +131,7 @@ export function OcreFilterBar({
                         placeholder="Rechercher un monstre..."
                         value={filters.searchQuery}
                         onChange={(e) => updateFilter("searchQuery", e.target.value)}
-                        className="pl-12 h-12 text-base bg-black/30 border-white/10 rounded-xl"
+                        className="pl-12 h-12 text-base bg-muted border-border rounded-xl"
                     />
                 </div>
 
@@ -152,7 +152,7 @@ export function OcreFilterBar({
                     size="icon"
                     onClick={onRefresh}
                     disabled={isRefreshing}
-                    className="h-12 w-12 border-white/10 bg-black/30 rounded-xl shrink-0 hover:bg-white/5 transition-colors"
+                    className="h-12 w-12 border-border bg-muted rounded-xl shrink-0 hover:bg-accent transition-colors"
                     title="Synchroniser avec Metamob"
                 >
                     <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
@@ -177,7 +177,7 @@ export function OcreFilterBar({
             {/* Filter Pills Row */}
             <div className="flex flex-wrap items-center gap-3">
                 {/* Type Selector - Large Pills */}
-                <div className="flex items-center rounded-xl bg-black/40 border border-white/10 p-1.5 overflow-x-auto max-w-full no-scrollbar">
+                <div className="flex items-center rounded-xl bg-muted/50 border border-border p-1.5 overflow-x-auto max-w-full no-scrollbar">
                     {MONSTER_TYPES.map((type) => {
                         const Icon = type.icon;
                         const isActive = filters.selectedType === type.id;
@@ -188,8 +188,8 @@ export function OcreFilterBar({
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap",
                                     isActive
-                                        ? "bg-zinc-800 text-white shadow-md border border-white/10"
-                                        : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                        ? "bg-accent text-white shadow-md border border-border"
+                                        : "text-zinc-400 hover:text-white hover:bg-accent/30"
                                 )}
                             >
                                 <Icon className="h-4 w-4" />
@@ -210,7 +210,7 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
                                 filters.selectedStep !== "all" && "border-amber-500/50 bg-amber-500/10 text-amber-200"
                             )}
                         >
@@ -247,7 +247,7 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
                                 filters.sortBy !== "step-asc" && "border-blue-500/50 bg-blue-500/10 text-blue-200"
                             )}
                         >
@@ -278,7 +278,7 @@ export function OcreFilterBar({
                                 variant="outline"
                                 size="lg"
                                 className={cn(
-                                    "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 max-w-[200px] hover:bg-black/50 transition-all",
+                                    "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 max-w-[200px] hover:bg-accent/50 transition-all",
                                     filters.selectedZone !== "all" && "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
                                 )}
                             >
@@ -317,7 +317,7 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-white/10 bg-black/30 rounded-xl gap-2 hover:bg-black/50 transition-all",
+                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
                                 filters.minQuantity > 0 && "border-purple-500/50 bg-purple-500/10 text-purple-200"
                             )}
                         >

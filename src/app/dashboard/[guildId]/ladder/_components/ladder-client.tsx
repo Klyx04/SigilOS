@@ -116,7 +116,7 @@ export function LadderClient({ guildId, canValidate }: Props) {
     return (
         <div className="space-y-8">
             {/* Interactive Tab Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {categories.map((cat) => {
                     const Icon = cat.icon;
                     const isActive = activeTab === cat.id;
@@ -125,31 +125,31 @@ export function LadderClient({ guildId, canValidate }: Props) {
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "relative overflow-hidden p-5 rounded-2xl border backdrop-blur-sm transition-all duration-300 text-left group",
+                                "relative overflow-hidden p-2 rounded-lg border backdrop-blur-sm transition-all duration-300 text-left group",
                                 isActive ? cat.activeClass : cat.idleClass
                             )}
                         >
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between mb-1.5">
                                 <div className={cn(
-                                    "p-2.5 rounded-xl border transition-colors",
+                                    "p-1 rounded-md border transition-colors",
                                     isActive ? "bg-white/10 border-white/20" : "bg-black/20 border-white/5 group-hover:border-white/10"
                                 )}>
-                                    <Icon className="h-5 w-5" />
+                                    <Icon className="h-3.5 w-3.5" />
                                 </div>
                                 {isActive && (
-                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/70">
-                                        Activé
+                                    <div className="flex items-center gap-1 px-1 py-0.5 rounded-full bg-white/10 border border-white/10 text-[7px] font-black uppercase tracking-widest text-white/70">
+                                        Actif
                                     </div>
                                 )}
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-sm font-black uppercase tracking-widest">{cat.label}</span>
-                                <p className="text-[10px] opacity-70 font-medium leading-relaxed">{cat.description}</p>
+                            <div className="space-y-0.5">
+                                <span className="text-[9px] font-black uppercase tracking-widest block truncate">{cat.label}</span>
+                                <p className="text-[8px] opacity-60 font-medium leading-tight truncate">{cat.description}</p>
                             </div>
 
-                            {/* Decorative Background Element */}
+                            {/* Decorative Background Element (The "Halo") */}
                             <div className={cn(
-                                "absolute -bottom-6 -right-6 w-24 h-24 rounded-full blur-[40px] opacity-20 pointer-events-none transition-transform duration-500",
+                                "absolute -bottom-4 -right-4 w-16 h-16 rounded-full blur-[30px] opacity-20 pointer-events-none transition-transform duration-700",
                                 isActive ? "scale-150 rotate-12" : "scale-0"
                             )}
                                 style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'emerald' ? '#10b981' : cat.color === 'cyan' ? '#06b6d4' : '#f59e0b' }}

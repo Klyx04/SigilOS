@@ -9,11 +9,11 @@ export const authConfig = {
     providers: [], // Providers are defined in auth.ts to avoid Edge issues
     secret: process.env.AUTH_SECRET,
 
-    // Session Configuration
+    // Session Configuration (Harden for Bêta 2026)
     session: {
         strategy: "jwt",
-        maxAge: 7 * 24 * 60 * 60,      // 7 days - reasonable for a dashboard app
-        updateAge: 24 * 60 * 60,       // Refresh JWT every 24 hours (sliding session)
+        maxAge: 3 * 24 * 60 * 60,      // 3 days (Tightened for security)
+        updateAge: 12 * 60 * 60,       // Refresh JWT every 12 hours (sliding session)
     },
 
     // Cookie Security Settings - Simplified for production stability

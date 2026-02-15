@@ -15,7 +15,7 @@ export default async function LegalLayout({
         <div className="min-h-screen bg-zinc-950 text-zinc-400 font-sans selection:bg-purple-500/30 flex flex-col">
             <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
 
-            <div className="flex-1 max-w-4xl mx-auto w-full p-6 pt-32 space-y-12">
+            <div className="flex-1 max-w-4xl mx-auto w-full p-6 pt-32 pb-32 space-y-12">
                 <UnifiedModuleHeader
                     title="Documents Légaux"
                     description="Informations légales et contractuelles"

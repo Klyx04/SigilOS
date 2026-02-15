@@ -45,27 +45,52 @@ export type ActionResponse<T = any> = {
     data?: T;
 };
 
-export async function getUserContext(guildId?: string): Promise<UserContext> {
+/**
+ * Centralized Multi-Tenant Security Guard
+ * Ensures a user actually belongs to a guild before allowing any action.
+ * Returns the UserProfile if valid, throws/returns error otherwise.
+ */
+export async function validateGuildOwnership(userId: string, discordGuildId: string) {
+    const profile = await db.userProfile.findFirst({
+        where: {
+            userId,
+            guild: { discordGuildId },
+            status: "ACTIVE"
+        },
+        select: { id: true, guildId: true }
+    });
+
+    if (!profile) {
+        console.error(`[Security] Deep Isolation Violation: User ${userId} tried to access guild ${discordGuildId}`);
+        throw new Error("Violation d'isolation multi-tenant. Action bloquée.");
+    }
+
+    return profile;
+}
+
+export async function getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
 
     if (!session?.user?.id) {
         return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
     }
 
-    const targetGuildId = guildId || process.env.DISCORD_GUILD_ID;
-    if (!targetGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
+    // If targetGuildId is not provided, use the default from environment variables
+    // This allows for a default guild context if the user doesn't specify one.
+    const effectiveGuildId = targetGuildId || process.env.DISCORD_GUILD_ID;
+    if (!effectiveGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
 
     // --- SECURITY: DEEP WHITELIST CHECK (Database-based) ---
     const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
-    const allowed = await isGuildAllowed(targetGuildId);
+    const allowed = await isGuildAllowed(effectiveGuildId);
     if (!allowed) {
-        console.warn(`[Security] Blocked access to unauthorized guild: ${targetGuildId}`);
+        console.warn(`[Security] Blocked access to unauthorized guild: ${effectiveGuildId}`);
         return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false };
     }
 
     // 1. Get Guild Config for Mappings
     const guildConfig = await db.guildConfig.findUnique({
-        where: { discordGuildId: targetGuildId },
+        where: { discordGuildId: effectiveGuildId },
         select: { id: true, rolesMapping: true, name: true, dofusServerId: true }
     });
 
@@ -104,12 +129,12 @@ export async function getUserContext(guildId?: string): Promise<UserContext> {
     const token = process.env.DISCORD_BOT_TOKEN;
 
     const [memberRes, guildInfo, allRoles] = await Promise.all([
-        fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUserId}`, {
+        fetch(`https://discord.com/api/v10/guilds/${effectiveGuildId}/members/${discordUserId}`, {
             headers: { Authorization: `Bot ${token}` },
             cache: 'no-store' // No cache - always check live membership status for security
         }),
-        fetchGuild(targetGuildId).catch(() => null),
-        fetchGuildRoles(targetGuildId, { excludeManaged: false }).catch(() => [])
+        fetchGuild(effectiveGuildId).catch(() => null),
+        fetchGuildRoles(effectiveGuildId, { excludeManaged: false }).catch(() => [])
     ]);
 
     let memberRoles: string[] = [];

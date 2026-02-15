@@ -18,6 +18,7 @@ import { UpcomingEvent } from "@/server/actions/event-actions";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { getDocForRoute } from "@/config/docs-mapping";
 import { CircleHelp } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Helper to format breadcrumbs
 const formatSegment = (segment: string) => {
@@ -40,7 +41,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
     const relevantSegments = segments.slice(1);
 
     return (
-        <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-3xl backdrop-saturate-150 border-b border-white/10 h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500">
+        <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
 
             {/* LEFT: Mobile Trigger & Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
@@ -48,7 +49,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 {/* Mobile Sidebar Trigger */}
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-400 hover:text-white">
+                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-300 hover:text-white">
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
@@ -58,10 +59,9 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </Sheet>
 
                 {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-sm font-medium text-zinc-500">
-                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-zinc-300 transition-colors flex items-center gap-1">
+                <nav className="hidden sm:flex items-center text-sm font-black text-zinc-300">
+                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-white transition-all hover:scale-110 active:scale-95 flex items-center gap-1">
                         <Home className="w-4 h-4" />
-                        {/* <span className="sr-only">Dashboard</span> */}
                     </Link>
 
                     {relevantSegments.slice(1).map((segment, index) => {
@@ -70,7 +70,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
 
                         return (
                             <div key={href} className="flex items-center">
-                                <ChevronRight className="w-4 h-4 mx-1 text-zinc-700" />
+                                <ChevronRight className="h-4 w-4 mx-1 text-zinc-600" />
                                 <Link
                                     href={href}
                                     className={cn(
@@ -93,14 +93,10 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </div>
             </div>
 
-            {/* RIGHT: Status Bar & Account */}
-            <div className="flex items-center justify-end gap-3 shrink-0">
-
-                {/* CommandMenu removed as per user request */}
-                {/* <CommandMenu /> */}
-
-                {/* Smart Bar (Time/Members/Almanax) */}
-                <div className="scale-90 origin-right">
+            {/* RIGHT: Super Island (Integrated Command Center) */}
+            <div className="flex items-center border border-white/10 rounded-xl bg-zinc-950/20 backdrop-blur-md relative overflow-hidden group/island shrink-0 shadow-lg">
+                {/* 1. Smart Bar (Time/Members/Almanax) */}
+                <div className="relative z-10 border-r border-white/10 px-1">
                     <SmartBar
                         almanax={children}
                         memberCount={sidebarProps.guildData?.memberCount}
@@ -108,30 +104,51 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                     />
                 </div>
 
-                {/* Context-Aware Help */}
-                {/* Context-Aware Help */}
-                <Link
-                    href={`/docs/${getDocForRoute(pathname)}`}
-                    target="_blank"
-                    className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all group overflow-hidden"
-                    title="Documentation Utilisateur"
-                >
-                    <div className="absolute inset-0 bg-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
-                    <CircleHelp className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 animate-pulse" />
-                    <span className="text-xs font-medium hidden lg:inline-block">Docs</span>
-                </Link>
+                {/* 2. Context-Aware Help (Docs) */}
+                <div className="relative z-10 border-r border-white/10">
+                    <Link
+                        href={`/docs/${getDocForRoute(pathname)}`}
+                        target="_blank"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/docs active:scale-95"
+                        title="Documentation Utilisateur"
+                    >
+                        <CircleHelp className="w-4 h-4 text-zinc-400 group-hover/docs:text-indigo-400 transition-colors" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline-block text-zinc-300">Docs</span>
+                    </Link>
+                </div>
 
-                {/* Notification Bell (Bigger & More Visible) */}
-                <div className="relative group">
-                    <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-md opacity-50 group-hover:opacity-100 transition-opacity" />
+                {/* 3. Notification Bell */}
+                <div className="relative z-10 border-r border-white/10">
                     <NotificationBell
                         userId={userId}
                         guildId={sidebarProps.guildId}
-                        className="h-10 w-10 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 text-zinc-300 hover:text-white rounded-full transition-all duration-300"
+                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
                     />
                 </div>
 
+                {/* 4. User Profile (High Visibility) */}
+                <div className="relative z-10">
+                    <Link
+                        href={`/dashboard/${sidebarProps.guildId}/profile`}
+                        className="flex items-center gap-3 pr-5 pl-3 py-1.5 hover:bg-white/[0.05] transition-all group/profile active:scale-95"
+                    >
+                        <div className="relative">
+                            <Avatar className="h-8 w-8 border border-white/10 group-hover/profile:border-indigo-500/50 transition-all duration-300">
+                                <AvatarImage src={sidebarProps.user.image} />
+                                <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold">
+                                    {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        </div>
+                        <div className="flex flex-col items-start leading-none hidden xl:flex">
+                            <span className="text-[12px] font-black text-zinc-200 group-hover/profile:text-white transition-colors tracking-tight">
+                                {sidebarProps.user.name}
+                            </span>
+                        </div>
+                    </Link>
+                </div>
             </div>
-        </header>
+        </header >
     );
 }

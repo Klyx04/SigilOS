@@ -102,6 +102,7 @@ model GuildConfig {
   id               String  @id @default(cuid())
   discordGuildId   String  @unique
   name             String
+  ownerId          String? // Discord ID of the guild owner
   iconUrl          String?
   isActive         Boolean @default(true)
   rolesMapping     Json    @default("{}") // Record<DiscordRoleId, PermissionId[]>

@@ -10,7 +10,7 @@ import {
 import {
     isSuperAdmin,
     getPlatformStats,
-    getRegistrationStats,
+    getPlatformActivityStats,
     getOcrApiStats,
     getAllowedGuilds
 } from "@/server/actions/super-admin-actions";
@@ -28,6 +28,7 @@ import { GuildManager } from "./guild-manager";
 import { ActivityChart } from "./activity-chart";
 import { JanitorButton } from "./janitor-button";
 import { UserList } from "./user-list";
+import { GodDashboardClient } from "./god-dashboard-client";
 import { Suspense } from "react";
 
 export default async function SuperAdminPage() {
@@ -39,9 +40,9 @@ export default async function SuperAdminPage() {
     }
 
     return (
-        <div className="space-y-20 py-8">
+        <div className="space-y-12 py-8">
             {/* Header - Imposing Scale */}
-            <div className="border-b border-white/5 pb-12">
+            <div className="pb-4">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="space-y-4">
                         <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs font-black text-violet-400 uppercase tracking-[0.3em]">
@@ -52,29 +53,9 @@ export default async function SuperAdminPage() {
                             Platform <br />
                             Engine
                         </h1>
-                        <p className="text-xl md:text-2xl text-zinc-500 max-w-2xl leading-relaxed font-medium">
-                            Noyau central de gestion administrative. Surveillance globale en temps réel et orchestration du cycle de vie SigilOS.
-                        </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4">
-                        {/* Quick Actions - Scaled */}
-                        <Link
-                            href="/god/changelog"
-                            className="px-6 py-3.5 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest hover:scale-105"
-                        >
-                            <Book className="w-5 h-5 text-violet-400" />
-                            Changelog
-                        </Link>
-                        <Link
-                            href="/god/docs"
-                            className="px-6 py-3.5 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest hover:scale-105"
-                        >
-                            <Database className="w-5 h-5 text-violet-400" />
-                            API Specs
-                        </Link>
-
-                        {/* Live Indicator - Enhanced */}
+                    <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3 px-6 py-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl shadow-lg shadow-emerald-500/5">
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
                             <span className="text-sm text-emerald-400 font-black uppercase tracking-[0.2em]">Live Engine</span>
@@ -83,72 +64,161 @@ export default async function SuperAdminPage() {
                 </div>
             </div>
 
-            {/* Live Stats */}
-            <Suspense fallback={<StatsLoading />}>
-                <LiveStatsServer />
-            </Suspense>
+            <GodDashboardClient
+                overview={
+                    <div className="space-y-20">
+                        {/* Live Stats */}
+                        <Suspense fallback={<StatsLoading />}>
+                            <LiveStatsServer />
+                        </Suspense>
 
-            {/* Main Grid - Scaled containers */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                {/* Analytics Chart */}
-                <div className="lg:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl hover:bg-zinc-900/40 transition-all">
-                    <h3 className="text-xl font-black text-white mb-8 flex items-center gap-3 uppercase tracking-widest">
-                        <Activity className="w-6 h-6 text-violet-500" />
-                        Inscriptions (30j)
-                    </h3>
-                    <Suspense fallback={<ChartLoading />}>
-                        <ChartServer />
-                    </Suspense>
-                </div>
+                        {/* Main Grid - Analytics Chart */}
+                        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl hover:bg-zinc-900/40 transition-all">
+                            <h3 className="text-xl font-black text-white mb-8 flex items-center gap-3 uppercase tracking-widest">
+                                <Activity className="w-6 h-6 text-violet-500" />
+                                Dynamique de Croissance & Activité
+                            </h3>
+                            <Suspense fallback={<ChartLoading />}>
+                                <ChartServer />
+                            </Suspense>
+                        </div>
 
-                {/* Side Panel */}
-                <div className="space-y-8">
-                    {/* OCR Stats */}
-                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
-                        <OcrStatsServer />
-                    </Suspense>
-
-                    {/* Janitor */}
-                    <div className="scale-110 origin-top-left py-2">
-                        <JanitorButton />
+                        {/* Guilds Management */}
+                        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 pb-10 shadow-2xl">
+                            <div className="p-8 pb-4">
+                                <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+                                    <LayoutDashboard className="w-6 h-6 text-violet-500" />
+                                    Guildes Actives
+                                </h2>
+                            </div>
+                            <Suspense fallback={<TableLoading />}>
+                                <GuildsServer />
+                            </Suspense>
+                        </div>
                     </div>
+                }
+                maintenance={
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <div className="lg:col-span-2 space-y-10">
+                            {/* Lifecycle Management */}
+                            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                    <LifecycleServer />
+                                </Suspense>
+                            </div>
+                        </div>
 
-                    {/* Ghost Users */}
-                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
-                        <GhostUsersServer />
-                    </Suspense>
+                        <div className="space-y-8">
+                            {/* Janitor (Rebranded as Maintenance Service) */}
+                            <JanitorButton />
+
+                            {/* Ghost Users */}
+                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
+                                <GhostUsersServer />
+                            </Suspense>
+                        </div>
+                    </div>
+                }
+                logs={
+                    <div className="space-y-12">
+                        <div className="flex flex-col gap-2">
+                            <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-blue-200 to-blue-500 bg-clip-text text-transparent uppercase tracking-tight">
+                                🛡️ Security Audit
+                            </h2>
+                            <p className="text-lg text-zinc-500 font-medium">
+                                Tracking en temps réel des actions sensibles et tentatives d'accès.
+                            </p>
+                        </div>
+
+                        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
+                                <GlobalLogsServer />
+                            </Suspense>
+                        </div>
+
+                        {/* Access Control (Whitelist) */}
+                        <div className="space-y-8 mt-12">
+                            <div className="flex flex-col gap-2">
+                                <h3 className="text-xl font-black text-white uppercase tracking-widest">
+                                    🔐 Access Whitelist
+                                </h3>
+                                <p className="text-sm text-zinc-500">
+                                    Gestion des guildes autorisées sur l'environnement plateforme.
+                                </p>
+                            </div>
+                            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
+                                    <AccessControlServer />
+                                </Suspense>
+                            </div>
+                        </div>
+                    </div>
+                }
+                systems={
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* OCR Stats */}
+                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
+                            <OcrStatsServer />
+                        </Suspense>
+
+                        {/* Database Links */}
+                        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
+                            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em]">Resources</h3>
+                            <div className="grid gap-3">
+                                <Link
+                                    href="/god/changelog"
+                                    className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                >
+                                    <Book className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
+                                    Changelog
+                                </Link>
+                                <Link
+                                    href="/god/docs"
+                                    className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                >
+                                    <Database className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
+                                    API Specs
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                }
+            />
+        </div>
+    );
+}
+
+async function GlobalLogsServer() {
+    const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+    const result = await getGlobalAuditLogs({ limit: 100 });
+
+    // For now we'll just show the raw count or a simple list until a full component is built
+    return (
+        <div className="p-8">
+            <div className="flex items-center justify-between mb-8">
+                <span className="text-sm text-zinc-500 font-mono uppercase tracking-widest">Derniers Événements ({result.data?.total || 0})</span>
+                <div className="flex gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-[10px] text-blue-400 font-black uppercase">Live stream</span>
                 </div>
             </div>
 
-            {/* Guilds Management - Scaled Container */}
-            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 pb-10 shadow-2xl">
-                <Suspense fallback={<TableLoading />}>
-                    <GuildsServer />
-                </Suspense>
-            </div>
-
-            {/* Lifecycle Management - Scaled */}
-            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
-                    <LifecycleServer />
-                </Suspense>
-            </div>
-
-            {/* Access Control (Whitelist Management) - Scaled */}
-            <div className="space-y-8">
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-violet-200 to-violet-500 bg-clip-text text-transparent uppercase tracking-tight">
-                        🔐 Access Control
-                    </h2>
-                    <p className="text-lg text-zinc-500 font-medium">
-                        Gestion de la whitelist plateforme (BETA/PROD)
-                    </p>
-                </div>
-                <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
-                        <AccessControlServer />
-                    </Suspense>
-                </div>
+            <div className="space-y-3 font-mono text-[11px]">
+                {result.data?.logs.map((log: any) => (
+                    <div key={log.id} className="flex gap-4 p-3 rounded-lg bg-zinc-950/50 border border-white/5 hover:border-blue-500/20 transition-colors">
+                        <span className="text-zinc-600 whitespace-nowrap">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                        <span className="text-blue-400 font-bold w-32 truncate">{log.action}</span>
+                        <span className="text-zinc-400">by {log.actorName}</span>
+                        <span className="text-zinc-600 truncate flex-1">
+                            {log.targetType} {log.targetId ? `-> ${log.targetId}` : ""}
+                        </span>
+                        {log.metadata && (
+                            <span className="text-zinc-800 italic">
+                                {JSON.stringify(log.metadata).length > 50 ? "..." : JSON.stringify(log.metadata)}
+                            </span>
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -175,13 +245,16 @@ async function LiveStatsServer() {
                 activeProfiles: stats.activeProfiles,
                 missions: stats.totalMissions,
                 missionsTrend: stats.missionsTrend,
+                weeklyActiveUsers: stats.weeklyActiveUsers,
+                retentionRate: stats.retentionRate,
+                density: stats.density
             }}
         />
     );
 }
 
 async function ChartServer() {
-    const chartData = await getRegistrationStats();
+    const chartData = await getPlatformActivityStats();
     return <ActivityChart data={chartData} />;
 }
 
@@ -227,7 +300,7 @@ async function GhostUsersServer() {
                     {ghostUsers.length}
                 </span>
             </h3>
-            <UserList users={ghostUsers} />
+            <UserList users={JSON.parse(JSON.stringify(ghostUsers))} />
             <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-bold text-zinc-700 uppercase tracking-widest">
                 Comptes orphelins détectés
             </div>
@@ -262,6 +335,7 @@ async function GuildsServer() {
                 deletionReason: (guildConfig as any)?.deletionReason || null,
                 scheduledDeletion: (guildConfig as any)?.scheduledDeletion || null,
                 createdAt: guildConfig?.createdAt || guild.addedAt,
+                maxMembers: (guildConfig as any)?.maxMembers || 350,
                 _count: {
                     profiles: profilesCount
                 }
@@ -289,11 +363,11 @@ async function LifecycleServer() {
 
     return (
         <LifecyclePanel
-            guilds={softDeletedGuilds as any}
-            profiles={softDeletedProfiles as any}
-            archivedProfiles={archivedProfiles as any}
-            bans={bans as any}
-            activeGuilds={activeGuilds as any}
+            guilds={JSON.parse(JSON.stringify(softDeletedGuilds))}
+            profiles={JSON.parse(JSON.stringify(softDeletedProfiles))}
+            archivedProfiles={JSON.parse(JSON.stringify(archivedProfiles))}
+            bans={JSON.parse(JSON.stringify(bans))}
+            activeGuilds={JSON.parse(JSON.stringify(activeGuilds))}
         />
     );
 }

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
-import { Settings, Bell, Key, Moon, Users, Calendar, Sparkles } from "lucide-react";
+import { Settings, Bell, Key, Moon, Users, Calendar, Sparkles, UserCheck, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
@@ -14,6 +14,9 @@ import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
+import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
+import { MemberManagementTable } from "@/components/admin/member-management-table";
+import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
 import { Sword } from "lucide-react";
 
 export default async function FeatureSettingsPage({
@@ -32,6 +35,9 @@ export default async function FeatureSettingsPage({
         await logAdminAccessDenied(guildId, "/admin/settings");
         return <AccessDenied />;
     }
+
+    const memberStats = await getGuildMemberStats(guildId);
+    const members = await getGuildMembers(guildId);
 
     return (
         <div className="space-y-8 pb-12 w-full max-w-[1600px] mx-auto">
@@ -141,26 +147,48 @@ export default async function FeatureSettingsPage({
 
                 {/* Membres Tab */}
                 <TabsContent value="membres" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-8">
                         <div>
                             <h2 className="text-2xl font-black tracking-tight text-white mb-2">Gestion des Membres</h2>
-                            <p className="text-zinc-400 max-w-2xl">Outils de maintenance pour la base de données des membres.</p>
+                            <p className="text-zinc-400 max-w-2xl">Surveillance en temps réel et outils de maintenance pour la base de données.</p>
                         </div>
+
+                        {/* Real-time Stats */}
+                        <MemberStatsOverview stats={memberStats} />
+
+                        {/* Manual Management */}
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <UserCheck className="w-5 h-5 text-violet-400" />
+                                    Gestion Manuelle
+                                </h3>
+                                <p className="text-sm text-zinc-500">Contrôle direct sur l'archivage et les bannissements SigilOS.</p>
+                            </div>
+                            <MemberManagementTable initialMembers={members as any} guildId={guildId} />
+                        </div>
+
                         <div className="max-w-4xl space-y-6">
                             <div className="p-8 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-sm relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                                     <Users className="w-5 h-5 text-indigo-400" />
                                     Synchronisation Discord
                                 </h3>
-                                <p className="text-sm text-zinc-400 mb-6 leading-relaxed max-w-xl">
-                                    Compare les membres du serveur Discord avec les profils en base de données.
-                                    Archive automatiquement les profils des membres ayant quitté, et réactive
-                                    ceux qui reviennent.
-                                </p>
-                                <div className="flex items-center gap-4">
-                                    <MemberSyncButton guildId={guildId} />
-                                    <span className="text-xs text-zinc-500 font-mono">Auto-sync: 04:00 AM</span>
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                                    <div className="flex-1">
+                                        <MemberSyncButton guildId={guildId} />
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                        <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Auto-sync: 04:00 AM</span>
+                                    </div>
+                                </div>
+                                <div className="mt-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
+                                    <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                    <div className="text-[11px] text-zinc-500 leading-relaxed">
+                                        <span className="font-black text-amber-500 uppercase tracking-widest block mb-1">Fail-safe & Réconciliation</span>
+                                        La synchronisation manuelle est un outil de secours. En temps normal, SigilOS détecte automatiquement les arrivées et départs via les événements Discord. Utilisez ce bouton uniquement en cas de désynchronisation constatée.
+                                    </div>
                                 </div>
                             </div>
                         </div>

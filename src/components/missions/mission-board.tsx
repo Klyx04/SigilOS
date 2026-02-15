@@ -104,11 +104,11 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                                     className={cn(
                                         "relative flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all duration-300",
                                         isActive
-                                            ? "bg-zinc-800 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)] ring-1 ring-white/10"
-                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                            ? "bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                                            : "text-zinc-400 hover:text-white hover:bg-white/10"
                                     )}
                                 >
-                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-zinc-600")} />}
+                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-zinc-950" : "text-zinc-500")} />}
                                     {f.label}
                                     {isActive && (
                                         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
@@ -147,10 +147,10 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                                 key={f.value}
                                 onClick={() => setSelectedCategory(f.value)}
                                 className={cn(
-                                    "group relative flex items-center gap-2.5 px-4 py-2 text-xs font-bold rounded-xl border transition-all duration-300",
+                                    "group relative flex items-center gap-2.5 px-4 py-2 text-xs font-black rounded-xl border transition-all duration-300",
                                     isActive
-                                        ? cn(style.bg, style.border, style.text, style.shadow, "ring-1 ring-inset ring-white/10 scale-105")
-                                        : "bg-zinc-900/40 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300 hover:bg-zinc-900/80"
+                                        ? cn(style.bg, style.border, style.text, style.shadow, "ring-2 ring-white/20 scale-105")
+                                        : "bg-zinc-900 border-white/10 text-zinc-400 hover:border-white/30 hover:text-white hover:bg-zinc-800"
                                 )}
                             >
                                 <div className={cn(
@@ -159,7 +159,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                                 )}>
                                     {IconComponent && <IconComponent className={cn(
                                         "w-3.5 h-3.5 transition-colors",
-                                        isActive ? style.icon : "text-zinc-600 group-hover:text-zinc-400"
+                                        isActive ? style.icon : "text-zinc-400 group-hover:text-white"
                                     )} />}
                                 </div>
                                 <span>{f.label}</span>

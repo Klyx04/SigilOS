@@ -19,7 +19,12 @@ export type AuditAction =
     | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
     | "SECURITY_ALERT"        // NSFW/Safety violation
     | "HELP_CREDIT_GIVEN"     // Peer-to-peer gratitude
-    | "SUCCESS_SYNC";         // Personal success points updated
+    | "SUCCESS_SYNC"          // Personal success points updated
+    | "BETA_ACCESS_ATTEMPT"    // Tracking access code attempts
+    | "WEBHOOK_GUILD_CREATE"   // Bot added to guild
+    | "WEBHOOK_GUILD_DELETE"   // Bot removed from guild
+    | "WEBHOOK_MEMBER_ADD"     // Member joined Discord guild
+    | "WEBHOOK_MEMBER_REMOVE"; // Member left Discord guild
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -28,7 +33,8 @@ export type AuditTargetType =
     | "CHANNEL"
     | "ACCESS_ATTEMPT"
     | "CONTENT_SAFETY"
-    | "USER_PROFILE";
+    | "USER_PROFILE"
+    | "PLATFORM_SECURITY";
 
 export type AuditLogEntry = {
     id: string;
@@ -237,6 +243,50 @@ export async function logAdminAccessDenied(
     }
 }
 
+/**
+ * Log platform-wide beta access attempt
+ */
+export async function logBetaAccessAttempt(
+    success: boolean,
+    inputCode: string
+): Promise<void> {
+    try {
+        const session = await auth();
+
+        // Use Prisma for JsonNull
+        const { Prisma } = await import("@prisma/client");
+
+        // Note: Global logs use a default "SYSTEM" guildId or a specific management guild if available.
+        // For SigilOS, we'll find the first available guild config or a dedicated management one.
+        const managementGuild = await db.guildConfig.findFirst({
+            select: { id: true }
+        });
+
+        if (!managementGuild) return;
+
+        await db.auditLog.create({
+            data: {
+                guildId: managementGuild.id,
+                actorUserId: session?.user?.id || "anonymous",
+                actorName: session?.user?.name || "Anonymous",
+                action: "BETA_ACCESS_ATTEMPT" as any,
+                targetType: "PLATFORM_SECURITY" as any,
+                targetId: success ? "SUCCESS" : "FAILURE",
+                oldValue: Prisma.JsonNull,
+                newValue: Prisma.JsonNull,
+                metadata: {
+                    ip: "masked", // Basic privacy
+                    success,
+                    attemptedCode: success ? "****" : inputCode,
+                    timestamp: new Date().toISOString()
+                }
+            }
+        });
+    } catch (error) {
+        console.error("[logBetaAccessAttempt] Error:", error);
+    }
+}
+
 // ============================================================================
 // AUDIT LOG QUERIES (Admin only)
 // ============================================================================
@@ -248,6 +298,7 @@ const GetLogsSchema = z.object({
     actorFilter: z.string().optional(),
     dateFrom: z.date().optional(),
     dateTo: z.date().optional(),
+    search: z.string().optional(),
 });
 
 type GetLogsInput = z.infer<typeof GetLogsSchema>;
@@ -299,7 +350,11 @@ export async function getAuditLogs(
         };
 
         if (actionFilter) {
-            where.action = actionFilter;
+            if (actionFilter.includes(",")) {
+                (where as any).action = { in: actionFilter.split(",") };
+            } else {
+                where.action = actionFilter;
+            }
         }
         if (actorFilter) {
             where.actorUserId = actorFilter;
@@ -462,17 +517,31 @@ export async function getGlobalAuditLogs(
         }
 
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined };
 
         const where: any = {};
-        if (actionFilter) where.action = actionFilter;
+        if (actionFilter) {
+            if (actionFilter.includes(",")) {
+                where.action = { in: actionFilter.split(",") };
+            } else {
+                where.action = actionFilter;
+            }
+        }
         if (actorFilter) where.actorUserId = actorFilter;
         if (dateFrom || dateTo) {
             where.createdAt = {};
-            if (dateFrom) where.createdAt.gte = dateFrom;
-            if (dateTo) where.createdAt.lte = dateTo;
+            if (dateFrom) (where.createdAt as any).gte = dateFrom;
+            if (dateTo) (where.createdAt as any).lte = dateTo;
+        }
+
+        if (search) {
+            where.OR = [
+                { actorName: { contains: search, mode: "insensitive" } },
+                { guild: { name: { contains: search, mode: "insensitive" } } },
+                { action: { contains: search, mode: "insensitive" } }
+            ];
         }
 
         const [total, logs] = await Promise.all([

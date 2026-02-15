@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { HeroHeader } from "./hero-header";
 import { ClassDisplay } from "./class-display";
 import { JobsGrid } from "./jobs-grid";
@@ -10,9 +11,11 @@ import { MetamobLink } from "./metamob-link";
 import { AltPseudos } from "./alt-pseudos";
 import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
+import { UserSettings } from "./user-settings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
+import { Settings } from "lucide-react";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 
 interface ProfileBentoGridProps {
@@ -81,7 +84,15 @@ export function ProfileBentoGrid({
     dofusServerId,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
-    const [activeTab, setActiveTab] = useState("overview");
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get("tab") || "overview";
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Sync state if URL param changes (optional but good for UX)
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab) setActiveTab(tab);
+    }, [searchParams]);
 
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
@@ -250,6 +261,13 @@ export function ProfileBentoGrid({
                         >
                             Succès
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="settings"
+                            className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Paramètres
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -366,6 +384,15 @@ export function ProfileBentoGrid({
                                 pendingSubmission: null
                             }));
                         }}
+                    />
+                </TabsContent>
+
+                {/* SETTINGS TAB */}
+                <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <UserSettings
+                        guildId={guildId}
+                        guildName={guildName || "la guilde"}
+                        profileId={profile.id}
                     />
                 </TabsContent>
             </Tabs>

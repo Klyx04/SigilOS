@@ -6,6 +6,7 @@ import { Lock, ShieldCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { logBetaAccessAttempt } from "@/server/actions/audit-actions";
 
 export default function BetaGate() {
     const [password, setPassword] = useState("");
@@ -20,10 +21,12 @@ export default function BetaGate() {
 
         // On utilise un simple cookie pour l'accès bêta (sécurisé par le SSL de Caddy)
         if (password === betaPassword) {
+            await logBetaAccessAttempt(true, password);
             document.cookie = `beta_access=true; path=/; max-age=604800; SameSite=Lax; Secure`;
             toast.success("Accès autorisé. Entrée dans le protocole...");
             setTimeout(() => router.push("/"), 1000);
         } else {
+            await logBetaAccessAttempt(false, password);
             toast.error("Code d'accès invalide. Tentative enregistrée.");
             setLoading(false);
         }

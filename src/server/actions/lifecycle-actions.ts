@@ -282,7 +282,7 @@ export async function handleGdprDeletionRequest() {
                     guildId: profile.guild.discordGuildId,
                     actorUserId: userId,
                     actorName: profile.pseudoDofus || "Unknown User",
-                    action: "USER_GDPR_DELETE" as any, // We need to add this to AuditAction enum or cast
+                    action: "USER_GDPR_DELETE" as any,
                     targetType: "USER",
                     targetId: userId,
                     metadata: {
@@ -291,6 +291,7 @@ export async function handleGdprDeletionRequest() {
                         guildName: profile.guild.name
                     }
                 });
+                console.log(`[GDPR Deletion] 📝 Audit log created for guild ${profile.guild.name}`);
             } catch (auditErr) {
                 console.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
                 // Don't block deletion if audit log fails, but it's bad

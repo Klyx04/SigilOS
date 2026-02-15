@@ -198,12 +198,23 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
     if (ban && ban.entityType === "GUILD") return false;
 
     // 2. Check if guild is in the AllowedGuild whitelist (managed via GOD dashboard)
-    const guild = await db.allowedGuild.findUnique({
+    const allowed = await db.allowedGuild.findUnique({
         where: { discordGuildId }
     });
 
-    // Guild must exist AND be active to be allowed
-    return !!guild && guild.isActive;
+    // If not whitelisted or whitelist is inactive, block
+    if (!allowed || !allowed.isActive) return false;
+
+    // 3. Check if guild config exists and is active (onboarding status)
+    const config = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { isActive: true }
+    });
+
+    // If config exists, it MUST be active to allow access
+    if (config && !config.isActive) return false;
+
+    return true;
 }
 /**
  * CLEANUP JANITOR (GDPR & Hygiene)

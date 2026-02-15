@@ -86,9 +86,25 @@ export function GuildManager({ initialGuilds }: GuildManagerProps) {
 
     return (
         <div className="space-y-6">
+            {/* UI Clarification Alert */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
+                <div className="mt-1">
+                    <Check className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="space-y-1">
+                    <p className="text-sm font-bold text-blue-400 uppercase tracking-wider">Note sur la Liste Blanche</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                        Cette page gère l'autorisation de <strong>première connexion</strong>. Ajouter un ID ici permet au bot de rejoindre le serveur et de commencer l'onboarding. Une fois onboardée, la guilde apparaîtra dans la section <strong className="text-zinc-200">Guildes Actives</strong> pour la gestion au quotidien.
+                    </p>
+                </div>
+            </div>
+
             {/* Add Form */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-white mb-4">Ajouter une Guilde</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-white">Autoriser une Guilde</h2>
+                    <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded uppercase font-black tracking-widest border border-white/5">Etape 1: Permission</span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Input
                         placeholder="Discord Guild ID *"
@@ -171,8 +187,8 @@ export function GuildManager({ initialGuilds }: GuildManagerProps) {
                                 </td>
                                 <td className="px-4 py-3">
                                     <span className={`text-xs px-2 py-1 rounded ${guild.tier === "PREMIUM" ? "bg-amber-500/20 text-amber-400" :
-                                            guild.tier === "FREE" ? "bg-green-500/20 text-green-400" :
-                                                "bg-zinc-700 text-zinc-300"
+                                        guild.tier === "FREE" ? "bg-green-500/20 text-green-400" :
+                                            "bg-zinc-700 text-zinc-300"
                                         }`}>
                                         {guild.tier}
                                     </span>

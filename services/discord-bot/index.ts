@@ -300,6 +300,61 @@ client.on(Events.GuildMemberRemove, async (member) => {
 });
 
 // ========================
+// Event: Member Update (Nicknames)
+// ========================
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    if (oldMember.nickname === newMember.nickname) return;
+
+    console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldMember.nickname || 'None'} -> ${newMember.nickname || 'None'})`);
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: newMember.guild.id },
+            select: { id: true },
+        });
+
+        if (!guildConfig) return;
+
+        // Update profile cache
+        await db.userProfile.updateMany({
+            where: {
+                user: {
+                    accounts: {
+                        some: {
+                            provider: 'discord',
+                            providerAccountId: newMember.user.id
+                        }
+                    }
+                },
+                guildId: guildConfig.id
+            },
+            data: { discordNickname: newMember.nickname || newMember.user.username }
+        });
+
+        // Log audit
+        await db.auditLog.create({
+            data: {
+                guildId: guildConfig.id,
+                actorUserId: 'SYSTEM',
+                actorName: 'Discord Gateway Bot',
+                action: 'WEBHOOK_MEMBER_UPDATE',
+                targetType: 'PROFILE',
+                targetId: newMember.user.id,
+                oldValue: { nickname: oldMember.nickname },
+                newValue: { nickname: newMember.nickname },
+                metadata: {
+                    discordUserId: newMember.user.id,
+                    type: 'NICKNAME_CHANGE',
+                    username: newMember.user.tag
+                },
+            },
+        });
+    } catch (error) {
+        console.error(`[Discord Bot] Error handling GUILD_MEMBER_UPDATE:`, error);
+    }
+});
+
+// ========================
 // Graceful Shutdown
 // ========================
 process.on('SIGTERM', async () => {

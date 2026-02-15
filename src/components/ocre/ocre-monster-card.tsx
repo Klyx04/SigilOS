@@ -109,11 +109,11 @@ export function OcreMonsterCard({
             <Card
                 className={cn(
                     "group relative overflow-hidden transition-all duration-300",
-                    "backdrop-blur-xl bg-gradient-to-br from-card/50 to-card/30",
+                    "backdrop-blur-xl bg-card",
                     "border hover:scale-[1.02]",
                     hasExchange && isManquant
                         ? "border-emerald-500/50 hover:border-emerald-500/70 ring-1 ring-emerald-500/20"
-                        : "border-white/10 hover:border-amber-500/30"
+                        : "border-border hover:border-amber-500/30"
                 )}
             >
                 {/* Glow effect on hover */}
@@ -140,7 +140,7 @@ export function OcreMonsterCard({
                     <div className="flex gap-3">
                         {/* Monster Image */}
                         {monster.image && (
-                            <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-black/30 border border-white/10">
+                            <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-background border border-border">
                                 <Image
                                     src={monster.image}
                                     alt={monster.name}
@@ -177,7 +177,7 @@ export function OcreMonsterCard({
 
                     {/* Exchange button for missing monsters */}
                     {isManquant && showExchangeButton && (
-                        <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="mt-3 pt-3 border-t border-border">
                             <Button
                                 variant={hasExchange ? "default" : "ghost"}
                                 size="sm"
@@ -222,13 +222,13 @@ export function OcreMonsterCard({
                                         partners.slice(0, 4).map((partner) => (
                                             <div
                                                 key={partner.username}
-                                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors"
+                                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted hover:bg-accent transition-colors"
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
                                                         <Avatar className="h-6 w-6 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                             <AvatarImage src={partner.discordAvatar} />
-                                                            <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                                                            <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
                                                                 {partner.characterName.substring(0, 2).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
@@ -275,7 +275,7 @@ export function OcreMonsterCard({
 
                     {/* Doublon indicator */}
                     {monster.state === "DOUBLON" && (
-                        <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="mt-3 pt-3 border-t border-border">
                             <Badge
                                 variant="outline"
                                 className="w-full justify-center bg-amber-500/10 text-amber-500 border-amber-500/30"

@@ -282,10 +282,22 @@ function GuildRow({ guild, selected, onSelect }: {
     };
 
     const statusConfig = guild.deletedAt
-        ? { label: '🗑️ Supprimée', color: 'text-red-400 bg-red-500/10 border-red-500/30' }
+        ? {
+            label: '🗑️ Supprimée',
+            color: 'text-red-400 bg-red-500/10 border-red-500/30',
+            tooltip: 'Guilde en cours de suppression. Accès au dashboard BLOQUÉ.'
+        }
         : guild._count.profiles === 0
-            ? { label: '⚠️ Inactive', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' }
-            : { label: '✅ Active', color: 'text-green-400 bg-green-500/10 border-green-500/30' };
+            ? {
+                label: '⚠️ Inactive',
+                color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+                tooltip: 'Aucun membre n\'a encore créé de compte.'
+            }
+            : {
+                label: '✅ Active',
+                color: 'text-green-400 bg-green-500/10 border-green-500/30',
+                tooltip: 'Accès autorisé et membres actifs.'
+            };
 
     return (
         <motion.tr
@@ -352,7 +364,10 @@ function GuildRow({ guild, selected, onSelect }: {
             </td>
 
             <td className="p-4">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color}`}>
+                <span
+                    title={statusConfig.tooltip}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color} cursor-help`}
+                >
                     {statusConfig.label}
                 </span>
             </td>

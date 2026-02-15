@@ -116,16 +116,24 @@ export async function hardDeleteGuild(guildId: string) {
     }
 
     try {
-        // Skip guild-level audit logging if the action is deemed "God-level stealth"
-        // The user specifically mentioned "log des dashboard de guilde".
-        // So skip AuditLog.create for guildId if actor is God.
-        // This means we intentionally do NOT log this action to the guild's audit log.
-        // If we wanted to log it to a *platform-level* audit log, that would be a separate implementation.
+        // 1. Get Discord Guild ID before deleting config
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { discordGuildId: true }
+        });
 
-        // Cascade delete configured in schema
+        // 2. Cascade delete configured in schema handles related data
         await db.guildConfig.delete({
             where: { id: guildId }
         });
+
+        // 3. Remove from persistence whitelist (AllowedGuild)
+        // This prevents the "Ghost Guild" from reappearing in the GOD Dashboard
+        if (guildConfig?.discordGuildId) {
+            await db.allowedGuild.deleteMany({
+                where: { discordGuildId: guildConfig.discordGuildId }
+            });
+        }
 
         revalidatePath('/god');
         return { success: true };

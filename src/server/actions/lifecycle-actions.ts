@@ -238,21 +238,70 @@ export async function handleGdprDeletionRequest() {
         const discordId = account?.providerAccountId;
         console.log(`[GDPR Deletion] Discord ID found: ${discordId || 'None'}`);
 
-        // Owner-Guard: Block deletion if user is the GuildConfig.ownerId
-        const ownedGuilds = await db.guildConfig.findMany({
-            where: {
-                OR: [
-                    { ownerId: userId },
-                    { ownerId: discordId ?? "none" }
-                ]
-            }
+        // Get all guilds where this user is active
+        const userProfiles = await db.userProfile.findMany({
+            where: { userId, status: "ACTIVE" },
+            include: { guild: true }
         });
 
-        if (ownedGuilds.length > 0) {
-            console.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedGuilds.length} guilds`);
+        const { fetchGuild } = await import("@/server/discord");
+        const { createAuditLog } = await import("./audit-actions");
+
+        let ownedCount = 0;
+        let blockedGuildName = "";
+
+        for (const profile of userProfiles) {
+            let currentOwnerId = (profile.guild as any).ownerId;
+
+            // Self-healing: If ownerId is missing or we suspect it's outdated, fetch from Discord
+            if (!currentOwnerId) {
+                try {
+                    const discordGuild = await fetchGuild(profile.guild.discordGuildId);
+                    currentOwnerId = discordGuild.owner_id;
+
+                    // Update DB with the real owner for future checks
+                    await db.guildConfig.update({
+                        where: { id: profile.guild.id },
+                        data: { ownerId: currentOwnerId } as any
+                    });
+                    console.log(`[GDPR Deletion] Updated missing ownerId for guild ${profile.guild.name}: ${currentOwnerId}`);
+                } catch (err) {
+                    console.error(`[GDPR Deletion] Failed to fetch owner from Discord for ${profile.guild.name}:`, err);
+                }
+            }
+
+            // check if user is the owner
+            if (currentOwnerId && (currentOwnerId === userId || currentOwnerId === discordId)) {
+                ownedCount++;
+                blockedGuildName = profile.guild.name;
+            }
+
+            // Create Audit Log BEFORE deletion so it persist in God Dashboard
+            try {
+                await createAuditLog({
+                    guildId: profile.guild.discordGuildId,
+                    actorUserId: userId,
+                    actorName: profile.pseudoDofus || "Unknown User",
+                    action: "USER_GDPR_DELETE" as any, // We need to add this to AuditAction enum or cast
+                    targetType: "USER",
+                    targetId: userId,
+                    metadata: {
+                        reason: "RGPD Deletion Request",
+                        discordId: discordId,
+                        guildName: profile.guild.name
+                    }
+                });
+            } catch (auditErr) {
+                console.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
+                // Don't block deletion if audit log fails, but it's bad
+            }
+        }
+
+        if (ownedCount > 0) {
+            console.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds`);
             return {
                 success: false,
-                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedGuilds.length} guilde(s) (ex: ${ownedGuilds[0].name}). Transférez la propriété d'abord.`
+                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
             };
         }
 

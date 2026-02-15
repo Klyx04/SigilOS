@@ -24,7 +24,8 @@ export type AuditAction =
     | "WEBHOOK_GUILD_CREATE"   // Bot added to guild
     | "WEBHOOK_GUILD_DELETE"   // Bot removed from guild
     | "WEBHOOK_MEMBER_ADD"     // Member joined Discord guild
-    | "WEBHOOK_MEMBER_REMOVE"; // Member left Discord guild
+    | "WEBHOOK_MEMBER_REMOVE"  // Member left Discord guild
+    | "USER_GDPR_DELETE";     // User requested full account deletion
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -34,7 +35,8 @@ export type AuditTargetType =
     | "ACCESS_ATTEMPT"
     | "CONTENT_SAFETY"
     | "USER_PROFILE"
-    | "PLATFORM_SECURITY";
+    | "PLATFORM_SECURITY"
+    | "USER";
 
 export type AuditLogEntry = {
     id: string;

@@ -59,6 +59,10 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         ? `Absent du ${format(vacationStart!, "d MMM", { locale: fr })}${vacationEnd ? ` au ${format(vacationEnd, "d MMM", { locale: fr })}` : " (indéfini)"}`
         : "";
 
+    // Check if online (last 2 minutes)
+    const activeThreshold = 2 * 60 * 1000;
+    const isOnline = profile.lastActivityAt && (new Date().getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
+
     return (
         <Link href={`/dashboard/${guildId}/members/${profile.id}`}>
             <Card
@@ -108,7 +112,10 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     {/* Avatar */}
                     <div className="relative">
                         <Avatar
-                            className="w-20 h-20 border-2 transition-all"
+                            className={cn(
+                                "w-20 h-20 border-2 transition-all",
+                                isOnline && "ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-black"
+                            )}
                             style={roleColor ? { borderColor: roleColor } : { borderColor: "rgba(255,255,255,0.1)" }}
                         >
                             <AvatarImage src={profile.user.image || ""} />
@@ -116,6 +123,9 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 {displayName?.[0]?.toUpperCase() ?? "?"}
                             </AvatarFallback>
                         </Avatar>
+                        {isOnline && (
+                            <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-zinc-950 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.6)] animate-pulse" />
+                        )}
                     </div>
 
                     {/* Name & Class */}

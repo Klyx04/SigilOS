@@ -109,7 +109,7 @@ export function SaasHero({ user }: { user?: User }) {
                         alt="SigilOS Dashboard Preview"
                         width={1920}
                         height={1080}
-                        className="w-full h-auto object-cover opacity-80 transition-all duration-1000 group-hover:scale-[1.02] group-hover:opacity-100"
+                        className="w-full h-auto object-cover opacity-100 transition-all duration-1000 group-hover:scale-[1.02]"
                         priority
                     />
 

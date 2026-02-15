@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -16,10 +16,16 @@ interface OnboardingStep {
 
 export function OnboardingBanner({
     guildId,
-    steps
+    steps,
+    title = "Administration",
+    subtitle = "Configuration",
+    checklistLabel = "Checklist de configuration"
 }: {
     guildId: string,
-    steps: OnboardingStep[]
+    steps: OnboardingStep[],
+    title?: string,
+    subtitle?: string,
+    checklistLabel?: string
 }) {
     const completedSteps = steps.filter(s => s.completed).length;
     const progress = (completedSteps / steps.length) * 100;
@@ -27,7 +33,9 @@ export function OnboardingBanner({
     const iconMap = {
         shield: Shield,
         "scroll-text": ScrollText,
-        "book-open": BookOpen
+        "book-open": BookOpen,
+        infinity: InfinityIcon,
+        users: Users
     };
 
     return (
@@ -35,7 +43,7 @@ export function OnboardingBanner({
             {/* Background Glow */}
             <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur opacity-25 group-hover/onboarding:opacity-50 transition duration-1000" />
 
-            <div className="relative glass-premium p-6 rounded-2xl border border-white/10 h-full flex flex-col justify-between overflow-hidden bg-zinc-950/20">
+            <div className="relative glass-premium p-6 rounded-2xl border border-white/10 h-full flex flex-col justify-between overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
                     <div className="space-y-4 flex-1">
                         <div className="flex items-center gap-3">
@@ -43,14 +51,14 @@ export function OnboardingBanner({
                                 <Zap className="w-4 h-4 text-indigo-400" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80 leading-none">Configuration</span>
-                                <h2 className="text-xl font-black tracking-tighter text-white">Éveil du Sigil</h2>
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80 leading-none">{title}</span>
+                                <h2 className="text-xl font-black tracking-tighter text-white">{subtitle}</h2>
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                <span>Installation</span>
+                                <span>{checklistLabel}</span>
                                 <span>{completedSteps} / {steps.length}</span>
                             </div>
                             <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">

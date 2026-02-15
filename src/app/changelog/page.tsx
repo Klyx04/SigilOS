@@ -9,6 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/public-header';
 import { GalacticFooter } from '@/components/layout/galactic-footer';
 import { auth } from '@/auth';
+import { AuroraBackground } from '@/components/ui/aurora-background';
 
 const categoryConfig: Record<ChangelogCategory, { label: string; color: string }> = {
     FEATURE: { label: 'Nouvelle fonctionnalité', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
@@ -25,10 +26,13 @@ export default async function ChangelogPage() {
     const session = await auth();
 
     return (
-        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
-            <PublicHeader user={session?.user} />
+        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30 overflow-hidden">
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
 
-            <main className="flex-1 pt-24 pb-12">
+            <PublicHeader user={session?.user} activePage="changelog" />
+
+            <main className="flex-1 pt-24 pb-12 relative z-10">
                 <div className="max-w-4xl mx-auto px-6">
                     {/* Breadcrumb */}
                     <div className="mb-8">

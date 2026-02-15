@@ -107,6 +107,7 @@ model GuildConfig {
   rolesMapping     Json    @default("{}") // Record<DiscordRoleId, PermissionId[]>
   absenceChannelId String? // Discord channel ID for absence notifications
   metamobApiKey    String? // Per-guild Metamob API key (optional, falls back to global)
+  maxMembers       Int     @default(350) // Maximum number of active members allowed
 
   // Dofus Server Configuration (for Ladder scraping)
   dofusServerId   String? // Ex: "295" for Draconiros

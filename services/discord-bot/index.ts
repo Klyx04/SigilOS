@@ -65,15 +65,16 @@ client.on(Events.GuildCreate, async (guild) => {
             return;
         }
 
-        // Auto-add to whitelist
+        // Auto-add to whitelist but ACTIVE = FALSE by default
+        // This requires manual approval by a super-admin in the GOD Dashboard
         await db.allowedGuild.create({
             data: {
                 discordGuildId: guild.id,
                 name: guild.name,
                 tier: 'BETA',
-                isActive: true,
-                addedBy: 'SYSTEM',
-                notes: `Auto-added via Gateway bot on ${new Date().toISOString()}`,
+                isActive: false, // 🔒 Security: Manual activation required
+                addedBy: 'SYSTEM_GATEWAY',
+                notes: `Auto-detected via Gateway bot on ${new Date().toISOString()}. Activation required.`,
             },
         });
 

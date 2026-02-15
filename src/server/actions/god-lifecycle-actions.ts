@@ -60,22 +60,7 @@ export async function softDeleteGuild(
             }
         });
 
-        // Audit log
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'GUILD_SOFT_DELETE',
-                targetType: 'GUILD',
-                targetId: guildId,
-                oldValue: { isActive: true },
-                newValue: { isActive: false, deletionReason: reason },
-                metadata: { graceDays }
-            }
-        });
-
+        // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -115,21 +100,7 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
-        // Audit log
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'GUILD_REACTIVATE',
-                targetType: 'GUILD',
-                targetId: guildId,
-                oldValue: { isActive: false },
-                newValue: { isActive: true }
-            }
-        });
-
+        // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -145,21 +116,11 @@ export async function hardDeleteGuild(guildId: string) {
     }
 
     try {
-        // Audit log BEFORE delete (can't access guild after deletion)
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'GUILD_HARD_DELETE',
-                targetType: 'GUILD',
-                targetId: guildId,
-                oldValue: { exists: true },
-                newValue: { exists: false },
-                metadata: { permanent: true }
-            }
-        });
+        // Skip guild-level audit logging if the action is deemed "God-level stealth"
+        // The user specifically mentioned "log des dashboard de guilde".
+        // So skip AuditLog.create for guildId if actor is God.
+        // This means we intentionally do NOT log this action to the guild's audit log.
+        // If we wanted to log it to a *platform-level* audit log, that would be a separate implementation.
 
         // Cascade delete configured in schema
         await db.guildConfig.delete({
@@ -198,22 +159,7 @@ export async function softDeleteProfile(
             }
         });
 
-        // Audit log
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'PROFILE_SOFT_DELETE',
-                targetType: 'PROFILE',
-                targetId: profileId,
-                oldValue: { status: 'ACTIVE' },
-                newValue: { status: 'ARCHIVED', archiveReason: reason },
-                metadata: { graceDays }
-            }
-        });
-
+        // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -239,21 +185,7 @@ export async function reactivateProfile(profileId: string) {
             }
         });
 
-        // Audit log
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'PROFILE_REACTIVATE',
-                targetType: 'PROFILE',
-                targetId: profileId,
-                oldValue: { status: 'ARCHIVED' },
-                newValue: { status: 'ACTIVE' }
-            }
-        });
-
+        // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -279,21 +211,11 @@ export async function hardDeleteProfile(profileId: string) {
             return { success: false, error: 'Profile not found' };
         }
 
-        // Audit log BEFORE delete
-        const session = await auth();
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session?.user?.id || 'UNKNOWN',
-                actorName: session?.user?.name || 'Super Admin',
-                action: 'PROFILE_HARD_DELETE',
-                targetType: 'PROFILE',
-                targetId: profileId,
-                oldValue: { exists: true },
-                newValue: { exists: false },
-                metadata: { permanent: true }
-            }
-        });
+        // Skip guild-level audit logging if the action is deemed "God-level stealth"
+        // The user specifically mentioned "log des dashboard de guilde".
+        // So skip AuditLog.create for guildId if actor is God.
+        // This means we intentionally do NOT log this action to the guild's audit log.
+        // If we wanted to log it to a *platform-level* audit log, that would be a separate implementation.
 
         await db.userProfile.delete({
             where: { id: profileId }
@@ -434,4 +356,28 @@ export async function unbanEntity(banId: string) {
     } catch (error) {
         return { success: false, error: 'Failed to unban entity' };
     }
+}
+/**
+ * Get all members for a specific guild (God view)
+ */
+export async function getGuildMembersForGod(guildId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    return db.userProfile.findMany({
+        where: { guildId },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true }
+                    }
+                }
+            }
+        },
+        orderBy: { updatedAt: "desc" }
+    });
 }

@@ -10,8 +10,6 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Shield, Sparkles, ScrollText, CheckCircle } from "lucide-react";
-import { SyncPurgeCard } from "./_components/sync-purge-card";
-import { MemberHistory } from "./_components/member-history";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
@@ -160,11 +158,6 @@ export default async function AdminPage({
                 roles={roles}
                 currentMapping={currentMapping}
             />
-
-            <div className="mt-12 pt-12 border-t border-zinc-800 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <SyncPurgeCard guildId={targetGuildId} />
-                <MemberHistory guildId={targetGuildId} />
-            </div>
         </div>
     );
 }

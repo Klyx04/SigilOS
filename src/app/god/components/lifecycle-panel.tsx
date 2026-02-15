@@ -102,11 +102,11 @@ export function LifecyclePanel({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
-                        ♻️ Lifecycle Management
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent uppercase tracking-tighter">
+                        🛠️ State & Maintenance
                     </h2>
-                    <p className="text-sm text-zinc-500 mt-1">
-                        {totalPending} entité{totalPending > 1 ? 's' : ''} en attente • {bans.length} ban{bans.length > 1 ? 's' : ''} actif{bans.length > 1 ? 's' : ''}
+                    <p className="text-sm text-zinc-500 mt-1 uppercase text-[10px] font-bold tracking-widest">
+                        Gestion des suppressions souples et bannissements plateforme.
                     </p>
                 </div>
 

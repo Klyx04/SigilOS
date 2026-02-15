@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cleanupGhostUsers, cleanupOrphanedProfiles } from "@/server/actions/super-admin-actions";
 import { toast } from "sonner";
-import { Trash2, Loader2, Sparkles, UserMinus } from "lucide-react";
+import { Trash2, Loader2, Sparkles, UserMinus, Wrench } from "lucide-react";
 
 export function JanitorButton() {
     const [isLoading, setIsLoading] = useState(false);
@@ -55,12 +55,12 @@ export function JanitorButton() {
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Trash2 className="w-5 h-5 text-red-400" />
-                        Zone de Maintenance
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2 uppercase tracking-tighter">
+                        <Wrench className="w-5 h-5 text-amber-500" />
+                        Maintenance Service
                     </h3>
-                    <p className="text-sm text-zinc-400 mt-1">
-                        Outils de nettoyage et d'hygiène de la base.
+                    <p className="text-[10px] uppercase font-black text-zinc-500 mt-1 tracking-widest">
+                        Protocoles d'hygiène de la base de données.
                     </p>
                 </div>
             </div>

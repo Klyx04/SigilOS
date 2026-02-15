@@ -1,18 +1,12 @@
 /**
- * 🎨 GOD Dashboard - Live Stats Component
- * 
- * Premium real-time stats with:
- * - SSE streaming updates
- * - Smooth count animations
- * - Trend indicators
- * - Glassmorphism + gradients
+ * 🎨 GOD Dashboard - Live Stats Component (Refactored for Clarity)
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Users, FileText, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface PlatformStats {
     guilds: number;
@@ -24,21 +18,25 @@ interface PlatformStats {
     activeProfiles: number;
     missions: number;
     missionsTrend: number;
+    weeklyActiveUsers: number;
+    retentionRate: number;
+    density: number;
 }
 
 interface StatCardProps {
     label: string;
     value: number;
     trend?: number;
-    color: 'violet' | 'green' | 'amber' | 'cyan';
-    icon: string; // Emoji as string
+    suffix?: string;
+    color: 'violet' | 'green' | 'amber' | 'cyan' | 'blue';
+    icon: string;
     realtime?: boolean;
+    description?: string;
 }
 
 export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
     const [stats, setStats] = useState(initialStats);
 
-    // SSE connection for real-time updates
     useEffect(() => {
         const eventSource = new EventSource('/api/god/stats/stream');
 
@@ -48,7 +46,6 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
         };
 
         eventSource.onerror = () => {
-            console.warn('[GOD] SSE connection lost, retrying...');
             eventSource.close();
         };
 
@@ -56,21 +53,14 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
     }, []);
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
             <StatCard
-                label="Guildes Totales"
+                label="Guildes"
                 value={stats.guilds}
                 trend={stats.guildsTrend}
                 color="violet"
                 icon="🏰"
-                realtime
-            />
-
-            <StatCard
-                label="Unités Actives"
-                value={stats.activeGuilds}
-                color="green"
-                icon="✨"
+                description="Total des guildes enregistrées"
                 realtime
             />
 
@@ -78,40 +68,48 @@ export function LiveStats({ initialStats }: { initialStats: PlatformStats }) {
                 label="Aventuriers"
                 value={stats.users}
                 trend={stats.usersTrend}
-                color="cyan"
+                color="blue"
                 icon="👥"
+                description="Membres totaux SigilOS"
                 realtime
             />
 
             <StatCard
-                label="Profils Synchro"
-                value={stats.activeProfiles}
+                label="Actifs (7j)"
+                value={stats.weeklyActiveUsers}
                 color="green"
-                icon="👤"
+                icon="⚡"
+                description="Utilisateurs uniques sur 7 jours"
                 realtime
             />
 
             <StatCard
-                label="Missions Actives"
+                label="Missions"
                 value={stats.missions}
                 trend={stats.missionsTrend}
                 color="amber"
                 icon="📋"
+                description="Total des quêtes validées"
                 realtime
+            />
+
+            <StatCard
+                label="Engagement"
+                value={stats.retentionRate}
+                suffix="%"
+                color="cyan"
+                icon="📊"
+                description="Adhésion profil / compte"
             />
         </div>
     );
 }
 
-function StatCard({ label, value, trend, color, icon, realtime }: StatCardProps) {
+function StatCard({ label, value, trend, suffix = "", color, icon, realtime, description }: StatCardProps) {
     const [displayValue, setDisplayValue] = useState(value);
-    const [isAnimating, setIsAnimating] = useState(false);
 
-    // Smooth number animation when value changes
     useEffect(() => {
         if (displayValue === value) return;
-
-        setIsAnimating(true);
         const duration = 1000;
         const steps = 30;
         const stepValue = (value - displayValue) / steps;
@@ -123,127 +121,57 @@ function StatCard({ label, value, trend, color, icon, realtime }: StatCardProps)
                 const newValue = prev + stepValue;
                 return currentStep >= steps ? value : newValue;
             });
-
-            if (currentStep >= steps) {
-                clearInterval(interval);
-                setIsAnimating(false);
-            }
+            if (currentStep >= steps) clearInterval(interval);
         }, duration / steps);
 
         return () => clearInterval(interval);
     }, [value, displayValue]);
 
     const colorConfig = {
-        violet: {
-            gradient: 'from-violet-500/20 via-violet-500/10 to-transparent',
-            border: 'border-violet-500/30',
-            text: 'text-violet-400',
-            glow: 'shadow-violet-500/20',
-            icon: 'text-violet-400'
-        },
-        green: {
-            gradient: 'from-green-500/20 via-green-500/10 to-transparent',
-            border: 'border-green-500/30',
-            text: 'text-green-400',
-            glow: 'shadow-green-500/20',
-            icon: 'text-green-400'
-        },
-        amber: {
-            gradient: 'from-amber-500/20 via-amber-500/10 to-transparent',
-            border: 'border-amber-500/30',
-            text: 'text-amber-400',
-            glow: 'shadow-amber-500/20',
-            icon: 'text-amber-400'
-        },
-        cyan: {
-            gradient: 'from-cyan-500/20 via-cyan-500/10 to-transparent',
-            border: 'border-cyan-500/30',
-            text: 'text-cyan-400',
-            glow: 'shadow-cyan-500/20',
-            icon: 'text-cyan-400'
-        }
+        violet: 'border-violet-500/30 text-violet-400 shadow-violet-500/20 from-violet-500/20',
+        green: 'border-green-500/30 text-green-400 shadow-green-500/20 from-green-500/20',
+        amber: 'border-amber-500/30 text-amber-400 shadow-amber-500/20 from-amber-500/20',
+        cyan: 'border-cyan-500/30 text-cyan-400 shadow-cyan-500/20 from-cyan-500/20',
+        blue: 'border-blue-500/30 text-blue-400 shadow-blue-500/20 from-blue-500/20'
     }[color];
 
     return (
         <motion.div
-            whileHover={{ scale: 1.05, y: -5 }}
-            className={`
-        relative overflow-hidden rounded-3xl
-        bg-zinc-900/30 backdrop-blur-xl
-        border ${colorConfig.border}
-        shadow-2xl ${colorConfig.glow}
-        p-8
-        group
-        transition-all duration-500
-      `}
+            whileHover={{ scale: 1.02, y: -5 }}
+            className={`relative overflow-hidden rounded-3xl bg-zinc-900/40 backdrop-blur-xl border ${colorConfig.split(' ')[0]} shadow-2xl p-6 group transition-all duration-500`}
         >
-            {/* Animated gradient background */}
-            <div className={`
-        absolute inset-0 bg-gradient-to-br ${colorConfig.gradient}
-        opacity-0 group-hover:opacity-100
-        transition-opacity duration-500
-      `} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${colorConfig.split(' ').pop()} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
-            {/* Content */}
-            <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                    <div className={`text-4xl ${colorConfig.icon} drop-shadow-lg group-hover:scale-110 transition-transform`}>
+            <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">
                         {icon}
                     </div>
-
                     {realtime && (
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <motion.div
-                                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                                transition={{ repeat: Infinity, duration: 2 }}
-                                className="w-2 h-2 rounded-full bg-emerald-500"
-                            />
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Live</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2 }} className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Live</span>
                         </div>
                     )}
                 </div>
 
-                <div className={`text-4xl md:text-5xl font-black ${colorConfig.text} mb-2 tracking-tighter leading-none`}>
-                    {isNaN(displayValue) ? '0' : Math.round(displayValue).toLocaleString()}
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
-                        {label}
+                <div>
+                    <div className={`text-4xl font-black ${colorConfig.split(' ')[1]} mb-1 tracking-tighter leading-none`}>
+                        {isNaN(displayValue) ? '0' : Math.round(displayValue).toLocaleString()}{suffix}
                     </div>
-
-                    {trend !== undefined && trend !== 0 && (
-                        <TrendIndicator value={trend} />
-                    )}
+                    <div className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">{label}</div>
+                    {description && <div className="text-[9px] text-zinc-500 font-medium leading-none">{description}</div>}
                 </div>
+
+                {trend !== undefined && trend !== 0 && (
+                    <div className="mt-4 flex items-center gap-1 text-[10px] font-bold">
+                        {trend > 0 ? <TrendingUp className="w-3 h-3 text-green-400" /> : <TrendingDown className="w-3 h-3 text-red-400" />}
+                        <span className={trend > 0 ? "text-green-400" : "text-red-400"}>
+                            {trend > 0 ? '+' : ''}{trend} (24h)
+                        </span>
+                    </div>
+                )}
             </div>
-
-            {/* Shimmer effect on animation */}
-            {isAnimating && (
-                <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                    initial={{ x: '-100%' }}
-                    animate={{ x: '100%' }}
-                    transition={{ duration: 0.8 }}
-                />
-            )}
         </motion.div>
-    );
-}
-
-function TrendIndicator({ value }: { value: number }) {
-    const isPositive = value > 0;
-    const isNegative = value < 0;
-
-    return (
-        <div className={`
-      flex items-center gap-1 text-xs font-medium
-      ${isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-zinc-500'}
-    `}>
-            {isPositive && <TrendingUp className="w-3 h-3" />}
-            {isNegative && <TrendingDown className="w-3 h-3" />}
-            {!isPositive && !isNegative && <Minus className="w-3 h-3" />}
-            {isPositive && '+'}{value}
-        </div>
     );
 }

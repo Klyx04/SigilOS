@@ -26,7 +26,8 @@ if (!pgUser || !pgPassword || !pgDb) {
     process.exit(1);
 }
 
-const databaseUrl = `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:5432/${pgDb}`;
+const protocol = 'postgresql://';
+const databaseUrl = `${protocol}${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:5432/${pgDb}`;
 
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
@@ -164,6 +165,75 @@ client.on(Events.GuildDelete, async (guild) => {
         console.log(`[Discord Bot] 🗑️ Soft-deleted guild: ${guildConfig.name}`);
     } catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_DELETE:`, error);
+    }
+});
+
+// ========================
+// Event: Member Add (Reactivation)
+// ========================
+client.on(Events.GuildMemberAdd, async (member) => {
+    console.log(`[Discord Bot] 👤 Member joined: ${member.user.tag} in ${member.guild.name}`);
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: member.guild.id },
+            select: { id: true },
+        });
+
+        if (!guildConfig) return;
+
+        // Find user account
+        const account = await db.account.findFirst({
+            where: {
+                provider: 'discord',
+                providerAccountId: member.user.id,
+            },
+            select: { userId: true },
+        });
+
+        if (!account) return;
+
+        // Find profile
+        const profile = await db.userProfile.findUnique({
+            where: {
+                userId_guildId: {
+                    userId: account.userId,
+                    guildId: guildConfig.id,
+                }
+            }
+        });
+
+        // ONLY reactivate if ARCHIVED. Never touch BANNED.
+        if (profile && profile.status === 'ARCHIVED') {
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: {
+                    status: 'ACTIVE',
+                    archivedAt: null,
+                    archiveReason: null,
+                    scheduledDeletion: null, // Cancel any pending hard delete
+                },
+            });
+
+            // Log audit
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Discord Gateway Bot',
+                    action: 'WEBHOOK_MEMBER_ADD',
+                    targetType: 'PROFILE',
+                    targetId: member.user.id,
+                    oldValue: { status: 'ARCHIVED' },
+                    newValue: { status: 'ACTIVE' },
+                    metadata: { discordUserId: member.user.id, username: member.user.tag, reason: 'Returned to guild' },
+                },
+            });
+
+            console.log(`[Discord Bot] ✅ Reactivated profile for ${member.user.tag}`);
+        }
+    } catch (error) {
+        console.error(`[Discord Bot] Error handling GUILD_MEMBER_ADD:`, error);
     }
 });
 

@@ -9,6 +9,112 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { createAuditLog } from "./audit-actions";
+import { auth } from "@/auth";
+
+/**
+ * Archive a profile (Self-service or Admin)
+ */
+export async function archiveProfile(guildId: string, profileId?: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+    const targetProfileId = profileId || ctx.profileId;
+    if (!targetProfileId) return { success: false, error: "No profile found" };
+
+    // Security check: Only self or manager can archive
+    if (targetProfileId !== ctx.profileId && !ctx.canManageMembers) {
+        return { success: false, error: "Forbidden" };
+    }
+
+    try {
+        // Admin Departure Log : Specific high-priority log if an admin leaves
+        const userContext = await getUserContext(guildId);
+        if (userContext.isAdmin && targetProfileId === ctx.profileId) { // Only log if the admin is archiving their own profile
+            await createAuditLog({
+                guildId,
+                action: "MEMBER_LEFT" as any,
+                actorUserId: ctx.id as string,
+                actorName: ctx.name ?? "Inconnu",
+                targetType: "ADMIN_ACTION" as any,
+                metadata: {
+                    priority: "HIGH",
+                    description: `DÉPART CRITIQUE : L'administrateur ${ctx.name ?? ctx.id} a quitté la guilde.`,
+                    impact: "Perte de privilèges administratifs"
+                }
+            });
+        }
+
+        await db.userProfile.update({
+            where: { id: targetProfileId },
+            data: {
+                status: "ARCHIVED",
+                archivedAt: new Date(),
+                archiveReason: profileId ? "ADMIN_ACTION" : "USER_LEAVE"
+            }
+        });
+
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_ARCHIVED" as any,
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "USER_PROFILE" as any,
+            targetId: targetProfileId,
+            metadata: {
+                description: profileId ? "Archivage administratif" : "Mise en sommeil volontaire",
+                reason: profileId ? `Action par ${ctx.name ?? "un admin"}` : "Action utilisateur"
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (e) {
+        console.error("Archive error:", e);
+        return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Hard delete a profile from a guild (Admin move)
+ */
+export async function deleteProfileByAdmin(guildId: string, profileId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.canManageMembers) return { success: false, error: "Unauthorized" };
+
+    try {
+        const target = await db.userProfile.findUnique({
+            where: { id: profileId },
+            include: { user: true }
+        });
+
+        if (!target) return { success: false, error: "Profile not found" };
+
+        await db.userProfile.delete({
+            where: { id: profileId }
+        });
+
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_PURGED" as any,
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "USER_PROFILE" as any,
+            targetId: target.userId,
+            metadata: {
+                description: `Profil supprimé définitivement : ${target.user.name || profileId}`,
+                reason: "Purge administrative"
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (e) {
+        console.error("Delete error:", e);
+        return { success: false, error: "Database error" };
+    }
+}
 
 // Retention periods in days
 const RETENTION_DAYS = {
@@ -56,8 +162,6 @@ export async function cleanupExpiredProfiles(discordGuildId: string) {
         });
 
         deletedCount += result.count;
-        if (result.count > 0) {
-        }
     }
 
     return { success: true, deletedCount };
@@ -80,9 +184,6 @@ export async function reactivateProfile(userId: string, guildInternalId: string)
             archiveReason: null
         }
     });
-
-    if (result.count > 0) {
-    }
 
     return result.count > 0;
 }
@@ -119,59 +220,42 @@ export async function getArchivedProfiles(discordGuildId: string) {
 
 /**
  * Handle GDPR deletion request (Right to be Forgotten)
- * User can request deletion of their own data
+ * Total platform purge
  */
-export async function handleGdprDeletionRequest(discordGuildId: string) {
-    const ctx = await getUserContext(discordGuildId);
-    if (!ctx.isAuthenticated || !ctx.id) {
-        return { success: false, error: "Unauthorized" };
-    }
+export async function handleGdprDeletionRequest() {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const guild = await db.guildConfig.findUnique({
-        where: { discordGuildId },
-        select: { id: true }
-    });
+    const userId = session.user.id;
 
-    if (!guild) {
-        return { success: false, error: "Guild not found" };
-    }
-
-    // Find the profile first
-    const profile = await db.userProfile.findUnique({
-        where: {
-            userId_guildId: {
-                userId: ctx.id,
-                guildId: guild.id
-            }
-        }
-    });
-
-    if (!profile) return { success: true, deleted: false };
-
-    // Delete the user's profile for this guild
-    await db.userProfile.delete({
-        where: { id: profile.id }
-    });
-
-    // --- GDPR CLEANUP (Orphaned User check) ---
-    // If user has no more profiles in any guild, we delete their account and personal info
-    const otherProfilesCount = await db.userProfile.count({
-        where: { userId: ctx.id }
-    });
-
-    if (otherProfilesCount === 0) {
-        await db.user.delete({
-            where: { id: ctx.id }
+    try {
+        // Owner-Guard: Block deletion if user is the GuildConfig.ownerId
+        const ownedGuilds = await db.guildConfig.findMany({
+            where: { ownerId: userId }
         });
-        // Note: Prisma is configured with Cascade Delete for Accounts and Sessions
-    }
 
-    return { success: true, deleted: true };
+        if (ownedGuilds.length > 0) {
+            return {
+                success: false,
+                error: `Impossible de supprimer le compte : vous êtes propriétaire de ${ownedGuilds.length} guilde(s). Transférez la propriété d'abord.`
+            };
+        }
+
+        // Supprimons simplement le user (Cascade s'occupe du reste)
+        await db.user.delete({
+            where: { id: userId }
+        });
+
+        return { success: true };
+    } catch (e) {
+        console.error("[GDPR Deletion] Error:", e);
+        return { success: false, error: "Erreur lors de la suppression du compte" };
+    }
 }
+
 /**
  * ARCHIVE & SYNC GUILD MEMBERS
  * Compares Discord members with local profiles and archives members who are no longer in the guild.
- * This is the "Military Grade" cleanup requested.
  */
 export async function syncGuildMembers(discordGuildId: string) {
     const ctx = await getUserContext(discordGuildId);
@@ -180,7 +264,7 @@ export async function syncGuildMembers(discordGuildId: string) {
     }
 
     try {
-        const { listGuildMembers } = await import("@/server/discord");
+        const { listGuildMembers, fetchGuildBans } = await import("@/server/discord");
 
         // 1. Fetch current members from Discord
         const discordMembers = await listGuildMembers(discordGuildId);
@@ -190,7 +274,7 @@ export async function syncGuildMembers(discordGuildId: string) {
         const profiles = await db.userProfile.findMany({
             where: {
                 guild: { discordGuildId },
-                status: "ACTIVE" // Only check active ones
+                status: "ACTIVE"
             },
             include: {
                 user: {
@@ -205,7 +289,7 @@ export async function syncGuildMembers(discordGuildId: string) {
         });
 
         // 3. Fetch current bans from Discord
-        const discordBans = await (await import("@/server/discord")).fetchGuildBans(discordGuildId);
+        const discordBans = await fetchGuildBans(discordGuildId);
         const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
         let archivedCount = 0;
@@ -226,7 +310,6 @@ export async function syncGuildMembers(discordGuildId: string) {
                             status: "BANNED",
                             archivedAt: new Date(),
                             archiveReason: "BANNED",
-                            // --- GDPR WIPE (Suppression des données lourdes) ---
                             pseudoDofus: "Utilisateur banni",
                             discordNickname: "Anonyme",
                             metamobPseudo: null,
@@ -272,7 +355,6 @@ export async function syncGuildMembers(discordGuildId: string) {
 
 /**
  * MANUAL WIPE (RGPD)
- * Force deep anonymization for an archived profile (e.g. after a kick/expulsion)
  */
 export async function wipeUserProfile(profileId: string, discordGuildId: string) {
     const ctx = await getUserContext(discordGuildId);
@@ -284,9 +366,8 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
         await db.userProfile.update({
             where: { id: profileId },
             data: {
-                status: "BANNED", // On passe en statut BANNED pour bloquer tout retour et marquer le wipe
+                status: "BANNED",
                 archiveReason: "KICKED",
-                // --- GDPR WIPE ---
                 pseudoDofus: "Utilisateur nettoyé",
                 discordNickname: "Anonyme",
                 metamobPseudo: null,

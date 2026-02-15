@@ -16,6 +16,12 @@ const ACTION_COLORS: Record<string, string> = {
     CONFIG_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse", // Alert style
     ADMIN_ACCESS_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    MEMBER_LEFT: "bg-zinc-500/20 text-zinc-400 border-white/5",
+    MEMBER_ARCHIVED: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    MEMBER_BANNED: "bg-red-500/20 text-red-400 border-red-500/30",
+    MEMBER_PURGED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+    WEBHOOK_MEMBER_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    WEBHOOK_MEMBER_REMOVE: "bg-zinc-500/20 text-zinc-400 border-white/5",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -25,12 +31,19 @@ const ACTION_LABELS: Record<string, string> = {
     CONFIG_UPDATED: "Configuration mise à jour",
     SECURITY_ALERT: "🚨 ALERTE SÉCURITÉ",
     ADMIN_ACCESS_DENIED: "Accès refusé",
+    MEMBER_LEFT: "Départ membre",
+    MEMBER_ARCHIVED: "Membre archivé",
+    MEMBER_BANNED: "Membre banni",
+    MEMBER_PURGED: "Données purgées",
+    WEBHOOK_MEMBER_ADD: "Arrivée membre (Bot)",
+    WEBHOOK_MEMBER_REMOVE: "Départ membre (Bot)",
 };
 
 const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
+    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
     { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
 ];
@@ -320,6 +333,12 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "ACCESS_ATTEMPT" && (
                                                     <span className="text-red-400">
                                                         Tentative d'accès non autorisé à <code className="bg-red-900/30 px-1 rounded">{log.targetId}</code>
+                                                    </span>
+                                                )}
+                                                {log.targetType === "PROFILE" && (
+                                                    <span>
+                                                        Action sur le profil de <span className="font-medium text-foreground">{metadata.description || log.targetId}</span>
+                                                        {metadata.reason && <span className="text-xs ml-2 opacity-70">({metadata.reason})</span>}
                                                     </span>
                                                 )}
                                                 {log.targetType === "CONTENT_SAFETY" && (

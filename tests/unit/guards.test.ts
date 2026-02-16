@@ -24,17 +24,24 @@ vi.mock("@/server/discord", () => ({
     fetchGuildRoles: vi.fn(),
 }));
 
+vi.mock("@/server/actions/super-admin-actions", () => ({
+    isGuildAllowed: vi.fn(),
+}));
+
 // Import after mocks
 import { requireGuildAdmin, requireGuildMember } from "@/server/actions/guards";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { isGuildAllowed } from "@/server/actions/super-admin-actions";
 
 const mockAuth = auth as ReturnType<typeof vi.fn>;
 const mockDbAccountFindFirst = db.account.findFirst as ReturnType<typeof vi.fn>;
+const mockIsGuildAllowed = isGuildAllowed as ReturnType<typeof vi.fn>;
 
 describe("guards.ts", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockIsGuildAllowed.mockResolvedValue(true); // Default to allowed for most tests
     });
 
     afterEach(() => {

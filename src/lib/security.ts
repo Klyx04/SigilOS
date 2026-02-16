@@ -72,6 +72,6 @@ export function sanitizeName(name: string | null, maxLength: number = 50): strin
     if (!name) return null;
     return name
         .trim()
-        .replace(/[<>'"&]/g, "") // Remove HTML special chars
+        .replace(/[<>"'&]/g, "") // Remove HTML special chars, keep ( ) and space
         .slice(0, maxLength);
 }

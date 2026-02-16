@@ -68,7 +68,6 @@ async function handleGuildCreate(guildId: string, guildName: string) {
     });
 
     if (existing) {
-        console.log(`[Discord Webhook] Guild ${guildName} already whitelisted`);
         return;
     }
 
@@ -83,8 +82,6 @@ async function handleGuildCreate(guildId: string, guildName: string) {
             notes: "Auto-added via webhook (bot invited)"
         }
     });
-
-    console.log(`[Discord Webhook] ✅ Auto-whitelisted guild: ${guildName} (${guildId})`);
 }
 
 // Soft-delete a guild when bot is removed
@@ -95,7 +92,6 @@ async function handleGuildDelete(guildId: string) {
     });
 
     if (!guild) {
-        console.log(`[Discord Webhook] Guild ${guildId} not in database, ignoring`);
         return;
     }
 
@@ -138,8 +134,6 @@ async function handleGuildDelete(guildId: string) {
             metadata: { discordGuildId: guildId }
         }
     });
-
-    console.log(`[Discord Webhook] 🗑️ Soft-deleted guild: ${guild.name} (${guildId})`);
 }
 
 // Archive a user profile when they leave or are kicked
@@ -194,7 +188,6 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
                 metadata: { discordUserId: userId, reason }
             }
         });
-        console.log(`[Discord Webhook] 📤 Archived profile for user ${userId} (${reason})`);
     }
 }
 

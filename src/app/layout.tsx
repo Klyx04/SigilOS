@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr"),
+  alternates: {
+    canonical: "/",
+  },
+  themeColor: "#9333ea", // Theme color for mobile browser bars
+  manifest: "/manifest.json", // Link to PWA manifest
   title: {
     default: "SigilOS - Le système d'exploitation pour guildes Dofus",
     template: "%s | SigilOS",

@@ -161,8 +161,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - uploads-prod-data:/app/public/uploads # ✅ Prod uploads only
-      - uploads-beta-data:/app/public-beta/uploads # ✅ Beta uploads accessible for Caddy
+      # Uploads are served by Next.js API route — no Caddy volume needed
     env_file: .env.prod
     networks:
       - prod-net

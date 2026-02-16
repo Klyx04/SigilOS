@@ -1,6 +1,8 @@
 import { writeFile, unlink, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import sharp from "sharp";
+import { logger } from "@/lib/logger";
 import {
     validateMagicBytes,
     generateSafeFilename,
@@ -47,9 +49,6 @@ export async function uploadGuildImage(
             };
         }
 
-        // 2. Validate file size
-        // Note: Client side compression usually brings it well below this, but safe guard
-        const effectiveLimit = Math.min(file.size, MAX_FILE_SIZE);
         if (file.size > MAX_FILE_SIZE) {
             return {
                 success: false,
@@ -68,11 +67,20 @@ export async function uploadGuildImage(
             };
         }
 
-        // 5. Generate safe filename
-        const extension = file.type === "image/jpeg" ? "jpg"
-            : file.type === "image/png" ? "png"
-                : "webp";
-        const safeFilename = generateSafeFilename(extension);
+        // 5. Optimize Image using Sharp
+        // - Resize to max 1920px width
+        // - Convert to WebP (80% quality)
+        // - This also acts as a final binary sanitization
+        const optimizedBuffer = await sharp(buffer)
+            .resize(1920, null, {
+                withoutEnlargement: true,
+                fit: 'inside'
+            })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+        // 6. Generate safe filename (Always .webp now)
+        const safeFilename = generateSafeFilename("webp");
 
         // 6. Create guild-specific directory
         const guildDir = path.join(UPLOAD_BASE_DIR, guildId);
@@ -89,8 +97,8 @@ export async function uploadGuildImage(
             return { success: false, error: "Chemin de fichier invalide" };
         }
 
-        // 8. Write file
-        await writeFile(filePath, buffer);
+        // 9. Write optimized file
+        await writeFile(filePath, optimizedBuffer);
 
         // 9. Return public URL
         const publicUrl = `/uploads/guilds/${guildId}/${safeFilename}`;
@@ -98,8 +106,8 @@ export async function uploadGuildImage(
         return { success: true, url: publicUrl };
 
     } catch (error) {
-        console.error("Upload error:", error);
-        return { success: false, error: "Erreur lors de l'upload du fichier" };
+        logger.error("Upload Guild Image Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
     }
 }
 

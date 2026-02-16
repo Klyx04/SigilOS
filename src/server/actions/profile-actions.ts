@@ -1,18 +1,16 @@
 "use server";
 
-import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { rateLimit } from "@/lib/ratelimit";
-import { hasAnyForgemagie, type AvailabilityMap, type ForgemagieStatusId } from "@/lib/dofus-assets";
-import { writeFile, mkdir } from "fs/promises";
+import { getUserContext } from "./user-actions";
+import { logger } from "@/lib/logger";
 import { join } from "path";
+import sharp from "sharp";
 import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { writeFile, mkdir } from "fs/promises";
+import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
+import { z } from "zod";
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -424,12 +422,13 @@ const UpdateAltPseudosSchema = z.object({
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, altPseudos } = validation.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+    if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -443,15 +442,15 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
             },
             data: { altPseudos: cleanedPseudos }
         });
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
-    } catch (error) {
-        console.error("Update Alt Pseudos Error:", error);
+    } catch (error: unknown) {
+        logger.error("Update Alt Pseudos Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -476,12 +475,13 @@ const UpdateDofusBookLinksSchema = z.object({
 });
 
 export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBookLinksSchema>): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, links } = validation.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+    if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -489,15 +489,15 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
             },
             data: { dofusBookLinks: links as any }
         });
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
-    } catch (error) {
-        console.error("Update Builds Error:", error);
+    } catch (error: unknown) {
+        logger.error("Update Builds Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -520,10 +520,10 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     contributorTier: ContributorTier;
     rank?: number;
 }>> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-    const targetUserId = userId || session.user.id;
+    const targetUserId = userId || user.id!;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -626,8 +626,8 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                 rank
             }
         };
-    } catch (error) {
-        console.error("Get Stats Error:", error);
+    } catch (error: unknown) {
+        logger.error("Get Stats Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -640,8 +640,8 @@ export async function getGuildMembers(
     guildId: string,
     filters?: { job?: string; class?: string; hasVacation?: boolean }
 ): Promise<ActionResponse<any[]>> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -682,8 +682,8 @@ export async function getGuildMembers(
         // 3. Parallelize Discord correlation for Admin rights
         const { listGuildMembers, fetchGuildRoles } = await import("@/server/discord");
         const [discordMembers, allRoles] = await Promise.all([
-            listGuildMembers(guildId).catch(() => []),
-            fetchGuildRoles(guildId, { excludeManaged: false }).catch(() => [])
+            listGuildMembers(guildId).catch(() => [] as any[]),
+            fetchGuildRoles(guildId, { excludeManaged: false }).catch(() => [] as any[])
         ]);
 
         // Identify roles that grant admin rights (Discord bit 0x8 or SigilOS mapping)
@@ -714,7 +714,7 @@ export async function getGuildMembers(
 
             // Real-time admin check if we found the member
             const isAdmin = discordMember
-                ? discordMember.roles.some(rid => adminRoleIds.has(rid))
+                ? (discordMember as any).roles.some((rid: string) => adminRoleIds.has(rid))
                 : false;
 
             return {
@@ -734,8 +734,8 @@ export async function getGuildMembers(
 
         return { success: true, data: mappedResult };
 
-    } catch (error) {
-        console.error("Get Members Error:", error);
+    } catch (error: unknown) {
+        logger.error("Get Members Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -749,15 +749,15 @@ export async function getGuildMembers(
 // Rate Limiter used inside function
 
 export async function sendVacationNotification(rawData: z.infer<typeof SendVacationNotificationSchema>): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
     const validation = SendVacationNotificationSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, pseudo, profileId, startDate, endDate } = validation.data;
 
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
     // Rate Limiting Check: 1 per minute
-    const limiter = await rateLimit(`vacation_notif:${session.user.id}`, 1, 60 * 1000);
+    const limiter = await rateLimit(`vacation_notif:${user.id}`, 1, 60 * 1000);
     if (!limiter.success) {
         return { success: false, error: `Veuillez patienter un instant avant de renvoyer une notification.` };
     }
@@ -776,8 +776,8 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
             select: { userId: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } }
         });
 
-        if (!profile || profile.userId !== session.user.id) {
-            console.warn(`[Security] Impersonation attempt blocked: User ${session.user.id} tried to send notification for profile ${profileId}`);
+        if (!profile || profile.userId !== user.id) {
+            logger.warn("Impersonation attempt blocked", { userId: user.id, profileId, guildId });
             return { success: false, error: "Non autorisé" };
         }
 
@@ -832,7 +832,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         if (!response.ok) {
             // Remove rate limit if it was a system error? No, keep it to prevent attack.
             const errorData = await response.json().catch(() => ({}));
-            console.error("Discord API Error:", response.status, errorData);
+            logger.error("Discord API Error", { status: response.status, errorData, guildId });
             if (response.status === 403) {
                 return { success: false, error: "Bot n'a pas accès au salon. Vérifiez les permissions." };
             }
@@ -841,7 +841,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 
         return { success: true };
     } catch (error) {
-        console.error("Send Vacation Notification Error:", error);
+        logger.error("Send Vacation Notification Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -851,15 +851,18 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 // ============================================================================
 
 export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSuccessPointsSchema>): Promise<ActionResponse<{ points: number, debugImage?: string, pending?: boolean, confidence?: number }>> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
-
     const validation = SyncSuccessPointsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, imageData } = validation.data;
 
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.isMember) return { success: false, error: "Non membre de cette guilde" };
+
     // 1. Sanitization & Rate Limiting
-    const limiter = await rateLimit(`sync_success:${session.user.id}`, 10, 10 * 60 * 1000);
+    const limiter = await rateLimit(`sync_success:${user.id}`, 10, 10 * 60 * 1000);
     if (!limiter.success) {
         return { success: false, error: "Limite de tentatives atteinte. Veuillez patienter 10 minutes." };
     }
@@ -882,18 +885,18 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const existingHash = await (db as any).imageHash.findUnique({
+        const existingHash = await db.imageHash.findUnique({
             where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } }
         });
 
 
         if (existingHash) {
-            console.warn(`[Security] Duplicate image detected for user ${session.user.id} in guild ${guildId}`);
+            logger.warn("Duplicate image detected", { userId: user.id, guildId });
             return { success: false, error: "Cette image a déjà été utilisée pour une validation dans cette guilde." };
         }
 
         const currentProfile = await db.userProfile.findFirst({
-            where: { userId: session.user.id, guildId: guildConfig.id }
+            where: { userId: user.id!, guildId: guildConfig.id }
         });
         if (!currentProfile) return { success: false, error: "Profil introuvable" };
 
@@ -953,7 +956,10 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
 
             await db.$transaction([
                 db.userProfile.update({
-                    where: { id: currentProfile.id },
+                    where: {
+                        id: currentProfile.id,
+                        guildId: guildConfig.id // MANDATORY Guild Isolation
+                    },
                     data: {
                         successPoints: points,
                         lastLadderUpdate: new Date(),
@@ -995,7 +1001,17 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             const filePath = join(uploadDir, fileName);
 
             const buffer = Buffer.from(base64Data, 'base64');
-            await writeFile(filePath, buffer);
+
+            // 3. Optimize Image using Sharp (before saving for manual validation)
+            const optimizedBuffer = await sharp(buffer)
+                .resize(1920, null, {
+                    withoutEnlargement: true,
+                    fit: 'inside'
+                })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+            await writeFile(filePath, optimizedBuffer);
             const proofUrl = `/${uploadRelativeDir}/${fileName}`;
 
             const submission = await (db as any).achievementSubmission.create({
@@ -1031,8 +1047,8 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 }
             };
         }
-    } catch (error: any) {
-        console.error("Sync Success Points Error:", error);
+    } catch (error: unknown) {
+        logger.error("Sync Success Points Error", { error, userId: user.id, guildId });
         return {
             success: false,
             error: "Erreur lors du traitement de l'image (OLLAMA/OCR)"

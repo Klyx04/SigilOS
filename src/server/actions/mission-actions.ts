@@ -2,14 +2,16 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 import { MissionCategory, Prisma, NotificationType } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
 import { join, dirname } from "path";
 import { writeFile, mkdir } from "fs/promises";
+import sharp from "sharp";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
@@ -50,11 +52,11 @@ async function notifyValidators(guildId: string, title: string, message: string,
         const guildInfo = await fetchGuild(guildId);
 
         if (!guildInfo) {
-            console.error(`[Notification] Guild info not found for ${guildId}`);
+            logger.error("[Notification] Guild info not found", { guildId });
             return;
         }
         if (!guildInfo.owner_id) {
-            console.error(`[Notification] Guild owner_id missing for ${guildId}`);
+            logger.error("[Notification] Guild owner_id missing", { guildId });
             return;
         }
 
@@ -77,7 +79,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
             );
         }
     } catch (e) {
-        console.error("Notify Validators Error:", e);
+        logger.error("Notify Validators Error", { error: e });
     }
 }
 
@@ -99,7 +101,7 @@ export async function createWeekMissions(
     // 2. Auth & Permission
     const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_CREATE);
     if (!guard.allowed) {
-        console.error("[DEBUG] createWeekMissions - Permission denied:", guard.error);
+        logger.error("createWeekMissions - Permission denied", { error: guard.error, guildId: data.guildId, userId: session?.user?.id });
         return { success: false, error: guard.error };
     }
 
@@ -177,7 +179,7 @@ export async function createWeekMissions(
 
         return { success: true };
     } catch (error) {
-        console.error("Create Missions Error Full:", error);
+        logger.error("Create Missions Error", { error, guildId: data.guildId, weekNumber: data.weekNumber, year: data.year });
         return { success: false, error: "Database transaction failed: " + (error instanceof Error ? error.message : "Unknown") };
     }
 }
@@ -214,7 +216,7 @@ export async function resetMission(
 
         return { success: true };
     } catch (error) {
-        console.error("Reset Mission Error:", error);
+        logger.error("Reset Mission Error", { error, guildId, weekNumber, year, slotIndex });
         return { success: false, error: "Reset Failed" };
     }
 }
@@ -228,7 +230,7 @@ export async function resetWeek(
 
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
     if (!guard.allowed) {
-        console.error(`[ResetWeek] Permission denied: ${guard.error}`);
+        logger.error("ResetWeek - Permission denied", { error: guard.error, guildId });
         return { success: false, error: guard.error };
     }
 
@@ -257,7 +259,7 @@ export async function resetWeek(
 
         return { success: true };
     } catch (error) {
-        console.error("[ResetWeek] Critical Error:", error);
+        logger.error("ResetWeek Critical Error", { error, guildId, weekNumber, year });
         return { success: false, error: "Failed to reset week" };
     }
 }
@@ -346,7 +348,7 @@ export async function getWeekMissions(
         // This is necessary because Prisma JSON fields or hidden symbols can cause "Not a plain object" errors in Client Components
         return { success: true, data: JSON.parse(JSON.stringify(enrichedMissions)) };
     } catch (error) {
-        console.error("Fetch Missions Error Full:", error);
+        logger.error("Fetch Missions Error", { error, guildId, weekNumber, year });
         return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
     }
 }
@@ -416,7 +418,7 @@ export async function toggleMissionInterest(
         return { success: true };
 
     } catch (error) {
-        console.error("Toggle Interest Error:", error);
+        logger.error("Toggle Interest Error", { error, missionId, userId: session?.user?.id });
         return { success: false, error: "Database error" };
     }
 }
@@ -484,7 +486,7 @@ export async function submitMissionProof(
 
         // SECURITY: Validate Magic Bytes
         // We import dynamically to avoid circular deps if any (though lib is clean)
-        const { detectMimeType, generateSafeFilename, validateMagicBytes } = await import("@/lib/image-security");
+        const { detectMimeType } = await import("@/lib/image-security");
 
         const detectedMime = detectMimeType(buffer);
         if (!detectedMime) {
@@ -504,19 +506,26 @@ export async function submitMissionProof(
         // NO OCR - All submissions go to admin validation
         // Just save the proof image and create a PENDING submission
 
-        // Save proof image
+        // 3. Optimize Image using Sharp
+        // - Resize to max 1920px width
+        // - Convert to WebP (80% quality)
+        const optimizedBuffer = await sharp(buffer)
+            .resize(1920, null, {
+                withoutEnlargement: true,
+                fit: 'inside'
+            })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+        // 4. Save proof image (Always .webp now)
         const uploadRelativeDir = `uploads/missions/${mission.guild.discordGuildId}`;
         const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
         await mkdir(uploadDir, { recursive: true });
 
-        // Generate safe filename with correct extension
-        const extension = detectedMime === "image/png" ? "png" : "webp"; // We favor webp, but if it was png, keep png? 
-        // Actually, client sends WebP usually. Let's use the detected one.
-        const ext = detectedMime.split('/')[1];
-        const fileName = `${session.user.id}-${Date.now()}.${ext}`;
+        const fileName = `${session.user.id}-${Date.now()}.webp`;
         const filePath = join(uploadDir, fileName);
 
-        await writeFile(filePath, buffer);
+        await writeFile(filePath, optimizedBuffer);
         const proofUrl = `/${uploadRelativeDir}/${fileName}`;
 
         const submission = await db.submission.create({
@@ -563,7 +572,7 @@ export async function submitMissionProof(
             data: { submissionId: submission.id, status: "PENDING" }
         };
     } catch (error) {
-        console.error("Submission Error:", error);
+        logger.error("Submit Mission Proof Error", { error, missionId });
         return { success: false, error: "Erreur serveur lors de la soumission" };
     }
 }

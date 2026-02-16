@@ -1,0 +1,38 @@
+﻿src/server/actions/guards.ts(3,22): error TS2307: Cannot find module '@/auth' or its corresponding type declarations.
+src/server/actions/guards.ts(4,20): error TS2307: Cannot find module '@/lib/prisma' or its corresponding type declarations.
+src/server/actions/guards.ts(44,73): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/guards.ts(44,80): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/guards.ts(106,44): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/guards.ts(106,51): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(3,20): error TS2307: Cannot find module '@/lib/prisma' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(6,24): error TS2307: Cannot find module '@/lib/logger' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(9,61): error TS2307: Cannot find module '@/lib/llm-ocr' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(11,22): error TS2307: Cannot find module '@/auth' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(12,27): error TS2307: Cannot find module '@/lib/ratelimit' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(171,69): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/profile-actions.ts(171,76): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(683,61): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/profile-actions.ts(683,68): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/profile-actions.ts(717,33): error TS2339: Property 'roles' does not exist on type 'unknown'.
+src/server/actions/profile-actions.ts(789,57): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/profile-actions.ts(789,64): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/super-admin-actions.ts(3,22): error TS2307: Cannot find module '@/auth' or its corresponding type declarations.
+src/server/actions/super-admin-actions.ts(4,20): error TS2307: Cannot find module '@/lib/prisma' or its corresponding type declarations.
+src/server/actions/upload-actions.ts(5,24): error TS2307: Cannot find module '@/lib/logger' or its corresponding type declarations.
+src/server/actions/upload-actions.ts(11,8): error TS2307: Cannot find module '@/lib/image-security' or its corresponding type declarations.
+src/server/actions/user-actions.ts(3,22): error TS2307: Cannot find module '@/auth' or its corresponding type declarations.
+src/server/actions/user-actions.ts(4,45): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/user-actions.ts(5,20): error TS2307: Cannot find module '@/lib/prisma' or its corresponding type declarations.
+src/server/actions/user-actions.ts(6,48): error TS2307: Cannot find module '@/lib/permissions' or its corresponding type declarations.
+src/server/actions/user-actions.ts(7,24): error TS2307: Cannot find module '@/lib/logger' or its corresponding type declarations.
+src/server/actions/user-actions.ts(89,38): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(89,45): error TS2307: Cannot find module '@/server/actions/super-admin-actions' or its corresponding type declarations.
+src/server/actions/user-actions.ts(128,36): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(128,43): error TS2307: Cannot find module '@/server/actions/super-admin-actions' or its corresponding type declarations.
+src/server/actions/user-actions.ts(509,42): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(573,73): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(573,80): error TS2307: Cannot find module '@/server/discord' or its corresponding type declarations.
+src/server/actions/user-actions.ts(619,38): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(636,42): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(751,36): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', 'node18', 'node20', or 'nodenext'.
+src/server/actions/user-actions.ts(751,43): error TS2307: Cannot find module '@/server/actions/super-admin-actions' or its corresponding type declarations.

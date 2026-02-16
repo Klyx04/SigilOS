@@ -1,11 +1,17 @@
 name: SigilOS CI
 
 # ─────────────────────────────────────────────────────────────
-# TRIGGERS: Push on main/dev/feat/fix branches + PRs to main/dev
+# TRIGGERS: Push on main/dev/feat/fix branches + PRs
 # ─────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, dev, "feat/*", "fix/*", "chore/*" ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'docs/**'
+      - '.gemini/**'
   pull_request:
     branches: [ main, dev ]
 
@@ -19,48 +25,22 @@ permissions:
   pull-requests: read
 
 # ─────────────────────────────────────────────────────────────
-# JOBS: Run in parallel for fast feedback
+# JOBS
 # ─────────────────────────────────────────────────────────────
 jobs:
 
   # ┌──────────────────────────────────────────────────────────┐
-  # │ 🔐 SECURITY — Secrets & Vulnerabilities                  │
+  # │ ✅ VERIFY — Security, Lint, Types & Tests                │
+  # │ Combined to save CI minutes (single npm ci)             │
   # └──────────────────────────────────────────────────────────┘
-  security:
-    name: 🔐 Security
+  verify:
+    name: ✅ Verify Code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for Gitleaks
-
-      - name: 🔐 Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: 🛡️ Security Audit
-        run: npm audit --audit-level=critical
-
-  # ┌──────────────────────────────────────────────────────────┐
-  # │ 🧹 QUALITY — Lint & TypeScript                           │
-  # └──────────────────────────────────────────────────────────┘
-  quality:
-    name: 🧹 Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -76,17 +56,32 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
+      - name: 🔐 Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🛡️ Security Audit
+        run: npm audit --audit-level=critical
+
       - name: 🧹 Lint Check
         run: npm run lint
 
       - name: 🧪 TypeScript Check
         run: npx tsc --noEmit
 
+      - name: 🚀 Run Tests
+        run: npm run test:run
+
   # ┌──────────────────────────────────────────────────────────┐
   # │ 🏗️ BUILD — Production Build Verification                 │
+  # │ Runs only on PRs or main branches to save minutes       │
   # └──────────────────────────────────────────────────────────┘
   build:
-    name: 🏗️ Build
+    name: 🏗️ Build Check
+    # Only run build for PRs or merges to protected branches
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -109,33 +104,6 @@ jobs:
       - name: 🏗️ Production Build
         run: npm run build
         env:
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'dummy_secret_for_ci_verification' }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
-
-  # ┌──────────────────────────────────────────────────────────┐
-  # │ 🚀 TESTS — Vitest                                        │
-  # └──────────────────────────────────────────────────────────┘
-  tests:
-    name: 🚀 Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: 💎 Generate Prisma Client
-        run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
-
-      - name: 🚀 Run Tests
-        run: npm run test:run

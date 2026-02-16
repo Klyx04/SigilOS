@@ -16,13 +16,7 @@ sigilos.fr {
 
 beta.sigilos.fr {
     import security_headers
-    
-    # Servir les uploads de la beta via le dossier spécifique
-    handle /uploads/* {
-        root * /app/public-beta
-        file_server
-    }
-
+    # Beta application
     reverse_proxy sigilos-beta:3000
 }
 

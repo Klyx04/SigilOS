@@ -79,7 +79,11 @@ export default async function DocsLayout({
 
     return (
         <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-purple-500/30 flex flex-col">
-            <PublicHeader user={session?.user} isMember={user.isMember} dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"} />
+            <PublicHeader
+                user={session?.user ? { ...session.user, emailVerified: null } as any : undefined}
+                isMember={user.isMember}
+                dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"}
+            />
 
             <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-32 flex flex-col lg:flex-row gap-8">
                 {/* Sidebar Navigation */}

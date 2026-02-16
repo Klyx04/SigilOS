@@ -54,12 +54,13 @@ export default async function GuildPresentationPage({ params }: Props) {
         ? new Date(guild.foundedDate).getFullYear()
         : guild.createdAt.getFullYear();
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": guild.name,
-        "url": `https://sigilos.fr/guilds/${guild.id}`,
-        "logo": guild.iconUrl || "https://sigilos.fr/assets/ui/logo-v2.png",
+        "url": `${baseUrl}/guilds/${guild.id}`,
+        "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
         "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : null,
         "founder": guild.founder ? {
             "@type": "Person",

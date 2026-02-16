@@ -149,7 +149,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         fetch(`https://discord.com/api/v10/guilds/${effectiveGuildId}/members/${discordUserId}`, {
             headers: { Authorization: `Bot ${token}` },
             cache: 'no-store' // No cache - always check live membership status for security
-        }),
+        }).catch(() => ({ ok: false, status: 500 } as Response)),
         fetchGuild(effectiveGuildId).catch(() => null),
         fetchGuildRoles(effectiveGuildId, { excludeManaged: false }).catch(() => [])
     ]);

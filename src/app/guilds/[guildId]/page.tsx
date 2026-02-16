@@ -52,7 +52,7 @@ export default async function GuildPresentationPage({ params }: Props) {
 
     const foundedYear = guild.foundedDate
         ? new Date(guild.foundedDate).getFullYear()
-        : guild.createdAt.getFullYear();
+        : new Date(guild.createdAt).getFullYear();
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const jsonLd = {

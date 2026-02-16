@@ -92,7 +92,7 @@ export type GuildPresentation = {
     discordGuildId: string;
     name: string;
     iconUrl: string | null;
-    createdAt: Date;
+    createdAt: string;
     // Presentation fields
     history: string | null;
     activities: string[] | null;
@@ -106,7 +106,7 @@ export type GuildPresentation = {
     bannerType: string | null;
     bannerUrl: string | null;
     photoUrl: string | null;
-    foundedDate: Date | null;
+    foundedDate: string | null;
     // Recruitment specific
     discordRequired: boolean;
     minLevel: number | null;
@@ -174,7 +174,7 @@ export async function getGuildPresentation(
         discordGuildId: g.discordGuildId,
         name: g.name,
         iconUrl: g.iconUrl,
-        createdAt: g.createdAt,
+        createdAt: (g.createdAt as Date).toISOString(),
         history: g.presentationHistory,
         activities: g.presentationActivities as string[] | null,
         founder: g.presentationFounder,
@@ -187,7 +187,7 @@ export async function getGuildPresentation(
         bannerType: g.presentationBannerType,
         bannerUrl: g.presentationBannerUrl,
         photoUrl: g.presentationPhotoUrl,
-        foundedDate: g.presentationFoundedDate,
+        foundedDate: g.presentationFoundedDate ? (g.presentationFoundedDate as Date).toISOString() : null,
         discordRequired: g.presentationDiscordReq,
         minLevel: g.presentationMinLevel,
         minSuccesses: g.presentationMinSuccesses,

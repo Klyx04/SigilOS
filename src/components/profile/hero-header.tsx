@@ -47,7 +47,7 @@ interface HeroHeaderProps {
     isUpcomingVacation?: boolean;
     vacationStart?: Date | null;
     vacationEnd?: Date | null;
-    joinedAt?: Date | null;
+    joinedAt?: string | Date | null;
     xp: number;
     weeklyXp: number;
     missionsValidated: number;

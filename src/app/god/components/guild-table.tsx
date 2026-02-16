@@ -12,7 +12,9 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw } from 'lucide-react';
+import {
+    Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw, Plus, UserPlus, FileText, Hash, Copy
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -23,9 +25,27 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { softDeleteGuild, reactivateGuild, hardDeleteGuild } from '@/server/actions/god-lifecycle-actions';
+import { addAllowedGuild, removeAllowedGuild } from "@/server/actions/super-admin-actions";
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { z } from 'zod';
+
+const whitelistSchema = z.object({
+    discordGuildId: z.string().min(17, "ID Discord trop court").max(20, "ID Discord trop long").regex(/^\d+$/, "L'ID doit être numérique"),
+    name: z.string().min(2, "Nom trop court").optional().or(z.literal('')),
+    notes: z.string().optional().or(z.literal('')),
+});
 
 interface Guild {
     id: string;
@@ -38,6 +58,9 @@ interface Guild {
     scheduledDeletion: Date | null;
     createdAt: Date;
     maxMembers: number;
+    isWhitelistOnly?: boolean;
+    notes?: string | null;
+    tier?: string; // Restore tier
     _count: {
         profiles: number;
     };
@@ -57,6 +80,13 @@ export function GuildTable({ guilds }: GuildTableProps) {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [selected, setSelected] = useState<Set<string>>(new Set());
 
+    // Whitelist Modal State
+    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [newGuildId, setNewGuildId] = useState("");
+    const [newGuildName, setNewGuildName] = useState("");
+    const [newGuildNotes, setNewGuildNotes] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     // Filtered & sorted guilds
     const filteredGuilds = useMemo(() => {
         const result = guilds.filter(guild => {
@@ -68,8 +98,8 @@ export function GuildTable({ guilds }: GuildTableProps) {
             // Status filter
             const matchesStatus =
                 filterStatus === 'all' ||
-                (filterStatus === 'active' && guild.isActive && !guild.deletedAt) ||
-                (filterStatus === 'inactive' && guild.isActive && guild._count.profiles === 0) ||
+                (filterStatus === 'active' && guild.isActive && !guild.deletedAt && !guild.isWhitelistOnly) ||
+                (filterStatus === 'inactive' && guild.isActive && guild._count.profiles === 0 && !guild.isWhitelistOnly) ||
                 (filterStatus === 'deleted' && !guild.isActive && guild.deletedAt);
 
             return matchesSearch && matchesStatus;
@@ -103,6 +133,34 @@ export function GuildTable({ guilds }: GuildTableProps) {
         setSelected(newSelected);
     };
 
+    const handleAdd = async () => {
+        const result = whitelistSchema.safeParse({
+            discordGuildId: newGuildId.trim(),
+            name: newGuildName.trim(),
+            notes: newGuildNotes.trim(),
+        });
+
+        if (!result.success) {
+            toast.error(result.error.errors[0].message);
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await addAllowedGuild(result.data);
+            setIsAddOpen(false);
+            setNewGuildId("");
+            setNewGuildName("");
+            setNewGuildNotes("");
+            toast.success("Guilde ajoutée à la liste blanche. Rechargement...");
+            window.location.reload(); // Refresh to show the new whitelisted guild
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur lors de l'ajout");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const selectAll = () => {
         if (selected.size === filteredGuilds.length) {
             setSelected(new Set());
@@ -126,7 +184,68 @@ export function GuildTable({ guilds }: GuildTableProps) {
                 </div>
 
                 <div className="flex gap-2">
-                    {/* TODO: Add Guild button */}
+                    <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[10px] px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">
+                                <UserPlus className="w-4 h-4" />
+                                Whitelist New Guild
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-zinc-950 border-white/5 text-white max-w-md rounded-3xl p-8 backdrop-blur-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Autoriser une Guilde</DialogTitle>
+                                <DialogDescription className="text-zinc-500 text-sm font-medium">
+                                    L'autorisation de première connexion permet au bot de rejoindre le serveur.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-6 mt-8">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                        <Hash className="w-3 h-3" /> Discord Guild ID *
+                                    </label>
+                                    <Input
+                                        placeholder="Ex: 1234567890..."
+                                        value={newGuildId}
+                                        onChange={(e) => setNewGuildId(e.target.value)}
+                                        className="bg-zinc-900/50 border-white/5 rounded-xl h-12 font-mono text-sm focus:ring-violet-500"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                        <Filter className="w-3 h-3" /> Nom de la guilde
+                                    </label>
+                                    <Input
+                                        placeholder="Nom mémoriel"
+                                        value={newGuildName}
+                                        onChange={(e) => setNewGuildName(e.target.value)}
+                                        className="bg-zinc-900/50 border-white/5 rounded-xl h-12"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                        <FileText className="w-3 h-3" /> Notes (Interne)
+                                    </label>
+                                    <Input
+                                        placeholder="Ex: Guilde de test, Premium..."
+                                        value={newGuildNotes}
+                                        onChange={(e) => setNewGuildNotes(e.target.value)}
+                                        className="bg-zinc-900/50 border-white/5 rounded-xl h-12"
+                                    />
+                                </div>
+
+                                <Button
+                                    onClick={handleAdd}
+                                    disabled={isSubmitting}
+                                    className="w-full bg-violet-600 hover:bg-violet-700 h-14 rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-violet-500/20"
+                                >
+                                    {isSubmitting ? "Traitement..." : "Valider l'autorisation"}
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -281,23 +400,43 @@ function GuildRow({ guild, selected, onSelect }: {
         }
     };
 
-    const statusConfig = guild.deletedAt
+    const statusConfig = guild.isWhitelistOnly
         ? {
-            label: '🗑️ Supprimée',
-            color: 'text-red-400 bg-red-500/10 border-red-500/30',
-            tooltip: 'Guilde en cours de suppression. Accès au dashboard BLOQUÉ.'
+            label: '🛡️ Whitelist',
+            color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+            tooltip: 'Guilde autorisée mais pas encore connectée (Onboarding en attente).'
         }
-        : guild._count.profiles === 0
+        : guild.deletedAt
             ? {
-                label: '⚠️ Inactive',
-                color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-                tooltip: 'Aucun membre n\'a encore créé de compte.'
+                label: '🗑️ Supprimée',
+                color: 'text-red-400 bg-red-500/10 border-red-500/30',
+                tooltip: 'Guilde en cours de suppression. Accès au dashboard BLOQUÉ.'
             }
-            : {
-                label: '✅ Active',
-                color: 'text-green-400 bg-green-500/10 border-green-500/30',
-                tooltip: 'Accès autorisé et membres actifs.'
-            };
+            : guild._count.profiles === 0
+                ? {
+                    label: '⚠️ Inactive',
+                    color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+                    tooltip: 'Aucun membre n\'a encore créé de compte.'
+                }
+                : {
+                    label: '✅ Active',
+                    color: 'text-green-400 bg-green-500/10 border-green-500/30',
+                    tooltip: 'Accès autorisé et membres actifs.'
+                };
+
+    const handleRevokeWhitelist = async () => {
+        if (!confirm("Révoquer l'autorisation de cette guilde ?")) return;
+        setIsUpdating(true);
+        try {
+            await removeAllowedGuild(guild.discordGuildId);
+            toast.success("Autorisation révoquée");
+            window.location.reload();
+        } catch (e) {
+            toast.error("Échec de la révocation");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     return (
         <motion.tr
@@ -335,8 +474,23 @@ function GuildRow({ guild, selected, onSelect }: {
                         </div>
                     </div>
                     <div>
-                        <div className="font-medium">{guild.name}</div>
-                        <div className="text-xs text-zinc-500 font-mono">{guild.discordGuildId}</div>
+                        <div className="flex items-center gap-2">
+                            <div className="font-medium">{guild.name}</div>
+                            {guild.tier && (
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                    }`}>
+                                    {guild.tier}
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-xs text-zinc-500 font-mono flex items-center gap-2">
+                            {guild.discordGuildId}
+                            {guild.notes && (
+                                <span className="text-[10px] text-zinc-600 italic truncate max-w-[150px]">
+                                    — {guild.notes}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </td>
@@ -404,31 +558,55 @@ function GuildRow({ guild, selected, onSelect }: {
 
                             <DropdownMenuSeparator className="bg-white/5" />
 
-                            {!guild.deletedAt ? (
-                                <DropdownMenuItem
-                                    onClick={handleSoftDelete}
-                                    className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
-                                >
-                                    <Archive className="w-4 h-4" />
-                                    Mettre en pause
-                                </DropdownMenuItem>
+                            {guild.isWhitelistOnly ? (
+                                <>
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(guild.discordGuildId);
+                                            toast.success("ID Discord copié");
+                                        }}
+                                        className="gap-3 p-3 cursor-pointer focus:bg-blue-500/10 focus:text-blue-400"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                        Copier ID Discord
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={handleRevokeWhitelist}
+                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Révoquer Permission
+                                    </DropdownMenuItem>
+                                </>
                             ) : (
-                                <DropdownMenuItem
-                                    onClick={handleReactivate}
-                                    className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
-                                >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Réactiver
-                                </DropdownMenuItem>
-                            )}
+                                <>
+                                    {!guild.deletedAt ? (
+                                        <DropdownMenuItem
+                                            onClick={handleSoftDelete}
+                                            className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
+                                        >
+                                            <Archive className="w-4 h-4" />
+                                            Mettre en pause
+                                        </DropdownMenuItem>
+                                    ) : (
+                                        <DropdownMenuItem
+                                            onClick={handleReactivate}
+                                            className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
+                                        >
+                                            <RotateCcw className="w-4 h-4" />
+                                            Réactiver
+                                        </DropdownMenuItem>
+                                    )}
 
-                            <DropdownMenuItem
-                                onClick={handleHardDelete}
-                                className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                Hard Delete
-                            </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={handleHardDelete}
+                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Hard Delete
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

@@ -602,6 +602,10 @@ model DreamRun {
   // Notification settings
   notifyOnJoinRequest Boolean @default(true)
 
+  // Discord embed tracking
+  discordMessageId    String?
+  discordChannelId    String?
+
   // Relations
   members      DreamRunMember[]
   waitlist     DreamWaitlist[]

@@ -15,6 +15,7 @@
     "seed:game-data": "npx -y tsx prisma/seed-data/seed.ts",
     "seed:game-data:prod": "node prisma/seed-data/seed.js",
     "build:seeds": "esbuild prisma/seed-data/seed.ts --bundle --platform=node --outfile=prisma/seed-data/seed.js --external:@prisma/client && esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --external:@prisma/client",
+    "build:maintenance": "esbuild scripts/database-janitor.ts --bundle --platform=node --outfile=scripts/database-janitor.js --external:@prisma/client",
     "export-seeds": "bash scripts/export-seeds.sh local"
   },
   "dependencies": {

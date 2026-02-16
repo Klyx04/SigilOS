@@ -59,6 +59,10 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Keep a backup of static uploads so they can be synced into the Docker volume at runtime
+# (Docker volume mount hides build-time files)
+RUN cp -r /app/public/uploads /app/public-static-uploads 2>/dev/null || mkdir -p /app/public-static-uploads
+
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
@@ -77,6 +81,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
+# Copy entrypoint script
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -85,4 +93,4 @@ ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["./docker-entrypoint.sh"]

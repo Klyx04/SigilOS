@@ -966,6 +966,7 @@ export function PresentationForm({ guildId }: Props) {
                                                     alt="Banner preview"
                                                     fill
                                                     className="object-cover"
+                                                    unoptimized={true}
                                                 />
                                                 <button
                                                     type="button"
@@ -1008,6 +1009,7 @@ export function PresentationForm({ guildId }: Props) {
                                             alt="Photo preview"
                                             fill
                                             className="object-cover"
+                                            unoptimized={true}
                                         />
                                         <button
                                             type="button"

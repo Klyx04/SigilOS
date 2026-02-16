@@ -162,7 +162,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - uploads-prod-data:/app/public/uploads # ✅ Prod uploads only
-      - uploads-beta-data:/app/public/uploads-beta # ✅ Beta uploads accessible for Caddy
+      - uploads-beta-data:/app/public-beta/uploads # ✅ Beta uploads accessible for Caddy
     env_file: .env.prod
     networks:
       - prod-net

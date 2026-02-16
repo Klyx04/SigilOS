@@ -17,9 +17,9 @@ sigilos.fr {
 beta.sigilos.fr {
     import security_headers
     
-    # Servir les uploads directement via Caddy (Performance + Fix 404 Next.js Standalone)
+    # Servir les uploads de la beta via le dossier spécifique
     handle /uploads/* {
-        root * /app/public
+        root * /app/public-beta
         file_server
     }
 

@@ -53,9 +53,9 @@ const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; bo
 
 const EVENT_IMAGES: Record<string, string> = {
     "RAID_OFFICIAL": "/assets/calendar/calendar_raid_official.png",
-    EVENT_GUILD: "/assets/calendar/calendar_event.png",
-    SESSION_MISSIONS: "/assets/calendar/calendar_missions.png",
-    SORTIE_FARM: "/assets/calendar/calendar_farm.png",
+    EVENT_GUILD: "/assets/calendar/calendar_event_guild.png",
+    SESSION_MISSIONS: "/assets/calendar/calendar_session_missions.png",
+    SORTIE_FARM: "/assets/calendar/calendar_boss_farm.png",
     KRALAMOURE: "/assets/calendar/calendar_kralamour.png",
     "GUILD_MISSION": "/assets/calendar/calendar_session_missions.png", // Fallback
     "SONGES_RUN": "/assets/calendar/calendar_songes_run.png",

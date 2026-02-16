@@ -87,14 +87,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 setMissions(newMissions);
 
                 // Set global tier from first found mission or default
-                const foundTier = fetched.find((m: any) => m.tier)?.tier;
+                const foundTier = (fetched as any[]).find((m: any) => m.tier)?.tier;
                 if (foundTier) setGlobalTier(foundTier);
             } else {
                 // If no missions found, maybe fetch guild config for default tier?
-                // For now, we'll rely on the default state (3) or whatever was set.
-                // Ideally we'd call getDofusConfig here too.
             }
-        } catch (e) {
+        } catch (e: unknown) {
             toast.error("Erreur de chargement");
         } finally {
             setIsLoading(false);
@@ -174,9 +172,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
         setIsResetting(true);
         try {
-            console.log('[ResetWeek Client] Calling resetWeek with:', { guildId, weekNumber, year });
             const res = await resetWeek(guildId, weekNumber, year);
-            console.log('[ResetWeek Client] Response:', res);
             if (res.success) {
                 setMissions(Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
                 toast.success("Semaine réinitialisée avec succès");

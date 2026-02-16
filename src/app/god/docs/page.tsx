@@ -15,8 +15,8 @@ export default async function AdminDocsPage() {
     const docs = await getAdminDocs();
 
     return (
-        <div className="flex flex-col font-sans selection:bg-purple-500/30">
-            <main className="flex-1 w-full mx-auto px-4 pb-12 md:pt-24 space-y-16">
+        <div className="flex-1 flex flex-col font-sans selection:bg-purple-500/30 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+            <main className="flex-1 w-full mx-auto px-4 md:px-12 pb-24 pt-12 md:pt-24 space-y-16 max-w-[1600px]">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-12">
                     <div className="space-y-4">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-black text-indigo-400 uppercase tracking-widest">

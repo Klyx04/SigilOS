@@ -27,7 +27,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     return (
         <div className="flex h-screen overflow-hidden bg-zinc-950 font-sans text-zinc-100">
             {/* 1. DESKTOP SIDEBAR (Fixed) */}
-            <div className="hidden md:flex w-[240px] flex-col fixed inset-y-0 z-50">
+            <div className="hidden md:flex w-[240px] flex-col fixed inset-y-0 left-0 z-[100]">
                 <GodSidebar
                     user={session.user}
                     className="h-full border-r border-white/5"
@@ -35,21 +35,17 @@ export default async function GodLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col md:pl-[240px] transition-all duration-300 ease-in-out h-full">
+            <div className="flex-1 flex flex-col md:pl-[240px] h-full overflow-hidden">
 
-                {/* Scrollable Main Content */}
-                <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <div className="w-full p-2 md:p-8 pb-32 min-h-[calc(100vh-4rem)] flex flex-col">
-
+                {/* Main Content Area - Layout control */}
+                <main className="flex-1 relative flex flex-col h-full overflow-hidden">
+                    <div className="flex-1 flex flex-col h-full">
                         {/* Page Content */}
-                        <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
+                        <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500 slide-in-from-bottom-4">
                             {children}
                         </div>
 
-                        {/* Footer at bottom of content */}
-                        <div className="mt-12 md:mt-24 border-t border-white/5 pt-6">
-                            <GalacticFooter />
-                        </div>
+                        {/* Optional Footer (Removed from auto-scroll to allow pages to control it) */}
                     </div>
                 </main>
             </div>

@@ -14,6 +14,7 @@
 import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { db } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 // =============================================================================
 // API USAGE TRACKING
@@ -28,7 +29,7 @@ export async function trackOcrApiUsage(endpoint: string): Promise<void> {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        await (db as any).ocrApiUsage.upsert({
+        await db.ocrApiUsage.upsert({
             where: {
                 date_endpoint: { date: today, endpoint }
             },
@@ -42,7 +43,7 @@ export async function trackOcrApiUsage(endpoint: string): Promise<void> {
             }
         });
     } catch (error) {
-        console.warn('[LLM-OCR] Failed to track API usage:', error);
+        logger.warn('[LLM-OCR] Failed to track API usage', { error });
         // Don't fail the OCR call if tracking fails
     }
 }
@@ -242,8 +243,8 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
             rawResponse: response,
         };
 
-    } catch (error) {
-        console.error('[LLM-OCR] Analysis failed:', error);
+    } catch (error: unknown) {
+        logger.error('[LLM-OCR] Analysis failed', { error });
 
         // CONNECTION ERROR: Fallback to manual validation
         const isConnectionError = error instanceof Error &&
@@ -254,7 +255,7 @@ export async function analyzeImage(request: OcrRequest): Promise<OcrResult> {
                 error.message.includes('timeout'));
 
         if (isConnectionError) {
-            console.warn('[LLM-OCR] OCR Service unreachable - falling back to manual validation');
+            logger.warn('[LLM-OCR] OCR Service unreachable - falling back to manual validation');
             return {
                 success: true,
                 text: '[OCR indisponible] Validation manuelle requise',
@@ -319,7 +320,7 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
 
     // Case C: Full string of digits (ignoring everything else)
     const allDigits = rawResponse.replace(/[^\d]/g, '');
-    if (allDigits) candidates.push(parseInt(allDigits, 10));
+    if (allDigits && allDigits.length >= 3 && allDigits.length <= 5) candidates.push(parseInt(allDigits, 10));
 
     // Filter and sanitize candidates based on Dofus max score (~23,000)
     const MAX_DOFUS_SCORE = 24000;
@@ -432,9 +433,12 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
     if ((bestScore > 0 || hasContext) && hasContext) {
         confidence += 50;
         // 40 (Base) + 50 = 90 (High Confidence it's a Mission Image)
-        // But is it COMPLETED? Hard to say without the checkmark color.
-        // We will return it as "High Confidence Image" and let the Server Action decided 
-        // if it auto-validates based on this confidence.
+    }
+
+    // ACHIEVEMENT CONTEXT BOOST
+    // If we find a score AND UI elements like 'points' or 'total', it's very likely valid.
+    if (bestScore > 0 && (text.includes('points') || text.includes('total') || text.includes('succès') || text.includes('succes'))) {
+        confidence += 20;
     }
 
     const finalConfidence = Math.min(100, confidence);
@@ -556,8 +560,8 @@ async function optimizeImage(base64Image: string): Promise<string> {
 
 
         return optimizedBuffer.toString('base64');
-    } catch (error) {
-        console.warn('[LLM-OCR] Image optimization failed, using original:', error);
+    } catch (error: unknown) {
+        logger.warn('[LLM-OCR] Image optimization failed, using original', { error });
         return base64Image; // Fallback to original if sharp fails
     }
 }

@@ -32,7 +32,10 @@ import { Button } from "@/components/ui/button";
 export function GodSidebar({ className, user }: { className?: string, user: any }) {
     const pathname = usePathname();
 
-    const isActive = (href: string) => pathname === href;
+    const isActive = (href: string) => {
+        if (href === "/god") return pathname === "/god";
+        return pathname.startsWith(href);
+    };
 
     const NAV_ITEMS = [
         { name: "Vue d'ensemble", href: "/god", icon: LayoutDashboard },
@@ -88,13 +91,23 @@ export function GodSidebar({ className, user }: { className?: string, user: any 
 
                     <div className="my-8 h-px bg-white/5 mx-4" />
 
-                    <Link
-                        href="/"
-                        className="flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-500 hover:text-white hover:bg-white/[0.03] transition-all group"
-                    >
-                        <Home className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-base font-bold tracking-wide">Retour Accueil</span>
-                    </Link>
+                    <div className="space-y-1">
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.03] transition-all group"
+                        >
+                            <LayoutDashboard className="h-5 w-5 group-hover:scale-110 transition-transform opacity-60" />
+                            <span className="text-base font-bold tracking-wide">Dashboard Membre</span>
+                        </Link>
+
+                        <Link
+                            href="/"
+                            className="flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03] transition-all group"
+                        >
+                            <Home className="h-5 w-5 group-hover:-translate-x-1 transition-transform opacity-40" />
+                            <span className="text-base font-bold tracking-wide">Landing Page</span>
+                        </Link>
+                    </div>
                 </nav>
             </ScrollArea>
 

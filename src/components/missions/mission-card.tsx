@@ -226,6 +226,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                         alt="Banner"
                         fill
                         className="object-cover opacity-60 mix-blend-luminosity grayscale-[0.2]"
+                        unoptimized={true}
                     />
                     <div className={cn(
                         "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
@@ -291,6 +292,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                 alt="Subject"
                                 fill
                                 className="object-contain"
+                                unoptimized={true}
                             />
                         </div>
                     ) : (

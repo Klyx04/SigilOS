@@ -1,7 +1,12 @@
 "use client";
 
 import data from '@emoji-mart/data'
-import Picker from '@emoji-mart/react'
+import dynamic from 'next/dynamic'
+
+const Picker = dynamic(() => import('@emoji-mart/react'), {
+    ssr: false,
+    loading: () => <div className="w-[352px] h-[435px] bg-zinc-900 rounded-xl animate-pulse" />
+})
 import {
     Popover,
     PopoverContent,

@@ -18,7 +18,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
     }
 
     return (
-        <div className="h-[430px] w-full mt-4">
+        <div className="h-[430px] w-full mt-4" style={{ minWidth: 1, minHeight: 1 }}>
             <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
                     <defs>

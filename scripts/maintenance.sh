@@ -57,8 +57,17 @@ fi
 
 # 5. Nettoyage de la base de données (Janitor)
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."
-# Exécution via Docker pour avoir toutes les dépendances
-# Note: --execute est nécessaire pour passer du dry-run à la suppression réelle
-sudo docker exec sigilos-prod node scripts/database-janitor.js --execute
+
+# Détection dynamique du conteneur (cherche sigilos-prod ou sigilos-beta)
+CONTAINER_NAME=$(sudo docker ps --format '{{.Names}}' | grep -E "sigilos-(prod|beta|app)" | head -n 1)
+
+if [ -z "$CONTAINER_NAME" ]; then
+    echo "❌ Erreur : Impossible de trouver un conteneur SigilOS actif."
+    send_alert "Maintenance échouée : Conteneur introuvable."
+else
+    echo "🚀 Exécution du Janitor dans : $CONTAINER_NAME"
+    # Exécution via Docker pour avoir toutes les dépendances
+    sudo docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute
+fi
 
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"

@@ -39,7 +39,7 @@ export type UserContext = {
     profileId?: string;
     guildName?: string;
     dofusServerId?: string | null;
-    joinedAt?: Date | null;
+    joinedAt?: string | null;
     guildId?: string;
     isCapacityFull?: boolean;
 };
@@ -453,7 +453,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         profileId: profile?.id,
         guildName: guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
-        joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at) : null,
+        joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at).toISOString() : null,
         guildId: targetGuildId
     };
 };

@@ -22,7 +22,8 @@ const envSchema = z.object({
 
     // Discord Bot (optional for local dev)
     DISCORD_BOT_TOKEN: z.string().optional(),
-    DISCORD_PUBLIC_KEY: z.string().optional(),
+    DISCORD_APPLICATION_PUBLIC_KEY: z.string().optional(),
+    DISCORD_PUBLIC_KEY: z.string().optional(), // Legacy alias
 
     // Redis (optional - fail-open design)
     REDIS_URL: z.string().optional(),

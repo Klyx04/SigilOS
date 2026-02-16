@@ -58,3 +58,28 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
         exists: true
     };
 }
+
+/**
+ * Get all guilds for a specific user
+ * @param userId - Internal User ID (from session.user.id)
+ * @returns Array of guilds with basic info (id, name, iconUrl)
+ */
+export async function getUserGuilds(userId: string): Promise<{ id: string; name: string; iconUrl: string | null }[]> {
+    const profiles = await db.userProfile.findMany({
+        where: {
+            userId,
+            status: "ACTIVE" // Only active memberships
+        },
+        select: {
+            guild: {
+                select: {
+                    id: true,
+                    name: true,
+                    iconUrl: true
+                }
+            }
+        }
+    });
+
+    return profiles.map(p => p.guild);
+}

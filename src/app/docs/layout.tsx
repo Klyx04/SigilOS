@@ -21,8 +21,11 @@ export default async function DocsLayout({
         redirect("/api/auth/signin?callbackUrl=/docs");
     }
 
+    // Get guildId from session if available, or fallback to default
+    const guildId = (session?.user as any)?.guildId || process.env.DISCORD_GUILD_ID;
+
     const { getUserContext } = await import("@/server/actions/user-actions");
-    const user = await getUserContext();
+    const user = await getUserContext(guildId);
 
     if (!user.isMember) {
         return (
@@ -54,8 +57,6 @@ export default async function DocsLayout({
         );
     }
 
-    // Get guildId from session if available, or fallback to default
-    const guildId = (session?.user as any)?.guildId || process.env.DISCORD_GUILD_ID;
 
     const { getAllDocs } = await import("@/server/actions/doc-actions");
     const allDocs = await getAllDocs(guildId);

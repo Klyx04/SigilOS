@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  themeColor: "#9333ea", // Theme color for mobile browser bars
   manifest: "/manifest.json", // Link to PWA manifest
   title: {
     default: "SigilOS - Le système d'exploitation pour guildes Dofus",
@@ -64,6 +63,10 @@ export const metadata: Metadata = {
     shortcut: "/assets/ui/logo-v2.png",
     apple: "/assets/ui/logo-v2.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#9333ea",
 };
 
 export default function RootLayout({

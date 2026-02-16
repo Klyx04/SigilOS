@@ -679,7 +679,7 @@ export async function getGuildMembers(guildId: string) {
     const user = await getUserContext(guildId);
     if (!user.isAdmin) throw new Error("Forbidden: Admin access required");
 
-    return db.userProfile.findMany({
+    const members = await db.userProfile.findMany({
         where: { guildId: guildConfig.id },
         include: {
             user: {
@@ -695,6 +695,18 @@ export async function getGuildMembers(guildId: string) {
         },
         orderBy: { updatedAt: "desc" }
     });
+
+    return members.map(m => ({
+        ...m,
+        createdAt: m.createdAt.toISOString(),
+        updatedAt: m.updatedAt.toISOString(),
+        lastActivityAt: m.lastActivityAt?.toISOString() || null,
+        archivedAt: m.archivedAt?.toISOString() || null,
+        discordJoinedAt: m.discordJoinedAt?.toISOString() || null,
+        discordCacheUpdatedAt: m.discordCacheUpdatedAt?.toISOString() || null,
+        vacationStart: m.vacationStart?.toISOString() || null,
+        vacationEnd: m.vacationEnd?.toISOString() || null
+    }));
 }
 
 /**

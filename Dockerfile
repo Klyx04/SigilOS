@@ -63,20 +63,19 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Copy prisma schema and config
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-# Ensure compiled maintenance script is also available explicitly if needed, 
-# although copying the whole folder might cover it.
-# Copy bundled seeds
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
-
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy prisma schema and config (after standalone to ensure they are in the final root)
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# Copy bundled seeds
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
 USER nextjs
 

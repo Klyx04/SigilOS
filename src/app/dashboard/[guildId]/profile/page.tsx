@@ -42,7 +42,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,
-            joinedAt: userContext.joinedAt ?? statsResponse.data.joinedAt
+            joinedAt: (userContext.joinedAt ?? statsResponse.data.joinedAt) as string | null
         }
         : {
             xp: profile.xp || 0,
@@ -50,8 +50,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
             guildatons: profile.guildatons || 0,
             missionsValidated: 0,
             weeklyMissions: 0,
-            lastActivity: null,
-            joinedAt: userContext.joinedAt || null,
+            lastActivity: null as { description: string; date: string | Date } | null,
+            joinedAt: (userContext.joinedAt || null) as string | null,
             isTopContributor: false,
         };
 

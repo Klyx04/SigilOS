@@ -17,8 +17,8 @@ export type DocPageData = {
     isPublished: boolean;
     accessLevel: "PUBLIC" | "ADMIN";
     guildId?: string | null;
-    updatedAt: Date;
-    createdAt: Date;
+    updatedAt: string;
+    createdAt: string;
 };
 
 export type CreateDocInput = {
@@ -67,9 +67,9 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
             isPublished: (doc as any).isPublished,
             accessLevel: (doc as any).accessLevel,
             guildId: (doc as any).guildId,
-            updatedAt: (doc as any).updatedAt,
-            createdAt: (doc as any).createdAt
-        } as unknown as DocPageData;
+            updatedAt: (doc as any).updatedAt ? new Date((doc as any).updatedAt).toISOString() : new Date().toISOString(),
+            createdAt: (doc as any).createdAt ? new Date((doc as any).createdAt).toISOString() : new Date().toISOString()
+        };
     } catch (error) {
         console.error("Error fetching doc:", error);
         return null;

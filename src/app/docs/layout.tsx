@@ -21,13 +21,19 @@ export default async function DocsLayout({
         redirect("/api/auth/signin?callbackUrl=/docs");
     }
 
-    // Get guildId from session if available, or fallback to default
-    const guildId = (session?.user as any)?.guildId || process.env.DISCORD_GUILD_ID;
+    // Fetch user's guilds to establish context for documentation
+    const { getUserGuilds } = await import("@/server/actions/guild-actions");
+    const userGuilds = await getUserGuilds(session.user.id);
+
+    // Use first guild as context (shows global docs + that guild's specific docs)
+    // If user has no guilds, guildId will be undefined (shows only global docs)
+    const guildId = userGuilds[0]?.id;
 
     const { getUserContext } = await import("@/server/actions/user-actions");
     const user = await getUserContext(guildId);
 
-    if (!user.isMember) {
+    // Check if user is authenticated and member of at least one guild
+    if (!user.isAuthenticated || userGuilds.length === 0) {
         return (
             <div className="relative min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-center overflow-hidden">
                 <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />

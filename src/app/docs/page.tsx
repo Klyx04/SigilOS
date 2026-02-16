@@ -1,9 +1,9 @@
-import { getAllDocs } from "@/server/actions/doc-actions";
 import Link from "next/link";
 import { Folder, FileText, ArrowRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function DocsHubPage() {
+    const { getAllDocs } = await import("@/server/actions/doc-actions");
     const allDocs = await getAllDocs();
 
     // Group docs by category

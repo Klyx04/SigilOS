@@ -56,7 +56,7 @@ export default async function GuildsDirectoryPage() {
                             <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5">
                                 <Gamepad2 className="w-8 h-8 text-zinc-600" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2">Séquenceur Vide</h2>
+                            <h2 className="text-xl font-bold text-white mb-2">Annuaire Vide</h2>
                             <p className="text-zinc-500 max-w-sm mx-auto">
                                 Les protocoles de présentation n'ont pas encore été initialisés par les commandants de guilde.
                             </p>

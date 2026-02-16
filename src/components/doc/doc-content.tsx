@@ -125,6 +125,11 @@ export function DocContent({ content, className }: DocContentProps) {
 
     if (!content) return null;
 
+    // 🔒 SECURITY FIX: Sanitize HTML to prevent XSS attacks
+    // Ref: Security Audit Report #1 - Critical XSS vulnerability
+    const sanitizedContent = sanitizeHtml(content) || "";
+
+
     return (
         <div
             className={cn(
@@ -192,7 +197,7 @@ export function DocContent({ content, className }: DocContentProps) {
                 className
             )}
             ref={contentRef}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
     );
 }

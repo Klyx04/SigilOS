@@ -505,6 +505,10 @@ export async function searchGuildMembers(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    const { requireGuildMember } = await import("./guards");
+    const guard = await requireGuildMember(discordGuildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
     if (!query || query.length < 2) return { success: true, data: [] };
 
     try {
@@ -610,6 +614,11 @@ export async function checkGuildPermission(
     });
     if (!account) return { allowed: false, error: "No Discord account linked" };
 
+    // Platform Guard: Is the guild allowed/active?
+    const { isGuildAllowed } = await import("./super-admin-actions");
+    const allowedPlatform = await isGuildAllowed(guildId);
+    if (!allowedPlatform) return { allowed: false, error: "This guild is currently deactivated or banned." };
+
     const allowed = await internalCheckPermission(guildId, account.providerAccountId, permission);
 
     if (allowed) return { allowed: true };
@@ -622,6 +631,10 @@ export async function checkGuildPermission(
 export async function getGuildMemberStats(guildId: string) {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
+
+    const { requireGuildMember } = await import("./guards");
+    const guard = await requireGuildMember(guildId);
+    if (!guard.isAuthorized) throw new Error(guard.error || "Prohibited");
 
     // 1. Get Guild Config (for maxMembers)
     const guildConfig = await db.guildConfig.findUnique({

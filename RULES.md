@@ -45,6 +45,53 @@ src/
 
 ---
 
+## 📝 Logging Policy
+
+### Production Logging Rules
+
+**✅ RECOMMENDED:** Use the structured logger ([lib/logger.ts](file:///a:/SigilOS/src/lib/logger.ts))
+
+```typescript
+import { logger } from '@/lib/logger';
+
+// ✅ Development only (auto-hidden in production)
+logger.debug('Debugging info', { userId, guildId });
+logger.info('Mission submitted', { missionId, slotIndex });
+
+// ✅ Always logged (dev + production)
+logger.warn('Rate limit approaching', { userId, remaining: 2 });
+logger.error('Database error', { error: e.message, query });
+```
+
+### Console Rules (Legacy)
+
+| Usage | Status | Alternative |
+|-------|--------|-------------|
+| `console.log()` | ❌ **FORBIDDEN** in production code | Use `logger.debug()` or `logger.info()` |
+| `console.warn()` | ⚠️ Allowed but prefer `logger.warn()` | `logger.warn()` |
+| `console.error()` | ✅ Allowed but prefer `logger.error()` | `logger.error()` |
+
+### Auto-Redaction of Sensitive Data
+
+The logger automatically redacts these keys:
+- `password`, `token`, `secret`, `authorization`, `cookie`, `apiKey`
+
+```typescript
+logger.info('User authenticated', {
+    userId: '123',
+    token: 'abc123',  // ← Auto-redacted to "[REDACTED]"
+    guildId: '456'    // ← OK, not sensitive
+});
+```
+
+**Why use logger?**
+- 🔒 Auto-redacts secrets (prevents token leaks)
+- 📊 Structured JSON in production (ready for Datadog/Grafana)
+- 💾 Saves disk space (~95% reduction in log volume)
+- ✅ RULES.md compliant by default
+
+---
+
 ## 🧪 Before Commit Checklist
 
 - [ ] `npm run build` passes localement
@@ -52,7 +99,7 @@ src/
 - [ ] SIGIL-CI (Robot) s'affiche en vert sur GitHub après le push
 - [ ] All new actions have auth checks
 - [ ] Sensitive routes have permission guards
-- [ ] No `console.log` in production code (use `console.error` for errors only)
+- [ ] No `console.log` in production code (use `logger` from `@/lib/logger`)
 
 ---
 
@@ -170,11 +217,19 @@ await db.guildConfig.delete({ where: { id: guildId } });
 
 ```typescript
 // ❌ NEVER DO THIS
-dangerouslySetInnerHTML
+dangerouslySetInnerHTML  // Use sanitizeHtml() first
 eval()
-$queryRaw()
+$queryRaw()              // Use Prisma type-safe queries
 process.env.SECRET in client component
 fetch without try/catch
+
+// ❌ DEPRECATED (use logger instead)
+console.log('info message')          // → logger.info('info message', { context })
+console.log('debug', { data })       // → logger.debug('debug', { data })
+
+// ⚠️ LEGACY (prefer logger for better tracking)
+console.warn('warning')              // → logger.warn('warning', { context })
+console.error('error')               // → logger.error('error', { context })
 ```
 
 ---

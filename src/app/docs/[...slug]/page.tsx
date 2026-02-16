@@ -50,7 +50,7 @@ export default async function DocPage({ params }: Props) {
     return <DocViewer
         content={doc.content}
         title={doc.title}
-        lastUpdate={doc.updatedAt}
+        lastUpdate={doc.updatedAt.toISOString()}
         canEdit={ctx.isAdmin}
         editUrl={`/god/docs/${doc.id}`}
         prev={prevDoc}

@@ -66,6 +66,23 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // ==========================================================================
+  // 📂 UPLOADS REWRITE
+  // Serves uploaded files (proofs, guilds, docs) via API route in standalone mode.
+  // In dev mode, public/ is served first (higher priority than rewrites).
+  // In Docker (standalone), this catches /uploads/* and routes to the API.
+  // ==========================================================================
+  async rewrites() {
+    return {
+      // 'afterFiles' runs after public/ file check (dev) but catches in standalone
+      afterFiles: [
+        {
+          source: "/uploads/:path*",
+          destination: "/api/uploads/:path*",
+        },
+      ],
+    };
+  },
 };
 
 import { withSentryConfig } from "@sentry/nextjs";

@@ -17,16 +17,8 @@ sigilos.fr {
 beta.sigilos.fr {
     import security_headers
 
-    # Serve uploaded files (proofs, achievements, guilds, ladder) from Docker volume
-    handle /uploads/* {
-        uri strip_prefix /uploads
-        root * /app/public-beta/uploads
-        file_server {
-            pass_thru
-        }
-    }
-
-    # Beta application
+    # All traffic goes to Next.js (including /uploads/* via API route rewrite)
+    # No Caddy file_server needed — Next.js handles uploads via /api/uploads/[...path]
     reverse_proxy sigilos-beta:3000
 }
 

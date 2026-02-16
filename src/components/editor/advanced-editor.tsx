@@ -101,10 +101,10 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
     }
 
     return (
-        <div className="relative border border-white/10 rounded-lg bg-zinc-950/50 flex flex-col min-h-[500px]">
-            {/* TOOLBAR (Visible on top) */}
+        <div className="relative border border-white/10 rounded-2xl bg-zinc-950/50 flex flex-col h-full overflow-hidden shadow-2xl">
+            {/* TOOLBAR (Sticky at top of editor) */}
             {editable && (
-                <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-zinc-900/90 backdrop-blur-md flex-wrap z-20 sticky top-0">
+                <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-zinc-900/95 backdrop-blur-md flex-wrap z-20">
                     <ToolbarButton
                         onClick={() => editor.chain().focus().toggleBold().run()}
                         isActive={editor.isActive("bold")}
@@ -178,6 +178,12 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                     />
                     <ToolbarButton
                         onClick={() => {
+                            const url = window.prompt("Entrez l'URL de l'image (ou laissez vide pour uploader):");
+                            if (url) {
+                                editor.chain().focus().setImage({ src: url }).run();
+                                return;
+                            }
+
                             const input = document.createElement("input");
                             input.type = "file";
                             input.accept = "image/*";
@@ -187,6 +193,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                                     const reader = new FileReader();
                                     reader.onload = (e) => {
                                         const src = e.target?.result as string;
+                                        // On force le layout par défaut pour permettre le resize immédiat
                                         editor.chain().focus().setImage({ src }).run();
                                     };
                                     reader.readAsDataURL(file);
@@ -195,7 +202,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                             input.click();
                         }}
                         icon={ImageIcon}
-                        tooltip="Insérer une image"
+                        tooltip="Insérer une image (Fichier ou URL)"
                     />
                     <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
                     <div className="w-px h-6 bg-white/10 mx-1 ml-auto" />
@@ -219,9 +226,9 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                 <UnifiedBubbleMenu key="unified-editor-menu" editor={editor} />
             )}
 
-            {/* EDITOR CONTENT */}
-            <div className="flex-1 overflow-y-auto cursor-text" onClick={() => editor.chain().focus().run()}>
-                <EditorContent editor={editor} className="h-full" />
+            {/* EDITOR CONTENT (Scrollable area) */}
+            <div className="flex-1 overflow-y-auto cursor-text bg-zinc-950/20" onClick={() => editor.chain().focus().run()}>
+                <EditorContent editor={editor} className="min-h-full pb-32" />
             </div>
 
             <style jsx global>{`
@@ -286,15 +293,7 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
             pluginKey="unified-menu-v3"
             editor={editor}
             className="flex items-center gap-1 overflow-hidden rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-200"
-            // @ts-expect-error - Tiptap types can be strict with tippyOptions
-            tippyOptions={{
-                duration: 100,
-                placement: 'top',
-                offset: [0, 10],
-                zIndex: 50,
-                boundary: 'viewport',
-            }}
-            shouldShow={({ editor, from, to }: any) => {
+            shouldShow={({ from, to }: any) => {
                 // Determine if we should show the menu
                 const isSelection = from !== to;
                 const isImg = editor.isActive("image");

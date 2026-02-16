@@ -260,7 +260,7 @@ export function SuccessSync({
                                 </p>
                                 <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
                                     <img
-                                        src="/uploads/ladder/exemple1.png"
+                                        src="/uploads/ladder/exemple2.png"
                                         alt="Exemple Détourage"
                                         className="w-full h-auto"
                                     />

@@ -7,37 +7,38 @@ import { GripVertical, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 // 1. The React Component for the Node View
 const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewProps) => {
     const [width, setWidth] = useState<number | string>(node.attrs.width || "100%");
-    const [layout, setLayout] = useState<'block' | 'left' | 'right'>(node.attrs.layout || "block");
+    const [layout, setLayout] = useState<'block' | 'left' | 'right' | 'full'>(node.attrs.layout || "block");
     const containerRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
 
-    // Sync local state with node attributes if they change externally (e.g. undo/redo)
     useEffect(() => {
-        setWidth(node.attrs.width);
+        setWidth(node.attrs.width || "100%");
         setLayout(node.attrs.layout || "block");
     }, [node.attrs.width, node.attrs.layout]);
 
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const handleResize = useCallback((e: React.MouseEvent, direction: 'left' | 'right') => {
         e.preventDefault();
         setIsResizing(true);
 
         const startX = e.clientX;
         const startWidth = containerRef.current?.offsetWidth || 0;
 
-        const onMouseMove = (e: MouseEvent) => {
-            const currentX = e.clientX;
-            const diff = currentX - startX;
-            const newWidth = Math.max(100, startWidth + diff); // Min 100px
-            setWidth(`${newWidth}px`);
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const currentX = moveEvent.clientX;
+            const diff = direction === 'right' ? (currentX - startX) : (startX - currentX);
+            const newWidth = Math.max(100, startWidth + diff * 2); // Double for symmetrical scaling if centered
+
+            // If block or full, we limit to container width
+            const maxWidth = containerRef.current?.parentElement?.offsetWidth || 1000;
+            const finalNewWidth = Math.min(maxWidth, newWidth);
+
+            setWidth(`${finalNewWidth}px`);
         };
 
-        const onMouseUp = (e: MouseEvent) => {
+        const onMouseUp = () => {
             setIsResizing(false);
-            const currentX = e.clientX;
-            const diff = currentX - startX;
-            const finalWidth = Math.max(100, startWidth + diff);
-
-            updateAttributes({ width: `${finalWidth}px` });
+            const finalWidth = containerRef.current?.style.width || "100%";
+            updateAttributes({ width: finalWidth });
 
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
@@ -47,45 +48,92 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
         document.addEventListener("mouseup", onMouseUp);
     }, [updateAttributes]);
 
-    const setLayoutMode = (mode: 'block' | 'left' | 'right') => {
-        setLayout(mode);
-        updateAttributes({ layout: mode });
+    const handleLayoutChange = (newLayout: 'block' | 'left' | 'right' | 'full') => {
+        setLayout(newLayout);
+        const attrs: any = { layout: newLayout };
+        if (newLayout === 'full') attrs.width = '100%';
+        updateAttributes(attrs);
     };
 
     return (
         <NodeViewWrapper
             className={cn(
-                "relative leading-none max-w-full my-4 transition-all duration-300",
-                layout === 'left' ? "float-left mr-6 mb-4 clear-left" :
-                    layout === 'right' ? "float-right ml-6 mb-4 clear-right" :
-                        "flex justify-center flex-col items-center clear-both"
+                "relative leading-none max-w-full my-8 flex transition-all duration-300",
+                layout === 'left' ? "justify-start" :
+                    layout === 'right' ? "justify-end" :
+                        "justify-center"
             )}
         >
             <div
                 ref={containerRef}
                 className={cn(
-                    "relative transition-all duration-200 group",
-                    (selected || isResizing) ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-zinc-950 rounded-lg" : ""
+                    "relative group",
+                    layout === 'left' ? "float-left mr-8 mb-4 clear-left" :
+                        layout === 'right' ? "float-right ml-8 mb-4 clear-right" :
+                            layout === 'full' ? "w-full clear-both" : "clear-both",
+                    (selected || isResizing) ? "ring-4 ring-indigo-500/50 rounded-2xl" : ""
                 )}
-                style={{ width: width }}
+                style={{ width: layout === 'full' ? '100%' : width }}
             >
-                {/* Image */}
+                {/* 🖼️ IMAGE */}
                 <img
                     src={node.attrs.src}
-                    alt={node.attrs.alt}
-                    className="rounded-lg object-cover w-full h-auto"
+                    alt={node.attrs.src}
+                    className={cn(
+                        "rounded-2xl object-contain transition-opacity max-h-[70vh] w-full",
+                        isResizing ? "opacity-50" : "opacity-100"
+                    )}
                 />
 
-                {/* Controls (Visible on Selected) */}
+                {/* 🛠️ OVERLAY CONTROLS */}
                 {(selected || isResizing) && (
                     <>
-                        {/* Resize Handle */}
-                        <div
-                            className="absolute bottom-2 right-2 p-1 bg-zinc-900/80 backdrop-blur border border-white/20 rounded-md cursor-ew-resize hover:bg-indigo-500/80 transition-colors shadow-xl z-20"
-                            onMouseDown={handleMouseDown}
-                        >
-                            <GripVertical className="w-4 h-4 text-white" />
+                        {/* Alignment Toolbar */}
+                        <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-30 animate-in fade-in zoom-in-95 duration-200">
+                            {[
+                                { id: 'left', icon: AlignLeft, label: 'Gauche' },
+                                { id: 'block', icon: AlignCenter, label: 'Centré' },
+                                { id: 'right', icon: AlignRight, label: 'Droite' },
+                                { id: 'full', icon: GripVertical, label: 'Pleine Largeur' }
+                            ].map((mode) => (
+                                <button
+                                    key={mode.id}
+                                    onClick={() => handleLayoutChange(mode.id as any)}
+                                    className={cn(
+                                        "p-2 rounded-lg transition-all",
+                                        layout === mode.id ? "bg-indigo-500 text-white" : "text-zinc-400 hover:text-white hover:bg-white/10"
+                                    )}
+                                    title={mode.label}
+                                >
+                                    <mode.icon className="w-4 h-4" />
+                                </button>
+                            ))}
                         </div>
+
+                        {/* Resize Handles (Pro style) */}
+                        {layout !== 'full' && (
+                            <>
+                                <div
+                                    className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    onMouseDown={(e) => handleResize(e, 'right')}
+                                >
+                                    <div className="w-1 h-4 bg-white/40 rounded-full" />
+                                </div>
+                                <div
+                                    className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    onMouseDown={(e) => handleResize(e, 'left')}
+                                >
+                                    <div className="w-1 h-4 bg-white/40 rounded-full" />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Size Label */}
+                        {isResizing && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-900 border border-white/20 rounded-full text-[10px] font-black text-white uppercase tracking-widest">
+                                {typeof width === 'number' ? width : parseInt(width.toString()) || 0}px
+                            </div>
+                        )}
                     </>
                 )}
             </div>

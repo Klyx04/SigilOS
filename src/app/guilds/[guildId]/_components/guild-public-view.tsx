@@ -112,6 +112,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                             fill
                             className="object-cover"
                             priority
+                            unoptimized={true}
                         />
                     ) : (
                         <div className="absolute inset-0 bg-zinc-950" />
@@ -138,6 +139,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                                 alt={`${guild.name} icon`}
                                 fill
                                 className="object-cover"
+                                unoptimized={true}
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-4xl bg-zinc-800 text-zinc-600">
@@ -276,6 +278,7 @@ export function GuildPublicView({ guild, foundedYear }: Props) {
                                         alt={`Photo de la guilde ${guild.name}`}
                                         fill
                                         className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                        unoptimized={true}
                                     />
                                 </div>
                             </section>

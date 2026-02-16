@@ -993,7 +993,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             // Save preview image for staff (light resizing is handled by client or we can do it here)
             // For now we use the raw imageData as it's already limited to 4MB
 
-            const uploadRelativeDir = `uploads/achievements/${guildConfig.discordGuildId}`;
+            const uploadRelativeDir = `uploads/proofs/${guildConfig.discordGuildId}`;
             const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
 

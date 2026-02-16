@@ -109,11 +109,16 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
             success: true,
             data: {
                 ...profile,
+                createdAt: profile.createdAt.toISOString(),
+                updatedAt: profile.updatedAt.toISOString(),
+                lastActivityAt: profile.lastActivityAt?.toISOString() || null,
+                vacationStart: profile.vacationStart?.toISOString() || null,
+                vacationEnd: profile.vacationEnd?.toISOString() || null,
                 pendingSubmission: pendingSubmission ? {
                     id: pendingSubmission.id,
                     points: pendingSubmission.points,
                     ocrScore: pendingSubmission.ocrScore,
-                    createdAt: pendingSubmission.createdAt
+                    createdAt: pendingSubmission.createdAt.toISOString()
                 } : null
             }
         };
@@ -235,6 +240,11 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
             success: true,
             data: {
                 ...profile,
+                createdAt: profile.createdAt.toISOString(),
+                updatedAt: profile.updatedAt.toISOString(),
+                lastActivityAt: profile.lastActivityAt?.toISOString() || null,
+                vacationStart: profile.vacationStart?.toISOString() || null,
+                vacationEnd: profile.vacationEnd?.toISOString() || null,
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
                 discordInfo,
                 validatedMissionsCount,
@@ -608,9 +618,9 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                 weeklyXp,
                 weeklyMissions,
                 lastActivity: profile.lastActivityAt
-                    ? { description: "Dernière activité", date: profile.lastActivityAt }
+                    ? { description: "Dernière activité", date: profile.lastActivityAt.toISOString() }
                     : null,
-                joinedAt,
+                joinedAt: null,
                 isTopContributor,
                 contributorTier,
                 rank
@@ -709,6 +719,11 @@ export async function getGuildMembers(
 
             return {
                 ...p,
+                createdAt: p.createdAt.toISOString(),
+                updatedAt: p.updatedAt.toISOString(),
+                lastActivityAt: p.lastActivityAt?.toISOString() || null,
+                vacationStart: p.vacationStart?.toISOString() || null,
+                vacationEnd: p.vacationEnd?.toISOString() || null,
                 user: { id: p.user.id, name: p.user.name, image: p.user.image },
                 displayName: p.discordNickname || p.pseudoDofus || p.user.name,
                 roleColor: p.discordRoleColor || 0,

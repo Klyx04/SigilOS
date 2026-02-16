@@ -110,7 +110,10 @@ export async function getChangelogEntries(category?: ChangelogCategory) {
             orderBy: { publishedAt: 'desc' }
         });
 
-        return entries;
+        return entries.map(e => ({
+            ...e,
+            publishedAt: e.publishedAt.toISOString()
+        }));
     } catch (error) {
         console.error('[Changelog] Fetch error:', error);
         return [];
@@ -126,7 +129,12 @@ export async function getChangelogEntry(id: string) {
             where: { id }
         });
 
-        return entry;
+        if (!entry) return null;
+
+        return {
+            ...entry,
+            publishedAt: entry.publishedAt.toISOString()
+        };
     } catch (error) {
         console.error('[Changelog] Fetch single error:', error);
         return null;

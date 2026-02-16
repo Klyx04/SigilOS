@@ -89,6 +89,7 @@ const CreateRunSchema = z.object({
     objectives: z.array(z.enum([
         "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
     ])).min(1, "Sélectionnez au moins un objectif"),
+    publishToDiscord: z.boolean().optional(),
 }).refine((data) => {
     // Validate restrictions: DROP_LEGENDE and SUCCES_NO_ACHAT require PARADOXE or CAUCHEMAR
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -177,6 +178,13 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
     });
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+
+    // Publish to Discord if requested
+    if (validated.data.publishToDiscord) {
+        const { publishDiscordRun } = await import("@/server/songes-service");
+        await publishDiscordRun(ctx.guildId, run.id);
+    }
+
     return { success: true, runId: run.id };
 }
 
@@ -373,6 +381,11 @@ export async function leaveDreamRun(guildId: string, runId: string) {
         }
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+
+        // Update Discord embed if it exists
+        const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+        await updateDiscordRunEmbed(ctx.guildId, runId);
+
         return { success: true };
     }
 
@@ -926,6 +939,10 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
                 link: `/dashboard/${request.run.guildId}/songes/${request.runId}`,
             },
         });
+
+        // Update Discord embed
+        const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+        await updateDiscordRunEmbed(request.run.guildId, request.runId);
     } else {
         // Reject
         await db.dreamJoinRequest.update({
@@ -1044,6 +1061,10 @@ export async function kickMember(guildId: string, runId: string, targetUserId: s
             }),
         ]);
     }
+
+    // Update Discord embed
+    const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+    await updateDiscordRunEmbed(ctx.guildId, runId);
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };

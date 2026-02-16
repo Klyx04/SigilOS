@@ -59,6 +59,6 @@ fi
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."
 # Exécution via Docker pour avoir toutes les dépendances
 # Note: --execute est nécessaire pour passer du dry-run à la suppression réelle
-sudo docker exec sigilos-prod npx tsx scripts/database-janitor.ts --execute
+sudo docker exec sigilos-prod node scripts/database-janitor.js --execute
 
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"

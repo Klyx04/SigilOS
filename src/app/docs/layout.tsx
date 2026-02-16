@@ -22,8 +22,8 @@ export default async function DocsLayout({
     }
 
     // Fetch user's guilds to establish context for documentation
-    const { getUserGuilds } = await import("@/server/actions/guild-actions");
-    const userGuilds = await getUserGuilds(session.user.id);
+    const { getUserGuilds } = await import("@/server/actions/user-actions");
+    const userGuilds = await getUserGuilds();
 
     // Use first guild as context (shows global docs + that guild's specific docs)
     // If user has no guilds, guildId will be undefined (shows only global docs)

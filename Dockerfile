@@ -42,6 +42,9 @@ RUN \
 # Build seeds
 RUN npm run build:seeds
 
+# Build maintenance scripts
+RUN npm run build:maintenance
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -64,6 +67,8 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# Ensure compiled maintenance script is also available explicitly if needed, 
+# although copying the whole folder might cover it.
 # Copy bundled seeds
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/

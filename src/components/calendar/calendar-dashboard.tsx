@@ -176,6 +176,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
         const result = await deleteCalendarEvent(guildId, selectedEventId);
         if (result.success) {
             toast.success("Événement supprimé");
+            // Clear both event data AND selection simultaneously to prevent
+            // the modal from rendering with stale/deleted event data (hydration error)
+            setSelectedEvent(null);
             setSelectedEventId(null);
             fetchEvents();
         } else {

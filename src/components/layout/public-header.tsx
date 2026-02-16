@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -15,6 +16,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
     { label: "Annuaire", href: "/guilds", id: "annuaire" },
     { label: "Changelog", href: "/changelog", id: "changelog" },
+    { label: "Documentation", href: "/docs", id: "docs" },
     { label: "Status", href: "/status", id: "status" },
 ];
 
@@ -31,10 +33,42 @@ interface PublicHeaderProps {
     variant?: "hero" | "standard";
     /** Custom dashboard link */
     dashboardHref?: string;
+    /** Whether the user is an authorized guild member */
+    isMember?: boolean;
 }
 
-export function PublicHeader({ activePage, backHref, backLabel, user, variant = "standard", dashboardHref = "/dashboard" }: PublicHeaderProps) {
+export function PublicHeader({ activePage, backHref, backLabel, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp }: PublicHeaderProps) {
     const isHero = variant === "hero";
+
+    const [isMember, setIsMember] = useState(isMemberProp ?? false);
+
+    useEffect(() => {
+        if (isMemberProp !== undefined) {
+            setIsMember(isMemberProp);
+            return;
+        }
+
+        async function checkMembership() {
+            if (!user) {
+                setIsMember(false);
+                return;
+            }
+            try {
+                const { getUserContext } = await import("@/server/actions/user-actions");
+                const ctx = await getUserContext();
+                setIsMember(ctx.isMember);
+            } catch {
+                setIsMember(false);
+            }
+        }
+        checkMembership();
+    }, [user, isMemberProp]);
+
+    // Filter navigation based on access
+    const filteredNav = NAV_ITEMS.filter(item => {
+        if (item.id === "docs") return isMember;
+        return true;
+    });
 
     return (
         <header className={`
@@ -43,8 +77,8 @@ export function PublicHeader({ activePage, backHref, backLabel, user, variant = 
             ${isHero ? "bg-transparent" : "bg-black/60 backdrop-blur-3xl backdrop-saturate-150 border-b border-white/10"}
             transition-all duration-500
         `}>
-            <div className="max-w-7xl mx-auto px-6 md:px-8">
-                <div className="flex items-center justify-between h-16 md:h-20">
+            <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
+                <div className="flex items-center justify-between h-24 md:h-28">
 
                     {/* Left: Brand + Nav */}
                     <div className="flex items-center gap-10">
@@ -65,21 +99,23 @@ export function PublicHeader({ activePage, backHref, backLabel, user, variant = 
 
                         {/* Desktop Nav */}
                         <nav className="hidden lg:flex items-center gap-1">
-                            {NAV_ITEMS.map((item) => {
+                            {filteredNav.map((item) => {
                                 const isActive = activePage === item.id;
                                 return (
                                     <Link
                                         key={item.id}
                                         href={item.href}
                                         className={`
-                                            px-4 py-2 rounded-lg text-xs font-black transition-all duration-300 uppercase tracking-[0.1em]
+                                            relative px-7 py-3.5 rounded-xl text-base font-black transition-all duration-300 tracking-[0.15em] uppercase
                                             ${isActive
-                                                ? "text-white bg-white/10 shadow-[0_0_20px_rgba(255,255,255,0.1)] border border-white/5"
-                                                : "text-zinc-500 hover:text-white hover:bg-white/5"
+                                                ? "text-white bg-white/10 shadow-[0_0_25px_rgba(255,255,255,0.1)] border border-white/15"
+                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
                                             }
+                                            group/nav
                                         `}
                                     >
                                         {item.label}
+                                        <span className={`absolute bottom-2 left-7 right-7 h-1 bg-purple-500 rounded-full scale-x-0 group-hover/nav:scale-x-100 transition-transform duration-500 ${isActive ? 'hidden' : ''}`} />
                                     </Link>
                                 );
                             })}
@@ -101,15 +137,15 @@ export function PublicHeader({ activePage, backHref, backLabel, user, variant = 
                                 {activePage !== "dashboard" && (
                                     <Link
                                         href={dashboardHref}
-                                        className="hidden md:flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-white/10"
+                                        className="hidden md:flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest transition-all hover:scale-105 hover:bg-zinc-100 shadow-xl shadow-white/5 active:scale-95"
                                     >
-                                        <LayoutDashboard className="w-3.5 h-3.5" />
+                                        <LayoutDashboard className="w-4 h-4" />
                                         Dashboard
                                     </Link>
                                 )}
                                 <Link
                                     href="/api/auth/signout"
-                                    className="p-2.5 rounded-lg bg-zinc-900/80 hover:bg-red-500/10 border border-white/10 hover:border-red-500/50 text-zinc-500 hover:text-red-400 transition-all"
+                                    className="p-3 rounded-xl bg-zinc-900/80 hover:bg-red-500/10 border border-white/10 hover:border-red-500/50 text-zinc-500 hover:text-red-400 transition-all active:scale-95"
                                     title="Se déconnecter"
                                 >
                                     <LogOut className="w-4 h-4" />
@@ -118,7 +154,7 @@ export function PublicHeader({ activePage, backHref, backLabel, user, variant = 
                         ) : (
                             <button
                                 onClick={() => loginWithDiscord()}
-                                className="px-6 py-2.5 rounded-full bg-white text-black hover:bg-zinc-200 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-white/10"
+                                className="px-8 py-3 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-white/5 active:scale-95"
                             >
                                 Se connecter
                             </button>

@@ -2,12 +2,12 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import Link from "next/link";
-import { Home, Book, Terminal, FileText, Layout } from "lucide-react";
-import { getAllDocs } from "@/server/actions/doc-actions";
+import { Home, Book, Terminal, FileText, Layout, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { ResizableSidebar } from "./_components/resizable-sidebar";
 import { DocsSearch } from "@/components/doc/docs-search";
 import { cn } from "@/lib/utils";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 export default async function DocsLayout({
     children,
@@ -16,13 +16,48 @@ export default async function DocsLayout({
 }) {
     const session = await auth();
 
-    // 🔒 Security: Require Auth
+    // 🔒 Security: Require Auth & Guild Membership
     if (!session?.user?.id) {
         redirect("/api/auth/signin?callbackUrl=/docs");
     }
 
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const user = await getUserContext();
+
+    if (!user.isMember) {
+        return (
+            <div className="relative min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-center overflow-hidden">
+                <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(168,85,247,0.1),transparent_50%)]" />
+
+                <div className="relative z-10">
+                    <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-red-500/20 to-rose-500/10 border border-red-500/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/10">
+                        <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight uppercase">
+                        Accès <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400">Réservé</span>
+                    </h1>
+                    <p className="text-zinc-400 max-w-lg mx-auto text-lg leading-relaxed mb-10 font-medium">
+                        Le centre de documentation est exclusivement réservé aux membres des guildes partenaires du projet SigilOS.
+                    </p>
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-black font-black uppercase text-xs tracking-[0.2em] hover:scale-105 transition-all shadow-2xl shadow-white/10 active:scale-95 group"
+                    >
+                        Retour à l'accueil
+                        <div className="w-5 h-5 rounded-full bg-black/5 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                            <Home className="w-3 h-3" />
+                        </div>
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
     // Get guildId from session if available, or fallback to default
     const guildId = (session?.user as any)?.guildId || process.env.DISCORD_GUILD_ID;
+
+    const { getAllDocs } = await import("@/server/actions/doc-actions");
     const allDocs = await getAllDocs(guildId);
 
     // Group docs by category
@@ -37,7 +72,7 @@ export default async function DocsLayout({
 
     return (
         <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-purple-500/30 flex flex-col">
-            <PublicHeader user={session?.user} dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"} />
+            <PublicHeader user={session?.user} isMember={user.isMember} dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"} />
 
             <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-32 flex flex-col lg:flex-row gap-8">
                 {/* Sidebar Navigation */}

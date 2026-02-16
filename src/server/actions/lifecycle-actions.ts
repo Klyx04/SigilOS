@@ -229,14 +229,11 @@ export async function handleGdprDeletionRequest() {
     const userId = session.user.id;
 
     try {
-        console.log(`[GDPR Deletion] Starting deletion for user ${userId}`);
-
         // Get Discord ID for correct owner check
         const account = await db.account.findFirst({
             where: { userId, provider: "discord" }
         });
         const discordId = account?.providerAccountId;
-        console.log(`[GDPR Deletion] Discord ID found: ${discordId || 'None'}`);
 
         // Get all guilds where this user is active
         const userProfiles = await db.userProfile.findMany({
@@ -264,7 +261,6 @@ export async function handleGdprDeletionRequest() {
                         where: { id: profile.guild.id },
                         data: { ownerId: currentOwnerId } as any
                     });
-                    console.log(`[GDPR Deletion] Updated missing ownerId for guild ${profile.guild.name}: ${currentOwnerId}`);
                 } catch (err) {
                     console.error(`[GDPR Deletion] Failed to fetch owner from Discord for ${profile.guild.name}:`, err);
                 }
@@ -291,7 +287,6 @@ export async function handleGdprDeletionRequest() {
                         guildName: profile.guild.name
                     }
                 });
-                console.log(`[GDPR Deletion] 📝 Audit log created for guild ${profile.guild.name}`);
             } catch (auditErr) {
                 console.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
                 // Don't block deletion if audit log fails, but it's bad
@@ -311,7 +306,6 @@ export async function handleGdprDeletionRequest() {
             where: { id: userId }
         });
 
-        console.log(`[GDPR Deletion] ✅ User ${userId} successfully deleted`);
         return { success: true };
     } catch (e: any) {
         console.error("[GDPR Deletion] FATAL:", e);

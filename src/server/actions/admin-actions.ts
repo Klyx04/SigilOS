@@ -612,6 +612,15 @@ export async function updateDofusServer(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // 🔒 SECURITY FIX: Add admin authorization check
+    // Ref: Security Audit Report #2 - Authorization bypass vulnerability
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) {
+        console.warn(`[Security] updateDofusServer blocked: ${guard.error} for user ${session.user.id}`);
+        return { success: false, error: guard.error || "Admin required" };
+    }
+
     // Validation
     const validation = DofusConfigSchema.safeParse({ guildId, serverId }); // Legacy validation
 

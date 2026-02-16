@@ -45,6 +45,7 @@
   --animate-aurora: aurora 60s linear infinite;
   --animate-border-beam: border-beam calc(var(--duration)*1s) infinite linear;
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
 
   @keyframes aurora {
     from {
@@ -59,6 +60,15 @@
   @keyframes border-beam {
     100% {
       offset-distance: 100%;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
     }
   }
 }

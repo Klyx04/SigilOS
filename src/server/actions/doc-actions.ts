@@ -57,7 +57,19 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
         // Guild Isolation Check
         if ((doc as any).guildId && (doc as any).guildId !== guildId) return null;
 
-        return doc as unknown as DocPageData;
+        return {
+            id: (doc as any).id,
+            slug: (doc as any).slug,
+            title: (doc as any).title,
+            content: (doc as any).content,
+            category: (doc as any).category,
+            order: (doc as any).order,
+            isPublished: (doc as any).isPublished,
+            accessLevel: (doc as any).accessLevel,
+            guildId: (doc as any).guildId,
+            updatedAt: (doc as any).updatedAt,
+            createdAt: (doc as any).createdAt
+        } as unknown as DocPageData;
     } catch (error) {
         console.error("Error fetching doc:", error);
         return null;
@@ -111,7 +123,19 @@ export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "c
         });
 
         const end = performance.now();
-        return docs as any;
+
+        // Explicit mapping to ensure absolute serialization safety
+        // Prevents any hidden internal Prisma properties from leaking to Client Components
+        return docs.map((doc: any) => ({
+            id: doc.id,
+            slug: doc.slug,
+            title: doc.title,
+            category: doc.category,
+            order: doc.order,
+            isPublished: doc.isPublished,
+            accessLevel: doc.accessLevel,
+            guildId: doc.guildId
+        }));
     } catch (error) {
         logger.error("Error fetching all docs", { error, guildId });
         return [];

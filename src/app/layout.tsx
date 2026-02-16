@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fr_FR",
-    url: "https://sigilos.fr",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr",
     siteName: "SigilOS",
     images: [
       {

@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
 
             if (name === "status") {
                 try {
-                    const baseUrl = process.env.NEXTAUTH_URL || "https://sigilos.fr";
+                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://sigilos.fr";
                     const healthRes = await fetch(`${baseUrl}/api/health`);
                     const health = await healthRes.json();
 

@@ -73,7 +73,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     if (!run) return null;
 
     const diffConfig = DIFFICULTY_CONFIG[run.difficulty] || { emoji: "🌙", color: 0x9333ea, label: run.difficulty };
-    const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    // Robust URL detection: prioritize app URL but fallback to NextAuth URL
+    const publicUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://sigilos.fr";
     const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
     // Get leader name

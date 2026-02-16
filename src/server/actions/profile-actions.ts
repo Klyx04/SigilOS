@@ -504,8 +504,8 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     guildatons: number;
     missionsValidated: number;
     weeklyMissions: number;
-    lastActivity: { description: string; date: Date } | null;
-    joinedAt: Date | null;
+    lastActivity: { description: string; date: string | Date } | null;
+    joinedAt: string | Date | null;
     isTopContributor: boolean;
     contributorTier: ContributorTier;
     rank?: number;

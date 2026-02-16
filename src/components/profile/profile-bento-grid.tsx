@@ -56,8 +56,8 @@ interface ProfileBentoGridProps {
         weeklyXp: number;
         missionsValidated: number;
         weeklyMissions: number;
-        joinedAt: Date | null;
-        lastActivity: { description: string; date: Date } | null;
+        joinedAt: string | Date | null;
+        lastActivity: { description: string; date: string | Date } | null;
         isTopContributor: boolean;
         contributorTier?: ContributorTier;
         rank?: number;

@@ -518,7 +518,7 @@ export async function submitMissionProof(
             .toBuffer();
 
         // 4. Save proof image (Always .webp now)
-        const uploadRelativeDir = `uploads/missions/${mission.guild.discordGuildId}`;
+        const uploadRelativeDir = `uploads/proofs/${mission.guild.discordGuildId}`;
         const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
         await mkdir(uploadDir, { recursive: true });
 

@@ -1,10 +1,38 @@
-# 🎮 Seeding Robustness & CI Compliance — SigilOS
+# 🎮 Beta Launch Sprint Phase 9 (GOD & Core) — SigilOS
 
-**Date** : 2026-02-15  
-**Branche Actuelle** : `dev` (Mergié)  
-**Status** : ✅ Seeding Robust (Bundled), CI 100% Green, P2003 Resolved
+**Date** : 2026-02-16  
+**Branche Actuelle** : `dev`  
+**Status** : ✅ Phase 9 Complete. Ready for Phase 10 (Coolify).
 
 ---
+
+## 🎯 Objectifs Complétés: Beta Launch Sprint Phase 9 (GOD & Core)
+
+### 1. 🏰 GOD Dashboard & Guild Engine
+- ✅ **Unified Management**: Fusion de la Whitelist et des Guildes Actives dans un "Guild Engine" unique.
+- ✅ **Contextual Actions**: Dropdown intelligent s'adaptant au statut de la guilde (Whitelisted vs Onboarded).
+- ✅ **Whitelist Modal**: Action maître pour autoriser de nouvelles guildes via ID Discord.
+- ✅ **Visibility**: Restauration des tags Tier (Beta/Premium) et des notes internes dans le tableau.
+
+### 2. 🔌 Discord Platform Integration (Dev Portal Fix)
+- ✅ **Interactions API**: Refonte complète du handler `api/discord/interactions/route.ts`.
+- ✅ **Dev Portal Resolution**: Support du Type 1 (PONG) pour validation de l'URL dans le portail développeur.
+- ✅ **Songes Modals**: Le bouton "Postuler" ouvre maintenant une Modal Discord pour la saisie de classe/message.
+- ✅ **Validation API**: Vérification temps réel de la validité de la classe saisie dans Discord.
+- ✅ **Rate Limiting**: Protection in-memory contre le spam de boutons (10/min) et de modals (5/5min).
+- ✅ **Embed Fixes**: Correction des liens morts et des échecs d'interaction via URLs Absolues (HTTPS).
+
+### 3. 📊 Aesthetics & Visualization
+- ✅ **Activity Chart 2.0**: Redessiné avec des courbes Monotone, des dégradés et un double axe (Pulse & Growth).
+- ✅ **UI Polishing**: Transitions fluides et tooltips floutés sur le dashboard GOD.
+
+### 4. 🧹 Stability & Maintenance
+- ✅ **Maintenance Fix**: Compilation de `database-janitor.ts` en `.js` pour corriger les erreurs Docker en production.
+- ✅ **Docs Access**: Fix du bug RBAC en synchronisant l'utilisation des IDs Discord (Snowflake).
+- ✅ **Build Status**: Build Next.js 100% réussi localement.
+
+---
+
 
 ## 🎯 Objectifs Complétés (Session Actuelle)
 

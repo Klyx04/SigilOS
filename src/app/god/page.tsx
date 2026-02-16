@@ -24,7 +24,6 @@ import {
 import { LiveStats } from "./components/live-stats";
 import { GuildTable } from "./components/guild-table";
 import { LifecyclePanel } from "./components/lifecycle-panel";
-import { GuildManager } from "./guild-manager";
 import { ActivityChart } from "./activity-chart";
 import { JanitorButton } from "./janitor-button";
 import { UserList } from "./user-list";
@@ -135,23 +134,6 @@ export default async function SuperAdminPage() {
                                 <GlobalLogsServer />
                             </Suspense>
                         </div>
-
-                        {/* Access Control (Whitelist) */}
-                        <div className="space-y-8 mt-12">
-                            <div className="flex flex-col gap-2">
-                                <h3 className="text-xl font-black text-white uppercase tracking-widest">
-                                    🔐 Access Whitelist
-                                </h3>
-                                <p className="text-sm text-zinc-500">
-                                    Gestion des guildes autorisées sur l'environnement plateforme.
-                                </p>
-                            </div>
-                            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
-                                    <AccessControlServer />
-                                </Suspense>
-                            </div>
-                        </div>
                     </div>
                 }
                 systems={
@@ -222,13 +204,6 @@ async function GlobalLogsServer() {
             </div>
         </div>
     );
-}
-
-// Server Components (streaming)
-
-async function AccessControlServer() {
-    const allowedGuilds = await getAllowedGuilds();
-    return <GuildManager initialGuilds={allowedGuilds} />;
 }
 
 async function LiveStatsServer() {
@@ -310,40 +285,72 @@ async function GhostUsersServer() {
 
 async function GuildsServer() {
     const { getAllowedGuilds } = await import("@/server/actions/super-admin-actions");
-    const guilds = await getAllowedGuilds();
+    const { db } = await import("@/lib/prisma");
 
-    // Transform to match GuildTable interface
-    const guildsWithCounts = await Promise.all(
-        guilds.map(async (guild) => {
-            const { db } = await import("@/lib/prisma");
-            const profilesCount = await db.userProfile.count({
-                where: { guild: { discordGuildId: guild.discordGuildId } }
-            });
-
-            // Get GuildConfig if exists (basic fields only - lifecycle fields added via migration)
-            const guildConfig = await db.guildConfig.findUnique({
-                where: { discordGuildId: guild.discordGuildId }
-            });
-
-            return {
-                id: guildConfig?.id || guild.id,
-                name: guildConfig?.name || guild.name || "Unknown",
-                discordGuildId: guild.discordGuildId,
-                iconUrl: guildConfig?.iconUrl || null,
-                isActive: guild.isActive,
-                deletedAt: (guildConfig as any)?.deletedAt || null,
-                deletionReason: (guildConfig as any)?.deletionReason || null,
-                scheduledDeletion: (guildConfig as any)?.scheduledDeletion || null,
-                createdAt: guildConfig?.createdAt || guild.addedAt,
-                maxMembers: (guildConfig as any)?.maxMembers || 350,
+    const [allowedGuilds, onboardedConfigs] = await Promise.all([
+        getAllowedGuilds(),
+        db.guildConfig.findMany({
+            include: {
                 _count: {
-                    profiles: profilesCount
+                    select: { profiles: true }
                 }
-            };
+            }
         })
-    );
+    ]);
 
-    return <GuildTable guilds={guildsWithCounts} />;
+    // Create a map for quick lookup
+    const configMap = new Map(onboardedConfigs.map(c => [c.discordGuildId, c]));
+
+    // Merge logic: Start with whitelisted guilds, then add any onboarded that might have been lost (safety)
+    const whitelistedIds = new Set(allowedGuilds.map(g => g.discordGuildId));
+
+    const mergedGuilds = allowedGuilds.map(allowed => {
+        const config = configMap.get(allowed.discordGuildId);
+        return {
+            id: config?.id || allowed.id,
+            name: config?.name || allowed.name || "En attente...",
+            discordGuildId: allowed.discordGuildId,
+            iconUrl: config?.iconUrl || null,
+            isActive: allowed.isActive && (config ? config.isActive : true),
+            deletedAt: (config as any)?.deletedAt || null,
+            deletionReason: (config as any)?.deletionReason || null,
+            scheduledDeletion: (config as any)?.scheduledDeletion || null,
+            createdAt: config?.createdAt || allowed.addedAt,
+            maxMembers: (config as any)?.maxMembers || 350,
+            isWhitelistOnly: !config,
+            notes: allowed.notes,
+            tier: allowed.tier,
+            _count: {
+                profiles: config?._count.profiles || 0
+            }
+        };
+    });
+
+    // Add onboarded guilds that aren't in whitelist (shouldn't happen but for stability)
+    onboardedConfigs.forEach(config => {
+        if (!whitelistedIds.has(config.discordGuildId)) {
+            mergedGuilds.push({
+                id: config.id,
+                name: config.name || "Unknown",
+                discordGuildId: config.discordGuildId,
+                iconUrl: config.iconUrl,
+                isActive: config.isActive,
+                deletedAt: (config as any).deletedAt || null,
+                deletionReason: (config as any).deletionReason || null,
+                scheduledDeletion: (config as any).scheduledDeletion || null,
+                createdAt: config.createdAt,
+                maxMembers: (config as any).maxMembers || 350,
+                isWhitelistOnly: false,
+                notes: "Configuration orpheline (Non whitelisted)",
+                tier: "BETA", // Default for orphan configs
+                _count: {
+                    profiles: config._count.profiles
+                }
+            });
+        }
+    });
+
+    return <GuildTable guilds={mergedGuilds} />;
 }
 
 async function LifecycleServer() {

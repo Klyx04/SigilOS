@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
+import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -65,7 +66,7 @@ export async function validateGuildOwnership(userId: string, discordGuildId: str
     });
 
     if (!profile) {
-        console.error(`[Security] Deep Isolation Violation: User ${userId} tried to access guild ${discordGuildId}`);
+        logger.error(`[Security] Deep Isolation Violation: User ${userId} tried to access guild ${discordGuildId}`);
         throw new Error("Violation d'isolation multi-tenant. Action bloquée.");
     }
 
@@ -88,7 +89,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
     const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
     const allowed = await isGuildAllowed(effectiveGuildId);
     if (!allowed) {
-        console.warn(`[Security] Blocked access to unauthorized guild: ${effectiveGuildId}`);
+        logger.warn(`[Security] Blocked access to unauthorized guild: ${effectiveGuildId}`);
         return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
     }
 
@@ -120,7 +121,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         where: { discordId: discordUserId }
     });
     if (platformBan && platformBan.entityType === "USER") {
-        console.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
+        logger.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
         return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
     }
 
@@ -212,7 +213,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
             }
 
             if (isBanned) {
-                // console.log(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
+                logger.info(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
@@ -237,7 +238,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
                     }
                 });
             } else {
-                // console.log(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
+                logger.info(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
@@ -275,7 +276,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
             const maxMembers = (guildConfig as any).maxMembers || 350;
 
             if (activeMemberCount >= maxMembers) {
-                console.warn(`[Capacity] Blocked onboarding for user ${session.user.id} in guild ${guildConfig.id}: Capacity Reached (${activeMemberCount}/350)`);
+                logger.warn(`[Capacity] Blocked onboarding for user ${session.user.id} in guild ${guildConfig.id}: Capacity Reached (${activeMemberCount}/${maxMembers})`);
                 return {
                     isAuthenticated: true,
                     id: session.user.id,
@@ -320,9 +321,9 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
                         lastActivityAt: now,
                     }
                 });
-                // console.log(`[UserContext] Profile synchronized for ${session.user.id}`);
+                logger.info(`[UserContext] Profile synchronized for ${session.user.id}`, { guildId: guildConfig.id });
             } catch (e) {
-                console.error("[UserContext] Failed to sync profile:", e);
+                logger.error("[UserContext] Failed to sync profile:", { error: e instanceof Error ? e.message : String(e) });
                 // Fallback: try to fetch it one last time if upsert failed weirdly
                 if (!profile) {
                     profile = await db.userProfile.findUnique({

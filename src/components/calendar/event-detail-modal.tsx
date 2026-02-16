@@ -381,7 +381,7 @@ export function EventDetailModal({
                                                 {metamobCreator}
                                             </span>
                                         </div>
-                                    ) : (
+                                    ) : event.creator ? (
                                         <div className="flex items-center gap-2">
                                             <Avatar className="h-5 w-5 border border-zinc-700">
                                                 <AvatarImage src={event.creator.image || undefined} />
@@ -393,6 +393,8 @@ export function EventDetailModal({
                                                 {event.creator.name || "Inconnu"}
                                             </span>
                                         </div>
+                                    ) : (
+                                        <span className="text-zinc-500">Inconnu</span>
                                     )
                                 }
                             />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -18,6 +18,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
@@ -25,8 +26,8 @@ import { useRouter } from "next/navigation";
 export function CreateRunButton({ guildId }: { guildId: string }) {
     const [open, setOpen] = useState(false);
     const [difficulty, setDifficulty] = useState<DifficultyKey>("REVE_III");
-    // Change to array
     const [objectives, setObjectives] = useState<ObjectiveKey[]>([]);
+    const [publishToDiscord, setPublishToDiscord] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -39,12 +40,11 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
         setError(null);
 
         startTransition(async () => {
-            // Send array to server action
-            const result = await createDreamRun(guildId, { difficulty, objectives });
+            const result = await createDreamRun(guildId, { difficulty, objectives, publishToDiscord });
 
             if (result.success) {
                 setOpen(false);
-                setObjectives([]); // Reset
+                setObjectives([]);
                 router.refresh();
             } else {
                 setError(result.error || "Erreur inconnue");
@@ -62,9 +62,8 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
 
     const isParadoxeOrMore = difficulty.startsWith("PARADOXE") || difficulty.startsWith("CAUCHEMAR");
 
-    // Filter objectives based on difficulty
     const availableObjectives = Object.entries(OBJECTIVES).filter(([key]) => {
-        if (key === "FUN") return false; // Hide FUN as requested
+        if (key === "FUN") return false;
         if (key === "DROP_LEGENDE" || key === "SUCCES_NO_ACHAT") {
             return isParadoxeOrMore;
         }
@@ -93,7 +92,6 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                         <Label className="text-purple-200">Difficulté</Label>
                         <Select value={difficulty} onValueChange={(v) => {
                             setDifficulty(v as DifficultyKey);
-                            // Clear restricted objectives if difficulty drops below Paradoxe
                             const isNewParadoxe = v.startsWith("PARADOXE") || v.startsWith("CAUCHEMAR");
                             if (!isNewParadoxe) {
                                 setObjectives(prev => prev.filter(o => o !== "DROP_LEGENDE" && o !== "SUCCES_NO_ACHAT"));
@@ -125,7 +123,7 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                         </Select>
                     </div>
 
-                    {/* Objective */}
+                    {/* Objectives */}
                     <div className="space-y-2">
                         <Label className="text-purple-200">Objectifs (Choix multiple)</Label>
                         <div className="grid grid-cols-1 gap-2">
@@ -152,6 +150,22 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                                 );
                             })}
                         </div>
+                    </div>
+
+                    {/* Discord Publish Toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-purple-500/20 bg-purple-900/20">
+                        <div className="flex items-center gap-3">
+                            <MessageSquare className="w-5 h-5 text-[#5865F2]" />
+                            <div>
+                                <p className="text-sm font-medium text-purple-100">Publier sur Discord</p>
+                                <p className="text-xs text-purple-400">Embed avec boutons rejoindre/quitter</p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={publishToDiscord}
+                            onCheckedChange={setPublishToDiscord}
+                            className="data-[state=checked]:bg-[#5865F2]"
+                        />
                     </div>
 
                     {/* Error */}

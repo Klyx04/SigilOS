@@ -38,8 +38,8 @@ export default async function GodLayout({ children }: { children: React.ReactNod
             <div className="flex-1 flex flex-col md:pl-[240px] h-full overflow-hidden">
 
                 {/* Main Content Area - Layout control */}
-                <main className="flex-1 relative flex flex-col h-full overflow-hidden">
-                    <div className="flex-1 flex flex-col h-full">
+                <main className="flex-1 relative flex flex-col h-full overflow-y-auto overflow-x-hidden">
+                    <div className="flex-1 flex flex-col">
                         {/* Page Content */}
                         <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500 slide-in-from-bottom-4">
                             {children}

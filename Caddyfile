@@ -17,15 +17,19 @@ sigilos.fr {
 beta.sigilos.fr {
     import security_headers
 
-    # Serve uploaded files (proofs, achievements, guilds) from Docker volume
-    handle_path /uploads/* {
+    # Serve uploaded files (proofs, achievements, guilds, ladder) from Docker volume
+    handle /uploads/* {
+        uri strip_prefix /uploads
         root * /app/public-beta/uploads
-        file_server
+        file_server {
+            pass_thru
+        }
     }
 
     # Beta application
     reverse_proxy sigilos-beta:3000
 }
+
 
 monitor.sigilos.fr {
     import security_headers

@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' blob: data: https://cdn.discordapp.com https://media.discordapp.net https://metamob.fr https://www.metamob.fr https://api.dofusdu.de https://api.dofusdb.fr",
+              "img-src 'self' blob: data: https:",
               "font-src 'self' https://fonts.gstatic.com",
               "connect-src 'self' https://discord.com https://api.metamob.fr https://tesseract.projectnaptha.com https://cdn.jsdelivr.net https://unpkg.com https://api.dofusdb.fr",
               "worker-src 'self' blob:",

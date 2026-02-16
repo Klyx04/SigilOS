@@ -33,6 +33,11 @@ git pull origin $(git rev-parse --abbrev-ref HEAD)
 if [ "$TARGET" == "beta" ]; then
     echo "🧪 Mise à jour du laboratoire BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta discord-bot-beta
+
+    # Reload Caddy config (Caddyfile may have changed)
+    echo "🔄 Rechargement de la configuration Caddy..."
+    sudo docker exec sigilos-gateway caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
+
     echo "🧹 Synchronisation des migrations BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma migrate deploy
     echo "🌱 Seeding des données de jeu BÊTA..."

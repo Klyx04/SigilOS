@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext, ActionResponse } from "@/server/actions/user-actions";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 // --- TYPES ---
 
@@ -110,10 +111,9 @@ export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "c
         });
 
         const end = performance.now();
-        console.log(`[getAllDocs] Fetched ${docs.length} docs in ${end - start}ms`);
         return docs as any;
     } catch (error) {
-        console.error("Error fetching all docs:", error);
+        logger.error("Error fetching all docs", { error, guildId });
         return [];
     }
 }

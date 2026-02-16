@@ -22,6 +22,10 @@ export default async function Home({
   const info = await searchParams;
   const guilds = await getPublicGuilds();
 
+  // Get user context for membership check
+  const { getUserContext } = await import("@/server/actions/user-actions");
+  const userContext = await getUserContext();
+
   // Handle Auth Errors (redirect to custom error page)
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
@@ -35,7 +39,7 @@ export default async function Home({
 
 
 
-        <PublicHeader user={session?.user} variant="hero" />
+        <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
           <SaasHero user={session?.user} />

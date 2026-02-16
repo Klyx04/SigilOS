@@ -6,7 +6,6 @@ const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
     const { nextUrl } = req
-    console.log(`[Middleware] Request: ${nextUrl.pathname}`);
 
     // On détecte la bêta via le hostname pour être infaillible
     const isBeta = nextUrl.hostname.includes('beta')

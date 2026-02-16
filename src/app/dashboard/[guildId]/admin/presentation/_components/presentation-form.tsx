@@ -58,12 +58,13 @@ type Props = {
 };
 
 // Validation helpers
-const PSEUDO_REGEX = /^[\w\-À-ÿ]{2,30}$/;
 const DISCORD_URL_REGEX = /^https?:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
 
+// Only block HTML injection - allow all other characters
 const validatePseudo = (value: string): boolean => {
     if (!value) return true; // Empty is ok (optional)
-    return PSEUDO_REGEX.test(value);
+    // Block HTML special chars only
+    return !/[<>"'&]/.test(value);
 };
 
 const validateDiscordUrl = (value: string): boolean => {

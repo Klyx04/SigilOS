@@ -52,12 +52,11 @@ export function MemberSelector({
     const handleCustomInput = () => {
         if (!inputValue) return;
 
-        // Strict validation: No numbers, no accents, no special chars (except hyphen)
-        const isValid = /^[a-zA-Z-]+$/.test(inputValue);
+        // Only block HTML injection characters - everything else is allowed
+        const hasHtmlChars = /[<>"'&]/.test(inputValue);
 
-        if (!isValid) {
-            // Shake effect or error state could be added here, but for now we just don't accept it
-            // and rely on the UI to show it's invalid (or just don't select it)
+        if (hasHtmlChars) {
+            // Block HTML injection attempts
             return;
         }
 
@@ -120,18 +119,27 @@ export function MemberSelector({
                     <CommandList>
                         <CommandEmpty className="py-2 px-2 text-sm text-zinc-500 text-center">
                             {inputValue ? (
-                                /^[a-zA-Z-]+$/.test(inputValue) ? (
+                                !/[<>"'&]/.test(inputValue) ? (
                                     <button
-                                        className="w-full text-left p-2 rounded hover:bg-zinc-900 text-indigo-400 flex items-center gap-2"
-                                        onClick={handleCustomInput}
+                                        type="button"
+                                        className="w-full text-left p-3 rounded-xl hover:bg-white/5 text-indigo-400 flex items-center gap-3 transition-colors border border-dashed border-indigo-500/20"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleCustomInput();
+                                        }}
                                     >
-                                        <User className="h-4 w-4" />
-                                        Utiliser "{inputValue}"
+                                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                            <User className="h-4 w-4" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold">Utiliser "{inputValue}"</span>
+                                            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Saisie manuelle</span>
+                                        </div>
                                     </button>
                                 ) : (
-                                    <span className="text-red-400 text-xs flex items-center gap-2 justify-center">
+                                    <span className="text-red-400 text-xs flex items-center gap-2 justify-center py-2">
                                         <X className="h-3 w-3" />
-                                        Pseudo invalide (Lettres et tirets uniquement)
+                                        Caractères HTML interdits (&lt; &gt; " ' &amp;)
                                     </span>
                                 )
                             ) : (

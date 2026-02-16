@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  manifest: "/manifest.json", // Link to PWA manifest
+  manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
     default: "SigilOS - Le système d'exploitation pour guildes Dofus",
     template: "%s | SigilOS",

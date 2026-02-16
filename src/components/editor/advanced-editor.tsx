@@ -58,6 +58,8 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                 heading: {
                     levels: [1, 2, 3],
                 },
+                // Prevent duplicate with standalone Link extension
+                link: false,
             }),
             ResizableImage.configure({
                 inline: true,
@@ -89,9 +91,6 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
             onChange(editor.getHTML());
         },
         onSelectionUpdate: () => {
-            forceUpdate(n => n + 1);
-        },
-        onTransaction: () => {
             forceUpdate(n => n + 1);
         }
     });

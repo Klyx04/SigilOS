@@ -25,7 +25,7 @@ async function verifyDiscordSignature(
 ): Promise<boolean> {
     const signature = request.headers.get("X-Signature-Ed25519");
     const timestamp = request.headers.get("X-Signature-Timestamp");
-    const publicKey = process.env.DISCORD_PUBLIC_KEY;
+    const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY;
 
     if (!signature || !timestamp || !publicKey) {
         console.warn("[Discord Webhook] Missing signature headers or public key");

@@ -21,6 +21,14 @@ const categoryConfig: Record<ChangelogCategory, { label: string; color: string }
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+    title: "Changelog",
+    description: "Suivez l'évolution de SigilOS : mises à jour, correctifs et nouvelles fonctionnalités en temps réel.",
+    alternates: {
+        canonical: "/changelog",
+    },
+};
+
 export default async function ChangelogPage() {
     const allEntries = await getChangelogEntries();
     const session = await auth();

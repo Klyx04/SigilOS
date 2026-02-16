@@ -25,7 +25,7 @@ export function DocViewer({
 }: {
     content: string,
     title: string,
-    lastUpdate: Date,
+    lastUpdate: string,
     canEdit?: boolean,
     editUrl?: string,
     prev?: { title: string, slug: string } | null,

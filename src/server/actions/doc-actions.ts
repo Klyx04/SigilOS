@@ -256,8 +256,9 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
 }
 
 export async function deleteDoc(id: string): Promise<ActionResponse<void>> {
-    const ctx = await getUserContext();
-    if (!ctx.isAdmin) return { success: false, error: "Unauthorized" };
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Unauthorized" };
 
     try {
         await db.docPage.delete({ where: { id } });
@@ -270,8 +271,9 @@ export async function deleteDoc(id: string): Promise<ActionResponse<void>> {
 
 // Admin Fetcher (Gets unpublished too)
 export async function getAdminDocs(): Promise<DocPageData[]> {
-    const ctx = await getUserContext();
-    if (!ctx.isAdmin) return [];
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
 
     const docs = await (db.docPage as any).findMany({
         orderBy: [

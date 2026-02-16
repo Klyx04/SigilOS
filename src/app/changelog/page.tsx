@@ -1,7 +1,7 @@
 import { getChangelogEntries } from '@/server/actions/changelog-actions';
 import { ChangelogCategory } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
-import ReactMarkdown from 'react-markdown';
+// TipTap saves HTML, not Markdown - content is pre-sanitized by server action
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
@@ -106,8 +106,8 @@ export default async function ChangelogPage() {
 
                                         {/* Entry Content - Markdown */}
                                         <div className="px-6 py-5">
-                                            <div className="prose prose-invert prose-zinc max-w-none prose-headings:text-white prose-headings:font-bold prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2 prose-h3:text-base prose-p:text-zinc-300 prose-p:leading-relaxed prose-li:text-zinc-300 prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-code:text-indigo-300 prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm">
-                                                <ReactMarkdown>{entry.content}</ReactMarkdown>
+                                            <div className="prose prose-invert prose-zinc max-w-none prose-headings:text-white prose-headings:font-bold prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2 prose-h3:text-base prose-p:text-zinc-300 prose-p:leading-relaxed prose-li:text-zinc-300 prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-code:text-indigo-300 prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-img:rounded-xl prose-img:max-w-full">
+                                                <div dangerouslySetInnerHTML={{ __html: entry.content }} />
                                             </div>
                                         </div>
                                     </article>

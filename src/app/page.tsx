@@ -2,7 +2,7 @@ import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
 import { SaasFeatures } from "@/components/landing/saas-features";
-import { HowItWorks } from "../components/landing/how-it-works";
+import { HowItWorks } from "@/components/landing/how-it-works";
 import { LandingCarousel } from "@/components/landing/landing-carousel";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -12,7 +12,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { ChangelogWidget } from "@/components/changelog/changelog-widget";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PreFooterCta } from "../components/landing/pre-footer-cta";
+import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
 export const dynamic = "force-dynamic";
 

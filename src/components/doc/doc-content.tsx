@@ -133,7 +133,7 @@ export function DocContent({ content, className }: DocContentProps) {
     return (
         <div
             className={cn(
-                "doc-preview-content prose prose-zinc dark:prose-invert max-w-none",
+                "doc-preview-content prose prose-zinc dark:prose-invert max-w-none break-words min-w-0",
                 // Headers - Modern & Gradient
                 "prose-headings:font-black prose-headings:tracking-tight prose-headings:mb-6 prose-headings:mt-10",
                 "prose-h1:text-4xl prose-h1:text-white prose-h1:mb-8",
@@ -192,6 +192,7 @@ export function DocContent({ content, className }: DocContentProps) {
 
                 // Custom Style Overrides (Ensure colors and floats stick)
                 "[&_span[style]]:!opacity-100",
+                "[&_span[style*='color']]:![color:inherit]", // Preserve TipTap color styles
                 "[&_img[style]]:!max-w-none",
 
                 className

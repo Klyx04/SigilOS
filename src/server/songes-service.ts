@@ -1,5 +1,6 @@
 import { db } from "@/lib/prisma";
 import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ============================================
 // CONSTANTS
@@ -76,10 +77,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
 
     // Robust URL detection: prioritize app URL but fallback to NextAuth URL
     // If the context suggests we are in a beta environment, force beta link
-    let publicUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://sigilos.fr";
-    if (process.env.NEXTAUTH_URL?.includes("beta.sigilos.fr")) {
-        publicUrl = "https://beta.sigilos.fr";
-    }
+    const publicUrl = getAppBaseUrl();
     const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
     // Get leader name
@@ -322,7 +320,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         });
 
         // Notify leader in-app
-        const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const publicUrl = getAppBaseUrl();
         const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
         await db.notification.create({

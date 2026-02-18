@@ -48,7 +48,7 @@ export function LadderPreview({
                                         <Avatar className="h-9 w-9 border border-white/10 ring-1 ring-zinc-950">
                                             <AvatarImage src={entry.image || ""} />
                                             <AvatarFallback className="bg-zinc-800 text-[9px] font-black uppercase">
-                                                {entry.name.substring(0, 2)}
+                                                {(entry.name || "??").substring(0, 2)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="absolute -top-1 -right-1">

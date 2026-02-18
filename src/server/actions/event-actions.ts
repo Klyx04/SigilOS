@@ -8,7 +8,7 @@ import { getKralamoureEvents, getKralamoureEventDetails, MetamobApiError } from 
 export type UpcomingEvent = {
     id: string;
     title: string;
-    startDate: Date;
+    startDate: string; // ISO string — Date objects crash Next.js server→client serialization
     type: string;
     participantsCount: number;
 };
@@ -79,7 +79,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     const normalizedDbEvents: UpcomingEvent[] = dbEvents.map(e => ({
         id: e.id,
         title: e.title,
-        startDate: e.startDate,
+        startDate: e.startDate.toISOString(),
         type: e.type,
         participantsCount: e._count.participants
     }));
@@ -87,14 +87,14 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     const normalizedKralaEvents: UpcomingEvent[] = kralaEvents.map((k: any) => ({
         id: `krala-${k.id}`,
         title: `Ouverture Kralamoure`,
-        startDate: new Date(k.event_datetime),
+        startDate: new Date(k.event_datetime).toISOString(),
         type: "KRALAMOURE",
         participantsCount: k.participants_count || 0
     }));
 
     // 5. Combine, Sort, and Limit
     const allEvents = [...normalizedDbEvents, ...normalizedKralaEvents].sort((a, b) =>
-        a.startDate.getTime() - b.startDate.getTime()
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
     return allEvents.slice(0, limit);

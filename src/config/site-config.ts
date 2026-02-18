@@ -47,7 +47,6 @@ export const siteConfig = {
 
     links: {
         discord: "https://discord.gg/uX7G6SUDgN",
-        github: "https://github.com/stellium",
         docs: "/docs"
     }
 } as const;

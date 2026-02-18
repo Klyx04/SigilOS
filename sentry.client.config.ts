@@ -36,6 +36,6 @@ Sentry.init({
         "ResizeObserver loop",
     ],
 
-    // Environment tag
-    environment: process.env.NODE_ENV,
+    // Environment tag — use SENTRY_ENVIRONMENT to distinguish beta vs prod
+    environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
 });

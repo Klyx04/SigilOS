@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 
 interface CalendarPageProps {
     params: Promise<{ guildId: string }>;
@@ -17,6 +18,11 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     if (!session?.user?.id) {
         redirect("/login");
+    }
+
+    // Module guard
+    if (!await isModuleEnabled(guildId, "calendar")) {
+        redirect(`/dashboard/${guildId}`);
     }
 
     const ctx = await getUserContext(guildId);

@@ -949,7 +949,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         // If OCR didn't work OR points invalid, force manual validation path
         const forceManual = !ocrWorked || !pointsValid;
 
-        const { autoValidate } = shouldAutoValidate(ocrResult);
+        const { autoValidate } = shouldAutoValidate(ocrResult, 'achievement');
 
         // If OCR is skipped/failed OR points invalid, always go manual
         if (autoValidate && !forceManual) {

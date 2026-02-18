@@ -6,6 +6,8 @@ import { CreateRunButton } from "@/components/songes/CreateRunButton";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Sparkles } from "lucide-react";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { redirect } from "next/navigation";
 
 export default async function SongesPage({
     params,
@@ -13,12 +15,19 @@ export default async function SongesPage({
     params: Promise<{ guildId: string }>;
 }) {
     const { guildId } = await params;
+
+    // Module guard
+    if (!await isModuleEnabled(guildId, "songes")) {
+        redirect(`/dashboard/${guildId}`);
+    }
+
     const userContext = await getUserContext(guildId);
 
     // RBAC: Check permission to view Songes
     if (!userContext.canViewSonges) {
         return <AccessDenied />;
     }
+
 
     const { runs } = await getDreamRuns(guildId, ["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
     const currentUserId = userContext.isAuthenticated ? userContext.id : undefined;

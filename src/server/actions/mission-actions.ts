@@ -16,6 +16,7 @@ import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
 import { hashImage } from "@/lib/llm-ocr";
+import { createAuditLog } from "@/server/actions/audit-actions";
 
 
 // --- Types & Schemas ---
@@ -177,6 +178,21 @@ export async function createWeekMissions(
         // Invalidate Cache
         await invalidateCache(`missions:${data.guildId}:${data.year}:${data.weekNumber}`);
 
+        // Audit log
+        await createAuditLog({
+            guildId: data.guildId,
+            actorUserId: session!.user!.id,
+            actorName: session!.user!.name || "Admin",
+            action: "MISSION_CREATED" as any,
+            targetType: "MISSION" as any,
+            metadata: {
+                weekNumber: data.weekNumber,
+                year: data.year,
+                slotsCount: data.missions.length,
+                tier: data.updateGuildTier
+            }
+        });
+
         return { success: true };
     } catch (error) {
         logger.error("Create Missions Error", { error, guildId: data.guildId, weekNumber: data.weekNumber, year: data.year });
@@ -213,6 +229,16 @@ export async function resetMission(
 
         // Invalidate Cache
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
+        // Audit log
+        await createAuditLog({
+            guildId,
+            actorUserId: session?.user?.id ?? "unknown",
+            actorName: session?.user?.name || "Admin",
+            action: "MISSION_DELETED",
+            targetType: "MISSION",
+            metadata: { weekNumber, year, slotIndex }
+        });
 
         return { success: true };
     } catch (error) {
@@ -256,6 +282,16 @@ export async function resetWeek(
 
         // Invalidate Cache
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
+        // Audit log
+        await createAuditLog({
+            guildId,
+            actorUserId: session?.user?.id ?? "unknown",
+            actorName: session?.user?.name || "Admin",
+            action: "MISSION_DELETED",
+            targetType: "MISSION",
+            metadata: { weekNumber, year, scope: "FULL_WEEK" }
+        });
 
         return { success: true };
     } catch (error) {
@@ -667,10 +703,25 @@ export async function validateSubmission(
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
-        revalidatePath(`/dashboard/${discordGuildId}/ladder`); // Revalidate ladder too!
+        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
 
         // Invalidate Cache
         await invalidateCache(`missions:${discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
+
+        // Audit log
+        await createAuditLog({
+            guildId: discordGuildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: (status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED") as any,
+            targetType: "MISSION" as any,
+            targetId: submissionId,
+            metadata: {
+                missionTitle: submission.mission.title,
+                submitterId: updatedSubmission.profileId,
+                status
+            }
+        });
 
         return { success: true };
     } catch (error) {

@@ -12,8 +12,8 @@ Sentry.init({
     // Performance monitoring - lower rate for server
     tracesSampleRate: 0.05, // 5% of transactions
 
-    // Environment tag
-    environment: process.env.NODE_ENV,
+    // Environment tag — use SENTRY_ENVIRONMENT to distinguish beta vs prod
+    environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
 
     // Capture unhandled promise rejections
     integrations: [

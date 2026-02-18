@@ -696,16 +696,20 @@ export async function getGuildMembers(guildId: string) {
         orderBy: { updatedAt: "desc" }
     });
 
+    // Return only the fields needed by MemberManagementTable
+    // (avoid spreading the full Prisma object which contains non-serializable JsonValue symbols)
     return members.map(m => ({
-        ...m,
-        createdAt: m.createdAt.toISOString(),
+        id: m.id,
+        userId: m.userId,
+        status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
         updatedAt: m.updatedAt.toISOString(),
-        lastActivityAt: m.lastActivityAt?.toISOString() || null,
         archivedAt: m.archivedAt?.toISOString() || null,
-        discordJoinedAt: m.discordJoinedAt?.toISOString() || null,
-        discordCacheUpdatedAt: m.discordCacheUpdatedAt?.toISOString() || null,
-        vacationStart: m.vacationStart?.toISOString() || null,
-        vacationEnd: m.vacationEnd?.toISOString() || null
+        archiveReason: m.archiveReason,
+        user: {
+            name: m.user.name,
+            image: m.user.image,
+            accounts: m.user.accounts
+        }
     }));
 }
 

@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-18)
 
-**Branche Active** : `fix/changelog-images` (en attente de PR → `dev`)  
-**Status** : 🟡 Beta active. Sprint P0 en cours. Plusieurs fixes pushés, en attente de merge + déploiement VPS.
+**Branche Active** : `feat/guild-modules` (PR ouverte → `dev`)  
+**Status** : 🟢 Beta active. P0 **100% complet** ✅. P1 sécurité largement fait. En attente de merge + déploiement VPS.
 
 ---
 
@@ -13,6 +13,7 @@ SigilOS/
 │   ├── app/                    # Pages & API routes (Next.js App Router)
 │   │   ├── api/                # Routes API (uploads, discord, health...)
 │   │   ├── dashboard/          # Dashboard guildes (auth required)
+│   │   │   └── [guildId]/admin/modules/  # Toggle modules par guilde
 │   │   ├── god/                # Super-admin panel (isSuperAdmin only)
 │   │   ├── docs/               # Documentation publique
 │   │   ├── changelog/          # Changelog public
@@ -21,12 +22,14 @@ SigilOS/
 │   ├── components/             # Composants UI réutilisables
 │   │   ├── editor/             # TipTap editor + extensions
 │   │   └── layout/             # Header, Sidebar, Footer...
-│   ├── lib/                    # Utilitaires (utils.ts, storage-utils.ts...)
+│   ├── lib/
+│   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
+│   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
+│       │   ├── module-actions.ts  # Toggle modules par guilde
 │       │   ├── songes/         # Gestion des runs Songes
-│       │   ├── doc-actions.ts
-│       │   ├── changelog-actions.ts
+│       │   ├── profile-actions.ts # Sync succès OCR
 │       │   └── ...
 │       ├── songes-service.ts   # Service embeds Discord Songes
 │       └── discord.ts          # Discord API integration
@@ -62,6 +65,7 @@ SigilOS/
 | **Deploy** | Docker Compose + Caddy (SSL auto) |
 | **CI/CD** | GitHub Actions (verify.yml) |
 | **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
+| **OCR** | OCR.space API (Engine 2, succès ladder) |
 
 ---
 
@@ -73,7 +77,7 @@ SigilOS/
 | `dev` | 🟠 Beta (`beta.sigilos.fr`) |
 | `feat/*` / `fix/*` | Branches de travail → PR vers `dev` |
 
-**Branche courante** : `fix/changelog-images`
+**Branche courante** : `feat/guild-modules`
 
 ---
 
@@ -111,6 +115,9 @@ SigilOS/
 - ✅ **GOD UI Clarification**: Distinction claire Whitelist (Permission) vs Active Guilds (Status)
 - ✅ **Tooltips Status**: Badges avec explications dans GuildTable (Active/Inactive/Supprimée)
 - ✅ **Score Sécurité VPS**: 9.6/10
+- ✅ **RBAC complet routes API**: audit-logs, migrate-krala, seed-grolandais, server-config, active-bonus, sync
+- ✅ **Logs d'audit Admin**: visible dans `/admin/logs`, rétention 30j (missions, bonus, isolation guilde)
+- ✅ **Validation Zod**: changelog-actions, presentation-actions, toutes actions critiques
 
 ---
 
@@ -161,15 +168,6 @@ SigilOS/
 
 ---
 
-### Session — Fixing Scroll & Layout (2026-02-18)
-
-- ✅ **Global scroll fix** (`globals.css`): `overflow-y: visible !important` sur `html` et `body`
-- ✅ **DocContent word-break**: `break-words min-w-0` sur le wrapper du contenu doc
-- ✅ **Sidebar docs scroll**: `overflow-y-auto scrollbar-thin` sur `ResizableSidebar`
-- ✅ **Guilds page**: Suppression `overflow-hidden` résiduel
-
----
-
 ### Session — Fix URLs Embeds Discord (2026-02-18)
 
 **Root cause**: `NEXT_PUBLIC_*` dans Next.js sont "baked in" au build, pas au runtime. La variable n'était pas passée comme `ARG` Docker → toujours `sigilos.fr` même sur Beta.
@@ -181,6 +179,32 @@ SigilOS/
   - `app-beta`: `NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr`
 - ✅ **Metadata Next.js** (`layout.tsx`): `metadataBase` utilise `NEXT_PUBLIC_APP_URL`
 - ✅ **Songes embeds**: `dashboardUrl` utilise `getAppBaseUrl()` (songes-service.ts + dream-run-actions.ts)
+
+---
+
+### Session — Toggle Modules par Guilde + UX Admin (2026-02-18)
+
+- ✅ **`GuildModule` model** (Prisma): Table `guild_modules` avec `moduleId`, `guildId`, `isEnabled`
+- ✅ **`module-types.ts`**: Config centralisée des modules (MISSIONS, SONGES, LADDER, OCRE, CALENDAR, DOCS)
+- ✅ **`module-actions.ts`**: `toggleModule()` server action (admin only, guild isolation)
+- ✅ **Page `/admin/modules`**: UI toggle par module avec descriptions et statuts
+- ✅ **Sidebar masquée**: Les liens sidebar se masquent selon les modules actifs (`getActiveModules()`)
+- ✅ **Migrations**: `20260218083127_add_guild_modules` + `20260218085315_*` appliquées
+
+---
+
+### Session — Simplification Feedback OCR + Fix Auto-Validation Succès (2026-02-18)
+
+#### Feedback UI simplifié
+- ✅ **`proof-upload-dialog.tsx`**: Suppression % confiance OCR, status pills, image debug, variables mortes (`ocrResult`, `isAutoValidated`, `safetyDebug`)
+- ✅ **`success-sync.tsx`**: Suppression badge "Confiance X%", bloc "VUE IA (DEBUG)", tip seuil 40%, toast verbeux → message simple "Votre capture est en cours de vérification par le staff."
+- ✅ **`achievement-validation-queue.tsx`**: Ajout `SubmissionCountdown`, boutons Valider/Rejeter compacts et alignés à droite
+
+#### Fix auto-validation OCR succès
+- ✅ **Bug root cause**: `shouldAutoValidate()` exigeait `isVictory = true` (keywords missions : "terminé", "validé"...) même pour les achievements → 100% confiance mais toujours envoyé en validation manuelle
+- ✅ **Fix `llm-ocr.ts`**: `shouldAutoValidate(result, context?)` — pour `context === 'achievement'`, bypass du check `isVictory`
+- ✅ **Fix `profile-actions.ts`**: Appel `shouldAutoValidate(ocrResult, 'achievement')`
+- ✅ **Seuil abaissé**: `OCR_AUTO_VALIDATE_THRESHOLD=40` (`.env` + `.env.example`) — score de base quand un nombre est détecté
 
 ---
 
@@ -266,37 +290,35 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 - Upload images (docs, preuves missions, bannières)
 - Notifications in-app
 - Ocre / Metamob integration
+- Toggle modules par guilde (`/admin/modules`)
+- Logs d'audit Admin (`/admin/logs`)
+- OCR Succès Ladder (OCR.space, auto-validation corrigée)
 
 ### 🟡 Partiellement Fonctionnel
-- Embeds Discord URLs → **fix pushé, en attente de déploiement VPS**
-- Scroll pages publiques → **fix pushé, en attente de déploiement VPS**
+- Sidebar masquage modules → **pushé, en attente de merge**
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
-- Audit log (traçabilité actions admin)
-- Module toggle activé/désactivé par guilde
 - Historique runs Songes par membre
+- Upload MIME validation complète + strip EXIF
 
 ---
 
 ## 📋 TODO Prioritaire (Backlog)
 
 ### 🔴 P0 — Bloquants Beta
-- [ ] Seed zones, boss, mobs + bonus Songes (manuel)
-- [ ] Merger `fix/changelog-images` → `dev` → déployer VPS
+- [x] ~~Fix Changelog : images chargent pas pour l'externe~~ ✅ Confirmé OK
+- [ ] Merger `feat/guild-modules` → `dev` → déployer VPS
 
 ### ⚡ P1 — Stabilité & Sécurité
-- [ ] RBAC complet toutes routes
-- [ ] Toggle modules activé/désactivé par guilde
-- [ ] Test isolation multi-tenant
-- [ ] Validation inputs serveur tous formulaires
-- [ ] Upload: empêcher .exe/.php, strip EXIF, validation MIME
-- [ ] Audit log admin
+- [ ] RBAC futurs modules (guard à chaque nouvelle route)
+- [ ] Upload: validation MIME complète + strip EXIF
 
 ### 🎯 P2 — UX & Features Core
 - [ ] Notif rappel Discord pour inscrits d'une run Songes
 - [ ] Raccourcir embed candidature Songes (trop verbeux)
-- [ ] Durée auto-suppression runs inactives
+- [ ] Vérifier auto-suppression runs inactives
+- [ ] Supprimer embed Discord si run close
 - [ ] Historique runs par membre
 - [ ] Refonte UI documentation
 
@@ -314,6 +336,8 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 | `DATABASE_URL` | PostgreSQL | |
 | `REDIS_URL` | Redis | |
 | `NEXT_PUBLIC_BETA_PASSWORD` | Gate beta | Build ARG Docker |
+| `OCR_SPACE_API_KEY` | OCR succès ladder | Clé OCR.space |
+| `OCR_AUTO_VALIDATE_THRESHOLD` | Seuil auto-validation OCR | **40** (défaut 70 trop haut) |
 
 > ⚠️ **`NEXT_PUBLIC_*` sont baked-in au build Docker.** Ils DOIVENT être passés comme `args:` dans `docker-compose.prod.yml` et déclarés comme `ARG` dans le `Dockerfile`.
 

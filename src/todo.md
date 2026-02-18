@@ -9,7 +9,7 @@
 - [x] Fix Dashboard crash beta (`substring` null + Date serialization + error boundaries)
 - [x] Fix Changelog : filtre non-membres ne fonctionne pas (voient tout)
 - [x] Fix Changelog : scroll impossible sur la page
-- [ ] Fix Changelog : images chargent pas pour l'externe
+- [x] Fix Changelog : images chargent pas pour l'externe
 - [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiées
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
 - [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)

@@ -14,6 +14,7 @@ export type AuditAction =
     | "RBAC_ROLE_ADD"         // New role added to mapping
     | "RBAC_ROLE_REMOVE"      // Role removed from mapping
     | "CONFIG_UPDATED"        // Guild config changed
+    | "SETTINGS_UPDATED"      // Guild settings changed
     | "API_KEY_UPDATED"       // Metamob API key changed
     | "CHANNEL_CONFIGURED"    // Discord channel configured
     | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
@@ -25,7 +26,13 @@ export type AuditAction =
     | "WEBHOOK_GUILD_DELETE"   // Bot removed from guild
     | "WEBHOOK_MEMBER_ADD"     // Member joined Discord guild
     | "WEBHOOK_MEMBER_REMOVE"  // Member left Discord guild
-    | "USER_GDPR_DELETE";     // User requested full account deletion
+    | "USER_GDPR_DELETE"      // User requested full account deletion
+    | "MISSION_CREATED"       // Admin published missions for a week
+    | "MISSION_DELETED"       // Admin deleted a mission or reset a week
+    | "MISSION_VALIDATED"     // Admin validated a member submission
+    | "MISSION_REJECTED"      // Admin rejected a member submission
+    | "BONUS_PURCHASED"       // Member purchased a guild bonus
+    | "BONUS_CANCELLED";      // Member cancelled a pending bonus
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -36,7 +43,9 @@ export type AuditTargetType =
     | "CONTENT_SAFETY"
     | "USER_PROFILE"
     | "PLATFORM_SECURITY"
-    | "USER";
+    | "USER"
+    | "MISSION"
+    | "GUILD";
 
 export type AuditLogEntry = {
     id: string;
@@ -451,12 +460,12 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-const RETENTION_DAYS = 7;
+const RETENTION_DAYS = 30;
 
 /**
  * Cleanup old audit logs for a guild
- * Removes logs older than RETENTION_DAYS (30 days by default)
- * Only accessible by admin users
+ * Removes logs older than RETENTION_DAYS (30 days)
+ * Triggered lazily on each visit to the logs page
  */
 export async function cleanupOldAuditLogs(
     discordGuildId: string

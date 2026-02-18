@@ -43,8 +43,8 @@ interface Member {
     id: string;
     userId: string;
     status: "ACTIVE" | "ARCHIVED" | "BANNED";
-    updatedAt: Date;
-    archivedAt: Date | null;
+    updatedAt: string; // ISO string from server
+    archivedAt: string | null; // ISO string from server
     archiveReason: string | null;
     user: {
         name: string | null;
@@ -78,7 +78,7 @@ export function MemberManagementTable({ initialMembers, guildId }: MemberManagem
         try {
             await updateMemberProfileStatus(profileId, status);
             setMembers(prev => prev.map(m =>
-                m.id === profileId ? { ...m, status, updatedAt: new Date() } : m
+                m.id === profileId ? { ...m, status, updatedAt: new Date().toISOString() } : m
             ));
             toast.success(`Statut mis à jour : ${status}`);
         } catch (error) {
@@ -189,7 +189,7 @@ export function MemberManagementTable({ initialMembers, guildId }: MemberManagem
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-xs text-zinc-500">
-                                    {formatDistanceToNow(new Date(member.updatedAt || member.archivedAt || new Date()), { addSuffix: true, locale: fr })}
+                                    {formatDistanceToNow(new Date(member.updatedAt ?? member.archivedAt ?? new Date()), { addSuffix: true, locale: fr })}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>

@@ -9,16 +9,47 @@
 - [x] Fix Dashboard crash beta (`substring` null + Date serialization + error boundaries)
 - [x] Fix Changelog : filtre non-membres ne fonctionne pas (voient tout)
 - [x] Fix Changelog : scroll impossible sur la page
+<<<<<<< HEAD
+- [ ] Fix Changelog : images chargent pas pour l'externe
+- [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
+- [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)
+=======
 - [x] Fix Changelog : images chargent pas sur le VPS (logs diagnostiques ajoutés, à tester après deploy)
 - [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiés et la prévisu pendant l'iedtion des images copiées collées ou importé non plus
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (via Variable d'Env pour switch facile Prod/Beta)
 - [ ] Seed zones, boss, mobs  à la main moi même + bonus Songes à préparer coté page
+>>>>>>> origin/dev
 
 ---
 
 ## ⚡ P1 — STABILITÉ & SÉCURITÉ (Semaine prochaine)
 
 ### Sécurité
+<<<<<<< HEAD
+- [x] Vérifier RBAC complet sur toutes les routes API existantes
+  - [x] `/api/god/audit-logs` — fail-fast auth + isSuperAdmin ajouté
+  - [x] `/api/admin/migrate-krala` — session check ajouté
+  - [x] `/api/seed-grolandais` — route de dev supprimée (danger)
+  - [x] Autres routes : audit-logs guild, server-config, active-bonus, sync — OK
+- [ ] RBAC futurs modules — ajouter guard dès la création de chaque nouvelle route :
+  - Pattern : `auth()` fail-fast → `getUserContext()` → `isAdmin` ou `isMember` selon besoin
+  - Routes GOD : toujours `isSuperAdmin()` en plus de `auth()`
+- [x] Test isolation multi-tenant (User A ≠ Guilde B) — toutes les queries filtrent par guildId interne (CUID)
+- [x] Validation inputs côté serveur — audit complet effectué
+  - [x] `changelog-actions.ts` — schemas Zod ajoutés (version, title, summary, content, category)
+  - [x] `presentation-actions.ts` — déjà validé manuellement (sanitizeHtml, validateLevel, etc.)
+  - [x] Autres actions critiques (bonus, mission, admin, profile…) — Zod déjà en place
+- [ ] Upload files : validation MIME complète + strip EXIF (base partielle dans `image-security.ts`)
+- [x] Implémenter logs d'audit Admin — visible dans `/admin/logs`, rétention 30j
+  - [x] Missions : createWeekMissions, resetMission, resetWeek, validateSubmission
+  - [x] Bonus : purchaseBonus, cancelBonus, updateBonusChannel
+  - [x] Isolation : logs guilde ≠ logs GOD, rétention 30 jours (lazy cleanup)
+  - [x] UI : labels, couleurs et filtres par catégorie dans le module logs
+
+### Monitoring
+- [x] Configurer Sentry — SDK installé, DSN configuré, actif au prochain déploiement
+- [x] Alertes Discord en cas d'erreur critique — règle "Alertes Discord" active sur Sentry
+=======
 - [ ] Vérifier RBAC complet sur toutes les routes
 - [ ] Vérifier que les rôles sont bien appliqués
 - [ ] Ajouter un système pour toggler les modules activé/désactivé (anticipera également un modele payant?)
@@ -32,6 +63,7 @@
 ### Monitoring
 - [ ] Configurer alertes Sentry actives /  déjà possiblement
 - [ ] Alertes Discord en cas d'erreur critique Sentry /  déjà possiblement
+>>>>>>> origin/dev
 
 ---
 
@@ -40,13 +72,18 @@
 ### Notifications
 - [ ] Améliorer le design des notifications
 - [ ] Vérifier couverture (où il en manque / quand elles apparaissent)
-- [ ] Revoir positionnement (pas centré en haut)
+- [ ] Revoir positionnement (pas centré en haut du dashboard je trouva ca génant pour les users)
 
 ### Songes
+<<<<<<< HEAD
+- [ ] Notif Discord aux inscrits d'une run (mention via embed uniquement des inscrits)
+- [ ] Raccourcir message candidature embed (trop verbeux)
+=======
 - [ ] Proprio de songes peut Notif rappel Discord aux inscrits d'une run avec proposition heure/date(mention des gens uniquement inscrit sur la run via embed)
 - [ ] Raccourcir message candidature embed quand des gens s'inscrivent  (trop verbeux)
 message bizarre **Wylan ADM** (**Cra**) souhaite rejoindre votre run REVE_III. [Voir la run](https://sigilos.fr/dashboard/1290442961380835451/songes/cmlp24gb4000101letctf93ay) trop verbeux
 
+>>>>>>> origin/dev
 - [ ] Définir durée auto-suppression runs inactives
 - [ ] Historique des runs par membre
 - [ ] Image catégorie Songes
@@ -128,9 +165,9 @@ message bizarre **Wylan ADM** (**Cra**) souhaite rejoindre votre run REVE_III. [
 ## 📄 P7 — JURIDIQUE & BUSINESS
 
 - [ ] Revoir CGU, Politique Confidentialité, Mentions Légales
-- [ ] Bannière cookies RGPD (si tracking actif)
+- [ ] Bannière cookies RGPD (si tracking actif mais on ne fait pas de tracking ? vaut le coup ?)
 - [ ] Conformité RGPD données personnelles
-- [ ] SEO + article X
+- [ ] SEO + article X  : https://x.com/fabienr34/status/2023649306910064883
 - [ ] Roadmap publique pour membres
 - [ ] Limite guildes Beta (whitelist / demande accès)
 - [ ] Formulaire "Rapporter un bug" (bouton flottant)

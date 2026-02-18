@@ -7,6 +7,7 @@ import { getUserGuilds } from "@/server/actions/user-actions";
 import { isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { AlmanaxWidget } from "@/components/layout/almanax-widget";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { getGuildModules } from "@/server/actions/module-actions";
 import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -35,11 +36,12 @@ export default async function DashboardLayout({
     }
 
 
-    const [user, guildData, userGuilds, events] = await Promise.all([
+    const [user, guildData, userGuilds, events, modules] = await Promise.all([
         getUserContext(guildId),
         getGuildHeaderData(guildId),
         getUserGuilds(),
-        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId))
+        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId)),
+        getGuildModules(guildId),
     ]);
 
     if (!user.isMember) {
@@ -75,6 +77,7 @@ export default async function DashboardLayout({
                         user={user}
                         guildData={guildData}
                         userGuilds={userGuilds}
+                        modules={modules}
                         className="h-full border-r border-white/5"
                     />
                 </div>
@@ -89,7 +92,7 @@ export default async function DashboardLayout({
                     <div className="flex-shrink-0 z-50">
                         <TopNav
                             userId={user.id || ""}
-                            sidebarProps={{ guildId, user, guildData, userGuilds }}
+                            sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
                             events={events}
                         >
                             <div className="relative">

@@ -46,8 +46,7 @@ const DEFAULT_mission_TEMPLATE = (index: number): DraftMission => ({
 // --- Component ---
 
 export function MissionEditor({ guildId }: { guildId: string }) {
-    const [weekNumber, setWeekNumber] = useState<number>(getWeekNumber().week);
-    const [year, setYear] = useState<number>(getWeekNumber().year);
+    const { week: weekNumber, year } = getWeekNumber();
 
     const [missions, setMissions] = useState<DraftMission[]>(
         Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
@@ -192,22 +191,16 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             <div className="flex flex-col md:flex-row items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl gap-4">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-zinc-400">Semaine</label>
-                        <input
-                            type="number"
-                            className="w-16 h-9 bg-zinc-950 border border-zinc-800 rounded px-2 text-sm text-center text-white"
-                            value={weekNumber}
-                            onChange={(e) => setWeekNumber(parseInt(e.target.value))}
-                        />
+                        <span className="text-sm text-zinc-400">Semaine</span>
+                        <span className="h-9 px-3 flex items-center bg-zinc-950 border border-zinc-800 rounded text-sm text-white font-mono font-bold">
+                            {weekNumber}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-zinc-400">Année</label>
-                        <input
-                            type="number"
-                            className="w-20 h-9 bg-zinc-950 border border-zinc-800 rounded px-2 text-sm text-center text-white"
-                            value={year}
-                            onChange={(e) => setYear(parseInt(e.target.value))}
-                        />
+                        <span className="text-sm text-zinc-400">Année</span>
+                        <span className="h-9 px-3 flex items-center bg-zinc-950 border border-zinc-800 rounded text-sm text-white font-mono">
+                            {year}
+                        </span>
                     </div>
 
                     <div className="w-px h-8 bg-zinc-800 mx-2 hidden sm:block"></div>
@@ -262,12 +255,50 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
                     const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
 
-                    const previewText = mission.title ? (
-                        Object.entries(mission.payload)
-                            .filter(([_, v]) => v)
-                            .map(([k, v]) => `${k}: ${v}`)
-                            .join(' • ')
-                    ) : '';
+                    // Smart payload preview — traduit les clés anglaises en labels FR lisibles
+                    const getPayloadPreview = (category: MissionCategoryType, payload: Record<string, any>): React.ReactNode => {
+                        if (!payload || Object.keys(payload).length === 0) return null;
+                        switch (category) {
+                            case 'DONJON': {
+                                const name = payload.dungeonName;
+                                const boss = payload.bossName;
+                                return name ? (
+                                    <span className="text-violet-300 font-medium">
+                                        {name}{boss ? <span className="text-zinc-500 font-normal"> · {boss}</span> : null}
+                                    </span>
+                                ) : null;
+                            }
+                            case 'ANOMALIE': {
+                                const typeLabel = payload.type === 'BOSS' ? '🐉 Gardien' : payload.type === 'ZONE' ? '⚔️ Zone' : payload.type;
+                                const level = payload.levelRange ? `Niv. ${payload.levelRange}` : null;
+                                return <span className="text-fuchsia-300">{[typeLabel, level].filter(Boolean).join(' · ')}</span>;
+                            }
+                            case 'REGULATION': {
+                                const zone = payload.zoneName;
+                                const monster = payload.monsterName || payload.familyName;
+                                return <span className="text-amber-300">{[zone, monster].filter(Boolean).join(' · ')}</span>;
+                            }
+                            case 'SONGES': {
+                                const diff = payload.difficulty;
+                                const lvl = payload.level ? `Niv. ${payload.level}` : null;
+                                return <span className="text-cyan-300">{[diff, lvl].filter(Boolean).join(' ')}</span>;
+                            }
+                            case 'EXPEDITION': {
+                                const name = payload.dungeonName;
+                                const modeLabels: Record<string, string> = { bravoure: 'Bravoure', audace: 'Audace', aucun: 'Sans modif.' };
+                                const mode = payload.mode ? modeLabels[payload.mode] || payload.mode : null;
+                                return <span className="text-emerald-300">{[name, mode].filter(Boolean).join(' · ')}</span>;
+                            }
+                            case 'EVENT': {
+                                return payload.description ? <span className="text-rose-300 truncate">{payload.description}</span> : null;
+                            }
+                            default: {
+                                const first = Object.values(payload).find(v => v && typeof v === 'string');
+                                return first ? <span className="text-zinc-400">{String(first)}</span> : null;
+                            }
+                        }
+                    };
+                    const payloadPreview = mission.title ? getPayloadPreview(mission.category, mission.payload) : null;
 
                     return (
                         <Card
@@ -326,9 +357,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                             </div>
 
                                             {/* Preview Payload */}
-                                            {previewText && (
-                                                <div className="mt-auto text-[10px] text-zinc-500 font-mono truncate px-2 py-1 bg-black/40 rounded border border-white/5 group-hover:border-white/10 transition-colors">
-                                                    {previewText}
+                                            {payloadPreview && (
+                                                <div className="mt-auto flex items-center gap-1.5 text-[11px] px-2 py-1 bg-black/30 rounded border border-white/5 group-hover:border-white/10 transition-colors">
+                                                    {payloadPreview}
                                                 </div>
                                             )}
                                         </>

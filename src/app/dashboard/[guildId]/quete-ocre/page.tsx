@@ -12,6 +12,7 @@ import { Bug, AlertCircle, Link2, Sparkles, Crown } from "lucide-react";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,17 @@ export default async function QueteOcrePage({
 
     const { guildId } = await params;
 
+    // Module guard
+    if (!await isModuleEnabled(guildId, "ocre")) {
+        redirect(`/dashboard/${guildId}`);
+    }
+
     // RBAC: Check permission to view Archis (TODO: Rename to OCRE_VIEW when permissions updated)
     const user = await getUserContext(guildId);
     if (!user.canViewArchis) {
         return <AccessDenied />;
     }
+
 
     // Fetch user's Quête Ocre data
     const ocreResponse = await getMyOcreProgress(guildId);

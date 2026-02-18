@@ -70,6 +70,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                 <ProfileBentoGrid
                     profile={{
                         id: profile.id,
+                        userId: profile.userId,
                         pseudoDofus: profile.pseudoDofus,
                         classe: profile.classe,
                         classeSecondaires: (profile.classeSecondaires as string[]) || [],

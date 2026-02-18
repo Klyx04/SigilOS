@@ -448,6 +448,29 @@ export async function updateChannelMessage(
     }
 }
 
+/**
+ * Delete a Discord message (e.g. run embed when run is closed)
+ */
+export async function deleteChannelMessage(channelId: string, messageId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bot ${token}`,
+            },
+        });
+
+        // 204 No Content = success
+        return res.status === 204 || res.ok;
+    } catch (error) {
+        console.error("[Discord] Error deleting message:", error);
+        return false;
+    }
+}
+
 // Export signature verification for use in interactions route
 export async function verifyDiscordSignature(
     request: Request,

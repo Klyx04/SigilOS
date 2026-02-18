@@ -58,7 +58,7 @@ export function RegistrationModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg bg-zinc-900/95 backdrop-blur-xl border-zinc-800">
+            <DialogContent draggable className="max-w-lg bg-zinc-900/95 backdrop-blur-xl border-zinc-800">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-bold text-zinc-100">
                         {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}

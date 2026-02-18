@@ -16,6 +16,7 @@ interface RunCardGridProps {
     runs: RunWithRelations[];
     currentUserId?: string;
     canJoinSonges?: boolean;
+    isAdmin?: boolean;
 }
 
 type TierFilter = "ALL" | "REVE" | "PARADOXE" | "CAUCHEMAR";
@@ -42,12 +43,12 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
     CAUCHEMAR: {
         label: "Cauchemar",
         icon: <Flame className="w-4 h-4" />,
-        color: "text-red-300 border-red-500/30 hover:bg-red-500/20",
+        color: "text-red-300 border-red-500/30 hover:bg-red-900/20",
         activeColor: "bg-red-600 text-white border-red-600"
     },
 };
 
-export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges }: RunCardGridProps) {
+export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, isAdmin = false }: RunCardGridProps) {
     const [runs, setRuns] = useState(initialRuns);
     const [tierFilter, setTierFilter] = useState<TierFilter>("ALL");
 
@@ -118,7 +119,13 @@ export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges }:
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredRuns.map((run) => (
-                        <RunCard key={run.id} run={run} currentUserId={currentUserId} canJoinSonges={canJoinSonges} />
+                        <RunCard
+                            key={run.id}
+                            run={run}
+                            currentUserId={currentUserId}
+                            canJoinSonges={canJoinSonges}
+                            isAdmin={isAdmin}
+                        />
                     ))}
                 </div>
             )}

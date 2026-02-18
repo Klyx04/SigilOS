@@ -53,7 +53,9 @@ export async function validateAchievementSubmission(
                 submission.profile.userId,
                 "SYSTEM_INFO" as NotificationType,
                 "[Ladder] Points validés",
-                `Vos ${submission.points} points de succès ont été validés par le staff.`
+                `Vos ${submission.points} points de succès ont été validés par le staff.`,
+                undefined,
+                submission.guild.discordGuildId
             );
         } else {
             // Notify user of rejection
@@ -61,7 +63,9 @@ export async function validateAchievementSubmission(
                 submission.profile.userId,
                 "SYSTEM_INFO" as NotificationType,
                 "[Ladder] Points refusés",
-                `Votre demande de mise à jour des points de succès a été refusée par le staff.`
+                `Votre demande de mise à jour des points de succès a été refusée par le staff.`,
+                undefined,
+                submission.guild.discordGuildId
             );
         }
 

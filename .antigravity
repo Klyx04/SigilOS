@@ -308,7 +308,7 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 
 ### 🔴 P0 — Bloquants Beta
 - [x] ~~Fix Changelog : images chargent pas pour l'externe~~ ✅ Confirmé OK
-- [ ] Merger `feat/guild-modules` → `dev` → déployer VPS
+- [x] Merger `feat/guild-modules` → `dev` → déployer VPS
 
 ### ⚡ P1 — Stabilité & Sécurité
 - [ ] RBAC futurs modules (guard à chaque nouvelle route)

@@ -65,6 +65,16 @@ const SendVacationNotificationSchema = z.object({
     endDate: z.string().nullable(),
 });
 
+const UpdateNotificationPrefsSchema = z.object({
+    guildId: z.string(),
+    prefs: z.object({
+        missions: z.boolean().optional(),
+        songes: z.boolean().optional(),
+        events: z.boolean().optional(),
+        ladder: z.boolean().optional(),
+    }),
+});
+
 const SyncSuccessPointsSchema = z.object({
     guildId: z.string(),
     imageData: z.string(), // Base64 image string (data:image/...)
@@ -381,6 +391,41 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
         return { success: true };
     } catch (error) {
         console.error("Update Vacation Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNotificationPrefsSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const validation = UpdateNotificationPrefsSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, prefs } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const currentProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { notificationPrefs: true }
+        });
+
+        const currentPrefs = (currentProfile?.notificationPrefs as any) || {};
+        const newPrefs = { ...currentPrefs, ...prefs };
+
+        await db.userProfile.update({
+            where: {
+                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+            },
+            data: { notificationPrefs: newPrefs }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Notification Prefs Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -816,7 +861,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
                 { name: "📅 Début", value: formatDate(startDate), inline: true },
                 { name: "📅 Retour", value: formatDate(endDate), inline: true },
             ],
-            footer: { text: "SigilOS • Mode Vacances" },
+            footer: { text: "SigilOS • Anti-Spam (1min) • Tout abus sera sanctionné" },
             timestamp: new Date().toISOString(),
         };
 

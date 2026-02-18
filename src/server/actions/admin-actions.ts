@@ -682,3 +682,79 @@ export async function updateGuildGameConfig(
     }
 }
 
+// ============================================================================
+// MISSION NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getMissionConfig(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        missionChannelId: string | null;
+        missionNotifyRoleId: string | null;
+    }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { missionNotifyChannelId: true, missionNotifyRoleId: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return {
+            success: true,
+            data: {
+                missionChannelId: config.missionNotifyChannelId,
+                missionNotifyRoleId: config.missionNotifyRoleId
+            }
+        };
+    } catch (error) {
+        console.error("Get Mission Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateMissionNotifySettings(
+    guildId: string,
+    data: { channelId: string | null; roleId: string | null }
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        // SECURITY: Validate channel (if provided)
+        if (data.channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(data.channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: {
+                missionNotifyChannelId: data.channelId,
+                missionNotifyRoleId: data.roleId
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Mission Settings Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}

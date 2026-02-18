@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
-import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle } from "lucide-react";
+import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getWeekNumber } from "@/lib/date-utils";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
+import { MissionDiscordPublishDialog } from "./mission-discord-publish-dialog";
 import {
     DungeonForm,
     RegulationForm,
@@ -52,11 +53,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
         Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
     );
 
-    const [globalTier, setGlobalTier] = useState<number>(3); // Default to 3 or fetch from guild config
+    const [globalTier, setGlobalTier] = useState<number>(3);
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
+    const [isDiscordDialogOpen, setIsDiscordDialogOpen] = useState(false);
     const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
 
     // Fetch Data on Week Change
@@ -69,8 +71,6 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 const newMissions = Array.from({ length: 12 }).map((_, i) => {
                     const existing = fetched.find((m: any) => m.slotIndex === i);
                     if (existing) {
-                        // Infer global tier from existing missions if possible, otherwise keep default
-                        // In reality, we should fetch the guild config for default tier if no missions exist
                         return {
                             slotIndex: i,
                             category: existing.category,
@@ -85,11 +85,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 });
                 setMissions(newMissions);
 
-                // Set global tier from first found mission or default
                 const foundTier = (fetched as any[]).find((m: any) => m.tier)?.tier;
                 if (foundTier) setGlobalTier(foundTier);
-            } else {
-                // If no missions found, maybe fetch guild config for default tier?
             }
         } catch (e: unknown) {
             toast.error("Erreur de chargement");
@@ -102,14 +99,6 @@ export function MissionEditor({ guildId }: { guildId: string }) {
         fetchData();
     }, [fetchData]);
 
-    // Helpers
-    const currentMission = editingSlot !== null ? missions[editingSlot] : null;
-
-    const updateMission = (slot: number, updates: Partial<DraftMission>) => {
-        setMissions(prev => prev.map(m => m.slotIndex === slot ? { ...m, ...updates } : m));
-    };
-
-    // Actions
     const handleSaveSingle = async (slot: number) => {
         const mission = missions[slot];
         const promise = createWeekMissions({
@@ -146,21 +135,20 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
     const handleGlobalPublish = async () => {
         setIsSaving(true);
-        // We only send missions that have some content or are explicit defaults?
-        // Ideally we assume the editor state IS the desired state.
         const res = await createWeekMissions({
             guildId,
             weekNumber,
             year,
             missions: missions.map(m => ({ ...m, tier: globalTier })),
-            updateGuildTier: globalTier
+            updateGuildTier: globalTier,
+            notifyMembers: true
         });
         setIsSaving(false);
         setConfirmPublishOpen(false);
 
         if (res.success) {
             toast.success("Tout est publié !");
-            fetchData(); // Refresh to be sure
+            fetchData();
         } else {
             toast.error(res.error || "Erreur globale");
         }
@@ -184,6 +172,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             setIsResetting(false);
         }
     };
+
+    const updateMission = (slot: number, updates: Partial<DraftMission>) => {
+        setMissions(prev => prev.map(m => m.slotIndex === slot ? { ...m, ...updates } : m));
+    };
+
+    const currentMission = editingSlot !== null ? missions[editingSlot] : null;
 
     return (
         <div className="space-y-6">
@@ -237,8 +231,20 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         )}
                         Reset Semaine
                     </Button>
-                    <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white">
-                        <Save className="w-4 h-4 mr-2" />
+                    <div className="w-px h-8 bg-zinc-800 mx-1 hidden sm:block"></div>
+
+                    <Button
+                        variant="outline"
+                        className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all font-black uppercase tracking-widest text-[10px] h-9"
+                        disabled={isLoading}
+                        onClick={() => setIsDiscordDialogOpen(true)}
+                    >
+                        <Send className="w-3.5 h-3.5 mr-2" />
+                        Annonce Discord
+                    </Button>
+
+                    <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
+                        <Save className="w-3.5 h-3.5 mr-2" />
                         Tout Publier
                     </Button>
                 </div>
@@ -248,14 +254,11 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {missions.map((mission) => {
                     const isEmpty = !mission.title;
-
-                    // Use shared config for consistent styling
                     const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
-                    const borderColor = isEmpty ? "border-slate-800" : config.borderColor;
+                    const borderColor = isEmpty ? "border-zinc-800" : config.borderColor;
                     const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
                     const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
 
-                    // Smart payload preview — traduit les clés anglaises en labels FR lisibles
                     const getPayloadPreview = (category: MissionCategoryType, payload: Record<string, any>): React.ReactNode => {
                         if (!payload || Object.keys(payload).length === 0) return null;
                         switch (category) {
@@ -305,9 +308,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             key={mission.slotIndex}
                             className={cn(
                                 "relative group transition-all duration-300 flex flex-col h-full",
-                                "bg-slate-900", // Lighter base
+                                "bg-zinc-900 shadow-xl",
                                 isEmpty
-                                    ? "bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-slate-800/60 border-dashed hover:bg-slate-900/80" // Matched MissionCard style
+                                    ? "bg-zinc-950/50 border-zinc-800/60 border-dashed hover:bg-zinc-900/80"
                                     : cn("border hover:shadow-[0_0_25px_-5px_var(--glow-color)]", borderColor)
                             )}
                             style={{ "--glow-color": glowColor } as React.CSSProperties}
@@ -315,12 +318,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             <CardHeader className="p-4 flex flex-row items-center justify-between pb-2 space-y-0 relative z-10">
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
-                                        "text-xs font-mono px-1.5 py-0.5 rounded transition-colors",
-                                        isEmpty ? "bg-slate-800 text-slate-500" : "bg-white/10 text-slate-300 border border-white/10"
+                                        "text-[10px] font-black px-1.5 py-0.5 rounded transition-colors",
+                                        isEmpty ? "bg-zinc-800 text-zinc-500" : "bg-white/10 text-white border border-white/10"
                                     )}>
                                         #{mission.slotIndex + 1}
                                     </span>
-                                    <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 transition-colors", badgeStyle)}>
+                                    <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 transition-colors uppercase tracking-tight", badgeStyle)}>
                                         {mission.category}
                                     </Badge>
                                 </div>
@@ -338,14 +341,14 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 <div className="h-full flex flex-col">
                                     {isEmpty ? (
                                         <div className="flex flex-col items-center justify-center h-20 gap-2.5">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                                                <Edit2 className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
+                                            <div className="w-10 h-10 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                                                <Edit2 className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
                                             </div>
-                                            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-200 transition-colors">Configurer</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-200 transition-colors">Configurer</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <h4 className="text-base font-bold text-white truncate leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-zinc-400 transition-all">
+                                            <h4 className="text-base font-bold text-white truncate leading-tight transition-all">
                                                 {mission.title}
                                             </h4>
                                             <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 mb-2">
@@ -353,10 +356,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                                     Rang {mission.rank}
                                                 </Badge>
                                                 <span className="w-0.5 h-3 bg-zinc-800" />
-                                                <span className="text-indigo-400">{mission.xpReward} XP</span>
+                                                <span className="text-indigo-400 font-bold">{mission.xpReward} XP</span>
                                             </div>
 
-                                            {/* Preview Payload */}
                                             {payloadPreview && (
                                                 <div className="mt-auto flex items-center gap-1.5 text-[11px] px-2 py-1 bg-black/30 rounded border border-white/5 group-hover:border-white/10 transition-colors">
                                                     {payloadPreview}
@@ -373,19 +375,18 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
             {/* Editing Dialog */}
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
-                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg">
+                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</DialogTitle>
+                        <DialogTitle className="text-xl font-black">Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</DialogTitle>
                     </DialogHeader>
 
                     {currentMission && (
                         <div className="grid gap-4 py-4">
-                            {/* Category & Tier/Rank Row */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Catégorie</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Catégorie</label>
                                     <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white"
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                                         value={currentMission.category}
                                         onChange={(e) => updateMission(currentMission.slotIndex, {
                                             category: e.target.value as MissionCategoryType,
@@ -400,9 +401,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Rang (Contenu)</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Rang (Difficulté)</label>
                                     <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white"
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                                         value={currentMission.rank}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { rank: parseInt(e.target.value) })}
                                     >
@@ -413,29 +414,27 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 </div>
                             </div>
 
-                            {/* Rewards Row */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">XP Guilde</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">XP Guilde</label>
                                     <input
                                         type="number"
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                                         value={currentMission.xpReward}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Guildatons</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Guildatons</label>
                                     <input
                                         type="number"
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white"
+                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                                         value={currentMission.guildatonsReward}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                             </div>
 
-                            {/* Category-Specific Form */}
                             <div className="pt-3 border-t border-zinc-800">
                                 {currentMission.category === 'DONJON' && (
                                     <DungeonForm
@@ -488,21 +487,20 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         </div>
                     )}
                     <DialogFooter className="gap-2">
-                        <Button variant="ghost" onClick={() => setEditingSlot(null)}>Fermer</Button>
-                        <Button onClick={() => { handleSaveSingle(currentMission!.slotIndex); setEditingSlot(null); }} className="bg-indigo-600">Enregistrer</Button>
+                        <Button variant="ghost" onClick={() => setEditingSlot(null)} className="text-zinc-400 hover:text-white">Annuler</Button>
+                        <Button onClick={() => { handleSaveSingle(currentMission!.slotIndex); setEditingSlot(null); }} className="bg-indigo-600 hover:bg-indigo-500 font-bold">Enregistrer</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Publish Confirmation */}
             <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>
-                <DialogContent>
+                <DialogContent className="bg-zinc-900 border-zinc-800 text-white shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-amber-500">
+                        <DialogTitle className="flex items-center gap-2 text-amber-500 font-black">
                             <AlertTriangle className="w-5 h-5" />
-                            Confirmer la publication
+                            CONFIRMER LA PUBLICATION
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-zinc-400">
                             Vous allez mettre à jour les {missions.filter(m => m.title).length} missions configurées pour la Semaine {weekNumber}.
                             <br /><br />
                             Cela ne supprimera pas les missions existantes des autres slots, mais écrasera celles-ci.
@@ -510,12 +508,18 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setConfirmPublishOpen(false)}>Annuler</Button>
-                        <Button onClick={handleGlobalPublish} className="bg-amber-600 hover:bg-amber-500 text-white">
-                            Confirmer
+                        <Button onClick={handleGlobalPublish} className="bg-amber-600 hover:bg-amber-500 text-white font-bold">
+                            PUBLIER MAINTENANT
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <MissionDiscordPublishDialog
+                isOpen={isDiscordDialogOpen}
+                onOpenChange={setIsDiscordDialogOpen}
+                guildId={guildId}
+            />
         </div >
     );
 }

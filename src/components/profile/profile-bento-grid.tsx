@@ -12,6 +12,7 @@ import { AltPseudos } from "./alt-pseudos";
 import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
+import { DreamRunHistory } from "./dream-run-history";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/
 interface ProfileBentoGridProps {
     profile: {
         id: string;
+        userId?: string;
         pseudoDofus?: string | null;
         classe?: string | null;
         classeSecondaires?: string[] | null;
@@ -40,6 +42,12 @@ interface ProfileBentoGridProps {
         dofusBookLinks?: { id: string; url: string; name: string }[] | null;
         successPoints?: number | null;
         lastLadderUpdate?: Date | null;
+        notificationPrefs?: {
+            missions?: boolean;
+            songes?: boolean;
+            events?: boolean;
+            ladder?: boolean;
+        } | null;
         pendingSubmission?: {
             id: string;
             points: number;
@@ -209,6 +217,16 @@ export function ProfileBentoGrid({
         }
     };
 
+    const handleNotificationPrefsSave = (prefs: any) => {
+        setLocalProfile(prev => ({
+            ...prev,
+            notificationPrefs: {
+                ...(prev.notificationPrefs || {}),
+                ...prefs
+            }
+        }));
+    };
+
     return (
         <div className="flex flex-col gap-6">
             {/* Hero Header (Glass) */}
@@ -260,6 +278,12 @@ export function ProfileBentoGrid({
                             className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
                         >
                             Succès
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="songes"
+                            className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
+                        >
+                            Songes
                         </TabsTrigger>
                         <TabsTrigger
                             value="settings"
@@ -387,12 +411,19 @@ export function ProfileBentoGrid({
                     />
                 </TabsContent>
 
+                {/* SONGES TAB */}
+                <TabsContent value="songes" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <DreamRunHistory guildId={guildId} userId={profile.userId} />
+                </TabsContent>
+
                 {/* SETTINGS TAB */}
                 <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <UserSettings
                         guildId={guildId}
                         guildName={guildName || "la guilde"}
                         profileId={profile.id}
+                        notificationPrefs={localProfile.notificationPrefs}
+                        onNotificationPrefsSave={handleNotificationPrefsSave}
                     />
                 </TabsContent>
             </Tabs>

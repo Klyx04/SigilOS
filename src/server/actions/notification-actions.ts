@@ -71,15 +71,59 @@ export async function markAllAsRead() {
 
 /**
  * Internal Helper to create notification
+ * Respects user preferences stored in UserProfile
  */
 export async function createNotification(
     userId: string,
     type: NotificationType,
     title: string,
     message: string,
-    link?: string
+    link?: string,
+    guildId?: string // Optional: check guild-specific preferences
 ) {
     try {
+        // 1. Check Preferences if guildId is provided
+        if (guildId) {
+            const profile = await db.userProfile.findFirst({
+                where: { userId, guildId: { contains: guildId } }, // Just in case guildId is discordId vs dbId, but usually it's dbId here
+                select: { notificationPrefs: true }
+            });
+
+            // Fallback: if guildId provided is Discord Guild ID, try to find by that
+            let actualProfile = profile;
+            if (!actualProfile) {
+                const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+                if (guild) {
+                    actualProfile = await db.userProfile.findUnique({
+                        where: { userId_guildId: { userId, guildId: guild.id } },
+                        select: { notificationPrefs: true }
+                    });
+                }
+            }
+
+            if (actualProfile?.notificationPrefs) {
+                const prefs = actualProfile.notificationPrefs as any;
+
+                // --- Logic: Block if preference is explicitly set to false ---
+
+                // Missions Category
+                if (type === "MISSION_VALIDATED" || type === "MISSION_REJECTED" || type === "NEW_SUBMISSION_PENDING") {
+                    if (prefs.missions === false) return;
+                }
+
+                // Songes Category
+                if (type === "SONGES_JOIN_REQUEST") {
+                    if (prefs.songes === false) return;
+                }
+
+                // Events Category
+                if (type === "EVENT_REMINDER" || (type === "SYSTEM_INFO" && title.includes("Rappel:"))) {
+                    if (prefs.events === false) return;
+                }
+            }
+        }
+
+        // 2. Create Notification
         await db.notification.create({
             data: {
                 userId,

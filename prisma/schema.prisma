@@ -58,6 +58,12 @@ model User {
   eventParticipations EventParticipant[]
   notifications       Notification[]
 
+  // Songes Relations
+  dreamRuns          DreamRun[]         @relation("RunLeader")
+  dreamRunMembers    DreamRunMember[]
+  dreamWaitlists     DreamWaitlist[]
+  dreamJoinRequests  DreamJoinRequest[]
+
   // Lifecycle tracking (RGPD)
   deletionRequestedAt DateTime?
   scheduledDeletion   DateTime?
@@ -124,8 +130,10 @@ model GuildConfig {
   bonusNotifyChannelId String? // Discord channel ID for bonus purchase notifications
 
   // Mission Configuration
-  missionRanks Json? // [1, 2, 3, 4] - Selected ranks for mission generation
-  missionTier  Int?  @default(3) // Selected Tier (Palier) target (1-5)
+  missionRanks         Json? // [1, 2, 3, 4] - Selected ranks for mission generation
+  missionTier          Int?    @default(3) // Selected Tier (Palier) target (1-5)
+  missionNotifyChannelId String? // Discord channel ID for mission notifications
+  missionNotifyRoleId    String? // Discord role ID to ping for mission notifications
 
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
@@ -292,6 +300,9 @@ model UserProfile {
 
   // Alt Characters (up to 5-6 pseudos for other in-game characters)
   altPseudos Json? // String[] - ["AltName1", "AltName2", ...]
+
+  // Notification Preferences
+  notificationPrefs Json? // { "missions": true, "songes": true, "events": true }
 
   // Lifecycle tracking (uses existing archivedAt/archiveReason + scheduledDeletion)
   scheduledDeletion DateTime? // Date de hard delete planifiée (for RGPD compliance)
@@ -615,6 +626,8 @@ model DreamRun {
   guildId  String // Multi-tenant isolation
   leaderId String // User who created the run
 
+  leader User @relation("RunLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+
   // Configuration
   difficulty DreamDifficulty
   objective  DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
@@ -629,6 +642,8 @@ model DreamRun {
 
   // Timestamps
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  lastReminderAt DateTime? // For cooldown/spam protection
   startedAt   DateTime? // When run actually started
   completedAt DateTime? // When run ended (victory/defeat/abandon)
 
@@ -645,6 +660,7 @@ model DreamRun {
   floors       DreamFloor[]
   bonuses      DreamRunBonus[]
   joinRequests DreamJoinRequest[]
+  reminders    DreamRunReminder[]
 
   @@index([guildId, status])
   @@index([leaderId])
@@ -657,7 +673,8 @@ model DreamRunMember {
   slot     Int // 1-4 (position in team)
   joinedAt DateTime @default(now())
 
-  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run  DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([runId, userId])
   @@unique([runId, slot])
@@ -670,7 +687,8 @@ model DreamWaitlist {
   position  Int // Position in queue (1 = first)
   createdAt DateTime @default(now())
 
-  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run  DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([runId, userId])
   @@index([runId, position])
@@ -757,10 +775,27 @@ model DreamJoinRequest {
   createdAt   DateTime          @default(now())
   respondedAt DateTime?
 
-  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  // Discord tracking for cleanup
+  discordMessageId String?
+  discordChannelId String?
+
+  run  DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([runId, userId])
   @@index([runId, status])
+}
+
+model DreamRunReminder {
+  id               String   @id @default(cuid())
+  runId            String
+  discordMessageId String
+  discordChannelId String
+  createdAt        DateTime @default(now())
+
+  run DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
 }
 
 enum JoinRequestStatus {
@@ -784,6 +819,7 @@ enum GuildEventType {
   DUNGEON_FARM
   SOCIAL
   OFFICIAL_RESET
+  OTHERS
 }
 
 enum EventStatus {

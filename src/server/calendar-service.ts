@@ -15,7 +15,8 @@ const EVENT_IMAGES: Record<string, string> = {
     "DUNGEON_FARM": "calendar_dungeon_farm.png",
     "SOCIAL": "calendar_social.png",
     "ALMANAX_BONUS": "calendar_almanax_bonus.png",
-    "OFFICIAL_RESET": "calendar_raid_official.png"
+    "OFFICIAL_RESET": "calendar_raid_official.png",
+    "OTHERS": "calendar_autres.png"
 };
 
 // Map event types to emojis and colors
@@ -30,8 +31,13 @@ const EVENT_CONFIG: Record<string, { emoji: string; color: number; label: string
     SONGES_RUN: { emoji: "🌙", color: 0x6366f1, label: "Songes" },
     DUNGEON_FARM: { emoji: "🏰", color: 0xec4899, label: "Donjon" },
     SOCIAL: { emoji: "🍻", color: 0xf97316, label: "Social" },
-    OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b, label: "Reset" }
+    OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b, label: "Reset" },
+    OTHERS: { emoji: "💠", color: 0x94a3b8, label: "Autres" }
 };
+
+// Rate limiting for interactions (prevent Discord embed hammer)
+const interactionCooldowns = new Map<string, number>();
+const INTERACTION_COOLDOWN_MS = 10 * 1000; // 10 seconds
 
 export async function processRegistration(guildId: string, eventId: string, userId: string, data?: { classe?: string; comment?: string }) {
     const guildConfig = await db.guildConfig.findUnique({
@@ -50,6 +56,15 @@ export async function processRegistration(guildId: string, eventId: string, user
 
     if (!event) return { success: false, error: "Événement introuvable" };
     if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
+
+    // Anti-spam check (User-Event based cooldown)
+    const cooldownKey = `${userId}:${eventId}`;
+    const lastAction = interactionCooldowns.get(cooldownKey) || 0;
+    if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
+        return { success: false, error: "Doucement ! Patiente quelques secondes entre tes actions." };
+    }
+    interactionCooldowns.set(cooldownKey, Date.now());
+
     if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
 
     // Check raid 1/week rule
@@ -114,6 +129,14 @@ export async function processUnregistration(guildId: string, eventId: string, us
     });
 
     if (!participant) return { success: false, error: "Non inscrit" };
+
+    // Anti-spam check
+    const cooldownKey = `${userId}:${eventId}`;
+    const lastAction = interactionCooldowns.get(cooldownKey) || 0;
+    if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
+        return { success: false, error: "Patiente quelques secondes avant d'annuler." };
+    }
+    interactionCooldowns.set(cooldownKey, Date.now());
 
     const wasRegistered = participant.status === "REGISTERED";
 

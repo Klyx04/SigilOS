@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones } from "@/server/actions/game-data-actions";
+import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones, searchDungeonsAdvanced } from "@/server/actions/game-data-actions";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import {
     SONGES_CONFIG,
@@ -58,9 +58,14 @@ type FormProps = {
 
 export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 
     const dungeonFetcher = useCallback(async (query: string) => {
-        const res = await searchDungeons(query);
+        const res = await searchDungeonsAdvanced({
+            query,
+            minLevel: selectedLevel || undefined,
+            maxLevel: selectedLevel || undefined
+        });
         if (res.success && res.data) {
             setDungeons(res.data);
             return res.data.map(d => ({
@@ -70,7 +75,12 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
             }));
         }
         return [];
-    }, []);
+    }, [selectedLevel]);
+
+    const handleLevelSelect = (lvl: number | null) => {
+        setSelectedLevel(lvl === selectedLevel ? null : lvl);
+        // We don't clear the selected dungeon, just the filter for next search
+    };
 
     const handleSelect = (dungeonId: string) => {
         const dungeon = dungeons.find(d => d.id === dungeonId);
@@ -95,16 +105,39 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
     };
 
     const selectedDungeon = payload.dungeonId ? dungeons.find(d => d.id === payload.dungeonId) : null;
+    const levelPaliers = [200, 190, 180, 170, 160, 150, 100, 50];
 
     return (
         <div className="space-y-4">
             <div className="space-y-2">
+                <Label className="text-xs text-zinc-400">Paliers de niveau</Label>
+                <div className="flex flex-wrap gap-1.5">
+                    {levelPaliers.map(lvl => (
+                        <button
+                            key={lvl}
+                            type="button"
+                            onClick={() => handleLevelSelect(lvl)}
+                            className={cn(
+                                "h-7 px-2.5 rounded-md text-[10px] font-black border transition-all",
+                                selectedLevel === lvl
+                                    ? "bg-rose-500/20 border-rose-500/50 text-rose-300"
+                                    : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                            )}
+                        >
+                            {lvl}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="space-y-2">
                 <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
                 <AsyncCombobox
+                    key={selectedLevel} // Force refresh when palier changes
                     value={payload.dungeonId}
                     onSelect={handleSelect}
                     fetcher={dungeonFetcher}
-                    placeholder="Sélectionner un donjon..."
+                    placeholder={selectedLevel ? `Donjons Niv. ${selectedLevel}...` : "Sélectionner un donjon..."}
                     searchPlaceholder="Nom du donjon ou du boss..."
                     emptyText="Aucun donjon trouvé."
                 />
@@ -226,8 +259,39 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
         }
     };
 
+    const selectedZone = payload.zoneId ? zones.find(z => z.id === payload.zoneId) : null;
+    const levelPaliers = [200, 190, 180, 170, 160, 150, 100, 50];
+
     return (
         <div className="space-y-4">
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-400">Paliers de niveau</Label>
+                <div className="flex flex-wrap gap-1.5">
+                    {levelPaliers.map(lvl => (
+                        <button
+                            key={lvl}
+                            type="button"
+                            onClick={() => {
+                                // For regulation, we use paliers as quick search
+                                zoneFetcher(String(lvl)).then(results => {
+                                    if (results.length > 0) {
+                                        handleZoneChange(results[0].value);
+                                    }
+                                });
+                            }}
+                            className={cn(
+                                "h-7 px-2.5 rounded-md text-[10px] font-black border transition-all hover:bg-emerald-500/10 hover:border-emerald-500/30",
+                                selectedZone?.level === lvl
+                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                                    : "bg-zinc-950 border-zinc-800 text-zinc-500"
+                            )}
+                        >
+                            {lvl}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Zone Selector */}
             <div className="space-y-2">
                 <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
@@ -295,9 +359,9 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
 
     const updateTitle = (type: string, range: string) => {
         if (type === 'ZONE') {
-            onTitleChange(`Au cœur de l'anomalie`);
+            onTitleChange(`Zone Anomalie ${range}`);
         } else {
-            onTitleChange(`Gardien d'anomalie ${range}`);
+            onTitleChange(`Gardien Anomalie ${range}`);
         }
     };
 
@@ -323,8 +387,8 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                     )}>
                         <RadioGroupItem value="BOSS" id="boss" />
                         <Label htmlFor="boss" className="cursor-pointer text-sm">
-                            <div className="font-medium">Boss</div>
-                            <div className="text-xs text-zinc-500">Gardien de donjon</div>
+                            <div className="font-medium">Gardien</div>
+                            <div className="text-xs text-zinc-500">Gardien d'anomalie</div>
                         </Label>
                     </div>
                 </RadioGroup>
@@ -348,9 +412,9 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             {/* Preview */}
             <div className="p-3 bg-zinc-900/50 rounded-lg border border-fuchsia-500/20 text-xs text-zinc-400">
                 {anomalieType === 'ZONE' ? (
-                    <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-400">[Elixir uchronique majeur]</span></>
+                    <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
                 ) : (
-                    <>Vaincre un gardien d'anomalie de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique majeur]</span></>
+                    <>Vaincre un gardien d'anomalie de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
                 )}
             </div>
         </div>

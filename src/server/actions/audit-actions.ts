@@ -31,6 +31,7 @@ export type AuditAction =
     | "MISSION_DELETED"       // Admin deleted a mission or reset a week
     | "MISSION_VALIDATED"     // Admin validated a member submission
     | "MISSION_REJECTED"      // Admin rejected a member submission
+    | "MISSION_PUBLISH_DISCORD" // Admin published weekly mission notification to Discord
     | "BONUS_PURCHASED"       // Member purchased a guild bonus
     | "BONUS_CANCELLED";      // Member cancelled a pending bonus
 

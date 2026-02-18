@@ -56,6 +56,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     borderColor: string;
     headerGradient: string;
     bannerImage: string;
+    fallbackImage?: string;
     glowColor: string;
     label: string;
 }> = {
@@ -66,6 +67,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-rose-500/40",
         headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
         bannerImage: "/banners/donjon.png",
+        fallbackImage: "/assets/missions/donjon.png",
         glowColor: "rgba(244, 63, 94, 0.4)",
         label: "Donjon"
     },
@@ -76,6 +78,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-emerald-500/40",
         headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
         bannerImage: "/banners/regulation.png",
+        fallbackImage: "/assets/missions/regulation.png",
         glowColor: "rgba(52, 211, 153, 0.4)",
         label: "Régulation"
     },
@@ -86,6 +89,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-fuchsia-500/40",
         headerGradient: "from-[#7d1a6b]/90 via-[#ab47bc]/80 to-[#4d1040]/90",
         bannerImage: "/banners/anomalie.png",
+        fallbackImage: "/assets/missions/anomalie.png",
         glowColor: "rgba(217, 70, 239, 0.4)",
         label: "Anomalie"
     },
@@ -96,6 +100,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-cyan-500/40",
         headerGradient: "from-[#1a6b7d]/90 via-[#26c6da]/80 to-[#10404d]/90",
         bannerImage: "/banners/songes.png",
+        fallbackImage: "/assets/missions/songes.png",
         glowColor: "rgba(34, 211, 238, 0.4)",
         label: "Songes"
     },
@@ -106,6 +111,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-amber-500/40",
         headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
         bannerImage: "/banners/expedition.png",
+        fallbackImage: "/assets/missions/expedition.png",
         glowColor: "rgba(251, 191, 36, 0.4)",
         label: "Expédition"
     },
@@ -116,6 +122,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-yellow-500/40",
         headerGradient: "from-[#7d6b1a]/90 via-[#fbc02d]/80 to-[#4d4010]/90",
         bannerImage: "/banners/event.png",
+        fallbackImage: "/assets/missions/event.png",
         glowColor: "rgba(253, 224, 71, 0.4)",
         label: "Événement"
     },
@@ -136,7 +143,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
     const payload = mission.payload as any;
 
     // Extract image URL from payload
-    const imageUrl = payload.imageUrl || payload.image || null;
+    const imageUrl = payload.imageUrl || payload.image || (config as any).fallbackImage || null;
 
     // Check user's submission status for this mission
     const userSubmission = mission.submissions?.[0];
@@ -278,7 +285,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                 )} />
 
                 {/* Left Column: Image Cutout */}
-                <div className="w-[32%] shrink-0 flex items-center justify-center p-3 relative border-r border-white/5">
+                <div className="w-[40%] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5">
                     {/* Background Light behind Creature */}
                     <div className={cn(
                         "absolute inset-0 opacity-20 blur-2xl rounded-full scale-110",
@@ -286,28 +293,31 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                     )} />
 
                     {imageUrl ? (
-                        <div className="relative w-full h-full transform transition-all duration-700 group-hover:scale-110 group-hover:-rotate-2 drop-shadow-[0_10px_15px_rgba(0,0,0,0.6)]">
+                        <div className="relative w-full h-full transform transition-transform duration-700 group-hover:scale-110">
                             <Image
                                 src={imageUrl}
                                 alt="Subject"
                                 fill
-                                className="object-contain"
+                                className="object-cover"
                                 unoptimized={true}
                             />
+                            {/* Cinematic Overlay: Gradient Fade to Right */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1c20]/80 z-10" />
+                            {/* Inner depth shadow */}
+                            <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.4)] z-10" />
                         </div>
                     ) : (
                         <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center">
                             <Search className="w-5 h-5 text-zinc-600" />
                         </div>
                     )}
-
-                    {/* Decorative Location Pin */}
-                    {payload.zoneName && (
-                        <div className="absolute bottom-1.5 right-1.5 p-1 bg-black/60 rounded border border-white/10 backdrop-blur-md transition-opacity hover:opacity-100" title={payload.zoneName}>
-                            <MapPin className="w-2.5 h-2.5 text-emerald-400" />
-                        </div>
-                    )}
                 </div>
+                {/* Decorative Location Pin */}
+                {payload.zoneName && (
+                    <div className="absolute bottom-1.5 right-1.5 p-1 bg-black/60 rounded border border-white/10 backdrop-blur-md transition-opacity hover:opacity-100" title={payload.zoneName}>
+                        <MapPin className="w-2.5 h-2.5 text-emerald-400" />
+                    </div>
+                )}
 
                 {/* Right Column: Key Info */}
                 <div className="flex-1 flex flex-col p-4 justify-between relative overflow-hidden">
@@ -474,10 +484,15 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 <>Vaincre <span className="text-emerald-400 font-medium">50 {targetName}</span> sur leur territoire</>
             );
         case "ANOMALIE":
+            const range = payload.levelRange || "200";
             if (payload.type === 'BOSS') {
-                return <>Vaincre un gardien d'anomalie temporelle sous l'effet d'un</>;
+                return (
+                    <>Vaincre un gardien d'anomalie temporelle de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
+                );
             }
-            return <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{payload.levelRange || "200"}</span> sous anomalie</>;
+            return (
+                <>Vaincre <span className="text-fuchsia-400 font-bold">50 monstres</span> dans une zone de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
+            );
         case "SONGES":
             const palierNames: Record<number, string> = {
                 1: "Pensées oniriques",

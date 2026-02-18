@@ -53,6 +53,7 @@ export default async function SongesPage({
                     runs={runs}
                     currentUserId={currentUserId}
                     canJoinSonges={userContext.canJoinSonges}
+                    isAdmin={userContext.isAdmin}
                 />
             </Suspense>
         </div>

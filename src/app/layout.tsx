@@ -88,16 +88,23 @@ export default function RootLayout({
             <TooltipProvider>
               {children}
               <Toaster
-                position="top-center"
+                position="bottom-right"
                 richColors
+                expand={false}
                 closeButton
                 theme="dark"
                 toastOptions={{
-                  className: "bg-[#1a0933]/90 border border-purple-500/20 text-white shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-md rounded-2xl",
+                  className: "group font-sans border-white/5 bg-[#0d0f11]/90 backdrop-blur-2xl text-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-4 border border-zinc-500/10",
+                  descriptionClassName: "text-zinc-400 font-medium text-[13px]",
                   style: {
-                    borderRadius: "1rem",
-                    padding: "1rem",
-                  }
+                    borderLeft: '3px solid rgba(255,255,255,0.1)',
+                  },
+                  actionButtonStyle: {
+                    background: "white",
+                    color: "black",
+                    fontWeight: "bold",
+                    borderRadius: "0.5rem",
+                  },
                 }}
               />
             </TooltipProvider>

@@ -21,7 +21,8 @@ import {
     Target,
     Wheat,
     Info,
-    AlertTriangle
+    AlertTriangle,
+    Diamond
 } from "lucide-react";
 import {
     Form,
@@ -100,6 +101,16 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         bg: "bg-emerald-500/10",
         border: "border-emerald-500/30",
         text: "text-emerald-400",
+        preset: { defaultDuration: 2 }
+    },
+    OTHERS: {
+        label: "Autres activités",
+        shortLabel: "Autres",
+        icon: Diamond,
+        gradient: "from-slate-600 to-zinc-600",
+        bg: "bg-slate-500/10",
+        border: "border-slate-500/30",
+        text: "text-slate-400",
         preset: { defaultDuration: 2 }
     },
 };
@@ -251,7 +262,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                     <FormLabel className="text-sm font-medium text-zinc-300">
                         Type d'événement
                     </FormLabel>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-5 gap-2">
                         {EVENT_TYPES.map((type) => {
                             const config = TYPE_CONFIG[type];
                             const Icon = config.icon;

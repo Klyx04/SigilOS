@@ -774,3 +774,27 @@ export async function updateMemberProfileStatus(
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
     return updated;
 }
+
+export async function getDiscordRolesAction(guildId: string) {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    // Security: Must be admin to access role configuration settings
+    const user = await getUserContext(guildId);
+    if (!user.isAdmin) return { success: false, error: "Forbidden: Admin access required" };
+
+    try {
+        const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
+        return {
+            success: true,
+            data: roles.map(r => ({
+                id: r.id,
+                name: r.name,
+                color: r.color
+            }))
+        };
+    } catch (error) {
+        console.error("Get Discord Roles Error:", error);
+        return { success: false, error: "Erreur lors de la récupération des rôles" };
+    }
+}

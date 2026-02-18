@@ -28,7 +28,7 @@ export type RegulationPayload = {
 // === ANOMALIE ===
 export type AnomaliePayload = {
     type: 'ZONE' | 'BOSS';
-    levelRange: '50+' | '100+' | '150+' | '190+' | '200';
+    levelRange: AnomalieLevelRange;
 }
 
 // === SONGES ===
@@ -75,7 +75,8 @@ export const SONGES_CONFIG = {
 };
 
 // Anomalie level ranges
-export const ANOMALIE_LEVEL_RANGES = ['50+', '100+', '150+', '190+', '200'] as const;
+export type AnomalieLevelRange = '50+' | '100+' | '150' | '160' | '170' | '180' | '190' | '200';
+export const ANOMALIE_LEVEL_RANGES: AnomalieLevelRange[] = ['50+', '100+', '150', '160', '170', '180', '190', '200'];
 
 // Expedition modes
 export const EXPEDITION_MODES = [

@@ -35,8 +35,10 @@ import {
 } from "@/server/actions/songes/dream-run-actions";
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
+import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -51,21 +53,24 @@ interface MemberProfile {
     classe: string | null;
     discordNickname: string | null;
     isAdmin?: boolean;
+    avatar?: string | null;
 }
 
 interface RunCardProps {
     run: RunWithRelations;
     currentUserId?: string;
     canJoinSonges?: boolean;
+    isAdmin?: boolean;
 }
 
-export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardProps) {
+export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = false }: RunCardProps) {
     const params = useParams();
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [loading, setLoading] = useState(false); // Keep for dialog submit buttons
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [candidacyDialogOpen, setCandidacyDialogOpen] = useState(false);
     const [selectedClasse, setSelectedClasse] = useState<DofusClass>("Cra");
     const [message, setMessage] = useState("");
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
@@ -73,7 +78,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
 
     // Candidacy panel state (for leaders)
     const [candidacyExpanded, setCandidacyExpanded] = useState(false);
-    const [candidacies, setCandidacies] = useState<Array<{ id: string; userId: string; classe: string; message: string | null; displayName?: string }>>([]);
+    const [candidacies, setCandidacies] = useState<{
+        id: string;
+        userId: string;
+        classe: string;
+        message: string | null;
+        displayName: string;
+        avatar: string | null;
+    }[]>([]);
     const [candidacyLoading, setCandidacyLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -260,27 +272,39 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Delete Button (leader only) */}
-                    {isLeader && (
-                        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/30">
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-[#1a0933] border-red-500/30 text-white">
-                                <DialogHeader>
-                                    <DialogTitle>Supprimer la Run ?</DialogTitle>
-                                </DialogHeader>
-                                <p className="text-purple-200 text-sm">Cette action est irréversible. Tous les membres seront retirés.</p>
-                                <div className="flex gap-2 justify-end mt-4">
-                                    <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-                                    <Button onClick={handleDelete} disabled={loading} className="bg-red-600 hover:bg-red-500">
-                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Supprimer"}
+                    {/* Leader Tools */}
+                    {(isLeader || isAdmin) && (
+                        <div className="flex items-center gap-1">
+                            {/* Reminder Button (Leader only) */}
+                            {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                                <RunLeaderActions
+                                    guildId={params.guildId as string}
+                                    runId={run.id}
+                                    variant="minimal"
+                                />
+                            )}
+
+                            {/* Delete Button (Leader or Admin) */}
+                            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/30">
+                                        <Trash2 className="w-4 h-4" />
                                     </Button>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                                </DialogTrigger>
+                                <DialogContent className="bg-[#1a0933] border-red-500/30 text-white">
+                                    <DialogHeader>
+                                        <DialogTitle>Supprimer la Run ?</DialogTitle>
+                                    </DialogHeader>
+                                    <p className="text-purple-200 text-sm">Cette action est irréversible. Tous les membres seront retirés.</p>
+                                    <div className="flex gap-2 justify-end mt-4">
+                                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+                                        <Button onClick={handleDelete} disabled={loading} className="bg-red-600 hover:bg-red-500">
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Supprimer"}
+                                        </Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
                     )}
 
                     {/* Status Badge */}
@@ -301,12 +325,93 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                         </div>
                     )}
 
-                    {/* Candidature Badge (leader only) */}
+                    {/* Candidature Badge (leader only) - Now Clickable Modal */}
                     {isLeader && run.joinRequests && run.joinRequests.length > 0 && (
-                        <div className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 animate-pulse">
-                            <Bell className="w-3 h-3" />
-                            {run.joinRequests.length} candidature{run.joinRequests.length > 1 ? "s" : ""}
-                        </div>
+                        <Dialog open={candidacyDialogOpen} onOpenChange={(open) => {
+                            setCandidacyDialogOpen(open);
+                            if (open) loadCandidacies();
+                        }}>
+                            <DialogTrigger asChild>
+                                <button className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 animate-pulse hover:bg-amber-500/30 transition-all cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                                    <Bell className="w-3 h-3" />
+                                    {run.joinRequests.length} candidature{run.joinRequests.length > 1 ? "s" : ""}
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white w-[90vw] max-w-[400px] rounded-xl overflow-hidden p-0">
+                                <DialogHeader className="p-4 border-b border-purple-500/20 bg-purple-900/20">
+                                    <DialogTitle className="flex items-center gap-2 text-amber-400">
+                                        <Users className="w-5 h-5" />
+                                        Candidatures en attente
+                                    </DialogTitle>
+                                </DialogHeader>
+                                <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                    {candidacyLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-8 text-purple-400 gap-2">
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                            <span className="text-sm">Chargement des profils...</span>
+                                        </div>
+                                    ) : candidacies.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <Users className="w-12 h-12 text-purple-700 mx-auto mb-2 opacity-20" />
+                                            <p className="text-sm text-purple-300/50">Plus aucune candidature à traiter</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {candidacies.map((c) => (
+                                                <div key={c.id} className="p-3 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-purple-500/40 transition-all group">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="min-w-0 flex-1 flex items-center gap-3">
+                                                            <Avatar className="w-10 h-10 border border-purple-500/20">
+                                                                <AvatarImage src={c.avatar || undefined} />
+                                                                <AvatarFallback className="bg-purple-800 text-purple-200">
+                                                                    {c.displayName.charAt(0).toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="font-semibold text-white truncate text-sm">{c.displayName || "Joueur"}</span>
+                                                                </div>
+                                                                <div className="flex items-center text-[10px] text-purple-400 font-bold uppercase tracking-wider">
+                                                                    <ClassIcon classId={c.classe as DofusClass} size={14} className="mr-1" />
+                                                                    {c.classe}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-2 shrink-0">
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-8 bg-green-600 hover:bg-green-500 text-white"
+                                                                onClick={() => handleRespondCandidacy(c.id, true)}
+                                                                disabled={actionLoading === c.id}
+                                                            >
+                                                                {actionLoading === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4" />}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 bg-black/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20"
+                                                                onClick={() => handleRespondCandidacy(c.id, false)}
+                                                                disabled={actionLoading === c.id}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    {c.message && (
+                                                        <p className="text-xs text-purple-200/70 bg-black/40 p-2 rounded-lg mt-3 italic border-l-2 border-purple-500/40">
+                                                            "{c.message}"
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-3 bg-black/20 text-center border-t border-purple-500/10">
+                                    <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">SigilOS • Recrutement</p>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     )}
                 </div>
             </div>
@@ -343,21 +448,29 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                         return (
                             <div key={slot} className="flex flex-col items-center gap-1 min-w-[50px]">
                                 <div
-                                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center ${member
+                                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center overflow-hidden transition-all ${member
                                         ? "bg-purple-600/50 border-purple-400 text-white"
                                         : "bg-purple-900/30 border-purple-700/50 border-dashed"
                                         }`}
                                     title={member ? displayName : "Libre"}
                                 >
                                     {member ? (
-                                        <div className="relative">
-                                            {memberIsLeader ? (
-                                                <Crown className="w-4 h-4 text-amber-400" />
-                                            ) : (
-                                                <span className="text-xs font-semibold">{firstLetter}</span>
-                                            )}
+                                        <div className="relative w-full h-full flex items-center justify-center">
+                                            {/* Discord Avatar or Initials */}
+                                            <Avatar className="w-full h-full">
+                                                <AvatarImage src={profiles.find(p => p.userId === member.userId)?.avatar || undefined} />
+                                                <AvatarFallback className="bg-purple-600/50 text-white text-xs font-bold">
+                                                    {memberIsLeader ? (
+                                                        <Crown className="w-5 h-5 text-amber-400" />
+                                                    ) : (
+                                                        firstLetter
+                                                    )}
+                                                </AvatarFallback>
+                                            </Avatar>
+
+                                            {/* Admin Badge */}
                                             {profiles.find(p => p.userId === member.userId)?.isAdmin && (
-                                                <div className="absolute -top-1 -right-1 bg-zinc-900 rounded-full p-0.5 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                                                <div className="absolute -top-0.5 -right-0.5 bg-zinc-900 rounded-full p-0.5 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)] z-10">
                                                     <ShieldCheck className="w-2.5 h-2.5 text-purple-400 fill-purple-500/10" />
                                                 </div>
                                             )}
@@ -405,34 +518,50 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
                                 <p className="text-xs text-purple-300/50 text-center py-2">Aucune candidature</p>
                             ) : (
                                 candidacies.map((c) => (
-                                    <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-purple-900/30 border border-purple-500/20">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-sm text-white font-medium truncate">{c.displayName || "Joueur"}</p>
-                                            <div className="flex items-center text-xs text-purple-300/70 mt-0.5">
-                                                <ClassIcon classId={c.classe} size={14} className="mr-1.5" />
-                                                {c.classe}
+                                    <div key={c.id} className="p-3 rounded-xl bg-black/40 border border-purple-500/30 hover:border-purple-400/50 transition-all shadow-inner">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1 flex items-center gap-3">
+                                                <Avatar className="w-10 h-10 border border-purple-500/20">
+                                                    <AvatarImage src={c.avatar || undefined} />
+                                                    <AvatarFallback className="bg-purple-800 text-purple-200">
+                                                        {c.displayName.charAt(0).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm text-white font-bold truncate leading-tight">{c.displayName || "Joueur"}</p>
+                                                    <div className="flex items-center text-[10px] text-purple-400 font-bold uppercase tracking-wider mt-0.5">
+                                                        <ClassIcon classId={c.classe as DofusClass} size={14} className="mr-1" />
+                                                        {c.classe}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col gap-2 shrink-0">
+                                                <Button
+                                                    size="icon"
+                                                    className="h-8 w-8 bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20"
+                                                    onClick={() => handleRespondCandidacy(c.id, true)}
+                                                    disabled={actionLoading === c.id}
+                                                >
+                                                    {actionLoading === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                                </Button>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 bg-black/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 hover:border-red-600 transition-all"
+                                                    onClick={() => handleRespondCandidacy(c.id, false)}
+                                                    disabled={actionLoading === c.id}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-1 shrink-0">
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-7 w-7 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white"
-                                                onClick={() => handleRespondCandidacy(c.id, true)}
-                                                disabled={actionLoading === c.id}
-                                            >
-                                                {actionLoading === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-7 w-7 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white"
-                                                onClick={() => handleRespondCandidacy(c.id, false)}
-                                                disabled={actionLoading === c.id}
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </Button>
-                                        </div>
+                                        {c.message && (
+                                            <div className="bg-purple-900/20 border-l-2 border-purple-500/40 p-2 rounded-r-md mt-3">
+                                                <p className="text-[11px] text-purple-100/90 italic leading-relaxed">
+                                                    "{c.message}"
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -442,7 +571,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true }: RunCardPro
             )}
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-4 pt-1">
                 {/* Pending Request - Click to cancel */}
                 {pendingRequest ? (
                     <Button

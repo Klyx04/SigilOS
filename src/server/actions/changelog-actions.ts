@@ -19,6 +19,7 @@ interface CreateChangelogInput {
     summary: string;  // Short marketing description
     content: string;  // Full markdown content
     category: ChangelogCategory;
+    isInternal?: boolean; // Internal entries hidden from non-members
 }
 
 /**
@@ -103,10 +104,14 @@ export async function deleteChangelogEntry(id: string) {
  * Get all changelog entries (public access)
  * Optional category filter
  */
-export async function getChangelogEntries(category?: ChangelogCategory) {
+export async function getChangelogEntries(category?: ChangelogCategory, onlyPublic: boolean = false) {
     try {
+        const where: any = {};
+        if (category) where.category = category;
+        if (onlyPublic) where.isInternal = false;
+
         const entries = await db.changelogEntry.findMany({
-            where: category ? { category } : undefined,
+            where: Object.keys(where).length > 0 ? where : undefined,
             orderBy: { publishedAt: 'desc' }
         });
 

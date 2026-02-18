@@ -1027,6 +1027,7 @@ model ChangelogEntry {
   summary     String            // Short marketing description (1-2 lines) for landing page
   content     String            @db.Text // Full markdown content for detailed view
   category    ChangelogCategory
+  isInternal  Boolean           @default(false) // Internal entries only visible to authenticated guild members
   publishedAt DateTime          @default(now())
   publishedBy String            // Super-admin user ID
   

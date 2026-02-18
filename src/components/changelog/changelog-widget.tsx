@@ -26,7 +26,7 @@ export function ChangelogWidget() {
 
     useEffect(() => {
         async function load() {
-            const entries = await getChangelogEntries();
+            const entries = await getChangelogEntries(undefined, true);
             setLatestEntries(entries.slice(0, 3)); // Only last 3
             setIsLoading(false);
         }

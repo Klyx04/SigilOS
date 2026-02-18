@@ -53,6 +53,7 @@ export default function GODChangelogPage() {
         summary: '',
         content: '',
         category: 'FEATURE' as ChangelogCategory,
+        isInternal: false,
     });
 
     useEffect(() => {
@@ -117,6 +118,7 @@ export default function GODChangelogPage() {
             summary: entry.summary,
             content: entry.content,
             category: entry.category,
+            isInternal: entry.isInternal ?? false,
         });
         setIsCreating(true);
     }
@@ -128,6 +130,7 @@ export default function GODChangelogPage() {
             summary: '',
             content: '',
             category: 'FEATURE',
+            isInternal: false,
         });
         setIsCreating(false);
         setEditingId(null);
@@ -275,6 +278,22 @@ export default function GODChangelogPage() {
                                                         </button>
                                                     ))}
                                                 </div>
+                                            </div>
+
+                                            {/* Visibility toggle */}
+                                            <div className="md:col-span-3 flex items-center gap-4 mt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('isInternal', !form.isInternal)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 px-6 py-3 rounded-2xl border transition-all text-sm font-bold",
+                                                        form.isInternal
+                                                            ? "bg-red-500/10 border-red-500/30 text-red-400"
+                                                            : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                                    )}
+                                                >
+                                                    {form.isInternal ? '🔒 Interne uniquement (membres connectés)' : '🌍 Public (visible par tous)'}
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

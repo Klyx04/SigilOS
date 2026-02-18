@@ -18,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Shield, Globe, Save, X, Eye, Settings2, FileText } from "lucide-react";
+import { Shield, Globe, Save, X, Eye, Settings2, FileText, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function DocEditor({ initialData }: { initialData?: DocPageData }) {
@@ -119,60 +119,110 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
 
                             {/* Metadata Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-3xl border border-white/5 bg-white/[0.02]">
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Titre de la page</Label>
+                                {/* TITRE */}
+                                <div className="space-y-4 md:col-span-2">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Titre de la page</Label>
                                     <Input
                                         value={formData.title}
-                                        onChange={e => handleChange("title", e.target.value)}
-                                        placeholder="Titre explicite..."
-                                        className="h-12 bg-zinc-950/50 border-white/10 rounded-xl font-bold px-4"
+                                        onChange={(e) => handleChange("title", e.target.value)}
+                                        placeholder="Ex: Quête de l'Ocre"
+                                        className="bg-black/40 border-white/5 h-14 text-lg font-bold focus:border-teal-500/50 transition-all rounded-xl"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Point d'accès (Slug)</Label>
+                                {/* SLUG */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Lien d'accès (URL Slug)</Label>
+                                        <span className="text-[9px] text-teal-500/60 font-bold uppercase tracking-tighter">Unique</span>
+                                    </div>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-600 font-mono">/docs/</span>
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 text-sm font-bold">/docs/</div>
                                         <Input
                                             value={formData.slug}
-                                            onChange={e => handleChange("slug", e.target.value)}
-                                            className="h-12 bg-zinc-950/50 border-white/10 rounded-xl font-mono pl-16 pr-4"
+                                            onChange={(e) => handleChange("slug", e.target.value)}
+                                            placeholder="intro-ocre"
+                                            className="bg-black/40 border-white/5 h-12 pl-16 font-mono text-sm focus:border-teal-500/50 transition-all rounded-xl"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Classification</Label>
+
+                                {/* CATEGORY (Classification) */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Catégorie (Classification)</Label>
+                                        <div className="group relative">
+                                            <HelpCircle className="w-3.5 h-3.5 text-zinc-600 cursor-help" />
+                                            <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-zinc-900 border border-white/10 rounded text-[9px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none shadow-2xl">
+                                                Ex: <strong>Guides Utilisateurs</strong>, <strong>Administration</strong> ou <strong>Documentation Technique</strong>.
+                                            </div>
+                                        </div>
+                                    </div>
                                     <Input
                                         value={formData.category}
-                                        onChange={e => handleChange("category", e.target.value)}
-                                        className="h-12 bg-zinc-950/50 border-white/10 rounded-xl font-bold px-4"
+                                        onChange={(e) => handleChange("category", e.target.value)}
+                                        placeholder="Ex: Guides Utilisateurs"
+                                        className="bg-black/40 border-white/5 h-12 font-bold focus:border-teal-500/50 transition-all rounded-xl"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Niveau d'accès</Label>
-                                    <Select value={formData.accessLevel} onValueChange={v => handleChange("accessLevel", v)}>
-                                        <SelectTrigger className="h-12 bg-zinc-950/50 border-white/10 rounded-xl px-4">
-                                            <div className="flex items-center gap-2">
-                                                {formData.accessLevel === "PUBLIC" ? <Globe className="w-3 h-3 text-emerald-400" /> : <Shield className="w-3 h-3 text-amber-400" />}
-                                                <SelectValue />
-                                            </div>
+                                {/* ACCESS LEVEL */}
+                                <div className="space-y-4">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Niveau d'Accès</Label>
+                                    <Select
+                                        value={formData.accessLevel}
+                                        onValueChange={(val: any) => handleChange("accessLevel", val)}
+                                    >
+                                        <SelectTrigger className="bg-black/40 border-white/5 h-12 rounded-xl focus:ring-teal-500/20 px-4">
+                                            <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                            <SelectItem value="PUBLIC">Public (Tous)</SelectItem>
-                                            <SelectItem value="ADMIN">Staff Only</SelectItem>
+                                        <SelectContent className="bg-zinc-900 border-white/10">
+                                            <SelectItem value="PUBLIC" className="focus:bg-teal-500/20 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Globe className="w-4 h-4 text-teal-400" />
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Public</span>
+                                                        <span className="text-[9px] text-zinc-500 font-medium">Visible par tous les membres</span>
+                                                    </div>
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="ADMIN" className="focus:bg-amber-500/20 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Shield className="w-4 h-4 text-amber-500" />
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Administration</span>
+                                                        <span className="text-[9px] text-zinc-500 font-medium">Réservé aux Officiers / Staff</span>
+                                                    </div>
+                                                </div>
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
-                                <div className="flex items-center justify-between p-4 bg-zinc-900/40 rounded-xl border border-white/5 self-end">
-                                    <div className="flex items-center gap-3">
-                                        <Settings2 className="w-4 h-4 text-zinc-500" />
-                                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">Publication</span>
+
+                                {/* PUBLICATION SWITCH */}
+                                <div className="space-y-4 flex flex-col justify-end">
+                                    <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex items-center justify-between h-12">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px]", formData.isPublished ? "bg-teal-500 shadow-teal-500/50" : "bg-zinc-600 shadow-transparent")} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Visibilité publique</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleChange("isPublished", !formData.isPublished)}
+                                            className={cn(
+                                                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
+                                                formData.isPublished ? "bg-teal-600" : "bg-zinc-800"
+                                            )}
+                                        >
+                                            <span className={cn(
+                                                "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                                                formData.isPublished ? "translate-x-5" : "translate-x-1"
+                                            )} />
+                                        </button>
                                     </div>
-                                    <Switch checked={formData.isPublished} onCheckedChange={v => handleChange("isPublished", v)} />
                                 </div>
+
                             </div>
 
                             {/* Content Editor */}
@@ -191,13 +241,13 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
 
                     {isPreviewOpen && (
                         <>
-                            <ResizableHandle withHandle className="bg-white/5 w-1.5 hover:bg-indigo-500/20 transition-colors" />
+                            <ResizableHandle withHandle className="bg-white/5 w-1.5 hover:bg-teal-500/20 transition-colors" />
                             {/* RIGHT: PREVIEW */}
                             <ResizablePanel defaultSize={40} minSize={20} className="hidden lg:flex flex-col bg-zinc-900/20 dark">
                                 <div className="h-full flex flex-col">
                                     <div className="p-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <Eye className="w-3 h-3 text-indigo-400" />
+                                            <Eye className="w-3 h-3 text-teal-400" />
                                             <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Rendu Temps Réel</span>
                                         </div>
                                     </div>
@@ -210,6 +260,8 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                             </ResizablePanel>
                         </>
                     )}
+
+
                 </ResizablePanelGroup>
             </div>
         </div>

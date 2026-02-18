@@ -78,17 +78,20 @@
 ## 🎨 P3 — POLISH UI/UX
 
 ### Landing
-- [ ] Réduire la quantité de violet
-- [ ] Ajouter ambiance lore Dofus (backgrounds, typographies, icono)
+- [x] Réduire la quantité de violet (Passage au Teal/Amber)
+- [x] Ajouter ambiance lore Dofus (Backgrounds, callouts, icono)
+
 
 ### Documentation
-- [ ] Refonte UI doc pour clarté (users + dev)
-- [ ] Vue temps réel chapitrage et existant
+- [x] Refonte UI doc pour clarté (users + dev)
+- [x] Vue temps réel chapitrage et existant (Optimisations UI)
 
 ### Onboarding
 - [ ] Tutorial first-login pour nouveaux admins
+- [ ] Tooltip pour les modules
 - [ ] Page "Getting Started" (5 étapes pour lancer sa guilde)
-- [ ] Générer documentation user
+- [x] Générer de la documentation user humanisé
+
 - [ ] Tooltips contextuels
 
 ---

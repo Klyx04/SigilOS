@@ -484,7 +484,7 @@ export function hashImage(imageBase64: string): string {
 /**
  * Check if the OCR result meets auto-validation criteria
  */
-export function shouldAutoValidate(result: OcrResult): {
+export function shouldAutoValidate(result: OcrResult, context?: 'mission' | 'achievement' | 'ladder'): {
     autoValidate: boolean;
     reason: string;
 } {
@@ -509,7 +509,16 @@ export function shouldAutoValidate(result: OcrResult): {
         };
     }
 
-    // Check for victory indicators
+    // For achievements/ladder: a valid score + sufficient confidence is enough.
+    // isVictory keywords are mission-specific ("terminé", "validé"...) and don't apply here.
+    if (context === 'achievement' || context === 'ladder') {
+        return {
+            autoValidate: true,
+            reason: `Auto-validé avec ${result.confidence}% de confiance (succès)`
+        };
+    }
+
+    // For missions: also require explicit victory indicators
     if (!result.isVictory) {
         return {
             autoValidate: false,

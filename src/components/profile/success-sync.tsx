@@ -101,7 +101,7 @@ export function SuccessSync({
                 if (res.success) {
                     if (res.data?.pending) {
                         const conf = Math.round(res.data.confidence || 0);
-                        toast.info(`Score détecté (${res.data?.points} pts), mais la confiance OCR est de ${conf}%. Validation staff requise.`);
+                        toast.info("Votre capture est en cours de vérification par le staff.");
                         setLastScanResult({
                             points: res.data?.points,
                             pending: true,
@@ -183,7 +183,7 @@ export function SuccessSync({
                         </div>
                         <div>
                             <CardTitle className="text-lg">Points de Succès</CardTitle>
-                            <CardDescription>Ladder Succès (OCR Sync)</CardDescription>
+                            <CardDescription>Synchronisation des points</CardDescription>
                         </div>
                     </div>
                     {successPoints ? (
@@ -331,36 +331,9 @@ export function SuccessSync({
                             <div className="flex items-start gap-3">
                                 <Clock className="w-5 h-5 mt-1 shrink-0 text-blue-400" />
                                 <div className="flex-1 space-y-1">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-black text-blue-200 uppercase tracking-tighter">Validation en cours</p>
-                                        <div className={cn(
-                                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight",
-                                            (lastScanResult.confidence || 0) >= 50 ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"
-                                        )}>
-                                            <Sparkles className="w-3 h-3" />
-                                            Confiance {Math.round(lastScanResult.confidence || 0)}%
-                                        </div>
-                                    </div>
                                     <p className="text-xs leading-relaxed opacity-80 font-medium">
-                                        Votre score de <strong className="text-blue-200">{lastScanResult.points} points</strong> a été détecté.
-                                        En raison d'un score de confiance intermédiaire, un membre du staff doit valider votre capture.
+                                        Votre capture est en cours de vérification par le staff.
                                     </p>
-
-                                    {lastScanResult.debugImage && (
-                                        <div className="mt-3 space-y-2">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Vue IA (Debug)</p>
-                                            <div className="rounded-lg overflow-hidden border border-blue-500/20 bg-black/40">
-                                                <img
-                                                    src={lastScanResult.debugImage}
-                                                    alt="IA Debug View"
-                                                    className="w-full h-auto rounded-lg brightness-110 contrast-105"
-                                                />
-                                            </div>
-                                            <p className="text-[10px] italic opacity-50">
-                                                Tip: Détourez au plus proche de vos points pour faciliter la détection automatique (Seuil 40%).
-                                            </p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 

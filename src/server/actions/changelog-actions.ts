@@ -7,20 +7,33 @@
 
 'use server';
 
+import { z } from 'zod';
 import { db } from '@/lib/prisma';
 import { isSuperAdmin } from './super-admin-actions';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { ChangelogCategory } from '@prisma/client';
 
-interface CreateChangelogInput {
-    version: string;
-    title: string;
-    summary: string;  // Short marketing description
-    content: string;  // Full markdown content
-    category: ChangelogCategory;
-    isInternal?: boolean; // Internal entries hidden from non-members
-}
+// ---------------------------------------------------------------------------
+// Validation schemas
+// ---------------------------------------------------------------------------
+
+const ChangelogSchema = z.object({
+    version: z.string().min(1).max(32).trim(),
+    title: z.string().min(1).max(120).trim(),
+    summary: z.string().min(1).max(500).trim(),
+    content: z.string().min(1).max(20000).trim(),
+    category: z.nativeEnum(ChangelogCategory),
+    isInternal: z.boolean().optional().default(false),
+});
+
+const ChangelogUpdateSchema = ChangelogSchema.partial();
+
+type CreateChangelogInput = z.infer<typeof ChangelogSchema>;
+
+// ---------------------------------------------------------------------------
+// Mutations
+// ---------------------------------------------------------------------------
 
 /**
  * Create a new changelog entry (super-admin only)
@@ -31,12 +44,17 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
         return { success: false, error: 'Unauthorized' };
     }
 
+    const parsed = ChangelogSchema.safeParse(input);
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+    }
+
     try {
         const session = await auth();
 
         const entry = await db.changelogEntry.create({
             data: {
-                ...input,
+                ...parsed.data,
                 publishedBy: session?.user?.id || 'UNKNOWN'
             }
         });
@@ -60,10 +78,19 @@ export async function updateChangelogEntry(id: string, input: Partial<CreateChan
         return { success: false, error: 'Unauthorized' };
     }
 
+    if (!id || typeof id !== 'string' || id.length > 64) {
+        return { success: false, error: 'ID invalide' };
+    }
+
+    const parsed = ChangelogUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+    }
+
     try {
         const entry = await db.changelogEntry.update({
             where: { id },
-            data: input
+            data: parsed.data
         });
 
         revalidatePath('/changelog');
@@ -85,6 +112,10 @@ export async function deleteChangelogEntry(id: string) {
         return { success: false, error: 'Unauthorized' };
     }
 
+    if (!id || typeof id !== 'string' || id.length > 64) {
+        return { success: false, error: 'ID invalide' };
+    }
+
     try {
         await db.changelogEntry.delete({
             where: { id }
@@ -100,13 +131,17 @@ export async function deleteChangelogEntry(id: string) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
 /**
  * Get all changelog entries (public access)
  * Optional category filter
  */
 export async function getChangelogEntries(category?: ChangelogCategory, onlyPublic: boolean = false) {
     try {
-        const where: any = {};
+        const where: Record<string, unknown> = {};
         if (category) where.category = category;
         if (onlyPublic) where.isInternal = false;
 

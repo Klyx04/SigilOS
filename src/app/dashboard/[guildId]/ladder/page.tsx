@@ -5,6 +5,8 @@ import { getUserContext } from "@/server/actions/user-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { redirect } from "next/navigation";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -12,6 +14,11 @@ type Props = {
 
 export default async function LadderPage({ params }: Props) {
     const { guildId } = await params;
+
+    // Module guard
+    if (!await isModuleEnabled(guildId, "ladder")) {
+        redirect(`/dashboard/${guildId}`);
+    }
 
     // RBAC: Check permission to view Ladder
     const user = await getUserContext(guildId);

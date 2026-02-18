@@ -108,7 +108,7 @@ export function GalacticFooter() {
                     {/* ZONE DROITE : TECH & SUPPORT */}
                     <div className="flex items-center gap-6">
                         <div className="hidden lg:flex items-center gap-2 text-zinc-500 italic opacity-60">
-                            © 2026 Stellium
+                            © 2026 SigilOS
                         </div>
 
                         <span className="w-px h-3 bg-white/10 hidden sm:block"></span>

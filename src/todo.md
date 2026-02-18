@@ -11,24 +11,36 @@
 - [x] Fix Changelog : scroll impossible sur la page
 - [ ] Fix Changelog : images chargent pas pour l'externe
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
-- [ ] Seed zones, boss, mobs + bonus Songes
+- [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)
 
 ---
 
 ## ⚡ P1 — STABILITÉ & SÉCURITÉ (Semaine prochaine)
 
 ### Sécurité
-- [ ] Vérifier RBAC complet sur toutes les routes
-- [ ] Test isolation multi-tenant (User A ≠ Guilde B)
-- [ ] Validation inputs côté serveur sur tous les formulaires
-- [ ] Upload files : empêcher .exe, .php, etc.
-- [ ] Sanitization uploads : strip EXIF + validation MIME types
-- [ ] Vérifier permissions admin vs user normal
-- [ ] Implémenter logs d'audit Admin (qui modifie quoi, quand)
+- [x] Vérifier RBAC complet sur toutes les routes API existantes
+  - [x] `/api/god/audit-logs` — fail-fast auth + isSuperAdmin ajouté
+  - [x] `/api/admin/migrate-krala` — session check ajouté
+  - [x] `/api/seed-grolandais` — route de dev supprimée (danger)
+  - [x] Autres routes : audit-logs guild, server-config, active-bonus, sync — OK
+- [ ] RBAC futurs modules — ajouter guard dès la création de chaque nouvelle route :
+  - Pattern : `auth()` fail-fast → `getUserContext()` → `isAdmin` ou `isMember` selon besoin
+  - Routes GOD : toujours `isSuperAdmin()` en plus de `auth()`
+- [x] Test isolation multi-tenant (User A ≠ Guilde B) — toutes les queries filtrent par guildId interne (CUID)
+- [x] Validation inputs côté serveur — audit complet effectué
+  - [x] `changelog-actions.ts` — schemas Zod ajoutés (version, title, summary, content, category)
+  - [x] `presentation-actions.ts` — déjà validé manuellement (sanitizeHtml, validateLevel, etc.)
+  - [x] Autres actions critiques (bonus, mission, admin, profile…) — Zod déjà en place
+- [ ] Upload files : validation MIME complète + strip EXIF (base partielle dans `image-security.ts`)
+- [x] Implémenter logs d'audit Admin — visible dans `/admin/logs`, rétention 30j
+  - [x] Missions : createWeekMissions, resetMission, resetWeek, validateSubmission
+  - [x] Bonus : purchaseBonus, cancelBonus, updateBonusChannel
+  - [x] Isolation : logs guilde ≠ logs GOD, rétention 30 jours (lazy cleanup)
+  - [x] UI : labels, couleurs et filtres par catégorie dans le module logs
 
 ### Monitoring
-- [ ] Configurer alertes Sentry actives
-- [ ] Alertes Discord en cas d'erreur critique Sentry
+- [x] Configurer Sentry — SDK installé, DSN configuré, actif au prochain déploiement
+- [x] Alertes Discord en cas d'erreur critique — règle "Alertes Discord" active sur Sentry
 
 ---
 
@@ -37,10 +49,10 @@
 ### Notifications
 - [ ] Améliorer le design des notifications
 - [ ] Vérifier couverture (où il en manque / quand elles apparaissent)
-- [ ] Revoir positionnement (pas centré en haut)
+- [ ] Revoir positionnement (pas centré en haut du dashboard je trouva ca génant pour les users)
 
 ### Songes
-- [ ] Notif Discord aux inscrits d'une run (mention via embed)
+- [ ] Notif Discord aux inscrits d'une run (mention via embed uniquement des inscrits)
 - [ ] Raccourcir message candidature embed (trop verbeux)
 - [ ] Définir durée auto-suppression runs inactives
 - [ ] Historique des runs par membre
@@ -123,9 +135,9 @@
 ## 📄 P7 — JURIDIQUE & BUSINESS
 
 - [ ] Revoir CGU, Politique Confidentialité, Mentions Légales
-- [ ] Bannière cookies RGPD (si tracking actif)
+- [ ] Bannière cookies RGPD (si tracking actif mais on ne fait pas de tracking ? vaut le coup ?)
 - [ ] Conformité RGPD données personnelles
-- [ ] SEO + article X
+- [ ] SEO + article X  : https://x.com/fabienr34/status/2023649306910064883
 - [ ] Roadmap publique pour membres
 - [ ] Limite guildes Beta (whitelist / demande accès)
 - [ ] Formulaire "Rapporter un bug" (bouton flottant)

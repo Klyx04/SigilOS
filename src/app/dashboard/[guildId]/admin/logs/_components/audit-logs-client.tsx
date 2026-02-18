@@ -14,7 +14,8 @@ const ACTION_COLORS: Record<string, string> = {
     RBAC_ROLE_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     RBAC_ROLE_REMOVE: "bg-red-500/20 text-red-400 border-red-500/30",
     CONFIG_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse", // Alert style
+    SETTINGS_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse",
     ADMIN_ACCESS_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     MEMBER_LEFT: "bg-zinc-500/20 text-zinc-400 border-white/5",
     MEMBER_ARCHIVED: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -22,6 +23,14 @@ const ACTION_COLORS: Record<string, string> = {
     MEMBER_PURGED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
     WEBHOOK_MEMBER_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     WEBHOOK_MEMBER_REMOVE: "bg-zinc-500/20 text-zinc-400 border-white/5",
+    // Missions
+    MISSION_CREATED: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+    MISSION_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+    MISSION_VALIDATED: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    MISSION_REJECTED: "bg-red-500/20 text-red-400 border-red-500/30",
+    // Bonus
+    BONUS_PURCHASED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    BONUS_CANCELLED: "bg-zinc-500/20 text-zinc-400 border-white/5",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -29,6 +38,7 @@ const ACTION_LABELS: Record<string, string> = {
     RBAC_ROLE_ADD: "Rôle ajouté",
     RBAC_ROLE_REMOVE: "Rôle retiré",
     CONFIG_UPDATED: "Configuration mise à jour",
+    SETTINGS_UPDATED: "Paramètres mis à jour",
     SECURITY_ALERT: "🚨 ALERTE SÉCURITÉ",
     ADMIN_ACCESS_DENIED: "Accès refusé",
     MEMBER_LEFT: "Départ membre",
@@ -37,15 +47,25 @@ const ACTION_LABELS: Record<string, string> = {
     MEMBER_PURGED: "Données purgées",
     WEBHOOK_MEMBER_ADD: "Arrivée membre (Bot)",
     WEBHOOK_MEMBER_REMOVE: "Départ membre (Bot)",
+    // Missions
+    MISSION_CREATED: "⚔️ Missions publiées",
+    MISSION_DELETED: "🗑️ Mission supprimée",
+    MISSION_VALIDATED: "✅ Soumission validée",
+    MISSION_REJECTED: "❌ Soumission refusée",
+    // Bonus
+    BONUS_PURCHASED: "🔮 Bonus acheté",
+    BONUS_CANCELLED: "Bonus annulé",
 };
 
 const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
-    { value: "CONFIG_UPDATED", label: "Configuration" },
-    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
+    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
+    { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
+    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements membres" },
+    { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
+    { value: "ADMIN_ACCESS_DENIED", label: "🚫 Accès refusé" },
 ];
 
 type PermissionChange = {
@@ -356,6 +376,40 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                             </div>
                                                         )}
                                                     </div>
+                                                )}
+                                                {log.targetType === "MISSION" && (
+                                                    <span className="space-x-2">
+                                                        {(metadata as any).missionTitle && (
+                                                            <span className="font-medium text-foreground">{(metadata as any).missionTitle}</span>
+                                                        )}
+                                                        {(metadata as any).weekNumber && (
+                                                            <span className="text-xs opacity-70">S{(metadata as any).weekNumber}/{(metadata as any).year}</span>
+                                                        )}
+                                                        {(metadata as any).slotsCount && (
+                                                            <span className="text-xs opacity-70">{(metadata as any).slotsCount} slots</span>
+                                                        )}
+                                                        {(metadata as any).scope === "FULL_WEEK" && (
+                                                            <span className="text-xs text-rose-400">Semaine entière réinitialisée</span>
+                                                        )}
+                                                        {(metadata as any).status && (
+                                                            <span className={`text-xs font-medium ${(metadata as any).status === "VALIDATED" ? "text-emerald-400" : "text-red-400"}`}>
+                                                                → {(metadata as any).status === "VALIDATED" ? "Validée" : "Refusée"}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {log.targetType === "GUILD" && (
+                                                    <span>
+                                                        {(metadata as any).bonusName && (
+                                                            <span className="font-medium text-cyan-300">{(metadata as any).bonusName}</span>
+                                                        )}
+                                                        {(metadata as any).cost && (
+                                                            <span className="text-xs opacity-70 ml-2">{(metadata as any).cost} Guildatons</span>
+                                                        )}
+                                                        {(metadata as any).field === "bonusNotifyChannelId" && (
+                                                            <span className="text-xs opacity-70">Canal de notification bonus mis à jour</span>
+                                                        )}
+                                                    </span>
                                                 )}
                                             </p>
 

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { BonusType, BonusStatus, MentionType, GuildBonus } from "@prisma/client";
 import { getUserContext } from "./user-actions";
 import { z } from "zod";
+import { createAuditLog } from "./audit-actions";
 
 // --- Types ---
 
@@ -358,6 +359,23 @@ export async function purchaseBonus(
         revalidatePath(`/admin/bonus`);
         revalidatePath(`/[guildSlug]/missions`);
 
+        // Audit log
+        const session = await auth();
+        await createAuditLog({
+            guildId: validated.guildId,
+            actorUserId: userId,
+            actorName: session?.user?.name || "Membre",
+            action: "BONUS_PURCHASED" as any,
+            targetType: "GUILD" as any,
+            targetId: bonus.id,
+            metadata: {
+                bonusType: validated.bonusType,
+                bonusName: config.name,
+                cost: config.cost,
+                activatesAt: bonus.activatesAt
+            }
+        });
+
         return {
             success: true,
             data: {
@@ -422,6 +440,18 @@ export async function cancelBonus(
 
         revalidatePath(`/admin/bonus`);
         revalidatePath(`/[guildSlug]/missions`);
+
+        // Audit log
+        const session = await auth();
+        await createAuditLog({
+            guildId: validated.guildId,
+            actorUserId: session?.user?.id || "unknown",
+            actorName: session?.user?.name || "Membre",
+            action: "BONUS_CANCELLED" as any,
+            targetType: "GUILD" as any,
+            targetId: validated.bonusId,
+            metadata: { bonusType: bonus.bonusType }
+        });
 
         return { success: true };
     } catch (error) {
@@ -609,6 +639,17 @@ export async function updateBonusChannel(
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { bonusNotifyChannelId: channelId },
+        });
+
+        // Audit log
+        const session = await auth();
+        await createAuditLog({
+            guildId,
+            actorUserId: session?.user?.id || "unknown",
+            actorName: session?.user?.name || "Admin",
+            action: "SETTINGS_UPDATED" as any,
+            targetType: "GUILD" as any,
+            metadata: { field: "bonusNotifyChannelId", newValue: channelId }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);

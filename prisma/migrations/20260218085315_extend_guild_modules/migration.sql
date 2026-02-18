@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "GuildModules" ADD COLUMN     "donjons" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "logs" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "presentation" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "profile" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "roster" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "services" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "stats" BOOLEAN NOT NULL DEFAULT true;

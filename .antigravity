@@ -1,445 +1,327 @@
-# 🎮 Beta Launch Sprint Phase 9 (GOD & Core) — SigilOS
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-18)
 
-**Date** : 2026-02-16  
-**Branche Actuelle** : `dev`  
-**Status** : ✅ Phase 9 Complete. Ready for Phase 10 (Coolify).
-
----
-
-## 🎯 Objectifs Complétés: Beta Launch Sprint Phase 9 (GOD & Core)
-
-### 1. 🏰 GOD Dashboard & Guild Engine
-- ✅ **Unified Management**: Fusion de la Whitelist et des Guildes Actives dans un "Guild Engine" unique.
-- ✅ **Contextual Actions**: Dropdown intelligent s'adaptant au statut de la guilde (Whitelisted vs Onboarded).
-- ✅ **Whitelist Modal**: Action maître pour autoriser de nouvelles guildes via ID Discord.
-- ✅ **Visibility**: Restauration des tags Tier (Beta/Premium) et des notes internes dans le tableau.
-
-### 2. 🔌 Discord Platform Integration (Dev Portal Fix)
-- ✅ **Interactions API**: Refonte complète du handler `api/discord/interactions/route.ts`.
-- ✅ **Dev Portal Resolution**: Support du Type 1 (PONG) pour validation de l'URL dans le portail développeur.
-- ✅ **Songes Modals**: Le bouton "Postuler" ouvre maintenant une Modal Discord pour la saisie de classe/message.
-- ✅ **Validation API**: Vérification temps réel de la validité de la classe saisie dans Discord.
-- ✅ **Rate Limiting**: Protection in-memory contre le spam de boutons (10/min) et de modals (5/5min).
-- ✅ **Embed Fixes**: Correction des liens morts et des échecs d'interaction via URLs Absolues (HTTPS).
-
-### 3. 📊 Aesthetics & Visualization
-- ✅ **Activity Chart 2.0**: Redessiné avec des courbes Monotone, des dégradés et un double axe (Pulse & Growth).
-- ✅ **UI Polishing**: Transitions fluides et tooltips floutés sur le dashboard GOD.
-
-### 4. 🧹 Stability & Maintenance
-- ✅ **Maintenance Fix**: Compilation de `database-janitor.ts` en `.js` pour corriger les erreurs Docker en production.
-- ✅ **Docs Access**: Fix du bug RBAC en synchronisant l'utilisation des IDs Discord (Snowflake).
-- ✅ **Build Status**: Build Next.js 100% réussi localement.
+**Branche Active** : `fix/changelog-images` (en attente de PR → `dev`)  
+**Status** : 🟡 Beta active. Sprint P0 en cours. Plusieurs fixes pushés, en attente de merge + déploiement VPS.
 
 ---
 
+## 🗺️ Architecture Générale
 
-## 🎯 Objectifs Complétés (Session Actuelle)
-
-### 1. **Robust Seeding Infrastructure**
-Résolution des erreurs critiques de seeding sur VPS (Prisma Initialization, Module Not Found).
-- ✅ **Bundling esbuild** : Scripts de seed compilés en fichiers `.js` autonomes (`prisma/seed.js`, `prisma/seed-data/seed.js`).
-- ✅ **Prisma Driver Adapter** : Initialisation correcte via `PrismaPg` pour assurer la compatibilité VPS/Docker.
-- ✅ **ID Mapping Dynamic** : Résolution de l'erreur **P2003** (Foreign Key) en mappant les IDs statiques du JSON vers les CUIDs générés en DB.
-
-### 2. **CI/CD & Code Quality**
-- ✅ **Sync Lockfile** : Alignement de `package-lock.json` pour corriger les échecs `npm ci` sur GitHub.
-- ✅ **Node.js Update** : Passage de la CI en Node v22 pour matcher les pré-requis du projet.
-- ✅ **Lint Compliance** : Suppression de tous les `console.log` dans les scripts (interdits par `RULES.md`).
-- ✅ **ESLint Optimization** : Configuration pour ignorer les bundles JS générés.
+```
+SigilOS/
+├── src/
+│   ├── app/                    # Pages & API routes (Next.js App Router)
+│   │   ├── api/                # Routes API (uploads, discord, health...)
+│   │   ├── dashboard/          # Dashboard guildes (auth required)
+│   │   ├── god/                # Super-admin panel (isSuperAdmin only)
+│   │   ├── docs/               # Documentation publique
+│   │   ├── changelog/          # Changelog public
+│   │   ├── guilds/             # Annuaire public des guildes
+│   │   └── (public)/           # Landing, legal, gate...
+│   ├── components/             # Composants UI réutilisables
+│   │   ├── editor/             # TipTap editor + extensions
+│   │   └── layout/             # Header, Sidebar, Footer...
+│   ├── lib/                    # Utilitaires (utils.ts, storage-utils.ts...)
+│   └── server/
+│       ├── actions/            # Server Actions (logique métier)
+│       │   ├── songes/         # Gestion des runs Songes
+│       │   ├── doc-actions.ts
+│       │   ├── changelog-actions.ts
+│       │   └── ...
+│       ├── songes-service.ts   # Service embeds Discord Songes
+│       └── discord.ts          # Discord API integration
+├── services/
+│   └── discord-bot/            # Bot Discord standalone (TypeScript)
+├── prisma/
+│   ├── schema.prisma           # Schéma DB
+│   └── migrations/             # Historique migrations
+├── scripts/
+│   ├── deploy.sh               # Déploiement Beta/Prod
+│   ├── backup_db.sh            # Backup DB → Cloudflare R2
+│   ├── maintenance.sh          # Cleanup Docker quotidien
+│   └── check-hardening.sh      # Audit sécurité VPS
+├── Dockerfile                  # Build Next.js standalone
+├── docker-compose.prod.yml     # Stack complète (prod + beta + monitoring)
+└── Caddyfile                   # Reverse proxy + SSL
+```
 
 ---
 
-## 🎯 Objectifs Complétés (Session Actuelle)
+## 🏗️ Stack Technique
 
-### 1. **LifecyclePanel Actions** (Fonctionnel)
-Implémentation complète des actions de gestion lifecycle RGPD dans le GOD Dashboard.
-
-**Actions disponibles** :
-- ✅ Réactiver guildes soft-deleted (`reactivateGuild`)
-- ✅ Hard delete définitif guildes (`hardDeleteGuild`)
-- ✅ Réactiver profils archivés (`reactivateProfile`)
-- ✅ Hard delete définitif profils (`hardDeleteProfile`)
-
-### 2. **Dashboard UX Improvements**
-- Panneau Déploiement conditionnel (caché si `pending.length === 0`)
-- Grid layout dynamique (full-width pour users non-admin)
-- Bouton Dashboard redondant retiré du header
-
-### 3. **Bug Fixes**
-- Fix countdown négatif dans LifecyclePanel (`scheduledDeletion` null)
-- Fix NaN values dans LiveStats trends
-- Retrait bulk actions non fonctionnelles GuildTable
+| Couche | Technologie |
+|--------|-------------|
+| **Framework** | Next.js 15 (App Router, Server Actions) |
+| **Auth** | NextAuth v5 (Discord OAuth) |
+| **DB** | PostgreSQL 15 + Prisma ORM |
+| **Cache/Queue** | Redis 7 |
+| **Bot Discord** | discord.js v14 |
+| **Editor** | TipTap (rich text, slash commands, images) |
+| **UI** | Tailwind CSS + shadcn/ui + Recharts |
+| **Monitoring** | Grafana + Prometheus + cAdvisor |
+| **Deploy** | Docker Compose + Caddy (SSL auto) |
+| **CI/CD** | GitHub Actions (verify.yml) |
+| **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
 
 ---
 
-## 📝 Changements Majeurs
+## 🌿 Git Workflow
 
-### ♻️ LifecyclePanel Actions Implementation
+| Branche | Rôle |
+|---------|------|
+| `main` | 🔴 Production (`sigilos.fr`) |
+| `dev` | 🟠 Beta (`beta.sigilos.fr`) |
+| `feat/*` / `fix/*` | Branches de travail → PR vers `dev` |
 
-**Fichier** : `src/app/god/components/lifecycle-panel.tsx`
+**Branche courante** : `fix/changelog-images`
 
-**Avant** : Boutons TODO (console.log uniquement)
+---
 
-**Après** : Actions complètes avec server actions
+## ✅ Historique des Sessions (Complètes)
+
+### Phase 9 — GOD Dashboard & Core (2026-02-12 à 2026-02-16)
+
+#### GOD Dashboard & Guild Engine
+- ✅ **Unified Management**: Fusion Whitelist + Guildes Actives dans un "Guild Engine" unique
+- ✅ **Contextual Actions**: Dropdown intelligent selon statut guilde (Whitelisted vs Onboarded)
+- ✅ **Whitelist Modal**: Action maître pour autoriser nouvelles guildes via ID Discord
+- ✅ **LifecyclePanel Actions**: Réactiver/Hard delete guildes & profils (RGPD compliant)
+  - `reactivateGuild`, `hardDeleteGuild`, `reactivateProfile`, `hardDeleteProfile`
+  - Toutes vérifiées par `isSuperAdmin()`
+- ✅ **Bug Fixes**: Countdown négatif (scheduledDeletion null), NaN stats, bulk actions retirées
+
+#### Discord Platform Integration
+- ✅ **Interactions API**: Refonte complète `api/discord/interactions/route.ts`
+- ✅ **Dev Portal**: Support Type 1 (PONG) pour validation URL portail développeur
+- ✅ **Songes Modals**: Bouton "Postuler" → Modal Discord pour saisie classe/message
+- ✅ **Rate Limiting**: Protection in-memory (10/min boutons, 5/5min modals)
+
+#### Infrastructure & CI/CD
+- ✅ **Docker Volumes Isolation**: `uploads-prod-data` et `uploads-beta-data` séparés
+- ✅ **Maintenance Script**: Cleanup Docker agressif (image prune -a, builder prune -a)
+- ✅ **check-hardening.sh**: Script audit VPS one-liner
+- ✅ **CI Optimization**: Merge verify + build → -65% CI minutes
+- ✅ **Seeding Infrastructure**: esbuild bundling, Prisma Driver Adapter, ID Mapping dynamique
+
+---
+
+### Session — Security Audit & Hardening (2026-02-15)
+
+- ✅ **Guild Isolation Fix** (`super-admin-actions.ts`): `isGuildAllowed()` vérifie maintenant `isActive` dans `GuildConfig`. Les guildes soft-deleted bloquent l'accès dashboard.
+- ✅ **GOD UI Clarification**: Distinction claire Whitelist (Permission) vs Active Guilds (Status)
+- ✅ **Tooltips Status**: Badges avec explications dans GuildTable (Active/Inactive/Supprimée)
+- ✅ **Score Sécurité VPS**: 9.6/10
+
+---
+
+### Session — Fixing Documentation Access (2026-02-15 à 2026-02-16)
+
+- ✅ **RBAC Docs Fix**: Synchronisation IDs Discord (Snowflake) pour accès documentation
+- ✅ **Infinite Loading Fix**: Résolution boucle infinie dans DocViewer/TopNav
+
+---
+
+### Session — Fixing Image Uploads (2026-02-16)
+
+**Root cause**: Tous les points d'entrée images utilisaient `FileReader.readAsDataURL()` → base64 dans HTML → DB gonflée, images cassées à la publication.
+
+- ✅ **`uploadImageFile()` helper** (`src/components/editor/utils/image-upload.ts`): POST vers `/api/upload` → URL persistante (`/uploads/docs/uuid.webp`)
+- ✅ **Toolbar 🖼️** (`advanced-editor.tsx`): Migré vers helper
+- ✅ **Slash `/image`** (`slash-command.tsx`): Migré vers helper
+- ✅ **Copy-paste / Drag** (`handlePaste` + `handleDrop`): Nouveaux handlers ajoutés
+- ✅ **Caddyfile Fix**: Suppression bloc interceptant `/uploads/*` → Next.js sert les fichiers directement
+- ✅ **Standardisation dossiers**: `uploads/proofs` unifié dans `mission-actions.ts` et `profile-actions.ts`
+
+---
+
+### Session — Fixing VPS Deployment (2026-02-16)
+
+- ✅ **Git Stash Conflict**: Résolution conflit `git pull` sur VPS bloquant le déploiement
+- ✅ **Date Serialization**: Standardisation sérialisation dates (fix crash Dashboard Beta)
+- ✅ **Deploy Script**: `./scripts/deploy.sh beta` fonctionnel
+
+---
+
+### Session — Fixing Changelog Bugs (2026-02-17 à 2026-02-18)
+
+#### Bugs Corrigés
+| Bug | Fix |
+|-----|-----|
+| Scroll bloqué | Suppression `overflow-hidden` sur `html`/`body` dans `globals.css` |
+| Non-membres voient tout | Champ `isInternal` en DB + filtre auth dans la page publique |
+| Contenu technique visible | Log technique caché pour utilisateurs non-authentifiés |
+| Summary non HTML | `dangerouslySetInnerHTML` (output TipTap) |
+| Images pas sauvegardées | Migration vers `uploadImageFile()` helper (base64 → URL persistante) |
+
+#### Nouvelles Fonctionnalités Changelog
+- ✅ **`isInternal` flag**: Entrées internes masquées pour non-membres
+- ✅ **Toggle admin**: Switch dans l'UI d'édition pour marquer une entrée comme interne
+- ✅ **Summary optionnel**: Champ `summary` rendu nullable en DB (migration appliquée)
+- ✅ **Sidebar scroll**: `overflow-y-auto` sur la sidebar documentation
+
+---
+
+### Session — Fixing Scroll & Layout (2026-02-18)
+
+- ✅ **Global scroll fix** (`globals.css`): `overflow-y: visible !important` sur `html` et `body`
+- ✅ **DocContent word-break**: `break-words min-w-0` sur le wrapper du contenu doc
+- ✅ **Sidebar docs scroll**: `overflow-y-auto scrollbar-thin` sur `ResizableSidebar`
+- ✅ **Guilds page**: Suppression `overflow-hidden` résiduel
+
+---
+
+### Session — Fix URLs Embeds Discord (2026-02-18)
+
+**Root cause**: `NEXT_PUBLIC_*` dans Next.js sont "baked in" au build, pas au runtime. La variable n'était pas passée comme `ARG` Docker → toujours `sigilos.fr` même sur Beta.
+
+- ✅ **`getAppBaseUrl()` helper** (`src/lib/utils.ts`): Centralise la logique URL (priorité: `NEXT_PUBLIC_APP_URL` → `NEXTAUTH_URL` → fallback prod)
+- ✅ **Dockerfile**: `ARG NEXT_PUBLIC_APP_URL` + `ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL`
+- ✅ **docker-compose.prod.yml**:
+  - `app-prod`: `NEXT_PUBLIC_APP_URL=https://sigilos.fr`
+  - `app-beta`: `NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr`
+- ✅ **Metadata Next.js** (`layout.tsx`): `metadataBase` utilise `NEXT_PUBLIC_APP_URL`
+- ✅ **Songes embeds**: `dashboardUrl` utilise `getAppBaseUrl()` (songes-service.ts + dream-run-actions.ts)
+
+---
+
+## 🔒 Sécurité
+
+### Patterns Obligatoires (Server Actions)
 ```typescript
-// Réactiver une guilde soft-deleted
-const handleReactivate = async () => {
-  const { reactivateGuild } = await import('@/server/actions/god-lifecycle-actions');
-  const result = await reactivateGuild(guild.id);
-  if (result.success) window.location.reload();
-};
-
-// Hard delete définitif
-const handleHardDelete = async () => {
-  if (!confirm(`Supprimer définitivement "${guild.name}" ?`)) return;
-  const { hardDeleteGuild } = await import('@/server/actions/god-lifecycle-actions');
-  await hardDeleteGuild(guild.id);
-};
+const ctx = await getUserContext(guildId);
+if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+if (!ctx.isMember) return { success: false, error: "Not a member" };
+if (!ctx.isAdmin) return { success: false, error: "Admin required" }; // mutations admin
 ```
 
-**Sécurité** : Toutes actions vérifiées par `isSuperAdmin()`
-
----
-
-### 🎨 Dashboard UX Improvements
-
-**Fichier**: `src/app/dashboard/page.tsx`
-
-**Problème** : Panneau "Déploiement" vide pour users non-admin
-
-**Solution** :
-```tsx
-// Grid layout conditionnel
-<div className={cn(
-  "grid gap-8",
-  pending.length > 0 ? "lg:grid-cols-12" : "lg:grid-cols-1"
-)}>
-  <div className={pending.length > 0 ? "lg:col-span-7" : "lg:col-span-12"}>
-    Guildes Actives
-  </div>
-  {pending.length > 0 && <div>Déploiement</div>}
-</div>
-```
-
-**Impact** : User non-admin → Interface propre full-width, pas de panneau vide
-
----
-
-### � Bug Fixes
-
-**1. Countdown Négatif** (`lifecycle-panel.tsx`)
+### Isolation Multi-tenant
 ```typescript
-// AVANT: Crash si scheduledDeletion null
-const daysRemaining = differenceInDays(new Date(guild.scheduledDeletion), new Date());
-
-// APRÈS: Gestion null safe
-const daysRemaining = guild.scheduledDeletion 
-  ? differenceInDays(new Date(guild.scheduledDeletion), new Date())
-  : null;
+// TOUJOURS filtrer par guildId
+await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } });
 ```
 
-**2. LiveStats NaN** (`super-admin-actions.ts`)
+### Patterns Interdits
 ```typescript
-// Ajout fallbacks pour éviter NaN dans trends
-profilesTrend: Math.round(((total - lastWeek) / (lastWeek || 1)) * 100) || 0
+// ❌ JAMAIS
+dangerouslySetInnerHTML  // (sauf contenu sanitizé TipTap)
+eval()
+$queryRaw()
+process.env.SECRET  // dans un composant client
+fetch without try/catch
 ```
 
 ---
 
-### 🐳 Docker Volumes Isolation
+## 🏗️ Infrastructure VPS
 
-**Fichier**: `docker-compose.prod.yml`
+### Environnements
+| Env | URL | Branche | Container |
+|-----|-----|---------|-----------|
+| **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` |
+| **Prod** | `sigilos.fr` | `main` | `sigilos-prod` |
+| **Monitoring** | `monitor.sigilos.fr` | — | Grafana |
 
-**Avant**:
-```yaml
-volumes:
-  uploads-data:  # Partagé beta/prod ❌
-
-services:
-  app-prod:
-    volumes:
-      - uploads-data:/app/public/uploads
-  app-beta:
-    volumes:
-      - uploads-data:/app/public/uploads  # Même volume!
-```
-
-**Après**:
-```yaml
-volumes:
-  uploads-prod-data:  # ✅ Isolé
-  uploads-beta-data:  # ✅ Isolé
-
-services:
-  app-prod:
-    volumes:
-      - uploads-prod-data:/app/public/uploads
-  app-beta:
-    volumes:
-      - uploads-beta-data:/app/public/uploads
-  caddy:
-    volumes:
-      - uploads-prod-data:/srv/prod/uploads:ro
-      - uploads-beta-data:/srv/beta/uploads:ro
-```
-
-**Impact**: Prévient contamination données entre environnements.
-
----
-
-### 💾 VPS Maintenance Script Enhancement
-
-**Fichier**: `scripts/maintenance.sh`
-
-**Avant** (Insuffisant):
+### Commandes Clés VPS
 ```bash
-sudo docker system prune -af --filter "until=48h"   # Ne nettoie QUE >48h
-sudo docker builder prune -af --filter "until=48h"  # Laisse cache récent
+# Déploiement
+./scripts/deploy.sh beta    # Deploy branche dev → beta
+./scripts/deploy.sh prod    # Deploy branche main → prod
+
+# Logs
+docker logs sigilos-beta --tail 100
+docker logs sigilos-beta --tail 100 | grep uploads  # Debug images
+
+# Migrations manuelles (si nécessaire)
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx prisma migrate deploy
 ```
 
-**Après** (Agressif):
+### Cron Jobs
 ```bash
-# Supprimer TOUTES images inutilisées (garde seulement containers UP)
-sudo docker image prune -a --force
-
-# Supprimer TOUT le build cache (reconstruit au deploy)
-sudo docker builder prune -a --force
-
-# Volumes orphelins (inchangé)
-sudo docker volume prune --force
+0 3 * * *  backup_db.sh     # Backup DB → R2 (4h Paris)
+0 4 * * *  maintenance.sh   # Docker cleanup (5h Paris)
 ```
 
-**Impact Immédiat**: -12 GB récupérés (27% → 15% utilisation)  
-**Impact Long Terme**: Cleanup quotidien automatique (~29 GB potentiel)
+### Sécurité VPS (Score: 9.6/10)
+| Composant | Status |
+|-----------|--------|
+| SSH | ✅ Port 2222, Root disabled, Keys only |
+| Firewall | ✅ UFW (2222, 80, 443) |
+| Fail2Ban | ✅ Anti-bruteforce actif |
+| Auto-Updates | ✅ unattended-upgrades |
+| Backups | ✅ R2 + GPG, daily 3h UTC |
+| Monitoring | ✅ Grafana + Prometheus + cAdvisor |
 
 ---
 
-### 📜 New Monitoring Script
+## 📊 État Actuel des Modules
 
-**Fichier**: `scripts/check-hardening.sh` (NOUVEAU)
+### ✅ Fonctionnels (Production-Ready)
+- Auth Discord (OAuth, sessions, NextAuth v5)
+- Dashboard guildes (missions, membres, profils)
+- Songes (runs, candidatures, embeds Discord)
+- Calendrier événements
+- Documentation (viewer + éditeur TipTap)
+- Changelog (public + admin, isInternal flag)
+- GOD Dashboard (whitelist, lifecycle, stats)
+- Upload images (docs, preuves missions, bannières)
+- Notifications in-app
+- Ocre / Metamob integration
 
-Script d'audit VPS one-liner:
-- Vérification cron jobs
-- Espace disque
-- Containers Docker status
-- SSH config
-- Firewall UFW
-- Fail2Ban status
-- Auto-updates
-- Docker cleanup potentiel
+### 🟡 Partiellement Fonctionnel
+- Embeds Discord URLs → **fix pushé, en attente de déploiement VPS**
+- Scroll pages publiques → **fix pushé, en attente de déploiement VPS**
 
-```bash
-./scripts/check-hardening.sh
-# Output: Rapport complet infrastructure
-```
-
----
-
-## 🗂️ Fichiers Modifiés (Session Actuelle)
-
-### GOD Dashboard
-- `src/app/god/components/lifecycle-panel.tsx` — Actions lifecycle implémentées
-- `src/app/god/components/guild-table.tsx` — Bulk actions retirées
-- `src/server/actions/super-admin-actions.ts` — Stats fallbacks (NaN fix)
-
-### Dashboard UX
-- `src/app/dashboard/page.tsx` — Grid conditionnel, panneau déploiement caché si vide
-- `src/components/landing/landing-header.tsx` — Bouton Dashboard retiré
-
-### Documentation (Artifacts)
-- `walkthrough.md` — Résumé complet branche
-- `remaining_work.md` — Inventaire travail restant ~21h
-- `task.md` — Checklist merge preparation
+### ❌ Manquant (Non-bloquant Beta)
+- Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
+- Audit log (traçabilité actions admin)
+- Module toggle activé/désactivé par guilde
+- Historique runs Songes par membre
 
 ---
 
-## 🔒 Sécurité & Hardening
+## 📋 TODO Prioritaire (Backlog)
 
-### VPS Infrastructure (Score: 9.6/10)
+### 🔴 P0 — Bloquants Beta
+- [ ] Seed zones, boss, mobs + bonus Songes (manuel)
+- [ ] Merger `fix/changelog-images` → `dev` → déployer VPS
 
-| Composant | Status | Détail |
-|-----------|--------|--------|
-| **SSH** | ✅✅ | Port 2222, Root disabled, Keys only |
-| **Firewall** | ✅ | UFW active (2222, 80, 443) |
-| **Fail2Ban** | ✅ | Active anti-bruteforce |
-| **Auto-Updates** | ✅ | unattended-upgrades configured |
-| **Backups** | ✅✅ | R2 cloud, GPG encrypted, daily @ 3h |
-| **Monitoring** | ✅ | Grafana + Prometheus + cAdvisor |
-| **Cron Jobs** | ✅ | Backup @ 3h, Maintenance @ 4h |
+### ⚡ P1 — Stabilité & Sécurité
+- [ ] RBAC complet toutes routes
+- [ ] Toggle modules activé/désactivé par guilde
+- [ ] Test isolation multi-tenant
+- [ ] Validation inputs serveur tous formulaires
+- [ ] Upload: empêcher .exe/.php, strip EXIF, validation MIME
+- [ ] Audit log admin
 
-### Backups Strategy
-
-**Destination**: Cloudflare R2 (S3-compatible)  
-**Encryption**: GPG  
-**Frequency**: Daily @ 3h UTC  
-**Retention**: Automatic (3+ backups visible)  
-**Logs**: `~/SigilOS/logs/backup.log`
-
-```bash
-# Dernières exécutions
-[Mon Feb  9 03:00:02] ☁️ Upload: sigilos_2026-02-09_03-00-01.sql.gz.gpg ✅
-[Tue Feb 10 03:00:02] ☁️ Upload: sigilos_2026-02-10_03-00-01.sql.gz.gpg ✅
-[Wed Feb 11 03:00:02] ☁️ Upload: sigilos_2026-02-11_03-00-01.sql.gz.gpg ✅
-```
+### 🎯 P2 — UX & Features Core
+- [ ] Notif rappel Discord pour inscrits d'une run Songes
+- [ ] Raccourcir embed candidature Songes (trop verbeux)
+- [ ] Durée auto-suppression runs inactives
+- [ ] Historique runs par membre
+- [ ] Refonte UI documentation
 
 ---
 
-## 📊 Métriques & Projections
+## 🔑 Variables d'Environnement Critiques
 
-### Stockage SSD (96 GB Total)
+| Variable | Rôle | Note |
+|----------|------|------|
+| `NEXT_PUBLIC_APP_URL` | URL de base app | **DOIT être passée comme build ARG Docker** |
+| `NEXTAUTH_URL` | URL callback auth | Doit matcher l'env (beta vs prod) |
+| `NEXTAUTH_SECRET` | Secret sessions | Différent beta/prod |
+| `DISCORD_CLIENT_ID/SECRET` | OAuth Discord | |
+| `DISCORD_BOT_TOKEN` | Bot Discord | |
+| `DATABASE_URL` | PostgreSQL | |
+| `REDIS_URL` | Redis | |
+| `NEXT_PUBLIC_BETA_PASSWORD` | Gate beta | Build ARG Docker |
 
-| Période | DB | Uploads | Docker | Logs | Total Utilisé | % |
-|---------|----|---------| -------|------|---------------|---|
-| **Aujourd'hui** | 20 MB | 500 MB | 3 GB | 500 MB | **14 GB** | 15% |
-| +6 mois (400 players) | 80 MB | 3 GB | 3 GB | 500 MB | 12.5 GB | 13% |
-| +12 mois (800 players) | 150 MB | 6 GB | 3 GB | 500 MB | 15.6 GB | 16% |
-
-**Conclusion**: Aucun risque saturation avant **3-5 ans** avec cleanup quotidien.
-
-### Code Quality
-
-**Tests**: 56/56 passed (Jest)  
-**TypeScript**: 0 errors  
-**ESLint**: 0 errors, 612 warnings (@typescript-eslint/no-explicit-any)  
-**Build**: Production build successful  
-**CI/CD**: GitHub Actions ✅ passing
+> ⚠️ **`NEXT_PUBLIC_*` sont baked-in au build Docker.** Ils DOIVENT être passés comme `args:` dans `docker-compose.prod.yml` et déclarés comme `ARG` dans le `Dockerfile`.
 
 ---
 
-## 🧪 Validation & Déploiement
+## 📚 Références
 
-### Local Verification
-```bash
-# TypeScript
-npx tsc --noEmit  # Exit 0 ✅
-
-# Tests
-npm run test:run  # 56/56 passed ✅
-
-# Build
-npm run build  # Success ✅
-
-# Lint
-npm run lint  # 0 errors ✅
-```
-
-### Git Workflow
-```bash
-# Quick wins
-git add .
-git commit -m "chore: audit quick wins - cleanup 50MB, secure deployment"
-git push origin dev  # f519f8b ✅
-
-# Infrastructure
-git add scripts/maintenance.sh scripts/check-hardening.sh
-git commit -m "feat(infra): enhance maintenance.sh for aggressive Docker cleanup"
-git push origin dev  # 3e03812 ✅
-```
-
-### Beta Deployment
-```bash
-# VPS
-./scripts/deploy.sh beta  # ✅
-sudo docker compose -f docker-compose.prod.yml exec app-beta npx prisma migrate deploy
-# 12 migrations applied successfully ✅
-```
-
-**URL**: https://beta.sigilos.fr  
-**Status**: UP, Migrations OK
-
----
-
-## 📋 Automation Configurée
-
-### Cron Jobs (VPS)
-
-```bash
-# Backup DB (3h UTC = 4h Paris)
-0 3 * * * /bin/bash /home/sigiladmin/SigilOS/scripts/backup_db.sh >> /home/sigiladmin/SigilOS/logs/backup.log 2>&1
-
-# Maintenance (4h UTC = 5h Paris)
-0 4 * * * /bin/bash /home/sigiladmin/SigilOS/scripts/maintenance.sh >> /home/sigiladmin/SigilOS/logs/maintenance.log 2>&1
-```
-
-**Verification**:
-```bash
-crontab -l  # ✅ Les 2 cron configurés
-ls -lh scripts/{backup_db.sh,maintenance.sh}  # ✅ Exécutables
-cat logs/backup.log | tail -5  # ✅ Dernière exécution visible
-```
-
----
-
-## 🚀 Travail Restant (Post-merge)
-
-### 🔴 CRITIQUE (Production-Ready) — ~6h30
-
-1. **Discord Webhooks** (2h) — Auto-sync bot events
-   - `client.on('guildCreate')` → Auto-ajoute AllowedGuild
-   - `client.on('guildDelete')` → Soft-delete guilde
-   - `client.on('guildMemberRemove')` → Soft-delete profil
-
-2. **Changelog System** (1h15) — DB + Admin UI
-   - Table `ChangelogEntry` (Prisma)
-   - GOD Admin UI `/god/changelog`
-   - Page publique `/changelog`
-
-3. **Audit Log** (1h) — Traçabilité actions
-4. **Polish** (1h15) — SSE cleanup, Toast, Chart fix
-
-### 🟡 IMPORTANT — ~2h
-5. Cron job auto-cleanup
-6. Documentation utilisateur
-
-**Recommandation**: Priorité Discord Webhooks avant élargissement BETA
-
----
-
-## 📚 Artifacts Créés (Session Actuelle)
-
-1. **walkthrough.md** — Résumé complet branche GOD Dashboard
-2. **remaining_work.md** — Inventaire exhaustif travail restant (15 items, ~21h)
-3. **task.md** — Checklist preparation merge
-4. **god_dashboard_status.md** — État complet dashboard (fonctionnel vs TODO)
-5. **implementation_plan.md** — Plan Dashboard UX improvements
-
-**Artifacts Contextuels (Anciennes Sessions)** :
-- MAINTENANCE.md — Guide maintenance VPS
-- audit-complet-sigilos.md — Audit code (8.5/10)
-- strategie-stockage-ssd.md — Stratégie long terme
-
----
-
-## 🎯 Résumé Exécutif
-
-### Accomplissements (Session GOD Dashboard)
-
-✅ **LifecyclePanel Actions** : Réactiver/Hard delete guildes & profils (RGPD compliant)  
-✅ **Dashboard UX** : Panneau conditionnel, grid dynamique, interface propre  
-✅ **Bug Fixes** : Countdown négatif, NaN stats, bulk actions retirées  
-✅ **Build Status** : ✅ PASSING (Exit code: 0)  
-✅ **Documentation** : 5 artifacts créés (walkthrough, remaining work, etc.)
-
-### GOD Dashboard Status
-
-**Fonctionnel** :
-- ✅ LiveStats temps réel
-- ✅ GuildManager (whitelist CRUD)
-- ✅ LifecyclePanel (actions manuelles)
-- ✅ Filtres, recherches, pagination
-
-**Manquant (Non-bloquant BETA)** :
-- ❌ Discord webhooks (auto-sync)
-- ❌ Audit log (traçabilité)
-- ❌ Changelog system
-
-### Infrastructure Status (Contexte Global)
-
-**Niveau**: Entreprise 🏆 (VPS hardening 9.6/10)  
-**GOD Dashboard**: ✅ Production-ready pour gestion manuelle BETA  
-**Build**: ✅ Stable, 0 erreurs TypeScript
-
----
-
-**Branche prête pour merge dans `dev`** ✅
+- [RULES.md](./RULES.md) — Standards de code
+- [SECURITY.md](./SECURITY.md) — Politique sécurité
+- [src/todo.md](./src/todo.md) — Backlog priorisé complet
+- [README.md](./README.md) — Vue d'ensemble projet

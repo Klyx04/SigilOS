@@ -161,6 +161,39 @@ model GuildConfig {
   guildEvents            GuildEvent[]
   achievementSubmissions AchievementSubmission[]
   guildBonuses           GuildBonus[]
+  modules                GuildModules?
+}
+
+// -- Guild Modules (Feature Flags) --
+// Allows enabling/disabling features per guild (Dyno-style)
+model GuildModules {
+  id      String      @id @default(cuid())
+  guildId String      @unique
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  // === GÉNÉRAL ===
+  presentation Boolean @default(true) // Page de présentation de la guilde
+  roster       Boolean @default(true) // Annuaire des membres
+  stats        Boolean @default(true) // Stats Guilde (futur)
+  calendar     Boolean @default(true) // Calendrier des événements
+
+  // === FONCTIONNALITÉS ===
+  missions Boolean @default(true) // Missions hebdomadaires
+  songes   Boolean @default(true) // Runs Songes
+  ocre     Boolean @default(true) // Quête Ocre / Metamob
+  ladder   Boolean @default(true) // Classement Dofus
+
+  // === OUTILS ===
+  services Boolean @default(true) // Services Guilde (passages, etc.)
+  donjons  Boolean @default(true) // Donjons & Quêtes (finder)
+  profile  Boolean @default(true) // Profil membre
+  docs     Boolean @default(true) // Documentation / Wiki
+
+  // === ADMIN ===
+  logs Boolean @default(true) // Logs d'audit admin
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?  // Discord user ID of last admin who changed settings
 }
 
 // -- Audit Log (Immutable) --

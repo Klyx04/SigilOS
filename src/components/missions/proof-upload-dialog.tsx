@@ -69,7 +69,6 @@ export function ProofUploadDialog({
     const [isCheckingSafety, setIsCheckingSafety] = useState(false);
     const [helperIds, setHelperIds] = useState<string[]>([]); // State for helpers
 
-    const [safetyDebug, setSafetyDebug] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -81,7 +80,6 @@ export function ProofUploadDialog({
         setFile(null);
         setPreview(null);
         setState("idle");
-        setOcrResult(null);
         setError(null);
         setHelperIds([]); // Reset helpers
     };
@@ -211,22 +209,11 @@ export function ProofUploadDialog({
                 throw new Error(result.error || "Échec de la soumission");
             }
 
-            // 2. Update UI with server result
-            if (result.data) {
+            toast.success("Preuve soumise ! En attente de validation par un modérateur.");
 
-                setOcrResult(result.data.ocrResult);
-
-                toast.success(
-                    result.data.autoValidated
-                        ? "Preuve soumise et auto-validée ! 🎉"
-                        : "Preuve soumise ! En attente de validation."
-                );
-
-                startTransition(() => {
-                    router.refresh();
-                });
-            }
-
+            startTransition(() => {
+                router.refresh();
+            });
 
             setState("success");
 
@@ -255,9 +242,6 @@ export function ProofUploadDialog({
     };
 
     const isProcessing = state === "analyzing" || state === "uploading";
-
-    // Determine if auto-validated for UI feedback
-    const isAutoValidated = ocrResult?.confidence >= 70;
 
 
     return (
@@ -377,104 +361,14 @@ export function ProofUploadDialog({
                             {state === "success" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        {isAutoValidated ? (
-                                            <>
-                                                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-2" />
-                                                <p className="text-sm text-green-300 font-medium">Mission validée !</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Clock className="w-12 h-12 text-amber-400 mx-auto mb-2" />
-                                                <p className="text-sm text-amber-300 font-medium">Envoyée à la modération</p>
-                                            </>
-                                        )}
+                                        <Clock className="w-12 h-12 text-amber-400 mx-auto mb-2" />
+                                        <p className="text-sm text-amber-300 font-medium">Envoyée à la modération</p>
                                     </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* Vérification automatique Results */}
-                    {ocrResult && (state === "uploading" || state === "success" || state === "error") && (
-                        <div className={cn(
-                            "rounded-xl p-4 border space-y-4 transition-colors",
-                            isAutoValidated
-                                ? "bg-green-950/30 border-green-500/30"
-                                : "bg-slate-900/50 border-slate-700/50"
-                        )}>
-                            {/* Header - Confiance */}
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    {isAutoValidated ? (
-                                        <CheckCircle2 className="w-5 h-5 text-green-400" />
-                                    ) : (
-                                        <Sparkles className="w-5 h-5 text-indigo-400" />
-                                    )}
-                                    <span className="text-sm font-medium text-slate-200">
-                                        {isAutoValidated ? "Validé automatiquement" : "Vérification automatique"}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                                    {safetyDebug && <span className="text-[10px] font-mono opacity-70">{safetyDebug}</span>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className={cn(
-                                        "text-lg font-bold",
-                                        ocrResult.confidence >= 70 ? "text-green-400"
-                                            : ocrResult.confidence >= 40 ? "text-yellow-400"
-                                                : "text-red-400"
-                                    )}>
-                                        {ocrResult.confidence}%
-                                    </span>
-
-                                </div>
-                            </div>
-
-                            {/* Score Bar */}
-                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div
-                                    className={cn(
-                                        "h-full rounded-full transition-all duration-500",
-                                        ocrResult.confidence >= 70 ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                                            : ocrResult.confidence >= 40 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
-                                                : "bg-gradient-to-r from-red-500 to-rose-400"
-                                    )}
-                                    style={{ width: `${ocrResult.confidence}%` }}
-                                />
-
-                            </div>
-
-                            {/* Quick Status Pills */}
-                            <div className="flex flex-wrap gap-2">
-                                {ocrResult.isVictory && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-300 border border-green-500/30">
-                                        <Check className="w-3 h-3" /> Victoire
-                                    </span>
-                                )}
-
-                                {ocrResult.contentMatch && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                        <Check className="w-3 h-3" /> Contenu
-                                    </span>
-                                )}
-                            </div>
-
-
-
-                            {/* Status Banner */}
-                            {isAutoValidated ? (
-                                <div className="flex items-center gap-2 text-green-300 text-sm bg-green-500/10 px-4 py-2.5 rounded-lg border border-green-500/20">
-                                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                                    <span>Cette preuve sera validée automatiquement !</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 text-amber-300 text-sm bg-amber-500/10 px-4 py-2.5 rounded-lg border border-amber-500/20">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    <span>Un modérateur vérifiera votre preuve</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     {/* Error State */}
                     {error && (

@@ -1057,7 +1057,7 @@ model ChangelogEntry {
   id          String            @id @default(cuid())
   version     String            // e.g., "v1.3.0"
   title       String            // e.g., "Webhook Automation + Changelog"
-  summary     String            // Short marketing description (1-2 lines) for landing page
+  summary     String?            // Short marketing description (1-2 lines) for landing page (optional)
   content     String            @db.Text // Full markdown content for detailed view
   category    ChangelogCategory
   isInternal  Boolean           @default(false) // Internal entries only visible to authenticated guild members

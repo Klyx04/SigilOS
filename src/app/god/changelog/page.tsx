@@ -70,8 +70,8 @@ export default function GODChangelogPage() {
     };
 
     async function handleSubmit() {
-        if (!form.version || !form.title || !form.summary || !form.content) {
-            toast.error('Tous les champs sont requis');
+        if (!form.version || !form.title || !form.content) {
+            toast.error('Version, titre et contenu sont requis');
             return;
         }
 
@@ -298,39 +298,15 @@ export default function GODChangelogPage() {
                                         </div>
                                     </div>
 
-                                    {/* 📣 Section 2: Marketing Summary */}
+                                    {/* 📝 Content Editor (Unified) */}
                                     <div className="space-y-6 pt-12 border-t border-white/5">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <Layout className="w-5 h-5 text-emerald-500" />
-                                                <h3 className="text-sm font-black text-emerald-500 uppercase tracking-[0.2em]">Contenu Marketing (Landing)</h3>
-                                            </div>
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] px-3 font-black">Public Snapshot</Badge>
-                                        </div>
-                                        <div className="relative group p-1 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-[2.5rem]">
-                                            <div className="bg-zinc-950 rounded-[2.4rem] overflow-hidden">
-                                                <AdvancedEditor
-                                                    initialContent={form.summary}
-                                                    onChange={(html) => handleChange('summary', html)}
-                                                />
+                                                <FileText className="w-5 h-5 text-purple-500" />
+                                                <h3 className="text-sm font-black text-purple-500 uppercase tracking-[0.2em]">Contenu du Changelog</h3>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 px-6 py-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
-                                            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                                            <p className="text-[10px] text-emerald-500/70 font-bold italic tracking-wide">✨ Écrivez quelque chose d'impactant. C'est ce que les utilisateurs verront en premier.</p>
-                                        </div>
-                                    </div>
-
-                                    {/* 📝 Section 3: Technical Content */}
-                                    <div className="space-y-6 pt-12 border-t border-white/5">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <FileText className="w-5 h-5 text-blue-500" />
-                                                <h3 className="text-sm font-black text-blue-500 uppercase tracking-[0.2em]">Full technical Log (Membres)</h3>
-                                            </div>
-                                            <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[9px] px-3 font-black">Internal Archive</Badge>
-                                        </div>
-                                        <div className="relative group p-1 bg-gradient-to-br from-blue-500/20 to-transparent rounded-[2.5rem]">
+                                        <div className="relative group p-1 bg-gradient-to-br from-purple-500/20 to-transparent rounded-[2.5rem]">
                                             <div className="bg-zinc-950 rounded-[2.4rem] overflow-hidden">
                                                 <AdvancedEditor
                                                     initialContent={form.content}
@@ -338,9 +314,9 @@ export default function GODChangelogPage() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 px-6 py-3 bg-blue-500/5 rounded-2xl border border-blue-500/10">
-                                            <Rocket className="w-4 h-4 text-blue-400 shrink-0" />
-                                            <p className="text-[10px] text-blue-500/70 font-bold italic tracking-wide">🛠️ Détallez chaque correctif et chaque fonctionnalité technique ici.</p>
+                                        <div className="flex items-center gap-2 px-6 py-3 bg-purple-500/5 rounded-2xl border border-purple-500/10">
+                                            <Rocket className="w-4 h-4 text-purple-400 shrink-0" />
+                                            <p className="text-[10px] text-purple-500/70 font-bold italic tracking-wide">✍️ Écrivez le contenu complet de cette release. Visible selon le toggle Public/Interne.</p>
                                         </div>
                                     </div>
                                 </div>

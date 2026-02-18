@@ -10,6 +10,7 @@ import { PublicHeader } from '@/components/layout/public-header';
 import { GalacticFooter } from '@/components/layout/galactic-footer';
 import { auth } from '@/auth';
 import { AuroraBackground } from '@/components/ui/aurora-background';
+import { DocContent } from '@/components/doc/doc-content';
 
 const categoryConfig: Record<ChangelogCategory, { label: string; color: string }> = {
     FEATURE: { label: 'Nouvelle fonctionnalité', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
@@ -99,18 +100,15 @@ export default async function ChangelogPage() {
                                             </div>
                                             <h2 className="text-xl font-bold text-white">{entry.title}</h2>
                                             {entry.summary && (
-                                                <div className="mt-2 text-zinc-400 text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
-                                                    <div dangerouslySetInnerHTML={{ __html: entry.summary }} />
+                                                <div className="mt-2 text-zinc-400 text-sm leading-relaxed">
+                                                    <DocContent content={entry.summary} className="prose-sm" />
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Entry Content - Only for authenticated users */}
                                         {session && entry.content && (
                                             <div className="px-6 py-5">
-                                                <div className="prose prose-invert prose-zinc max-w-none prose-headings:text-white prose-headings:font-bold prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2 prose-h3:text-base prose-p:text-zinc-300 prose-p:leading-relaxed prose-li:text-zinc-300 prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-code:text-indigo-300 prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-img:rounded-xl prose-img:max-w-full">
-                                                    <div dangerouslySetInnerHTML={{ __html: entry.content }} />
-                                                </div>
+                                                <DocContent content={entry.content} className="prose-headings:text-white prose-headings:font-bold prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2 prose-h3:text-base prose-p:text-zinc-300 prose-p:leading-relaxed prose-li:text-zinc-300 prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-code:text-indigo-300 prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-img:rounded-xl prose-img:max-w-full" />
                                             </div>
                                         )}
                                     </article>

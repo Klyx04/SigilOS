@@ -2,6 +2,7 @@ import { getGuildPresentation, getPublicGuildBasicInfo } from "@/server/actions/
 import { notFound } from "next/navigation";
 import { GuildPublicView } from "./_components/guild-public-view";
 import { PrivateGuildView } from "./_components/private-guild-view";
+import { getAppBaseUrl } from "@/lib/utils";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -54,7 +55,7 @@ export default async function GuildPresentationPage({ params }: Props) {
         ? new Date(guild.foundedDate).getFullYear()
         : new Date(guild.createdAt).getFullYear();
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const baseUrl = getAppBaseUrl();
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "Organization",

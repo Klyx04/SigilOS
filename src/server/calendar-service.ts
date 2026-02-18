@@ -1,6 +1,7 @@
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { updateChannelMessage, sendChannelMessage } from "@/server/discord";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // Map event types to premium image filenames
 const EVENT_IMAGES: Record<string, string> = {
@@ -186,7 +187,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         // 1. Prepare Payload
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
-        const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
         const dateStr = new Date(event.startDate).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
@@ -287,7 +288,7 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
         // For now, let's assume we have a base URL. If we don't, we might need to skip image valid url.
         // We will assume 'https://sigilos.app/assets/calendar/' + imageName
         // Replace with your actual domain
-        const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
         // Build Participant Lists

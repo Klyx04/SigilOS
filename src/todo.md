@@ -9,9 +9,9 @@
 - [x] Fix Dashboard crash beta (`substring` null + Date serialization + error boundaries)
 - [x] Fix Changelog : filtre non-membres ne fonctionne pas (voient tout)
 - [x] Fix Changelog : scroll impossible sur la page
-- [ ] Fix Changelog : images chargent pas pour le changelog externe
-- [ ] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiés et la prévisu pendant l'iedtion des images copiées collées ou importé non plus
-- [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
+- [x] Fix Changelog : images chargent pas sur le VPS (logs diagnostiques ajoutés, à tester après deploy)
+- [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiés et la prévisu pendant l'iedtion des images copiées collées ou importé non plus
+- [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (via Variable d'Env pour switch facile Prod/Beta)
 - [ ] Seed zones, boss, mobs  à la main moi même + bonus Songes à préparer coté page
 
 ---
@@ -30,8 +30,8 @@
 - [ ] Implémenter logs d'audit Admin (qui modifie quoi, quand)
 
 ### Monitoring
-- [ ] Configurer alertes Sentry actives
-- [ ] Alertes Discord en cas d'erreur critique Sentry
+- [ ] Configurer alertes Sentry actives /  déjà possiblement
+- [ ] Alertes Discord en cas d'erreur critique Sentry /  déjà possiblement
 
 ---
 
@@ -43,8 +43,10 @@
 - [ ] Revoir positionnement (pas centré en haut)
 
 ### Songes
-- [ ] Notif Discord aux inscrits d'une run (mention via embed)
-- [ ] Raccourcir message candidature embed (trop verbeux)
+- [ ] Proprio de songes peut Notif rappel Discord aux inscrits d'une run avec proposition heure/date(mention des gens uniquement inscrit sur la run via embed)
+- [ ] Raccourcir message candidature embed quand des gens s'inscrivent  (trop verbeux)
+message bizarre **Wylan ADM** (**Cra**) souhaite rejoindre votre run REVE_III. [Voir la run](https://sigilos.fr/dashboard/1290442961380835451/songes/cmlp24gb4000101letctf93ay) trop verbeux
+
 - [ ] Définir durée auto-suppression runs inactives
 - [ ] Historique des runs par membre
 - [ ] Image catégorie Songes

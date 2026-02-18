@@ -1,6 +1,7 @@
 import { db } from "@/lib/prisma";
 import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
+import { createNotification } from "@/server/actions/notification-actions";
 
 // ============================================
 // CONSTANTS
@@ -507,15 +508,15 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         const publicUrl = getAppBaseUrl();
         const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
-        await db.notification.create({
-            data: {
-                userId: run.leaderId,
-                title: "Candidature Songes",
-                message: `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${guildId}/songes/${run.id}`,
-            },
-        });
+        // Notify leader in-app
+        await createNotification(
+            run.leaderId,
+            "SONGES_JOIN_REQUEST",
+            "Candidature Songes",
+            `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
+            `/dashboard/${guildId}/songes/${run.id}`,
+            guildId
+        );
 
         // Ping leader in Discord channel
         if (run.discordChannelId) {

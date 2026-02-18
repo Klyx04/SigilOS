@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { type UserContext } from "@/server/actions/user-actions";
 import { type GuildHeaderData } from "@/server/actions/guild-actions";
+import { type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -46,8 +47,9 @@ interface AppSidebarProps {
     guildId: string;
     user: UserContext;
     guildData: GuildHeaderData;
+    modules?: GuildModulesState;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
-    className?: string; // For mobile sheet handling
+    className?: string;
 }
 
 export function AppSidebar({
@@ -55,6 +57,7 @@ export function AppSidebar({
     user,
     guildData,
     userGuilds = [],
+    modules = DEFAULT_MODULES,
     className
 }: AppSidebarProps) {
     const pathname = usePathname();
@@ -67,32 +70,34 @@ export function AppSidebar({
 
     const NAV_CORE = [
         { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-blue-400" },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-blue-400" },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-blue-400", visible: user.isMember || user.canViewCalendar },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-blue-400", visible: user.canViewRoster },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-blue-400", visible: modules.presentation },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-blue-400", visible: (user.isMember || user.canViewCalendar) && modules.calendar },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-blue-400", visible: user.canViewRoster && modules.roster },
+        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-blue-400", visible: modules.stats },
     ];
 
     const NAV_FEATURES = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", visible: user.canViewSonges },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", visible: user.canViewArchis },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", visible: user.canViewLadder },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", visible: user.canViewSonges && modules.songes },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", visible: user.canViewArchis && modules.ocre },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", visible: user.canViewLadder && modules.ladder },
     ];
 
     const NAV_TOOLS = [
-        { name: "Services", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: true },
-        { name: "Recherche", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-cyan-400", visible: true },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-cyan-400", visible: true },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: true },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: modules.services },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-cyan-400", visible: modules.donjons },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-cyan-400", visible: modules.docs },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: modules.profile },
     ];
 
     const NAV_ADMIN = [
-        { name: "Gestion Droits", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin },
+        { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin },
+        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "text-rose-500", visible: user.isAdmin },
         { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Éditer Présentation", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "text-rose-500", visible: user.isAdmin || user.canEditPresentation },
-        { name: "Centre Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, color: "text-rose-500", visible: user.canValidateMissions || user.isAdmin },
-        { name: "Gestion Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "text-rose-500", visible: user.canManageMissions },
-        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "text-rose-500", visible: user.isAdmin },
+        { name: "Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "text-rose-500", visible: user.isAdmin || user.canEditPresentation },
+        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, color: "text-rose-500", visible: user.canValidateMissions || user.isAdmin },
+        { name: "Missions (Admin)", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "text-rose-500", visible: user.canManageMissions },
+        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "text-rose-500", visible: (user.isAdmin) && modules.logs },
     ];
 
     const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
@@ -199,8 +204,9 @@ export function AppSidebar({
                     {/* CORE */}
                     <div className="space-y-1.5 peer">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-blue-500/30 to-transparent" />
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-blue-500/30" />
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/60">Général</h4>
+                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-blue-500/30" />
                         </div>
                         {NAV_CORE.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
@@ -210,8 +216,9 @@ export function AppSidebar({
                     {/* FEATURES */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-emerald-500/30" />
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Fonctionnalités</h4>
+                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-emerald-500/30" />
                         </div>
                         {NAV_FEATURES.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
@@ -221,8 +228,9 @@ export function AppSidebar({
                     {/* TOOLS */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/30 to-transparent" />
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cyan-500/30" />
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Outils</h4>
+                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cyan-500/30" />
                         </div>
                         {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
                             <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
@@ -233,11 +241,12 @@ export function AppSidebar({
                     {hasAnyAdminPermission && (
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-amber-500/20 to-transparent" />
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/20" />
                                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2">
                                     <Shield className="w-3 h-3" />
                                     Admin
                                 </h4>
+                                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/20" />
                             </div>
                             {NAV_ADMIN.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={isActive(item.href)} />

@@ -224,7 +224,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                         <p className="font-semibold text-amber-400">Important : La clé expire après 90 jours</p>
                         <p className="text-sm text-muted-foreground mt-1">
                             Les clés API Metamob sont valides <strong className="text-amber-300">90 jours</strong>.
-                            Passé ce délai, vous devrez mettre à jour votre clé ici OU sur votre profil Stellium.
+                            Passé ce délai, vous devrez mettre à jour votre clé ici OU sur votre profil SigilOS.
                         </p>
                     </div>
                 </div>
@@ -235,7 +235,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                     <div>
                         <p className="font-semibold text-blue-400">Profils Privés et Clés Personnelles</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Si votre profil Metamob est <strong className="text-blue-300">PRIVÉ</strong>, vous devez obligatoirement renseigner votre clé API personnelle dans votre <strong className="text-blue-300">Profil Stellium</strong>.
+                            Si votre profil Metamob est <strong className="text-blue-300">PRIVÉ</strong>, vous devez obligatoirement renseigner votre clé API personnelle dans votre <strong className="text-blue-300">Profil SigilOS</strong>.
                             La clé de guilde configurée ici ne sert que de secours pour les profils publics.
                         </p>
                     </div>

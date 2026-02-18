@@ -10,6 +10,7 @@ import { validateAchievementSubmission } from "@/server/actions/achievement-acti
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { SubmissionCountdown } from "@/components/missions/submission-countdown";
 
 type ExtendedSubmission = any; // Avoid TS issues with generated client
 
@@ -109,31 +110,34 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4 text-[11px] text-zinc-500 font-medium">
+                                    <div className="flex items-center gap-4 text-[11px] text-zinc-500 font-medium flex-wrap">
                                         <div className="flex items-center gap-1.5">
                                             <Calendar className="w-3.5 h-3.5" />
                                             {new Date(s.createdAt).toLocaleString('fr-FR')}
                                         </div>
+                                        <SubmissionCountdown createdAt={new Date(s.createdAt)} />
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 mt-6">
-                                    <Button
-                                        onClick={() => handleAction(s.id, "VALIDATED")}
-                                        disabled={isPending}
-                                        className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-bold h-10"
-                                    >
-                                        <Check className="w-4 h-4 mr-2" />
-                                        VALIDER
-                                    </Button>
+                                <div className="flex items-center justify-end gap-2 mt-6">
                                     <Button
                                         onClick={() => handleAction(s.id, "REJECTED")}
                                         disabled={isPending}
                                         variant="outline"
-                                        className="bg-red-500/5 hover:bg-red-500/10 text-red-500 border-red-500/20 font-bold h-10"
+                                        size="sm"
+                                        className="bg-red-500/5 hover:bg-red-500/10 text-red-500 border-red-500/20 font-bold"
                                     >
-                                        <X className="w-4 h-4 mr-2" />
-                                        REJETER
+                                        <X className="w-3.5 h-3.5 mr-1.5" />
+                                        Rejeter
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleAction(s.id, "VALIDATED")}
+                                        disabled={isPending}
+                                        size="sm"
+                                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-bold"
+                                    >
+                                        <Check className="w-3.5 h-3.5 mr-1.5" />
+                                        Valider
                                     </Button>
                                 </div>
                             </div>

@@ -7,6 +7,7 @@ import { ScrollText } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,11 +25,17 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const { guildId } = await params;
 
+    // Module guard
+    if (!await isModuleEnabled(guildId, "missions")) {
+        redirect(`/dashboard/${guildId}`);
+    }
+
     // RBAC: Check permission to view Missions
     const user = await getUserContext(guildId);
     if (!user.canViewMissions) {
         return <AccessDenied />;
     }
+
 
     const { week, year } = getCurrentWeek();
 

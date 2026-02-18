@@ -20,8 +20,8 @@
   --popover: #13171A;
   --popover-foreground: #FAFBFC;
 
-  --primary: #2DD4BF;
-  /* Teal Snoofel — Accents & CTAs */
+  --primary: #10b981;
+  /* Vert Émeraude — Accents & CTAs */
   --primary-foreground: #0E1110;
 
   --secondary: #1A1E22;
@@ -42,7 +42,7 @@
   --ring: #C8922A;
 
   --accent-gold: #FBBF24;
-  --accent-teal: #2DD4BF;
+  --accent-teal: #10b981;
   --bg-primary: #0E1110;
   --bg-secondary: #13171A;
   --bg-tertiary: #1A1E22;
@@ -66,7 +66,7 @@
     content: '';
     position: absolute;
     inset: -1px;
-    background: linear-gradient(to right, var(--accent-teal), var(--accent-gold));
+    background: linear-gradient(to right, #10b981, var(--accent-gold));
     border-radius: inherit;
     filter: blur(15px);
     opacity: 0;
@@ -168,8 +168,8 @@
 .ProseMirror blockquote,
 .doc-preview-content blockquote {
   border-left-width: 4px !important;
-  border-color: var(--accent-teal) !important;
-  /* Teal Accents */
+  border-color: #10b981 !important;
+  /* Émeraude Accents */
   padding-left: 1rem !important;
   padding-top: 0.25rem !important;
   padding-bottom: 0.25rem !important;
@@ -251,8 +251,8 @@
 }
 
 .callout-important {
-  background-color: rgba(45, 212, 191, 0.1) !important;
-  border-color: #2dd4bf !important;
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10b981 !important;
 }
 
 .callout-caution,

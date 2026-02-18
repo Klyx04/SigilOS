@@ -70,7 +70,7 @@ export function BetaGate() {
                         size="lg"
                         onClick={handleCheck}
                         disabled={isLoading}
-                        className="w-full h-14 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-lg shadow-[0_0_30px_rgba(79,70,229,0.4)] transition-all hover:scale-[1.02]"
+                        className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-400 hover:from-emerald-500 hover:to-emerald-300 text-black font-bold text-lg shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all hover:scale-[1.02]"
                     >
                         {isLoading ? (
                             <Loader2 className="mr-2 w-5 h-5 animate-spin" />
@@ -164,12 +164,12 @@ export function BetaGate() {
                         key="prospect"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-6 text-center backdrop-blur-sm"
+                        className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 text-center backdrop-blur-sm"
                     >
                         <div className="text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                            <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4 relative group">
-                                <div className="absolute inset-0 bg-indigo-500/10 blur-xl rounded-full animate-pulse" />
-                                <Lock className="w-8 h-8 text-indigo-400 relative z-10" />
+                            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4 relative group">
+                                <div className="absolute inset-0 bg-emerald-500/10 blur-xl rounded-full animate-pulse" />
+                                <Lock className="w-8 h-8 text-emerald-400 relative z-10" />
                             </div>
 
                             <div className="space-y-2">
@@ -183,7 +183,7 @@ export function BetaGate() {
                             <div className="flex flex-col gap-3 max-w-xs mx-auto pt-2">
                                 <Button
                                     asChild
-                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-12 rounded-lg shadow-[0_0_20px_-5px_rgba(79,70,229,0.5)] transition-all hover:scale-[1.02]"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-black font-medium h-12 rounded-lg shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] transition-all hover:scale-[1.02]"
                                 >
                                     <Link href={DISCORD_SUPPORT_URL} target="_blank">
                                         Demander un accès Bêta

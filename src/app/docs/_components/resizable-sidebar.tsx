@@ -63,7 +63,7 @@ export function ResizableSidebar({
             className={cn("relative group shrink-0", className)}
             style={{ width }}
         >
-            <div className="h-full w-full overflow-hidden">
+            <div className="h-full w-full overflow-y-auto scrollbar-thin">
                 {children}
             </div>
 

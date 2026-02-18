@@ -1,7 +1,9 @@
 import { MetadataRoute } from 'next'
 
+import { getAppBaseUrl } from '@/lib/utils'
+
 export default function manifest(): MetadataRoute.Manifest {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr'
+    const baseUrl = getAppBaseUrl()
 
     return {
         name: 'SigilOS - Guild Management',

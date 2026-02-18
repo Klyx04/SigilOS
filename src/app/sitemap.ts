@@ -1,8 +1,10 @@
 import { MetadataRoute } from 'next'
 import { getPublicGuilds } from '@/server/actions/presentation-actions'
 
+import { getAppBaseUrl } from '@/lib/utils'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr'
+    const baseUrl = getAppBaseUrl()
 
     // Static routes
     const routes = [

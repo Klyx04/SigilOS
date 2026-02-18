@@ -31,6 +31,7 @@ export async function GET(
 
     // Reconstruct the relative path from URL segments
     const relativePath = segments.join("/");
+    console.error(`[uploads] Request: /api/uploads/${relativePath}`);
 
     // 🛡️ Security: Prevent directory traversal attacks
     const resolvedPath = normalize(join(UPLOAD_ROOT, relativePath));
@@ -47,8 +48,10 @@ export async function GET(
 
     try {
         // Verify file exists and is a regular file
+        console.error(`[uploads] Resolved path: ${resolvedPath}`);
         const fileStat = await stat(resolvedPath);
         if (!fileStat.isFile()) {
+            console.error(`[uploads] Not a file: ${resolvedPath}`);
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -65,7 +68,8 @@ export async function GET(
                 "X-Content-Type-Options": "nosniff",
             },
         });
-    } catch {
+    } catch (err) {
+        console.error(`[uploads] File not found: ${resolvedPath}`, err);
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 }

@@ -31,6 +31,8 @@ RUN npx prisma generate
 # ENV NEXT_TELEMETRY_DISABLED 1
 
 ARG NEXT_PUBLIC_BETA_PASSWORD
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \

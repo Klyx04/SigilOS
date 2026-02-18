@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { configureSlashCommand } from "./extensions/slash-command";
 import { ResizableImage } from "./extensions/resizable-image";
+import { uploadImageFile } from "./utils/image-upload";
 import { Callout } from "./extensions/callout";
 import {
     Bold,
@@ -85,6 +86,42 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
         editorProps: {
             attributes: {
                 class: "prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2",
+            },
+            handlePaste: (view, event) => {
+                const items = event.clipboardData?.items;
+                if (!items) return false;
+
+                for (const item of Array.from(items)) {
+                    if (item.type.startsWith("image/")) {
+                        event.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) {
+                            uploadImageFile(file).then((url) => {
+                                if (url && editor) {
+                                    editor.chain().focus().setImage({ src: url }).run();
+                                }
+                            });
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            },
+            handleDrop: (view, event) => {
+                const files = event.dataTransfer?.files;
+                if (!files?.length) return false;
+
+                const imageFile = Array.from(files).find(f => f.type.startsWith("image/"));
+                if (imageFile) {
+                    event.preventDefault();
+                    uploadImageFile(imageFile).then((url) => {
+                        if (url && editor) {
+                            editor.chain().focus().setImage({ src: url }).run();
+                        }
+                    });
+                    return true;
+                }
+                return false;
             },
         },
         onUpdate: ({ editor }) => {
@@ -189,13 +226,10 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
                             input.onchange = async () => {
                                 if (input.files?.length) {
                                     const file = input.files[0];
-                                    const reader = new FileReader();
-                                    reader.onload = (e) => {
-                                        const src = e.target?.result as string;
-                                        // On force le layout par défaut pour permettre le resize immédiat
-                                        editor.chain().focus().setImage({ src }).run();
-                                    };
-                                    reader.readAsDataURL(file);
+                                    const uploadedUrl = await uploadImageFile(file);
+                                    if (uploadedUrl) {
+                                        editor.chain().focus().setImage({ src: uploadedUrl }).run();
+                                    }
                                 }
                             };
                             input.click();

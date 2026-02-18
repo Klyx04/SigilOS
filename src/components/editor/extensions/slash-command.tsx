@@ -1,5 +1,6 @@
 import { Extension } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
+import { uploadImageFile } from "../utils/image-upload";
 import { ReactRenderer } from "@tiptap/react";
 import tippy from "tippy.js";
 import {
@@ -293,12 +294,10 @@ const getSuggestionItems = ({ query }: { query: string }) => {
                 input.onchange = async () => {
                     if (input.files?.length) {
                         const file = input.files[0];
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            const src = e.target?.result as string;
-                            editor.chain().focus().setImage({ src }).run();
-                        };
-                        reader.readAsDataURL(file);
+                        const url = await uploadImageFile(file);
+                        if (url) {
+                            editor.chain().focus().setImage({ src: url }).run();
+                        }
                     }
                 };
                 input.click();

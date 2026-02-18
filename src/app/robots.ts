@@ -1,7 +1,9 @@
 import { MetadataRoute } from 'next'
 
+import { getAppBaseUrl } from '@/lib/utils'
+
 export default function robots(): MetadataRoute.Robots {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr'
+    const baseUrl = getAppBaseUrl()
     const isProd = baseUrl === 'https://sigilos.fr'
 
     return {

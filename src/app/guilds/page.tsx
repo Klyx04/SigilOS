@@ -21,7 +21,7 @@ export default async function GuildsDirectoryPage() {
     const session = await auth();
 
     return (
-        <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col overflow-hidden">
+        <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
 

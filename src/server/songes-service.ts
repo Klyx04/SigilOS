@@ -40,12 +40,22 @@ async function getGuildConfig(guildId: string) {
     });
 }
 
-async function getUserDisplayName(userId: string, internalGuildId: string): Promise<string> {
+async function getUserProfileData(userId: string, internalGuildId: string) {
     const profile = await db.userProfile.findFirst({
         where: { userId, guildId: internalGuildId },
-        select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+        select: {
+            discordNickname: true,
+            pseudoDofus: true,
+            classe: true,
+            user: { select: { name: true, image: true } }
+        },
     });
-    return profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Joueur";
+
+    return {
+        name: profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Joueur",
+        avatar: profile?.user?.image || null,
+        classe: profile?.classe || null
+    };
 }
 
 async function getDiscordId(userId: string): Promise<string | null> {
@@ -80,24 +90,26 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const publicUrl = getAppBaseUrl();
     const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
-    // Get leader name
-    const leaderName = await getUserDisplayName(run.leaderId, guildConfig.id);
+    // Get leader more info
+    const leaderProfile = await getUserProfileData(run.leaderId, guildConfig.id);
 
-    // Get member names
-    const memberNames: string[] = [];
+    // Get member details for list
+    const memberLines: string[] = [];
     for (const m of run.members) {
-        const name = await getUserDisplayName(m.userId, guildConfig.id);
-        memberNames.push(`• ${name}`);
+        const p = await getUserProfileData(m.userId, guildConfig.id);
+        const classTag = p.classe ? `[${p.classe}] ` : "";
+        memberLines.push(`• ${classTag}**${p.name}**`);
     }
-    const membersList = memberNames.length > 0 ? memberNames.join("\n") : "*Aucun membre*";
+    const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
 
-    // Get waitlist names
-    const waitlistNames: string[] = [];
+    // Get waitlist details
+    const waitlistLines: string[] = [];
     for (const w of run.waitlist) {
-        const name = await getUserDisplayName(w.userId, guildConfig.id);
-        waitlistNames.push(`• ${name}`);
+        const p = await getUserProfileData(w.userId, guildConfig.id);
+        const classTag = p.classe ? `[${p.classe}] ` : "";
+        waitlistLines.push(`• ${classTag}${p.name}`);
     }
-    const waitlistList = waitlistNames.length > 0 ? waitlistNames.join("\n") : "*Personne en file d'attente*";
+    const waitlistList = waitlistLines.length > 0 ? waitlistLines.join("\n") : "*Personne en file d'attente*";
 
     // Format objectives
     const objectivesStr = run.objectives.length > 0
@@ -106,7 +118,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
 
     const fields = [
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
-        { name: "👑 Leader", value: `**${leaderName}**`, inline: true },
+        { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
         { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
         { name: "🎯 Objectifs", value: objectivesStr, inline: false },
         { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },
@@ -151,6 +163,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         components,
         statusText,
         dashboardUrl,
+        leaderProfile,
     };
 }
 
@@ -182,6 +195,10 @@ export async function publishDiscordRun(guildId: string, runId: string) {
                 embedTitle: `🌙 Run Songes — ${diffConfig.label}`,
                 embedColor: diffConfig.color,
                 embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
+                embedAuthor: {
+                    name: `Proposée par ${data.leaderProfile.name}`,
+                    iconUrl: data.leaderProfile.avatar || undefined
+                },
                 fields,
                 embedFooter: `Statut: ${statusText}`,
                 components,
@@ -227,6 +244,10 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
                 embedTitle: `🌙 Run Songes — ${diffConfig.label}`,
                 embedColor: diffConfig.color,
                 embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
+                embedAuthor: {
+                    name: `Proposée par ${data.leaderProfile.name}`,
+                    iconUrl: data.leaderProfile.avatar || undefined
+                },
                 fields,
                 embedFooter: `Statut: ${statusText}`,
                 components,
@@ -234,6 +255,168 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
         );
     } catch (error) {
         console.error("[Songes Service] updateDiscordRunEmbed Error:", error);
+    }
+}
+
+// ============================================
+// DELETE DISCORD RUN EMBED
+// ============================================
+
+export async function deleteDiscordRunEmbed(guildId: string, runId: string) {
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId },
+            select: { discordChannelId: true, discordMessageId: true }
+        });
+
+        if (run?.discordChannelId && run?.discordMessageId) {
+            const { deleteChannelMessage } = await import("@/server/discord");
+            await deleteChannelMessage(run.discordChannelId, run.discordMessageId);
+
+            // Clean up DB references
+            await db.dreamRun.update({
+                where: { id: runId },
+                data: { discordMessageId: null, discordChannelId: null }
+            });
+        }
+
+        // Clean up join requests messages as well
+        await deleteRunJoinRequestsDiscordMessages(guildId, runId);
+
+        // Clean up reminders as well
+        await deleteRunRemindersDiscordMessages(guildId, runId);
+    } catch (error) {
+        console.error("[Songes Service] deleteDiscordRunEmbed Error:", error);
+    }
+}
+
+/**
+ * Deletes all Discord embed messages sent for join requests of a specific run.
+ */
+export async function deleteRunJoinRequestsDiscordMessages(guildId: string, runId: string) {
+    try {
+        const requests = await db.dreamJoinRequest.findMany({
+            where: { runId },
+            select: { id: true, discordChannelId: true, discordMessageId: true }
+        });
+
+        const { deleteChannelMessage } = await import("@/server/discord");
+
+        for (const req of requests) {
+            if (req.discordChannelId && req.discordMessageId) {
+                await deleteChannelMessage(req.discordChannelId, req.discordMessageId);
+            }
+        }
+    } catch (error) {
+        console.error("[Songes Service] deleteRunJoinRequestsDiscordMessages Error:", error);
+    }
+}
+
+/**
+ * Deletes all Discord leader reminder messages sent for a specific run.
+ */
+export async function deleteRunRemindersDiscordMessages(guildId: string, runId: string) {
+    try {
+        const reminders = await db.dreamRunReminder.findMany({
+            where: { runId },
+            select: { id: true, discordChannelId: true, discordMessageId: true }
+        });
+
+        const { deleteChannelMessage } = await import("@/server/discord");
+
+        for (const rem of reminders) {
+            if (rem.discordChannelId && rem.discordMessageId) {
+                await deleteChannelMessage(rem.discordChannelId, rem.discordMessageId);
+            }
+        }
+    } catch (error) {
+        console.error("[Songes Service] deleteRunRemindersDiscordMessages Error:", error);
+    }
+}
+
+// ============================================
+// NOTIFY ALL MEMBERS (Ping)
+// ============================================
+
+export async function notifyRunMembers(guildId: string, runId: string, message: string = "Le leader demande votre attention !") {
+    try {
+        const embedData = await buildRunEmbedData(guildId, runId);
+        if (!embedData) return { success: false, error: "Données de la run introuvables" };
+
+        const { run, diffConfig, dashboardUrl, fields } = embedData;
+        if (!run.discordChannelId) return { success: false, error: "Run ou canal introuvable" };
+
+        const mentions: string[] = [];
+        for (const member of run.members) {
+            const discordId = await getDiscordId(member.userId);
+            if (discordId) mentions.push(`<@${discordId}>`);
+        }
+
+        if (mentions.length === 0) return { success: false, error: "Aucun ID Discord trouvé" };
+
+        const { sendChannelMessage } = await import("@/server/discord");
+
+        // Build a nice reminder embed
+        const messageId = await sendChannelMessage(
+            run.discordChannelId,
+            message, // Becomes embed.description
+            {
+                mentionContent: mentions.join(" "), // Triggers the ping
+                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}`,
+                embedUrl: dashboardUrl,
+                embedColor: diffConfig.color,
+                fields: [
+                    { name: "🛡️ Étage", value: `**${run.currentFloor || 0}**`, inline: true },
+                    ...fields.filter(f =>
+                        f.name.includes("Équipe") ||
+                        f.name.includes("Places")
+                    )
+                ],
+                embedFooter: `SigilOS • Songes Infinis`,
+                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png"
+            }
+        );
+
+        return { success: true, messageId };
+    } catch (error) {
+        console.error("[Songes Service] notifyRunMembers Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================
+// CLEANUP INACTIVE RUNS
+// ============================================
+
+export async function cleanupInactiveRuns(guildId: string) {
+    try {
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+        // Find runs with no activity for 3 days
+        const inactiveRuns = await db.dreamRun.findMany({
+            where: {
+                guildId,
+                status: { in: ["RECRUITING", "IN_PROGRESS"] },
+                updatedAt: { lt: threeDaysAgo }
+            },
+            select: { id: true }
+        });
+
+        for (const run of inactiveRuns) {
+            // Remove embed first
+            await deleteDiscordRunEmbed(guildId, run.id);
+
+            // Mark as abandoned
+            await db.dreamRun.update({
+                where: { id: run.id },
+                data: {
+                    status: "ABANDONED",
+                    completedAt: new Date()
+                }
+            });
+        }
+    } catch (error) {
+        console.error("[Songes Service] cleanupInactiveRuns Error:", error);
     }
 }
 
@@ -280,7 +463,8 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         }
 
         // Anti-spam: check if a notification was sent to the leader about this user in the last 5 min
-        const candidateName = await getUserDisplayName(userId, guildConfig.id);
+        const requesterProfile = await getUserProfileData(userId, guildConfig.id);
+        const candidateName = requesterProfile.name;
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         const recentSpam = await db.notification.findFirst({
             where: {
@@ -326,8 +510,8 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         await db.notification.create({
             data: {
                 userId: run.leaderId,
-                title: "Nouvelle candidature Songes",
-                message: `**${candidateName}** (**${classe}**) souhaite rejoindre votre run ${run.difficulty}. [Voir la run](${dashboardUrl})`,
+                title: "Candidature Songes",
+                message: `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
                 type: "SYSTEM_INFO",
                 link: `/dashboard/${guildId}/songes/${run.id}`,
             },
@@ -340,7 +524,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
 
             await sendChannelMessage(
                 run.discordChannelId,
-                `📩 ${leaderMention} — **${candidateName}** (**${classe}**) a postulé pour votre run Songes ! Acceptez ou refusez depuis le [dashboard](${dashboardUrl}).`,
+                `📩 ${leaderMention} — **${candidateName}** (${classe}) a postulé ! [Dashboard](${dashboardUrl})`,
             );
         }
 
@@ -402,7 +586,8 @@ export async function processRunLeave(guildId: string, runId: string, userId: st
                 // Notify promoted user in channel
                 if (run.discordChannelId) {
                     const promotedDiscordId = await getDiscordId(firstWaitlisted.userId);
-                    const promotedName = await getUserDisplayName(firstWaitlisted.userId, guildConfig.id);
+                    const promotedProfile = await getUserProfileData(firstWaitlisted.userId, guildConfig.id);
+                    const promotedName = promotedProfile.name;
                     const mention = promotedDiscordId ? `<@${promotedDiscordId}>` : promotedName;
                     await sendChannelMessage(
                         run.discordChannelId,

@@ -24,7 +24,8 @@ const GUILD_EVENT_TYPES = [
     "SONGES_RUN",
     "DUNGEON_FARM",
     "SOCIAL",
-    "OFFICIAL_RESET"
+    "OFFICIAL_RESET",
+    "OTHERS"
 ] as const;
 
 const EVENT_STATUSES = ["DRAFT", "PUBLISHED", "COMPLETED", "CANCELLED"] as const;
@@ -347,6 +348,35 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
 
         const { publishOnDiscord, ...eventData } = validated.data;
 
+        // ANTI-DUPLICATE: Check if an event of the SAME TYPE already exists within a +/- 15 min window
+        const fifteenMins = 15 * 60 * 1000;
+        const potentialDuplicate = await db.guildEvent.findFirst({
+            where: {
+                guildId: guildConfig.id,
+                type: eventData.type,
+                startDate: {
+                    gte: new Date(eventData.startDate.getTime() - fifteenMins),
+                    lte: new Date(eventData.startDate.getTime() + fifteenMins)
+                },
+                status: { not: "CANCELLED" },
+                // EXCEPTION: Don't let imported Kralamoure events block manual creations
+                NOT: {
+                    metadata: {
+                        path: ["isKralamoure"],
+                        equals: true
+                    }
+                }
+            },
+            select: { title: true }
+        });
+
+        if (potentialDuplicate) {
+            return {
+                success: false,
+                error: `Un événement de type "${eventData.type}" existe déjà à un horaire similaire (${potentialDuplicate.title}).`
+            };
+        }
+
         const event = await db.guildEvent.create({
             data: {
                 ...eventData,
@@ -399,13 +429,18 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
         const startDate = new Date(kralaEvent.event_datetime);
         const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration default
 
-        // Check for duplicates (same title and start time within 5 mins)
+        // ANTI-DUPLICATE (Improved): Check for duplicates within a 10-minute window instead of exact match
         const title = `Ouverture Kralamoure (${kralaEvent.server.name})`;
+        const tenMins = 10 * 60 * 1000;
         const existing = await db.guildEvent.findFirst({
             where: {
                 guildId: guildConfig.id,
                 title: title,
-                startDate: startDate,
+                startDate: {
+                    gte: new Date(startDate.getTime() - tenMins),
+                    lte: new Date(startDate.getTime() + tenMins)
+                },
+                status: { not: "CANCELLED" }
             }
         });
 
@@ -775,7 +810,8 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 "SYSTEM_INFO",
                 `🔔 Rappel: ${event.title}`,
                 `L'événement commence ${eventTime}. N'oublie pas de te connecter !`,
-                `/dashboard/${guildId}/calendar`
+                `/dashboard/${guildId}/calendar`,
+                guildId
             );
             sentCount++;
         }
@@ -789,7 +825,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
 
             if (isValidChannel) {
                 // Get type config for emoji and color
-                const typeConfig = {
+                const typeConfigs: Record<string, { emoji: string; color: number }> = {
                     RAID_OFFICIAL: { emoji: "⚔️", color: 0xef4444 },
                     EVENT_GUILD: { emoji: "🎉", color: 0x8b5cf6 },
                     SESSION_MISSIONS: { emoji: "🎯", color: 0x3b82f6 },
@@ -799,8 +835,11 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                     SONGES_RUN: { emoji: "🌙", color: 0x6366f1 },
                     DUNGEON_FARM: { emoji: "🏰", color: 0xec4899 },
                     SOCIAL: { emoji: "🍻", color: 0xf97316 },
-                    OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b }
-                }[event.type] || { emoji: "📅", color: 0x9333ea };
+                    OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b },
+                    OTHERS: { emoji: "📅", color: 0x9333ea }
+                };
+
+                const typeConfig = typeConfigs[event.type] || typeConfigs.OTHERS;
 
                 // Format date/time
                 const dateStr = format(event.startDate, "EEEE d MMMM", { locale: fr });

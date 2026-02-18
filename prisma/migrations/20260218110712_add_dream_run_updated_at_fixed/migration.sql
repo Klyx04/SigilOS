@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ChangelogEntry" ALTER COLUMN "summary" DROP NOT NULL;
+
+-- AlterTable
+ALTER TABLE "DreamRun" ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

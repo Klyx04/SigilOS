@@ -16,7 +16,8 @@ import {
     Swords,
     PartyPopper,
     Wheat,
-    Eye
+    Eye,
+    Diamond
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; bo
     SESSION_MISSIONS: { label: "Missions Guilde", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Target, gradient: "from-amber-600 to-orange-600" },
     SORTIE_FARM: { label: "Sortie Farm", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: Wheat, gradient: "from-emerald-600 to-green-600" },
     KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-rose-600" },
+    OTHERS: { label: "Autres", color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: Diamond, gradient: "from-slate-600 to-zinc-600" },
 };
 
 const EVENT_IMAGES: Record<string, string> = {
@@ -62,6 +64,7 @@ const EVENT_IMAGES: Record<string, string> = {
     "DUNGEON_FARM": "/assets/calendar/calendar_dungeon_farm.png",
     "SOCIAL": "/assets/calendar/calendar_social.png",
     "ALMANAX_BONUS": "/assets/calendar/calendar_almanax_bonus.png",
+    "OTHERS": "/assets/calendar/calendar_autres.png",
 };
 
 export function EventCard({

@@ -1,0 +1,226 @@
+"use client";
+
+import { useState } from "react";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { Button } from "@/components/ui/button";
+import { Bell, Calendar as CalendarIcon, Clock, Send, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { triggerRunNotification } from "@/server/actions/songes/dream-run-actions";
+import { toast } from "sonner";
+
+interface RunLeaderActionsProps {
+    guildId: string;
+    runId: string;
+    variant?: "full" | "minimal";
+}
+
+export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeaderActionsProps) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState("On se prépare pour la run !");
+    const [date, setDate] = useState<Date | undefined>(new Date());
+    const [time, setTime] = useState("21:00");
+
+    const handleSendReminder = async () => {
+        if (!message) {
+            toast.error("Veuillez saisir un message");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            let scheduledDate: Date | undefined = undefined;
+
+            if (date) {
+                scheduledDate = new Date(date);
+                const [hours, minutes] = time.split(":").map(Number);
+                scheduledDate.setHours(hours, minutes, 0, 0);
+            }
+
+            const result = await triggerRunNotification(guildId, runId, message, scheduledDate);
+
+            if (result.success) {
+                toast.success("Rappel envoyé avec succès !");
+                setIsModalOpen(false);
+            } else {
+                toast.error(result.error || "Une erreur est survenue");
+            }
+        } catch (error) {
+            toast.error("Erreur lors de l'envoi du rappel");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (variant === "minimal") {
+        return (
+            <>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsModalOpen(true);
+                    }}
+                    className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                    title="Envoyer un rappel aux membres"
+                >
+                    <Bell className="h-4 w-4" />
+                </Button>
+
+                <Dialog open={isModalOpen} onOpenChange={(open) => setIsModalOpen(open)}>
+                    <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white" onClick={(e) => e.stopPropagation()}>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-purple-400">
+                                <Bell className="w-5 h-5" />
+                                Rappel rapide
+                            </DialogTitle>
+                            <DialogDescription className="text-muted-foreground text-xs">
+                                Ping Discord + Notif Dashboard (15 min de cooldown).
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid gap-4 py-4">
+                            <Textarea
+                                placeholder="Message de rappel..."
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                className="bg-white/5 border-white/10 min-h-[80px]"
+                            />
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Annuler</Button>
+                            <Button onClick={handleSendReminder} disabled={loading} className="bg-purple-600">
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Envoyer"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <GlassPanel className="p-4 border-purple-500/20 bg-purple-500/5">
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2 text-purple-300 font-semibold mb-1">
+                        <Bell className="w-4 h-4 text-purple-400" />
+                        <span>Gestion Leader</span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mb-1">
+                        Envoyez un ping Discord et une notification dashboard à tous les membres de l'équipe.
+                    </p>
+
+                    <Button
+                        onClick={() => setIsModalOpen(true)}
+                        variant="outline"
+                        className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-200 gap-2"
+                    >
+                        <Send className="w-4 h-4" />
+                        Envoyer un rappel
+                    </Button>
+                </div>
+            </GlassPanel>
+
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-purple-400">
+                            <Bell className="w-5 h-5" />
+                            Planifier un rappel
+                        </DialogTitle>
+                        <DialogDescription className="text-muted-foreground text-xs">
+                            Ceci enverra un ping Discord à tous les membres et une notification interne SigilOS.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Message</label>
+                            <Textarea
+                                placeholder="Ex: On commence dans 15 minutes, tout le monde en jeu !"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                className="bg-white/5 border-white/10 focus:border-purple-500/50 min-h-[80px] text-sm"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Date</label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full justify-start text-left font-normal bg-white/5 border-white/10 text-xs",
+                                                !date && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                            {date ? format(date, "PPP", { locale: fr }) : <span>Choisir</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-black border-white/10">
+                                        <Calendar
+                                            mode="single"
+                                            selected={date}
+                                            onSelect={setDate}
+                                            initialFocus
+                                            className="bg-black text-white"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Heure</label>
+                                <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                        type="time"
+                                        value={time}
+                                        onChange={(e) => setTime(e.target.value)}
+                                        className="bg-white/5 border-white/10 pl-9 text-xs"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsModalOpen(false)}
+                            className="text-white/60 hover:text-white"
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleSendReminder}
+                            disabled={loading}
+                            className="bg-purple-600 hover:bg-purple-500 text-white min-w-[120px]"
+                        >
+                            {loading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                "Envoyer le ping"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}

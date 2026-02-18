@@ -197,6 +197,8 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", runs: [] };
 
     // Trigger cleanup
+    const { cleanupInactiveRuns } = await import("@/server/songes-service");
+    await cleanupInactiveRuns(ctx.guildId);
     await cleanupExpiredRequests(ctx.guildId);
 
     const runs = await db.dreamRun.findMany({
@@ -231,6 +233,8 @@ export async function getDreamRunById(guildId: string, runId: string) {
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", run: null };
 
     // Trigger cleanup
+    const { cleanupInactiveRuns } = await import("@/server/songes-service");
+    await cleanupInactiveRuns(ctx.guildId);
     await cleanupExpiredRequests(ctx.guildId);
 
     const run = await db.dreamRun.findFirst({
@@ -440,6 +444,10 @@ export async function startDreamRun(guildId: string, runId: string) {
         },
     });
 
+    // Update Discord embed to reflect "In Progress" status
+    const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+    await updateDiscordRunEmbed(ctx.guildId, runId);
+
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
@@ -467,6 +475,10 @@ export async function completeDreamRun(guildId: string, runId: string, success: 
             completedAt: new Date(),
         },
     });
+
+    // Remove Discord embed as the run is over
+    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+    await deleteDiscordRunEmbed(ctx.guildId, runId);
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
@@ -713,7 +725,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         },
     });
 
-    await db.dreamJoinRequest.create({
+    const joinRequest = await db.dreamJoinRequest.create({
         data: {
             runId: validated.data.runId,
             userId: ctx.id!,
@@ -724,13 +736,11 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
 
     // Create notification for leader if enabled
     if (run.notifyOnJoinRequest) {
-        // We already fetched candidateName above!
-        // run.leaderId is already an internal Prisma User ID
         await db.notification.create({
             data: {
                 userId: run.leaderId,
-                title: "Nouvelle candidature Songes",
-                message: `${candidateName} souhaite rejoindre votre run Songes (Étage ${run.currentFloor})`,
+                title: "Candidature Songes",
+                message: `**${candidateName}** (${validated.data.classe}) • Étage ${run.currentFloor}`,
                 type: "SONGES_JOIN_REQUEST",
                 link: `/dashboard/${guildId}/songes/${validated.data.runId}`,
             },
@@ -750,65 +760,52 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                 where: { userId: run.leaderId, provider: "discord" },
                 select: { providerAccountId: true },
             });
-            const leaderMention = leaderAccount?.providerAccountId
-                ? `<@${leaderAccount.providerAccountId}>`
-                : leaderName;
+            const leaderMention = leaderAccount?.providerAccountId ? `<@${leaderAccount.providerAccountId}>` : leaderName;
 
             // Determine embed color based on difficulty tier
-            let embedColor = 0x9333ea; // Default purple
-            if (run.difficulty.startsWith("CAUCHEMAR")) embedColor = 0xdc2626; // Red
-            else if (run.difficulty.startsWith("PARADOXE")) embedColor = 0xf59e0b; // Amber
-            else if (run.difficulty.startsWith("REVE")) embedColor = 0x22c55e; // Green
+            let embedColor = 0x9333ea;
+            if (run.difficulty.startsWith("CAUCHEMAR")) embedColor = 0xdc2626;
+            else if (run.difficulty.startsWith("PARADOXE")) embedColor = 0xf59e0b;
+            else if (run.difficulty.startsWith("REVE")) embedColor = 0x22c55e;
 
-            // Format difficulty for display
             const difficultyDisplay = run.difficulty.replace("_", " ");
-
-            // Build URLs
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-            const dashboardUrl = `${appUrl}/dashboard/${run.guildId}/songes/${run.id}`;
-            const profileUrl = candidateProfileId ? `${appUrl}/dashboard/${run.guildId}/members/${candidateProfileId}` : "";
-
-            // Format candidate link
-            const candidateValue = profileUrl ? `[**${candidateName}**](${profileUrl})` : `**${candidateName}**`;
-
-            // Format messsage with blockquote and limit to 200 chars
-            let rawMessage = validated.data.message || "";
-            if (rawMessage.length > 200) rawMessage = rawMessage.slice(0, 200) + "...";
-            const messageValue = rawMessage ? `>>> ${rawMessage}` : "*Aucun message personnalisé.*";
+            const { getAppBaseUrl } = await import("@/lib/utils");
+            const runUrl = `${getAppBaseUrl()}/dashboard/${run.guildId}/songes/${run.id}`;
 
             // SECURITY: Validate channel belongs to this guild before sending
-            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
             const isValidChannel = await validateChannelBelongsToGuild(guildConfig.songesNotifyChannelId, run.guildId);
 
             if (isValidChannel) {
-                await sendChannelMessage(
+                const messageId = await sendChannelMessage(
                     guildConfig.songesNotifyChannelId,
-                    `Un nouveau joueur souhaite rejoindre votre run.`,
+                    `Un nouveau joueur a postulé.`,
                     {
                         embedTitle: "📩 Nouvelle candidature Songes",
-                        embedUrl: dashboardUrl,
+                        embedUrl: runUrl,
                         embedColor,
-                        embedAuthor: {
-                            name: `Run de ${leaderName}`,
-                            // iconUrl: could be leader avatar if we had it easily
-                        },
-                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png", // Generic or specific icon if available
+                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                         fields: [
-                            { name: "👤 Candidat", value: candidateValue, inline: true },
+                            { name: "👤 Candidat", value: candidateName, inline: true },
                             { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
                             { name: "💀 Difficulté", value: `\`${difficultyDisplay}\``, inline: true },
-
-                            { name: "👥 Places", value: `${run.members.length}/4`, inline: true },
-                            { name: "📅 Date", value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
-                            { name: "\u200b", value: "\u200b", inline: true }, // Spacer
-
-                            { name: "📝 Message du joueur", value: messageValue, inline: false },
+                            { name: "📝 Message", value: validated.data.message ? `>>> ${validated.data.message.slice(0, 200)}` : "*Aucun*", inline: false },
                         ],
-                        embedFooter: `SigilOS • Gestion des Songes`,
+                        embedFooter: `SigilOS • Songes`,
                         mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
                     }
                 );
-            } // End isValidChannel
+
+                if (messageId) {
+                    await db.dreamJoinRequest.update({
+                        where: { id: joinRequest.id },
+                        data: {
+                            discordMessageId: messageId,
+                            discordChannelId: guildConfig.songesNotifyChannelId
+                        }
+                    });
+                }
+            }
         }
     }
 
@@ -854,14 +851,20 @@ export async function getPendingJoinRequests(guildId: string, runId: string) {
 
     const profiles = guildConfig ? await db.userProfile.findMany({
         where: { userId: { in: userIds }, guildId: guildConfig.id },
-        select: { userId: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+        select: {
+            userId: true,
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true, image: true } }
+        },
     }) : [];
 
-    // Enrich requests with display names
+    // Enrich requests with display names and avatars
     const enrichedRequests = requests.map(r => {
         const profile = profiles.find(p => p.userId === r.userId);
         const displayName = profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Joueur";
-        return { ...r, displayName };
+        const avatar = profile?.user?.image || null;
+        return { ...r, displayName, avatar };
     });
 
     return { success: true, requests: enrichedRequests };
@@ -962,6 +965,16 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
         });
     }
 
+    // Clean up Discord candidacy embed if it exists
+    if (request.discordMessageId && request.discordChannelId) {
+        try {
+            const { deleteChannelMessage } = await import("@/server/discord");
+            await deleteChannelMessage(request.discordChannelId, request.discordMessageId);
+        } catch (error) {
+            console.error("[Songes] Error deleting candidacy message:", error);
+        }
+    }
+
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
@@ -982,10 +995,14 @@ export async function deleteDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    // Only leader can delete
-    if (run.leaderId !== ctx.userId) {
-        return { success: false, error: "Seul le leader peut supprimer la run" };
+    // Only leader or admin can delete
+    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+        return { success: false, error: "Seul le leader ou un administrateur peut supprimer la run" };
     }
+
+    // Remove Discord embed if it exists
+    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+    await deleteDiscordRunEmbed(ctx.guildId, runId);
 
     // Delete run (cascade will handle related records)
     await db.dreamRun.delete({
@@ -1147,6 +1164,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
             user: {
                 select: {
                     name: true,
+                    image: true,
                 },
             },
         },
@@ -1174,7 +1192,8 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
             pseudoDofus: p.pseudoDofus,
             classe: p.classe,
             discordNickname,
-            isAdmin
+            isAdmin,
+            avatar: p.user?.image || null
         };
     });
 
@@ -1185,7 +1204,7 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
     if (missingUserIds.length > 0) {
         const users = await db.user.findMany({
             where: { id: { in: missingUserIds } },
-            select: { id: true, name: true },
+            select: { id: true, name: true, image: true },
         });
 
         for (const user of users) {
@@ -1194,7 +1213,8 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
                 pseudoDofus: null,
                 classe: null,
                 discordNickname: user.name || null,
-                isAdmin: false
+                isAdmin: false,
+                avatar: user.image || null
             });
         }
     }
@@ -1279,6 +1299,10 @@ export async function closeDreamRun(guildId: string, runId: string) {
         },
     });
 
+    // Remove Discord embed
+    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+    await deleteDiscordRunEmbed(ctx.guildId, runId);
+
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
@@ -1349,4 +1373,121 @@ export async function cancelJoinRequest(guildId: string, runId: string) {
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
+}
+
+// ============================================
+// NOTIFY MEMBERS ACTION
+// ============================================
+
+export async function triggerRunNotification(guildId: string, runId: string, message: string, scheduledAt?: Date) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
+        include: { members: true }
+    });
+
+    if (!run) return { success: false, error: "Run non trouvée" };
+    if (run.leaderId !== ctx.userId) return { success: false, error: "Seul le leader peut notifier les membres" };
+
+    // Spam Protection: 15 minutes cooldown
+    const COOLDOWN_MS = 15 * 60 * 1000;
+    if (run.lastReminderAt && (Date.now() - run.lastReminderAt.getTime() < COOLDOWN_MS)) {
+        const remainingMinutes = Math.ceil((COOLDOWN_MS - (Date.now() - run.lastReminderAt.getTime())) / 60000);
+        return { success: false, error: `Anti-spam : Veuillez attendre ${remainingMinutes} minute(s) avant le prochain rappel.` };
+    }
+
+    // Dashboard notifications for each member (except leader maybe, but let's include all for confirmation)
+    const notificationPromises = run.members.map(member =>
+        db.notification.create({
+            data: {
+                userId: member.userId,
+                title: "Rappel Songes",
+                message: scheduledAt
+                    ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
+                    : `Message du leader : ${message}`,
+                type: "SYSTEM_INFO",
+                link: `/dashboard/${ctx.guildId}/songes/${runId}`,
+            }
+        })
+    );
+
+    await Promise.all(notificationPromises);
+
+    // Update last reminder timestamp
+    await db.dreamRun.update({
+        where: { id: runId },
+        data: { lastReminderAt: new Date() }
+    });
+
+    // Discord Ping
+    const { notifyRunMembers } = await import("@/server/songes-service");
+
+    // Format message for Discord with timestamp if provided
+    let discordMessage = message;
+    if (scheduledAt) {
+        const unixTimestamp = Math.floor(scheduledAt.getTime() / 1000);
+        discordMessage = `🕒 **Rendez-vous prévu :** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)\n\n${message}`;
+    }
+
+    const result = await notifyRunMembers(ctx.guildId, runId, discordMessage);
+
+    // Track leader reminders for later cleanup
+    if (result.success && result.messageId && run.discordChannelId) {
+        await db.dreamRunReminder.create({
+            data: {
+                runId: runId,
+                discordMessageId: result.messageId,
+                discordChannelId: run.discordChannelId
+            }
+        });
+    }
+
+    return result;
+}
+
+/**
+ * Fetch past dream runs for a specific member
+ */
+export async function getMemberDreamRuns(guildId: string, userId?: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const targetUserId = userId || ctx.userId;
+
+    const runs = await db.dreamRun.findMany({
+        where: {
+            guildId: ctx.guildId,
+            members: {
+                some: { userId: targetUserId }
+            },
+            status: { in: ["COMPLETED", "FAILED", "ABANDONED"] }
+        },
+        include: {
+            members: {
+                orderBy: { slot: "asc" },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            image: true,
+                            profiles: {
+                                where: { guildId: ctx.guildId },
+                                select: { pseudoDofus: true, classe: true }
+                            }
+                        }
+                    }
+                }
+            },
+            _count: {
+                select: { floors: true }
+            }
+        },
+        orderBy: { completedAt: "desc" },
+        take: 20
+    });
+
+    return { success: true, runs };
 }

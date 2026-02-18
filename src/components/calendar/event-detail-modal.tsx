@@ -46,15 +46,11 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
+import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 
 // ============================================
 // 4 EVENT TYPES
@@ -160,6 +156,7 @@ interface EventDetailModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     currentUserId: string;
+    guildId: string;
     canManage?: boolean;
     discordRoles?: DiscordRole[];
     onRegister?: (data: { classe?: string; comment?: string }) => Promise<void>;
@@ -181,6 +178,7 @@ export function EventDetailModal({
     open,
     onOpenChange,
     currentUserId,
+    guildId,
     canManage = false,
     discordRoles = [],
     onRegister,
@@ -194,12 +192,9 @@ export function EventDetailModal({
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
-    const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
-    const [selectedPingRole, setSelectedPingRole] = useState<string | null>(null);
-
-    // Reminder states
-    const [reminderPopoverOpen, setReminderPopoverOpen] = useState(false);
-    const [selectedReminderRole, setSelectedReminderRole] = useState<string | null>(null);
+    // Discord dialog state
+    const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
+    const [discordDialogMode, setDiscordDialogMode] = useState<"REMINDER" | "SHARE">("SHARE");
 
     // Delete confirmation state
     const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -221,6 +216,9 @@ export function EventDetailModal({
 
     const isOpen = event.status === "PUBLISHED";
     const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
+    const isCreator = event.creator.id === currentUserId;
+    const isRegistered = isUserRegistered;
+    const canRegister = isOpen && !isRegistered && !isExternal;
 
     // Extract Metamob creator from metadata or description for Kralamoure events
     const eventMetadata = (event as any).metadata as any;
@@ -267,34 +265,38 @@ export function EventDetailModal({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent showCloseButton={false} className="w-[95vw] sm:max-w-2xl bg-zinc-900/95 backdrop-blur-xl border-zinc-800 p-0 overflow-hidden max-h-[90vh] flex flex-col">
+                <DialogContent
+                    draggable
+                    className="w-[95vw] sm:max-w-2xl bg-zinc-900/95 backdrop-blur-xl border-zinc-800 p-0 overflow-hidden max-h-[90vh] flex flex-col"
+                >
                     {/* Header */}
-                    <div className={cn("relative px-6 py-5 border-b border-zinc-800/50 overflow-hidden", typeConfig.bgColor)}>
-                        <DialogClose asChild>
-                            <Button variant="ghost" size="icon" className="absolute top-3 right-3 z-50 h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white/70 hover:text-white border border-white/10 transition-colors">
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </DialogClose>
-                        <div className={cn("absolute inset-0 opacity-30 bg-gradient-to-br", typeConfig.gradient)} />
+                    <div className={cn("relative px-8 py-8 border-b border-zinc-800/50 overflow-hidden", typeConfig.bgColor)}>
+                        <div className={cn("absolute inset-0 opacity-40 bg-gradient-to-br", typeConfig.gradient)} />
 
-                        <div className="relative flex justify-between items-start z-10 w-full pr-10">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className={typeConfig.color}>
-                                        <TypeIcon className="h-4 w-4" />
-                                    </span>
-                                    <Badge variant="outline" className={cn("text-xs", typeConfig.color, "border-current/30")}>
-                                        {typeConfig.label}
-                                    </Badge>
-                                    <Badge className={cn("text-xs text-white", statusConfig.bg)}>
-                                        {statusConfig.label}
-                                    </Badge>
+                        <div className="relative flex justify-between items-start z-10 w-full pr-8">
+                            <div className="flex gap-5">
+                                <div className={cn(
+                                    "p-3.5 rounded-2xl shadow-inner shrink-0",
+                                    "bg-black/20 text-white backdrop-blur-sm border border-white/10"
+                                )}>
+                                    <TypeIcon className="w-7 h-7" />
                                 </div>
-                                <DialogHeader>
-                                    <DialogTitle className="text-xl font-bold text-zinc-100">
-                                        {event.title}
-                                    </DialogTitle>
-                                </DialogHeader>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className={cn("text-xs font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2.5 py-0.5")}>
+                                            {typeConfig.label}
+                                        </Badge>
+                                        <Badge className={cn("text-xs font-black uppercase tracking-wider px-2.5 py-0.5", statusConfig.bg)}>
+                                            {statusConfig.label}
+                                        </Badge>
+                                    </div>
+                                    <DialogHeader>
+                                        <DialogTitle className="text-3xl font-black tracking-tight text-white uppercase italic">
+                                            {event.title}
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                </div>
                             </div>
 
                             {/* Move Complete Button Here */}
@@ -490,38 +492,35 @@ export function EventDetailModal({
                                 </Button>
                             ) : (
                                 <>
-                                    {isOpen && !isUserRegistered && (
+                                    {canRegister && (
                                         <Button
-                                            size="sm"
+                                            size="lg"
                                             onClick={() => setShowRegistration(true)}
                                             disabled={isLoading}
                                             className={cn(
-                                                "font-bold",
+                                                "h-14 rounded-2xl font-black text-base uppercase tracking-[0.1em] transition-all duration-500 shadow-xl relative group overflow-hidden border-t border-white/10 px-8",
                                                 isFull
-                                                    ? "bg-amber-500 hover:bg-amber-400 text-zinc-950"
-                                                    : "bg-green-600 hover:bg-green-500"
+                                                    ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30 text-white"
+                                                    : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 text-white"
                                             )}
                                         >
-                                            <Check className="h-4 w-4 mr-1.5" />
-                                            {isFull ? "File d'attente" : "Participer"}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            {isFull ? <Users className="h-5 w-5 mr-3" /> : <Check className="h-5 w-5 mr-3" />}
+                                            {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}
                                         </Button>
                                     )}
 
-                                    {/* User Badge */}
-                                    {userParticipant && (
-                                        <Badge variant="outline" className={cn(
-                                            "text-xs",
-                                            userParticipant.status === "RESERVE"
-                                                ? "text-amber-400 border-amber-500/30"
-                                                : "text-green-400 border-green-500/30"
-                                        )}>
-                                            {userParticipant.status === "RESERVE" ? "Réserve" : "Inscrit"}
-                                            {userParticipant.classe && (
-                                                <span className="ml-1">
-                                                    <ClassIcon classId={userParticipant.classe} size={12} />
-                                                </span>
-                                            )}
-                                        </Badge>
+                                    {isRegistered && onUnregister && (
+                                        <Button
+                                            size="lg"
+                                            variant="outline"
+                                            onClick={() => handleAction(onUnregister)}
+                                            disabled={isLoading}
+                                            className="h-14 rounded-2xl font-black text-base uppercase tracking-[0.1em] border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-300 px-8"
+                                        >
+                                            <X className="h-5 w-5 mr-3" />
+                                            Se désinscrire
+                                        </Button>
                                     )}
                                 </>
                             )}
@@ -568,226 +567,35 @@ export function EventDetailModal({
                                 )}
 
                                 {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && (
-                                    <Popover open={reminderPopoverOpen} onOpenChange={(open) => {
-                                        setReminderPopoverOpen(open);
-                                        if (!open) setSelectedReminderRole(null);
-                                    }}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                disabled={isLoading}
-                                                className="text-amber-400 hover:bg-amber-500/10"
-                                            >
-                                                <Bell className="h-4 w-4 mr-1" />
-                                                Rappel
-                                                <ChevronDown className="h-3 w-3 ml-1" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-80 p-4 bg-zinc-900 border-zinc-700" align="end" sideOffset={8}>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <p className="text-sm font-medium text-zinc-100 mb-1">Envoyer un rappel</p>
-                                                    <p className="text-xs text-zinc-500">Notifie les participants + ping Discord optionnel</p>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedReminderRole(null)}
-                                                        className={cn(
-                                                            "p-3 rounded-lg border text-left transition-all",
-                                                            selectedReminderRole === null
-                                                                ? "border-amber-500 bg-amber-500/10 text-amber-300"
-                                                                : "border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-zinc-300"
-                                                        )}
-                                                    >
-                                                        <Users className="h-4 w-4 mb-1" />
-                                                        <span className="text-sm font-medium block">Participants</span>
-                                                        <span className="text-[10px] opacity-70">App only</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedReminderRole("everyone")}
-                                                        className={cn(
-                                                            "p-3 rounded-lg border text-left transition-all",
-                                                            selectedReminderRole === "everyone"
-                                                                ? "border-yellow-500 bg-yellow-500/10 text-yellow-300"
-                                                                : "border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-zinc-300"
-                                                        )}
-                                                    >
-                                                        <AtSign className="h-4 w-4 mb-1" />
-                                                        <span className="text-sm font-medium block">@everyone</span>
-                                                        <span className="text-[10px] opacity-70">App + Discord</span>
-                                                    </button>
-                                                </div>
-
-                                                {discordRoles.length > 0 && (
-                                                    <div>
-                                                        <p className="text-xs text-zinc-500 mb-2">Ou pinger un rôle Discord :</p>
-                                                        <div className="max-h-32 overflow-y-auto space-y-1 border border-zinc-700 rounded-lg p-2">
-                                                            {discordRoles.map((role) => (
-                                                                <button
-                                                                    key={role.id}
-                                                                    type="button"
-                                                                    onClick={() => setSelectedReminderRole(role.id)}
-                                                                    className={cn(
-                                                                        "w-full text-left px-3 py-2 rounded-md text-sm transition-all flex items-center gap-2",
-                                                                        selectedReminderRole === role.id
-                                                                            ? "bg-zinc-700 font-medium"
-                                                                            : "hover:bg-zinc-800"
-                                                                    )}
-                                                                    style={{
-                                                                        color: role.color ? `#${role.color.toString(16).padStart(6, '0')}` : undefined
-                                                                    }}
-                                                                >
-                                                                    {selectedReminderRole === role.id && <Check className="h-3 w-3" />}
-                                                                    @{role.name}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                <Button
-                                                    className="w-full bg-amber-600 hover:bg-amber-500 text-white"
-                                                    disabled={isLoading}
-                                                    onClick={async () => {
-                                                        setReminderPopoverOpen(false);
-                                                        setIsLoading(true);
-                                                        const result = await onSendReminder(selectedReminderRole || undefined);
-                                                        setIsLoading(false);
-                                                        setSelectedReminderRole(null);
-                                                        if (result.success) {
-                                                            let msg = `Rappel envoyé à ${result.sentCount} participants`;
-                                                            if (result.discordSent) {
-                                                                msg += " et publié sur Discord";
-                                                            }
-                                                            toast.success(msg);
-                                                        } else {
-                                                            toast.error(result.error || "Erreur");
-                                                        }
-                                                    }}
-                                                >
-                                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Bell className="h-4 w-4 mr-2" />}
-                                                    Envoyer le rappel
-                                                </Button>
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={isLoading}
+                                        onClick={() => {
+                                            setDiscordDialogMode("REMINDER");
+                                            setDiscordDialogOpen(true);
+                                        }}
+                                        className="text-amber-400 hover:bg-amber-500/10 rounded-full font-bold px-4"
+                                    >
+                                        <Bell className="h-4 w-4 mr-2" />
+                                        Rappel
+                                    </Button>
                                 )}
 
                                 {event.status === "PUBLISHED" && onShareDiscord && (
-                                    <Popover open={sharePopoverOpen} onOpenChange={(open) => {
-                                        setSharePopoverOpen(open);
-                                        if (!open) setSelectedPingRole(null);
-                                    }}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                disabled={isLoading}
-                                                className="text-indigo-400 hover:bg-indigo-500/10"
-                                            >
-                                                <Share2 className="h-4 w-4 mr-1" />
-                                                Discord
-                                                <ChevronDown className="h-3 w-3 ml-1" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-80 p-4 bg-zinc-900 border-zinc-700" align="end" sideOffset={8}>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <p className="text-sm font-medium text-zinc-100 mb-1">Partager sur Discord</p>
-                                                    <p className="text-xs text-zinc-500">Sélectionnez qui mentionner</p>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedPingRole(null)}
-                                                        className={cn(
-                                                            "p-3 rounded-lg border text-left transition-all",
-                                                            selectedPingRole === null
-                                                                ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                                                                : "border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-zinc-300"
-                                                        )}
-                                                    >
-                                                        <Share2 className="h-4 w-4 mb-1" />
-                                                        <span className="text-sm font-medium block">Sans ping</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedPingRole("everyone")}
-                                                        className={cn(
-                                                            "p-3 rounded-lg border text-left transition-all",
-                                                            selectedPingRole === "everyone"
-                                                                ? "border-yellow-500 bg-yellow-500/10 text-yellow-300"
-                                                                : "border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-zinc-300"
-                                                        )}
-                                                    >
-                                                        <AtSign className="h-4 w-4 mb-1" />
-                                                        <span className="text-sm font-medium block">@everyone</span>
-                                                    </button>
-                                                </div>
-
-                                                {discordRoles.length > 0 && (
-                                                    <div>
-                                                        <p className="text-xs text-zinc-500 mb-2">Ou mentionner un rôle :</p>
-                                                        <div className="max-h-32 overflow-y-auto space-y-1 border border-zinc-700 rounded-lg p-2">
-                                                            {discordRoles.map((role) => (
-                                                                <button
-                                                                    key={role.id}
-                                                                    type="button"
-                                                                    onClick={() => setSelectedPingRole(role.id)}
-                                                                    className={cn(
-                                                                        "w-full text-left px-3 py-2 rounded-md text-sm transition-all flex items-center gap-2",
-                                                                        selectedPingRole === role.id
-                                                                            ? "bg-zinc-700 font-medium"
-                                                                            : "hover:bg-zinc-800"
-                                                                    )}
-                                                                    style={{
-                                                                        color: role.color ? `#${role.color.toString(16).padStart(6, '0')}` : undefined
-                                                                    }}
-                                                                >
-                                                                    {selectedPingRole === role.id && <Check className="h-3 w-3" />}
-                                                                    @{role.name}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                <Button
-                                                    className="w-full bg-indigo-600 hover:bg-indigo-500"
-                                                    disabled={isLoading}
-                                                    onClick={async () => {
-                                                        setSharePopoverOpen(false);
-                                                        setIsLoading(true);
-                                                        const result = await onShareDiscord(selectedPingRole || undefined);
-                                                        setIsLoading(false);
-                                                        setSelectedPingRole(null);
-                                                        if (result.success) {
-                                                            const pingMsg = selectedPingRole === "everyone"
-                                                                ? " avec @everyone"
-                                                                : selectedPingRole
-                                                                    ? ` avec @${discordRoles.find(r => r.id === selectedPingRole)?.name}`
-                                                                    : "";
-                                                            toast.success(`Partagé sur Discord${pingMsg} !`);
-                                                        } else {
-                                                            toast.error(result.error || "Erreur");
-                                                        }
-                                                    }}
-                                                >
-                                                    {isLoading ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                    ) : (
-                                                        <Share2 className="h-4 w-4 mr-2" />
-                                                    )}
-                                                    Envoyer sur Discord
-                                                </Button>
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={isLoading}
+                                        onClick={() => {
+                                            setDiscordDialogMode("SHARE");
+                                            setDiscordDialogOpen(true);
+                                        }}
+                                        className="text-indigo-400 hover:bg-indigo-500/10 rounded-full font-bold px-4"
+                                    >
+                                        <Share2 className="h-4 w-4 mr-2" />
+                                        Annonce Discord
+                                    </Button>
                                 )}
 
                                 {onEdit && (
@@ -813,6 +621,23 @@ export function EventDetailModal({
                 eventTitle={event.title}
                 isFull={isFull}
                 onSubmit={handleRegistration}
+            />
+
+            <CalendarDiscordDialog
+                isOpen={discordDialogOpen}
+                onOpenChange={setDiscordDialogOpen}
+                guildId={guildId}
+                eventId={event.id}
+                roles={discordRoles}
+                mode={discordDialogMode}
+                onConfirm={async (roleId) => {
+                    if (discordDialogMode === "REMINDER" && onSendReminder) {
+                        return await onSendReminder(roleId);
+                    } else if (discordDialogMode === "SHARE" && onShareDiscord) {
+                        return await onShareDiscord(roleId);
+                    }
+                    return { success: false, error: "Action non définie" };
+                }}
             />
         </>
     );

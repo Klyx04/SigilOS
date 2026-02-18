@@ -45,6 +45,7 @@ const CreateWeekSchema = z.object({
     year: z.number().min(2025),
     missions: z.array(MissionSchema).min(1).max(12),
     updateGuildTier: z.number().min(1).max(5).optional(),
+    notifyMembers: z.boolean().optional(),
 }).strict();
 
 async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
@@ -76,7 +77,8 @@ async function notifyValidators(guildId: string, title: string, message: string,
                 "NEW_SUBMISSION_PENDING",
                 title,
                 message,
-                link
+                link,
+                guildId
             );
         }
     } catch (e) {
@@ -169,6 +171,26 @@ export async function createWeekMissions(
                         payload: m.payload as Prisma.InputJsonValue
                     }
                 });
+            }
+
+            // 4. Global Notification if requested
+            if (data.notifyMembers) {
+                const activeProfiles = await tx.userProfile.findMany({
+                    where: { guildId: guild.id, status: 'ACTIVE' },
+                    select: { userId: true }
+                });
+
+                if (activeProfiles.length > 0) {
+                    await tx.notification.createMany({
+                        data: activeProfiles.map(p => ({
+                            userId: p.userId,
+                            title: "🎯 Nouvel objectif hebdomadaire",
+                            message: `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
+                            type: "SYSTEM_INFO",
+                            link: `/dashboard/${data.guildId}/missions`
+                        }))
+                    });
+                }
             }
         });
 
@@ -698,7 +720,9 @@ export async function validateSubmission(
                 updatedSubmission.profile.userId,
                 notifType as NotificationType,
                 `[Mission] ${submission.mission.title}`,
-                `Votre preuve a été ${resultMsg}`
+                `Votre preuve a été ${resultMsg}`,
+                undefined,
+                discordGuildId
             );
         }
 
@@ -972,5 +996,92 @@ export async function cancelMissionSubmission(
     } catch (error) {
         console.error("Cancel Submission Error:", error);
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Publish a Discord notification about the new weekly missions
+ */
+export async function publishMissionsToDiscord(
+    guildId: string,
+    pingType: "EVERYONE" | "ROLE" | "NONE",
+    specificRoleId?: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    // Security check: Must have permission to manage missions
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionNotifyRoleId: true,
+                name: true
+            }
+        });
+
+        if (!guild?.missionNotifyChannelId) {
+            return {
+                success: false,
+                error: "Salon de notification non configuré. Allez dans Paramètres > Missions."
+            };
+        }
+
+        // Build mention content
+        let mention = "";
+        if (pingType === "EVERYONE") mention = "@everyone";
+        else if (pingType === "ROLE") {
+            const idToMention = specificRoleId || guild.missionNotifyRoleId;
+            if (idToMention) mention = `<@&${idToMention}>`;
+        }
+
+        const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/${guildId}/missions`;
+
+        // We use lazy import to avoid circular dependencies if any, 
+        // though server-to-server usually is fine.
+        const { sendChannelMessage } = await import("@/server/discord");
+
+        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mention, {
+            embedTitle: "🎯 Nouvel objectif hebdomadaire",
+            embedColor: 0x9333ea, // Purple
+            embedUrl: dashboardUrl,
+            embedFooter: "SigilOS • Système de Missions",
+            embedThumbnail: "https://i.imgur.com/8N4pWvW.png", // Typical mission icon
+            fields: [
+                {
+                    name: "Statut",
+                    value: "✅ Les **12 missions** de la semaine sont disponibles !",
+                    inline: false
+                },
+                {
+                    name: "Action",
+                    value: `[Consulter les missions sur le Dashboard](${dashboardUrl})`,
+                    inline: false
+                }
+            ]
+        });
+
+        if (!messageId) {
+            return { success: false, error: "L'API Discord n'a pas pu envoyer le message." };
+        }
+
+        // Audit log
+        await createAuditLog({
+            guildId,
+            actorUserId: session!.user!.id!,
+            actorName: session!.user!.name || "Admin",
+            action: "MISSION_PUBLISH_DISCORD",
+            targetType: "MISSION",
+            metadata: { pingType, messageId, channelId: guild.missionNotifyChannelId }
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Publish to Discord error:", error);
+        return { success: false, error: "Erreur serveur lors de la publication." };
     }
 }

@@ -62,6 +62,7 @@ const FILTER_TYPES: Record<string, string> = {
     SESSION_MISSIONS: "Missions Guilde",
     SORTIE_FARM: "Sortie Farm",
     KRALAMOURE: "Kralamoure",
+    OTHERS: "Autres",
 };
 
 export function CalendarDashboard({ guildId, currentUserId, canManage }: CalendarDashboardProps) {
@@ -214,7 +215,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
     const handleQuickRespond = async (eventId: string, status: "GOING" | "MAYBE" | "DECLINED") => {
         if (status === "MAYBE") {
             toast.info("L'option 'Peut-être' sera disponible prochainement");
-            return;
         }
 
         // Find event to check status (using participants or attendees field depending on what's returned)
@@ -475,7 +475,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
             {/* ============ CREATE DIALOG ============ */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogTitle className="text-xl font-bold text-zinc-100">
                         Créer un événement
                     </DialogTitle>
@@ -500,6 +500,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                     }
                 }}
                 currentUserId={currentUserId}
+                guildId={guildId}
                 canManage={canManage}
                 discordRoles={discordRoles}
                 onRegister={handleRegister}
@@ -517,7 +518,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
                     <DialogTitle className="text-xl font-bold text-zinc-100">
                         Modifier l'événement
                     </DialogTitle>

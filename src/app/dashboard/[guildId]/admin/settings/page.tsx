@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
-import { Settings, Bell, Key, Moon, Users, Calendar, Sword } from "lucide-react";
+import { Settings, Bell, Key, Moon, Users, Calendar, Sword, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
+import { MissionSettingsClient } from "../_components/mission-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
@@ -30,6 +31,7 @@ const TABS = {
     calendrier: `${TAB_STYLE} data-[state=active]:bg-green-500/10 data-[state=active]:text-green-400 data-[state=active]:border-green-500/20`,
     metamob: `${TAB_STYLE} data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:border-amber-500/20`,
     dofus: `${TAB_STYLE} data-[state=active]:bg-indigo-500/10 data-[state=active]:text-indigo-400 data-[state=active]:border-indigo-500/20`,
+    missions: `${TAB_STYLE} data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:border-amber-500/20`,
     membres: `${TAB_STYLE} data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20`,
 };
 
@@ -96,6 +98,11 @@ export default async function FeatureSettingsPage({
                     <TabsTrigger value="membres" className={TABS.membres}>
                         <Users className="h-3.5 w-3.5" />
                         Membres & Sync
+                    </TabsTrigger>
+
+                    <TabsTrigger value="missions" className={TABS.missions}>
+                        <Target className="h-3.5 w-3.5" />
+                        Missions
                     </TabsTrigger>
                 </TabsList>
 
@@ -206,6 +213,19 @@ export default async function FeatureSettingsPage({
                                     </p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* ── Missions ── */}
+                <TabsContent value="missions" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex flex-col gap-6">
+                        <SectionHeader
+                            title="Notifications Missions"
+                            description="Configurez l'annonce automatique des missions hebdomadaires sur votre serveur Discord."
+                        />
+                        <div className="max-w-4xl">
+                            <MissionSettingsClient guildId={guildId} />
                         </div>
                     </div>
                 </TabsContent>

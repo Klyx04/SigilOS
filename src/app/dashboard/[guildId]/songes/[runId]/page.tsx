@@ -9,6 +9,7 @@ import { RunStatsPanel } from "@/components/songes/RunStatsPanel";
 import { BonusInventory } from "@/components/songes/BonusInventory";
 import { JoinRequestsPanel } from "@/components/songes/JoinRequestsPanel";
 import { RunTree } from "@/components/songes/RunTree";
+import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import type { DreamRun, DreamRunMember, DreamWaitlist, DreamFloor, DreamRunBonus, DreamJoinRequest } from "@prisma/client";
 
 type RunWithRelations = DreamRun & {
@@ -130,6 +131,11 @@ export default function RunDetailPage() {
 
                 {/* Side Panel */}
                 <div className="space-y-4">
+                    {/* Leader Actions */}
+                    {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                        <RunLeaderActions guildId={guildId} runId={run.id} />
+                    )}
+
                     {/* Join Requests Panel - Only for leader, both RECRUITING and IN_PROGRESS */}
                     {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
                         <JoinRequestsPanel guildId={guildId} runId={run.id} isLeader={isLeader} />

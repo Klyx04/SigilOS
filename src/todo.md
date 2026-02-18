@@ -24,7 +24,7 @@
   - [x] `/api/admin/migrate-krala` — session check ajouté
   - [x] `/api/seed-grolandais` — route de dev supprimée (danger)
   - [x] Autres routes : audit-logs guild, server-config, active-bonus, sync — OK
-- [ ] RBAC futurs modules — ajouter guard dès la création de chaque nouvelle route :
+- [x] RBAC futurs modules — ajouter guard dès la création de chaque nouvelle route :
   - Pattern : `auth()` fail-fast → `getUserContext()` → `isAdmin` ou `isMember` selon besoin
   - Routes GOD : toujours `isSuperAdmin()` en plus de `auth()`
 - [x] Test isolation multi-tenant (User A ≠ Guilde B) — toutes les queries filtrent par guildId interne (CUID)
@@ -32,7 +32,7 @@
   - [x] `changelog-actions.ts` — schemas Zod ajoutés (version, title, summary, content, category)
   - [x] `presentation-actions.ts` — déjà validé manuellement (sanitizeHtml, validateLevel, etc.)
   - [x] Autres actions critiques (bonus, mission, admin, profile…) — Zod déjà en place
-- [ ] Upload files : validation MIME complète + strip EXIF (base partielle dans `image-security.ts`)
+- [x] Upload files : validation MIME complète + strip EXIF (actif via magic bytes + Sharp)
 - [x] Implémenter logs d'audit Admin — visible dans `/admin/logs`, rétention 30j
   - [x] Missions : createWeekMissions, resetMission, resetWeek, validateSubmission
   - [x] Bonus : purchaseBonus, cancelBonus, updateBonusChannel
@@ -48,27 +48,30 @@
 ## 🎯 P2 — UX & FONCTIONNALITÉS CORE (Sprint suivant)
 
 ### Notifications
-- [ ] Améliorer le design des notifications
-- [ ] Vérifier couverture (où il en manque / quand elles apparaissent)
-- [ ] Revoir positionnement (pas centré en haut du dashboard je trouva ca génant pour les users)
+- [x] Améliorer le design des notifications (Glassmorphism & Glow)
+- [x] Vérifier couverture (ajouté: Notif globale publication missions)
+- [x] Revoir positionnement (bas-droite pour ne pas gêner la navigation)
+- [x] Dans les paramètres users proposer de ne pas etre notifié pour tel ou tel module , fonctionnel evidemment
 
 ### Songes
-- [ ] Permettre au proprio d'une run songe d'envoyer Notif Discord aux inscrits d'une run (mention via embed uniquement des inscrits)
-- [ ] Vérifier si les runs songes se suppriment d'elles mêmes après disons 3 jours sans activités
-- [ ] Vérifier le status de la run songes : si elle est close, supprimer l'embed discord inutile
-- [ ] Raccourcir message candidature songes via embed (trop verbeux et moche actuellement)
-- [ ] Définir durée auto-suppression runs inactives
-- [ ] Historique des runs par membre
-- [ ] Image catégorie Songes
+- [x] Permettre au proprio d'une run songe d'envoyer Notif Discord aux inscrits d'une run (ping Discord + Notif Dashboard + choix date/heure)
+- [x] Vérifier si les runs songes se suppriment d'elles mêmes après 3 jours sans activités (Logic implémenté)
+- [x] Vérifier le status de la run songes : si elle est close, supprimer l'embed discord inutile
+- [x] Raccourcir message candidature songes via embed et Dashboard (Fait)
+- [x] Définir durée auto-suppression runs inactives (3 jours)
+- [x] Suppression des rappels et candidatures Discord quand une run est terminée ou supprimée
+- [x] Validation du statut "IN_PROGRESS" : les candidatures restent ouvertes et l'embed s'actualise
+- [x] Permettre aux administrateurs de supprimer n'importe quelle run (Modération)
+- [x] Historique des runs par membre
+- [x] créér une Image catégorie mission Songes
 
 ### Missions & Catégories
-- [ ] Revoir catégories missions anomalie
-- [ ] Créer paliers par 10 de 200 à 150 pour choix zones/boss
-- [ ] Image catégorie Anomalie
+- [x] Revoir catégories missions anomalie (Labels & Paliers)
+- [x] Créer paliers par 10 de 200 à 150 pour choix zones/boss
+- [x] Image catégorie Anomalie
 
 ### Discord Intégrations
-- [ ] Changer message anti-spam embed vacances
-- [ ] Plan B Discord API down (retry + queue)
+- [x] Changer message anti-spam embed vacances (Terminé)
 
 ---
 
@@ -100,6 +103,7 @@
 - [ ] Code splitting bundle JS (First load >5s)
 - [ ] Lazy loading images (avatars, screens succès)
 - [ ] Plan cache invalidation Redis
+- [ ] Plan B Discord API down (retry + queue)
 
 ---
 

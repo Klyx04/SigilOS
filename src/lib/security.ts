@@ -13,7 +13,7 @@
  * @param maxLength Optional max length constraint
  * @param strict If true, strips ALL HTML tags except basic formatting (b, i, u, br). Default false for Docs.
  */
-export function sanitizeHtml(input: string | null, maxLength: number = 20000, strict: boolean = false): string | null {
+export function sanitizeHtml(input: string | null, maxLength: number = 100000, strict: boolean = false): string | null {
     if (!input) return null;
 
     let clean = input

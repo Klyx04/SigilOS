@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -231,10 +232,7 @@ export async function POST(request: NextRequest) {
 
             if (name === "status") {
                 try {
-                    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://sigilos.fr";
-                    if (process.env.NEXTAUTH_URL?.includes("beta.sigilos.fr")) {
-                        baseUrl = "https://beta.sigilos.fr";
-                    }
+                    const baseUrl = getAppBaseUrl();
                     const healthRes = await fetch(`${baseUrl}/api/health`);
                     const health = await healthRes.json();
 

@@ -9,9 +9,10 @@
 - [x] Fix Dashboard crash beta (`substring` null + Date serialization + error boundaries)
 - [x] Fix Changelog : filtre non-membres ne fonctionne pas (voient tout)
 - [x] Fix Changelog : scroll impossible sur la page
-- [ ] Fix Changelog : images chargent pas pour l'externe
+- [ ] Fix Changelog : images chargent pas pour le changelog externe
+- [ ] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiés et la prévisu pendant l'iedtion des images copiées collées ou importé non plus
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
-- [ ] Seed zones, boss, mobs + bonus Songes
+- [ ] Seed zones, boss, mobs  à la main moi même + bonus Songes à préparer coté page
 
 ---
 
@@ -19,6 +20,8 @@
 
 ### Sécurité
 - [ ] Vérifier RBAC complet sur toutes les routes
+- [ ] Vérifier que les rôles sont bien appliqués
+- [ ] Ajouter un système pour toggler les modules activé/désactivé (anticipera également un modele payant?)
 - [ ] Test isolation multi-tenant (User A ≠ Guilde B)
 - [ ] Validation inputs côté serveur sur tous les formulaires
 - [ ] Upload files : empêcher .exe, .php, etc.

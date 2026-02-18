@@ -72,9 +72,10 @@ export function DocViewer({
             {/* Scroll Progress Bar */}
             <div className="fixed top-0 left-0 w-full h-1 z-[60] pointer-events-none">
                 <div
-                    className="h-full bg-gradient-to-r from-purple-500 via-teal-400 to-purple-600 transition-all duration-150"
+                    className="h-full bg-gradient-to-r from-teal-500 via-teal-400 to-teal-300 transition-all duration-150"
                     style={{ width: `${scrollProgress}%` }}
                 />
+
             </div>
 
             <article className="flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
@@ -105,7 +106,7 @@ export function DocViewer({
                         {canEdit && editUrl && (
                             <Link
                                 href={editUrl}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors font-medium border border-indigo-500/20"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 hover:text-teal-300 transition-colors font-medium border border-teal-500/20"
                             >
                                 <Edit className="w-3 h-3" />
                                 Éditer cette page
@@ -125,7 +126,7 @@ export function DocViewer({
                     <aside className="hidden xl:block w-64 shrink-0 sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-white/5">
                         <div className="space-y-4">
                             <h4 className="text-xs font-black uppercase tracking-widest text-zinc-500 px-2 flex items-center gap-2">
-                                <div className="w-1 h-3 bg-indigo-500 rounded-full" />
+                                <div className="w-1 h-3 bg-teal-500 rounded-full" />
                                 Sur cette page
                             </h4>
                             <nav className="flex flex-col gap-1">
@@ -146,8 +147,8 @@ export function DocViewer({
 
                             <div className="pt-8 mt-8 border-t border-white/5">
                                 <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest mb-4 px-2">Besoin d'aide ?</p>
-                                <Link href="/discord" className="block p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 transition-all group">
-                                    <p className="text-xs font-bold text-indigo-300 mb-1 group-hover:text-white">Rejoindre le Discord</p>
+                                <Link href="/discord" className="block p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 hover:bg-teal-500/10 transition-all group">
+                                    <p className="text-xs font-bold text-teal-300 mb-1 group-hover:text-white">Rejoindre le Discord</p>
                                     <p className="text-[10px] text-zinc-500">Posez vos questions à la communauté.</p>
                                 </Link>
                             </div>

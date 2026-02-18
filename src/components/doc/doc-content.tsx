@@ -137,23 +137,23 @@ export function DocContent({ content, className }: DocContentProps) {
                 // Headers - Modern & Gradient
                 "prose-headings:font-black prose-headings:tracking-tight prose-headings:mb-6 prose-headings:mt-10",
                 "prose-h1:text-4xl prose-h1:text-white prose-h1:mb-8",
-                "prose-h2:text-2xl prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-3 prose-h2:text-purple-300 prose-h2:tracking-wide",
-                "prose-h3:text-xl prose-h3:text-white prose-h3:tracking-tight",
+                "prose-h2:text-2xl prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-3 prose-h2:text-teal-400 prose-h2:tracking-wide",
+                "prose-h3:text-xl prose-h3:text-amber-400 prose-h3:tracking-tight",
 
                 // Text & Layout
                 "prose-p:leading-relaxed prose-p:text-zinc-300 prose-p:mb-6 prose-p:text-[15px]",
                 "prose-strong:text-white prose-strong:font-black",
 
                 // Lists
-                "prose-ul:list-disc prose-ul:ml-6 prose-ul:marker:text-purple-500",
-                "prose-ol:list-decimal prose-ol:ml-6 prose-ol:marker:text-teal-500",
+                "prose-ul:list-disc prose-ul:ml-6 prose-ul:marker:text-teal-500",
+                "prose-ol:list-decimal prose-ol:ml-6 prose-ol:marker:text-amber-500",
                 "prose-li:pl-2 prose-li:my-3",
 
                 // Links
-                "prose-a:text-purple-400 prose-a:font-bold prose-a:no-underline hover:prose-a:text-purple-300 hover:prose-a:underline hover:prose-a:decoration-2 hover:prose-a:underline-offset-4 transition-all",
+                "prose-a:text-teal-400 prose-a:font-bold prose-a:no-underline hover:prose-a:text-teal-300 hover:prose-a:underline hover:prose-a:decoration-2 hover:prose-a:underline-offset-4 transition-all",
 
                 // Code Blocks
-                "prose-code:text-teal-300 prose-code:bg-teal-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
+                "prose-code:text-emerald-300 prose-code:bg-emerald-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
                 "prose-pre:bg-[#050505] prose-pre:border prose-pre:border-white/5 prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-2xl",
 
                 // Callouts / Alerts - Elite Standard (GitHub Flavor)
@@ -167,19 +167,19 @@ export function DocContent({ content, className }: DocContentProps) {
                 "[&_.callout-caution]:border-red-500 [&_.callout-caution]:text-red-100/90",
                 "[&_.callout-danger]:border-red-500 [&_.callout-danger]:text-red-100/90",
                 "[&_.callout-error]:border-red-500 [&_.callout-error]:text-red-100/90",
-                "[&_.callout-important]:border-purple-500 [&_.callout-important]:text-purple-100/90",
+                "[&_.callout-important]:border-teal-500 [&_.callout-important]:text-teal-100/90",
                 "[&_.callout-note]:border-zinc-500 [&_.callout-note]:text-zinc-200/90",
                 "[&_.callout-abstract]:border-cyan-500 [&_.callout-abstract]:text-cyan-100/90",
                 "[&_.callout-question]:border-indigo-500 [&_.callout-question]:text-indigo-100/90",
                 "[&_.callout-bug]:border-rose-500 [&_.callout-bug]:text-rose-100/90",
-                "[&_.callout-todo]:border-teal-500 [&_.callout-todo]:text-teal-100/90",
+                "[&_.callout-todo]:border-emerald-500 [&_.callout-todo]:text-emerald-100/90",
 
                 "[&_.callout\ strong]:text-white [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-[10px] [&_.callout\ strong]:mb-2",
 
                 // Steps Component (Auto-styling for tutorials)
                 "[&_.steps]:relative [&_.steps]:ml-4 [&_.steps]:pl-8 [&_.steps]:border-l-2 [&_.steps]:border-white/5 [&_.steps]:space-y-12 [&_.steps]:py-4",
                 "[&_.step-item]:relative",
-                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-purple-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-white [&_.step-number]:shadow-[0_0_15px_rgba(168,85,247,0.4)]",
+                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-white [&_.step-number]:shadow-[0_0_15px_rgba(45,212,191,0.4)]",
 
                 // Accordions / Details
                 "prose-details:bg-white/[0.03] prose-details:border prose-details:border-white/5 prose-details:rounded-2xl prose-details:overflow-hidden prose-details:my-6 prose-details:transition-all",
@@ -189,6 +189,7 @@ export function DocContent({ content, className }: DocContentProps) {
 
                 // Table of Contents anchoring
                 "scroll-mt-32",
+
 
                 // Custom Style Overrides (Ensure colors and floats stick)
                 "[&_span[style]]:!opacity-100",

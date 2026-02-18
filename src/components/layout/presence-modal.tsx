@@ -45,7 +45,7 @@ export function PresenceModal({ isOpen, onOpenChange, users }: PresenceModalProp
                                         <Avatar className="h-10 w-10 border border-white/10 group-hover:border-emerald-500/50 transition-all">
                                             <AvatarImage src={user.image || ""} />
                                             <AvatarFallback className="bg-zinc-800 text-xs font-bold">
-                                                {user.name.substring(0, 2).toUpperCase()}
+                                                {(user.name || "??").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />

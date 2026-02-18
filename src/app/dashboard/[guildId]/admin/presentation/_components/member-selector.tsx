@@ -86,7 +86,7 @@ export function MemberSelector({
                                 <Avatar className="h-5 w-5">
                                     <AvatarImage src={selectedMember.avatar || undefined} />
                                     <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
-                                        {selectedMember.name.substring(0, 2).toUpperCase()}
+                                        {(selectedMember.name || "??").substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <span className="truncate">{selectedMember.name}</span>
@@ -162,7 +162,7 @@ export function MemberSelector({
                                         <Avatar className="h-6 w-6">
                                             <AvatarImage src={member.avatar || undefined} />
                                             <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
-                                                {member.name.substring(0, 2).toUpperCase()}
+                                                {(member.name || "??").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <span className="truncate">{member.name}</span>

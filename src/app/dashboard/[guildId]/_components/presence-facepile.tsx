@@ -35,7 +35,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
                         <Avatar className="h-9 w-9 border border-white/10 grayscale-[0.3]">
                             <AvatarImage src={user.image || ""} alt={user.name} />
                             <AvatarFallback className="bg-zinc-800 text-[10px] font-black text-white">
-                                {user.name.substring(0, 2).toUpperCase()}
+                                {(user.name || "??").substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                     </div>
@@ -63,7 +63,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
                             <Avatar className="h-9 w-9 border border-white/10 grayscale-[0.3] group-hover/avatar:grayscale-0 transition-all group-hover/avatar:scale-110 active:scale-90 cursor-none">
                                 <AvatarImage src={user.image || ""} alt={user.name} />
                                 <AvatarFallback className="bg-zinc-800 text-[10px] font-black text-white">
-                                    {user.name.substring(0, 2).toUpperCase()}
+                                    {(user.name || "??").substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="absolute inset-0 rounded-full shadow-[inset_0_0_8px_rgba(16,185,129,0.2)] pointer-events-none" />

@@ -9,23 +9,16 @@
 - [x] Fix Dashboard crash beta (`substring` null + Date serialization + error boundaries)
 - [x] Fix Changelog : filtre non-membres ne fonctionne pas (voient tout)
 - [x] Fix Changelog : scroll impossible sur la page
-<<<<<<< HEAD
 - [ ] Fix Changelog : images chargent pas pour l'externe
+- [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiées
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
 - [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)
-=======
-- [x] Fix Changelog : images chargent pas sur le VPS (logs diagnostiques ajoutés, à tester après deploy)
-- [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiés et la prévisu pendant l'iedtion des images copiées collées ou importé non plus
-- [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (via Variable d'Env pour switch facile Prod/Beta)
-- [ ] Seed zones, boss, mobs  à la main moi même + bonus Songes à préparer coté page
->>>>>>> origin/dev
 
 ---
 
 ## ⚡ P1 — STABILITÉ & SÉCURITÉ (Semaine prochaine)
 
 ### Sécurité
-<<<<<<< HEAD
 - [x] Vérifier RBAC complet sur toutes les routes API existantes
   - [x] `/api/god/audit-logs` — fail-fast auth + isSuperAdmin ajouté
   - [x] `/api/admin/migrate-krala` — session check ajouté
@@ -49,21 +42,6 @@
 ### Monitoring
 - [x] Configurer Sentry — SDK installé, DSN configuré, actif au prochain déploiement
 - [x] Alertes Discord en cas d'erreur critique — règle "Alertes Discord" active sur Sentry
-=======
-- [ ] Vérifier RBAC complet sur toutes les routes
-- [ ] Vérifier que les rôles sont bien appliqués
-- [ ] Ajouter un système pour toggler les modules activé/désactivé (anticipera également un modele payant?)
-- [ ] Test isolation multi-tenant (User A ≠ Guilde B)
-- [ ] Validation inputs côté serveur sur tous les formulaires
-- [ ] Upload files : empêcher .exe, .php, etc.
-- [ ] Sanitization uploads : strip EXIF + validation MIME types
-- [ ] Vérifier permissions admin vs user normal
-- [ ] Implémenter logs d'audit Admin (qui modifie quoi, quand)
-
-### Monitoring
-- [ ] Configurer alertes Sentry actives /  déjà possiblement
-- [ ] Alertes Discord en cas d'erreur critique Sentry /  déjà possiblement
->>>>>>> origin/dev
 
 ---
 
@@ -75,15 +53,10 @@
 - [ ] Revoir positionnement (pas centré en haut du dashboard je trouva ca génant pour les users)
 
 ### Songes
-<<<<<<< HEAD
-- [ ] Notif Discord aux inscrits d'une run (mention via embed uniquement des inscrits)
-- [ ] Raccourcir message candidature embed (trop verbeux)
-=======
-- [ ] Proprio de songes peut Notif rappel Discord aux inscrits d'une run avec proposition heure/date(mention des gens uniquement inscrit sur la run via embed)
-- [ ] Raccourcir message candidature embed quand des gens s'inscrivent  (trop verbeux)
-message bizarre **Wylan ADM** (**Cra**) souhaite rejoindre votre run REVE_III. [Voir la run](https://sigilos.fr/dashboard/1290442961380835451/songes/cmlp24gb4000101letctf93ay) trop verbeux
-
->>>>>>> origin/dev
+- [ ] Permettre au proprio d'une run songe d'envoyer Notif Discord aux inscrits d'une run (mention via embed uniquement des inscrits)
+- [ ] Vérifier si les runs songes se suppriment d'elles mêmes après disons 3 jours sans activités
+- [ ] Vérifier le status de la run songes : si elle est close, supprimer l'embed discord inutile
+- [ ] Raccourcir message candidature songes via embed (trop verbeux et moche actuellement)
 - [ ] Définir durée auto-suppression runs inactives
 - [ ] Historique des runs par membre
 - [ ] Image catégorie Songes

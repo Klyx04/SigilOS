@@ -181,15 +181,20 @@ export async function createWeekMissions(
                 });
 
                 if (activeProfiles.length > 0) {
-                    await tx.notification.createMany({
-                        data: activeProfiles.map(p => ({
-                            userId: p.userId,
-                            title: "🎯 Nouvel objectif hebdomadaire",
-                            message: `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
-                            type: "SYSTEM_INFO",
-                            link: `/dashboard/${data.guildId}/missions`
-                        }))
-                    });
+                    // We don't use createMany because we want to check individual preferences via createNotification
+                    // Although createNotification is "use server", we call it here. 
+                    // Note: transactions and async hooks might be tricky but for notifications it's fine to run after or use Promise.all
+                    const notificationPromises = activeProfiles.map(p =>
+                        createNotification(
+                            p.userId,
+                            "SYSTEM_INFO",
+                            "🎯 Nouvel objectif hebdomadaire",
+                            `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
+                            `/dashboard/${data.guildId}/missions`,
+                            data.guildId
+                        )
+                    );
+                    await Promise.all(notificationPromises);
                 }
             }
         });

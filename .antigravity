@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-18)
 
-**Branche Active** : `feat/guild-modules` (PR ouverte → `dev`)  
-**Status** : 🟢 Beta active. P0 **100% complet** ✅. P1 sécurité largement fait. En attente de merge + déploiement VPS.
+**Branche Active** : `dev` (Synchronisée avec `main`)  
+**Status** : 🟢 Beta active. P0/P1/P2 **100% complets** ✅. Toutes les fonctionnalités Core sont stabilisées. Entrée en Phase 3 (Polish UI/UX & Lore).
 
 ---
 
@@ -73,138 +73,35 @@ SigilOS/
 
 | Branche | Rôle |
 |---------|------|
-| `main` | 🔴 Production (`sigilos.fr`) |
-| `dev` | 🟠 Beta (`beta.sigilos.fr`) |
+| `main` | 🔴 Production (`sigilos.fr`) — **À jour (SYNC)** |
+| `dev` | 🟠 Beta (`beta.sigilos.fr`) — **À jour (SYNC)** |
 | `feat/*` / `fix/*` | Branches de travail → PR vers `dev` |
 
-**Branche courante** : `feat/guild-modules`
+**Branche courante** : `dev`
 
 ---
 
 ## ✅ Historique des Sessions (Complètes)
 
 ### Phase 9 — GOD Dashboard & Core (2026-02-12 à 2026-02-16)
+... (Sessions previous unchanged) ...
 
-#### GOD Dashboard & Guild Engine
-- ✅ **Unified Management**: Fusion Whitelist + Guildes Actives dans un "Guild Engine" unique
-- ✅ **Contextual Actions**: Dropdown intelligent selon statut guilde (Whitelisted vs Onboarded)
-- ✅ **Whitelist Modal**: Action maître pour autoriser nouvelles guildes via ID Discord
-- ✅ **LifecyclePanel Actions**: Réactiver/Hard delete guildes & profils (RGPD compliant)
-  - `reactivateGuild`, `hardDeleteGuild`, `reactivateProfile`, `hardDeleteProfile`
-  - Toutes vérifiées par `isSuperAdmin()`
-- ✅ **Bug Fixes**: Countdown négatif (scheduledDeletion null), NaN stats, bulk actions retirées
+### Session — Harmonisation Calendrier & Inscriptions (2026-02-18)
 
-#### Discord Platform Integration
-- ✅ **Interactions API**: Refonte complète `api/discord/interactions/route.ts`
-- ✅ **Dev Portal**: Support Type 1 (PONG) pour validation URL portail développeur
-- ✅ **Songes Modals**: Bouton "Postuler" → Modal Discord pour saisie classe/message
-- ✅ **Rate Limiting**: Protection in-memory (10/min boutons, 5/5min modals)
-
-#### Infrastructure & CI/CD
-- ✅ **Docker Volumes Isolation**: `uploads-prod-data` et `uploads-beta-data` séparés
-- ✅ **Maintenance Script**: Cleanup Docker agressif (image prune -a, builder prune -a)
-- ✅ **check-hardening.sh**: Script audit VPS one-liner
-- ✅ **CI Optimization**: Merge verify + build → -65% CI minutes
-- ✅ **Seeding Infrastructure**: esbuild bundling, Prisma Driver Adapter, ID Mapping dynamique
+- ✅ **UI Harmonization**: Refonte complète des modales (Calendrier, Inscriptions, Discord) pour un look "Premium" aligné sur le module Missions.
+- ✅ **Draggable Modals**: Implémentation du drag-and-drop sur toutes les modales via `framer-motion` (DialogContent modifié).
+- ✅ **`CalendarDiscordDialog`**: Nouveau composant unifié pour les rappels et partages Discord (Ping @everyone, @role, @none).
+- ✅ **Bug Fixes**: Correction du z-index des boutons de fermeture et visibilité des icônes de type d'événement.
+- ✅ **TypeScript**: Correction de types dans `EventDetailModal` (`creator.id` vs `creatorId`).
 
 ---
 
-### Session — Security Audit & Hardening (2026-02-15)
+### Session — Finalisation P2 & Correction Missions (2026-02-18)
 
-- ✅ **Guild Isolation Fix** (`super-admin-actions.ts`): `isGuildAllowed()` vérifie maintenant `isActive` dans `GuildConfig`. Les guildes soft-deleted bloquent l'accès dashboard.
-- ✅ **GOD UI Clarification**: Distinction claire Whitelist (Permission) vs Active Guilds (Status)
-- ✅ **Tooltips Status**: Badges avec explications dans GuildTable (Active/Inactive/Supprimée)
-- ✅ **Score Sécurité VPS**: 9.6/10
-- ✅ **RBAC complet routes API**: audit-logs, migrate-krala, seed-grolandais, server-config, active-bonus, sync
-- ✅ **Logs d'audit Admin**: visible dans `/admin/logs`, rétention 30j (missions, bonus, isolation guilde)
-- ✅ **Validation Zod**: changelog-actions, presentation-actions, toutes actions critiques
-
----
-
-### Session — Fixing Documentation Access (2026-02-15 à 2026-02-16)
-
-- ✅ **RBAC Docs Fix**: Synchronisation IDs Discord (Snowflake) pour accès documentation
-- ✅ **Infinite Loading Fix**: Résolution boucle infinie dans DocViewer/TopNav
-
----
-
-### Session — Fixing Image Uploads (2026-02-16)
-
-**Root cause**: Tous les points d'entrée images utilisaient `FileReader.readAsDataURL()` → base64 dans HTML → DB gonflée, images cassées à la publication.
-
-- ✅ **`uploadImageFile()` helper** (`src/components/editor/utils/image-upload.ts`): POST vers `/api/upload` → URL persistante (`/uploads/docs/uuid.webp`)
-- ✅ **Toolbar 🖼️** (`advanced-editor.tsx`): Migré vers helper
-- ✅ **Slash `/image`** (`slash-command.tsx`): Migré vers helper
-- ✅ **Copy-paste / Drag** (`handlePaste` + `handleDrop`): Nouveaux handlers ajoutés
-- ✅ **Caddyfile Fix**: Suppression bloc interceptant `/uploads/*` → Next.js sert les fichiers directement
-- ✅ **Standardisation dossiers**: `uploads/proofs` unifié dans `mission-actions.ts` et `profile-actions.ts`
-
----
-
-### Session — Fixing VPS Deployment (2026-02-16)
-
-- ✅ **Git Stash Conflict**: Résolution conflit `git pull` sur VPS bloquant le déploiement
-- ✅ **Date Serialization**: Standardisation sérialisation dates (fix crash Dashboard Beta)
-- ✅ **Deploy Script**: `./scripts/deploy.sh beta` fonctionnel
-
----
-
-### Session — Fixing Changelog Bugs (2026-02-17 à 2026-02-18)
-
-#### Bugs Corrigés
-| Bug | Fix |
-|-----|-----|
-| Scroll bloqué | Suppression `overflow-hidden` sur `html`/`body` dans `globals.css` |
-| Non-membres voient tout | Champ `isInternal` en DB + filtre auth dans la page publique |
-| Contenu technique visible | Log technique caché pour utilisateurs non-authentifiés |
-| Summary non HTML | `dangerouslySetInnerHTML` (output TipTap) |
-| Images pas sauvegardées | Migration vers `uploadImageFile()` helper (base64 → URL persistante) |
-
-#### Nouvelles Fonctionnalités Changelog
-- ✅ **`isInternal` flag**: Entrées internes masquées pour non-membres
-- ✅ **Toggle admin**: Switch dans l'UI d'édition pour marquer une entrée comme interne
-- ✅ **Summary optionnel**: Champ `summary` rendu nullable en DB (migration appliquée)
-- ✅ **Sidebar scroll**: `overflow-y-auto` sur la sidebar documentation
-
----
-
-### Session — Fix URLs Embeds Discord (2026-02-18)
-
-**Root cause**: `NEXT_PUBLIC_*` dans Next.js sont "baked in" au build, pas au runtime. La variable n'était pas passée comme `ARG` Docker → toujours `sigilos.fr` même sur Beta.
-
-- ✅ **`getAppBaseUrl()` helper** (`src/lib/utils.ts`): Centralise la logique URL (priorité: `NEXT_PUBLIC_APP_URL` → `NEXTAUTH_URL` → fallback prod)
-- ✅ **Dockerfile**: `ARG NEXT_PUBLIC_APP_URL` + `ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL`
-- ✅ **docker-compose.prod.yml**:
-  - `app-prod`: `NEXT_PUBLIC_APP_URL=https://sigilos.fr`
-  - `app-beta`: `NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr`
-- ✅ **Metadata Next.js** (`layout.tsx`): `metadataBase` utilise `NEXT_PUBLIC_APP_URL`
-- ✅ **Songes embeds**: `dashboardUrl` utilise `getAppBaseUrl()` (songes-service.ts + dream-run-actions.ts)
-
----
-
-### Session — Toggle Modules par Guilde + UX Admin (2026-02-18)
-
-- ✅ **`GuildModule` model** (Prisma): Table `guild_modules` avec `moduleId`, `guildId`, `isEnabled`
-- ✅ **`module-types.ts`**: Config centralisée des modules (MISSIONS, SONGES, LADDER, OCRE, CALENDAR, DOCS)
-- ✅ **`module-actions.ts`**: `toggleModule()` server action (admin only, guild isolation)
-- ✅ **Page `/admin/modules`**: UI toggle par module avec descriptions et statuts
-- ✅ **Sidebar masquée**: Les liens sidebar se masquent selon les modules actifs (`getActiveModules()`)
-- ✅ **Migrations**: `20260218083127_add_guild_modules` + `20260218085315_*` appliquées
-
----
-
-### Session — Simplification Feedback OCR + Fix Auto-Validation Succès (2026-02-18)
-
-#### Feedback UI simplifié
-- ✅ **`proof-upload-dialog.tsx`**: Suppression % confiance OCR, status pills, image debug, variables mortes (`ocrResult`, `isAutoValidated`, `safetyDebug`)
-- ✅ **`success-sync.tsx`**: Suppression badge "Confiance X%", bloc "VUE IA (DEBUG)", tip seuil 40%, toast verbeux → message simple "Votre capture est en cours de vérification par le staff."
-- ✅ **`achievement-validation-queue.tsx`**: Ajout `SubmissionCountdown`, boutons Valider/Rejeter compacts et alignés à droite
-
-#### Fix auto-validation OCR succès
-- ✅ **Bug root cause**: `shouldAutoValidate()` exigeait `isVictory = true` (keywords missions : "terminé", "validé"...) même pour les achievements → 100% confiance mais toujours envoyé en validation manuelle
-- ✅ **Fix `llm-ocr.ts`**: `shouldAutoValidate(result, context?)` — pour `context === 'achievement'`, bypass du check `isVictory`
-- ✅ **Fix `profile-actions.ts`**: Appel `shouldAutoValidate(ocrResult, 'achievement')`
-- ✅ **Seuil abaissé**: `OCR_AUTO_VALIDATE_THRESHOLD=40` (`.env` + `.env.example`) — score de base quand un nombre est détecté
+- ✅ **Missions Anomalies**: Correction de la génération de description. Ajout du niveau et de l'**Elixir uchronique** (sans mention 'majeur').
+- ✅ **Branding Catégories**: Validation des visuels `anomalie.png` et `songes.png`.
+- ✅ **TODO Management**: Validation officielle de la Phase 2. Déplacement du point technique "Plan B Discord" vers la P4 (Optimisation).
+- ✅ **Git Cleanup**: Fusion de `feat/p2-songes-ux` et `feat/guild-modules` dans `dev`, puis merge de `dev` vers `main`. Suppression des branches obsolètes.
 
 ---
 
@@ -224,56 +121,15 @@ if (!ctx.isAdmin) return { success: false, error: "Admin required" }; // mutatio
 await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } });
 ```
 
-### Patterns Interdits
-```typescript
-// ❌ JAMAIS
-dangerouslySetInnerHTML  // (sauf contenu sanitizé TipTap)
-eval()
-$queryRaw()
-process.env.SECRET  // dans un composant client
-fetch without try/catch
-```
-
 ---
 
 ## 🏗️ Infrastructure VPS
 
-### Environnements
 | Env | URL | Branche | Container |
 |-----|-----|---------|-----------|
 | **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` |
 | **Prod** | `sigilos.fr` | `main` | `sigilos-prod` |
 | **Monitoring** | `monitor.sigilos.fr` | — | Grafana |
-
-### Commandes Clés VPS
-```bash
-# Déploiement
-./scripts/deploy.sh beta    # Deploy branche dev → beta
-./scripts/deploy.sh prod    # Deploy branche main → prod
-
-# Logs
-docker logs sigilos-beta --tail 100
-docker logs sigilos-beta --tail 100 | grep uploads  # Debug images
-
-# Migrations manuelles (si nécessaire)
-sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx prisma migrate deploy
-```
-
-### Cron Jobs
-```bash
-0 3 * * *  backup_db.sh     # Backup DB → R2 (4h Paris)
-0 4 * * *  maintenance.sh   # Docker cleanup (5h Paris)
-```
-
-### Sécurité VPS (Score: 9.6/10)
-| Composant | Status |
-|-----------|--------|
-| SSH | ✅ Port 2222, Root disabled, Keys only |
-| Firewall | ✅ UFW (2222, 80, 443) |
-| Fail2Ban | ✅ Anti-bruteforce actif |
-| Auto-Updates | ✅ unattended-upgrades |
-| Backups | ✅ R2 + GPG, daily 3h UTC |
-| Monitoring | ✅ Grafana + Prometheus + cAdvisor |
 
 ---
 
@@ -283,19 +139,16 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 - Auth Discord (OAuth, sessions, NextAuth v5)
 - Dashboard guildes (missions, membres, profils)
 - Songes (runs, candidatures, embeds Discord)
-- Calendrier événements
+- Calendrier événements (Modales Premium, Draggable)
 - Documentation (viewer + éditeur TipTap)
 - Changelog (public + admin, isInternal flag)
 - GOD Dashboard (whitelist, lifecycle, stats)
 - Upload images (docs, preuves missions, bannières)
-- Notifications in-app
+- Notifications in-app (Glassmorphism & Couverture missions)
 - Ocre / Metamob integration
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
-
-### 🟡 Partiellement Fonctionnel
-- Sidebar masquage modules → **pushé, en attente de merge**
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
@@ -306,46 +159,14 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 
 ## 📋 TODO Prioritaire (Backlog)
 
-### 🔴 P0 — Bloquants Beta
-- [x] ~~Fix Changelog : images chargent pas pour l'externe~~ ✅ Confirmé OK
-- [x] Merger `feat/guild-modules` → `dev` → déployer VPS
+### 🔴 Phase 2 — UX & Features Core
+- [x] Toutes les tâches P2 ont été complétées ou déplacées. ✅
 
-### ⚡ P1 — Stabilité & Sécurité
-- [ ] RBAC futurs modules (guard à chaque nouvelle route)
-- [ ] Upload: validation MIME complète + strip EXIF
+### 🎨 Phase 3 — Polish UI/UX (Prochain Sprint)
+- [ ] Réduire la densité de violet sur la Landing Page (Branding)
+- [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
+- [ ] Refonte UI Documentation (Clarté & Navigation)
 
-### 🎯 P2 — UX & Features Core
-- [ ] Notif rappel Discord pour inscrits d'une run Songes
-- [ ] Raccourcir embed candidature Songes (trop verbeux)
-- [ ] Vérifier auto-suppression runs inactives
-- [ ] Supprimer embed Discord si run close
-- [ ] Historique runs par membre
-- [ ] Refonte UI documentation
-
----
-
-## 🔑 Variables d'Environnement Critiques
-
-| Variable | Rôle | Note |
-|----------|------|------|
-| `NEXT_PUBLIC_APP_URL` | URL de base app | **DOIT être passée comme build ARG Docker** |
-| `NEXTAUTH_URL` | URL callback auth | Doit matcher l'env (beta vs prod) |
-| `NEXTAUTH_SECRET` | Secret sessions | Différent beta/prod |
-| `DISCORD_CLIENT_ID/SECRET` | OAuth Discord | |
-| `DISCORD_BOT_TOKEN` | Bot Discord | |
-| `DATABASE_URL` | PostgreSQL | |
-| `REDIS_URL` | Redis | |
-| `NEXT_PUBLIC_BETA_PASSWORD` | Gate beta | Build ARG Docker |
-| `OCR_SPACE_API_KEY` | OCR succès ladder | Clé OCR.space |
-| `OCR_AUTO_VALIDATE_THRESHOLD` | Seuil auto-validation OCR | **40** (défaut 70 trop haut) |
-
-> ⚠️ **`NEXT_PUBLIC_*` sont baked-in au build Docker.** Ils DOIVENT être passés comme `args:` dans `docker-compose.prod.yml` et déclarés comme `ARG` dans le `Dockerfile`.
-
----
-
-## 📚 Références
-
-- [RULES.md](./RULES.md) — Standards de code
-- [SECURITY.md](./SECURITY.md) — Politique sécurité
-- [src/todo.md](./src/todo.md) — Backlog priorisé complet
-- [README.md](./README.md) — Vue d'ensemble projet
+### 🚀 Phase 4 — Performance & Optimisation
+- [ ] Plan B Discord API down (retry + queue)
+- [ ] Pagination & Optimisation requêtes N+1

@@ -59,10 +59,10 @@ export default async function DashboardPage({
     }
 
     // Parallel data fetching
-    const [presenceData, ladderResult, focusData, guildStatsResult, profileResult] = await Promise.all([
+    const focusData = await getDashboardFocus(guildId, user);
+    const [presenceData, ladderResult, guildStatsResult, profileResult] = await Promise.all([
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
-        getDashboardFocus(guildId, user.id!),
         getGuildStats(guildId),
         getUserProfile(guildId)
     ]);
@@ -115,21 +115,32 @@ export default async function DashboardPage({
                         </div>
                     )}
 
-                    {!user.isAdmin && user.canViewProfile && profile && (!profile.pseudoDofus || !profile.metamobVerified) && (
-                        <div className="md:col-span-12">
-                            <OnboardingBanner
-                                guildId={guildId}
-                                title="Bienvenue"
-                                subtitle="Premiers pas"
-                                checklistLabel="Checklist de membre"
-                                steps={[
-                                    { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: profile.metamobVerified, icon: "infinity" },
-                                    { id: "profile", title: "Profil", description: "Renseigner mon pseudo/classe", href: `/dashboard/${guildId}/profile`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
-                                    { id: "docs", title: "Aide", description: "Découvrir le fonctionnement", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
-                                ]}
-                            />
-                        </div>
-                    )}
+                    {/* Member Profile Completion (For EVERYONE if incomplete) */}
+                    {(() => {
+                        const memberSteps = [
+                            { id: "profile", title: "Identité", description: "Pseudo Dofus & Classe", href: `/dashboard/${guildId}/profile?edit=identity`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
+                            user.canViewArchis && { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: !!profile.metamobVerified, icon: "infinity" },
+                            { id: "jobs", title: "Métiers", description: "Renseigner mes métiers", href: `/dashboard/${guildId}/profile`, completed: (profile.metiers as string[] || []).length > 0, icon: "scroll-text" },
+                            { id: "docs", title: "Guide", description: "Comprendre SigilOS", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
+                        ].filter(Boolean) as any[];
+
+                        const hasIncompleteSteps = memberSteps.some(s => !s.completed);
+
+                        if (!user.canViewProfile || !profile || !hasIncompleteSteps) return null;
+
+                        return (
+                            <div className="md:col-span-12">
+                                <OnboardingBanner
+                                    guildId={guildId}
+                                    variant="user"
+                                    title={`Bienvenue sur SigilOS, ${profile.pseudoDofus || user.name || "Aventurier"} !`}
+                                    subtitle="Préparation Personnelle"
+                                    checklistLabel="Ma progression"
+                                    steps={memberSteps}
+                                />
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* --- 1. THE ECHO (Intelligence Focus) --- */}

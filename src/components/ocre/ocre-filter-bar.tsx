@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
+
 // =============================================================================
 // OCRE FILTER BAR - Modern, readable filters
 // =============================================================================
@@ -50,9 +53,8 @@ interface OcreFilterBarProps {
     onFiltersChange: (filters: OcreFilters) => void;
     steps: number[];
     zones: string[];
-    isRefreshing: boolean;
-    onRefresh: () => void;
     guildId: string;
+    showMarketplace?: boolean;
 }
 
 // =============================================================================
@@ -90,9 +92,8 @@ export function OcreFilterBar({
     onFiltersChange,
     steps,
     zones,
-    isRefreshing,
-    onRefresh,
     guildId,
+    showMarketplace = true,
 }: OcreFilterBarProps) {
     const updateFilter = <K extends keyof OcreFilters>(key: K, value: OcreFilters[K]) => {
         onFiltersChange({ ...filters, [key]: value });
@@ -105,6 +106,20 @@ export function OcreFilterBar({
         filters.selectedZone !== "all" ||
         filters.minQuantity > 0 ||
         filters.sortBy !== "step-asc";
+
+    const [localSearch, setLocalSearch] = useState(filters.searchQuery);
+    const debouncedSearch = useDebounce(localSearch, 300);
+
+    useEffect(() => {
+        if (debouncedSearch !== filters.searchQuery) {
+            updateFilter("searchQuery", debouncedSearch);
+        }
+    }, [debouncedSearch]);
+
+    // Sync local search when filters are reset
+    useEffect(() => {
+        setLocalSearch(filters.searchQuery);
+    }, [filters.searchQuery]);
 
     const clearFilters = () => {
         onFiltersChange({
@@ -125,13 +140,13 @@ export function OcreFilterBar({
         <div className="space-y-4">
             {/* Search Row */}
             <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-amber-500 transition-colors" />
                     <Input
                         placeholder="Rechercher un monstre..."
-                        value={filters.searchQuery}
-                        onChange={(e) => updateFilter("searchQuery", e.target.value)}
-                        className="pl-12 h-12 text-base bg-muted border-border rounded-xl"
+                        value={localSearch}
+                        onChange={(e) => setLocalSearch(e.target.value)}
+                        className="pl-12 h-12 text-base bg-zinc-900/40 backdrop-blur-md border-white/5 rounded-xl focus:border-amber-500/50 focus:ring-amber-500/10 transition-all"
                     />
                 </div>
 
@@ -147,37 +162,29 @@ export function OcreFilterBar({
                     </Button>
                 )}
 
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className="h-12 w-12 border-border bg-muted rounded-xl shrink-0 hover:bg-accent transition-colors"
-                    title="Synchroniser avec Metamob"
-                >
-                    <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
-                </Button>
-
-                <div className="w-px h-8 bg-white/10 mx-2 hidden sm:block" />
-
-                <OcreExchangeModal
-                    guildId={guildId}
-                    trigger={
-                        <Button
-                            size="lg"
-                            className="h-12 px-3 sm:px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-900/20 rounded-xl font-semibold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            <Sparkles className="h-5 w-5 fill-white/20" />
-                            <span className="hidden sm:inline">Place de Marché</span>
-                        </Button>
-                    }
-                />
+                {showMarketplace && (
+                    <>
+                        <div className="w-px h-8 bg-white/10 mx-2 hidden sm:block" />
+                        <OcreExchangeModal
+                            guildId={guildId}
+                            trigger={
+                                <Button
+                                    size="lg"
+                                    className="h-12 px-3 sm:px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-900/20 rounded-xl font-semibold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                    <Sparkles className="h-5 w-5 fill-white/20" />
+                                    <span className="hidden sm:inline">Place de Marché</span>
+                                </Button>
+                            }
+                        />
+                    </>
+                )}
             </div>
 
             {/* Filter Pills Row */}
             <div className="flex flex-wrap items-center gap-3">
                 {/* Type Selector - Large Pills */}
-                <div className="flex items-center rounded-xl bg-muted/50 border border-border p-1.5 overflow-x-auto max-w-full no-scrollbar">
+                <div className="flex items-center rounded-xl bg-zinc-900/40 backdrop-blur-md border border-white/5 p-1.5 overflow-x-auto max-w-full no-scrollbar">
                     {MONSTER_TYPES.map((type) => {
                         const Icon = type.icon;
                         const isActive = filters.selectedType === type.id;
@@ -188,11 +195,11 @@ export function OcreFilterBar({
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap",
                                     isActive
-                                        ? "bg-accent text-white shadow-md border border-border"
-                                        : "text-zinc-400 hover:text-white hover:bg-accent/30"
+                                        ? "bg-amber-500/10 text-amber-500 shadow-md border border-amber-500/20"
+                                        : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
                                 )}
                             >
-                                <Icon className="h-4 w-4" />
+                                <Icon className={cn("h-4 w-4", isActive && "animate-pulse")} />
                                 <span className="hidden sm:inline">{type.label}</span>
                                 <span className="sm:hidden">{type.shortLabel}</span>
                             </button>
@@ -210,8 +217,8 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
-                                filters.selectedStep !== "all" && "border-amber-500/50 bg-amber-500/10 text-amber-200"
+                                "h-12 px-5 text-sm font-semibold border-white/5 bg-zinc-900/40 backdrop-blur-md rounded-xl gap-2 hover:bg-zinc-800 transition-all",
+                                filters.selectedStep !== "all" && "border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
                             )}
                         >
                             <Footprints className="h-4 w-4" />
@@ -247,8 +254,8 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
-                                filters.sortBy !== "step-asc" && "border-blue-500/50 bg-blue-500/10 text-blue-200"
+                                "h-12 px-5 text-sm font-semibold border-white/5 bg-zinc-900/40 backdrop-blur-md rounded-xl gap-2 hover:bg-zinc-800 transition-all",
+                                filters.sortBy !== "step-asc" && "border-blue-500/30 bg-blue-500/10 text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.2)]"
                             )}
                         >
                             <ArrowUpDown className="h-4 w-4" />
@@ -278,8 +285,8 @@ export function OcreFilterBar({
                                 variant="outline"
                                 size="lg"
                                 className={cn(
-                                    "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 max-w-[200px] hover:bg-accent/50 transition-all",
-                                    filters.selectedZone !== "all" && "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+                                    "h-12 px-5 text-sm font-semibold border-white/5 bg-zinc-900/40 backdrop-blur-md rounded-xl gap-2 max-w-[200px] hover:bg-zinc-800 transition-all",
+                                    filters.selectedZone !== "all" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]"
                                 )}
                             >
                                 <span className="truncate">
@@ -317,8 +324,8 @@ export function OcreFilterBar({
                             variant="outline"
                             size="lg"
                             className={cn(
-                                "h-12 px-5 text-sm font-semibold border-border bg-muted rounded-xl gap-2 hover:bg-accent/50 transition-all",
-                                filters.minQuantity > 0 && "border-purple-500/50 bg-purple-500/10 text-purple-200"
+                                "h-12 px-5 text-sm font-semibold border-white/5 bg-zinc-900/40 backdrop-blur-md rounded-xl gap-2 hover:bg-zinc-800 transition-all",
+                                filters.minQuantity > 0 && "border-purple-500/30 bg-purple-500/10 text-purple-400 shadow-[0_0_15px_-3px_rgba(168,85,247,0.2)]"
                             )}
                         >
                             <Crown className="h-4 w-4" />

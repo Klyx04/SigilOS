@@ -2,6 +2,7 @@ import { Activity } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
+import { SondagesWIPState } from "./sondages-wip-state";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 
 export default async function PollsPage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -32,15 +33,7 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
                 </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center min-h-[400px] border border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in duration-500">
-                <div className="p-4 rounded-full bg-white/5 mb-4 animate-pulse">
-                    <Activity className="w-8 h-8 text-white/50" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Module en construction</h3>
-                <p className="text-zinc-500 max-w-md text-center">
-                    Ce module permettra aux officiers de créer des sondages et aux membres de voter directement sur SigilOS.
-                </p>
-            </div>
+            <SondagesWIPState guildId={guildId} />
         </div>
     );
 }

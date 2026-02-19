@@ -3,6 +3,7 @@ import { getDreamRuns } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { RunCardGrid } from "@/components/songes/RunCardGrid";
 import { CreateRunButton } from "@/components/songes/CreateRunButton";
+import { SongesGridSkeleton } from "@/components/songes/RunSkeletons";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Sparkles } from "lucide-react";
@@ -48,7 +49,7 @@ export default async function SongesPage({
             />
 
             {/* Active Runs Grid */}
-            <Suspense fallback={<div className="text-purple-400">Chargement...</div>}>
+            <Suspense fallback={<SongesGridSkeleton />}>
                 <RunCardGrid
                     runs={runs}
                     currentUserId={currentUserId}

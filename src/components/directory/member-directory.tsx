@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Search, Filter, X, Briefcase, Swords, Check } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 interface MemberDirectoryProps {
@@ -269,15 +270,17 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
 
             {/* EMPTY STATE */}
             {filteredMembers.length === 0 && (
-                <div className="text-center py-20 border border-dashed border-white/5 rounded-xl bg-zinc-900/20">
-                    <Filter className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-zinc-400">Aucun résultat</h3>
-                    <p className="text-zinc-600 max-w-sm mx-auto mt-2">
-                        Essayez de modifier vos filtres ou votre recherche pour trouver ce que vous cherchez.
-                    </p>
-                    <Button variant="outline" onClick={resetFilters} className="mt-6 border-white/5 bg-zinc-800/50">
-                        Tout effacer
-                    </Button>
+                <div className="py-12">
+                    <EmptyState
+                        icon={Filter}
+                        title="Aucun membre trouvé"
+                        description="Essayez de modifier vos filtres ou votre recherche pour trouver un compagnon de guilde."
+                        variant="premium"
+                        action={{
+                            label: "Réinitialiser les filtres",
+                            onClick: resetFilters
+                        }}
+                    />
                 </div>
             )}
         </div>

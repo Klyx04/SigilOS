@@ -12,7 +12,7 @@ import { z } from "zod";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 import { rateLimit } from "@/lib/ratelimit";
-import { withCache } from "@/lib/cache";
+import { withCache, invalidateCache } from "@/lib/cache";
 import {
     getUserProfile,
     getUserQuests,
@@ -60,6 +60,8 @@ export interface OcreProgressData {
         monsters: { total: number; gathered: number };
         bosses: { total: number; gathered: number };
         archis: { total: number; gathered: number };
+        acquired: number;
+        remaining: number;
     };
     questInfo: {
         slug: string;
@@ -331,7 +333,7 @@ export async function linkOcreAccount(
             if (!userPseudoDofus) {
                 return {
                     success: false,
-                    error: "Configurez d'abord votre pseudo Dofus dans votre profil SigilOS."
+                    error: "MISSING_PSEUDO_DOFUS" // Special code for UI handling
                 };
             }
 
@@ -359,6 +361,9 @@ export async function linkOcreAccount(
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        // Force clear Redis progress cache
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
 
         return {
             success: true,
@@ -467,7 +472,7 @@ export async function getMyOcreProgress(
         if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
         const cacheKey = `ocre:progress:${guildId}:${userId}`;
-        return await withCache(cacheKey, 120, async () => {
+        const result = await withCache(cacheKey, 120, async () => {
             const profile = await db.userProfile.findFirst({
                 where: {
                     userId: userId,
@@ -576,12 +581,30 @@ export async function getMyOcreProgress(
                 success: true,
                 data: {
                     monsters: finalMonsters,
-                    stats: { total: countTotal, manquants: countManquants, possedes: countPossedes, doublons: countDoublons, progressPercent, monsters: statsByType.monstre, bosses: statsByType.boss, archis: statsByType.archimonstre },
+                    stats: {
+                        total: countTotal,
+                        manquants: countManquants,
+                        possedes: countPossedes,
+                        doublons: countDoublons,
+                        progressPercent,
+                        monsters: statsByType.monstre,
+                        bosses: statsByType.boss,
+                        archis: statsByType.archimonstre,
+                        acquired: totalGathered,
+                        remaining: countTotal - totalGathered
+                    },
                     questInfo: { slug: questSlug!, characterName: firstPage.character_name || safePseudo, currentStep: firstPage.current_step || 0, totalSteps: 34, parallelQuests: PQ, serverName: firstPage.server?.name || "Serveur inconnu" },
                     lastSync: new Date()
                 }
             };
         });
+
+        // Don't cache errors (especially "Not Linked")
+        if (!result.success) {
+            await invalidateCache(cacheKey);
+        }
+
+        return result;
     } catch (error) {
         console.error("[getMyOcreProgress] Critical Error:", error);
         return { success: false, error: "Erreur technique lors de la synchronisation." };
@@ -1163,6 +1186,17 @@ export async function getGuildExchangeMap(
 // KRALAMOURE EVENTS
 // -----------------------------------------------------------------------------
 
+const DOFUS_TO_METAMOB_SERVER: Record<string, number> = {
+    "295": 401, // Draconiros
+    "48": 401,  // Draconiros (Unity)
+    "291": 402, // Imagiro
+    "292": 403, // Orukam
+    "290": 404, // Tal Kasha
+    "293": 405, // Tylezia
+    "294": 406, // Hell Mina
+    "50": 407,  // Ombre
+};
+
 /**
  * Get upcoming Kralamoure events for the guild's server.
  */
@@ -1175,19 +1209,21 @@ export async function getGuildKralamoureEvents(
             return { success: false, error: "Non authentifié" };
         }
 
-        // PRIORITY 1: Current user's personal key (most likely to be fresh or have allowance)
+        // PRIORITY 1: Current user's personal key & server
         const currentUser = await db.userProfile.findFirst({
             where: { userId: session.user.id, guild: { discordGuildId: guildId } },
             select: { metamobApiKey: true, metamobServerId: true }
         });
 
-        // PRIORITY 2: Guild's global key
+        // PRIORITY 2: Guild's global key & default server (Mapping Dofus ID -> Metamob ID)
         const guildConfig = await db.guildConfig.findFirst({
             where: { discordGuildId: guildId },
-            select: { metamobApiKey: true },
+            select: { metamobApiKey: true, dofusServerId: true },
         });
 
-        // PRIORITY 3: Any member with a server ID (to at least get the server ID)
+        const guildDefaultServerId = guildConfig?.dofusServerId ? DOFUS_TO_METAMOB_SERVER[guildConfig.dofusServerId] : undefined;
+
+        // PRIORITY 3: Any member with a server ID (Fallback)
         const memberWithServer = await db.userProfile.findFirst({
             where: {
                 guild: { discordGuildId: guildId },
@@ -1205,9 +1241,11 @@ export async function getGuildKralamoureEvents(
             decrypt(memberWithServer?.metamobApiKey) ||
             undefined;
 
+        const serverId = currentUser?.metamobServerId || guildDefaultServerId || memberWithServer?.metamobServerId || undefined;
+
         const events = await getKralamoureEvents({
             guildApiKey,
-            serverId: currentUser?.metamobServerId || memberWithServer?.metamobServerId || undefined,
+            serverId,
         });
 
         return { success: true, data: events };
@@ -1462,6 +1500,9 @@ export async function forceRefreshOcre(
         revalidateTag(`metamob-user-${profile.metamobPseudo.toLowerCase()}`);
         revalidatePath(`/dashboard/${guildId}/quete-ocre`, "page");
 
+        // Force clear Redis progress cache
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+
         return { success: true, data: { questUpdated } };
 
     } catch (error) {
@@ -1545,6 +1586,9 @@ export async function switchOcreQuest(guildId: string, questSlug: string): Promi
         // Revalidate
         revalidatePath(`/dashboard/${guildId}/quete-ocre`, "page");
         revalidatePath(`/dashboard/${guildId}/profile`, "page");
+
+        // Force clear Redis progress cache
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
 
         return { success: true };
 

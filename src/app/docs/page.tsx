@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Folder, FileText, ArrowRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Metadata } from "next";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
     title: "Centre de Documentation",
     description: "Guides, tutoriels et documentation technique pour maîtriser SigilOS et optimiser votre guilde.",
     alternates: {
-        canonical: "/docs",
+        canonical: `${getAppBaseUrl()}/docs`,
     },
 };
 

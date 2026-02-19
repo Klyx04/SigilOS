@@ -30,7 +30,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
   alternates: {
-    canonical: "/",
+    canonical: getAppBaseUrl(),
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {

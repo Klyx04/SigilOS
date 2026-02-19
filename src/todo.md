@@ -97,25 +97,25 @@
 
 ## 🚀 P4 — PERFORMANCE (Quand le traffic arrive)
 
-- [ ] Pagination : missions, succès, membres
-- [ ] Optimiser requêtes N+1
-- [ ] Indexes DB manquants (requêtes >1s)
-- [ ] Cache Discord API (appels répétés)
-- [ ] Compression images non optimisées
-- [ ] Code splitting bundle JS (First load >5s)
-- [ ] Lazy loading images (avatars, screens succès)
-- [ ] Plan cache invalidation Redis
-- [ ] Plan B Discord API down (retry + queue)
+- [ ] Cache Discord API : mettre en cache pseudos/rôles/avatars (TTL 10min) — impact immédiat sur la fluidité
+- [ ] Indexes DB critiques : auditer que chaque table a un index sur `guildId` (isolation rapide multi-tenant)
+- [ ] Optimiser requêtes N+1 (auditer avec Prisma logs, corriger les `include` inutiles)
+- [ ] Pagination : missions, succès, membres (à activer quand une guilde dépasse 500 entrées)
+- [ ] Lazy loading avatars : chargement différé sur le Roster/Ladder
+- [x] Compression images : Sharp + WebP 80% déjà actif partout (mission, profil, upload, docs) ✅
+- [x] Code splitting : géré nativement par Next.js ✅
+- [x] Redis : overkill sur 1 seul VPS, le cache RAM Node.js suffit ✅
+- [x] Plan B Discord API down : Discord down = login impossible de toute façon — hors scope ✅
 
 ---
 
 ## 📊 P5 — MONITORING AVANCÉ
 
-- [ ] Logs structurés : Winston/Pino
-- [ ] Dashboard consultation logs
-- [ ] Uptime monitoring : UptimeRobot ou service actuel
-- [ ] Slow query logs PostgreSQL
-- [ ] Health check : statut DB + Bot Discord + Uptime
+- [x] UptimeRobot : configuré en monitoring externe perso (alerte Discord si VPS down) ✅
+- [x] Slow query logs PostgreSQL : outil de debug réactif, à activer ponctuellement si besoin — pas un todo fixe ✅
+- [x] Enrichir `/api/health` : UptimeRobot a juste besoin d'un HTTP 200, page `/status` gère déjà l'affichage détaillé ✅
+- [x] Dashboard logs admin : déjà actif sur `/admin/logs` ✅
+- [x] Logger structuré : logger.ts custom + Sentry already in place ✅
 
 ---
 
@@ -153,28 +153,31 @@ ce module doit etre une vrai valeur ajoutée
 
 ## 📄 P7 — JURIDIQUE & BUSINESS
 
-- [ ] Revoir CGU, Politique Confidentialité, Mentions Légales
-- [ ] Bannière cookies RGPD (si tracking actif mais on ne fait pas de tracking ? vaut le coup ?)
-- [ ] Conformité RGPD données personnelles
-- [ ] SEO + article X  : https://x.com/fabienr34/status/2023649306910064883
+- [ ] Conformité RGPD : droit à l'effacement + export données utilisateur
+- [ ] Revoir CGU, Politique Confidentialité, Mentions Légales (à finaliser avant ouverture publique)
+- [x] SEO canonicals absolues : corrigé dans `layout.tsx`, `docs/page.tsx`, `changelog/page.tsx` ✅
+- [x] Google Search Console : validé via DNS TXT (OVH), sitemap soumis ✅
+- [ ] SEO : vérifier Open Graph images + sitemap.xml cohérence finale avant prod
+- [ ] Marketing : premier post X/Discord pour acquisition communautaire
 - [ ] Roadmap publique pour membres
 - [ ] Limite guildes Beta (whitelist / demande accès)
 - [ ] Formulaire "Rapporter un bug" (bouton flottant)
 - [ ] Channel #bugs-beta : créer + épingler règles
+- [x] Bannière cookies RGPD : pas de tracking 3rd party, Discord login = pas de cookies tiers — non nécessaire ✅
 
 ---
 
 ## 🧪 P8 — TESTS FINAUX (Avant Prod)
 
-- [ ] Parcours complet : Inscription → Mission → Songe
+- [ ] Parcours complet : Inscription → Mission → Validation → Songe
 - [ ] Multi-navigateurs (Chrome, Firefox, Safari mobile)
-- [ ] Test backup existe et restaurable
-- [ ] Isolation guildes (User A vs Guilde B)
+- [ ] Test backup : existe et restaurable
 - [ ] Création guilde sans membres ne crash pas
 - [ ] Champs vides partout (erreurs 500)
-- [ ] Pagination manquante (500+ membres)
-- [ ] Sync Discord : ajout membre → apparaît ?
-- [ ] Sessions expirées (2h inactif)
+- [ ] Pagination : test avec 500+ membres fictifs
+- [ ] Sync Discord : ajout membre → apparaît dans le roster ?
+- [ ] Sessions expirées (2h inactif → redirection login)
+- [x] Isolation guildes (User A vs Guilde B) — audité et validé ✅
 
 ---
 

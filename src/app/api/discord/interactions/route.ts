@@ -138,6 +138,42 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
+            } else if (prefix === "poll") {
+                if (action === "vote") {
+                    const { processPollVote } = await import("@/server/actions/poll-actions");
+                    const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                    const { PERMISSIONS } = await import("@/lib/permissions");
+
+                    const profile = await db.userProfile.findUnique({
+                        where: { userId_guildId: { userId: account.userId, guildId: guild_id } }
+                    });
+
+                    if (!profile) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
+                        });
+                    }
+
+                    // Strict RBAC check
+                    const isAuthorized = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.POLLS_VIEW);
+                    if (!isAuthorized) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "🚫 Tes rôles Discord ne t'autorisent pas à voter sur les sondages de cette guilde.", flags: 64 },
+                        });
+                    }
+
+                    result = await processPollVote(guild_id, profile.id, entityId);
+
+                    if (result.success) {
+                        const actionLabel = result.data?.action === "voted" ? "enregistré" : "retiré";
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: `✅ Ton vote a été ${actionLabel} avec succès !`, flags: 64 },
+                        });
+                    }
+                }
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }

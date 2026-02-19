@@ -21,7 +21,7 @@ export default auth((req) => {
             nextUrl.pathname.startsWith('/models') ||
             nextUrl.pathname.startsWith('/songes') ||
             nextUrl.pathname.startsWith('/uploads') ||
-            /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(nextUrl.pathname)
+            /\.(png|jpg|jpeg|gif|svg|webp|ico|webmanifest|json|xml|txt)$/i.test(nextUrl.pathname)
 
         if (!hasAccess && !isGatePage && !isPublicAsset) {
             return NextResponse.redirect(new URL("/gate", nextUrl))

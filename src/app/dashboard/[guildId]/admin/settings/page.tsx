@@ -17,7 +17,8 @@ import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
 import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
-import { ShieldAlert, UserCheck } from "lucide-react";
+import { ShieldAlert, UserCheck, BarChart3 } from "lucide-react";
+import { PollSettingsClient } from "../_components/poll-settings-client";
 
 // ============================================================================
 // TAB STYLES
@@ -33,6 +34,7 @@ const TABS = {
     dofus: `${TAB_STYLE} data-[state=active]:bg-indigo-500/10 data-[state=active]:text-indigo-400 data-[state=active]:border-indigo-500/20`,
     missions: `${TAB_STYLE} data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:border-amber-500/20`,
     membres: `${TAB_STYLE} data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20`,
+    sondages: `${TAB_STYLE} data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400 data-[state=active]:border-cyan-500/20`,
 };
 
 // ============================================================================
@@ -103,6 +105,10 @@ export default async function FeatureSettingsPage({
                     <TabsTrigger value="missions" className={TABS.missions}>
                         <Target className="h-3.5 w-3.5" />
                         Missions
+                    </TabsTrigger>
+                    <TabsTrigger value="sondages" className={TABS.sondages}>
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        Sondages
                     </TabsTrigger>
                 </TabsList>
 
@@ -226,6 +232,19 @@ export default async function FeatureSettingsPage({
                         />
                         <div className="max-w-4xl">
                             <MissionSettingsClient guildId={guildId} />
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* ── Sondages ── */}
+                <TabsContent value="sondages" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex flex-col gap-6">
+                        <SectionHeader
+                            title="Réglages des Sondages"
+                            description="Configurez les intégrations Discord pour vos sondages et la gestion du rôle Micro."
+                        />
+                        <div className="max-w-4xl">
+                            <PollSettingsClient guildId={guildId} />
                         </div>
                     </div>
                 </TabsContent>

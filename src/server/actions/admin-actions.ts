@@ -758,3 +758,67 @@ export async function updateMissionNotifySettings(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+// ============================================================================
+// PERMISSION HELPERS
+// ============================================================================
+
+/**
+ * Find all users in a guild that have a specific permission based on their Discord roles
+ * and the guild's rolesMapping.
+ */
+export async function getGuildAdminsWithPermission(
+    discordGuildId: string,
+    permission: PermissionId
+): Promise<{ userId: string; discordId: string }[]> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true, rolesMapping: true, ownerId: true }
+        });
+
+        if (!guildConfig) return [];
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const rolesWithPermissionIds = Object.entries(rolesMapping)
+            .filter(([_, perms]) => perms.includes(permission))
+            .map(([roleId, _]) => roleId);
+
+        // We only have Role Names in UserProfile, so we need to map IDs to Names
+        const { fetchGuildRoles } = await import("@/server/discord");
+        const allDiscordRoles = await fetchGuildRoles(discordGuildId);
+        const rolesWithPermissionNames = allDiscordRoles
+            .filter(r => rolesWithPermissionIds.includes(r.id))
+            .map(r => r.name);
+
+        const ownerId = guildConfig.ownerId;
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                OR: [
+                    { discordRoleName: { in: rolesWithPermissionNames } },
+                    ...(ownerId ? [{ user: { accounts: { some: { providerAccountId: ownerId } } } }] : [])
+                ]
+            },
+            include: {
+                user: {
+                    include: {
+                        accounts: {
+                            where: { provider: "discord" }
+                        }
+                    }
+                }
+            }
+        });
+
+        return profiles.map(p => ({
+            userId: p.userId,
+            discordId: p.user.accounts[0]?.providerAccountId || "unknown"
+        }));
+    } catch (error) {
+        console.error("[Permissions] getGuildAdminsWithPermission error:", error);
+        return [];
+    }
+}

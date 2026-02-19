@@ -12,7 +12,11 @@ import {
     MessageSquare,
     Swords,
     Trophy,
-    Calendar
+    Calendar,
+    Target,
+    Flame,
+    PieChart,
+    ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -34,17 +38,22 @@ import { useRouter } from "next/navigation";
 import { DiscordOwnershipModal } from "./discord-ownership-modal";
 import { updateNotificationPrefs } from "@/server/actions/profile-actions";
 
+interface NotificationPrefs {
+    missions: boolean;
+    songes: boolean;
+    events: boolean;
+    ladder: boolean;
+    polls: boolean;
+    admin_validations: boolean;
+}
+
 interface UserSettingsProps {
     guildId: string;
     guildName: string;
     profileId: string;
-    notificationPrefs?: {
-        missions?: boolean;
-        songes?: boolean;
-        events?: boolean;
-        ladder?: boolean;
-    } | null;
+    notificationPrefs?: NotificationPrefs | null;
     onNotificationPrefsSave?: (prefs: any) => void;
+    isAdmin: boolean; // Added isAdmin prop
 }
 
 export function UserSettings({
@@ -52,11 +61,13 @@ export function UserSettings({
     guildName,
     profileId,
     notificationPrefs,
-    onNotificationPrefsSave
+    onNotificationPrefsSave,
+    isAdmin // Destructure isAdmin
 }: UserSettingsProps) {
     const [performanceMode, setPerformanceMode] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showOwnershipModal, setShowOwnershipModal] = useState(false);
+    const [loading, setLoading] = useState(false); // Added loading state
     const router = useRouter();
 
     // Default values: true if not specified
@@ -65,10 +76,12 @@ export function UserSettings({
         songes: notificationPrefs?.songes ?? true,
         events: notificationPrefs?.events ?? true,
         ladder: notificationPrefs?.ladder ?? true,
+        polls: notificationPrefs?.polls ?? true,
+        admin_validations: notificationPrefs?.admin_validations ?? true,
     };
 
-    const handlePrefChange = async (key: string, enabled: boolean) => {
-        const newPrefs = { [key]: enabled };
+    const handleUpdatePrefs = async (newPrefs: Partial<NotificationPrefs>) => { // Renamed and updated signature
+        setLoading(true);
         onNotificationPrefsSave?.(newPrefs);
 
         const res = await updateNotificationPrefs({
@@ -81,8 +94,11 @@ export function UserSettings({
         } else {
             toast.error(res.error || "Erreur");
             // Rollback on fail
-            onNotificationPrefsSave?.({ [key]: !enabled });
+            onNotificationPrefsSave?.(Object.fromEntries(
+                Object.entries(newPrefs).map(([key, value]) => [key, !value])
+            ));
         }
+        setLoading(false);
     };
 
     // Load performance mode from localStorage
@@ -198,72 +214,110 @@ export function UserSettings({
                     </div>
 
                     <div className="space-y-3 pt-4 border-t border-white/5">
-                        {/* Missions */}
-                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-indigo-500/30 transition-all">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-rose-500/10 rounded-lg">
-                                    <Swords className="w-4 h-4 text-rose-400" />
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-blue-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                                        <Target className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Missions</p>
+                                        <p className="text-[10px] text-zinc-500">Nouvelles missions et validations</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium text-zinc-200">Missions</Label>
-                                    <p className="text-[10px] text-zinc-500">Validations & Preuves</p>
-                                </div>
+                                <Switch
+                                    checked={prefs.missions}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ missions: checked })}
+                                    disabled={loading}
+                                />
                             </div>
-                            <Switch
-                                checked={prefs.missions}
-                                onCheckedChange={(val) => handlePrefChange("missions", val)}
-                            />
-                        </div>
 
-                        {/* Songes */}
-                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-indigo-500/30 transition-all">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-cyan-500/10 rounded-lg">
-                                    <MessageSquare className="w-4 h-4 text-cyan-400" />
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                        <Flame className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Songes</p>
+                                        <p className="text-[10px] text-zinc-500">Candidatures et invitations</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium text-zinc-200">Runs Songes</Label>
-                                    <p className="text-[10px] text-zinc-500">Candidatures</p>
-                                </div>
+                                <Switch
+                                    checked={prefs.songes}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ songes: checked })}
+                                    disabled={loading}
+                                />
                             </div>
-                            <Switch
-                                checked={prefs.songes}
-                                onCheckedChange={(val) => handlePrefChange("songes", val)}
-                            />
-                        </div>
 
-                        {/* Events */}
-                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-indigo-500/30 transition-all">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-amber-500/10 rounded-lg">
-                                    <Calendar className="w-4 h-4 text-amber-400" />
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-purple-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                                        <Calendar className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Événements</p>
+                                        <p className="text-[10px] text-zinc-500">Rappels et invitations de guilde</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium text-zinc-200">Événements</Label>
-                                    <p className="text-[10px] text-zinc-500">Rappels & Sorties</p>
-                                </div>
+                                <Switch
+                                    checked={prefs.events}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ events: checked })}
+                                    disabled={loading}
+                                />
                             </div>
-                            <Switch
-                                checked={prefs.events}
-                                onCheckedChange={(val) => handlePrefChange("events", val)}
-                            />
-                        </div>
 
-                        {/* Ladder */}
-                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-indigo-500/30 transition-all">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-emerald-500/10 rounded-lg">
-                                    <Trophy className="w-4 h-4 text-emerald-400" />
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-red-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                                        <Trophy className="w-5 h-5 text-red-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Succès & Ladder</p>
+                                        <p className="text-[10px] text-zinc-500">Validations de succès et rangs</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium text-zinc-200">Ladder</Label>
-                                    <p className="text-[10px] text-zinc-500">Points de succès</p>
-                                </div>
+                                <Switch
+                                    checked={prefs.ladder}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ ladder: checked })}
+                                    disabled={loading}
+                                />
                             </div>
-                            <Switch
-                                checked={prefs.ladder}
-                                onCheckedChange={(val) => handlePrefChange("ladder", val)}
-                            />
+
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-orange-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                        <PieChart className="w-5 h-5 text-orange-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Sondages</p>
+                                        <p className="text-[10px] text-zinc-500">Nouveaux sondages et résultats</p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={prefs.polls}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ polls: checked })}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            {isAdmin && (
+                                <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-zinc-400/5 group hover:border-zinc-300/30 transition-all duration-300">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-zinc-400/10 flex items-center justify-center">
+                                            <ShieldCheck className="w-5 h-5 text-zinc-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-zinc-200">Alertes Admin</p>
+                                            <p className="text-[10px] text-zinc-500">Validations de missions en attente</p>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={prefs.admin_validations}
+                                        onCheckedChange={(checked) => handleUpdatePrefs({ admin_validations: checked })}
+                                        disabled={loading}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

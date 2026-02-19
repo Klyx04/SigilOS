@@ -33,7 +33,11 @@ export type AuditAction =
     | "MISSION_REJECTED"      // Admin rejected a member submission
     | "MISSION_PUBLISH_DISCORD" // Admin published weekly mission notification to Discord
     | "BONUS_PURCHASED"       // Member purchased a guild bonus
-    | "BONUS_CANCELLED";      // Member cancelled a pending bonus
+    | "BONUS_CANCELLED"       // Member cancelled a pending bonus
+    | "POLL_CREATED"          // Poll created
+    | "POLL_CLOSED"           // Poll closed
+    | "POLL_DELETED"          // Poll deleted
+    | "POLL_CREATOR_ROLE_ACQUIRED"; // Member took the guild micro
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -46,7 +50,8 @@ export type AuditTargetType =
     | "PLATFORM_SECURITY"
     | "USER"
     | "MISSION"
-    | "GUILD";
+    | "GUILD"
+    | "POLL";
 
 export type AuditLogEntry = {
     id: string;

@@ -337,6 +337,9 @@ model UserProfile {
   givenCredits    HelpCredit[] @relation("GivenCredits")
   receivedCredits HelpCredit[] @relation("ReceivedCredits")
 
+  // Onboarding
+  hasSeenWelcome Boolean @default(false)
+
   @@unique([userId, guildId])
 }
 

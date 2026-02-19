@@ -34,8 +34,27 @@ export function DocViewer({
     guildId?: string | null
 }) {
     const [headings, setHeadings] = React.useState<{ id: string; text: string; level: number }[]>([]);
+    const [activeId, setActiveId] = React.useState<string | null>(null);
     const [scrollProgress, setScrollProgress] = React.useState(0);
     const [isWide, setIsWide] = React.useState(false);
+
+    React.useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setActiveId(entry.target.id);
+                    }
+                });
+            },
+            { rootMargin: "-80px 0% -80% 0%" }
+        );
+
+        const headingElements = document.querySelectorAll("article h2, article h3");
+        headingElements.forEach((el) => observer.observe(el));
+
+        return () => observer.disconnect();
+    }, [content]);
 
     React.useEffect(() => {
         const handleScroll = () => {
@@ -51,10 +70,10 @@ export function DocViewer({
     React.useEffect(() => {
         // Extract headings from HTML content
         const parser = new DOMParser();
-        const doc = parser.parseFromString(content, 'text/html');
-        const headingElements = doc.querySelectorAll('h2, h3');
+        const docContent = parser.parseFromString(content, 'text/html');
+        const headingElements = docContent.querySelectorAll('h2, h3');
 
-        const extracted = Array.from(headingElements).map((el, index) => {
+        const extracted = Array.from(headingElements).map((el) => {
             const text = el.textContent || "";
             // Generate a slug if ID doesn't exist
             const id = el.id || text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
@@ -136,7 +155,9 @@ export function DocViewer({
                                         href={`#${heading.id}`}
                                         className={cn(
                                             "text-sm py-1.5 px-3 rounded-lg border border-transparent transition-all",
-                                            "text-zinc-400 hover:text-white hover:bg-white/5",
+                                            activeId === heading.id
+                                                ? "text-teal-400 bg-teal-500/10 font-bold border-teal-500/20"
+                                                : "text-zinc-400 hover:text-white hover:bg-white/5",
                                             heading.level === 3 && "ml-4 text-zinc-500 border-l border-white/5 rounded-l-none"
                                         )}
                                     >

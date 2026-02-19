@@ -41,7 +41,7 @@ export function HeroSection() {
                     className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-white font-heading"
                 >
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-emerald-400">
-                        Votre Guilde mérite mieux qu&apos;un tableur excel.
+                        Maîtrisez votre destin, <br /> Guidez votre Guilde vers la <span className="italic">Légende.</span>
                     </span>
                 </motion.h1>
 
@@ -52,9 +52,10 @@ export function HeroSection() {
                     transition={{ duration: 0.7, delay: 0.4 }}
                     className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
                 >
-                    SigilOS centralise vos missions, vos membres et vos données Ocre dans une interface premium.
+                    SigilOS est le grimoire numérique ultime pour les chefs de guilde exigeants.
+                    Centralisez vos missions, suivez l'Ocre et gérez vos membres avec la précision d'un Xélor.
                     <br className="hidden md:block" />
-                    Automatisez la gestion, vivez l&apos;aventure.
+                    Moins de tableurs, plus de victoires.
                 </motion.p>
 
                 {/* Beta Gate Component & Directory Link */}

@@ -122,6 +122,7 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 lastActivityAt: profile.lastActivityAt?.toISOString() || null,
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
+                hasSeenWelcome: profile.hasSeenWelcome,
                 pendingSubmission: pendingSubmission ? {
                     id: pendingSubmission.id,
                     points: pendingSubmission.points,

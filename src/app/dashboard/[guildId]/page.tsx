@@ -31,6 +31,7 @@ import { Suspense } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { StatProgress } from "./_components/stat-progress";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
+import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 
 export default async function DashboardPage({
     params,
@@ -78,6 +79,11 @@ export default async function DashboardPage({
             <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
             <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
 
+            {/* Onboarding Welcome Modal (Admins only) */}
+            {user.isAdmin && profile && !profile.hasSeenWelcome && (
+                <WelcomeModal guildId={guildId} show={true} />
+            )}
+
             <div className="relative z-10 p-4 md:p-6 space-y-10 max-w-[1600px] mx-auto">
 
                 {/* --- HEADER LAYER : IDENTITY & PRESENCE --- */}
@@ -93,17 +99,13 @@ export default async function DashboardPage({
                     </div>
                 </header>
 
-                {/* --- 1. THE ECHO (Intelligence Focus) --- */}
-                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-                    <EchoDuSigil data={focusData} />
-                </section>
-
                 {/* --- ONBOARDING LAYER (Admin & Member) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
                     {user.isAdmin && (
                         <div className="md:col-span-12">
                             <OnboardingBanner
                                 guildId={guildId}
+                                guideHref={`/dashboard/${guildId}/admin/getting-started`}
                                 steps={[
                                     { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
                                     { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.missionsValidatedThisWeek ?? 0) > 0, icon: "scroll-text" },
@@ -129,6 +131,11 @@ export default async function DashboardPage({
                         </div>
                     )}
                 </div>
+
+                {/* --- 1. THE ECHO (Intelligence Focus) --- */}
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                    <EchoDuSigil data={focusData} />
+                </section>
 
                 {/* --- 2. BENTO GRID 2.0 --- */}
                 <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">

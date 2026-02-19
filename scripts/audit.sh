@@ -52,9 +52,13 @@ if [ ! -z "$CONTAINER_APP" ]; then
     CONTAINER_REDIS=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-redis" | head -n 1)
     if [ ! -z "$CONTAINER_REDIS" ]; then
         # Récupérer le mot de passe Redis depuis l'app
-        REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_URL | cut -d':' -f3 | cut -d'@' -f1)
-        # Si REDIS_URL n'a pas le format complet, on peut essayer REDIS_PASSWORD s'il existe
-        [ -z "$REDIS_PASS" ] && REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_PASSWORD | cut -d'=' -f2)
+        REDIS_URL_VAL=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_URL | cut -d'=' -f2-)
+        if [[ "$REDIS_URL_VAL" == *":"* && "$REDIS_URL_VAL" == *"@"* ]]; then
+            # Format: redis://:password@host:port
+            REDIS_PASS=$(echo "$REDIS_URL_VAL" | cut -d':' -f3 | cut -d'@' -f1)
+        else
+            REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_PASSWORD | cut -d'=' -f2)
+        fi
 
         if [ ! -z "$REDIS_PASS" ]; then
             REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli -a "$REDIS_PASS" ping 2>/dev/null)

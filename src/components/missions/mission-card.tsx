@@ -285,7 +285,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                 )} />
 
                 {/* Left Column: Image Cutout */}
-                <div className="w-[40%] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5">
+                <div className="w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5 p-4 bg-black/20">
                     {/* Background Light behind Creature */}
                     <div className={cn(
                         "absolute inset-0 opacity-20 blur-2xl rounded-full scale-110",
@@ -298,13 +298,11 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                 src={imageUrl}
                                 alt="Subject"
                                 fill
-                                className="object-cover"
+                                className="object-contain"
                                 unoptimized={true}
                             />
                             {/* Cinematic Overlay: Gradient Fade to Right */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1c20]/80 z-10" />
-                            {/* Inner depth shadow */}
-                            <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.4)] z-10" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1c20]/40 z-10" />
                         </div>
                     ) : (
                         <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center">

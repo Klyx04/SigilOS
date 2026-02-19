@@ -9,14 +9,15 @@ import { detectMimeType, validateMagicBytes, MAX_FILE_SIZE, ALLOWED_MIME_TYPES }
 export async function POST(req: NextRequest) {
     const session = await auth();
 
-    // 1. Security Check
-    // In a real app, strict admin check. 
-    // Here we check if user is logged in, and ideally admin, but let's stick to auth() for now.
-    // The previously used 'getUserContext' is a server action, might be harder to use in Route Handler without context.
-    // We'll trust session existence + maybe a quick DB check if we want to be strict, 
-    // but for now, let's assume if they can access the editor, they are admins.
     if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 🛡️ SECURITY HARDENING: Only super-admins can upload docs
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const superAdmin = await isSuperAdmin();
+    if (!superAdmin) {
+        return NextResponse.json({ error: "Forbidden: Super-admin access required" }, { status: 403 });
     }
 
     try {

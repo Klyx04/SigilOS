@@ -50,37 +50,37 @@ const CreateWeekSchema = z.object({
 
 async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
     try {
-        const { fetchGuild } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-
-        if (!guildInfo) {
-            logger.error("[Notification] Guild info not found", { guildId });
-            return;
-        }
-        if (!guildInfo.owner_id) {
-            logger.error("[Notification] Guild owner_id missing", { guildId });
-            return;
-        }
-
-        // Find owner user internally
-        const account = await db.account.findFirst({
-            where: {
-                provider: "discord",
-                providerAccountId: guildInfo.owner_id
-            },
-            select: { userId: true }
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
         });
 
-        if (account) {
-            await createNotification(
-                account.userId,
+        if (!guild) return;
+
+        // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
+        // We first get the guild's roles mapping to see which roles have this perm
+        const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
+        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_VALIDATE);
+
+        if (validators.length === 0) {
+            logger.warn(`[Notification] No validators found for guild ${guildId}`);
+            return;
+        }
+
+        // 2. Notify all of them (granular prefs will be checked in createNotification)
+        const notificationPromises = validators.map(v =>
+            createNotification(
+                v.userId,
                 "NEW_SUBMISSION_PENDING",
                 title,
                 message,
                 link,
-                guildId
-            );
-        }
+                guildId,
+                "ADMIN_ALERT"
+            )
+        );
+
+        await Promise.all(notificationPromises);
     } catch (e) {
         logger.error("Notify Validators Error", { error: e });
     }

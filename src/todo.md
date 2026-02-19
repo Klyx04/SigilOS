@@ -136,13 +136,17 @@
 
 ### Module Service Passages DJ/Succès/Prêts/Pack
 
-### Vote/Sondage
-- [ ] Module en lecture seule pour tous sauf admin discord : 
-- récupération d'un rôle écrit en dur (non discord) type PIM (role créateur-vote ou un truc comme ca) pendant 1h par exemple , loggé biensur avec timer perte de rôle dans X
-- a le droit de générér un vote/sondage , full fonctionnalité best practices etat de l'art , mention everyone/role au choix
-- catégorie de sondage : suggestions/améliorations/events/missions/autres
-- prévisu du sondage , envoi vers discord en option via un embed superbe avec bouton et tout ce qu'il faut pour que les gens votent (sécurisé qui peut voter), temps de sondage avec suppression auto après X temps
-ce module doit etre une vrai valeur ajoutée 
+### Vote/Sondage [x]
+- [x] Premium Polish UI (Wow effect)
+- [x] Fix runtime error on creator modal
+- [x] Sondages Rework & PIM System
+    - [x] Implement PIM role acquisition (1h exclusivity)
+    - [x] Implement 7-day category cooldown
+    - [x] Add default publication channel in Admin Settings
+    - [x] Widen Creator Modal & Refine Sharing UI
+    - [x] Add PIM Status Bar & Countdown to PollList
+    - [x] Fix hydration error in EventDetailModal
+    - [x] Fix 500 error on dashboard (missing checkCanCreatePoll export)
 
 
 ### Profil Utilisateur

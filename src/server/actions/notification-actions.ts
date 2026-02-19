@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { NotificationType } from "@prisma/client";
+import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // --- Types ---
@@ -12,10 +12,27 @@ export type Notification = {
     title: string;
     message: string;
     type: NotificationType;
+    category: NotificationCategory;
     read: boolean;
     link: string | null;
     createdAt: Date;
 };
+
+// --- Helpers ---
+
+/**
+ * Infer category from notification type or content for legacy support
+ */
+function inferCategory(type: NotificationType, title: string): NotificationCategory {
+    if (["MISSION_VALIDATED", "MISSION_REJECTED"].includes(type)) return "MISSION";
+    if (["ACHIEVEMENT_VALIDATED", "ACHIEVEMENT_REJECTED"].includes(type)) return "SUCCESS";
+    if (type === "NEW_SUBMISSION_PENDING") return "ADMIN_ALERT";
+    if (type === "SONGES_JOIN_REQUEST" || title.toLowerCase().includes("songes")) return "SONGES";
+    if (type === "EVENT_REMINDER" || title.toLowerCase().includes("rappel") || title.toLowerCase().includes("event")) return "EVENT";
+    if (type === "POLL_CREATED" || type === "POLL_CLOSED" || title.toLowerCase().includes("sondage")) return "POLL";
+    if (type === "SYSTEM_INFO") return "SYSTEM";
+    return "SYSTEM";
+}
 
 // --- Actions ---
 
@@ -32,7 +49,7 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
             orderBy: { createdAt: "desc" }
         });
 
-        return { success: true, data: notifications };
+        return { success: true, data: notifications as Notification[] };
     } catch (error) {
         console.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -48,7 +65,7 @@ export async function markAsRead(notificationId: string) {
             where: { id: notificationId, userId: session.user.id },
             data: { read: true }
         });
-        revalidatePath("/"); // Ideally revalidate where widget is used
+        revalidatePath("/");
     } catch (error) {
         console.error("Mark Read Error:", error);
     }
@@ -79,14 +96,16 @@ export async function createNotification(
     title: string,
     message: string,
     link?: string,
-    guildId?: string // This should ideally be the Discord Guild ID for lookup
+    guildId?: string,
+    category?: NotificationCategory
 ) {
     try {
+        const finalCategory = category || inferCategory(type, title);
+
         // 1. Check Preferences if guildId is provided
         if (guildId) {
-            // Find internal guild ID first if discordId was provided
             let internalGuildId = guildId;
-            if (guildId.length > 15) { // Likely a Discord ID
+            if (guildId.length > 15) { // Discord ID lookup
                 const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
                 if (guild) internalGuildId = guild.id;
             }
@@ -99,23 +118,13 @@ export async function createNotification(
             if (profile?.notificationPrefs) {
                 const prefs = profile.notificationPrefs as any;
 
-                // --- Logic: Block if preference is explicitly set to false ---
-
-                // Missions Category
-                const isMission = ["MISSION_VALIDATED", "MISSION_REJECTED", "NEW_SUBMISSION_PENDING"].includes(type);
-                if (isMission && prefs.missions === false) return;
-
-                // Songes Category
-                const isSonges = ["SONGES_JOIN_REQUEST", "SYSTEM_INFO"].includes(type) && (title.includes("Songes") || title.includes("candidature"));
-                if (isSonges && prefs.songes === false) return;
-
-                // Events Category
-                const isEvent = ["EVENT_REMINDER", "EVENT_INVITATION"].includes(type) || (type === "SYSTEM_INFO" && (title.includes("Rappel") || title.includes("Event")));
-                if (isEvent && prefs.events === false) return;
-
-                // Ladder Category
-                const isLadder = type === "SYSTEM_INFO" && (title.includes("Ladder") || title.includes("rang"));
-                if (isLadder && prefs.ladder === false) return;
+                // Stop if preference is explicitly false
+                if (finalCategory === "MISSION" && prefs.missions === false) return;
+                if (finalCategory === "SUCCESS" && prefs.success === false) return;
+                if (finalCategory === "SONGES" && prefs.songes === false) return;
+                if (finalCategory === "EVENT" && prefs.events === false) return;
+                if (finalCategory === "POLL" && prefs.polls === false) return;
+                if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
             }
         }
 
@@ -124,6 +133,7 @@ export async function createNotification(
             data: {
                 userId,
                 type,
+                category: finalCategory,
                 title,
                 message,
                 link: link || null

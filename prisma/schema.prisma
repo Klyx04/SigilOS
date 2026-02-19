@@ -135,6 +135,10 @@ model GuildConfig {
   missionNotifyChannelId String? // Discord channel ID for mission notifications
   missionNotifyRoleId    String? // Discord role ID to ping for mission notifications
 
+  // Polls Module Configuration
+  pollsNotifyChannelId String? // Discord channel ID for poll notifications
+  pollsNotifyRoleId    String? // Discord role ID to ping for poll notifications
+
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
   presentationHistory      String?   @db.Text // Guild history (Markdown, emojis allowed)
@@ -170,6 +174,10 @@ model GuildConfig {
   achievementSubmissions AchievementSubmission[]
   guildBonuses           GuildBonus[]
   modules                GuildModules?
+
+  // Sondages & Custom Roles
+  polls      Poll[]
+  sigilRoles SigilRole[]
 }
 
 // -- Guild Modules (Feature Flags) --
@@ -319,6 +327,11 @@ model UserProfile {
   achievementSubmissions AchievementSubmission[]
   guildBonuses           GuildBonus[] // Bonuses purchased by this user
 
+  // Sondages & Custom Roles
+  polls      Poll[]      @relation("PollCreator")
+  pollVotes  PollVote[]
+  roleGrants SigilRoleGrant[]
+
   // DofusBook Integration
   dofusBookLinks Json? // [{ id, url, name }]
 
@@ -466,6 +479,8 @@ model Dungeon {
   @@index([isExpedition])
 }
 
+
+
 model Zone {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -612,22 +627,38 @@ enum NotificationType {
   SYSTEM_INFO
   SONGES_JOIN_REQUEST // New candidature for Songes run
   EVENT_REMINDER // Event reminder notification
+  POLL_CREATED
+  POLL_CLOSED
+  ACHIEVEMENT_VALIDATED
+  ACHIEVEMENT_REJECTED
+}
+
+enum NotificationCategory {
+  MISSION
+  SUCCESS
+  SONGES
+  EVENT
+  POLL
+  ADMIN_ALERT
+  SYSTEM
 }
 
 model Notification {
-  id      String           @id @default(cuid())
-  userId  String
-  title   String
-  message String
-  type    NotificationType
-  read    Boolean          @default(false)
-  link    String? // Optional redirection link
+  id       String               @id @default(cuid())
+  userId   String
+  title    String
+  message  String
+  type     NotificationType
+  category NotificationCategory @default(SYSTEM)
+  read     Boolean              @default(false)
+  link     String? // Optional redirection link
 
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([category])
 }
 
 // -- SONGES MODULE --
@@ -1124,4 +1155,132 @@ enum ChangelogCategory {
   SECURITY     // Security improvements
   PERFORMANCE  // Performance optimizations
   DOCUMENTATION // Documentation updates
+}
+
+// -- CUSTOM SIGILOS ROLES (Independent of Discord) --
+// Future-proof role system: works even if Discord API changes.
+// First role: "poll-creator" for Sondages module PIM.
+
+model SigilRole {
+  id      String @id @default(cuid())
+  guildId String
+
+  slug        String  // e.g. "poll-creator", "event-organizer"
+  label       String  // e.g. "Créateur de Sondages"
+  description String?
+  color       String? // Hex color for display (e.g. "#06b6d4")
+  icon        String? // Emoji or Lucide icon name
+
+  // Which permissions this role grants
+  permissions String[] // e.g. ["polls:create"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild  GuildConfig      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  grants SigilRoleGrant[]
+
+  @@unique([guildId, slug])
+  @@index([guildId])
+}
+
+model SigilRoleGrant {
+  id        String @id @default(cuid())
+  roleId    String
+  profileId String
+
+  grantedBy String    // profileId of admin who granted
+  grantedAt DateTime  @default(now())
+  expiresAt DateTime? // null = permanent, otherwise temporary
+  revokedAt DateTime? // null = active
+
+  role    SigilRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, profileId])
+  @@index([profileId])
+  @@index([expiresAt])
+}
+
+// -- SONDAGES (POLLS) MODULE --
+
+enum PollCategory {
+  SUGGESTION
+  AMELIORATION
+  EVENT
+  MISSION
+  AUTRE
+}
+
+enum PollStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
+model Poll {
+  id      String @id @default(cuid())
+  guildId String
+
+  title       String
+  description String?    @db.Text
+  category    PollCategory
+  status      PollStatus @default(DRAFT)
+
+  creatorId   String  // UserProfile.id
+  creatorName String  // Snapshot of creator name at creation
+
+  // Configuration
+  allowMultipleVotes Boolean @default(false) // Multiple options selectable
+  isAnonymous        Boolean @default(false) // Anonymous votes
+
+  // Discord Integration
+  discordMessageId String? // ID of the embed message
+  discordChannelId String? // Target channel
+  mentionEveryone  Boolean @default(false)
+  mentionRoleId    String? // Discord role ID to mention
+
+  // Duration
+  expiresAt DateTime? // null = no auto-expiry
+  closedAt  DateTime? // Filled when CLOSED/CANCELLED
+  outcome   String?   @db.Text // Final decision/summary
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator UserProfile @relation("PollCreator", fields: [creatorId], references: [id])
+  options PollOption[]
+
+  @@index([guildId, status])
+  @@index([expiresAt])
+}
+
+model PollOption {
+  id     String  @id @default(cuid())
+  pollId String
+  label  String
+  order  Int     @default(0)
+  emoji  String? // e.g. "✅" or "🔴"
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id       String @id @default(cuid())
+  optionId String
+  voterId  String // UserProfile.id
+
+  createdAt DateTime @default(now())
+
+  option PollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  voter  UserProfile @relation(fields: [voterId], references: [id])
+
+  @@unique([optionId, voterId]) // 1 vote per option per member
+  @@index([optionId])
+  @@index([voterId])
 }

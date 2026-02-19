@@ -246,6 +246,32 @@ export async function fetchChannel(channelId: string) {
 }
 
 /**
+ * Fetch all channels for a guild (text, voice, categories, etc.)
+ */
+export async function fetchGuildChannels(guildId: string): Promise<{ id: string; name: string; type: number; position: number }[]> {
+    const cacheKey = `guild_channels:${guildId}`;
+    const cached = getCached<{ id: string; name: string; type: number; position: number }[]>(cacheKey);
+    if (cached) return cached;
+
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+        headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
+    });
+
+    if (!res.ok) throw new Error(`Failed to fetch guild channels: ${res.statusText}`);
+
+    const channels = (await res.json()) as { id: string; name: string; type: number; position: number }[];
+    // Sort by position
+    const sorted = [...channels].sort((a, b) => a.position - b.position);
+    setCached(cacheKey, sorted, 60_000); // 1 min cache
+    return sorted;
+}
+
+
+/**
  * SECURITY: Validate that a channel belongs to the specified guild
  * Prevents cross-guild message injection attacks
  */

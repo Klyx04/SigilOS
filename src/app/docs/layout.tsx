@@ -43,7 +43,7 @@ export default async function DocsLayout({
 
                 <main className="flex-1 flex flex-col items-center justify-center p-6 text-center relative">
                     <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(168,85,247,0.1),transparent_50%)] pointer-events-none" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.1),transparent_50%)] pointer-events-none" />
 
                     <div className="relative z-10 max-w-2xl">
                         <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-red-500/20 to-rose-500/10 border border-red-500/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/20 group">
@@ -75,7 +75,7 @@ export default async function DocsLayout({
                     </div>
                 </main>
 
-                <GalacticFooter />
+                <GalacticFooter isMember={false} />
             </div>
         );
     }
@@ -95,7 +95,7 @@ export default async function DocsLayout({
     const categories = Object.keys(groupedDocs).sort();
 
     return (
-        <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-accent-teal/30 flex flex-col">
+        <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-accent-teal/30 flex flex-col landing-theme">
             <PublicHeader
                 user={session?.user ? { ...session.user, emailVerified: null } as any : undefined}
                 isMember={user.isMember}
@@ -178,7 +178,7 @@ export default async function DocsLayout({
                 </main>
             </div>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={true} />
         </div>
     );
 }

@@ -21,10 +21,10 @@ export function PreFooterCta() {
                         </p>
                         <Button
                             size="lg"
-                            className="h-16 px-12 rounded-full bg-accent-teal text-bg-primary hover:bg-accent-teal/90 font-bold uppercase tracking-widest teal-glow transition-transform hover:scale-105 active:scale-95 text-sm"
+                            className="h-16 px-12 rounded-2xl bg-white text-black hover:scale-105 active:scale-95 font-black uppercase tracking-[0.2em] transition-all shadow-2xl shadow-white/10 text-[10px]"
                             onClick={() => loginWithDiscord()}
                         >
-                            Rejoindre SigilOS
+                            Démarrer l&apos;Aventure SigilOS
                         </Button>
                         <p className="mt-8 text-zinc-600 text-[10px] font-bold uppercase tracking-[0.2em]">
                             Intégration Discord instantanée

@@ -70,8 +70,8 @@ export default function GODChangelogPage() {
     };
 
     async function handleSubmit() {
-        if (!form.version || !form.title || !form.content) {
-            toast.error('Version, titre et contenu sont requis');
+        if (!form.version || !form.title || !form.summary || !form.content) {
+            toast.error('Version, titre, résumé et contenu sont requis');
             return;
         }
 
@@ -294,6 +294,17 @@ export default function GODChangelogPage() {
                                                 >
                                                     {form.isInternal ? '🔒 Interne uniquement (membres connectés)' : '🌍 Public (visible par tous)'}
                                                 </button>
+                                            </div>
+
+                                            {/* 📝 Summary Field */}
+                                            <div className="md:col-span-3 space-y-2 pt-4">
+                                                <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Résumé Marketing (Public)</Label>
+                                                <Input
+                                                    value={form.summary}
+                                                    onChange={e => handleChange('summary', e.target.value)}
+                                                    placeholder="Une phrase courte pour l'accueil et le public..."
+                                                    className="h-14 bg-zinc-900/50 border-white/10 rounded-2xl px-6 text-zinc-300 italic"
+                                                />
                                             </div>
                                         </div>
                                     </div>

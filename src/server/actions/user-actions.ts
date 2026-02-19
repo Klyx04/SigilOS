@@ -34,6 +34,15 @@ export type UserContext = {
     canManageCalendar: boolean;
     canViewAdminDocs: boolean;
     canManageMembers: boolean;
+    canViewDashboard: boolean;
+    canViewPresentation: boolean;
+    canViewStats: boolean;
+    canViewServices: boolean;
+    canViewFinder: boolean;
+    canViewPolls: boolean;
+    canManagePolls: boolean;
+    canViewDocs: boolean;
+    canViewProfile: boolean;
     isAdmin: boolean;
     isMember: boolean;
     profileId?: string;
@@ -76,21 +85,57 @@ export async function validateGuildOwnership(userId: string, discordGuildId: str
 export async function getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
 
-    if (!session?.user?.id) {
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
-    }
+    // Default context for non-authenticated or base cases
+    const baseContext: UserContext = {
+        isAuthenticated: !!session?.user?.id,
+        isAdmin: false,
+        isMember: false,
+        isCapacityFull: false,
+        canViewMissions: false,
+        canManageMissions: false,
+        canValidateMissions: false,
+        canManageBonus: false,
+        canViewRoster: false,
+        canViewSonges: false,
+        canCreateSonges: false,
+        canJoinSonges: false,
+        canViewArchis: false,
+        canViewPolls: false,
+        canManagePolls: false,
+        canViewLadder: false,
+        canEditPresentation: false,
+        canViewCalendar: false,
+        canManageCalendar: false,
+        canViewAdminDocs: false,
+        canViewPresentation: false,
+        canViewDashboard: false,
+        canViewStats: false,
+        canViewServices: false,
+        canViewFinder: false,
+        canViewDocs: false,
+        canViewProfile: false,
+        canManageMembers: false,
+    };
 
-    // If targetGuildId is not provided, use the default from environment variables
-    // This allows for a default guild context if the user doesn't specify one.
+    if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
+
+    // Common data for authenticated users (to avoid crashes in TopNav/NotificationBell)
+    const authPartial = {
+        isAuthenticated: true,
+        id: session.user.id,
+        name: session.user.name || "Voyageur",
+        image: session.user.image || undefined,
+    };
+
     const effectiveGuildId = targetGuildId || process.env.DISCORD_GUILD_ID;
-    if (!effectiveGuildId) return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
+    if (!effectiveGuildId) return { ...baseContext, ...authPartial };
 
     // --- SECURITY: DEEP WHITELIST CHECK (Database-based) ---
     const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
     const allowed = await isGuildAllowed(effectiveGuildId);
     if (!allowed) {
         logger.warn(`[Security] Blocked access to unauthorized guild: ${effectiveGuildId}`);
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
+        return { ...baseContext, isAuthenticated: false };
     }
 
     // 1. Get Guild Config for Mappings
@@ -100,7 +145,6 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
     }) as any;
 
     // 2. Fetch User's Roles from Discord
-    // We need the Discord Provider Account ID, not the internal User ID
     const account = await db.account.findFirst({
         where: {
             userId: session.user.id,
@@ -109,10 +153,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         select: { providerAccountId: true }
     });
 
-    if (!account) {
-        // User has no connected discord account? Should happen rarely if logged in via Discord
-        return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
-    }
+    if (!account) return { ...baseContext, ...authPartial };
 
     const discordUserId = account.providerAccountId;
 
@@ -122,14 +163,13 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
     });
     if (platformBan && platformBan.entityType === "USER") {
         logger.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
-        return { isAuthenticated: false, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
+        return { ...baseContext, isAuthenticated: false };
     }
 
     const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
     const isGod = await isSuperAdmin();
 
     // --- ENSURE USER PROFILE EXISTS ---
-    // If user is logged in and in a valid guild, they should have a profile
     let profile = await db.userProfile.findUnique({
         where: {
             userId_guildId: {
@@ -139,16 +179,11 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         }
     });
 
-    // Profile creation/update will happen after we fetch Discord member data
-    // to ensure discordJoinedAt is properly set
-
-    // Parallelize Discord API calls for performance
     const token = process.env.DISCORD_BOT_TOKEN;
-
     const [memberRes, guildInfo, allRoles] = await Promise.all([
         fetch(`https://discord.com/api/v10/guilds/${effectiveGuildId}/members/${discordUserId}`, {
             headers: { Authorization: `Bot ${token}` },
-            cache: 'no-store' // No cache - always check live membership status for security
+            cache: 'no-store'
         }).catch(() => ({ ok: false, status: 500 } as Response)),
         fetchGuild(effectiveGuildId).catch(() => null),
         fetchGuildRoles(effectiveGuildId, { excludeManaged: false }).catch(() => [])
@@ -158,147 +193,66 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
     let myRoles: any[] = [];
     let roleColor = 0;
     let roleName = "Membre";
-
     let displayName = session.user.name || "Voyageur";
     let member: any = null;
 
     if (memberRes.ok) {
         member = await memberRes.json();
         memberRoles = member.roles;
+        if (member.nick) displayName = member.nick;
+        else if (member.user?.global_name) displayName = member.user.global_name;
+        else if (member.user?.username) displayName = member.user.username;
 
-        // Prioritize Server Nickname > Global Name > Username
-        if (member.nick) {
-            displayName = member.nick;
-        } else if (member.user?.global_name) {
-            displayName = member.user.global_name;
-        } else if (member.user?.username) {
-            displayName = member.user.username;
-        }
-
-        // Find user's roles in allRoles (which are sorted by position DESC)
         myRoles = allRoles.filter(r => memberRoles.includes(r.id));
-
         if (myRoles.length > 0) {
-            const topRole = myRoles[0]; // First one is highest position
+            const topRole = myRoles[0];
             roleName = topRole.name;
             roleColor = topRole.color;
         }
 
-        // --- OVERRIDES ---
-        // 1. Admin Override (if no specific role name was found or just "Membre")
         if (roleName === "Membre") {
-            // Check for Administrator permission (0x8) in any role
             const isAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
             if (isAdmin) {
                 roleName = "Administrateur";
-                roleColor = 0x5865F2; // Discord Blurple
+                roleColor = 0x5865F2;
             }
         }
     }
 
-    // --- AUTO-ARCHIVE: If user is no longer in Discord guild but has active profile ---
-    // This handles the case where user left Discord but session is still valid
+    // --- AUTO-ARCHIVE ---
     if (guildConfig && !memberRes.ok && profile && profile.status === "ACTIVE") {
-        // 404 = Member not found in guild = they left, were kicked, or banned
         if (memberRes.status === 404) {
-            // Check if user is banned
-            let isBanned = false;
-            try {
-                const banRes = await fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/bans/${discordUserId}`, {
-                    headers: { Authorization: `Bot ${token}` }
-                });
-                isBanned = banRes.ok; // 200 = banned, 404 = not banned
-            } catch {
-                // If ban check fails, assume not banned
-            }
-
-            if (isBanned) {
-                logger.info(`[UserContext] Member ${session.user.id} is BANNED from guild ${guildConfig.id}`);
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "BANNED",
-                        archivedAt: new Date(),
-                        archiveReason: "BANNED",
-                        // --- GDPR WIPE (Suppression des données lourdes) ---
-                        pseudoDofus: "Utilisateur banni",
-                        discordNickname: "Banni",
-                        metamobPseudo: null,
-                        metamobVerified: false,
-                        altPseudos: Prisma.JsonNull,
-                        availability: Prisma.JsonNull,
-                        vacationStart: null,
-                        vacationEnd: null,
-                        vacationNotify: false,
-                        succes: Prisma.JsonNull,
-                        metiers: Prisma.JsonNull,
-                        classeSecondaires: Prisma.JsonNull,
-                        dofusBookLinks: Prisma.JsonNull,
-                        lastActivityDesc: "Compte banni pour violation des règles du serveur. Données nettoyées."
-                    }
-                });
-            } else {
-                logger.info(`[UserContext] Member ${session.user.id} left guild ${guildConfig.id}, archiving profile`);
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
-            }
-
-            // Return as non-member (Except if God)
-            if (!isGod) {
-                return { isAuthenticated: true, isAdmin: false, isMember: false, canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false, isCapacityFull: false };
-            }
+            if (!isGod) return { ...baseContext, isAuthenticated: true, isMember: false };
         }
     }
 
-    // --- ENSURE USER PROFILE EXISTS AND IS UP-TO-DATE ---
-    // Now that we have member data, create or update the profile with Discord info
+    // --- CAPACITY CHECK ---
     if (guildConfig && memberRes.ok && member) {
-        const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
-        const now = new Date();
-
-        // 1. CAPACITY CHECK: Only block if user is NOT already ACTIVE 
-        // (existing members should never be locked out)
         if (!profile || profile.status !== "ACTIVE") {
             const activeMemberCount = await db.userProfile.count({
-                where: {
-                    guildId: guildConfig.id,
-                    status: "ACTIVE"
-                }
+                where: { guildId: guildConfig.id, status: "ACTIVE" }
             });
-
-            // Use the dynamic limit from DB or default to 350
             const maxMembers = (guildConfig as any).maxMembers || 350;
 
             if (activeMemberCount >= maxMembers) {
-                logger.warn(`[Capacity] Blocked onboarding for user ${session.user.id} in guild ${guildConfig.id}: Capacity Reached (${activeMemberCount}/${maxMembers})`);
                 return {
+                    ...baseContext,
                     isAuthenticated: true,
                     id: session.user.id,
                     name: displayName,
-                    isAdmin: false,
-                    isMember: true, // They are in Discord, but restricted in Sigil
-                    isCapacityFull: true,
-                    canViewMissions: false, canManageMissions: false, canValidateMissions: false, canManageBonus: false, canViewRoster: false, canViewSonges: false, canCreateSonges: false, canJoinSonges: false, canViewArchis: false, canViewLadder: false, canEditPresentation: false, canViewCalendar: false, canManageCalendar: false, canViewAdminDocs: false, canManageMembers: false
+                    isMember: true,
+                    isCapacityFull: true
                 };
             }
         }
 
-        // If no profile or ARCHIVED, we use upsert to handle race conditions atomically
+        // Upsert Profile
+        const now = new Date();
+        const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
         if (!profile || profile.status === "ARCHIVED") {
             try {
                 profile = await db.userProfile.upsert({
-                    where: {
-                        userId_guildId: {
-                            userId: session.user.id,
-                            guildId: guildConfig.id
-                        }
-                    },
+                    where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
                     create: {
                         userId: session.user.id,
                         guildId: guildConfig.id,
@@ -321,10 +275,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
                         lastActivityAt: now,
                     }
                 });
-                logger.info(`[UserContext] Profile synchronized for ${session.user.id}`, { guildId: guildConfig.id });
             } catch (e) {
-                logger.error("[UserContext] Failed to sync profile:", { error: e instanceof Error ? e.message : String(e) });
-                // Fallback: try to fetch it one last time if upsert failed weirdly
                 if (!profile) {
                     profile = await db.userProfile.findUnique({
                         where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
@@ -332,93 +283,50 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
                 }
             }
         } else {
-            // Profile exists and is ACTIVE. 
-            // We keep the throttle logic (1 hour) to avoid unnecessary DB writes on every page load.
-            const cacheAge = profile.discordCacheUpdatedAt
-                ? now.getTime() - new Date(profile.discordCacheUpdatedAt).getTime()
-                : Infinity;
-
-            const shouldUpdateCache = cacheAge > 60 * 60 * 1000; // 1 hour
-
-            // Always update lastActivityAt and fix missing discordJoinedAt
-            const needsJoinedAtFix = !profile.discordJoinedAt && joinedAt;
-
-            if (shouldUpdateCache || needsJoinedAtFix) {
-                try {
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: {
-                            discordNickname: displayName,
-                            discordRoleName: roleName,
-                            discordRoleColor: roleColor,
-                            discordJoinedAt: joinedAt || profile.discordJoinedAt, // Don't overwrite with null
-                            discordCacheUpdatedAt: now,
-                            lastActivityAt: now,
-                        }
-                    });
-                } catch (e) {
-                    console.error("[UserContext] Failed to update profile cache:", e);
-                }
-            } else {
-                // Just update lastActivityAt for tracking
-                try {
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: { lastActivityAt: now }
-                    });
-                } catch {
-                    // Silent fail for activity tracking
-                }
-            }
+            // Update last activity
+            try {
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { lastActivityAt: now }
+                });
+            } catch { }
         }
     }
 
-    // 3. Check Permissions
+    // 3. Permissions
     const mapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
-
-    // Collect all perms from all roles
     const myPerms = new Set<PermissionId>();
     memberRoles.forEach(rId => {
         const perms = mapping[rId];
         if (perms) perms.forEach(p => myPerms.add(p));
     });
 
-
-    // Fallback: If user has Discord "ADMINISTRATOR" permission (0x8), they are Admin.
-    // This prevents lockout before roles are mapped.
     const hasDiscordAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
     const isAdmin = myPerms.has(PERMISSIONS.ADMIN_ACCESS) || hasDiscordAdmin;
 
-    // Missions Permissions
     const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
     const canManageMissions = myPerms.has(PERMISSIONS.MISSIONS_CREATE) || isAdmin;
     const canValidateMissions = myPerms.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdmin;
     const canManageBonus = myPerms.has(PERMISSIONS.BONUS_MANAGE) || isAdmin;
-
-    // Roster Permission
     const canViewRoster = myPerms.has(PERMISSIONS.PROFILE_VIEW_ALL) || isAdmin;
-
-    // Songes Permissions
     const canViewSonges = myPerms.has(PERMISSIONS.SONGES_VIEW) || isAdmin;
     const canCreateSonges = myPerms.has(PERMISSIONS.SONGES_CREATE) || isAdmin;
     const canJoinSonges = myPerms.has(PERMISSIONS.SONGES_JOIN) || isAdmin;
-
-    // Archis & Ladder Permissions
     const canViewArchis = myPerms.has(PERMISSIONS.ARCHIS_VIEW) || isAdmin;
     const canViewLadder = myPerms.has(PERMISSIONS.LADDER_VIEW) || isAdmin;
-
-    // Presentation Permission
     const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
-
-    // Calendar Permissions
     const canViewCalendar = myPerms.has(PERMISSIONS.CALENDAR_VIEW) || isAdmin;
     const canManageCalendar = myPerms.has(PERMISSIONS.CALENDAR_MANAGE) || isAdmin;
-
-    // Documentation Permissions
     const canViewAdminDocs = myPerms.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdmin;
-
-    // Member Management Permission
+    const canViewDashboard = myPerms.has(PERMISSIONS.DASHBOARD_VIEW) || isAdmin;
+    const canViewPresentation = myPerms.has(PERMISSIONS.PRESENTATION_VIEW) || isAdmin;
+    const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
+    const canViewServices = myPerms.has(PERMISSIONS.SERVICES_VIEW) || isAdmin;
+    const canViewFinder = myPerms.has(PERMISSIONS.FINDER_VIEW) || isAdmin;
+    const canViewProfile = myPerms.has(PERMISSIONS.PROFILE_VIEW) || isAdmin;
     const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
+    const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
+    const canManagePolls = myPerms.has(PERMISSIONS.POLLS_MANAGE) || isAdmin;
 
     const isAdminFinal = isAdmin || isGod;
 
@@ -429,7 +337,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         image: member?.user?.avatar
             ? `https://cdn.discordapp.com/avatars/${discordUserId}/${member.user.avatar}.png`
             : member?.avatar
-                ? `https://cdn.discordapp.com/guilds/${targetGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
+                ? `https://cdn.discordapp.com/guilds/${effectiveGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
                 : session.user.image || undefined,
         roleName: isGod && roleName === "Membre" ? "Administrateur" : roleName,
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,
@@ -442,21 +350,31 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         canCreateSonges: canCreateSonges || isGod,
         canJoinSonges: canJoinSonges || isGod,
         canViewArchis: canViewArchis || isGod,
+        canViewPolls: canViewPolls || isGod,
+        canManagePolls: canManagePolls || isGod,
         canViewLadder: canViewLadder || isGod,
         canEditPresentation: canEditPresentation || isGod,
         canViewCalendar: canViewCalendar || isGod,
         canManageCalendar: canManageCalendar || isGod,
         canViewAdminDocs: canViewAdminDocs || isGod,
         canManageMembers: canManageMembers || isGod,
+        canViewDashboard: canViewDashboard || isGod,
+        canViewPresentation: canViewPresentation || isGod,
+        canViewStats: canViewStats || isGod,
+        canViewServices: canViewServices || isGod,
+        canViewFinder: canViewFinder || isGod,
+        canViewDocs: true, // Open access as requested
+        canViewProfile: canViewProfile || isGod,
         isAdmin: isAdminFinal,
-        isMember: true, // Super admins are always "members" for layout purposes
+        isMember: true,
+        isCapacityFull: false,
         profileId: profile?.id,
         guildName: guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
         joinedAt: memberRes.ok && member?.joined_at ? new Date(member.joined_at).toISOString() : null,
-        guildId: targetGuildId
+        guildId: effectiveGuildId
     };
-};
+}
 
 /**
  * Get all guilds where the user has an active profile.

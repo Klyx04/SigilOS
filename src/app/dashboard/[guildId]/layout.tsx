@@ -116,7 +116,7 @@ export default async function DashboardLayout({
 
                             {/* Footer at bottom of content - Increased pb to 32 (128px) for safe dock area */}
                             <div className="mt-12 md:mt-24 pb-32">
-                                <GalacticFooter />
+                                <GalacticFooter variant="compact" />
                             </div>
                         </div>
                     </main>

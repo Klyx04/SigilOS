@@ -21,7 +21,7 @@ type Props = {
     currentMapping: Record<string, PermissionId[]>;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "modules"];
+const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info"];
 
 export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
@@ -77,14 +77,8 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
 
     // Group permissions by module
     const permissionsByModule = useMemo(() => {
-        const grouped: Record<PermissionModule, PermissionId[]> = {
-            admin: [],
-            missions: [],
-            profile: [],
-            songes: [],
-            calendar: [],
-            modules: [],
-        };
+        const grouped = {} as Record<PermissionModule, PermissionId[]>;
+        MODULE_ORDER.forEach(m => grouped[m] = []);
 
         Object.entries(PERMISSION_DETAILS).forEach(([permId, details]) => {
             grouped[details.module].push(permId as PermissionId);
@@ -103,14 +97,8 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
 
     // Stats per module
     const moduleStats = useMemo(() => {
-        const stats: Record<PermissionModule, number> = {
-            admin: 0,
-            missions: 0,
-            profile: 0,
-            songes: 0,
-            calendar: 0,
-            modules: 0,
-        };
+        const stats = {} as Record<PermissionModule, number>;
+        MODULE_ORDER.forEach(m => stats[m] = 0);
 
         Object.entries(permState).forEach(([permId, roleIds]) => {
             const module = PERMISSION_DETAILS[permId as PermissionId]?.module;

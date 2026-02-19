@@ -19,20 +19,6 @@ export function HeroSection() {
 
             <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
 
-                {/* V2 Logo - Hero Centerpiece */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="relative w-24 h-24 md:w-32 md:h-32 mx-auto mb-6 pointer-events-none"
-                >
-                    <div className="absolute inset-0 bg-emerald-500/20 blur-[50px] rounded-full animate-pulse-slow"></div>
-                    <img
-                        src="/assets/ui/logo-v2.png"
-                        alt="SigilOS Void Egg"
-                        className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.4)] relative z-10"
-                    />
-                </motion.div>
 
                 {/* Badge Info - Bêta Privée */}
                 <motion.div
@@ -80,16 +66,6 @@ export function HeroSection() {
                 >
                     <BetaGate />
 
-                    <div className="flex justify-center">
-                        <Link
-                            href="/guilds"
-                            className="group relative inline-flex items-center gap-2 px-6 py-2 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all text-sm font-bold uppercase tracking-widest overflow-hidden"
-                        >
-                            <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <Users className="w-4 h-4 text-emerald-400" />
-                            Consulter l&apos;Annuaire des Guildes
-                        </Link>
-                    </div>
                 </motion.div>
 
             </div>

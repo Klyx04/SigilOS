@@ -20,12 +20,19 @@ export default async function GuildsDirectoryPage() {
     const guilds = await getPublicGuilds();
     const session = await auth();
 
-    return (
-        <div className="relative min-h-screen bg-zinc-950 text-white selection:bg-purple-500/30 font-sans flex flex-col">
-            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const userContext = await getUserContext();
 
-            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
+    return (
+        <div className="relative min-h-screen landing-theme bg-zinc-950 text-white selection:bg-accent-teal/30 font-sans flex flex-col">
+            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50%)] pointer-events-none" />
+
+            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" isMember={userContext.isMember} />
 
             {/* Main Content */}
             <main className="flex-1 w-auto relative z-10 pt-32 pb-24 px-6 md:px-8 overflow-y-auto custom-scrollbar">
@@ -40,7 +47,7 @@ export default async function GuildsDirectoryPage() {
 
                         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
                             Annuaire des <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-emerald-300 to-emerald-400">
                                 Guildes d'Élite
                             </span>
                         </h1>
@@ -69,7 +76,7 @@ export default async function GuildsDirectoryPage() {
                                     href={`/guilds/${guild.discordGuildId}`}
                                     className="group block"
                                 >
-                                    <article className="h-full rounded-2xl border border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-purple-500/30 transition-all duration-300 overflow-hidden flex flex-col">
+                                    <article className="h-full rounded-2xl border border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-emerald-500/30 transition-all duration-300 overflow-hidden flex flex-col">
                                         {/* Banner Area */}
                                         <div className="h-32 relative bg-zinc-950 overflow-hidden">
                                             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/90 to-transparent z-10" />
@@ -105,7 +112,7 @@ export default async function GuildsDirectoryPage() {
 
                                             <div className="space-y-2 mb-6 flex-1">
                                                 <div className="flex items-center justify-between">
-                                                    <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors truncate pr-2">
+                                                    <h3 className="text-lg font-bold text-white group-hover:text-emerald-300 transition-colors truncate pr-2">
                                                         {guild.name}
                                                     </h3>
                                                     {guild.isRecruiting && (
@@ -125,7 +132,7 @@ export default async function GuildsDirectoryPage() {
 
                                             <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs">
                                                 <div className="flex items-center gap-1.5 text-zinc-500">
-                                                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                                                     <span>Vérifié</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 font-medium text-white group-hover:translate-x-1 transition-transform">
@@ -144,7 +151,7 @@ export default async function GuildsDirectoryPage() {
 
 
 
-            <GalacticFooter />
+            <GalacticFooter isMember={userContext.isMember} />
         </div>
     );
 }

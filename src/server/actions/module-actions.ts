@@ -24,8 +24,10 @@ const UpdateModulesSchema = z.object({
     donjons: z.boolean(),
     profile: z.boolean(),
     docs: z.boolean(),
+    polls: z.boolean(),
     // Admin
     logs: z.boolean(),
+    admin: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -65,7 +67,9 @@ export async function getGuildModules(
             donjons: m.donjons,
             profile: m.profile,
             docs: m.docs,
+            polls: m.polls,
             logs: m.logs,
+            admin: m.admin,
         };
     } catch {
         // Fail open — if we can't read modules, assume all enabled

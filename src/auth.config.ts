@@ -49,5 +49,6 @@ export const authConfig = {
     pages: {
         error: "/auth/error",
         signIn: "/", // Redirect signin to landing page
+        signOut: "/auth/signout",
     },
 } satisfies NextAuthConfig

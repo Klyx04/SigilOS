@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users } from "lucide-react";
-import Link from "next/link";
+import Link from "next/link"; // Check first
 import { cn } from "@/lib/utils";
 
 interface OnboardingStep {

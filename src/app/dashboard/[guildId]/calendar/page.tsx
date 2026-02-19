@@ -27,8 +27,8 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     const ctx = await getUserContext(guildId);
 
-    // Check view permission or global member access
-    if (!ctx.isMember && !ctx.canViewCalendar) {
+    // Check view permission
+    if (!ctx.canViewCalendar) {
         return <AccessDenied />;
     }
 

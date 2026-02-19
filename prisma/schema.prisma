@@ -199,6 +199,8 @@ model GuildModules {
 
   // === ADMIN ===
   logs Boolean @default(true) // Logs d'audit admin
+  polls Boolean @default(true) // Sondages de guilde
+  admin Boolean @default(true) // Accès administration
 
   updatedAt DateTime @updatedAt
   updatedBy String?  // Discord user ID of last admin who changed settings

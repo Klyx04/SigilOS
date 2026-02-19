@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Bell, Check, Info, X } from "lucide-react";
+import { Bell, Check, Info, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,26 +121,31 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                     <span className="sr-only">Notifications</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
-                    <h4 className="font-semibold text-sm">Notifications</h4>
+            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-white/10 bg-[#0d0f11]/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/5">
+                    <h4 className="font-bold text-xs uppercase tracking-widest text-white">Notifications</h4>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="sm" className="h-auto px-2 text-xs text-muted-foreground hover:text-primary" onClick={handleMarkAllRead}>
+                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-primary transition-colors" onClick={handleMarkAllRead}>
                             Tout lu
                             <Check className="ml-1 h-3 w-3" />
                         </Button>
                     )}
                 </div>
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-[350px]">
                     {isLoading ? (
-                        <div className="p-4 text-center text-xs text-muted-foreground">Chargement...</div>
+                        <div className="p-12 text-center text-xs text-zinc-500 flex flex-col items-center gap-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-zinc-700" />
+                            Chargement...
+                        </div>
                     ) : notifications.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground gap-2">
-                            <Bell className="h-8 w-8 opacity-20" />
-                            <p className="text-xs">Aucune nouvelle notification</p>
+                        <div className="flex flex-col items-center justify-center h-[300px] text-zinc-500 gap-4">
+                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                                <Bell className="h-6 w-6 opacity-20" />
+                            </div>
+                            <p className="text-xs font-medium uppercase tracking-widest">Aucune notification</p>
                         </div>
                     ) : (
-                        <div className="grid divide-y divide-border/50">
+                        <div className="grid divide-y divide-white/5">
                             {notifications.map((n) => (
                                 <div
                                     key={n.id}
@@ -153,10 +158,10 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                                             n.type === 'MISSION_REJECTED' ? "bg-red-500" : "bg-blue-500"
                                     )} />
                                     <div className="space-y-1 overflow-hidden">
-                                        <p className="text-sm font-medium leading-none truncate pr-4">{n.title}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
-                                        <p className="text-[10px] text-muted-foreground/60 pt-1">
-                                            {new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        <p className="text-sm font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors">{n.title}</p>
+                                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{n.message}</p>
+                                        <p className="text-[10px] text-zinc-600 font-mono pt-1">
+                                            {new Date(n.createdAt).toLocaleDateString()} at {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
                                 </div>
@@ -164,8 +169,8 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                         </div>
                     )}
                 </ScrollArea>
-                <div className="p-2 border-t border-border bg-muted/20">
-                    <Button variant="ghost" size="sm" className="w-full text-xs h-8" asChild>
+                <div className="p-2 border-t border-white/5 bg-white/5">
+                    <Button variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
                         <Link href={`/dashboard/${guildId}/notifications`}>
                             Voir toutes les notifications
                         </Link>

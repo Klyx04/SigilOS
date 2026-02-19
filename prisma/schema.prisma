@@ -471,6 +471,7 @@ model Dungeon {
 
   // Relations
   achievements DungeonAchievement[]
+  zones        Zone[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -490,6 +491,7 @@ model Zone {
   updatedAt DateTime @updatedAt
 
   families MonsterFamily[]
+  dungeons Dungeon[]
 
   @@index([name])
 }
@@ -515,6 +517,7 @@ model Monster {
 model MonsterFamily {
   id          String  @id @default(cuid())
   name        String  @unique // Ex: "Blops", "Dragoeufs", "Bouftous"
+  level       Int?
   description String? @db.Text
   imageUrl    String?
 

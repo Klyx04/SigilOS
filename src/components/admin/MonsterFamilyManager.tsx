@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { motion } from "framer-motion";
 import {
     getMonsterFamilies,
     createMonsterFamily,
@@ -28,10 +29,18 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
 
 interface MonsterFamily {
     id: string;
     name: string;
+    level?: number | null;
     description?: string | null;
     imageUrl?: string | null;
     _count?: { monsters: number };
@@ -43,11 +52,13 @@ export default function MonsterFamilyManager() {
     const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedZone, setSelectedZone] = useState<string>("all");
 
     const [formData, setFormData] = useState({
         name: "",
+        level: undefined as number | undefined,
         description: "",
         imageUrl: "",
         zoneIds: [] as string[],
@@ -59,8 +70,11 @@ export default function MonsterFamilyManager() {
 
     async function loadData() {
         setLoading(true);
+        const filters: any = {};
+        if (selectedZone !== "all") filters.zoneId = selectedZone;
+
         const [familiesRes, zonesRes] = await Promise.all([
-            getMonsterFamilies(),
+            getMonsterFamilies(filters),
             getAdminZones()
         ]);
 
@@ -77,8 +91,14 @@ export default function MonsterFamilyManager() {
         setLoading(false);
     }
 
+    useEffect(() => {
+        loadFamilies();
+    }, [selectedZone]);
+
     async function loadFamilies() {
-        const result = await getMonsterFamilies();
+        const filters: any = {};
+        if (selectedZone !== "all") filters.zoneId = selectedZone;
+        const result = await getMonsterFamilies(filters);
         if (result.success && result.data) {
             setFamilies(result.data);
         }
@@ -94,7 +114,7 @@ export default function MonsterFamilyManager() {
         if (result.success) {
             toast.success(editing ? "Famille mise à jour" : "Famille créée");
             resetForm();
-            setIsSheetOpen(false);
+            setIsDialogOpen(false);
             loadFamilies();
         } else {
             toast.error(result.error || "Erreur");
@@ -114,7 +134,7 @@ export default function MonsterFamilyManager() {
     }
 
     function resetForm() {
-        setFormData({ name: "", description: "", imageUrl: "", zoneIds: [] });
+        setFormData({ name: "", level: undefined, description: "", imageUrl: "", zoneIds: [] });
         setEditing(null);
     }
 
@@ -122,11 +142,12 @@ export default function MonsterFamilyManager() {
         setEditing(family.id);
         setFormData({
             name: family.name,
+            level: family.level || undefined,
             description: family.description || "",
             imageUrl: family.imageUrl || "",
             zoneIds: family.zones?.map(z => z.id) || [],
         });
-        setIsSheetOpen(true);
+        setIsDialogOpen(true);
     }
 
     const zoneOptions = zones.map(z => ({
@@ -151,8 +172,26 @@ export default function MonsterFamilyManager() {
                         className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
                     />
                 </div>
+
+                {/* Zone Filter */}
+                <div className="w-full md:w-64">
+                    <Select value={selectedZone} onValueChange={setSelectedZone}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200">
+                            <SelectValue placeholder="Filtrer par zone" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="all">Toutes les zones</SelectItem>
+                            {zones.map(zone => (
+                                <SelectItem key={zone.id} value={zone.id}>
+                                    {zone.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <Button
-                    onClick={() => { resetForm(); setIsSheetOpen(true); }}
+                    onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
@@ -208,9 +247,16 @@ export default function MonsterFamilyManager() {
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-200 truncate group-hover:text-indigo-300 transition-colors">
-                                        {family.name}
-                                    </h3>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-bold text-slate-200 truncate group-hover:text-indigo-300 transition-colors">
+                                            {family.name}
+                                        </h3>
+                                        {family.level && (
+                                            <Badge variant="outline" className="ml-2 border-indigo-500/30 text-indigo-400 font-bold bg-indigo-500/5">
+                                                Lvl {family.level}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-slate-500 mt-0.5">
                                         {family._count?.monsters || 0} monstres
                                     </p>
@@ -237,84 +283,123 @@ export default function MonsterFamilyManager() {
                 </div>
             )}
 
-            {/* Form Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="w-full sm:max-w-lg bg-slate-950 border-l-slate-800 p-0">
-                    <div className="p-6 h-full flex flex-col">
-                        <SheetHeader className="mb-6">
-                            <SheetTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                                {editing ? "✏️ Modifier la famille" : "➕ Nouvelle famille"}
-                            </SheetTitle>
-                            <SheetDescription className="text-slate-400">
-                                Gérez les familles de monstres et leurs zones d'apparition.
-                            </SheetDescription>
-                        </SheetHeader>
+            {/* Form Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent draggable className="w-[95vw] max-w-7xl max-h-[95vh] bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col">
+                    {/* Header Draggable */}
+                    <div className="p-8 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
+                                <Plus className="w-8 h-8 text-indigo-500" />
+                                {editing ? "Modifier la famille" : "Nouvelle famille"}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-lg">
+                                Gérez les familles de monstres, leurs descriptions et leurs zones de présence.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Nom <span className="text-red-400">*</span></label>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        required
-                                        placeholder="Ex: Blops"
-                                        className="bg-slate-900 border-slate-700"
-                                    />
+                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                {/* Left Column: Core Info */}
+                                <div className="lg:col-span-7 space-y-10">
+                                    <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Informations Principales</h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                            <div className="md:col-span-3 space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom de la Famille <span className="text-rose-500 text-lg">*</span></label>
+                                                <Input
+                                                    value={formData.name}
+                                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                    required
+                                                    placeholder="Ex: Blops"
+                                                    className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lvl Moyen</label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type="number"
+                                                        value={formData.level || ""}
+                                                        onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 0 })}
+                                                        placeholder="200"
+                                                        className="h-16 pl-12 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                                    />
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Lvl</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Description</label>
+                                            <textarea
+                                                value={formData.description || ""}
+                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                rows={4}
+                                                className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 resize-none text-lg transition-all"
+                                                placeholder="Partagez l'histoire ou les caractéristiques de cette famille..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-950/50 p-8 rounded-3xl border border-slate-800 shadow-inner">
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-6">Illustration</h3>
+                                        <ImageDownloader
+                                            type="monster"
+                                            imageUrl={formData.imageUrl}
+                                            identifier={formData.name}
+                                            onImageDownloaded={(path) => setFormData({ ...formData, imageUrl: path })}
+                                            className="w-full"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Description</label>
-                                    <textarea
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        rows={3}
-                                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-md text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
-                                        placeholder="Description de la famille de monstres..."
-                                    />
-                                </div>
+                                {/* Right Column: Zones */}
+                                <div className="lg:col-span-5 h-full">
+                                    <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50 h-full flex flex-col">
+                                        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-2">
+                                            <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Zones de Présence</h3>
+                                            <span className="bg-indigo-500/10 text-indigo-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-500/20">
+                                                {formData.zoneIds.length} sélectionnée(s)
+                                            </span>
+                                        </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Illustration</label>
-                                    <ImageDownloader
-                                        imageUrl={formData.imageUrl}
-                                        type="monster"
-                                        identifier={formData.name}
-                                        onImageDownloaded={(localPath) => setFormData({ ...formData, imageUrl: localPath })}
-                                    />
-                                </div>
-
-                                <div className="space-y-2 pt-4 border-t border-slate-800">
-                                    <label className="text-sm font-medium text-slate-300">Zones associées</label>
-                                    <MultiSelect
-                                        options={zoneOptions}
-                                        selected={formData.zoneIds}
-                                        onChange={(selected) => setFormData({ ...formData, zoneIds: selected })}
-                                        placeholder="Sélectionner les zones..."
-                                        className="bg-slate-900 border-slate-700"
-                                    />
+                                        <div className="flex-1 overflow-visible">
+                                            <MultiSelect
+                                                options={zones.map(z => ({ label: z.name, value: z.id }))}
+                                                selected={formData.zoneIds}
+                                                onChange={(val) => setFormData({ ...formData, zoneIds: val })}
+                                                placeholder="Sélectionner les zones..."
+                                            />
+                                            <p className="mt-4 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                                ⚠️ Les monstres de cette famille apparaîtront automatiquement dans les zones sélectionnées.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-6 mt-auto border-t border-slate-800">
-                                <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer"}
+                            <div className="flex gap-4 pt-6 border-t border-slate-800 shrink-0 sticky bottom-0 bg-slate-950 py-4">
+                                <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-500 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer la Famille"}
                                 </Button>
-                                {editing && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={resetForm}
-                                        className="border-slate-700 hover:bg-slate-800"
-                                    >
-                                        Annuler
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                >
+                                    Fermer
+                                </Button>
                             </div>
                         </form>
                     </div>
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

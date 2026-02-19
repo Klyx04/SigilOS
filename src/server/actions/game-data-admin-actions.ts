@@ -20,6 +20,7 @@ type ActionResponse<T = void> = {
 
 const MonsterFamilySchema = z.object({
     name: z.string().min(1, "Nom requis").max(100),
+    level: z.number().int().min(1).max(1000).optional().nullable(),
     description: z.string().optional(),
     imageUrl: z.string().optional().or(z.literal("")),
     zoneIds: z.array(z.string()).optional(),
@@ -37,7 +38,7 @@ const ChallengeSchema = z.object({
 const DungeonFormSchema = z.object({
     name: z.string().min(1, "Nom requis").max(150),
     bossName: z.string().min(1, "Nom du boss requis").max(150),
-    level: z.number().min(1, "Niveau invalide").max(200),
+    level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
     imageUrl: z.string().optional().or(z.literal("")),
     isExpedition: z.boolean().default(false),
@@ -88,7 +89,7 @@ export async function getMonsterFamilies(
                 zones: { select: { id: true, name: true } }
             },
             take: filters.search ? 20 : 100, // Limit results if searching
-            orderBy: { name: 'asc' }
+            orderBy: { level: 'asc' }
         });
         return { success: true, data: families };
     } catch (error) {
@@ -493,6 +494,8 @@ const ZoneSchema = z.object({
     name: z.string().min(1, "Nom requis").max(100),
     level: z.number().min(1, "Niveau invalide").max(200),
     dpnlUrl: z.string().url("URL invalide").optional().or(z.literal("")),
+    familyIds: z.array(z.string()).optional(),
+    dungeonIds: z.array(z.string()).optional(),
 });
 
 export async function createZone(
@@ -505,8 +508,19 @@ export async function createZone(
         const validated = ZoneSchema.parse(data);
         const zone = await db.zone.create({
             data: {
-                ...validated,
+                name: validated.name,
+                level: validated.level,
                 dpnlUrl: validated.dpnlUrl || null,
+                families: validated.familyIds && validated.familyIds.length > 0 ? {
+                    connect: validated.familyIds.map((id) => ({ id }))
+                } : undefined,
+                dungeons: validated.dungeonIds && validated.dungeonIds.length > 0 ? {
+                    connect: validated.dungeonIds.map((id) => ({ id }))
+                } : undefined,
+            },
+            include: {
+                families: true,
+                dungeons: true
             }
         });
 
@@ -533,8 +547,19 @@ export async function updateZone(
         const zone = await db.zone.update({
             where: { id },
             data: {
-                ...validated,
+                name: validated.name,
+                level: validated.level,
                 dpnlUrl: validated.dpnlUrl || null,
+                families: validated.familyIds ? {
+                    set: validated.familyIds.map((id) => ({ id }))
+                } : undefined,
+                dungeons: validated.dungeonIds ? {
+                    set: validated.dungeonIds.map((id) => ({ id }))
+                } : undefined,
+            },
+            include: {
+                families: true,
+                dungeons: true
             }
         });
 
@@ -570,6 +595,10 @@ export async function searchZones(query: string = ""): Promise<ActionResponse<an
             where: {
                 name: { contains: query, mode: 'insensitive' }
             },
+            include: {
+                families: true,
+                dungeons: true
+            },
             take: 20,
             orderBy: { name: 'asc' }
         });
@@ -602,6 +631,10 @@ export async function searchDungeons(query: string = ""): Promise<ActionResponse
 export async function getAdminZones(): Promise<ActionResponse<any[]>> {
     try {
         const zones = await db.zone.findMany({
+            include: {
+                families: true,
+                dungeons: true
+            },
             orderBy: { name: 'asc' }
         });
         return { success: true, data: zones };

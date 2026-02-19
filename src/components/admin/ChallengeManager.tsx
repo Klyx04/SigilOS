@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     getChallenges,
     createChallenge,
@@ -18,6 +18,8 @@ import {
     deleteChallenge,
 } from "@/server/actions/game-data-admin-actions";
 import { Trophy, Trash2, Edit2, Plus, Search, MoreHorizontal, ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ImageDownloader } from "./ImageDownloader";
 import { LocalImagePicker } from "./LocalImagePicker";
 import {
     DropdownMenu,
@@ -25,6 +27,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { motion } from "framer-motion";
 
 interface Challenge {
     id: string;
@@ -39,8 +42,7 @@ export default function ChallengeManager() {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [showImagePicker, setShowImagePicker] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const [formData, setFormData] = useState({
@@ -72,7 +74,7 @@ export default function ChallengeManager() {
         if (result.success) {
             toast.success(editing ? "Challenge mis à jour" : "Challenge créé");
             resetForm();
-            setIsSheetOpen(false);
+            setIsDialogOpen(false);
             loadChallenges();
         } else {
             toast.error(result.error || "Erreur");
@@ -91,7 +93,6 @@ export default function ChallengeManager() {
     function resetForm() {
         setFormData({ name: "", slug: "", description: "", iconUrl: "" });
         setEditing(null);
-        setShowImagePicker(false);
     }
 
     function startEdit(challenge: Challenge) {
@@ -102,7 +103,7 @@ export default function ChallengeManager() {
             description: challenge.description || "",
             iconUrl: challenge.iconUrl || "",
         });
-        setIsSheetOpen(true);
+        setIsDialogOpen(true);
     }
 
     const filteredChallenges = challenges.filter(c =>
@@ -124,7 +125,7 @@ export default function ChallengeManager() {
                     />
                 </div>
                 <Button
-                    onClick={() => { resetForm(); setIsSheetOpen(true); }}
+                    onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
@@ -185,116 +186,109 @@ export default function ChallengeManager() {
                 </div>
             )}
 
-            {/* Form Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="w-full sm:max-w-md bg-slate-950 border-l-slate-800 p-0">
-                    <div className="p-6 h-full flex flex-col">
-                        <SheetHeader className="mb-6">
-                            <SheetTitle className="text-xl font-bold text-white flex items-center gap-3">
-                                {editing ? "✏️ Modifier le challenge" : "➕ Nouveau challenge"}
-                            </SheetTitle>
-                            <SheetDescription className="text-slate-400">
-                                Ajoutez ou modifiez un challenge (succès).
-                            </SheetDescription>
-                        </SheetHeader>
+            {/* Form Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent draggable className="w-[95vw] max-w-7xl max-h-[95vh] bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col h-full">
+                    {/* Header Draggable */}
+                    <div className="p-8 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
+                                <Trophy className="w-8 h-8 text-indigo-500" />
+                                {editing ? "Modifier le challenge" : "Nouveau challenge"}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-lg">
+                                Configurez les détails du challenge et son icône représentative.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Nom <span className="text-red-400">*</span></label>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => {
-                                            const name = e.target.value;
-                                            if (!editing) {
-                                                const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-                                                setFormData({ ...formData, name, slug });
-                                            } else {
-                                                setFormData({ ...formData, name });
-                                            }
-                                        }}
-                                        required
-                                        placeholder="Ex: Misanthrope"
-                                        className="bg-slate-900 border-slate-700"
-                                    />
-                                </div>
+                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                {/* Left Column: Info */}
+                                <div className="lg:col-span-7 space-y-10">
+                                    <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Configuration du Challenge</h3>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Description</label>
-                                    <Input
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        placeholder="Description courte..."
-                                        className="bg-slate-900 border-slate-700"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Icône</label>
-                                    {formData.iconUrl ? (
-                                        <div className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-700">
-                                            <img src={formData.iconUrl} alt="Preview" className="w-10 h-10 object-contain" />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-slate-400 truncate">{formData.iconUrl.split('/').pop()}</p>
+                                        <div className="space-y-6">
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom du Challenge <span className="text-rose-500 text-lg">*</span></label>
+                                                <Input
+                                                    value={formData.name}
+                                                    onChange={(e) => {
+                                                        const name = e.target.value;
+                                                        if (!editing) {
+                                                            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                                                            setFormData({ ...formData, name, slug });
+                                                        } else {
+                                                            setFormData({ ...formData, name });
+                                                        }
+                                                    }}
+                                                    required
+                                                    placeholder="Ex: Misanthrope"
+                                                    className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                                />
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setFormData({ ...formData, iconUrl: "" })}
-                                                className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setShowImagePicker(!showImagePicker)}
-                                                className="w-full border-slate-700 hover:bg-slate-800"
-                                            >
-                                                {showImagePicker ? "Masquer la galerie" : "📷 Choisir depuis la galerie"}
-                                            </Button>
 
-                                            {showImagePicker && (
-                                                <div className="border border-slate-700 rounded-lg p-2 bg-slate-900/50">
-                                                    <LocalImagePicker
-                                                        type="achievement"
-                                                        onImageSelect={(path) => {
-                                                            setFormData({ ...formData, iconUrl: path });
-                                                            setShowImagePicker(false);
-                                                        }}
-                                                        className="max-h-48"
-                                                        gridSize="small"
-                                                    />
-                                                </div>
-                                            )}
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Identifiant (Slug)</label>
+                                                <Input
+                                                    value={formData.slug}
+                                                    readOnly={!!editing}
+                                                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                                                    placeholder="identifiant-unique"
+                                                    className={`h-12 bg-slate-950/50 border-slate-800 text-slate-500 font-mono text-sm rounded-xl ${editing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Description</label>
+                                                <textarea
+                                                    value={formData.description || ""}
+                                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                    rows={4}
+                                                    placeholder="Expliquez les conditions de réussite du challenge..."
+                                                    className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 resize-none text-lg transition-all"
+                                                />
+                                            </div>
                                         </div>
-                                    )}
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Icon */}
+                                <div className="lg:col-span-5 space-y-8">
+                                    <div className="bg-slate-950/50 p-8 rounded-3xl border border-slate-800 shadow-inner flex flex-col h-full">
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-6">Icône du Challenge</h3>
+
+                                        <ImageDownloader
+                                            type="achievement"
+                                            imageUrl={formData.iconUrl}
+                                            identifier={formData.name || formData.slug}
+                                            onImageDownloaded={(path) => setFormData({ ...formData, iconUrl: path })}
+                                            className="w-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-6 mt-auto border-t border-slate-800">
-                                <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer"}
+                            <div className="flex gap-4 pt-6 border-t border-slate-800 sticky bottom-0 bg-slate-950 py-4 shrink-0">
+                                <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-500 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer le Challenge"}
                                 </Button>
-                                {editing && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={resetForm}
-                                        className="border-slate-700 hover:bg-slate-800"
-                                    >
-                                        Annuler
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                >
+                                    Fermer
+                                </Button>
                             </div>
                         </form>
                     </div>
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

@@ -47,6 +47,8 @@ interface ProfileBentoGridProps {
             songes?: boolean;
             events?: boolean;
             ladder?: boolean;
+            polls?: boolean;
+            admin_validations?: boolean;
         } | null;
         pendingSubmission?: {
             id: string;
@@ -439,8 +441,9 @@ export function ProfileBentoGrid({
                         guildId={guildId}
                         guildName={guildName || "la guilde"}
                         profileId={profile.id}
-                        notificationPrefs={localProfile.notificationPrefs}
+                        notificationPrefs={localProfile.notificationPrefs as any}
                         onNotificationPrefsSave={handleNotificationPrefsSave}
+                        isAdmin={isAdmin}
                     />
                 </TabsContent>
             </Tabs>

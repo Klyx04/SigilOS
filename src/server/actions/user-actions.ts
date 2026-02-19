@@ -44,6 +44,7 @@ export type UserContext = {
     canViewDocs: boolean;
     canViewProfile: boolean;
     isAdmin: boolean;
+    isSuperAdmin: boolean;
     isMember: boolean;
     profileId?: string;
     guildName?: string;
@@ -82,13 +83,24 @@ export async function validateGuildOwnership(userId: string, discordGuildId: str
     return profile;
 }
 
-export async function getUserContext(targetGuildId?: string): Promise<UserContext> {
+import { cache } from "react";
+
+/**
+ * Main function to fetch the user context for a specific guild.
+ * USES REACT CACHE to avoid redundant Discord/DB calls in a single request.
+ */
+export const getUserContext = cache(async (targetGuildId?: string): Promise<UserContext> => {
+    return _getUserContext(targetGuildId);
+});
+
+async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
 
     // Default context for non-authenticated or base cases
     const baseContext: UserContext = {
         isAuthenticated: !!session?.user?.id,
         isAdmin: false,
+        isSuperAdmin: false,
         isMember: false,
         isCapacityFull: false,
         canViewMissions: false,
@@ -366,6 +378,7 @@ export async function getUserContext(targetGuildId?: string): Promise<UserContex
         canViewDocs: true, // Open access as requested
         canViewProfile: canViewProfile || isGod,
         isAdmin: isAdminFinal,
+        isSuperAdmin: isGod,
         isMember: true,
         isCapacityFull: false,
         profileId: profile?.id,
@@ -479,7 +492,7 @@ export async function searchGuildMembers(
 // PERMISSION HELPERS
 // ============================================
 
-async function internalCheckPermission(
+export async function internalCheckPermission(
     guildId: string,
     discordUserId: string,
     permission: PermissionId

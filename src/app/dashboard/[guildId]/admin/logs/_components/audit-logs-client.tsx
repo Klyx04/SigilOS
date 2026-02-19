@@ -31,6 +31,11 @@ const ACTION_COLORS: Record<string, string> = {
     // Bonus
     BONUS_PURCHASED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
     BONUS_CANCELLED: "bg-zinc-500/20 text-zinc-400 border-white/5",
+    // Polls
+    POLL_CREATED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    POLL_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+    POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -55,6 +60,11 @@ const ACTION_LABELS: Record<string, string> = {
     // Bonus
     BONUS_PURCHASED: "🔮 Bonus acheté",
     BONUS_CANCELLED: "Bonus annulé",
+    // Polls
+    POLL_CREATED: "📊 Sondage créé",
+    POLL_CLOSED: "🔒 Sondage clôturé",
+    POLL_DELETED: "🗑️ Sondage supprimé",
+    POLL_CREATOR_ROLE_ACQUIRED: "🎤 Micro acquis",
 };
 
 const ACTION_OPTIONS = [
@@ -63,9 +73,10 @@ const ACTION_OPTIONS = [
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements membres" },
+    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & Micro" },
+    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
-    { value: "ADMIN_ACCESS_DENIED", label: "🚫 Accès refusé" },
+    { value: "ADMIN_ACCESS_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },
 ];
 
 type PermissionChange = {

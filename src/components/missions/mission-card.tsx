@@ -346,13 +346,13 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                             {mission.xpReward && (
                                 <div className="flex items-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md">
                                     <span className="text-white font-mono text-sm font-black">{mission.xpReward}</span>
-                                    <Image src="/PA.png" alt="PA" width={18} height={18} className="object-contain" />
+                                    <Image src="/PA.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
                                 </div>
                             )}
                             {mission.guildatonsReward && (
                                 <div className="flex items-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md">
                                     <span className="text-white font-mono text-sm font-black">{mission.guildatonsReward}</span>
-                                    <Image src="/guildaton.png" alt="Guildatons" width={18} height={18} className="object-contain" />
+                                    <Image src="/guildaton.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
                                 </div>
                             )}
                         </div>
@@ -394,7 +394,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                 {mission.interests.slice(0, 4).map((interest, i) => (
                                     <div key={interest.id} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800 flex items-center justify-center overflow-hidden shadow-sm relative group/avatar">
                                         {interest.profile.user?.image ? (
-                                            <Image src={interest.profile.user.image} alt="User" width={32} height={32} className="object-cover" />
+                                            <Image src={interest.profile.user.image} alt="User" width={32} height={32} className="object-cover" loading="lazy" />
                                         ) : (
                                             <Users className="w-4 h-4 text-zinc-500" />
                                         )}

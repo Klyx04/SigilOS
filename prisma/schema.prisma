@@ -59,15 +59,15 @@ model User {
   notifications       Notification[]
 
   // Songes Relations
-  dreamRuns          DreamRun[]         @relation("RunLeader")
-  dreamRunMembers    DreamRunMember[]
-  dreamWaitlists     DreamWaitlist[]
-  dreamJoinRequests  DreamJoinRequest[]
+  dreamRuns         DreamRun[]         @relation("RunLeader")
+  dreamRunMembers   DreamRunMember[]
+  dreamWaitlists    DreamWaitlist[]
+  dreamJoinRequests DreamJoinRequest[]
 
   // Lifecycle tracking (RGPD)
   deletionRequestedAt DateTime?
   scheduledDeletion   DateTime?
-  emailBackup         String?  // Pour contact avant suppression
+  emailBackup         String? // Pour contact avant suppression
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -94,10 +94,10 @@ model AllowedGuild {
 // Global platform-level bans
 model PlatformBan {
   id         String   @id @default(cuid())
-  entityType String   // "GUILD" | "USER"
+  entityType String // "GUILD" | "USER"
   discordId  String   @unique
   reason     String
-  bannedBy   String   // Super-admin ID
+  bannedBy   String // Super-admin ID
   createdAt  DateTime @default(now())
 
   @@index([discordId])
@@ -130,8 +130,8 @@ model GuildConfig {
   bonusNotifyChannelId String? // Discord channel ID for bonus purchase notifications
 
   // Mission Configuration
-  missionRanks         Json? // [1, 2, 3, 4] - Selected ranks for mission generation
-  missionTier          Int?    @default(3) // Selected Tier (Palier) target (1-5)
+  missionRanks           Json? // [1, 2, 3, 4] - Selected ranks for mission generation
+  missionTier            Int?    @default(3) // Selected Tier (Palier) target (1-5)
   missionNotifyChannelId String? // Discord channel ID for mission notifications
   missionNotifyRoleId    String? // Discord role ID to ping for mission notifications
 
@@ -161,7 +161,7 @@ model GuildConfig {
 
   // Lifecycle tracking
   deletedAt         DateTime?
-  deletionReason    String?   // "SERVER_DELETED", "BOT_REMOVED", "ADMIN_REQUEST"
+  deletionReason    String? // "SERVER_DELETED", "BOT_REMOVED", "ADMIN_REQUEST"
   scheduledDeletion DateTime? // Date de hard delete planifiée
 
   createdAt DateTime @default(now())
@@ -206,12 +206,12 @@ model GuildModules {
   docs     Boolean @default(true) // Documentation / Wiki
 
   // === ADMIN ===
-  logs Boolean @default(true) // Logs d'audit admin
+  logs  Boolean @default(true) // Logs d'audit admin
   polls Boolean @default(true) // Sondages de guilde
   admin Boolean @default(true) // Accès administration
 
   updatedAt DateTime @updatedAt
-  updatedBy String?  // Discord user ID of last admin who changed settings
+  updatedBy String? // Discord user ID of last admin who changed settings
 }
 
 // -- Audit Log (Immutable) --
@@ -328,7 +328,7 @@ model UserProfile {
   guildBonuses           GuildBonus[] // Bonuses purchased by this user
 
   // Sondages & Custom Roles
-  polls      Poll[]      @relation("PollCreator")
+  polls      Poll[]           @relation("PollCreator")
   pollVotes  PollVote[]
   roleGrants SigilRoleGrant[]
 
@@ -426,7 +426,7 @@ model Submission {
 
   @@index([missionId])
   @@index([profileId])
-  @@index([status])
+  @@index([status, updatedAt]) // Ajout pour optimiser la boucle Ladder
 }
 
 model AchievementSubmission {
@@ -480,8 +480,6 @@ model Dungeon {
   @@index([isExpedition])
 }
 
-
-
 model Zone {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -503,7 +501,7 @@ model Monster {
   level    Int?
   imageUrl String?
 
-  family MonsterFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family MonsterFamily @relation(fields: [familyId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -536,7 +534,6 @@ model Challenge {
   slug        String  @unique // Ex: "misanthrope", "premier"
   description String? @db.Text
   iconUrl     String?
-
 
   // Conditions générales du challenge (optionnel)
   conditions Json? // { "maxInvocations": 0, "maxAllies": 1, etc. }
@@ -686,18 +683,18 @@ model DreamRun {
   minorBonuses Json? // List of acquired minor bonuses
 
   // Timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
   lastReminderAt DateTime? // For cooldown/spam protection
-  startedAt   DateTime? // When run actually started
-  completedAt DateTime? // When run ended (victory/defeat/abandon)
+  startedAt      DateTime? // When run actually started
+  completedAt    DateTime? // When run ended (victory/defeat/abandon)
 
   // Notification settings
   notifyOnJoinRequest Boolean @default(true)
 
   // Discord embed tracking
-  discordMessageId    String?
-  discordChannelId    String?
+  discordMessageId String?
+  discordChannelId String?
 
   // Relations
   members      DreamRunMember[]
@@ -708,7 +705,7 @@ model DreamRun {
   reminders    DreamRunReminder[]
 
   @@index([guildId, status])
-  @@index([leaderId])
+  @@index([leaderId, status]) // Ajout pour vérifier les runs existantes rapidement
 }
 
 model DreamRunMember {
@@ -1064,8 +1061,8 @@ model GuildBonus {
   cost      Int // Kamas cost
 
   // Status tracking
-  status      BonusStatus @default(PURCHASED)
-  purchasedAt DateTime    @default(now())
+  status      BonusStatus  @default(PURCHASED)
+  purchasedAt DateTime     @default(now())
   purchasedBy String? // User ID who purchased (nullable for legacy data)
   purchaser   UserProfile? @relation(fields: [purchasedBy], references: [id], onDelete: SetNull)
 
@@ -1136,27 +1133,27 @@ model DocPage {
 
 model ChangelogEntry {
   id          String            @id @default(cuid())
-  version     String            // e.g., "v1.3.0"
-  title       String            // e.g., "Webhook Automation + Changelog"
-  summary     String?            // Short marketing description (1-2 lines) for landing page (optional)
+  version     String // e.g., "v1.3.0"
+  title       String // e.g., "Webhook Automation + Changelog"
+  summary     String? // Short marketing description (1-2 lines) for landing page (optional)
   content     String            @db.Text // Full markdown content for detailed view
   category    ChangelogCategory
   isInternal  Boolean           @default(false) // Internal entries only visible to authenticated guild members
   publishedAt DateTime          @default(now())
-  publishedBy String            // Super-admin user ID
-  
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  publishedBy String // Super-admin user ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([publishedAt])
   @@index([category])
 }
 
 enum ChangelogCategory {
-  FEATURE      // New features
-  BUGFIX       // Bug fixes
-  SECURITY     // Security improvements
-  PERFORMANCE  // Performance optimizations
+  FEATURE // New features
+  BUGFIX // Bug fixes
+  SECURITY // Security improvements
+  PERFORMANCE // Performance optimizations
   DOCUMENTATION // Documentation updates
 }
 
@@ -1168,8 +1165,8 @@ model SigilRole {
   id      String @id @default(cuid())
   guildId String
 
-  slug        String  // e.g. "poll-creator", "event-organizer"
-  label       String  // e.g. "Créateur de Sondages"
+  slug        String // e.g. "poll-creator", "event-organizer"
+  label       String // e.g. "Créateur de Sondages"
   description String?
   color       String? // Hex color for display (e.g. "#06b6d4")
   icon        String? // Emoji or Lucide icon name
@@ -1192,7 +1189,7 @@ model SigilRoleGrant {
   roleId    String
   profileId String
 
-  grantedBy String    // profileId of admin who granted
+  grantedBy String // profileId of admin who granted
   grantedAt DateTime  @default(now())
   expiresAt DateTime? // null = permanent, otherwise temporary
   revokedAt DateTime? // null = active
@@ -1227,12 +1224,12 @@ model Poll {
   guildId String
 
   title       String
-  description String?    @db.Text
+  description String?      @db.Text
   category    PollCategory
-  status      PollStatus @default(DRAFT)
+  status      PollStatus   @default(DRAFT)
 
-  creatorId   String  // UserProfile.id
-  creatorName String  // Snapshot of creator name at creation
+  creatorId   String // UserProfile.id
+  creatorName String // Snapshot of creator name at creation
 
   // Configuration
   allowMultipleVotes Boolean @default(false) // Multiple options selectable
@@ -1252,8 +1249,8 @@ model Poll {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  creator UserProfile @relation("PollCreator", fields: [creatorId], references: [id])
+  guild   GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator UserProfile  @relation("PollCreator", fields: [creatorId], references: [id])
   options PollOption[]
 
   @@index([guildId, status])

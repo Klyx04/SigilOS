@@ -196,4 +196,5 @@ ce module doit etre une vrai valeur ajoutée
 - [x] Health check /api/health ✅
 - [x] CI optimisé (verify.yml) ✅
 - [x] Error boundaries (global-error + dashboard error) ✅
+- [x] Script d'audit et diagnostic (`audit.sh`) intégré à la maintenance ✅
 - [x] API Rate Limiting (à vérifier) ✅

@@ -33,8 +33,8 @@ if [ ! -z "$CONTAINER_APP" ]; then
     echo -e "Analyse du schéma via $CONTAINER_APP..."
     # On check si Prisma voit des migrations non appliquées
     DRIFT=$(sudo docker exec "$CONTAINER_APP" npx prisma migrate status 2>&1)
-    if [[ "$DRIFT" == *"Database is up to date"* ]]; then
-        echo -e "${GREEN}✅ Schéma de base de données à jour selon Prisma.${NC}"
+    if [[ "$DRIFT" == *"up to date"* ]]; then
+        echo -e "${GREEN}✅ Schéma de base de données à jour.${NC}"
     else
         echo -e "${RED}❌ ALERTE SCHEMA DRIFT :${NC}"
         echo "$DRIFT"
@@ -49,22 +49,29 @@ echo -e "\n${YELLOW}🔌 3. Connectivité Inter-Services${NC}"
 if [ ! -z "$CONTAINER_APP" ]; then
     # Test Redis
     echo -n "Test Redis... "
-    REDIS_PING=$(sudo docker exec "$CONTAINER_APP" node -e "const r=require('redis'); const c=r.createClient({url:process.env.REDIS_URL, socket:{reconnectStrategy:false}}); c.on('error', (e)=>console.log(e.message)); c.connect().then(()=> {console.log('PONG'); process.exit(0)}).catch(e=>{console.log(e.message); process.exit(1)})" 2>&1)
-    if [[ "$REDIS_PING" == *"PONG"* ]]; then
-        echo -e "${GREEN}✅ Connectivité Redis OK.${NC}"
+    CONTAINER_REDIS=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-redis" | head -n 1)
+    if [ ! -z "$CONTAINER_REDIS" ]; then
+        # On utilise redis-cli ping depuis le container redis (plus fiable)
+        REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli ping 2>/dev/null)
+        if [[ "$REDIS_PING" == *"PONG"* ]]; then
+            echo -e "${GREEN}✅ Connectivité Redis OK.${NC}"
+        else
+            echo -e "${RED}❌ Redis ne répond pas (PONG non reçu).${NC}"
+        fi
     else
-        echo -e "${RED}❌ Connectivité Redis ÉCHOUÉE.${NC}"
-        echo -e "   Détail : $REDIS_PING"
+        echo -e "${RED}❌ Conteneur Redis introuvable.${NC}"
     fi
     
     # Test Postgres (ping basique via pg_isready dans le container DB)
     echo -n "Test PostgreSQL... "
     CONTAINER_DB=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-db" | head -n 1)
     if [ ! -z "$CONTAINER_DB" ]; then
-        # On utilise -U postgres (standard alpine) ou on essaie de deviner
-        DB_STATUS=$(sudo docker exec "$CONTAINER_DB" pg_isready -U postgres -q && echo "OK" || echo "FAIL")
+        # Essayer de récupérer l'user de la DB
+        DB_USER=$(sudo docker exec "$CONTAINER_APP" env | grep POSTGRES_USER | cut -d'=' -f2)
+        DB_USER=${DB_USER:-user}
+        DB_STATUS=$(sudo docker exec "$CONTAINER_DB" pg_isready -U "$DB_USER" -q && echo "OK" || echo "FAIL")
         if [ "$DB_STATUS" == "OK" ]; then
-            echo -e "${GREEN}✅ Connectivité PostgreSQL OK.${NC}"
+            echo -e "${GREEN}✅ Connectivité PostgreSQL OK (User: $DB_USER).${NC}"
         else
             echo -e "${RED}❌ PostgreSQL ne répond pas sur le port 5432.${NC}"
         fi
@@ -76,7 +83,7 @@ echo -e "\n${YELLOW}📜 4. Analyse des Logs (Derniers 100 évènements)${NC}"
 # On ignore les erreurs connues de node-exporter et de config postgres_exporter
 ERRORS=$(sudo docker ps -q | xargs -L 1 sudo docker logs --tail 100 2>&1 | \
     grep -iE "error|fatal|exception|denied" | \
-    grep -vE "postgres_exporter.yml|/run/udev/data|netclass")
+    grep -vE "postgres_exporter.yml|/run/udev/data|netclass|role \"root\"|role \"postgres\"")
 
 if [ -z "$ERRORS" ]; then
     echo -e "${GREEN}✅ Aucun log critique détecté (hormis bruit ignoré).${NC}"

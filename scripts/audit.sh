@@ -51,12 +51,21 @@ if [ ! -z "$CONTAINER_APP" ]; then
     echo -n "Test Redis... "
     CONTAINER_REDIS=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-redis" | head -n 1)
     if [ ! -z "$CONTAINER_REDIS" ]; then
-        # On utilise redis-cli ping depuis le container redis (plus fiable)
-        REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli ping 2>/dev/null)
+        # Récupérer le mot de passe Redis depuis l'app
+        REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_URL | cut -d':' -f3 | cut -d'@' -f1)
+        # Si REDIS_URL n'a pas le format complet, on peut essayer REDIS_PASSWORD s'il existe
+        [ -z "$REDIS_PASS" ] && REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_PASSWORD | cut -d'=' -f2)
+
+        if [ ! -z "$REDIS_PASS" ]; then
+            REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli -a "$REDIS_PASS" ping 2>/dev/null)
+        else
+            REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli ping 2>/dev/null)
+        fi
+
         if [[ "$REDIS_PING" == *"PONG"* ]]; then
             echo -e "${GREEN}✅ Connectivité Redis OK.${NC}"
         else
-            echo -e "${RED}❌ Redis ne répond pas (PONG non reçu).${NC}"
+            echo -e "${RED}❌ Redis ne répond pas (Auth ou Downtime).${NC}"
         fi
     else
         echo -e "${RED}❌ Conteneur Redis introuvable.${NC}"
@@ -66,12 +75,15 @@ if [ ! -z "$CONTAINER_APP" ]; then
     echo -n "Test PostgreSQL... "
     CONTAINER_DB=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-db" | head -n 1)
     if [ ! -z "$CONTAINER_DB" ]; then
-        # Essayer de récupérer l'user de la DB
+        # Récupérer l'user et la DB
         DB_USER=$(sudo docker exec "$CONTAINER_APP" env | grep POSTGRES_USER | cut -d'=' -f2)
+        DB_NAME=$(sudo docker exec "$CONTAINER_APP" env | grep POSTGRES_DB | cut -d'=' -f2)
         DB_USER=${DB_USER:-user}
-        DB_STATUS=$(sudo docker exec "$CONTAINER_DB" pg_isready -U "$DB_USER" -q && echo "OK" || echo "FAIL")
+        DB_NAME=${DB_NAME:-sigilos}
+
+        DB_STATUS=$(sudo docker exec "$CONTAINER_DB" pg_isready -U "$DB_USER" -d "$DB_NAME" -q && echo "OK" || echo "FAIL")
         if [ "$DB_STATUS" == "OK" ]; then
-            echo -e "${GREEN}✅ Connectivité PostgreSQL OK (User: $DB_USER).${NC}"
+            echo -e "${GREEN}✅ Connectivité PostgreSQL OK (User: $DB_USER, DB: $DB_NAME).${NC}"
         else
             echo -e "${RED}❌ PostgreSQL ne répond pas sur le port 5432.${NC}"
         fi
@@ -83,7 +95,7 @@ echo -e "\n${YELLOW}📜 4. Analyse des Logs (Derniers 100 évènements)${NC}"
 # On ignore les erreurs connues de node-exporter et de config postgres_exporter
 ERRORS=$(sudo docker ps -q | xargs -L 1 sudo docker logs --tail 100 2>&1 | \
     grep -iE "error|fatal|exception|denied" | \
-    grep -vE "postgres_exporter.yml|/run/udev/data|netclass|role \"root\"|role \"postgres\"")
+    grep -vE "postgres_exporter.yml|/run/udev/data|netclass|role \"root\"|role \"postgres\"|database \"sigiluser\"")
 
 if [ -z "$ERRORS" ]; then
     echo -e "${GREEN}✅ Aucun log critique détecté (hormis bruit ignoré).${NC}"

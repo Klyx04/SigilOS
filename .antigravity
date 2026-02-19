@@ -84,6 +84,15 @@ SigilOS/
 
 ---
 
+### Session — Refonte Sondages & UX Discord (2026-02-19)
+
+- ✅ **Pixel-Perfect Discord**: Overhaul complet des embeds avec titres bleus (EmbedTitle), bannières premium par catégorie (`calendar_*.png`) et mise en page aérée.
+- ✅ **Gouvernance Pro**: Limitation à 10 options, édition possible du sondage (pour créateur/admin) et cooldown d'une semaine par catégorie (règle anti-spam).
+- ✅ **UX Slim-down**: Redimensionnement des boutons d'action (Propulser/Modifier) pour un rendu plus pro et équilibré.
+- ✅ **Audit & Robustesse**: Logging des actions critiques (Micro role, Edit) et détection intelligente des salons Discord non configurés.
+
+---
+
 ### Session — Finalisation P2 & Correction Missions (2026-02-18)
 
 - ✅ **Missions Anomalies**: Correction de la génération de description. Ajout du niveau et de l'**Elixir uchronique** (sans mention 'majeur').
@@ -128,6 +137,7 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 - Dashboard guildes (missions, membres, profils)
 - Songes (runs, candidatures, embeds Discord)
 - Calendrier événements (Modales Premium, Draggable)
+- Sondages (Premium Discord Embeds, Cooldowns, Édition)
 - Documentation (viewer + éditeur TipTap)
 - Changelog (public + admin, isInternal flag)
 - GOD Dashboard (whitelist, lifecycle, stats)

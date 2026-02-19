@@ -306,13 +306,21 @@ export async function joinDreamRun(guildId: string, runId: string) {
 
     if (nextSlot) {
         // Join directly
-        await db.dreamRunMember.create({
-            data: {
-                runId,
-                userId: ctx.userId,
-                slot: nextSlot,
-            },
-        });
+        try {
+            await db.dreamRunMember.create({
+                data: {
+                    runId,
+                    userId: ctx.userId,
+                    slot: nextSlot,
+                },
+            });
+        } catch (error: any) {
+            // P2002: Unique constraint violation (Race condition on the slot)
+            if (error.code === 'P2002') {
+                return { success: false, error: "Ce slot vient tout juste d'être pris par un autre joueur. Veuillez réessayer." };
+            }
+            throw error; // Re-throw other unexpected errors
+        }
     } else {
         // Add to waitlist
         const maxPosition = run.waitlist.length > 0

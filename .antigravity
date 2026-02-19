@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-18)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-19)
 
-**Branche Active** : `dev` (Synchronisée avec `main`)  
-**Status** : 🟢 Beta active. P0/P1/P2 **100% complets** ✅. Toutes les fonctionnalités Core sont stabilisées. Entrée en Phase 3 (Polish UI/UX & Lore).
+**Branche Active** : `feat/redesign-polish-legal` (PR vers `dev` en cours)  
+**Status** : 🟢 Beta active. Phase 3 (Polish UI/UX & Lore) en cours de déploiement. Refonte Légale et Branding "Landing" terminée.
 
 ---
 
@@ -15,37 +15,25 @@ SigilOS/
 │   │   ├── dashboard/          # Dashboard guildes (auth required)
 │   │   │   └── [guildId]/admin/modules/  # Toggle modules par guilde
 │   │   ├── god/                # Super-admin panel (isSuperAdmin only)
-│   │   ├── docs/               # Documentation publique
+│   │   ├── docs/               # Documentation publique (Membre whitelisté requis)
 │   │   ├── changelog/          # Changelog public
 │   │   ├── guilds/             # Annuaire public des guildes
-│   │   └── (public)/           # Landing, legal, gate...
+│   │   ├── auth/               # Custom Auth pages (signout, error)
+│   │   └── legal/              # Documents Légaux (CGU, Privacy, Mentions)
 │   ├── components/             # Composants UI réutilisables
 │   │   ├── editor/             # TipTap editor + extensions
-│   │   └── layout/             # Header, Sidebar, Footer...
+│   │   ├── landing/            # Hero, BetaGate, Features...
+│   │   └── layout/             # PublicHeader, GalacticFooter, AppSidebar...
 │   ├── lib/
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
 │   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
-│       │   ├── module-actions.ts  # Toggle modules par guilde
+│       │   ├── module-actions.ts  # Toggle modules par guilde (Fix polls/admin)
 │       │   ├── songes/         # Gestion des runs Songes
-│       │   ├── profile-actions.ts # Sync succès OCR
 │       │   └── ...
 │       ├── songes-service.ts   # Service embeds Discord Songes
 │       └── discord.ts          # Discord API integration
-├── services/
-│   └── discord-bot/            # Bot Discord standalone (TypeScript)
-├── prisma/
-│   ├── schema.prisma           # Schéma DB
-│   └── migrations/             # Historique migrations
-├── scripts/
-│   ├── deploy.sh               # Déploiement Beta/Prod
-│   ├── backup_db.sh            # Backup DB → Cloudflare R2
-│   ├── maintenance.sh          # Cleanup Docker quotidien
-│   └── check-hardening.sh      # Audit sécurité VPS
-├── Dockerfile                  # Build Next.js standalone
-├── docker-compose.prod.yml     # Stack complète (prod + beta + monitoring)
-└── Caddyfile                   # Reverse proxy + SSL
 ```
 
 ---
@@ -162,8 +150,11 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 ### 🔴 Phase 2 — UX & Features Core
 - [x] Toutes les tâches P2 ont été complétées ou déplacées. ✅
 
-### 🎨 Phase 3 — Polish UI/UX (Prochain Sprint)
-- [ ] Réduire la densité de violet sur la Landing Page (Branding)
+### 🎨 Phase 3 — Polish UI/UX (Sprint Actuel)
+- [x] Unification du Branding Landing (Header fixe, barres horizontales) ✅
+- [x] Suppression de la surcharge visuelle Hero (Cleanup logo central) ✅
+- [x] Refonte complète du Footer (SEO, Premium, Wylan) ✅
+- [x] Signature créateur & Lore (Mention Wylan & Pseudonymes) ✅
 - [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
 - [ ] Refonte UI Documentation (Clarté & Navigation)
 

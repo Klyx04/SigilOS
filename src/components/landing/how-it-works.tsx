@@ -12,18 +12,18 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 const STEPS = [
     {
         icon: DiscordIcon,
-        title: "Discord & Candidature",
-        description: "Postulez directement sur le Discord SigilOS."
+        title: "Pacte de Discord",
+        description: "Scellez votre alliance sur le Discord SigilOS."
     },
     {
         icon: Mic,
-        title: "Échange en Vocal",
-        description: "Un échange en vocal pour voir si l'outil peut vraiment vous intéresser."
+        title: "Rite d'Admission",
+        description: "Un entretien vocal pour valider votre allégeance au projet."
     },
     {
         icon: LayoutDashboard,
-        title: "Accès Dashboard",
-        description: "Validation de l'accès et accès directement à votre dashboard de guilde."
+        title: "Éveil du Dashboard",
+        description: "Accédez à votre grimoire de gestion personnalisé."
     }
 ];
 
@@ -46,9 +46,9 @@ export function HowItWorks() {
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-teal/20 border border-accent-teal/30 text-[10px] font-black uppercase tracking-widest text-accent-teal">
                                     Protocoles de Gestion
                                 </div>
-                                <h3 className="text-3xl md:text-4xl font-black text-white font-heading italic">Chef de Guilde ?</h3>
+                                <h3 className="text-3xl md:text-4xl font-black text-white font-heading italic">Meneur de Guilde ?</h3>
                                 <p className="text-zinc-400 font-medium max-w-md text-lg leading-relaxed">
-                                    Automatisez vos missions et centralisez la gestion de vos membres en quelques clics. Reprenez le contrôle de votre aventure.
+                                    Érigez une cité numérique pour vos membres. Automatisez vos quêtes et régnez sur votre communauté avec sagesse.
                                 </p>
                             </div>
                         </div>

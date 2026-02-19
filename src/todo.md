@@ -87,12 +87,11 @@
 - [x] Vue temps réel chapitrage et existant (Optimisations UI)
 
 ### Onboarding
-- [ ] Tutorial first-login pour nouveaux admins
-- [ ] Tooltip pour les modules
-- [ ] Page "Getting Started" (5 étapes pour lancer sa guilde)
-- [x] Générer de la documentation user humanisé
-
-- [ ] Tooltips contextuels
+- [x] Tutorial first-login for new admins (Welcome Modal)
+- [x] Tooltip for the modules (GuidePulse)
+- [x] Page "Getting Started" (5 steps to launch guild)
+- [x] Generate user-friendly documentation
+- [x] Contextual tooltips (Added to Modules & Mission Editor)
 
 ---
 
@@ -122,7 +121,7 @@
 
 ## 🎮 P6 — MODULES FUTURS
 
-### Stats Guilde
+### Module Stats Guilde
 - [ ] Guildatons générés
 - [ ] Points activité total guilde
 - [ ] Points contributions DJ/Quêtes/Missions
@@ -130,15 +129,25 @@
 - [ ] Events terminés
 - [ ] Missions validées
 
-### DJ/Succès
+### Module Donjons & Quêtes
 - [ ] Module Recherche DJ/Succès/Quêtes
-- [ ] Module Service Passages DJ/Succès/Prêts/Pack
+
+
+### Module Service Passages DJ/Succès/Prêts/Pack
+
+### Vote/Sondage
+- [ ] Module en lecture seule pour tous sauf admin discord : 
+- récupération d'un rôle écrit en dur (non discord) type PIM (role créateur-vote ou un truc comme ca) pendant 1h par exemple , loggé biensur avec timer perte de rôle dans X
+- a le droit de générér un vote/sondage , full fonctionnalité best practices etat de l'art , mention everyone/role au choix
+- catégorie de sondage : suggestions/améliorations/events/missions/autres
+- prévisu du sondage , envoi vers discord en option via un embed superbe avec bouton et tout ce qu'il faut pour que les gens votent (sécurisé qui peut voter), temps de sondage avec suppression auto après X temps
+ce module doit etre une vrai valeur ajoutée 
+
 
 ### Profil Utilisateur
 - [ ] Statut disponibilité (Dispo Farm/Songes, AFK, Mode chill)
-- [ ] Avancement : Points Succès en % du total Dofus
-- [ ] Préférences notifications Discord
-- [ ] Score d'investissement calculé
+
+
 
 ---
 

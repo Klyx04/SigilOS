@@ -23,6 +23,7 @@ import {
     LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GuidePulse } from "@/components/dashboard/guide-pulse";
 
 // ============================================================================
 // MODULE DEFINITIONS
@@ -266,12 +267,19 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                 )} />
                                             </div>
                                             <div>
-                                                <h3 className={cn(
-                                                    "font-semibold text-sm",
-                                                    isEnabled ? "text-foreground" : "text-muted-foreground"
-                                                )}>
-                                                    {mod.label}
-                                                </h3>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h3 className={cn(
+                                                        "font-semibold text-sm",
+                                                        isEnabled ? "text-foreground" : "text-muted-foreground"
+                                                    )}>
+                                                        {mod.label}
+                                                    </h3>
+                                                    <GuidePulse
+                                                        description={mod.description}
+                                                        className="w-2.5 h-2.5"
+                                                        side="top"
+                                                    />
+                                                </div>
                                                 <span className={cn(
                                                     "text-xs font-medium",
                                                     isEnabled ? mod.color : "text-muted-foreground/60"

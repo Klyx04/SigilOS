@@ -84,12 +84,13 @@ SigilOS/
 
 ---
 
-### Session — Refonte Sondages & UX Discord (2026-02-19)
+### Session — Finalisation Sondages V2 & Sécurité (2026-02-19)
 
-- ✅ **Pixel-Perfect Discord**: Overhaul complet des embeds avec titres bleus (EmbedTitle), bannières premium par catégorie (`calendar_*.png`) et mise en page aérée.
-- ✅ **Gouvernance Pro**: Limitation à 10 options, édition possible du sondage (pour créateur/admin) et cooldown d'une semaine par catégorie (règle anti-spam).
-- ✅ **UX Slim-down**: Redimensionnement des boutons d'action (Propulser/Modifier) pour un rendu plus pro et équilibré.
-- ✅ **Audit & Robustesse**: Logging des actions critiques (Micro role, Edit) et détection intelligente des salons Discord non configurés.
+- ✅ **Sondages V2 (Outcomes)** : Implémentation du système de décision (Winner/Outcome), archivage automatique et résumé Discord enrichi des résultats complets.
+- ✅ **Redesign Notifications** : Refonte complète du système (catégories, filtres persistants) et UI premium pour les préférences utilisateurs et staff.
+- ✅ **Audit & Hardening** : Audit de sécurité complet. Suppression des routes de debug (`/debug-ui`) et de test (`ui-test`). Sécurisation de l'API d'upload (Super-Admin only).
+- ✅ **Code Cleanup** : Purge des fichiers de contexte orphelins dans `src/` et suppression des reliquats de migration (Kralamoure).
+- ✅ **Robustesse & Build** : Overhaul des embeds Discord, validation du build de production et monitoring des statistiques plateforme.
 
 ---
 

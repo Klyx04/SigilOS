@@ -1,18 +1,33 @@
 import { Search } from "lucide-react";
+import { getUserContext } from "@/server/actions/user-actions";
+import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 
-export default function FinderPage() {
+export default async function FinderPage({ params }: { params: Promise<{ guildId: string }> }) {
+    const { guildId } = await params;
+
+    const user = await getUserContext(guildId);
+    if (!user.canViewFinder) {
+        return <AccessDenied />;
+    }
+
+    const isAdmin = user.isAdmin;
+    if (!isAdmin && !await isModuleEnabled(guildId, "donjons")) {
+        redirect(`/dashboard/${guildId}`);
+    }
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4 pb-6 border-b border-white/10">
                 <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
                     <Search
-                        className="w-12 h-12 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                        className="w-12 h-12 text-cyan-500 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]"
                         strokeWidth={1.5}
                     />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Recherche & Quêtes</h1>
-                    <p className="text-zinc-400">Trouvez des partenaires pour vos donjons et quêtes.</p>
+                    <h1 className="text-2xl font-bold text-white">Donjons & Quêtes</h1>
+                    <p className="text-zinc-400">Trouvez des partenaires pour vos activités en guilde.</p>
                 </div>
             </div>
 

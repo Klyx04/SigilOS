@@ -18,8 +18,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     // Fetch user context for Discord info + RBAC
     const userContext = await getUserContext(guildId);
 
-    // RBAC: Must be authenticated member of the guild
-    if (!userContext.isAuthenticated || !userContext.isMember) {
+    // RBAC: Must be authenticated member of the guild with profile view permission
+    if (!userContext.isAuthenticated || !userContext.isMember || !userContext.canViewProfile) {
         return <AccessDenied />;
     }
 

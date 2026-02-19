@@ -11,6 +11,7 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import AccessDenied from "@/components/access-denied";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -20,6 +21,10 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
     const { guildId } = await params;
     const guild = await getGuildPresentation(guildId, false);
     const user = await getUserContext(guildId);
+
+    if (!user.canViewPresentation) {
+        return <AccessDenied />;
+    }
 
     if (!guild) {
         notFound();

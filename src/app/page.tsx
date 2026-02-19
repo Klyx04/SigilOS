@@ -55,13 +55,13 @@ export default async function Home({
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-accent-gold/5 blur-[120px] rounded-full pointer-events-none" />
 
             <div className="container mx-auto px-6 relative z-10">
-              <div className="max-w-3xl mx-auto text-center mb-20">
+              <div className="max-w-4xl mx-auto text-center mb-20">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-teal/10 border border-accent-teal/20 mb-6 font-mono text-[10px] text-accent-teal uppercase tracking-widest">
-                  Network
+                  Écosystème SigilOS
                 </div>
-                <h2 className="text-4xl md:text-5xl font-heading text-white mb-6">Propulsez votre <span className="text-accent-gold italic">recrutement.</span></h2>
-                <p className="text-zinc-500 font-medium font-sans text-lg">
-                  L&apos;annuaire Stellium offre une vitrine premium à votre guilde. Soyez visible par les meilleurs joueurs du serveur.
+                <h2 className="text-4xl md:text-6xl font-heading text-white mb-6">Un Écosystème d&apos;Élite pour vos <span className="text-accent-gold italic">Recrutements.</span></h2>
+                <p className="text-zinc-500 font-medium font-sans text-xl max-w-2xl mx-auto leading-relaxed">
+                  L&apos;annuaire Stellium offre une vitrine premium à votre guilde. Propulsez votre organisation au niveau supérieur et rejoignez le réseau des communautés d&apos;élite.
                 </p>
               </div>
               <GuildDirectorySection guilds={guilds} />
@@ -86,9 +86,8 @@ export default async function Home({
           </div>
         </main>
 
-        <GalacticFooter />
+        <GalacticFooter isMember={userContext.isMember} />
       </div>
     </NebulaClientWrapper >
   );
 }
-

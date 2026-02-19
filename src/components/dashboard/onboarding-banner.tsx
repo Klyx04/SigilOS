@@ -22,14 +22,16 @@ export function OnboardingBanner({
     title = "Administration",
     subtitle = "Configuration",
     checklistLabel = "Checklist de configuration",
-    guideHref
+    guideHref,
+    variant = "admin"
 }: {
     guildId: string,
     steps: OnboardingStep[],
     title?: string,
     subtitle?: string,
     checklistLabel?: string,
-    guideHref?: string
+    guideHref?: string,
+    variant?: "admin" | "user"
 }) {
     const completedSteps = steps.filter(s => s.completed).length;
     const progress = (completedSteps / steps.length) * 100;
@@ -40,21 +42,35 @@ export function OnboardingBanner({
         "scroll-text": ScrollText,
         "book-open": BookOpen,
         infinity: InfinityIcon,
-        users: Users
+        users: Users,
+        sparkles: Sparkles,
+        zap: Zap,
+        rocket: Rocket
     };
 
     return (
         <div className="relative group/onboarding w-full">
             {/* Animated Glow when incomplete */}
             {!isFinished && (
-                <div className="absolute -inset-[2px] bg-gradient-to-r from-emerald-500/40 via-teal-500/40 to-emerald-500/40 rounded-2xl blur-md opacity-30 animate-pulse-slow" />
+                <div className={cn(
+                    "absolute -inset-[2px] rounded-2xl blur-md opacity-30 animate-pulse-slow",
+                    variant === "user" ? "bg-gradient-to-r from-blue-500/40 via-indigo-500/40 to-blue-500/40" : "bg-gradient-to-r from-emerald-500/40 via-teal-500/40 to-emerald-500/40"
+                )} />
             )}
 
             <div className={cn(
                 "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-500",
-                !isFinished ? "ring-1 ring-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]" : "opacity-90"
+                variant === "user" ? "ring-1 ring-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]" : "ring-1 ring-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]",
+                !isFinished ? "opacity-100" : "opacity-90"
             )}>
-                {!isFinished && <BorderBeam size={200} duration={6} colorFrom="#10b981" colorTo="#34d399" />}
+                {!isFinished && (
+                    <BorderBeam
+                        size={200}
+                        duration={6}
+                        colorFrom={variant === "user" ? "#3b82f6" : "#10b981"}
+                        colorTo={variant === "user" ? "#60a5fa" : "#34d399"}
+                    />
+                )}
 
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-6 flex-1 max-w-2xl">
@@ -62,39 +78,64 @@ export function OnboardingBanner({
                             <div className={cn(
                                 "p-3 rounded-2xl border transition-colors",
                                 !isFinished
-                                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 group-hover/onboarding:scale-110 duration-500"
+                                    ? (variant === "user" ? "bg-blue-500/20 border-blue-500/30 text-blue-400 group-hover/onboarding:scale-110 duration-500" : "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 group-hover/onboarding:scale-110 duration-500")
                                     : "bg-zinc-500/10 border-white/10 text-zinc-400"
                             )}>
-                                {isFinished ? <CheckCircle2 className="w-6 h-6" /> : <Rocket className="w-6 h-6 animate-bounce-subtle" />}
+                                {isFinished ? (
+                                    <CheckCircle2 className="w-6 h-6" />
+                                ) : (
+                                    variant === "user" ? <Sparkles className="w-6 h-6 animate-pulse" /> : <Rocket className="w-6 h-6 animate-bounce-subtle" />
+                                )}
                             </div>
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400/80 leading-none">
-                                        {isFinished ? "Succès" : "Configuration Nécessaire"}
+                                    <span className={cn(
+                                        "text-[10px] font-black uppercase tracking-[0.4em] leading-none",
+                                        variant === "user" ? "text-blue-400/80" : "text-emerald-400/80"
+                                    )}>
+                                        {isFinished ? (variant === "user" ? "Prêt pour l'aventure" : "Succès") : (variant === "user" ? "Préparation" : "Configuration Nécessaire")}
                                     </span>
                                     {!isFinished && (
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
-                                            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-tighter">Priorité</span>
+                                        <div className={cn(
+                                            "flex items-center gap-1 px-1.5 py-0.5 rounded-full border",
+                                            variant === "user" ? "bg-blue-500/10 border-blue-500/20" : "bg-emerald-500/10 border-emerald-500/20"
+                                        )}>
+                                            <span className={cn(
+                                                "w-1 h-1 rounded-full animate-ping",
+                                                variant === "user" ? "bg-blue-400" : "bg-emerald-400"
+                                            )} />
+                                            <span className={cn(
+                                                "text-[8px] font-black uppercase tracking-tighter",
+                                                variant === "user" ? "text-blue-400" : "text-emerald-400"
+                                            )}>Priorité</span>
                                         </div>
                                     )}
                                 </div>
                                 <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white">
-                                    {isFinished ? "Votre Guilde est prête !" : "Finalisez votre installation"}
+                                    {isFinished
+                                        ? (variant === "user" ? "Votre profil est prêt !" : "Votre Guilde est prête !")
+                                        : title}
                                 </h2>
                                 <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-md">
                                     {isFinished
-                                        ? "Tous les systèmes sont opérationnels. Vos membres peuvent désormais profiter pleinement du dashboard."
-                                        : "Il reste quelques étapes pour que votre guilde bénéficie de l'expérience complète de SigilOS."}
+                                        ? (variant === "user"
+                                            ? "Vous avez configuré les piliers essentiels de votre identité. Profitez pleinement de SigilOS !"
+                                            : "Tous les systèmes sont opérationnels. Vos membres peuvent désormais profiter pleinement du dashboard.")
+                                        : (variant === "user"
+                                            ? "Suivez ces quelques étapes pour préparer votre profil et faciliter votre intégration dans l'écosystème de la guilde."
+                                            : "Il reste quelques étapes pour que votre guilde bénéficie de l'expérience complète de SigilOS.")}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
                             {guideHref && !isFinished && (
-                                <Button asChild className="bg-emerald-500 hover:bg-emerald-400 text-black font-black px-8 py-6 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all group/btn">
+                                <Button asChild className={cn(
+                                    "font-black px-8 py-6 rounded-xl transition-all group/btn",
+                                    variant === "user" ? "bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]" : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                                )}>
                                     <Link href={guideHref}>
-                                        AVANCEMENT
+                                        {variant === "user" ? "MON PARCOURS" : "AVANCEMENT"}
                                         <ArrowRight className="ml-2 w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
                                     </Link>
                                 </Button>
@@ -103,14 +144,17 @@ export function OnboardingBanner({
                             <div className="flex-1 min-w-[200px] space-y-2">
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                                     <span className="text-zinc-500">{checklistLabel}</span>
-                                    <span className="text-emerald-400">{completedSteps} / {steps.length}</span>
+                                    <span className={variant === "user" ? "text-blue-400" : "text-emerald-400"}>{completedSteps} / {steps.length}</span>
                                 </div>
                                 <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${progress}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                        className={cn(
+                                            "h-full transition-all duration-500",
+                                            variant === "user" ? "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]" : "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                        )}
                                     />
                                 </div>
                             </div>
@@ -129,15 +173,18 @@ export function OnboardingBanner({
                                         className={cn(
                                             "relative p-4 rounded-2xl border transition-all hover:scale-110 active:scale-95 group/step flex flex-col items-center gap-3 min-w-[90px]",
                                             step.completed
-                                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                                ? (variant === "user" ? "bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")
                                                 : "bg-white/5 border-white/10 text-zinc-500 hover:border-white/30 hover:bg-white/10"
                                         )}
                                     >
                                         <Icon className={cn("w-6 h-6", !step.completed && "grayscale opacity-50")} />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-center">{step.title}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">{step.title}</span>
 
                                         {step.completed && (
-                                            <div className="absolute -top-1.5 -right-1.5 bg-emerald-500 rounded-full p-1 border-2 border-zinc-950 shadow-lg">
+                                            <div className={cn(
+                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-zinc-950 shadow-lg",
+                                                variant === "user" ? "bg-blue-500" : "bg-emerald-500"
+                                            )}>
                                                 <Check className="w-2.5 h-2.5 text-white" />
                                             </div>
                                         )}
@@ -153,7 +200,7 @@ export function OnboardingBanner({
                 </div>
 
                 <div className="absolute -bottom-10 -right-10 p-8 opacity-[0.03] pointer-events-none group-hover/onboarding:opacity-[0.07] transition-opacity duration-1000 group-hover/onboarding:rotate-0 rotate-12">
-                    <Shield className="w-64 h-64 text-white" />
+                    {variant === "user" ? <Sparkles className="w-64 h-64 text-white" /> : <Shield className="w-64 h-64 text-white" />}
                 </div>
             </div>
         </div>

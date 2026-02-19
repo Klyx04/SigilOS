@@ -29,7 +29,7 @@ const UpdateProfileSchema = z.object({
         .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]+$/, "Le pseudo ne doit contenir que des lettres (pas de chiffres ni de caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    classeSecondaires: z.array(z.string()).optional(),
+    classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),

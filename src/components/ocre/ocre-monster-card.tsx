@@ -4,7 +4,7 @@
 // OCRE MONSTER CARD - Premium glassmorphism card with exchange indicator
 // =============================================================================
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -45,7 +45,7 @@ const stateConfig: Record<MonsterState, { label: string; color: string; icon: st
     },
 };
 
-export function OcreMonsterCard({
+export const OcreMonsterCard = memo(function OcreMonsterCard({
     monster,
     guildId,
     availableExchanges = 0,
@@ -288,4 +288,4 @@ export function OcreMonsterCard({
             </Card>
         </motion.div>
     );
-}
+});

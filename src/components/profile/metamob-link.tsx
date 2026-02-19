@@ -82,7 +82,11 @@ export function MetamobLink({
             const serverInfo = result.data.serverName ? ` (${result.data.serverName})` : "";
             toast.success(`Compte Metamob "${result.data.pseudo}" lié${serverInfo} !`);
         } else {
-            setLinkError(result.error || "Erreur lors de la liaison du compte");
+            if (result.error === "MISSING_PSEUDO_DOFUS") {
+                setLinkError("Configurez d'abord votre pseudo Dofus dans votre profil SigilOS.");
+            } else {
+                setLinkError(result.error || "Erreur lors de la liaison du compte");
+            }
             // Detect if it's an ownership error and user is admin
             if (result.error?.includes("déjà lié") && isAdmin) {
                 setForceLink(true);
@@ -420,7 +424,21 @@ export function MetamobLink({
                                             <div className="space-y-3 pt-2">
                                                 <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm border border-red-500/20">
                                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                                    <span>{linkError}</span>
+                                                    <div className="space-y-3 flex-1">
+                                                        <span>{linkError}</span>
+                                                        {linkError.includes("pseudo Dofus") && (
+                                                            <Button
+                                                                asChild
+                                                                size="sm"
+                                                                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold"
+                                                            >
+                                                                <Link href={`/dashboard/${guildId}/profile?edit=identity`}>
+                                                                    <Settings className="w-3.5 h-3.5 mr-2" />
+                                                                    Configurer mon Pseudo
+                                                                </Link>
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 {linkError.toLowerCase().includes("déjà lié") && !isAdmin && (

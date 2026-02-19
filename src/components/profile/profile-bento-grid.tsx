@@ -75,6 +75,12 @@ interface ProfileBentoGridProps {
     roleColor?: number;
     readOnly?: boolean;
     isAdmin?: boolean;
+    permissions?: {
+        canViewArchis?: boolean;
+        canViewSonges?: boolean;
+        canViewLadder?: boolean;
+        canViewMissions?: boolean;
+    };
     guildName?: string;
     dofusServerId?: string | null;
 }
@@ -88,6 +94,7 @@ export function ProfileBentoGrid({
     roleColor = 0,
     readOnly = false,
     isAdmin = false,
+    permissions = {},
     guildName,
     dofusServerId,
 }: ProfileBentoGridProps) {
@@ -95,6 +102,9 @@ export function ProfileBentoGrid({
     const searchParams = useSearchParams();
     const initialTab = searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Default permissions to true if not provided (internal consistency)
+    const { canViewArchis = true, canViewSonges = true, canViewLadder = true, canViewMissions = true } = permissions;
 
     // Sync state if URL param changes (optional but good for UX)
     useEffect(() => {
@@ -246,7 +256,8 @@ export function ProfileBentoGrid({
                     weeklyXp={stats.weeklyXp}
                     missionsValidated={stats.missionsValidated}
                     weeklyMissions={stats.weeklyMissions}
-                    isAdmin={isAdmin}
+                    canViewMissions={permissions.canViewMissions}
+                    canViewLadder={canViewLadder}
                     guildName={guildName}
                 />
             </div>
@@ -273,18 +284,22 @@ export function ProfileBentoGrid({
                         >
                             Planning
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="achievements"
-                            className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
-                        >
-                            Succès
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="songes"
-                            className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
-                        >
-                            Songes
-                        </TabsTrigger>
+                        {canViewLadder && (
+                            <TabsTrigger
+                                value="achievements"
+                                className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                            >
+                                Succès
+                            </TabsTrigger>
+                        )}
+                        {canViewSonges && (
+                            <TabsTrigger
+                                value="songes"
+                                className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
+                            >
+                                Songes
+                            </TabsTrigger>
+                        )}
                         <TabsTrigger
                             value="settings"
                             className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
@@ -309,14 +324,16 @@ export function ProfileBentoGrid({
                             />
 
                             {/* Metamob */}
-                            <MetamobLink
-                                guildId={guildId}
-                                metamobPseudo={profile.metamobPseudo}
-                                metamobVerified={profile.metamobVerified}
-                                metamobLastSync={profile.metamobLastSync}
-                                readOnly={readOnly}
-                                isAdmin={isAdmin}
-                            />
+                            {canViewArchis && (
+                                <MetamobLink
+                                    guildId={guildId}
+                                    metamobPseudo={profile.metamobPseudo}
+                                    metamobVerified={profile.metamobVerified}
+                                    metamobLastSync={profile.metamobLastSync}
+                                    readOnly={readOnly}
+                                    isAdmin={isAdmin}
+                                />
+                            )}
 
 
                         </div>

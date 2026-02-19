@@ -9,7 +9,8 @@ import {
     Swords,
     PartyPopper,
     Target,
-    Wheat
+    Wheat,
+    Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,9 +42,9 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
     },
     KRALAMOURE: {
         label: "Kralamoure",
-        icon: Users,
-        color: "text-blue-400",
-        bg: "bg-blue-500/10 border-blue-500/20"
+        icon: Eye,
+        color: "text-pink-400",
+        bg: "bg-pink-500/10 border-pink-500/20"
     }
 };
 

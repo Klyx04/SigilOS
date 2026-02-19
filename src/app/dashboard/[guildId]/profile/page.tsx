@@ -101,6 +101,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     discordNickname={userContext.name}
                     roleColor={userContext.roleColor}
                     isAdmin={userContext.isAdmin}
+                    permissions={{
+                        canViewArchis: userContext.canViewArchis,
+                        canViewSonges: userContext.canViewSonges,
+                        canViewLadder: userContext.canViewLadder,
+                        canViewMissions: userContext.canViewMissions,
+                    }}
                     readOnly={false}
                 />
             </div>

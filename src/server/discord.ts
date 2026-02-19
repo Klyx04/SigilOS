@@ -1,6 +1,38 @@
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
+// =============================================================================
+// In-Memory Cache (TTL-based) for Discord API hot paths
+// Prevents hammering Discord API on every page load / server action
+// =============================================================================
+type CacheEntry<T> = { data: T; expiresAt: number };
+const discordCache = new Map<string, CacheEntry<unknown>>();
+
+function getCached<T>(key: string): T | null {
+    const entry = discordCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        discordCache.delete(key);
+        return null;
+    }
+    return entry.data as T;
+}
+
+function setCached<T>(key: string, data: T, ttlMs: number): void {
+    discordCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+export function invalidateDiscordCache(pattern?: string): void {
+    if (!pattern) {
+        discordCache.clear();
+        return;
+    }
+    for (const key of discordCache.keys()) {
+        if (key.includes(pattern)) discordCache.delete(key);
+    }
+}
+
+
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
@@ -97,46 +129,61 @@ export async function fetchGuild(guildId: string) {
 }
 
 export async function fetchGuildMember(guildId: string, userId: string) {
+    const cacheKey = `member:${guildId}:${userId}`;
+    const cached = getCached<{ user?: { id: string; username: string; global_name?: string }; nick?: string | null; roles: string[]; joined_at?: string } | null>(cacheKey);
+    if (cached !== null) return cached;
+
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 0 }
     });
 
     if (!res.ok) {
-        if (res.status === 404) return null;
+        if (res.status === 404) {
+            setCached(cacheKey, null, 5 * 60 * 1000); // Cache 404 for 5min too
+            return null;
+        }
         throw new Error(`Failed to fetch member: ${res.statusText}`);
     }
 
-    return (await res.json()) as {
+    const data = await res.json() as {
         user?: { id: string; username: string; global_name?: string };
         nick?: string | null;
         roles: string[];
         joined_at?: string;
     };
+
+    setCached(cacheKey, data, 5 * 60 * 1000); // TTL: 5 minutes
+    return data;
 }
 
 export async function listGuildMembers(guildId: string, limit = 1000) {
+    const cacheKey = `members:${guildId}:${limit}`;
+    const cached = getCached<Array<{ user: { id: string; username: string; global_name?: string }; nick?: string | null; roles: string[]; joined_at?: string }>>(cacheKey);
+    if (cached !== null) return cached;
+
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members?limit=${limit}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 0 }
     });
 
     if (!res.ok) {
         throw new Error(`Failed to list members: ${res.statusText}`);
     }
 
-    return (await res.json()) as Array<{
+    const data = await res.json() as Array<{
         user: { id: string; username: string; global_name?: string };
         nick?: string | null;
         roles: string[];
         joined_at?: string;
     }>;
+
+    setCached(cacheKey, data, 10 * 60 * 1000); // TTL: 10 minutes
+    return data;
 }
 
 export async function fetchGuildBans(guildId: string) {

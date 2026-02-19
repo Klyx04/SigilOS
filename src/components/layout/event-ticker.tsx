@@ -52,9 +52,10 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
 interface EventTickerProps {
     events: UpcomingEvent[];
     guildId: string;
+    canViewCalendar?: boolean;
 }
 
-export function EventTicker({ events, guildId }: EventTickerProps) {
+export function EventTicker({ events, guildId, canViewCalendar = true }: EventTickerProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
 
     // Filter only future/today events and take next 5
@@ -74,6 +75,17 @@ export function EventTicker({ events, guildId }: EventTickerProps) {
     }, [upcoming.length]);
 
     if (upcoming.length === 0) {
+        if (!canViewCalendar) return (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 opacity-50">
+                <div className="p-1 rounded-full bg-zinc-800 text-zinc-400">
+                    <Calendar className="w-3 h-3" />
+                </div>
+                <span className="text-xs font-medium text-zinc-500">
+                    Aucun événement prévu
+                </span>
+            </div>
+        );
+
         return (
             <Link
                 href={`/dashboard/${guildId}/calendar`}
@@ -103,44 +115,84 @@ export function EventTicker({ events, guildId }: EventTickerProps) {
     return (
         <div className="flex justify-center w-full">
             <AnimatePresence mode="wait">
-                <Link
-                    key={event.id}
-                    href={`/dashboard/${guildId}/calendar?event=${event.id}`}
-                    className={cn(
-                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md transition-all hover:bg-zinc-800/50 hover:scale-105 hover:border-zinc-700 group relative",
-                        typeConfig.bg.replace("/10", "/20").replace("border-", "border-zinc-800/50 ")
-                    )}
-                >
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center gap-3"
+                {canViewCalendar ? (
+                    <Link
+                        key={event.id}
+                        href={`/dashboard/${guildId}/calendar?event=${event.id}`}
+                        className={cn(
+                            "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md transition-all hover:bg-zinc-800/50 hover:scale-105 hover:border-zinc-700 group relative",
+                            typeConfig.bg.replace("/10", "/20").replace("border-", "border-zinc-800/50 ")
+                        )}
                     >
-                        {/* Status Dot */}
-                        <div className={cn("h-2 w-2 rounded-full animate-pulse", typeConfig.color.replace("text-", "bg-"))} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex items-center gap-3"
+                        >
+                            {/* Status Dot */}
+                            <div className={cn("h-2 w-2 rounded-full animate-pulse", typeConfig.color.replace("text-", "bg-"))} />
 
-                        {/* Title */}
-                        <span className="text-sm font-bold text-zinc-100 truncate max-w-[150px] group-hover:text-amber-400 transition-colors">
-                            {event.title}
-                        </span>
+                            {/* Title */}
+                            <span className="text-sm font-bold text-zinc-100 truncate max-w-[150px] group-hover:text-amber-400 transition-colors">
+                                {event.title}
+                            </span>
 
-                        {/* Date */}
-                        <span className="text-xs text-zinc-400 font-medium hidden sm:inline-block">
-                            {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
-                        </span>
+                            {/* Date */}
+                            <span className="text-xs text-zinc-400 font-medium hidden sm:inline-block">
+                                {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
+                            </span>
 
-                        {/* Participants */}
-                        <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-950/30 border border-zinc-800 flex items-center gap-1",
-                            isFull ? "text-red-400 border-red-900/30" : "text-zinc-500"
-                        )}>
-                            <Users className="h-3 w-3" />
-                            {participantCount}
-                        </span>
-                    </motion.div>
-                </Link>
+                            {/* Participants */}
+                            <span className={cn(
+                                "text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-950/30 border border-zinc-800 flex items-center gap-1",
+                                isFull ? "text-red-400 border-red-900/30" : "text-zinc-500"
+                            )}>
+                                <Users className="h-3 w-3" />
+                                {participantCount}
+                            </span>
+                        </motion.div>
+                    </Link>
+                ) : (
+                    <div
+                        key={event.id}
+                        className={cn(
+                            "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md opacity-80 group relative",
+                            typeConfig.bg.replace("/10", "/20").replace("border-", "border-zinc-800/50 ")
+                        )}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex items-center gap-3"
+                        >
+                            {/* Status Dot */}
+                            <div className={cn("h-2 w-2 rounded-full animate-pulse", typeConfig.color.replace("text-", "bg-"))} />
+
+                            {/* Title */}
+                            <span className="text-sm font-bold text-zinc-100 truncate max-w-[150px]">
+                                {event.title}
+                            </span>
+
+                            {/* Date */}
+                            <span className="text-xs text-zinc-400 font-medium hidden sm:inline-block">
+                                {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
+                            </span>
+
+                            {/* Participants */}
+                            <span className={cn(
+                                "text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-950/30 border border-zinc-800 flex items-center gap-1",
+                                isFull ? "text-red-400 border-red-900/30" : "text-zinc-500"
+                            )}>
+                                <Users className="h-3 w-3" />
+                                {participantCount}
+                            </span>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
         </div>
     );

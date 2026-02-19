@@ -17,7 +17,7 @@ const STEPS = [
     },
     {
         icon: Mic,
-        title: "Entretien Vocal",
+        title: "Échange en Vocal",
         description: "Un échange en vocal pour voir si l'outil peut vraiment vous intéresser."
     },
     {
@@ -32,18 +32,23 @@ export function HowItWorks() {
         <section className="pb-24 bg-background relative overflow-hidden">
             <div className="container px-6 mx-auto">
                 {/* Chef de Guilde Banner */}
-                <div className="max-w-4xl mx-auto mb-20">
-                    <div className="relative group p-8 md:p-12 rounded-[2.5rem] bg-accent-gold/5 border border-accent-gold/10 overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-8 transition-all hover:bg-accent-gold/[0.07] hover:border-accent-gold/20">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-accent-gold/5 blur-[80px] -z-10" />
+                <div className="max-w-5xl mx-auto mb-32">
+                    <div className="relative group p-10 md:p-16 rounded-[3rem] bg-accent-teal/5 border border-accent-teal/10 overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-10 transition-all hover:bg-accent-teal/[0.07] hover:border-accent-teal/20 backdrop-blur-sm">
+                        {/* High-end decorative lights */}
+                        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-teal/10 blur-[120px] -z-10 rounded-full" />
+                        <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] bg-accent-gold/5 blur-[100px] -z-10 rounded-full" />
 
-                        <div className="flex flex-col md:flex-row items-center gap-6 text-left">
-                            <div className="p-4 rounded-2xl bg-accent-gold/10 border border-accent-gold/20 text-accent-gold">
-                                <Crown className="w-8 h-8" />
+                        <div className="flex flex-col md:flex-row items-center gap-8 text-left relative z-10">
+                            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-accent-teal to-emerald-600 flex items-center justify-center text-bg-primary shadow-2xl shadow-accent-teal/20 group-hover:scale-110 transition-transform duration-700">
+                                <Crown className="w-10 h-10" />
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-heading text-white mb-2 italic">Chef de Guilde ?</h3>
-                                <p className="text-zinc-400 font-medium max-w-sm">
-                                    Automatisez vos missions et centralisez la gestion de vos membres en quelques minutes.
+                            <div className="space-y-3">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-teal/20 border border-accent-teal/30 text-[10px] font-black uppercase tracking-widest text-accent-teal">
+                                    Protocoles de Gestion
+                                </div>
+                                <h3 className="text-3xl md:text-4xl font-black text-white font-heading italic">Chef de Guilde ?</h3>
+                                <p className="text-zinc-400 font-medium max-w-md text-lg leading-relaxed">
+                                    Automatisez vos missions et centralisez la gestion de vos membres en quelques clics. Reprenez le contrôle de votre aventure.
                                 </p>
                             </div>
                         </div>
@@ -51,29 +56,29 @@ export function HowItWorks() {
                         <Link
                             href="https://discord.gg/uX7G6SUDgN"
                             target="_blank"
-                            className="shrink-0 px-8 py-4 rounded-2xl bg-accent-gold/10 border border-accent-gold/20 text-accent-gold text-xs font-black uppercase tracking-[0.3em] flex items-center gap-4 hover:bg-accent-gold hover:text-bg-primary transition-all group/link shadow-lg active:scale-95"
+                            className="shrink-0 px-10 py-5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.3em] flex items-center gap-4 hover:scale-105 transition-all group/link shadow-2xl shadow-white/5 active:scale-95"
                         >
                             <MessageSquare className="w-5 h-5 group-hover/link:rotate-12 transition-transform duration-500" />
-                            Accès BETA
+                            Accès PRIVÉ
                             <ChevronRight className="w-4 h-4 group-hover/link:translate-x-2 transition-transform" />
                         </Link>
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+                <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16 relative">
                     {/* Connecting Lines (Desktop) */}
-                    <div className="hidden md:block absolute top-12 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-accent-gold/20 to-transparent" />
+                    <div className="hidden md:block absolute top-12 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-accent-teal/20 to-transparent" />
 
                     {STEPS.map((step, idx) => (
                         <div key={idx} className="flex flex-col items-center text-center group">
-                            <div className="w-24 h-24 rounded-full bg-white/5 border border-white/5 flex items-center justify-center mb-6 transition-all group-hover:border-accent-gold/40 group-hover:bg-accent-gold/5 relative">
-                                <step.icon className="w-10 h-10 text-accent-gold" />
-                                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-bg-secondary border border-white/5 flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                            <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/5 flex items-center justify-center mb-8 transition-all group-hover:border-accent-teal/40 group-hover:bg-accent-teal/5 relative shadow-2xl group-hover:scale-105 duration-500">
+                                <step.icon className="w-10 h-10 text-accent-teal group-hover:scale-110 transition-transform" />
+                                <div className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl bg-bg-secondary border border-white/10 flex items-center justify-center text-[11px] font-black text-white shadow-xl">
                                     0{idx + 1}
                                 </div>
                             </div>
-                            <h3 className="text-white font-heading text-xl mb-3">{step.title}</h3>
-                            <p className="text-zinc-500 text-sm leading-relaxed">{step.description}</p>
+                            <h3 className="text-white font-heading text-2xl mb-4 italic tracking-tight">{step.title}</h3>
+                            <p className="text-zinc-500 font-medium leading-relaxed max-w-[240px]">{step.description}</p>
                         </div>
                     ))}
                 </div>

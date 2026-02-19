@@ -89,7 +89,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
             {/* CENTER: Event Ticker */}
             <div className="flex-1 flex justify-center px-2 min-w-0 overflow-hidden">
                 <div className="w-full max-w-2xl flex justify-center">
-                    <EventTicker events={events} guildId={sidebarProps.guildId} />
+                    <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
                 </div>
             </div>
 
@@ -128,25 +128,44 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
 
                 {/* 4. User Profile (High Visibility) */}
                 <div className="relative z-10">
-                    <Link
-                        href={`/dashboard/${sidebarProps.guildId}/profile`}
-                        className="flex items-center gap-3 pr-5 pl-3 py-1.5 hover:bg-white/[0.05] transition-all group/profile active:scale-95"
-                    >
-                        <div className="relative">
-                            <Avatar className="h-8 w-8 border border-white/10 group-hover/profile:border-indigo-500/50 transition-all duration-300">
-                                <AvatarImage src={sidebarProps.user.image} />
-                                <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold">
-                                    {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    {sidebarProps.user.canViewProfile ? (
+                        <Link
+                            href={`/dashboard/${sidebarProps.guildId}/profile`}
+                            className="flex items-center gap-3 pr-5 pl-3 py-1.5 hover:bg-white/[0.05] transition-all group/profile active:scale-95"
+                        >
+                            <div className="relative">
+                                <Avatar className="h-8 w-8 border border-white/10 group-hover/profile:border-indigo-500/50 transition-all duration-300">
+                                    <AvatarImage src={sidebarProps.user.image} />
+                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold">
+                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            </div>
+                            <div className="flex flex-col items-start leading-none hidden xl:flex">
+                                <span className="text-[12px] font-black text-zinc-200 group-hover/profile:text-white transition-colors tracking-tight">
+                                    {sidebarProps.user.name}
+                                </span>
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex items-center gap-3 pr-5 pl-3 py-1.5">
+                            <div className="relative">
+                                <Avatar className="h-8 w-8 border border-white/10 opacity-80">
+                                    <AvatarImage src={sidebarProps.user.image} />
+                                    <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
+                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-700 border-2 border-[#09090b] rounded-full" />
+                            </div>
+                            <div className="flex flex-col items-start leading-none hidden xl:flex">
+                                <span className="text-[12px] font-black text-zinc-500 tracking-tight">
+                                    {sidebarProps.user.name}
+                                </span>
+                            </div>
                         </div>
-                        <div className="flex flex-col items-start leading-none hidden xl:flex">
-                            <span className="text-[12px] font-black text-zinc-200 group-hover/profile:text-white transition-colors tracking-tight">
-                                {sidebarProps.user.name}
-                            </span>
-                        </div>
-                    </Link>
+                    )}
                 </div>
             </div>
         </header >

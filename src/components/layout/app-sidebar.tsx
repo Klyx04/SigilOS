@@ -24,7 +24,8 @@ import {
     LogOut,
     ChevronsUpDown,
     Plus,
-    Hammer
+    Hammer,
+    Activity
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,26 +69,28 @@ export function AppSidebar({
 
     // --- NAVIGATION GROUPS ---
 
-    const NAV_CORE = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-blue-400" },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-blue-400", visible: modules.presentation },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-blue-400", visible: (user.isMember || user.canViewCalendar) && modules.calendar },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-blue-400", visible: user.canViewRoster && modules.roster },
-        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-blue-400", visible: modules.stats },
+    // --- NAVIGATION GROUPS ---
+    const NAV_INFO = [
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
+        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
-    const NAV_FEATURES = [
+    const NAV_ACTIVITIES = [
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", visible: user.canViewArchis && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", visible: user.canViewLadder && modules.ladder },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
     ];
 
     const NAV_TOOLS = [
-        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: modules.services },
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-cyan-400", visible: modules.donjons },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-cyan-400", visible: modules.docs },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: modules.profile },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewFinder && modules.donjons },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewProfile && modules.profile },
     ];
 
     const NAV_ADMIN = [
@@ -201,52 +204,58 @@ export function AppSidebar({
             <ScrollArea className="flex-1 px-3 py-4 overflow-hidden">
                 <nav className="space-y-8">
 
-                    {/* CORE */}
-                    <div className="space-y-1.5 peer">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-blue-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/60">Général</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-blue-500/30" />
+                    {/* INFORMATION */}
+                    {NAV_INFO.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5 peer">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-400 whitespace-nowrap">Information</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
+                            </div>
+                            {NAV_INFO.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
+                            ))}
                         </div>
-                        {NAV_CORE.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
-                        ))}
-                    </div>
+                    )}
 
-                    {/* FEATURES */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-emerald-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Fonctionnalités</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-emerald-500/30" />
+                    {/* ACTIVITES */}
+                    {NAV_ACTIVITIES.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Activités</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                            </div>
+                            {NAV_ACTIVITIES.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
                         </div>
-                        {NAV_FEATURES.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                        ))}
-                    </div>
+                    )}
 
-                    {/* TOOLS */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cyan-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Outils</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cyan-500/30" />
+                    {/* OUTILS */}
+                    {NAV_TOOLS.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 whitespace-nowrap">Outils</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
+                            </div>
+                            {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
                         </div>
-                        {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                        ))}
-                    </div>
+                    )}
 
                     {/* ADMIN */}
                     {hasAnyAdminPermission && (
                         <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/20" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2">
+                            <div className="flex items-center justify-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2 whitespace-nowrap">
                                     <Shield className="w-3 h-3" />
                                     Admin
                                 </h4>
-                                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/20" />
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
                             </div>
                             {NAV_ADMIN.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
@@ -293,20 +302,23 @@ export function AppSidebar({
                             <span>Session Active</span>
                         </div>
                         <DropdownMenuSeparator className="bg-white/10" />
+                        {user.canViewProfile && (
+                            <>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                    <Link href={`/dashboard/${guildId}/profile`}>
+                                        <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
+                                        <span className="font-bold">Mon Profil</span>
+                                    </Link>
+                                </DropdownMenuItem>
 
-                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                            <Link href={`/dashboard/${guildId}/profile`}>
-                                <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
-                                <span className="font-bold">Mon Profil</span>
-                            </Link>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                            <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
-                                <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                                <span className="font-bold">Paramètres</span>
-                            </Link>
-                        </DropdownMenuItem>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                    <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
+                                        <Settings className="mr-2 h-4 w-4 text-zinc-500" />
+                                        <span className="font-bold">Paramètres</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                            </>
+                        )}
 
                         <DropdownMenuSeparator className="bg-white/10" />
                         <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
@@ -328,7 +340,7 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
                 isActive
                     ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
-                    : "text-zinc-400 hover:text-white hover:bg-white/[0.02]"
+                    : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
             )}
         >
             {/* Active Glow Indicator */}
@@ -344,7 +356,7 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
                     "h-4 w-4 shrink-0 transition-all duration-300",
                     isActive
                         ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
-                        : cn(item.color ? `${item.color} opacity-40 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3")
+                        : cn(item.color ? `${item.color} opacity-70 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3 group-hover:drop-shadow-[0_0_8px_currentColor]")
                 )}
             />
             <span className={cn(

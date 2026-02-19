@@ -40,12 +40,16 @@ export default async function GuildPresentationPage({ params }: Props) {
     const { guildId } = await params;
     const guild = await getGuildPresentation(guildId);
 
+    // Auth check for header
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const userContext = await getUserContext();
+
     if (!guild) {
         // Check if it exists but is private
         const basicInfo = await getPublicGuildBasicInfo(guildId);
 
         if (basicInfo && !basicInfo.presentationEnabled) {
-            return <PrivateGuildView guild={basicInfo} />;
+            return <PrivateGuildView guild={basicInfo} isMember={userContext.isMember} />;
         }
 
         notFound();
@@ -77,7 +81,7 @@ export default async function GuildPresentationPage({ params }: Props) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
-            <GuildPublicView guild={guild} foundedYear={foundedYear} />
+            <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} />
         </>
     );
 }

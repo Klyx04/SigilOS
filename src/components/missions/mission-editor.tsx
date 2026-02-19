@@ -13,6 +13,7 @@ import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@
 import { getWeekNumber } from "@/lib/date-utils";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import { MissionDiscordPublishDialog } from "./mission-discord-publish-dialog";
+import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import {
     DungeonForm,
     RegulationForm,
@@ -210,6 +211,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 <option key={t} value={t}>Palier {t}</option>
                             ))}
                         </select>
+                        <GuidePulse description="Définit le nombre total de points requis par la guilde cette semaine pour débloquer les récompenses." />
                     </div>
 
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
@@ -243,10 +245,16 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         Annonce Discord
                     </Button>
 
-                    <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
-                        <Save className="w-3.5 h-3.5 mr-2" />
-                        Tout Publier
-                    </Button>
+                    <div className="relative group">
+                        <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
+                            <Save className="w-3.5 h-3.5 mr-2" />
+                            Tout Publier
+                        </Button>
+                        <GuidePulse
+                            description="Enregistre toutes les missions et notifie les membres si l'option est cochée."
+                            className="absolute -top-1 -right-1"
+                        />
+                    </div>
                 </div>
             </div>
 

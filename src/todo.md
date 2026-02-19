@@ -97,12 +97,12 @@
 
 ## 🚀 P4 — PERFORMANCE (Quand le traffic arrive)
 
-- [ ] Cache Discord API : mettre en cache pseudos/rôles/avatars (TTL 10min) — impact immédiat sur la fluidité
-- [ ] Indexes DB critiques : auditer que chaque table a un index sur `guildId` (isolation rapide multi-tenant)
-- [ ] Optimiser requêtes N+1 (auditer avec Prisma logs, corriger les `include` inutiles)
+- [x] Cache Discord API : `fetchGuildMember` (TTL 5min) + `listGuildMembers` (TTL 10min) — in-memory cache ✅
+- [x] Indexes DB critiques : `@@index([guildId])` sur `UserProfile` + `@@index([missionId/profileId/status])` sur `Submission` ✅
+- [ ] Optimiser requêtes N+1 (à activer quand Prisma logs révèlent un hotspot réel)
 - [ ] Pagination : missions, succès, membres (à activer quand une guilde dépasse 500 entrées)
-- [ ] Lazy loading avatars : chargement différé sur le Roster/Ladder
-- [x] Compression images : Sharp + WebP 80% déjà actif partout (mission, profil, upload, docs) ✅
+- [x] Lazy loading avatars : mission cards + reward icons ✅
+- [x] Compression images : Sharp + WebP 80% déjà actif partout ✅
 - [x] Code splitting : géré nativement par Next.js ✅
 - [x] Redis : overkill sur 1 seul VPS, le cache RAM Node.js suffit ✅
 - [x] Plan B Discord API down : Discord down = login impossible de toute façon — hors scope ✅
@@ -128,6 +128,7 @@
 - [ ] Runs Songes complétées
 - [ ] Events terminés
 - [ ] Missions validées
+- [ ] Quetes/Dj terminés
 
 ### Module Donjons & Quêtes
 - [ ] Module Recherche DJ/Succès/Quêtes
@@ -153,15 +154,15 @@ ce module doit etre une vrai valeur ajoutée
 
 ## 📄 P7 — JURIDIQUE & BUSINESS
 
-- [ ] Conformité RGPD : droit à l'effacement + export données utilisateur
-- [ ] Revoir CGU, Politique Confidentialité, Mentions Légales (à finaliser avant ouverture publique)
+- [x] Conformité RGPD : droit à l'effacement — bouton "Supprimer mon compte" + `handleGdprDeletionRequest()` dans `lifecycle-actions.ts` ✅
+- [x] CGU, Politique Confidentialité, Mentions Légales — pages `/legal/*` complètes ✅
 - [x] SEO canonicals absolues : corrigé dans `layout.tsx`, `docs/page.tsx`, `changelog/page.tsx` ✅
 - [x] Google Search Console : validé via DNS TXT (OVH), sitemap soumis ✅
 - [ ] SEO : vérifier Open Graph images + sitemap.xml cohérence finale avant prod
 - [ ] Marketing : premier post X/Discord pour acquisition communautaire
 - [ ] Roadmap publique pour membres
-- [ ] Limite guildes Beta (whitelist / demande accès)
-- [ ] Formulaire "Rapporter un bug" (bouton flottant)
+- [x] Limite guildes Beta — whitelist `AllowedGuild` enforcée dans `[guildId]/layout.tsx` ✅
+- [x] Formulaire "Rapporter un bug" — bouton flottant `BugReportButton` → Discord `#bugs-beta` ✅
 - [ ] Channel #bugs-beta : créer + épingler règles
 - [x] Bannière cookies RGPD : pas de tracking 3rd party, Discord login = pas de cookies tiers — non nécessaire ✅
 

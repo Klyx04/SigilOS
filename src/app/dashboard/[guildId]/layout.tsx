@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
+import { BugReportButton } from "@/components/layout/bug-report-button";
 
 export default async function DashboardLayout({
     children,
@@ -121,6 +122,9 @@ export default async function DashboardLayout({
                         </div>
                     </main>
                 </div>
+
+                {/* Floating Bug Report Button */}
+                <BugReportButton />
             </div>
         </NebulaClientWrapper>
     );

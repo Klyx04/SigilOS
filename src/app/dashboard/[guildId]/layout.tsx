@@ -13,6 +13,7 @@ import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
 import { BugReportButton } from "@/components/layout/bug-report-button";
+import { ValidatorInbox } from "./_components/validator-inbox";
 
 export default async function DashboardLayout({
     children,
@@ -121,6 +122,13 @@ export default async function DashboardLayout({
                             </div>
                         </div>
                     </main>
+                </div>
+
+                {/* Validator Inbox - Fixed floating reminder for validators (all pages) */}
+                <div className="fixed top-[68px] right-4 z-40 hidden md:block">
+                    <Suspense fallback={null}>
+                        <ValidatorInbox guildId={guildId} />
+                    </Suspense>
                 </div>
 
                 {/* Floating Bug Report Button */}

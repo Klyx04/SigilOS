@@ -53,9 +53,9 @@
   - [x] UI : labels, couleurs et filtres par catégorie dans le module logs
 - [x] Gérer les conditions de concurrence (Race Conditions - Code `P2002`) sur `dream-run-actions.ts` (système de slots de Songes).
 - [ ] Revoir le Lazy Cleanup des candidatures Songes expirées pour l'extraire vers une tâche en arrière-plan (CRON).
-- [ ] **[AUDIT-FUNC-02]** CRON nuit : purge des `Notification` lues de plus de 30 jours (ajouter dans `maintenance.sh`).
-- [ ] **[AUDIT-FUNC-03]** Ajouter `expiresAt` sur `OcreTradeRequest` + CRON qui passe les trades expirés (>7j PENDING) en `CANCELED`.
-- [ ] **[AUDIT-FAIL-06]** Ajouter la purge DB (Notifications + TradeRequests) dans `maintenance.sh`.
+- [x] **[AUDIT-FUNC-02]** ~~CRON nuit : purge des `Notification` lues de plus de 30 jours~~ ✅ Worker BullMQ repeatable job (4h AM)
+- [x] **[AUDIT-FUNC-03]** ~~Ajouter `expiresAt` sur `OcreTradeRequest`~~ ✅ Worker auto-expire PENDING > 7j → CANCELED
+- [x] **[AUDIT-FAIL-06]** ~~Ajouter la purge DB dans `maintenance.sh`~~ ✅ Géré par le worker BullMQ cleanup
 - [x] Modifier la stratégie de suppression des `MonsterFamily` (Actuellement `Cascade` vers les `Monsters` = danger). Ajouter `Restrict`.
 
 ### Monitoring

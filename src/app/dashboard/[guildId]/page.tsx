@@ -68,7 +68,7 @@ export default async function DashboardPage({
     ]);
 
     const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
-    const guildStats = guildStatsResult.success && guildStatsResult.data ? guildStatsResult.data : null;
+    const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
 
     const ocreProgress = await getMyOcreProgress(guildId);
@@ -108,8 +108,8 @@ export default async function DashboardPage({
                                 guideHref={`/dashboard/${guildId}/admin/getting-started`}
                                 steps={[
                                     { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
-                                    { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.missionsValidatedThisWeek ?? 0) > 0, icon: "scroll-text" },
-                                    { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.activityPointsThisWeek ?? 0) > 100, icon: "book-open" }
+                                    { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.totalMissionsValidated ?? 0) > 0, icon: "scroll-text" },
+                                    { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.totalXp ?? 0) > 100, icon: "book-open" }
                                 ]}
                             />
                         </div>
@@ -206,21 +206,21 @@ export default async function DashboardPage({
                                             <div className="group/stat">
                                                 <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Progression Hebdo</p>
                                                 <div className="flex items-end gap-2">
-                                                    <span className="text-4xl font-black text-white leading-none tracking-tighter">{guildStats.missionsValidatedThisWeek}</span>
+                                                    <span className="text-4xl font-black text-white leading-none tracking-tighter">{guildStats.totalMissionsValidated}</span>
                                                     <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">Missions</span>
                                                 </div>
                                             </div>
                                             <div className="group/stat">
                                                 <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Points de Gloire</p>
                                                 <div className="flex items-end gap-2">
-                                                    <span className="text-4xl font-black text-yellow-400 leading-none tracking-tighter">+{guildStats.activityPointsThisWeek}</span>
+                                                    <span className="text-4xl font-black text-yellow-400 leading-none tracking-tighter">+{guildStats.totalXp}</span>
                                                     <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">XP</span>
                                                 </div>
                                             </div>
                                             <div className="pt-4 border-t border-white/5">
                                                 <div className="flex items-center justify-between text-[10px] text-zinc-500 font-black uppercase">
                                                     <span>Songes actifs</span>
-                                                    <span className="text-purple-400 font-black">{guildStats.activeSongesRuns} Actifs</span>
+                                                    <span className="text-purple-400 font-black">{guildStats.totalSongesCompleted} Complétés</span>
                                                 </div>
                                                 <StatProgress value={65} color="bg-purple-500" glowColor="rgba(168,85,247,0.5)" />
                                             </div>
@@ -324,7 +324,7 @@ export default async function DashboardPage({
                                             <Users className="w-5 h-5 text-pink-500" />
                                             {guildStats && (
                                                 <span className="text-[10px] font-black text-pink-500/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
-                                                    {guildStats.totalMembers}
+                                                    {guildStats.activeMembers}
                                                 </span>
                                             )}
                                         </div>

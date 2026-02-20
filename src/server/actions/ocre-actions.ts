@@ -1573,20 +1573,20 @@ export async function createTradeRequest(
     rawData: z.infer<typeof CreateTradeSchema>
 ): Promise<ActionResponse> {
     try {
-        console.log("[createTradeRequest] Starting...");
+
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-        console.log("[createTradeRequest] Auth ok.");
+
         const parsed = CreateTradeSchema.safeParse(rawData);
         if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, targetProfileId, monsterId, message, sendDiscordPing } = parsed.data;
 
-        console.log("[createTradeRequest] Parsing ok.");
+
         const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
         if (!rateCheck.success) return { success: false, error: "Veuillez patienter avant de faire une nouvelle demande." };
 
-        console.log("[createTradeRequest] Rate limit ok.");
+
         // Force TS re-eval
         const guildConfig = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
@@ -1595,7 +1595,7 @@ export async function createTradeRequest(
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        console.log("[createTradeRequest] Guild found.");
+
         const requesterProfile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guildId: guildConfig.id },
             include: { user: true }
@@ -1603,7 +1603,7 @@ export async function createTradeRequest(
 
         if (!requesterProfile) return { success: false, error: "Profil introuvable" };
 
-        console.log("[createTradeRequest] Requester found.");
+
         const targetProfile = await db.userProfile.findUnique({
             where: { id: targetProfileId },
             include: { user: true }
@@ -1613,12 +1613,12 @@ export async function createTradeRequest(
             return { success: false, error: "Partenaire introuvable" };
         }
 
-        console.log("[createTradeRequest] Target found.");
+
         if (requesterProfile.id === targetProfile.id) {
             return { success: false, error: "Vous ne pouvez pas échanger avec vous-même" };
         }
 
-        console.log("[createTradeRequest] Checking existing...");
+
         // Check if pending request exists
         const existingRequest = await (db as any).ocreTradeRequest.findFirst({
             where: {
@@ -1633,7 +1633,7 @@ export async function createTradeRequest(
             return { success: false, error: "Une demande d'échange est déjà en attente pour ce monstre" };
         }
 
-        console.log("[createTradeRequest] Creating request...");
+
         const tradeRequest = await (db as any).ocreTradeRequest.create({
             data: {
                 guildId: guildConfig.id,
@@ -1645,7 +1645,7 @@ export async function createTradeRequest(
             }
         });
 
-        console.log("[createTradeRequest] Creating notification...");
+
         const targetPrefs = (targetProfile.notificationPrefs as any) || {};
         const shouldNotifyOcre = targetPrefs.ocre !== false;
 
@@ -1662,7 +1662,7 @@ export async function createTradeRequest(
             });
         }
 
-        console.log("[createTradeRequest] Sending ping...");
+
         // Discord Ping if requested
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId) {
             try {
@@ -1682,7 +1682,7 @@ export async function createTradeRequest(
             }
         }
 
-        console.log("[createTradeRequest] Success!");
+
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
         return { success: true };
     } catch (error: any) {

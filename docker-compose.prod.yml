@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://sigilos.fr
     restart: always
     env_file: .env.prod
@@ -45,7 +45,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://sigilos.fr
     restart: always
     env_file: .env.prod
@@ -111,7 +111,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
     restart: always
     env_file: .env.beta
@@ -139,7 +139,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
     restart: always
     env_file: .env.beta

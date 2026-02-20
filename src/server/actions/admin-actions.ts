@@ -343,6 +343,15 @@ export async function updateMetamobApiKey(
         // Update API key (trim and validate)
         const cleanKey = apiKey?.trim() || null;
 
+        if (cleanKey) {
+            if (cleanKey.length !== 64) {
+                return { success: false, error: "La clé API V2 doit contenir exactement 64 caractères" };
+            }
+            if (!/^[a-f0-9]+$/.test(cleanKey)) {
+                return { success: false, error: "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)" };
+            }
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { metamobApiKey: cleanKey }

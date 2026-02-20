@@ -217,17 +217,7 @@ export function MetamobSettingsClient({ guildId }: MetamobSettingsClientProps) {
                     </div>
                 </div>
 
-                {/* 90 Days Warning */}
-                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex gap-3">
-                    <div className="flex-shrink-0 text-2xl">⏰</div>
-                    <div>
-                        <p className="font-semibold text-amber-400">Important : La clé expire après 90 jours</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Les clés API Metamob sont valides <strong className="text-amber-300">90 jours</strong>.
-                            Passé ce délai, vous devrez mettre à jour votre clé ici OU sur votre profil SigilOS.
-                        </p>
-                    </div>
-                </div>
+
 
                 {/* API Key Priority Note */}
                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3">

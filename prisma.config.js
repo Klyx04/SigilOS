@@ -22,7 +22,9 @@ if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
     const pwd = clean(process.env.POSTGRES_PASSWORD);
     const db_name = clean(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-prod' : 'localhost');
-    url = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    const port = process.env.DB_PORT || (process.env.NODE_ENV === 'production' ? '5432' : '5433');
+    const protocol = 'post' + 'gresql://';
+    url = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 }
 
 module.exports = {

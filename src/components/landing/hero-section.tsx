@@ -33,7 +33,7 @@ export function HeroSection() {
                     </span>
                 </motion.div>
 
-                {/* Main Title */}
+                {/* Main Title (SEO H1) */}
                 <motion.h1
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}

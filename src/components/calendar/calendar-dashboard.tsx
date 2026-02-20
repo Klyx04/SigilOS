@@ -331,7 +331,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
     const handleDayClick = (date: Date) => {
         // Future: ouvrir le formulaire pré-rempli avec cette date
-        console.log("Day clicked:", date);
     };
 
     return (

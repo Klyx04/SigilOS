@@ -11,19 +11,28 @@ export async function rateLimit(
     const key = `ratelimit:${identifier}`;
     const now = Date.now();
 
-    // DECISION: Fail-open to maintain availability. 
-    // Redis outage allows requests through memory fallback.
-    // For fail-closed behavior, return { success: false, ... } instead.
+    // If Redis is down, use memory cache to ENFORCE limits (Fail-Closed principle for rate limiting)
     if (redis.status !== "ready") {
-        console.warn("[RateLimit] Redis unavailable - using memory fallback (fail-open)");
-        // ... rest of memory logic continues ...
+        console.warn("[RateLimit] Redis unavailable - using memory fallback for enforcement");
+
+        // Clean up old entries occasionally (simple garbage collection)
+        if (Math.random() < 0.05) {
+            for (const [k, v] of memoryCache.entries()) {
+                if (now > v.reset) memoryCache.delete(k);
+            }
+        }
+
         const entry = memoryCache.get(key);
         if (!entry || now > entry.reset) {
             const newEntry = { count: 1, reset: now + windowMs };
             memoryCache.set(key, newEntry);
             return { success: true, remaining: limit - 1, reset: newEntry.reset };
         }
-        if (entry.count >= limit) return { success: false, remaining: 0, reset: entry.reset };
+
+        if (entry.count >= limit) {
+            return { success: false, remaining: 0, reset: entry.reset };
+        }
+
         entry.count++;
         return { success: true, remaining: limit - entry.count, reset: entry.reset };
     }

@@ -22,7 +22,7 @@ const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? def
 const dbUrl = getEnv('DATABASE_URL', '');
 const protocol = 'postgres' + 'ql://';
 const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
-const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
+const connectionString = dbUrl || safeFromComponents;
 
 const createPrismaClient = () => {
     const pool = new Pool({

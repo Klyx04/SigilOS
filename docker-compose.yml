@@ -153,8 +153,8 @@ services:
     container_name: sigilos-redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-sigilos-redis-secret}
-    ports:
-      - "6379:6379"
+    # SEC-02: Ports supprimés — Redis accessible uniquement via internal-net
+    # Pour le dev local sans Docker, lancez Redis sur localhost:6379 séparément
     volumes:
       - redis-data:/data
     networks:

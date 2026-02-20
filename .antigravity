@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-19)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-20)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Phase 3 (Polish UI/UX & Lore). Sondages V2 (Outcomes), Refonte Notifications et Nettoyage de sécurité terminés.
+**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé.
 
 ---
 
@@ -23,13 +23,18 @@ SigilOS/
 │   ├── components/             # Composants UI réutilisables
 │   │   ├── editor/             # TipTap editor + extensions
 │   │   ├── landing/            # Hero, BetaGate, Features...
+│   │   ├── songes/             # CreateRunButton, etc.
 │   │   └── layout/             # PublicHeader, GalacticFooter, AppSidebar...
 │   ├── lib/
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
+│   │   ├── queue/              # BullMQ queue (metamob-queue.ts)
 │   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
+│   ├── workers/
+│   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
-│       │   ├── module-actions.ts  # Toggle modules par guilde (Fix polls/admin)
+│       │   ├── module-actions.ts  # Toggle modules par guilde
+│       │   ├── ocre-actions.ts    # Ocre exchange + trade requests
 │       │   ├── songes/         # Gestion des runs Songes
 │       │   └── ...
 │       ├── songes-service.ts   # Service embeds Discord Songes
@@ -45,7 +50,7 @@ SigilOS/
 | **Framework** | Next.js 15 (App Router, Server Actions) |
 | **Auth** | NextAuth v5 (Discord OAuth) |
 | **DB** | PostgreSQL 15 + Prisma ORM |
-| **Cache/Queue** | Redis 7 |
+| **Cache/Queue** | Redis 7 + BullMQ (workers asynchrones) |
 | **Bot Discord** | discord.js v14 |
 | **Editor** | TipTap (rich text, slash commands, images) |
 | **UI** | Tailwind CSS + shadcn/ui + Recharts |
@@ -84,6 +89,17 @@ SigilOS/
 
 ---
 
+### Session — Audit Complet & Corrections Critiques (2026-02-20)
+
+- ✅ **Audit Sécurité** : SEC-02 (port Redis fermé), SEC-03 (`unsafe-eval` retiré CSP), SEC-04 (cookie beta signé HMAC + httpOnly + `BETA_PASSWORD` server-only)
+- ✅ **Performance** : PERF-01 — N+1 éliminé dans `getActivityLadder` (raw SQL aggregation au lieu de submissions inline)
+- ✅ **Bugs Fix** : FUNC-01 (`isAdmin` boolean coercion x6), FUNC-07 (`@@unique` Submission + P2002 guard + migration Prisma)
+- ✅ **Résilience** : FAIL-02 (MetaMob API timeout 10s + erreur `API_UNAVAILABLE`), FAIL-03 (OCR non-issue, déjà désactivé)
+- ✅ **Maintenance Auto** : FUNC-02 (purge notifications >30j) + FUNC-03 (expiration OcreTradeRequest >7j) via BullMQ repeatable job quotidien (4h AM)
+- ✅ **Infra** : Migration env var `NEXT_PUBLIC_BETA_PASSWORD` → `BETA_PASSWORD` (Dockerfile + docker-compose.prod.yml)
+
+---
+
 ### Session — Finalisation Sondages V2 & Sécurité (2026-02-19)
 
 - ✅ **Sondages V2 (Outcomes)** : Implémentation du système de décision (Winner/Outcome), archivage automatique et résumé Discord enrichi des résultats complets.
@@ -100,6 +116,55 @@ SigilOS/
 - ✅ **Branding Catégories**: Validation des visuels `anomalie.png` et `songes.png`.
 - ✅ **TODO Management**: Validation officielle de la Phase 2. Déplacement du point technique "Plan B Discord" vers la P4 (Optimisation).
 - ✅ **Git Cleanup**: Fusion de `feat/p2-songes-ux` et `feat/guild-modules` dans `dev`, puis merge de `dev` vers `main`. Suppression des branches obsolètes.
+
+---
+
+### Session — Sondages PIM & Discord Embed Overhaul (2026-02-19)
+
+- ✅ **Système Micro (PIM)** : Exclusivité 1h par membre pour créer un sondage. Micro Status Bar avec compte à rebours live dans le dashboard. Animations de disponibilité.
+- ✅ **Cooldown Catégorie** : Un membre ne peut pas créer deux sondages de la même catégorie en moins de 7 jours (hors admins).
+- ✅ **Admin Settings Sondages** : Nouvel onglet dédié dans `/admin/settings` pour configurer le canal Discord et le rôle de mention par défaut.
+- ✅ **Discord Embed Overhaul** : Bannières grand format (assets locaux), boutons de vote directs (jusqu'à 5), métadata clarifiées, titre expressif en grand.
+- ✅ **Gouvernance** : Édition dynamique des sondages actifs, limite à 10 options, audit logging (prises de micro + créations).
+- ✅ **Build & Types** : Fix `"use client"` manquant sur `poll-list.tsx`, résolution des faux positifs TypeScript sur `poll`/`voter`/`sigilRole`. Lazy Close implémenté dans `getPolls`.
+- ✅ **Nouveaux champs DB** : `pollsNotifyChannelId`, `pollsNotifyRoleId` dans `GuildConfig`.
+
+---
+
+### Session — Mission Image Fix & GOD Game Data Redesign (2026-02-19)
+
+- ✅ **Mission Card Fix** : `mission-card.tsx` — remplacement de `w-[40%]` par `w-[128px]` fixe + `object-contain` pour corriger le scaling des sprites monsters/donjons sur le VPS beta.
+- ✅ **GOD Game Data UI Redesign** : Refonte ultra-wide de toutes les interfaces de gestion (Donjons, MonsterFamilies, Challenges) avec grilles 12 colonnes, galeries embarquées fixes 400px, footers normalisés (`h-14`).
+- ✅ **Nouvelles Fonctionnalités GOD** : Zone Filter dropdown pour les MonsterFamilies, champ `level` optionnel sur `MonsterFamily`, support niveaux jusqu'à 1000 pour les Donjons, liaison directe Famille/Boss ↔ Zone via `MultiSelect`.
+- ✅ **Prisma Schema** : Ajout du champ `level` sur le modèle `MonsterFamily`.
+
+---
+
+### Session — BullMQ Worker MetaMob Ocre (2026-02-19)
+
+- ✅ **Infrastructure BullMQ** : Queue `metamob-queue.ts` dans `src/lib/queue/`. Worker dédié `src/workers/metamob-worker.ts` — processus entièrement indépendant du runtime Next.js.
+- ✅ **`npm run worker`** : Nouveau script dans `package.json`. En dev, lancer en parallèle de `npm run dev`. Worker inclus dans le build Docker via `esbuild`.
+- ✅ **Async Ocre Exchange** : `findOcreExchangePartners` transformé en action asynchrone (dispatch job → retourne `jobId`). `getOcreExchangeJobStatus` pour le polling frontend toutes les 1.5s avec progress bar.
+- ✅ **VPS Production** : Deux nouveaux containers indépendants `worker-beta` et `worker-prod` dans `docker-compose.prod.yml`. `deploy.sh` mis à jour pour redémarrer les workers automatiquement.
+- ✅ **Redis docker-compose** : Restauration de la dépendance au service Redis externe. Fix du mot de passe Redis (suppression des guillemets dans `.env`).
+
+---
+
+### Session — Fix Redis Auth & Prisma P2022 + Validator Inbox (2026-02-20)
+
+- ✅ **Fix Redis Auth** : `NOAUTH Authentication required` — instruction de supprimer les guillemets autour de `REDIS_PASSWORD` dans `.env`.
+- ✅ **Fix Prisma P2022** : Drift entre client Prisma du conteneur et la DB réelle — fix via rebuild complet `./scripts/deploy.sh beta`.
+- ✅ **Fix Dashboard Crash** : `TypeError` sur `pseudoDofus` d'un profil non chargé — garde `if (!profile) return null` dans `page.tsx`.
+- ✅ **Validator Inbox Flottant** : Widget persistant dans le layout (header top-right) affichant les missions et achievements en attente de validation. Visible uniquement si l'utilisateur a les permissions de validator et qu'il y a des tâches en attente. Navigation rapide vers la page de validation.
+- ✅ **Songe Module** : Ajustements complémentaires au module Songes (CreateRunButton et composants associés).
+
+---
+
+### Session — Ocre Trade Request System (En cours - 2026-02-20)
+
+- 🔄 **Nouveau modèle `OcreTradeRequest`** : Système de demande d'échange asynchrone. Quand User A veut un monstre à User B, il envoie une demande avec message optionnel → ping Discord sur `ocreNotifyChannelId` → User B accepte depuis le dashboard → MAJ automatique Metamob API pour les deux utilisateurs.
+- 🔄 **Nouveaux types Notification** : `OCRE_TRADE_REQUEST`, `OCRE_TRADE_ACCEPTED`, `OCRE_TRADE_REJECTED`.
+- 🔄 **Nouveau champ DB** : `ocreNotifyChannelId` dans `GuildConfig`.
 
 ---
 
@@ -125,9 +190,16 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 
 | Env | URL | Branche | Container |
 |-----|-----|---------|-----------|
-| **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` |
-| **Prod** | `sigilos.fr` | `main` | `sigilos-prod` |
+| **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` + `worker-beta` |
+| **Prod** | `sigilos.fr` | `main` | `sigilos-prod` + `worker-prod` |
 | **Monitoring** | `monitor.sigilos.fr` | — | Grafana |
+
+**Démarrage local** :
+```bash
+docker compose up -d db redis
+npm run dev       # Terminal 1 — Next.js
+npm run worker    # Terminal 2 — BullMQ Worker
+```
 
 ---
 
@@ -136,39 +208,57 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 ### ✅ Fonctionnels (Production-Ready)
 - Auth Discord (OAuth, sessions, NextAuth v5)
 - Dashboard guildes (missions, membres, profils)
-- Songes (runs, candidatures, embeds Discord)
+- Songes (runs, candidatures, embeds Discord, historique par membre)
 - Calendrier événements (Modales Premium, Draggable)
-- Sondages (Premium Discord Embeds, Cooldowns, Édition)
+- Sondages V2 (PIM/Micro system, Discord Embeds premium, Cooldowns, Édition, Outcomes)
 - Documentation (viewer + éditeur TipTap)
 - Changelog (public + admin, isInternal flag)
-- GOD Dashboard (whitelist, lifecycle, stats)
+- GOD Dashboard (whitelist, lifecycle, stats, game data ultra-wide)
 - Upload images (docs, preuves missions, bannières)
-- Notifications in-app (Glassmorphism & Couverture missions)
-- Ocre / Metamob integration
+- Notifications in-app (Glassmorphism, Couverture missions, filtres par catégorie)
+- Ocre / MetaMob integration (BullMQ async, progress bar)
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
+- Validator Inbox flottant (widget top-right, missions + achievements en attente)
+
+### 🔄 En cours
+- Ocre Trade Request System (demandes d'échange in-app + ping Discord)
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
-- Historique runs Songes par membre
-- Upload MIME validation complète + strip EXIF
+- Lazy Cleanup candidatures Songes expirées en CRON
+- Calcul Ladder en CRON pré-calculé (actuellement on-the-fly)
 
 ---
 
 ## 📋 TODO Prioritaire (Backlog)
 
-### 🔴 Phase 2 — UX & Features Core
-- [x] Toutes les tâches P2 ont été complétées ou déplacées. ✅
+### 🔴 P0 — Critiques
+- [x] Toutes les tâches P0 critiques complétées ✅
+- [ ] Déplacer les calculs `getActivityLadder` vers un CRON pré-calculé
 
-### 🎨 Phase 3 — Polish UI/UX (Sprint Actuel)
-- [x] Unification du Branding Landing (Header fixe, barres horizontales) ✅
-- [x] Suppression de la surcharge visuelle Hero (Cleanup logo central) ✅
-- [x] Refonte complète du Footer (SEO, Premium, Wylan) ✅
-- [x] Signature créateur & Lore (Mention Wylan & Pseudonymes) ✅
+### 🎯 P2 — Features Core
+- [x] Toutes les tâches P2 complétées ✅
+
+### 🎨 P3 — Polish UI/UX
+- [x] Unification du Branding Landing ✅
+- [x] Refonte complète du Footer ✅
+- [x] Signature créateur & Lore (Wylan) ✅
+- [x] Refonte UI Documentation ✅
 - [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
-- [ ] Refonte UI Documentation (Clarté & Navigation)
 
-### 🚀 Phase 4 — Performance & Optimisation
-- [ ] Plan B Discord API down (retry + queue)
-- [ ] Pagination & Optimisation requêtes N+1
+### 🚀 P4 — Performance & Optimisation *(Sprint Actuel)*
+- [x] BullMQ Worker MetaMob Ocre déployé ✅
+- [x] Index DB critiques (`Submission`, `UserProfile`) ✅
+- [x] Cache Discord API (TTL 5min/10min) ✅
+- [ ] Lazy Cleanup Songes vers CRON
+- [ ] Calcul Ladder CRON (quand > 5000 membres)
+- [ ] Pagination membres/missions (quand > 500 entrées)
+- [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)
+
+### 📄 P7 — Juridique *(Conclu)*
+- [x] Toutes les tâches légales code implémentées ✅ (Reste 3 actions manuelles)
+
+### 🧪 P8 — Tests Finaux *(Conclu)*
+- [x] Tous items vérifiables en code validés ✅ (Reste 4 tests manuels beta)

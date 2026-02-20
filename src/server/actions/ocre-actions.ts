@@ -1606,7 +1606,7 @@ export async function createTradeRequest(
 
         const targetProfile = await db.userProfile.findUnique({
             where: { id: targetProfileId },
-            include: { user: true }
+            include: { user: { include: { accounts: true } } }
         });
 
         if (!targetProfile || targetProfile.guildId !== guildConfig.id) {
@@ -1664,19 +1664,27 @@ export async function createTradeRequest(
 
 
         // Discord Ping if requested
-        if (sendDiscordPing && guildConfig.ocreNotifyChannelId) {
+        const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
+        if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
+                // Fetch monster name from DB
+                const monster = await db.monster.findUnique({ where: { id: monsterId.toString() }, select: { name: true } });
+                const monsterName = monster ? monster.name : `Monstre #${monsterId}`;
+
                 const { sendChannelMessage } = await import("@/server/discord");
+                const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
                 await sendChannelMessage(guildConfig.ocreNotifyChannelId, "", {
-                    mentionContent: `<@${targetProfile.userId}>`,
-                    embedTitle: "🤝 Nouvelle demande d'échange Ocre",
-                    embedColor: 0x10b981, // Emerald 500
+                    mentionContent: `<@${targetDiscordAccount.providerAccountId}>`,
+                    title: "🤝 Nouvelle demande d'échange Ocre",
+                    description: `Vous avez reçu une nouvelle proposition d'échange pour l'archimonstre **${monsterName}**.\n[Cliquez ici pour répondre sur le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`,
+                    color: 0x10b981, // Emerald 500
                     fields: [
                         { name: "De", value: requesterProfile.discordNickname || requesterProfile.user.name || "Un membre", inline: true },
-                        { name: "Monstre ID", value: monsterId.toString(), inline: true },
-                        ...(message ? [{ name: "Message", value: `*${message}*`, inline: false }] : [])
+                        { name: "Monstre concerné", value: monsterName, inline: true },
+                        ...(message ? [{ name: "Message joint", value: `*${message}*`, inline: false }] : [])
                     ]
-                });
+                } as any);
             } catch (e) {
                 console.error("Failed to send Discord ping for Ocre trade:", e);
             }

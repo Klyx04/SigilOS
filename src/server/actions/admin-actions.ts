@@ -366,6 +366,93 @@ export async function updateMetamobApiKey(
 }
 
 // ============================================================================
+// OCRE NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getOcreConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { ocreChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { ocreNotifyChannelId: true } as any
+        }) as any;
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { ocreChannelId: config.ocreNotifyChannelId } };
+    } catch (error) {
+        console.error("Get Ocre Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateOcreChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (!account) return { success: false, error: "No Discord account linked" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const guildInfo = await fetchGuild(guildId);
+        const member = await fetchGuildMember(guildId, account.providerAccountId);
+
+        if (!member) return { success: false, error: "Not a member of this guild" };
+
+        let isAdmin = guildInfo.owner_id === account.providerAccountId;
+
+        if (!isAdmin) {
+            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        }
+
+        if (!isAdmin) {
+            return { success: false, error: "Permission refusée: Admin requis" };
+        }
+
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { ocreNotifyChannelId: channelId } as any
+        });
+
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Ocre Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
 // SONGES NOTIFICATION CONFIGURATION
 // ============================================================================
 

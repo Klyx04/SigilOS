@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
+import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
@@ -151,12 +152,27 @@ export default async function FeatureSettingsPage({
 
                 {/* ── Metamob ── */}
                 <TabsContent value="metamob" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="flex flex-col gap-6">
-                        <SectionHeader
-                            title="Intégration Metamob"
-                            description="Configurez une clé API Metamob pour synchroniser l'état des Archimonstres de toute la guilde automatiquement."
-                        />
-                        <MetamobSettingsClient guildId={guildId} />
+                    <div className="flex flex-col gap-8">
+                        <div>
+                            <SectionHeader
+                                title="Notifications Ocre"
+                                description="Configurez le salon Discord qui recevra les annonces de demandes d'échanges (recherche de partenaires)."
+                            />
+                            <div className="mt-6 max-w-4xl">
+                                <OcreSettingsClient guildId={guildId} />
+                            </div>
+                        </div>
+
+                        <div className="pt-8 border-t border-white/5">
+                            <SectionHeader
+                                title="Intégration Metamob"
+                                description="Configurez une clé API Metamob pour synchroniser l'état des Archimonstres de toute la guilde automatiquement."
+                            />
+                            <div className="mt-6">
+                                <MetamobSettingsClient guildId={guildId} />
+                            </div>
+                        </div>
+
                         <div className="pt-6 border-t border-white/5 max-w-4xl">
                             <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4 text-amber-400" />

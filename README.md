@@ -101,9 +101,10 @@ npm install
 cp .env.example .env.local
 # Éditer .env.local avec vos secrets Discord, Database, etc.
 
-# 4. Database setup
+# 4. Database setup (PostgreSQL Docker)
+docker run --name sigilos-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:17
 npx prisma generate
-npx prisma db push   # Dev: SQLite sur prisma/dev.db
+npx prisma db push   # Applique le schéma sur la base locale
 npm run seed         # Charge les données de référence
 
 # 5. Run dev server

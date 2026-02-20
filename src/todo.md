@@ -16,6 +16,12 @@
 - [x] Extraire les appels synchrone à l'API Metamob (`findOcreExchangePartners`) vers un Background Worker (BullMQ/CRON) pour éviter le blocage de l'UI.
 - [x] Ajouter un index composite manquant sur `Submission ([guildId, status, createdAt])` pour éviter les lenteurs extrêmes de validation et de la page d'administration.
 - [ ] Déplacer les calculs d'agrégation "Ladder" (ex: `getActivityLadder`) d'une requête on-the-fly vers un pré-calcul nocturne (CRON) pour empêcher le blocage du site.
+- [ ] **[AUDIT-SEC-02]** Supprimer le port Redis `6379:6379` exposé dans `docker-compose.yml` (accessible depuis l'hôte).
+- [ ] **[AUDIT-SEC-04]** Sign the `beta_access` cookie with HMAC (currently bypassable by forging cookie manually).
+- [ ] **[AUDIT-FUNC-01]** Fix `isAdmin` bug in `getActivityLadder` (operator precedence issue — non-admins can be flagged as admin).
+- [ ] **[AUDIT-FUNC-07]** Vérifier que `@@unique([missionId, profileId])` existe sur `Submission` pour éviter les double-soumissions via race condition.
+- [ ] **[AUDIT-FAIL-02]** Wrapper tous les appels MetaMob API dans un fallback sur les données cachées (`metamobLastSync`) si l'API est down.
+- [ ] **[AUDIT-FAIL-03]** Si OCR.space échoue → créer la soumission directement en validation manuelle sans attendre l'OCR.
 
 ---
 
@@ -43,6 +49,9 @@
   - [x] UI : labels, couleurs et filtres par catégorie dans le module logs
 - [x] Gérer les conditions de concurrence (Race Conditions - Code `P2002`) sur `dream-run-actions.ts` (système de slots de Songes).
 - [ ] Revoir le Lazy Cleanup des candidatures Songes expirées pour l'extraire vers une tâche en arrière-plan (CRON).
+- [ ] **[AUDIT-FUNC-02]** CRON nuit : purge des `Notification` lues de plus de 30 jours (ajouter dans `maintenance.sh`).
+- [ ] **[AUDIT-FUNC-03]** Ajouter `expiresAt` sur `OcreTradeRequest` + CRON qui passe les trades expirés (>7j PENDING) en `CANCELED`.
+- [ ] **[AUDIT-FAIL-06]** Ajouter la purge DB (Notifications + TradeRequests) dans `maintenance.sh`.
 - [x] Modifier la stratégie de suppression des `MonsterFamily` (Actuellement `Cascade` vers les `Monsters` = danger). Ajouter `Restrict`.
 
 ### Monitoring
@@ -105,14 +114,20 @@
 
 - [x] Cache Discord API : `fetchGuildMember` (TTL 5min) + `listGuildMembers` (TTL 10min) — in-memory cache ✅
 - [x] Indexes DB critiques : `@@index([guildId])` sur `UserProfile` + `@@index([missionId/profileId/status])` sur `Submission` ✅
-- [ ] Optimiser requêtes N+1 (à activer quand Prisma logs révèlent un hotspot réel)
+- [ ] **[AUDIT-PERF-01]** Réécrire `getActivityLadder` (monthly/weekly) : remplacer le chargement inline des submissions par une colonne `monthlyXp` pré-calculée ou un `groupBy` SQL avec SUM. **N+1 avéré.**
+- [ ] **[AUDIT-PERF-04]** Extraire OCR (`submitMissionProof`) vers un job BullMQ — la Server Action est bloquée 2-8s en attendant OCR.space.
+- [ ] Optimiser requêtes N+1 restantes (à activer quand Prisma logs révèlent un hotspot réel)
 - [ ] Pagination : missions, succès, membres (à activer quand une guilde dépasse 500 entrées)
 - [x] Lazy loading avatars : mission cards + reward icons ✅
 - [x] Compression images : Sharp + WebP 80% déjà actif partout ✅
 - [x] Code splitting : géré nativement par Next.js ✅
 - [x] Redis : overkill sur 1 seul VPS, le cache RAM Node.js suffit ✅
 - [x] Plan B Discord API down : Discord down = login impossible de toute façon — hors scope ✅
-- [ ] Background Workers : intégrer BullMQ pour les tâches lourdes asynchrones (ex: calcul Ladder si > 5000 membres) (Optimisation SaaS)
+- [x] Background Workers : BullMQ déployé pour MetaMob Ocre Exchange ✅
+- [ ] **[AUDIT-SCALE-01]** Activer les snapshots automatiques VPS (OVH) — pas de failover actuellement.
+- [ ] **[AUDIT-SCALE-04]** Mettre Cloudflare en CDN devant le VPS (Free tier) pour les pages publiques.
+- [ ] **[AUDIT-SCALE-05]** Ajouter Bull Board pour visualiser la queue BullMQ + configurer `attempts: 3, backoff: exponential`.
+- [ ] **[AUDIT-FAIL-05]** Alertes Grafana sur disk usage > 80% + migrer uploads vers Cloudflare R2.
 
 ---
 
@@ -169,6 +184,7 @@
 - [x] CGU, Politique Confidentialité, Mentions Légales — pages `/legal/*` complètes ✅
 - [x] SEO canonicals absolues : corrigé dans `layout.tsx`, `docs/page.tsx`, `changelog/page.tsx` ✅
 - [x] Google Search Console : validé via DNS TXT (OVH), sitemap soumis ✅
+- [ ] **[AUDIT-SEO-01]** Générer des OG images dynamiques avec `next/og` (ImageResponse) pour landing, guildes, changelog — actuellement vide/générique.
 - [ ] SEO : vérifier Open Graph images + sitemap.xml cohérence finale (action manuelle)
 - [ ] Marketing : premier post X/Discord pour acquisition communautaire (action manuelle)
 - [ ] Roadmap publique pour membres (action manuelle)

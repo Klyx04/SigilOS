@@ -143,17 +143,18 @@
 
 ## 🎮 P6 — MODULES FUTURS
 
-### Module Stats Guilde
-- [ ] Guildatons générés
-- [ ] Points activité total guilde
-- [ ] Points contributions DJ/Quêtes/Missions
-- [ ] Runs Songes complétées
-- [ ] Events terminés
-- [ ] Missions validées
-- [ ] Quetes/Dj terminés
+### Module Stats Guilde ✅
+- [x] Guildatons, XP total, membres actifs, taux validation
+- [x] Runs Songes complétées, étage moyen, taux succès
+- [x] Events organisés, participation moyenne
+- [x] Missions validées, top validateurs, répartition catégories
+- [x] Communauté : entraide, Ocre échangé, sondages, bonus
+- [x] Records & Fun Facts guilde
+- [x] Activité hebdo 12 semaines (Recharts)
+- [x] `feat/guild-stats` — PR ouverte vers `dev`
 
-### Module Donjons & Quêtes
-- [ ] Module Recherche DJ/Succès/Quêtes
+### Module Donjons & Quêtes 🔄
+- [/] Module Recherche DJ/Succès/Quêtes — `feat/quest-search` (En cours)
 
 
 ### Module Service Passages DJ/Succès/Prêts/Pack

@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-19)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-20)
 
-**Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Phase 3 (Polish UI/UX & Lore). Sondages V2 (Outcomes), Refonte Notifications et Nettoyage de sécurité terminés.
+**Branche Active** : `feat/quest-search` (Module Recherche Quêtes en cours)  
+**Status** : 🟢 Beta active. Module Stats Guilde terminé (40+ métriques, Recharts). En cours : Module Recherche DJ/Quêtes.
 
 ---
 
@@ -94,6 +94,16 @@ SigilOS/
 
 ---
 
+### Session — Module Stats Guilde (2026-02-20)
+
+- ✅ **Stats Dashboard** : Nouveau module complet `/dashboard/[guildId]/stats` avec 40+ métriques agrégées via `guild-stats-actions.ts`.
+- ✅ **Composants Recharts** : 7 composants spécialisés (StatCard, ActivityChart, MissionsStats, SongesStats, EventsStats, CommunityStats, RecordsSection) avec design glassmorphism.
+- ✅ **Optimisation** : Toutes les requêtes Prisma en `Promise.all` parallèle.
+- ✅ **Fix Dashboard** : Adaptation de `dashboard/[guildId]/page.tsx` au nouveau type `GuildStats` (`.stats` au lieu de `.data`).
+- ✅ **Branche** : `feat/guild-stats` pushée, PR disponible vers `dev`.
+
+---
+
 ### Session — Finalisation P2 & Correction Missions (2026-02-18)
 
 - ✅ **Missions Anomalies**: Correction de la génération de description. Ajout du niveau et de l'**Elixir uchronique** (sans mention 'majeur').
@@ -148,6 +158,7 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
+- **Stats Guilde** (40+ métriques, Recharts, dashboard complet — `feat/guild-stats`)
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
@@ -162,13 +173,15 @@ await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } }
 - [x] Toutes les tâches P2 ont été complétées ou déplacées. ✅
 
 ### 🎨 Phase 3 — Polish UI/UX (Sprint Actuel)
-- [x] Unification du Branding Landing (Header fixe, barres horizontales) ✅
-- [x] Suppression de la surcharge visuelle Hero (Cleanup logo central) ✅
-- [x] Refonte complète du Footer (SEO, Premium, Wylan) ✅
-- [x] Signature créateur & Lore (Mention Wylan & Pseudonymes) ✅
-- [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
-- [ ] Refonte UI Documentation (Clarté & Navigation)
+- [x] Unification du Branding Landing ✅
+- [x] Suppression surcharge visuelle Hero ✅
+- [x] Refonte Footer (SEO, Premium, Wylan) ✅
+- [x] Signature créateur & Lore ✅
+- [x] **Stats Guilde** (40+ métriques, Recharts — `feat/guild-stats`) ✅
+- [x] BullMQ Worker (cleanup Songes, MetaMob) ✅
 
-### 🚀 Phase 4 — Performance & Optimisation
+### 🚀 Phase 4 — Nouveaux Modules
+- [/] **Module Recherche DJ/Quêtes** — `feat/quest-search` (En cours)
+- [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
 - [ ] Plan B Discord API down (retry + queue)
 - [ ] Pagination & Optimisation requêtes N+1

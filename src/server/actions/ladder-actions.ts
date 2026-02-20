@@ -131,7 +131,7 @@ export async function getActivityLadder(
                     classe: p.classe,
                     value: p.periodXp,
                     isAdmin: p.discordRoleName === "Administrateur" ||
-                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
                 }));
             });
 
@@ -173,7 +173,7 @@ export async function getActivityLadder(
                     classe: p.classe,
                     value: p.xp,
                     isAdmin: p.discordRoleName === "Administrateur" ||
-                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
                 }));
             });
 
@@ -244,7 +244,7 @@ export async function getSeniorityLadder(
 
             const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,
@@ -321,7 +321,7 @@ export async function getSuccessLadder(
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,
@@ -398,7 +398,7 @@ export async function getContributionLadder(
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,

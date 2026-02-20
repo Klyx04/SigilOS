@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserContext } from "@/server/actions/user-actions";
-import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton } from "@/components/ocre";
+import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton, OcreTradeInbox } from "@/components/ocre";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bug, AlertCircle, Link2, Sparkles, Crown } from "lucide-react";
+import { db } from "@/lib/prisma";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -42,6 +43,13 @@ export default async function QueteOcrePage({
     // Fetch user's Quête Ocre data
     const ocreResponse = await getMyOcreProgress(guildId);
 
+    // Fetch if guild has Ocre discord channel
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { ocreNotifyChannelId: true }
+    });
+    const hasOcreChannel = !!guildConfig?.ocreNotifyChannelId;
+
     return (
         <div className="relative min-h-[calc(100vh-4rem)] pb-12">
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
@@ -60,7 +68,10 @@ export default async function QueteOcrePage({
                     {/* Main Content */}
                     <div className="space-y-6">
                         {ocreResponse.success && ocreResponse.data ? (
-                            <OcreDashboard data={ocreResponse.data} guildId={guildId} />
+                            <div className="space-y-6">
+                                <OcreTradeInbox guildId={guildId} />
+                                <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
+                            </div>
                         ) : (
                             <NotLinkedState guildId={guildId} error={ocreResponse.error} />
                         )}

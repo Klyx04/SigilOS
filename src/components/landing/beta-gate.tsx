@@ -15,6 +15,7 @@ const DISCORD_SUPPORT_URL = process.env.NEXT_PUBLIC_DISCORD_SUPPORT_URL || "#";
 
 export function BetaGate() {
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [result, setResult] = useState<EligibilityResult | null>(null);
     const router = useRouter();
     const { data: session, status } = useSession();
@@ -24,6 +25,7 @@ export function BetaGate() {
     };
 
     const handleLogout = () => {
+        setIsLoggingOut(true);
         signOut({ callbackUrl: "/" });
         setResult(null);
     };
@@ -53,7 +55,11 @@ export function BetaGate() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
         >
-            {status === "unauthenticated" ? (
+            {status === "loading" || isLoggingOut ? (
+                <div className="flex h-[136px] w-full items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-zinc-600/50" />
+                </div>
+            ) : status === "unauthenticated" ? (
                 <div className="space-y-4">
                     <Button
                         size="lg"

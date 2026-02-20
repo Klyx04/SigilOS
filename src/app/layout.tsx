@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     default: "SigilOS - Le système d'exploitation pour guildes Dofus",
     template: "%s | SigilOS",
   },
-  description: "Gérez vos missions, suivez votre progression (Ocre, Almanax) et coordonnez votre guilde Dofus avec SigilOS.",
+  description: "SigilOS est le meilleur outil de gestion de guilde Dofus en 2026. Bot discord, suivi de quêtes (Ocre, Almanax), annuaire et ladder de contribution.",
   openGraph: {
     type: "website",
     locale: "fr_FR",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     siteName: "SigilOS",
     images: [
       {
-        url: "/assets/ui/logo-v2.png", // Fallback, better to have a specific OG image
+        url: new URL('/assets/ui/logo-v2.png', getAppBaseUrl()).toString(),
         width: 1200,
         height: 630,
         alt: "SigilOS Preview",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "SigilOS - Gestion de Guilde Dofus",
     description: "L'outil ultime pour les guildes Dofus.",
-    images: ["/assets/ui/logo-v2.png"],
+    images: [new URL('/assets/ui/logo-v2.png', getAppBaseUrl()).toString()],
   },
   robots: {
     index: true,
@@ -86,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} antialiased`}>
         <ThemeProvider
           attribute="class"

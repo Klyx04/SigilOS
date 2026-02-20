@@ -13,8 +13,8 @@
 - [x] Fix Changelog : les images ne s'enregistrent pas une fois les pages publiées
 - [x] Faire pointer tous les liens embeds Discord vers beta.sigilos.fr (déjà env-driven)
 - [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)
-- [ ] Extraire les appels synchrone à l'API Metamob (`findOcreExchangePartners`) vers un Background Worker (BullMQ/CRON) pour éviter le blocage de l'UI.
-- [ ] Ajouter un index composite manquant sur `Submission ([guildId, status, createdAt])` pour éviter les lenteurs extrêmes de validation et de la page d'administration.
+- [x] Extraire les appels synchrone à l'API Metamob (`findOcreExchangePartners`) vers un Background Worker (BullMQ/CRON) pour éviter le blocage de l'UI.
+- [x] Ajouter un index composite manquant sur `Submission ([guildId, status, createdAt])` pour éviter les lenteurs extrêmes de validation et de la page d'administration.
 - [ ] Déplacer les calculs d'agrégation "Ladder" (ex: `getActivityLadder`) d'une requête on-the-fly vers un pré-calcul nocturne (CRON) pour empêcher le blocage du site.
 
 ---
@@ -41,9 +41,9 @@
   - [x] Bonus : purchaseBonus, cancelBonus, updateBonusChannel
   - [x] Isolation : logs guilde ≠ logs GOD, rétention 30 jours (lazy cleanup)
   - [x] UI : labels, couleurs et filtres par catégorie dans le module logs
-- [ ] Gérer les conditions de concurrence (Race Conditions - Code `P2002`) sur `dream-run-actions.ts` (système de slots de Songes).
+- [x] Gérer les conditions de concurrence (Race Conditions - Code `P2002`) sur `dream-run-actions.ts` (système de slots de Songes).
 - [ ] Revoir le Lazy Cleanup des candidatures Songes expirées pour l'extraire vers une tâche en arrière-plan (CRON).
-- [ ] Modifier la stratégie de suppression des `MonsterFamily` (Actuellement `Cascade` vers les `Monsters` = danger). Ajouter `Restrict`.
+- [x] Modifier la stratégie de suppression des `MonsterFamily` (Actuellement `Cascade` vers les `Monsters` = danger). Ajouter `Restrict`.
 
 ### Monitoring
 - [x] Configurer Sentry — SDK installé, DSN configuré, actif au prochain déploiement
@@ -112,6 +112,7 @@
 - [x] Code splitting : géré nativement par Next.js ✅
 - [x] Redis : overkill sur 1 seul VPS, le cache RAM Node.js suffit ✅
 - [x] Plan B Discord API down : Discord down = login impossible de toute façon — hors scope ✅
+- [ ] Background Workers : intégrer BullMQ pour les tâches lourdes asynchrones (ex: calcul Ladder si > 5000 membres) (Optimisation SaaS)
 
 ---
 
@@ -193,6 +194,12 @@
 - [ ] Multi-navigateurs Chrome / Firefox / Safari mobile (test manuel beta)
 
 > ✅ **P8 conclu** — tous les items vérifiables en code sont validés. Reste 4 tests manuels à faire avec une vraie guilde beta.
+
+---
+
+## ☁️ P9 — INFRASTRUCTURE (Future V2)
+
+- [ ] PaaS Auto-hébergé : Étudier la migration vers **Coolify** pour remplacer les scripts bash de déploiement et gérer SSL/PostgreSQL visuellement.
 
 ---
 

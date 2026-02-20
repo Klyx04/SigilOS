@@ -45,6 +45,7 @@ interface NotificationPrefs {
     ladder: boolean;
     polls: boolean;
     admin_validations: boolean;
+    ocre: boolean;
 }
 
 interface UserSettingsProps {
@@ -78,6 +79,7 @@ export function UserSettings({
         ladder: notificationPrefs?.ladder ?? true,
         polls: notificationPrefs?.polls ?? true,
         admin_validations: notificationPrefs?.admin_validations ?? true,
+        ocre: notificationPrefs?.ocre ?? true,
     };
 
     const handleUpdatePrefs = async (newPrefs: Partial<NotificationPrefs>) => { // Renamed and updated signature
@@ -296,6 +298,23 @@ export function UserSettings({
                                 <Switch
                                     checked={prefs.polls}
                                     onCheckedChange={(checked) => handleUpdatePrefs({ polls: checked })}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-700/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-700/10 flex items-center justify-center">
+                                        <Trophy className="w-5 h-5 text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Quête Ocre</p>
+                                        <p className="text-[10px] text-zinc-500">Demandes d'échange</p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={prefs.ocre}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ ocre: checked })}
                                     disabled={loading}
                                 />
                             </div>

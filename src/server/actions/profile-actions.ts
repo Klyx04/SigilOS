@@ -74,6 +74,7 @@ const UpdateNotificationPrefsSchema = z.object({
         ladder: z.boolean().optional(),
         polls: z.boolean().optional(),
         admin_validations: z.boolean().optional(),
+        ocre: z.boolean().optional(),
     }),
 });
 

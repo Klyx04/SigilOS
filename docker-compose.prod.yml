@@ -39,6 +39,32 @@ services:
       - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
     logging: *default-logging
 
+  worker-prod:
+    container_name: sigilos-worker-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - NEXT_PUBLIC_APP_URL=https://sigilos.fr
+    restart: always
+    env_file: .env.prod
+    environment:
+      - NODE_ENV=production
+      - AUTH_TRUST_HOST=true
+    command: [ "node", "./worker.js" ]
+    depends_on:
+      - db-prod
+      - redis
+    networks:
+      - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+
   db-prod:
     image: postgres:15-alpine
     container_name: sigilos-db-prod
@@ -105,6 +131,32 @@ services:
           memory: 2G
     volumes:
       - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
+    logging: *default-logging
+
+  worker-beta:
+    container_name: sigilos-worker-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
+    restart: always
+    env_file: .env.beta
+    environment:
+      - NODE_ENV=production
+      - AUTH_TRUST_HOST=true
+    command: [ "node", "./worker.js" ]
+    depends_on:
+      - db-beta
+      - redis
+    networks:
+      - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     logging: *default-logging
 
   db-beta:

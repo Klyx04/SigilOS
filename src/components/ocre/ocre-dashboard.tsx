@@ -41,7 +41,7 @@ import { OcreExchangeModal } from "./ocre-exchange-modal";
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
-    findOcreExchangePartners,
+    findMonsterOwnersAction,
     getAvailableOcreQuests,
     switchOcreQuest,
     type OcreProgressData,
@@ -55,9 +55,10 @@ const ITEMS_PER_PAGE = 48;
 interface OcreDashboardProps {
     data: OcreProgressData;
     guildId: string;
+    hasOcreChannel?: boolean;
 }
 
-export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
+export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardProps) {
     // Filter state
     const [filters, setFilters] = useState<OcreFilters>({
         searchQuery: "",
@@ -213,7 +214,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
     // Find exchange partners for a specific monster
     const handleFindExchanges = async (_monsterId: number): Promise<ExchangePartner[]> => {
-        const result = await findOcreExchangePartners({ guildId, direction: "they_have" });
+        const result = await findMonsterOwnersAction({ guildId, monsterId: _monsterId });
         if (result.success && result.data) {
             return result.data;
         }
@@ -564,6 +565,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                         </div>
                         <OcreExchangeModal
                             guildId={guildId}
+                            hasOcreChannel={hasOcreChannel}
                             trigger={
                                 <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-12 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.05]">
                                     Ouvrir la liste des échanges

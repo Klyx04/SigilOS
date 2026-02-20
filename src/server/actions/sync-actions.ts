@@ -14,6 +14,7 @@
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
+import { logger } from "@/lib/logger";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -73,7 +74,7 @@ async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>
         }
     }
 
-    console.log(`[Sync] Successfully fetched ${memberIds.size} unique member IDs from Discord.`);
+    logger.info(`[Sync] Successfully fetched ${memberIds.size} unique member IDs from Discord.`);
     return memberIds;
 }
 

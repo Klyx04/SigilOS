@@ -79,12 +79,10 @@ class Logger {
     }
 
     /**
-     * Info log (development only)
+     * Info log (always logged)
      */
     info(message: string, context?: LogContext): void {
-        if (this.isDevelopment) {
-            console.log(this.format('info', message, context));
-        }
+        console.log(this.format('info', message, context));
     }
 
     /**

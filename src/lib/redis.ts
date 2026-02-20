@@ -7,13 +7,12 @@ const getEnv = (key: string, fallback: string) => {
     return val.replace(/^['"]|['"]$/g, '').trim();
 };
 
-const redisUrl = getEnv("REDIS_URL", "redis://localhost:6379");
+const redisUrl = getEnv("REDIS_URL", "redis://127.0.0.1:6379");
 const redisPassword = getEnv("REDIS_PASSWORD", "");
 
 const globalForRedis = global as unknown as { redis: Redis | undefined };
 
 export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
-    password: redisPassword || undefined,
     maxRetriesPerRequest: null,
     enableReadyCheck: true,
     showFriendlyErrorStack: true,

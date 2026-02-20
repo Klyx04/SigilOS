@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
     },
   },
   // @ts-ignore
-  serverExternalPackages: ['tesseract.js'], // Prevent Webpack from bundling Tesseract
+  serverExternalPackages: ['tesseract.js', 'ioredis', 'bullmq'], // Prevent Webpack from bundling Tesseract and BullMQ
   // Security Headers
   async headers() {
     return [
@@ -110,8 +110,5 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,
   },
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
 });
 

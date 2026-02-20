@@ -192,12 +192,90 @@ worker.on("failed", (job, err) => {
     logger.error(`[Worker] ❌ Job ${job?.id} a échoué: ${err.message}`);
 });
 
+// =============================================================================
+// FUNC-02/03: CLEANUP WORKER (Purge Notifications + Expire OcreTradeRequests)
+// =============================================================================
+
+import { Queue } from "bullmq";
+
+const CLEANUP_QUEUE_NAME = "sigilos-cleanup";
+
+const cleanupQueue = new Queue(CLEANUP_QUEUE_NAME, defaultQueueOptions);
+
+// Schedule the cleanup to run every day at 4:00 AM
+cleanupQueue.add(
+    "daily-cleanup",
+    {},
+    {
+        repeat: { pattern: "0 4 * * *" }, // Every day at 04:00
+        removeOnComplete: 5,
+        removeOnFail: 3,
+    }
+);
+
+const cleanupWorker = new Worker(
+    CLEANUP_QUEUE_NAME,
+    async (job) => {
+        logger.info(`[Cleanup] Démarrage du nettoyage quotidien (Job: ${job.id})...`);
+
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // FUNC-02: Purge old read notifications (> 30 days)
+        try {
+            const deletedNotifs = await db.notification.deleteMany({
+                where: {
+                    read: true,
+                    createdAt: { lt: thirtyDaysAgo },
+                },
+            });
+            logger.info(`[Cleanup] 🗑️ ${deletedNotifs.count} notifications lues supprimées (> 30j).`);
+        } catch (err) {
+            logger.error("[Cleanup] Erreur purge notifications:", { error: String(err) });
+        }
+
+        // FUNC-03: Expire stale OcreTradeRequests (PENDING > 7 days → CANCELED)
+        try {
+            const expiredTrades = await db.ocreTradeRequest.updateMany({
+                where: {
+                    status: "PENDING",
+                    createdAt: { lt: sevenDaysAgo },
+                },
+                data: {
+                    status: "CANCELED",
+                },
+            });
+            logger.info(`[Cleanup] ⏰ ${expiredTrades.count} demandes d'échange Ocre expirées (> 7j PENDING → CANCELED).`);
+        } catch (err) {
+            logger.error("[Cleanup] Erreur expiration OcreTradeRequests:", { error: String(err) });
+        }
+
+        logger.info(`[Cleanup] ✅ Nettoyage quotidien terminé.`);
+    },
+    {
+        ...defaultQueueOptions,
+        concurrency: 1,
+    }
+);
+
+cleanupWorker.on("completed", (job) => {
+    logger.info(`[Cleanup] ✅ Job ${job.id} terminé.`);
+});
+
+cleanupWorker.on("failed", (job, err) => {
+    logger.error(`[Cleanup] ❌ Job ${job?.id} a échoué: ${err.message}`);
+});
+
 // Graceful shutdown
 const shutdown = async () => {
     logger.info("[Worker] Extinction du Background Worker...");
     await worker.close();
+    await cleanupWorker.close();
+    await cleanupQueue.close();
     process.exit(0);
 };
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+

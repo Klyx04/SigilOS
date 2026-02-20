@@ -117,6 +117,8 @@ export default async function DashboardPage({
 
                     {/* Member Profile Completion (For EVERYONE if incomplete) */}
                     {(() => {
+                        if (!user.canViewProfile || !profile) return null;
+
                         const memberSteps = [
                             { id: "profile", title: "Identité", description: "Pseudo Dofus & Classe", href: `/dashboard/${guildId}/profile?edit=identity`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
                             user.canViewArchis && { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: !!profile.metamobVerified, icon: "infinity" },
@@ -125,8 +127,7 @@ export default async function DashboardPage({
                         ].filter(Boolean) as any[];
 
                         const hasIncompleteSteps = memberSteps.some(s => !s.completed);
-
-                        if (!user.canViewProfile || !profile || !hasIncompleteSteps) return null;
+                        if (!hasIncompleteSteps) return null;
 
                         return (
                             <div className="md:col-span-12">

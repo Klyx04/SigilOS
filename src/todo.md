@@ -15,13 +15,17 @@
 - [x] Seed zones, boss, mobs + bonus Songes — `prisma/seed.ts` présent ✅ (à lancer via GOD)
 - [x] Extraire les appels synchrone à l'API Metamob (`findOcreExchangePartners`) vers un Background Worker (BullMQ/CRON) pour éviter le blocage de l'UI.
 - [x] Ajouter un index composite manquant sur `Submission ([guildId, status, createdAt])` pour éviter les lenteurs extrêmes de validation et de la page d'administration.
-- [ ] Déplacer les calculs d'agrégation "Ladder" (ex: `getActivityLadder`) d'une requête on-the-fly vers un pré-calcul nocturne (CRON) pour empêcher le blocage du site.
-- [ ] **[AUDIT-SEC-02]** Supprimer le port Redis `6379:6379` exposé dans `docker-compose.yml` (accessible depuis l'hôte).
-- [ ] **[AUDIT-SEC-04]** Sign the `beta_access` cookie with HMAC (currently bypassable by forging cookie manually).
-- [ ] **[AUDIT-FUNC-01]** Fix `isAdmin` bug in `getActivityLadder` (operator precedence issue — non-admins can be flagged as admin).
-- [ ] **[AUDIT-FUNC-07]** Vérifier que `@@unique([missionId, profileId])` existe sur `Submission` pour éviter les double-soumissions via race condition.
-- [ ] **[AUDIT-FAIL-02]** Wrapper tous les appels MetaMob API dans un fallback sur les données cachées (`metamobLastSync`) si l'API est down.
-- [ ] **[AUDIT-FAIL-03]** Si OCR.space échoue → créer la soumission directement en validation manuelle sans attendre l'OCR.
+- [x] Déplacer les calculs d'agrégation "Ladder" (ex: `getActivityLadder`) d'une requête on-the-fly vers un pré-calcul nocturne (CRON) pour empêcher le blocage du site.
+- [x] **[AUDIT-SEC-02]** ~~Supprimer le port Redis `6379:6379` exposé dans `docker-compose.yml`~~ ✅ Fait (fix/resilience-cleanup)
+- [x] **[AUDIT-SEC-03]** Retiré `'unsafe-eval'` du CSP header `script-src` ✅
+- [x] **[AUDIT-SEC-04]** ~~Sign the `beta_access` cookie with HMAC~~ ✅ Fait (API route /api/gate + httpOnly + HMAC)
+- [x] **[AUDIT-FUNC-01]** ~~Fix `isAdmin` bug in `getActivityLadder`~~ ✅ Fait (6 occurrences corrigées)
+- [x] **[AUDIT-FUNC-02]** Purge automatique notifications lues > 30j (worker BullMQ) ✅
+- [x] **[AUDIT-FUNC-03]** Expiration OcreTradeRequest > 7j PENDING → CANCELED (worker BullMQ) ✅
+- [x] **[AUDIT-FUNC-07]** ~~Vérifier `@@unique([missionId, profileId])`~~ ✅ Fait + migration + P2002 guard
+- [x] **[AUDIT-FAIL-02]** ~~Wrapper MetaMob API~~ ✅ Timeout 10s + erreur user-friendly API_UNAVAILABLE
+- [x] **[AUDIT-FAIL-03]** ~~OCR.space fallback~~ ✅ OCR déjà désactivé — soumissions en validation manuelle directe
+- [x] **[AUDIT-PERF-01]** N+1 éliminé dans `getActivityLadder` — SQL agrégé (fix/perf-ladder) ✅
 
 ---
 

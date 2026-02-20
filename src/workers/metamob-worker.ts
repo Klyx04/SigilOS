@@ -251,6 +251,68 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur expiration OcreTradeRequests:", { error: String(err) });
         }
 
+        // SONGES: Auto-reject expired join requests (PENDING > 10 minutes)
+        try {
+            const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+            const expiredRequests = await db.dreamJoinRequest.findMany({
+                where: {
+                    status: "PENDING",
+                    createdAt: { lt: tenMinutesAgo },
+                },
+                include: { run: { select: { difficulty: true, guildId: true } } },
+            });
+
+            if (expiredRequests.length > 0) {
+                for (const req of expiredRequests) {
+                    await db.dreamJoinRequest.update({
+                        where: { id: req.id },
+                        data: { status: "REJECTED", respondedAt: new Date() },
+                    });
+
+                    // Notify user directly via DB (no "use server" needed)
+                    await db.notification.create({
+                        data: {
+                            userId: req.userId,
+                            type: "SYSTEM_INFO",
+                            title: "Candidature expirée",
+                            message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 10 minutes).`,
+                            link: `/dashboard/${req.run.guildId}/songes`,
+                        },
+                    });
+                }
+                logger.info(`[Cleanup] ⏳ ${expiredRequests.length} candidatures Songes expirées auto-rejetées.`);
+            }
+        } catch (err) {
+            logger.error("[Cleanup] Erreur expiration candidatures Songes:", { error: String(err) });
+        }
+
+        // SONGES: Auto-abandon inactive runs (> 3 days no activity)
+        try {
+            const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+            const inactiveRuns = await db.dreamRun.findMany({
+                where: {
+                    status: { in: ["RECRUITING", "IN_PROGRESS"] },
+                    updatedAt: { lt: threeDaysAgo },
+                },
+                select: { id: true, guildId: true },
+            });
+
+            for (const run of inactiveRuns) {
+                await db.dreamRun.update({
+                    where: { id: run.id },
+                    data: { status: "ABANDONED", completedAt: new Date() },
+                });
+            }
+
+            if (inactiveRuns.length > 0) {
+                logger.info(`[Cleanup] 🌙 ${inactiveRuns.length} runs Songes inactives abandonnées (> 3j).`);
+            }
+        } catch (err) {
+            logger.error("[Cleanup] Erreur abandon runs Songes:", { error: String(err) });
+        }
+
         logger.info(`[Cleanup] ✅ Nettoyage quotidien terminé.`);
     },
     {

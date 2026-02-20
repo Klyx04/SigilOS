@@ -196,10 +196,7 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", runs: [] };
 
-    // Trigger cleanup
-    const { cleanupInactiveRuns } = await import("@/server/songes-service");
-    await cleanupInactiveRuns(ctx.guildId);
-    await cleanupExpiredRequests(ctx.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const runs = await db.dreamRun.findMany({
         where: {
@@ -232,10 +229,7 @@ export async function getDreamRunById(guildId: string, runId: string) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", run: null };
 
-    // Trigger cleanup
-    const { cleanupInactiveRuns } = await import("@/server/songes-service");
-    await cleanupInactiveRuns(ctx.guildId);
-    await cleanupExpiredRequests(ctx.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const run = await db.dreamRun.findFirst({
         where: {
@@ -838,8 +832,7 @@ export async function getPendingJoinRequests(guildId: string, runId: string) {
         return { success: false, error: "Non autorisé", requests: [] };
     }
 
-    // Trigger cleanup for this guild
-    await cleanupExpiredRequests(run.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const requests = await db.dreamJoinRequest.findMany({
         where: { runId, status: "PENDING" },

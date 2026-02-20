@@ -58,10 +58,10 @@ model User {
   eventParticipations EventParticipant[]
   notifications       Notification[]
   // Songes Relations
-  dreamRuns         DreamRun[]         @relation("RunLeader")
-  dreamRunMembers   DreamRunMember[]
-  dreamWaitlists    DreamWaitlist[]
-  dreamJoinRequests DreamJoinRequest[]
+  dreamRuns           DreamRun[]         @relation("RunLeader")
+  dreamRunMembers     DreamRunMember[]
+  dreamWaitlists      DreamWaitlist[]
+  dreamJoinRequests   DreamJoinRequest[]
 
   // Lifecycle tracking (RGPD)
   deletionRequestedAt DateTime?
@@ -141,6 +141,9 @@ model GuildConfig {
   // Ocre Module Configuration
   ocreNotifyChannelId String? // Discord channel ID for Ocre Trade Requests
 
+  // Donjons & Quêtes Module Configuration
+  djNotifyChannelId String? // Discord channel ID for DJ Finder post notifications
+
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
   presentationHistory      String?   @db.Text // Guild history (Markdown, emojis allowed)
@@ -181,6 +184,9 @@ model GuildConfig {
   // Sondages & Custom Roles
   polls      Poll[]
   sigilRoles SigilRole[]
+
+  // Donjons & Quêtes
+  djSearchPosts DjSearchPost[]
 }
 
 // -- Guild Modules (Feature Flags) --
@@ -357,8 +363,14 @@ model UserProfile {
   hasSeenWelcome Boolean @default(false)
 
   // Ocre Trades
-  sentOcreRequests     OcreTradeRequest[]  @relation("Requester")
-  receivedOcreRequests OcreTradeRequest[]  @relation("Target")
+  sentOcreRequests     OcreTradeRequest[] @relation("Requester")
+  receivedOcreRequests OcreTradeRequest[] @relation("Target")
+
+  // Donjons & Quêtes
+  djSearchPosts           DjSearchPost[]
+  djParticipations        DjSearchParticipant[]
+  dungeonProgress         UserDungeonProgress[]
+  userDungeonAchievements UserDungeonAchievement[]
 
   @@unique([userId, guildId])
   @@index([guildId])
@@ -478,8 +490,10 @@ model Dungeon {
   expeditionMechanics String? @db.Text // Description mécaniques alternatives
 
   // Relations
-  achievements DungeonAchievement[]
-  zones        Zone[]
+  achievements  DungeonAchievement[]
+  zones         Zone[]
+  djSearchPosts DjSearchPost[]
+  userProgress  UserDungeonProgress[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -566,14 +580,30 @@ model DungeonAchievement {
   // Icône/image custom du succès si différent du challenge
   imageUrl String?
 
-  dungeon   Dungeon   @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
-  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  dungeon      Dungeon               @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  challenge    Challenge             @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userProgress UserDungeonProgress[]
+  achievedBy   UserDungeonAchievement[]
 
   createdAt DateTime @default(now())
 
   @@unique([dungeonId, challengeId])
   @@index([dungeonId])
   @@index([challengeId])
+}
+
+model UserDungeonAchievement {
+  id                   String @id @default(cuid())
+  userId               String
+  dungeonAchievementId String
+  completedAt          DateTime @default(now())
+
+  user                 UserProfile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dungeonAchievement   DungeonAchievement @relation(fields: [dungeonAchievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dungeonAchievementId])
+  @@index([userId])
+  @@index([dungeonAchievementId])
 }
 
 // -- Enums --
@@ -642,6 +672,10 @@ enum NotificationType {
   OCRE_TRADE_REQUEST
   OCRE_TRADE_ACCEPTED
   OCRE_TRADE_REJECTED
+  // Donjons & Quêtes Finder
+  FINDER_JOIN_REQUEST // Someone joined your DJ search post
+  FINDER_POST_FULL // Your post is now full
+  FINDER_POST_CLOSED // A post you joined has been closed
 }
 
 enum NotificationCategory {
@@ -650,6 +684,7 @@ enum NotificationCategory {
   SONGES
   EVENT
   POLL
+  DONJONS
   ADMIN_ALERT
   SYSTEM
 }
@@ -1082,9 +1117,9 @@ model OcreTradeRequest {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  requester   UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
-  target      UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  requester UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([targetId, status])
@@ -1326,3 +1361,121 @@ model PollVote {
   @@index([optionId])
   @@index([voterId])
 }
+
+// =============================================================================
+// MODULE DONJONS & QUÊTES — DJ FINDER
+// =============================================================================
+// Permet aux membres de créer des posts de recherche de groupe pour des donjons,
+// avec ciblage de succès spécifiques, inscription jusqu'à 8 joueurs, embed Discord.
+
+enum DjSearchMode {
+  DONJON // Anciennement FARM/MIXTE/SUCCES regroupés
+  QUETE // Quête liée ou non à un DJ
+}
+
+enum DjSearchStatus {
+  OPEN // En attente de membres
+  FULL // Groupe complet (inscription fermée)
+  CLOSED // Fermé manuellement par le créateur
+  EXPIRED // Expiré automatiquement après 7 jours
+}
+
+enum DjParticipantStatus {
+  PENDING // Candidature en attente d'acceptation
+  ACCEPTED // Accepté dans le groupe
+  REJECTED // Refusé par le créateur
+}
+
+model DjSearchPost {
+  id        String  @id @default(cuid())
+  guildId   String
+  profileId String
+  dungeonId String? // Optionnel pour les posts Quête pure
+
+  // Objectif
+  mode                 DjSearchMode @default(DONJON)
+  wantedAchievementIds String[] // IDs de DungeonAchievement ciblés (peut être vide)
+  maxMembers           Int          @default(4) // 2-8 participants
+  // Pour les quêtes : nom libre (dofuspourlesnoobs link + description)
+  questName            String? // Nom de la quête (si mode QUETE)
+  questUrl             String? // Lien dofuspourlesnoobs optionnel
+  questId              Int?    // ID de quête dans DofusDB (-1 si saisie manuelle)
+
+  // Nouveautés Refonte
+  requiredClasses      String[] // Liste de noms de classes optionnelles (ex: ["Eniripsa", "Panda"])
+  isDiscordPublished   Boolean  @default(false) // Si l'user a coché "Publier sur Discord"
+
+  // Description
+  message    String?   @db.Text // Contexte, requis de classe, timing
+  targetDate DateTime? // Date/heure souhaitée pour la session
+
+  // État
+  status DjSearchStatus @default(OPEN)
+
+  // Discord Embed Tracking
+  discordMessageId String?
+  discordChannelId String?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime? // Fermeture manuelle ou auto-expiration
+  expiresAt DateTime // Auto-calculé : createdAt + 7j
+
+  // Relations
+  guild        GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile      UserProfile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  dungeon      Dungeon?              @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  participants DjSearchParticipant[]
+
+  @@index([guildId, status, createdAt])
+  @@index([profileId])
+  @@index([dungeonId])
+  @@index([expiresAt])
+}
+
+model DjSearchParticipant {
+  id        String @id @default(cuid())
+  postId    String
+  profileId String
+  userId    String // User.id (pour notifs Discord)
+
+  // Infos sur la candidature
+  classe  String? // Classe Dofus jouée (Iop, Eni, Xélor...)
+  message String? // Petit mot ("Cra opti dispo ce soir")
+
+  status DjParticipantStatus @default(PENDING)
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime? // Quand accepté/refusé
+
+  post    DjSearchPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  profile UserProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, profileId]) // 1 inscription par post par membre
+  @@index([postId, status])
+  @@index([profileId])
+}
+
+// Tracker personnel : quels succès de donjon un membre a déjà accompli
+// Permet de trouver les "succès en commun" possibles dans la guilde
+model UserDungeonProgress {
+  id            String @id @default(cuid())
+  profileId     String
+  dungeonId     String
+  achievementId String // DungeonAchievement.id
+
+  completedAt DateTime @default(now())
+
+  profile     UserProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  dungeon     Dungeon            @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  achievement DungeonAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, achievementId])
+  @@index([profileId])
+  @@index([dungeonId])
+  @@index([achievementId])
+}
+
+// Relation manquante sur GuildConfig pour DjSearchPost
+// (définie dans le model GuildConfig mais rappelée ici pour référence)

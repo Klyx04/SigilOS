@@ -20,6 +20,7 @@ import { MemberManagementTable } from "@/components/admin/member-management-tabl
 import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
 import { ShieldAlert, UserCheck, BarChart3 } from "lucide-react";
 import { PollSettingsClient } from "../_components/poll-settings-client";
+import { DjSettingsClient } from "../_components/dj-settings-client";
 
 // ============================================================================
 // TAB STYLES
@@ -106,6 +107,10 @@ export default async function FeatureSettingsPage({
                     <TabsTrigger value="missions" className={TABS.missions}>
                         <Target className="h-3.5 w-3.5" />
                         Missions
+                    </TabsTrigger>
+                    <TabsTrigger value="donjons" className={TABS.dofus}>
+                        <Sword className="h-3.5 w-3.5" />
+                        Donjons & Quêtes
                     </TabsTrigger>
                     <TabsTrigger value="sondages" className={TABS.sondages}>
                         <BarChart3 className="h-3.5 w-3.5" />
@@ -248,6 +253,19 @@ export default async function FeatureSettingsPage({
                         />
                         <div className="max-w-4xl">
                             <MissionSettingsClient guildId={guildId} />
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* ── Donjons & Quêtes ── */}
+                <TabsContent value="donjons" className="focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex flex-col gap-6">
+                        <SectionHeader
+                            title="Notifications Donjons & Quêtes"
+                            description="Configurez l'annonce automatique des recherches de groupes sur votre serveur Discord."
+                        />
+                        <div className="max-w-4xl">
+                            <DjSettingsClient guildId={guildId} />
                         </div>
                     </div>
                 </TabsContent>

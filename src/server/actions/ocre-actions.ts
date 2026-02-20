@@ -1674,17 +1674,20 @@ export async function createTradeRequest(
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-                await sendChannelMessage(guildConfig.ocreNotifyChannelId, "", {
-                    mentionContent: `<@${targetDiscordAccount.providerAccountId}>`,
-                    title: "🤝 Nouvelle demande d'échange Ocre",
-                    description: `Vous avez reçu une nouvelle proposition d'échange pour l'archimonstre **${monsterName}**.\n[Cliquez ici pour répondre sur le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`,
-                    color: 0x10b981, // Emerald 500
-                    fields: [
-                        { name: "De", value: requesterProfile.discordNickname || requesterProfile.user.name || "Un membre", inline: true },
-                        { name: "Monstre concerné", value: monsterName, inline: true },
-                        ...(message ? [{ name: "Message joint", value: `*${message}*`, inline: false }] : [])
-                    ]
-                } as any);
+                await sendChannelMessage(
+                    guildConfig.ocreNotifyChannelId,
+                    `Vous avez reçu une nouvelle proposition d'échange pour l'archimonstre **${monsterName}**.\n[Cliquez ici pour répondre sur le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`,
+                    {
+                        mentionContent: `<@${targetDiscordAccount.providerAccountId}>`,
+                        embedTitle: "🤝 Nouvelle demande d'échange Ocre",
+                        embedColor: 0x10b981, // Emerald 500
+                        fields: [
+                            { name: "De", value: requesterProfile.discordNickname || requesterProfile.user.name || "Un membre", inline: true },
+                            { name: "Monstre concerné", value: monsterName, inline: true },
+                            ...(message ? [{ name: "Message joint", value: `*${message}*`, inline: false }] : [])
+                        ]
+                    }
+                );
             } catch (e) {
                 console.error("Failed to send Discord ping for Ocre trade:", e);
             }

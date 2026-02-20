@@ -319,7 +319,10 @@ async function fetchApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
+            ...fetchOptions,
+            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+        });
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
@@ -368,7 +371,9 @@ async function fetchApi<T>(
             console.error("[Metamob] Schema validation failed:", error.errors);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        throw error;
+        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        console.error("[Metamob] Network error:", error);
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
     }
 }
 
@@ -400,7 +405,10 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
+            ...fetchOptions,
+            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+        });
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {
@@ -447,7 +455,9 @@ async function fetchPaginatedApi<T>(
         return { data: items, pagination };
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        throw new MetamobApiError("API_ERROR", "Erreur lors de la récupération des données paginées");
+        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        console.error("[Metamob] Network error (paginated):", error);
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
     }
 }
 

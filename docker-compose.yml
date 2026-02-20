@@ -12,7 +12,7 @@ services:
     restart: always
     environment:
       # Database connection string (internal docker network alias 'db')
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sigilos}
       # Auth & App secrets
       - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_URL=https://${DOMAIN_NAME}
@@ -67,7 +67,7 @@ services:
       dockerfile: services/discord-bot/Dockerfile
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sigilos}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       db:

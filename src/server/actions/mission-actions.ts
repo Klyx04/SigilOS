@@ -634,7 +634,11 @@ export async function submitMissionProof(
             success: true,
             data: { submissionId: submission.id, status: "PENDING" }
         };
-    } catch (error) {
+    } catch (error: any) {
+        // AUDIT-FUNC-07: Handle race-condition duplicate submission gracefully
+        if (error?.code === "P2002") {
+            return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+        }
         logger.error("Submit Mission Proof Error", { error, missionId });
         return { success: false, error: "Erreur serveur lors de la soumission" };
     }

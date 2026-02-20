@@ -431,6 +431,7 @@ model Submission {
 
   helpers UserProfile[] @relation("SubmissionHelpers")
 
+  @@unique([missionId, profileId]) // AUDIT-FUNC-07: Prevent race-condition double submissions
   @@index([missionId])
   @@index([profileId])
   @@index([status, updatedAt]) // Ajout pour optimiser la boucle Ladder

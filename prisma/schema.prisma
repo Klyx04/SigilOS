@@ -57,7 +57,6 @@ model User {
   guildEvents         GuildEvent[]
   eventParticipations EventParticipant[]
   notifications       Notification[]
-
   // Songes Relations
   dreamRuns         DreamRun[]         @relation("RunLeader")
   dreamRunMembers   DreamRunMember[]
@@ -139,6 +138,9 @@ model GuildConfig {
   pollsNotifyChannelId String? // Discord channel ID for poll notifications
   pollsNotifyRoleId    String? // Discord role ID to ping for poll notifications
 
+  // Ocre Module Configuration
+  ocreNotifyChannelId String? // Discord channel ID for Ocre Trade Requests
+
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
   presentationHistory      String?   @db.Text // Guild history (Markdown, emojis allowed)
@@ -174,6 +176,7 @@ model GuildConfig {
   achievementSubmissions AchievementSubmission[]
   guildBonuses           GuildBonus[]
   modules                GuildModules?
+  ocreTradeRequests      OcreTradeRequest[] // New
 
   // Sondages & Custom Roles
   polls      Poll[]
@@ -352,6 +355,10 @@ model UserProfile {
 
   // Onboarding
   hasSeenWelcome Boolean @default(false)
+
+  // Ocre Trades
+  sentOcreRequests     OcreTradeRequest[]  @relation("Requester")
+  receivedOcreRequests OcreTradeRequest[]  @relation("Target")
 
   @@unique([userId, guildId])
   @@index([guildId])
@@ -631,6 +638,9 @@ enum NotificationType {
   POLL_CLOSED
   ACHIEVEMENT_VALIDATED
   ACHIEVEMENT_REJECTED
+  OCRE_TRADE_REQUEST
+  OCRE_TRADE_ACCEPTED
+  OCRE_TRADE_REJECTED
 }
 
 enum NotificationCategory {
@@ -1047,6 +1057,37 @@ model OcrApiUsage {
 
   @@unique([date, endpoint])
   @@index([date])
+}
+
+// ============================================================================
+// METAMOB / OCRE TRANSACTIONS
+// ============================================================================
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELED
+}
+
+model OcreTradeRequest {
+  id          String      @id @default(cuid())
+  guildId     String
+  requesterId String
+  targetId    String
+  monsterId   Int
+  status      TradeStatus @default(PENDING)
+  message     String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  requester   UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target      UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+  @@index([targetId, status])
+  @@index([requesterId, status])
 }
 
 // -- Guild Bonus System --

@@ -12,17 +12,23 @@ import {
     TrendingUp,
     Clock,
     CheckCircle,
-    Lock,
     Mic2,
     Timer,
     LayoutGrid,
     ListFilter,
-    Plus,
-    Search,
-    Zap,
     ChevronRight,
-    History
+    History,
+    Info,
+    AlertTriangle
 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +125,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
     const [sortKey, setSortKey] = useState<SortKey>("most_active");
     const [showSort, setShowSort] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const [showPimConfirm, setShowPimConfirm] = useState(false);
     const router = useRouter();
     const [microStatus, setMicroStatus] = useState<{
         holder: { id: string; name: string; image?: string } | null;
@@ -245,19 +252,79 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                         )}
 
                         {(!microStatus?.holder || microStatus?.isSuperAdmin) && !microStatus?.isMicroHolder && (
-                            <Button
-                                onClick={handleAcquireMicroStatus}
-                                disabled={isPending}
-                                className={cn(
-                                    "h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs transition-all shrink-0",
-                                    microStatus?.holder
-                                        ? "bg-amber-500 hover:bg-amber-400 text-white shadow-xl shadow-amber-500/20"
-                                        : "bg-cyan-500 hover:bg-cyan-400 text-white shadow-xl shadow-cyan-500/20",
-                                    "active:translate-y-0.5"
-                                )}
-                            >
-                                {isPending ? "..." : microStatus?.holder ? "Reprendre le Micro" : "Prendre le Micro"}
-                            </Button>
+                            <>
+                                <Button
+                                    onClick={() => setShowPimConfirm(true)}
+                                    disabled={isPending}
+                                    className={cn(
+                                        "h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs transition-all shrink-0",
+                                        microStatus?.holder
+                                            ? "bg-amber-500 hover:bg-amber-400 text-white shadow-xl shadow-amber-500/20"
+                                            : "bg-cyan-500 hover:bg-cyan-400 text-white shadow-xl shadow-cyan-500/20",
+                                        "active:translate-y-0.5"
+                                    )}
+                                >
+                                    {isPending ? "..." : microStatus?.holder ? "Reprendre le Micro" : "Prendre le Micro"}
+                                </Button>
+
+                                {/* PIM Confirmation Dialog */}
+                                <Dialog open={showPimConfirm} onOpenChange={setShowPimConfirm}>
+                                    <DialogContent className="max-w-sm border-cyan-500/20 bg-zinc-950 text-white">
+                                        <DialogHeader>
+                                            <DialogTitle className="flex items-center gap-2 text-cyan-400">
+                                                <Mic2 className="w-5 h-5" />
+                                                Prendre le Droit de Parole
+                                            </DialogTitle>
+                                            <DialogDescription className="text-zinc-400 sr-only">
+                                                Informations sur le rôle PIM
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-2">
+                                            <div className="flex gap-3 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
+                                                <Info className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                                                <p className="text-sm text-zinc-300">
+                                                    Tu vas acquérir le rôle <span className="font-bold text-cyan-400">Créateur de Sondages</span> pendant <span className="font-bold text-white">1 heure</span>. Pendant ce temps, toi seul peux créer des sondages.
+                                                </p>
+                                            </div>
+                                            <ul className="space-y-2 text-sm text-zinc-400">
+                                                <li className="flex items-start gap-2">
+                                                    <span className="text-cyan-500 mt-0.5">•</span>
+                                                    <span>Chaque catégorie de sondage a un <span className="text-white font-medium">cooldown de 7 jours</span> entre deux sondages.</span>
+                                                </li>
+                                                <li className="flex items-start gap-2">
+                                                    <span className="text-cyan-500 mt-0.5">•</span>
+                                                    <span>Tu peux <span className="text-white font-medium">relâcher le micro</span> à tout moment si tu n'en as plus besoin.</span>
+                                                </li>
+                                                <li className="flex items-start gap-2">
+                                                    <span className="text-cyan-500 mt-0.5">•</span>
+                                                    <span>Le rôle expire <span className="text-white font-medium">automatiquement</span> après 1h.</span>
+                                                </li>
+                                            </ul>
+                                            <div className="flex gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                                                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                                                <p className="text-xs text-zinc-400">
+                                                    Les sondages publiés sont <span className="text-amber-400 font-medium">visibles de toute la guilde</span> et peuvent être envoyés sur Discord. Réfléchis bien avant de publier.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <DialogFooter className="gap-2">
+                                            <Button variant="ghost" className="text-zinc-400 hover:text-white" onClick={() => setShowPimConfirm(false)}>
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                className="bg-cyan-500 hover:bg-cyan-400 text-white font-black"
+                                                disabled={isPending}
+                                                onClick={() => {
+                                                    setShowPimConfirm(false);
+                                                    handleAcquireMicroStatus();
+                                                }}
+                                            >
+                                                {isPending ? "..." : "Prendre le Micro"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </>
                         )}
                     </div>
                 </div>

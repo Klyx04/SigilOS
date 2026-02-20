@@ -79,7 +79,7 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white">
+            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-xl flex items-center gap-2">
                         🌙 Nouvelle Run Songes

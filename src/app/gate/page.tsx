@@ -17,17 +17,26 @@ export default function BetaGate() {
         e.preventDefault();
         setLoading(true);
 
-        const betaPassword = process.env.NEXT_PUBLIC_BETA_PASSWORD || "SigilOS_2026";
+        try {
+            // SEC-04: Password validated server-side, cookie signed with HMAC
+            const res = await fetch("/api/gate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json();
 
-        // On utilise un simple cookie pour l'accès bêta (sécurisé par le SSL de Caddy)
-        if (password === betaPassword) {
-            await logBetaAccessAttempt(true, password);
-            document.cookie = `beta_access=true; path=/; max-age=604800; SameSite=Lax; Secure`;
-            toast.success("Accès autorisé. Entrée dans le protocole...");
-            setTimeout(() => router.push("/"), 1000);
-        } else {
-            await logBetaAccessAttempt(false, password);
-            toast.error("Code d'accès invalide. Tentative enregistrée.");
+            if (data.success) {
+                await logBetaAccessAttempt(true, password);
+                toast.success("Accès autorisé. Entrée dans le protocole...");
+                setTimeout(() => router.push("/"), 1000);
+            } else {
+                await logBetaAccessAttempt(false, password);
+                toast.error("Code d'accès invalide. Tentative enregistrée.");
+                setLoading(false);
+            }
+        } catch {
+            toast.error("Erreur de connexion. Réessayez.");
             setLoading(false);
         }
     };

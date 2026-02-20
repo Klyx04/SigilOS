@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-20)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé.
+**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé. Module Stats Guilde terminé (40+ métriques, Recharts). Module Recherche DJ/Quêtes terminé.
 
 ---
 
@@ -107,6 +107,16 @@ SigilOS/
 - ✅ **Audit & Hardening** : Audit de sécurité complet. Suppression des routes de debug (`/debug-ui`) et de test (`ui-test`). Sécurisation de l'API d'upload (Super-Admin only).
 - ✅ **Code Cleanup** : Purge des fichiers de contexte orphelins dans `src/` et suppression des reliquats de migration (Kralamoure).
 - ✅ **Robustesse & Build** : Overhaul des embeds Discord, validation du build de production et monitoring des statistiques plateforme.
+
+---
+
+### Session — Module Stats Guilde (2026-02-20)
+
+- ✅ **Stats Dashboard** : Nouveau module complet `/dashboard/[guildId]/stats` avec 40+ métriques agrégées via `guild-stats-actions.ts`.
+- ✅ **Composants Recharts** : 7 composants spécialisés (StatCard, ActivityChart, MissionsStats, SongesStats, EventsStats, CommunityStats, RecordsSection) avec design glassmorphism.
+- ✅ **Optimisation** : Toutes les requêtes Prisma en `Promise.all` parallèle.
+- ✅ **Fix Dashboard** : Adaptation de `dashboard/[guildId]/page.tsx` au nouveau type `GuildStats` (`.stats` au lieu de `.data`).
+- ✅ **Branche** : `feat/guild-stats` pushée, PR disponible vers `dev`.
 
 ---
 
@@ -220,10 +230,14 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
+<<<<<<< HEAD
 - Validator Inbox flottant (widget top-right, missions + achievements en attente)
 
 ### 🔄 En cours
 - Ocre Trade Request System (demandes d'échange in-app + ping Discord)
+=======
+- **Stats Guilde** (40+ métriques, Recharts, dashboard complet — `feat/guild-stats`)
+>>>>>>> feat/quest-search
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
@@ -238,6 +252,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [x] Toutes les tâches P0 critiques complétées ✅
 - [ ] Déplacer les calculs `getActivityLadder` vers un CRON pré-calculé
 
+<<<<<<< HEAD
 ### 🎯 P2 — Features Core
 - [x] Toutes les tâches P2 complétées ✅
 
@@ -262,3 +277,18 @@ npm run worker    # Terminal 2 — BullMQ Worker
 
 ### 🧪 P8 — Tests Finaux *(Conclu)*
 - [x] Tous items vérifiables en code validés ✅ (Reste 4 tests manuels beta)
+=======
+### 🎨 Phase 3 — Polish UI/UX (Sprint Actuel)
+- [x] Unification du Branding Landing ✅
+- [x] Suppression surcharge visuelle Hero ✅
+- [x] Refonte Footer (SEO, Premium, Wylan) ✅
+- [x] Signature créateur & Lore ✅
+- [x] **Stats Guilde** (40+ métriques, Recharts — `feat/guild-stats`) ✅
+- [x] BullMQ Worker (cleanup Songes, MetaMob) ✅
+
+### 🚀 Phase 4 — Nouveaux Modules
+- [/] **Module Recherche DJ/Quêtes** — `feat/quest-search` (En cours)
+- [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
+- [ ] Plan B Discord API down (retry + queue)
+- [ ] Pagination & Optimisation requêtes N+1
+>>>>>>> feat/quest-search

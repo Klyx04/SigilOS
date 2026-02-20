@@ -46,8 +46,8 @@ export default async function QueteOcrePage({
     // Fetch if guild has Ocre discord channel
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { ocreNotifyChannelId: true }
-    });
+        select: { ocreNotifyChannelId: true } as any
+    }) as any;
     const hasOcreChannel = !!guildConfig?.ocreNotifyChannelId;
 
     return (

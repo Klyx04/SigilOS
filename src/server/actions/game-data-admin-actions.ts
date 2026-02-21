@@ -793,6 +793,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
         if (parsed.data.dungeons) {
             for (const dungeon of parsed.data.dungeons) {
                 const created = await db.dungeon.upsert({
+                    // @ts-ignore - Prisma typing glitch on GitHub Actions CI cache
                     where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } },
                     update: {
                         level: dungeon.level,

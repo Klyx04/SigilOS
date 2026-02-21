@@ -29,7 +29,12 @@ cd "$(dirname "$0")/.."
 echo "📦 Récupération du code..."
 git pull origin $(git rev-parse --abbrev-ref HEAD)
 
-# 3. Lancement Docker selon l'environnement
+# 3. Mise à jour de l'infrastructure de monitoring (Prometheus, Grafana, etc)
+echo "📊 Mise à jour et sécurisation de l'infrastructure de monitoring..."
+sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE pull prometheus grafana node-exporter cadvisor postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d prometheus grafana node-exporter cadvisor postgres-exporter
+
+# 4. Lancement Docker selon l'environnement
 if [ "$TARGET" == "beta" ]; then
     echo "🧪 Mise à jour du laboratoire BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta discord-bot-beta worker-beta --force-recreate caddy

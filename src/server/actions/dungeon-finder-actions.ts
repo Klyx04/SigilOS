@@ -285,9 +285,11 @@ export async function createDjPost(
                 targetDate: data.targetDate,
                 requiredClasses: data.requiredClasses,
                 isDiscordPublished: data.isDiscordPublished,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 participants: {
                     create: {
                         profileId: user.profileId,
+                        userId: user.id!,
                         status: "ACCEPTED",
                     },
                 },
@@ -425,6 +427,7 @@ export async function joinDjPost(
             data: {
                 postId,
                 profileId: user.profileId,
+                userId: user.id!,
                 classe: options?.classe || null,
                 message: options?.message || null,
                 status: "ACCEPTED",

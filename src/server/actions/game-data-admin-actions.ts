@@ -775,7 +775,6 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                         name: challenge.name,
                         description: challenge.description,
                         iconUrl: challenge.iconUrl,
-
                         conditions: challenge.conditions,
                     },
                     create: {
@@ -783,7 +782,6 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                         slug: challenge.slug,
                         description: challenge.description,
                         iconUrl: challenge.iconUrl,
-
                         conditions: challenge.conditions,
                     }
                 });
@@ -795,9 +793,8 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
         if (parsed.data.dungeons) {
             for (const dungeon of parsed.data.dungeons) {
                 const created = await db.dungeon.upsert({
-                    where: { name: dungeon.name },
+                    where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } },
                     update: {
-                        bossName: dungeon.bossName,
                         level: dungeon.level,
                         dpnlUrl: dungeon.dpnlUrl,
                         imageUrl: dungeon.imageUrl,

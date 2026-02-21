@@ -244,6 +244,18 @@ services:
     image: prom/prometheus:latest
     container_name: sigilos-prometheus
     restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d' # 👈 Limite l'utilisation du disque
+      - '--storage.tsdb.retention.size=5GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M # 👈 Évite qu'il ne sature la RAM du VPS
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -256,6 +268,11 @@ services:
     image: grafana/grafana:latest
     container_name: sigilos-grafana
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
@@ -283,6 +300,11 @@ services:
     image: prom/node-exporter:v1.7.0
     container_name: sigilos-node-exporter
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'

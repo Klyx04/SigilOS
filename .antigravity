@@ -3,6 +3,8 @@
 **Branche Active** : `dev` (Beta mise à jour)  
 **Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé. Module Stats Guilde terminé (40+ métriques, Recharts). Module Recherche DJ/Quêtes terminé.
 
+> ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
+
 ---
 
 ## 🗺️ Architecture Générale
@@ -96,6 +98,16 @@ SigilOS/
 - ✅ **Bugs Fix** : FUNC-01 (`isAdmin` boolean coercion x6), FUNC-07 (`@@unique` Submission + P2002 guard + migration Prisma)
 - ✅ **Résilience** : FAIL-02 (MetaMob API timeout 10s + erreur `API_UNAVAILABLE`), FAIL-03 (OCR non-issue, déjà désactivé)
 - ✅ **Maintenance Auto** : FUNC-02 (purge notifications >30j) + FUNC-03 (expiration OcreTradeRequest >7j) via BullMQ repeatable job quotidien (4h AM)
+
+---
+
+### Session — Correctifs Beta, Game Data & VPS (2026-02-21)
+
+- ✅ **Bug Fixes (Dungeon Finder)** : Ajout des champs requis `expiresAt` et `userId` manquants pour la création et la jonction de posts DJ.
+- ✅ **Bug Fixes (Game Data Import)** : Remplacement de l'upsert par `slug` au lieu de `name` sur les challenges, résolvant un conflit de contrainte d'unicité.
+- ✅ **Bug Fixes (CI Action)** : Ajout d'un bypass TypeScript pour la CI GitHub sur le type généré unique `name_bossName` des donjons.
+- ✅ **Features (Admin Data)** : Accès exceptionnel temporaire à la route Game Data pour super-admins en production afin d'importer les seeds.
+- ✅ **Infrastructure (VPS)** : Configuration des limites de ressources Docker (Memory/Disk) et auto-updates.
 - ✅ **Infra** : Migration env var `NEXT_PUBLIC_BETA_PASSWORD` → `BETA_PASSWORD` (Dockerfile + docker-compose.prod.yml)
 
 ---
@@ -230,14 +242,12 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
-<<<<<<< HEAD
 - Validator Inbox flottant (widget top-right, missions + achievements en attente)
+- **Stats Guilde** (40+ métriques, Recharts, dashboard complet — `feat/guild-stats`)
+- **Module Recherche DJ/Quêtes** — (Finder complet, embeds discord, invitations métier)
 
 ### 🔄 En cours
 - Ocre Trade Request System (demandes d'échange in-app + ping Discord)
-=======
-- **Stats Guilde** (40+ métriques, Recharts, dashboard complet — `feat/guild-stats`)
->>>>>>> feat/quest-search
 
 ### ❌ Manquant (Non-bloquant Beta)
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
@@ -252,7 +262,6 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [x] Toutes les tâches P0 critiques complétées ✅
 - [ ] Déplacer les calculs `getActivityLadder` vers un CRON pré-calculé
 
-<<<<<<< HEAD
 ### 🎯 P2 — Features Core
 - [x] Toutes les tâches P2 complétées ✅
 
@@ -263,10 +272,14 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [x] Refonte UI Documentation ✅
 - [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
 
-### 🚀 P4 — Performance & Optimisation *(Sprint Actuel)*
+### 🚀 P4 — Scripts, Worker & Nouveaux Modules
 - [x] BullMQ Worker MetaMob Ocre déployé ✅
 - [x] Index DB critiques (`Submission`, `UserProfile`) ✅
 - [x] Cache Discord API (TTL 5min/10min) ✅
+- [x] Module Stats Guilde terminé ✅
+- [x] Module Recherche DJ/Quêtes terminé ✅
+- [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
+- [ ] Plan B Discord API down (retry + queue)
 - [ ] Lazy Cleanup Songes vers CRON
 - [ ] Calcul Ladder CRON (quand > 5000 membres)
 - [ ] Pagination membres/missions (quand > 500 entrées)
@@ -277,18 +290,3 @@ npm run worker    # Terminal 2 — BullMQ Worker
 
 ### 🧪 P8 — Tests Finaux *(Conclu)*
 - [x] Tous items vérifiables en code validés ✅ (Reste 4 tests manuels beta)
-=======
-### 🎨 Phase 3 — Polish UI/UX (Sprint Actuel)
-- [x] Unification du Branding Landing ✅
-- [x] Suppression surcharge visuelle Hero ✅
-- [x] Refonte Footer (SEO, Premium, Wylan) ✅
-- [x] Signature créateur & Lore ✅
-- [x] **Stats Guilde** (40+ métriques, Recharts — `feat/guild-stats`) ✅
-- [x] BullMQ Worker (cleanup Songes, MetaMob) ✅
-
-### 🚀 Phase 4 — Nouveaux Modules
-- [/] **Module Recherche DJ/Quêtes** — `feat/quest-search` (En cours)
-- [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
-- [ ] Plan B Discord API down (retry + queue)
-- [ ] Pagination & Optimisation requêtes N+1
->>>>>>> feat/quest-search

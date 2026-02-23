@@ -164,12 +164,17 @@ export function DjPostDetailModal({
                         )}
                     </div>
 
-                    {/* Quest info */}
-                    {post.mode === "QUETE" && post.questName && (
+                    {/* Quest info — QUETE mode or DONJON with optional linked quest */}
+                    {post.questName && (
                         <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3 flex flex-wrap items-center gap-3">
                             <div className="flex flex-1 items-center gap-2">
                                 <Map className="w-4 h-4 text-cyan-400 shrink-0" />
-                                <span className="text-sm text-cyan-300 font-medium">{post.questName}</span>
+                                <div>
+                                    {post.mode === "DONJON" && (
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Quête associée</p>
+                                    )}
+                                    <span className="text-sm text-cyan-300 font-medium">{post.questName}</span>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -180,7 +185,7 @@ export function DjPostDetailModal({
                                     </a>
                                 )}
                                 {post.questId && post.questId !== -1 && (
-                                    <a href={`https://dofusdb.fr/fr/database/quests/${post.questId}`} target="_blank" rel="noopener noreferrer"
+                                    <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                         className="text-[11px] font-bold text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 bg-slate-900 rounded-md px-2 py-1 transition-colors flex items-center gap-1.5">
                                         <Map className="w-3 h-3" /> DofusDB
                                     </a>

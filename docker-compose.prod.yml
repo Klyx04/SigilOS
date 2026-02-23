@@ -37,6 +37,7 @@ services:
           memory: 2G
     volumes:
       - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
 
   worker-prod:
@@ -131,6 +132,7 @@ services:
           memory: 2G
     volumes:
       - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
 
   worker-beta:

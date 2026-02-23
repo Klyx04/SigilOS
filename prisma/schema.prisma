@@ -478,7 +478,7 @@ model AchievementSubmission {
 
 model Dungeon {
   id       String  @id @default(cuid())
-  name     String  @unique
+  name     String
   bossName String
   level    Int
   dpnlUrl  String? // Lien dofuspourlesnoobs
@@ -498,6 +498,7 @@ model Dungeon {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([name, bossName])
   @@index([level])
   @@index([isExpedition])
 }
@@ -1479,3 +1480,38 @@ model UserDungeonProgress {
 
 // Relation manquante sur GuildConfig pour DjSearchPost
 // (définie dans le model GuildConfig mais rappelée ici pour référence)
+
+// -- Game Data: Songes Bonuses --
+// Bonus de rêve (Songes) : catalogue global géré depuis GOD
+model DreamBonus {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  type        String  @default("ACTIF") // "ACTIF" | "PASSIF" | "CONSOMMABLE"
+  description String? @db.Text
+  imageUrl    String?
+  costMin     Int?    // Coût min en Points de Rêve
+  costMax     Int?    // Coût max (si variable)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+// -- Game Data: Quêtes --
+// Catalogue de quêtes Dofus gérable manuellement depuis GOD
+model GameQuest {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  dofusDbId   Int?    // ID sur l'API DofusDB (pour lien direct)
+  levelMin    Int?
+  levelMax    Int?
+  description String? @db.Text
+  imageUrl    String?
+  category    String? // "Épique", "Dimensionnelle", "Quête de Zone", etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+}

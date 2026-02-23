@@ -28,6 +28,7 @@ interface DungeonFinderClientProps {
     isAdmin?: boolean;
     // Server action bound at page level
     refreshPosts: () => Promise<DjPostWithDetails[]>;
+    isDiscordConfigured?: boolean;
 }
 
 export function DungeonFinderClient({
@@ -36,6 +37,7 @@ export function DungeonFinderClient({
     currentProfileId,
     isAdmin,
     refreshPosts,
+    isDiscordConfigured,
 }: DungeonFinderClientProps) {
     const [activeTab, setActiveTab] = useState<Tab>("posts");
     const [posts, setPosts] = useState<DjPostWithDetails[]>(initialPosts);
@@ -237,6 +239,7 @@ export function DungeonFinderClient({
                 guildId={guildId}
                 isOpen={isCreateOpen}
                 initialDungeonId={initialDungeonId}
+                isDiscordConfigured={isDiscordConfigured}
                 onClose={() => {
                     setIsCreateOpen(false);
                     setInitialDungeonId(undefined);

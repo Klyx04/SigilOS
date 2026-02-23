@@ -32,11 +32,12 @@ interface DjPostCreateModalProps {
     guildId: string;
     isOpen: boolean;
     initialDungeonId?: string;
+    isDiscordConfigured?: boolean;
     onClose: () => void;
     onCreated: () => void;
 }
 
-export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, onCreated }: DjPostCreateModalProps) {
+export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
     // Top-Level Mode
     const [mode, setMode] = useState<"DONJON" | "QUETE">("DONJON");
 
@@ -53,6 +54,13 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
     const [isSearchingQuests, setIsSearchingQuests] = useState(false);
     const [selectedQuest, setSelectedQuest] = useState<{ id: number; name: string } | null>(null);
     const [questUrl, setQuestUrl] = useState("");
+
+    // Optional quest linked to a DONJON post
+    const [showLinkedQuest, setShowLinkedQuest] = useState(false);
+    const [linkedQuestSearch, setLinkedQuestSearch] = useState("");
+    const [linkedQuestResults, setLinkedQuestResults] = useState<any[]>([]);
+    const [isSearchingLinkedQuest, setIsSearchingLinkedQuest] = useState(false);
+    const [linkedQuest, setLinkedQuest] = useState<{ id: number; name: string } | null>(null);
 
     // Shared Config
     const [step, setStep] = useState(1); // 1 = Search (Donjon/Quete), 2 = Config
@@ -76,11 +84,15 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
             setQuestSearchResults([]);
             setSelectedQuest(null);
             setQuestUrl("");
+            setShowLinkedQuest(false);
+            setLinkedQuestSearch("");
+            setLinkedQuestResults([]);
+            setLinkedQuest(null);
             setMaxMembers(4);
             setMessage("");
             setTargetDate("");
             setRequiredClasses([]);
-            setIsDiscordPublished(true);
+            setIsDiscordPublished(!!isDiscordConfigured);
         }
     }, [isOpen]);
 
@@ -140,6 +152,26 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
         };
     }, [questSearchQuery, mode]);
 
+    // Linked quest search (DONJON mode optional quest)
+    useEffect(() => {
+        if (!showLinkedQuest || linkedQuestSearch.trim().length < 3) {
+            setLinkedQuestResults([]);
+            return;
+        }
+        const controller = new AbortController();
+        setIsSearchingLinkedQuest(true);
+        const timer = setTimeout(() => {
+            fetch(`https://api.dofusdb.fr/quests?name.fr[$regex]=${encodeURIComponent(linkedQuestSearch)}&$limit=6`, {
+                signal: controller.signal
+            })
+                .then(res => res.json())
+                .then(data => { if (data.data) setLinkedQuestResults(data.data); })
+                .catch(err => { if (err.name !== "AbortError") console.error(err); })
+                .finally(() => setIsSearchingLinkedQuest(false));
+        }, 400);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [linkedQuestSearch, showLinkedQuest]);
+
     const filteredDungeons = useMemo(() => {
         if (!dungeonSearch.trim()) return dungeons;
         const q = dungeonSearch.toLowerCase();
@@ -179,8 +211,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
             const res = await createDjPost(guildId, {
                 mode,
                 dungeonId: mode === "DONJON" ? selectedDungeon!.id : null,
-                questId: mode === "QUETE" ? selectedQuest!.id : null,
-                questName: mode === "QUETE" ? selectedQuest!.name : null,
+                questId: mode === "QUETE" ? selectedQuest!.id : (linkedQuest ? linkedQuest.id : null),
+                questName: mode === "QUETE" ? selectedQuest!.name : (linkedQuest ? linkedQuest.name : null),
                 questUrl: mode === "QUETE" && questUrl ? questUrl : null,
                 wantedAchievementIds: mode === "DONJON" ? selectedAchievements : [],
                 maxMembers,
@@ -422,6 +454,57 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
                                     </div>
                                 )}
 
+                                {/* Optional linked quest for DONJON mode */}
+                                {mode === "DONJON" && (
+                                    <div className="space-y-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowLinkedQuest(v => !v); setLinkedQuest(null); setLinkedQuestSearch(""); }}
+                                            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-cyan-400 transition-colors"
+                                        >
+                                            <Map className="w-3.5 h-3.5" />
+                                            {showLinkedQuest ? "▼ Masquer la quête liée" : "▶ Associer une quête (optionnel)"}
+                                        </button>
+                                        {showLinkedQuest && (
+                                            <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-3 space-y-2">
+                                                {linkedQuest ? (
+                                                    <div className="flex items-center justify-between bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2">
+                                                        <span className="text-sm text-cyan-300 font-medium flex items-center gap-2">
+                                                            <Map className="w-3.5 h-3.5" />
+                                                            {linkedQuest.name}
+                                                        </span>
+                                                        <button onClick={() => setLinkedQuest(null)} className="text-slate-500 hover:text-red-400 text-xs">✕</button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <input
+                                                            type="text"
+                                                            value={linkedQuestSearch}
+                                                            onChange={e => setLinkedQuestSearch(e.target.value)}
+                                                            placeholder="Rechercher une quête sur DofusDB..."
+                                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                                                        />
+                                                        {isSearchingLinkedQuest && <p className="text-xs text-slate-500 animate-pulse">Recherche...</p>}
+                                                        {linkedQuestResults.length > 0 && (
+                                                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                                                                {linkedQuestResults.map(q => (
+                                                                    <button key={q.id} type="button"
+                                                                        onClick={() => { setLinkedQuest({ id: q.id, name: q.name?.fr || "" }); setLinkedQuestResults([]); setLinkedQuestSearch(""); }}
+                                                                        className="w-full text-left px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-300 transition-colors"
+                                                                    >
+                                                                        {q.name?.fr}
+                                                                        {q.levelMin && <span className="text-xs text-slate-500 ml-2">Niv. {q.levelMin}</span>}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Date */}
                                     <div className="space-y-2">
@@ -491,15 +574,21 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, onClose, 
                                         <Switch
                                             checked={isDiscordPublished}
                                             onCheckedChange={setIsDiscordPublished}
+                                            disabled={!isDiscordConfigured}
                                             className="data-[state=checked]:bg-indigo-500"
                                         />
-                                        <span className="text-sm font-medium text-slate-300">Publier sur Discord automatiquement</span>
+                                        <div className="flex flex-col">
+                                            <span className={`text-sm font-medium ${isDiscordConfigured ? 'text-slate-300' : 'text-slate-500'}`}>Publier sur Discord</span>
+                                            {!isDiscordConfigured && (
+                                                <span className="text-[10px] text-amber-400/70">Canal non configuré (Admin → DJ Paramètres)</span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <Button
-                                        className={`h-12 px-8 font-black ${mode === "DONJON" ? "bg-indigo-600 hover:bg-indigo-500 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white"}`}
+                                        className={`h-12 px-8 font-black bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40`}
                                         onClick={handleSubmit}
-                                        disabled={isPending}
+                                        disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest)}
                                     >
                                         <Users className="w-5 h-5 mr-2" />
                                         {isPending ? "Création..." : "Lancer la recherche"}

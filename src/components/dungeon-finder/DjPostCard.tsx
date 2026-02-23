@@ -204,7 +204,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </div>
                     )}
 
-                    {/* Quest link */}
+                    {/* Quest link (QUETE mode) */}
                     {post.mode === "QUETE" && post.questUrl && (
                         <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -215,12 +215,18 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     )}
 
                     {/* DofusDB Quest Link */}
-                    {post.mode === "QUETE" && post.questId && (
-                        <a href={`https://dofusdb.fr/fr/database/quests/${post.questId}`} target="_blank" rel="noopener noreferrer"
+                    {post.questId && (post.mode === "QUETE" || post.mode === "DONJON") && (
+                        <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-white font-medium bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 w-max transition-colors">
+                            className={`inline-flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 w-max transition-colors border ${post.mode === "DONJON"
+                                    ? "text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border-cyan-500/20"
+                                    : "text-slate-400 hover:text-white bg-white/5 border-white/10"
+                                }`}>
                             <Map className="w-3 h-3" />
-                            Ouvrir sur DofusDB
+                            {post.mode === "DONJON" && post.questName
+                                ? <span className="truncate max-w-[120px]">{post.questName}</span>
+                                : "Ouvrir sur DofusDB"
+                            }
                         </a>
                     )}
 

@@ -1667,30 +1667,40 @@ export async function createTradeRequest(
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
-                // Fetch monster name from Metamob API (Monster table uses CUIDs, not Metamob IDs)
+                // Fetch monster name + image from Metamob API (Monster table uses CUIDs, not Metamob numeric IDs)
                 let monsterName = `Monstre #${monsterId}`;
+                let monsterImageUrl: string | undefined;
                 try {
                     const { getMonster } = await import("@/lib/metamob-client");
                     const m = await getMonster(monsterId);
                     monsterName = m.name.fr || monsterName;
+                    if (m.image) {
+                        monsterImageUrl = m.image.startsWith("http")
+                            ? m.image
+                            : `https://www.metamob.fr/img/monsters/${m.image}`;
+                    }
                 } catch (e) {
+                    console.error(`[OcreTrade] Failed to fetch monster ${monsterId} from Metamob:`, e);
                     // Metamob API unavailable, fallback to ID
                 }
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const requesterName = requesterProfile.discordNickname || requesterProfile.user.name || "Un membre";
 
                 await sendChannelMessage(
                     guildConfig.ocreNotifyChannelId,
-                    `Vous avez reçu une nouvelle proposition d'échange pour l'archimonstre **${monsterName}**.\n[Cliquez ici pour répondre sur le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`,
+                    `<@${targetDiscordAccount.providerAccountId}>`,
                     {
-                        mentionContent: `<@${targetDiscordAccount.providerAccountId}>`,
-                        embedTitle: "🤝 Nouvelle demande d'échange Ocre",
-                        embedColor: 0x10b981, // Emerald 500
+                        embedTitle: `🤝 Demande d'échange — ${monsterName}`,
+                        embedColor: 0x10b981,
+                        embedThumbnail: monsterImageUrl,
+                        embedUrl: `${publicUrl}/dashboard/${guildId}/quete-ocre`,
                         fields: [
-                            { name: "De", value: requesterProfile.discordNickname || requesterProfile.user.name || "Un membre", inline: true },
-                            { name: "Monstre concerné", value: monsterName, inline: true },
-                            ...(message ? [{ name: "Message joint", value: `*${message}*`, inline: false }] : [])
+                            { name: "De", value: requesterName, inline: true },
+                            { name: "Archimonstre", value: monsterName, inline: true },
+                            ...(message ? [{ name: "Message", value: `*${message}*`, inline: false }] : []),
+                            { name: "Répondre", value: `[Ouvrir le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`, inline: false },
                         ]
                     }
                 );

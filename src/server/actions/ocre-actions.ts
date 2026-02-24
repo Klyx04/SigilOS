@@ -1565,6 +1565,8 @@ const CreateTradeSchema = z.object({
     guildId: z.string(),
     targetProfileId: z.string(),
     monsterId: z.number(),
+    monsterName: z.string().optional(), // Passed from client — avoids Metamob API call
+    monsterImage: z.string().optional(), // Image URL passed from client
     message: z.string().max(500).optional(),
     sendDiscordPing: z.boolean().optional(),
 });
@@ -1580,7 +1582,7 @@ export async function createTradeRequest(
 
         const parsed = CreateTradeSchema.safeParse(rawData);
         if (!parsed.success) return { success: false, error: "Données invalides" };
-        const { guildId, targetProfileId, monsterId, message, sendDiscordPing } = parsed.data;
+        const { guildId, targetProfileId, monsterId, monsterName: clientMonsterName, monsterImage: clientMonsterImage, message, sendDiscordPing } = parsed.data;
 
 
         const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
@@ -1667,22 +1669,9 @@ export async function createTradeRequest(
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
-                // Fetch monster name + image from Metamob API (Monster table uses CUIDs, not Metamob numeric IDs)
-                let monsterName = `Monstre #${monsterId}`;
-                let monsterImageUrl: string | undefined;
-                try {
-                    const { getMonster } = await import("@/lib/metamob-client");
-                    const m = await getMonster(monsterId);
-                    monsterName = m.name.fr || monsterName;
-                    if (m.image) {
-                        monsterImageUrl = m.image.startsWith("http")
-                            ? m.image
-                            : `https://www.metamob.fr/img/monsters/${m.image}`;
-                    }
-                } catch (e) {
-                    console.error(`[OcreTrade] Failed to fetch monster ${monsterId} from Metamob:`, e);
-                    // Metamob API unavailable, fallback to ID
-                }
+                // Use name/image passed from client (already known in the modal)
+                const monsterName = clientMonsterName || `Monstre #${monsterId}`;
+                const monsterImageUrl = clientMonsterImage || undefined;
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";

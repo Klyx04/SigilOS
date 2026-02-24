@@ -1667,9 +1667,15 @@ export async function createTradeRequest(
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
-                // Fetch monster name from DB
-                const monster = await db.monster.findUnique({ where: { id: monsterId.toString() }, select: { name: true } });
-                const monsterName = monster ? monster.name : `Monstre #${monsterId}`;
+                // Fetch monster name from Metamob API (Monster table uses CUIDs, not Metamob IDs)
+                let monsterName = `Monstre #${monsterId}`;
+                try {
+                    const { getMonster } = await import("@/lib/metamob-client");
+                    const m = await getMonster(monsterId);
+                    monsterName = m.name.fr || monsterName;
+                } catch (e) {
+                    // Metamob API unavailable, fallback to ID
+                }
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
@@ -1692,6 +1698,7 @@ export async function createTradeRequest(
                 console.error("Failed to send Discord ping for Ocre trade:", e);
             }
         }
+
 
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);

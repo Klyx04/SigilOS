@@ -148,6 +148,7 @@ async function sendDiscordNotification(
         }
 
         const channelData = await channelRes.json();
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
         const payload: any = { embeds: [embed] };
 
@@ -156,16 +157,33 @@ async function sendDiscordNotification(
             payload.thread_name = embed.title.substring(0, 100);
         }
 
-        // Add a "Join" link button
+        // Interactive buttons: S'inscrire + Se désinscrire + Lien Dashboard
         payload.components = [{
             type: 1, // Action Row
-            components: [{
-                type: 2, // Button
-                style: 5, // Link
-                label: "Rejoindre le groupe",
-                url: embed.url
-            }]
+            components: [
+                {
+                    type: 2,    // Button
+                    style: 3,   // Success (green)
+                    label: "\u2705 S'inscrire",
+                    custom_id: `dj:join:${embed._postId}`,
+                    emoji: { name: "\u2694\ufe0f" }
+                },
+                {
+                    type: 2,    // Button
+                    style: 4,   // Danger (red)
+                    label: "Se désinscrire",
+                    custom_id: `dj:leave:${embed._postId}`,
+                },
+                {
+                    type: 2,    // Button
+                    style: 5,   // Link
+                    label: "Voir sur le site",
+                    url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes`,
+                }
+            ]
         }];
+
+        console.log("[DJ Embed] Payload:", JSON.stringify({ embeds: payload.embeds.map((e: any) => ({ title: e.title, thumbnail: e.thumbnail })), components: payload.components }));
 
         const sendRes = await fetch(
             `https://discord.com/api/v10/channels/${guildConfig.djNotifyChannelId}/messages`,
@@ -245,7 +263,10 @@ function buildPostEmbed(post: any, authorName: string, guildId: string) {
         description: `**${authorName}** cherche des compagnons !`,
         color: isDungeon ? 0x818cf8 : 0x34d399,
         fields,
-        thumbnail: post.dungeon?.imageUrl ? { url: post.dungeon.imageUrl } : undefined,
+        // Only add thumbnail if imageUrl is a valid absolute URL
+        thumbnail: (post.dungeon?.imageUrl && post.dungeon.imageUrl.startsWith("http"))
+            ? { url: post.dungeon.imageUrl }
+            : undefined,
         footer: {
             text: "SigilOS — Donjons & Quêtes",
         },
@@ -334,6 +355,8 @@ export async function createDjPost(
         if (data.isDiscordPublished) {
             const authorName = user.name || "Membre";
             const embed = buildPostEmbed(post, authorName, guildId);
+            // Pass postId for interactive buttons
+            (embed as any)._postId = post.id;
             await sendDiscordNotification(guildId, embed);
         }
 
@@ -518,6 +541,98 @@ export async function leaveDjPost(
         return { success: true };
     } catch (error) {
         console.error("[leaveDjPost]", error);
+        return { success: false, error: "Erreur lors du départ" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// INTERNAL VARIANTS (for Discord interactions — no session required)
+// ---------------------------------------------------------------------------
+
+/**
+ * Join a DJ post directly by profileId (used by Discord interactions endpoint).
+ */
+export async function internalJoinDjPost(
+    postId: string,
+    profileId: string,
+    userId: string
+): Promise<ActionResponse> {
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                participants: { where: { status: "ACCEPTED" }, select: { id: true } },
+            },
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.status !== "OPEN" && post.status !== "FULL") return { success: false, error: "Ce post n'est plus ouvert" };
+
+        const existing = await (db as any).djSearchParticipant.findFirst({
+            where: { postId, profileId },
+        });
+        if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe" };
+
+        if (post.participants.length >= post.maxMembers) {
+            return { success: false, error: "Ce groupe est complet" };
+        }
+
+        await (db as any).djSearchParticipant.create({
+            data: { postId, profileId, userId, status: "ACCEPTED" },
+        });
+
+        const newCount = post.participants.length + 1;
+        if (newCount >= post.maxMembers) {
+            await (db as any).djSearchPost.update({
+                where: { id: postId },
+                data: { status: "FULL" },
+            });
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("[internalJoinDjPost]", error);
+        return { success: false, error: "Erreur lors de l'inscription" };
+    }
+}
+
+/**
+ * Leave a DJ post directly by profileId (used by Discord interactions endpoint).
+ */
+export async function internalLeaveDjPost(
+    postId: string,
+    profileId: string
+): Promise<ActionResponse> {
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            select: { profileId: true, status: true },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+
+        if (post.profileId === profileId) {
+            return { success: false, error: "Ferme ton propre post depuis le site" };
+        }
+
+        const participation = await (db as any).djSearchParticipant.findFirst({
+            where: { postId, profileId },
+        });
+        if (!participation) return { success: false, error: "Tu n'es pas dans ce groupe" };
+
+        await (db as any).djSearchParticipant.delete({
+            where: { id: participation.id },
+        });
+
+        if (post.status === "FULL") {
+            await (db as any).djSearchPost.update({
+                where: { id: postId },
+                data: { status: "OPEN" },
+            });
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("[internalLeaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
     }
 }

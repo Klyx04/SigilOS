@@ -122,15 +122,31 @@ async function sendDiscordNotification(
             select: { djNotifyChannelId: true },
         });
 
-        if (!guildConfig?.djNotifyChannelId) return;
+        if (!guildConfig?.djNotifyChannelId) {
+            console.warn("[DJ Embed] No djNotifyChannelId configured for guild", guildId);
+            return;
+        }
 
         const token = process.env.DISCORD_BOT_TOKEN;
-        if (!token) return;
+        if (!token) {
+            console.error("[DJ Embed] Missing DISCORD_BOT_TOKEN");
+            return;
+        }
+
+        console.log("[DJ Embed] Sending to channel", guildConfig.djNotifyChannelId);
 
         const channelRes = await fetch(
             `https://discord.com/api/v10/channels/${guildConfig.djNotifyChannelId}`,
             { headers: { Authorization: `Bot ${token}` } }
         );
+
+        if (!channelRes.ok) {
+            console.error(`[DJ Embed] Cannot fetch channel: ${channelRes.status} ${channelRes.statusText}`);
+            const errText = await channelRes.text();
+            console.error("[DJ Embed] Channel error:", errText);
+            return;
+        }
+
         const channelData = await channelRes.json();
 
         const payload: any = { embeds: [embed] };
@@ -151,7 +167,7 @@ async function sendDiscordNotification(
             }]
         }];
 
-        await fetch(
+        const sendRes = await fetch(
             `https://discord.com/api/v10/channels/${guildConfig.djNotifyChannelId}/messages`,
             {
                 method: "POST",
@@ -162,6 +178,13 @@ async function sendDiscordNotification(
                 body: JSON.stringify(payload),
             }
         );
+
+        if (!sendRes.ok) {
+            const errBody = await sendRes.text();
+            console.error(`[DJ Embed] Failed to send: ${sendRes.status} ${sendRes.statusText}`, errBody);
+        } else {
+            console.log("[DJ Embed] Sent successfully");
+        }
     } catch (error) {
         console.error("[sendDiscordNotification]", error);
     }

@@ -1621,18 +1621,29 @@ export async function createTradeRequest(
         }
 
 
-        // Check if pending request exists
+        // Unique par monstre : un seul trade en attente par monstre (toutes cibles confondues)
         const existingRequest = await (db as any).ocreTradeRequest.findFirst({
             where: {
                 requesterId: requesterProfile.id,
-                targetId: targetProfile.id,
                 monsterId,
                 status: "PENDING"
             }
         });
 
         if (existingRequest) {
-            return { success: false, error: "Une demande d'échange est déjà en attente pour ce monstre" };
+            return { success: false, error: "Tu as déjà une demande en attente pour ce monstre" };
+        }
+
+        // Anti-spam: max 3 demandes en attente simultanées (monstres différents)
+        const pendingCount = await (db as any).ocreTradeRequest.count({
+            where: {
+                requesterId: requesterProfile.id,
+                status: "PENDING"
+            }
+        });
+
+        if (pendingCount >= 3) {
+            return { success: false, error: "Tu as déjà 3 demandes en attente. Attends une réponse avant d'en envoyer de nouvelles." };
         }
 
 

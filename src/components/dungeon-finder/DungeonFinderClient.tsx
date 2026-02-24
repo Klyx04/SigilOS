@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Trophy, Sword, RefreshCw, Frown, Users } from "lucide-react";
+import { Plus, Search, Trophy, Sword, RefreshCw, Frown, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DjPostCard } from "./DjPostCard";
 import { DjPostCreateModal } from "./DjPostCreateModal";
@@ -147,19 +147,41 @@ export function DungeonFinderClient({
                                 <Button
                                     onClick={() => setIsCreateOpen(true)}
                                     disabled={!canCreate}
-                                    title={canCreate ? "Créer un post" : "Max 3 posts actifs simultanés"}
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-black h-10 gap-2 shadow-lg shadow-indigo-900/25"
+                                    title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
+                                    className={`font-black h-10 gap-2 shadow-lg ${canCreate
+                                            ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/25"
+                                            : "bg-amber-600/20 text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-70"
+                                        }`}
                                 >
-                                    <Plus className="w-4 h-4" />
+                                    {canCreate ? (
+                                        <Plus className="w-4 h-4" />
+                                    ) : (
+                                        <AlertTriangle className="w-4 h-4" />
+                                    )}
                                     Nouveau post
+                                    {!canCreate && (
+                                        <span className="ml-1 text-xs font-bold bg-amber-500/20 px-1.5 py-0.5 rounded">
+                                            {myActivePosts.length}/3
+                                        </span>
+                                    )}
                                 </Button>
                             </div>
                         </div>
 
                         {/* Anti-spam hint */}
                         {!canCreate && (
-                            <div className="text-xs text-amber-400/70 bg-amber-500/5 border border-amber-500/15 rounded-xl px-4 py-2.5">
-                                Tu as {myActivePosts.length}/3 posts actifs. Ferme-en un pour en créer un nouveau.
+                            <div className="flex items-center gap-3 text-sm text-amber-400 bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3">
+                                <AlertTriangle className="w-4 h-4 shrink-0" />
+                                <span>
+                                    Tu as <strong>{myActivePosts.length}/3</strong> posts actifs.{" "}
+                                    <button
+                                        onClick={() => setFilters({ ...DEFAULT_FILTERS, search: "" })}
+                                        className="underline underline-offset-2 hover:text-amber-300 transition-colors"
+                                    >
+                                        Ferme ou expire un post existant
+                                    </button>{" "}
+                                    pour en créer un nouveau.
+                                </span>
                             </div>
                         )}
 

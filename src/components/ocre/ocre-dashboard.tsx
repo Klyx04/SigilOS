@@ -476,6 +476,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         zones={zones}
                         guildId={guildId}
                         showMarketplace={false}
+                        hasOcreChannel={hasOcreChannel}
                     />
 
                     {/* Secondary Tabs (Grid) */}

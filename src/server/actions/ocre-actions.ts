@@ -1565,6 +1565,8 @@ const CreateTradeSchema = z.object({
     guildId: z.string(),
     targetProfileId: z.string(),
     monsterId: z.number(),
+    monsterName: z.string().optional(), // Passed from client — avoids Metamob API call
+    monsterImage: z.string().optional(), // Image URL passed from client
     message: z.string().max(500).optional(),
     sendDiscordPing: z.boolean().optional(),
 });
@@ -1580,7 +1582,7 @@ export async function createTradeRequest(
 
         const parsed = CreateTradeSchema.safeParse(rawData);
         if (!parsed.success) return { success: false, error: "Données invalides" };
-        const { guildId, targetProfileId, monsterId, message, sendDiscordPing } = parsed.data;
+        const { guildId, targetProfileId, monsterId, monsterName: clientMonsterName, monsterImage: clientMonsterImage, message, sendDiscordPing } = parsed.data;
 
 
         const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
@@ -1619,18 +1621,29 @@ export async function createTradeRequest(
         }
 
 
-        // Check if pending request exists
+        // Unique par monstre : un seul trade en attente par monstre (toutes cibles confondues)
         const existingRequest = await (db as any).ocreTradeRequest.findFirst({
             where: {
                 requesterId: requesterProfile.id,
-                targetId: targetProfile.id,
                 monsterId,
                 status: "PENDING"
             }
         });
 
         if (existingRequest) {
-            return { success: false, error: "Une demande d'échange est déjà en attente pour ce monstre" };
+            return { success: false, error: "Tu as déjà une demande en attente pour ce monstre" };
+        }
+
+        // Anti-spam: max 3 demandes en attente simultanées (monstres différents)
+        const pendingCount = await (db as any).ocreTradeRequest.count({
+            where: {
+                requesterId: requesterProfile.id,
+                status: "PENDING"
+            }
+        });
+
+        if (pendingCount >= 3) {
+            return { success: false, error: "Tu as déjà 3 demandes en attente. Attends une réponse avant d'en envoyer de nouvelles." };
         }
 
 
@@ -1667,24 +1680,27 @@ export async function createTradeRequest(
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
-                // Fetch monster name from DB
-                const monster = await db.monster.findUnique({ where: { id: monsterId.toString() }, select: { name: true } });
-                const monsterName = monster ? monster.name : `Monstre #${monsterId}`;
+                // Use name/image passed from client (already known in the modal)
+                const monsterName = clientMonsterName || `Monstre #${monsterId}`;
+                const monsterImageUrl = clientMonsterImage || undefined;
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const requesterName = requesterProfile.discordNickname || requesterProfile.user.name || "Un membre";
 
                 await sendChannelMessage(
                     guildConfig.ocreNotifyChannelId,
-                    `Vous avez reçu une nouvelle proposition d'échange pour l'archimonstre **${monsterName}**.\n[Cliquez ici pour répondre sur le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`,
+                    `<@${targetDiscordAccount.providerAccountId}>`,
                     {
-                        mentionContent: `<@${targetDiscordAccount.providerAccountId}>`,
-                        embedTitle: "🤝 Nouvelle demande d'échange Ocre",
-                        embedColor: 0x10b981, // Emerald 500
+                        embedTitle: `🤝 Demande d'échange — ${monsterName}`,
+                        embedColor: 0x10b981,
+                        embedThumbnail: monsterImageUrl,
+                        embedUrl: `${publicUrl}/dashboard/${guildId}/quete-ocre`,
                         fields: [
-                            { name: "De", value: requesterProfile.discordNickname || requesterProfile.user.name || "Un membre", inline: true },
-                            { name: "Monstre concerné", value: monsterName, inline: true },
-                            ...(message ? [{ name: "Message joint", value: `*${message}*`, inline: false }] : [])
+                            { name: "De", value: requesterName, inline: true },
+                            { name: "Archimonstre", value: monsterName, inline: true },
+                            ...(message ? [{ name: "Message", value: `*${message}*`, inline: false }] : []),
+                            { name: "Répondre", value: `[Ouvrir le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`, inline: false },
                         ]
                     }
                 );
@@ -1692,6 +1708,7 @@ export async function createTradeRequest(
                 console.error("Failed to send Discord ping for Ocre trade:", e);
             }
         }
+
 
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);

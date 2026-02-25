@@ -275,23 +275,16 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const isDungeon = post.mode === "DONJON";
     const title = isDungeon
-        ? `⚔️ Recherche de groupe — ${post.dungeon?.name || "Donjon inconnu"}`
-        : `📜 Recherche de groupe — ${post.questName || "Quête inconnue"}`;
+        ? `⚔️ Recherche de groupe — Donjon`
+        : `📜 Recherche de groupe — Quête`;
 
     const fields: any[] = [];
 
     if (isDungeon && post.dungeon) {
-        fields.push({ name: "🏰 Donjon", value: post.dungeon.name, inline: true });
         fields.push({ name: "📊 Niveau", value: `${post.dungeon.level}`, inline: true });
-    } else {
-        fields.push({ name: "📜 Quête", value: post.questName || "Inconnue", inline: true });
     }
 
     fields.push({ name: "👥 Places", value: `1/${post.maxMembers}`, inline: true });
-
-    if (post.message) {
-        fields.push({ name: "💬 Message", value: post.message });
-    }
 
     if (post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
         const achNames = post.dungeon.achievements
@@ -339,7 +332,13 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
 
     return {
         title,
-        description: `**${authorName}** cherche des compagnons !`,
+        description: [
+            isDungeon
+                ? `🏰 **Donjon :** ${post.dungeon?.name || "Inconnu"}`
+                : `📜 **Quête :** ${post.questName || "Inconnue"}`,
+            `👤 **${authorName}** cherche des compagnons !`,
+            post.message ? `\n💬 *${post.message}*` : "",
+        ].filter(Boolean).join("\n"),
         color: isDungeon ? 0x818cf8 : 0x34d399,
         fields,
         // Discord requires a publicly accessible HTTPS URL for thumbnails.

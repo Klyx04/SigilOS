@@ -229,7 +229,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                 <p>Ce donjon ne possède aucun succès recensé dans la base.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-6">
                                 {directoryData.map((achv) => {
                                     const isExpanded = expandedAchv === achv.achievementId;
                                     const totalMembers = achv.hasCompleted.length + achv.missing.length;
@@ -304,7 +304,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                         exit={{ height: 0, opacity: 0 }}
                                                         className="overflow-hidden border-t border-slate-800/50"
                                                     >
-                                                        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/20">
+                                                        <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-950/30">
                                                             {/* Col 1: MISSING */}
                                                             <div className="bg-slate-900/60 border border-rose-900/20 rounded-2xl p-4">
                                                                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
@@ -339,7 +339,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                                         <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                                                                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                                                                         </div>
-                                                                        <span className="text-emerald-300">Peuvent aider</span>
+                                                                        <span className="text-emerald-300">Déjà validé</span>
                                                                     </div>
                                                                     <span className="text-xs font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                                                         {achv.hasCompleted.length}

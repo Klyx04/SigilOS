@@ -33,9 +33,9 @@ const STATUS_COLORS: Record<string, string> = {
     REJECTED: "text-red-400 bg-red-500/10 border-red-500/20",
 };
 
-// Helper: Discord nick > Dofus pseudo > fallback
-function displayName(profile: { discordNickname?: string | null; pseudoDofus?: string | null }) {
-    return profile.discordNickname || profile.pseudoDofus || "Membre";
+// Helper: Discord server nick > Dofus pseudo (set on registration) > Dofus in-game pseudo
+function displayName(profile: { discordNickname?: string | null; pseudoDofus?: string | null; dofusPseudo?: string | null }) {
+    return profile.discordNickname || profile.pseudoDofus || profile.dofusPseudo || "Membre";
 }
 
 interface DjPostDetailModalProps {

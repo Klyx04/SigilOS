@@ -45,6 +45,7 @@ export type DjPostWithDetails = {
         id: string;
         discordNickname: string | null;
         pseudoDofus: string | null;
+        dofusPseudo: string | null;
         user: { image: string | null };
     };
     participants: {
@@ -57,6 +58,7 @@ export type DjPostWithDetails = {
             id: string;
             discordNickname: string | null;
             pseudoDofus: string | null;
+            dofusPseudo: string | null;
             user: { image: string | null };
         };
     }[];
@@ -363,6 +365,23 @@ export async function createDjPost(
 }
 
 /**
+/**
+ * Returns contribution points to award based on dungeon level.
+ * Quête (no dungeon level) = 1 pt
+ * Lvl   1-99  = 1 pt
+ * Lvl 100-149 = 2 pts
+ * Lvl 150-199 = 3 pts
+ * Lvl 200+    = 4 pts  (endgame content)
+ */
+function getContributionPoints(dungeonLevel?: number | null): number {
+    if (!dungeonLevel) return 1;
+    if (dungeonLevel >= 200) return 4;
+    if (dungeonLevel >= 150) return 3;
+    if (dungeonLevel >= 100) return 2;
+    return 1;
+}
+
+/**
  * Close a DJ search post (creator only) and award contribution points to validated participants.
  * The creator themselves gets 0 points.
  * @param validatedProfileIds - profileIds of participants who participated and should get points
@@ -376,9 +395,14 @@ export async function closeDjPostWithContributions(
     if (!user.canViewFinder || !user.profileId) return { success: false, error: "Accès refusé" };
 
     try {
+        // Close the post — first fetch the dungeon level for point calculation
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, guildId: true },
+            select: {
+                profileId: true,
+                guildId: true,
+                dungeon: { select: { level: true } },
+            },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
@@ -387,23 +411,25 @@ export async function closeDjPostWithContributions(
             return { success: false, error: "Seul le créateur peut valider la clôture" };
         }
 
+        const pts = getContributionPoints(post.dungeon?.level);
+
         // Close the post
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: { status: "CLOSED" },
         });
 
-        // Award 1 contributionPoint per validated participant (never the creator)
+        // Award pts per validated participant (never the creator)
         const toReward = validatedProfileIds.filter((pid) => pid !== post.profileId);
         if (toReward.length > 0) {
             await db.userProfile.updateMany({
                 where: { id: { in: toReward } },
-                data: { contributionPoints: { increment: 1 } },
+                data: { contributionPoints: { increment: pts } },
             });
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
-        return { success: true };
+        return { success: true, data: { pointsAwarded: pts } };
     } catch (error) {
         console.error("[closeDjPostWithContributions]", error);
         return { success: false, error: "Erreur lors de la fermeture" };
@@ -739,6 +765,7 @@ export async function getDjPosts(
                         id: true,
                         discordNickname: true,
                         pseudoDofus: true,
+                        dofusPseudo: true,
                         user: { select: { image: true } },
                     },
                 },
@@ -749,6 +776,7 @@ export async function getDjPosts(
                                 id: true,
                                 discordNickname: true,
                                 pseudoDofus: true,
+                                dofusPseudo: true,
                                 user: { select: { image: true } },
                             },
                         },

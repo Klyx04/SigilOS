@@ -218,17 +218,17 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </div>
                     )}
 
-                    {/* Quest link (QUETE mode) */}
-                    {post.mode === "QUETE" && post.questUrl && (
+                    {/* Quest link — Quête MANUELLE avec lien dofuspourlesnoobs */}
+                    {post.mode === "QUETE" && !post.questId && post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && (
                         <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium bg-cyan-950/30 border border-cyan-900/50 rounded-lg px-2 py-1.5 w-max transition-colors">
-                            <Link2 className="w-3.5 h-3.5" />
-                            Voir le Tutoriel
+                            className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-medium bg-amber-950/20 border border-amber-900/30 rounded-lg px-2 py-1.5 w-max transition-colors">
+                            <Link2 className="w-3.5 h-3.5 shrink-0" />
+                            Ouvrir &ldquo;{post.questName}&rdquo; sur Dofus pour les Noobs
                         </a>
                     )}
 
-                    {/* DofusDB Quest Link */}
+                    {/* Quest link — DofusDB (questId connu) */}
                     {post.questId && (post.mode === "QUETE" || post.mode === "DONJON") && (
                         <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}

@@ -114,6 +114,7 @@ async function expireOldPosts(guildId: string) {
 
 async function sendDiscordNotification(
     guildId: string,
+    postId: string,
     embed: any
 ) {
     try {
@@ -140,18 +141,35 @@ async function sendDiscordNotification(
             payload.thread_name = embed.title.substring(0, 100);
         }
 
-        // Add a "Join" link button
+        // Interactive buttons (join/leave) + link
         payload.components = [{
             type: 1, // Action Row
-            components: [{
-                type: 2, // Button
-                style: 5, // Link
-                label: "Rejoindre le groupe",
-                url: embed.url
-            }]
+            components: [
+                {
+                    type: 2,
+                    style: 1, // Primary (Blurple)
+                    label: "S'inscrire",
+                    emoji: { name: "⚔️" },
+                    custom_id: `dj:join:${postId}`,
+                },
+                {
+                    type: 2,
+                    style: 4, // Danger (Red)
+                    label: "Se désinscrire",
+                    emoji: { name: "🚪" },
+                    custom_id: `dj:leave:${postId}`,
+                },
+                {
+                    type: 2,
+                    style: 5, // Link
+                    label: "Voir sur le site",
+                    emoji: { name: "🔗" },
+                    url: embed.url,
+                },
+            ]
         }];
 
-        await fetch(
+        const res = await fetch(
             `https://discord.com/api/v10/channels/${guildConfig.djNotifyChannelId}/messages`,
             {
                 method: "POST",
@@ -162,12 +180,26 @@ async function sendDiscordNotification(
                 body: JSON.stringify(payload),
             }
         );
+
+        if (res.ok) {
+            const msg = await res.json();
+            // Save message ID so we can update/delete it later
+            if (msg.id) {
+                await (db as any).djSearchPost.update({
+                    where: { id: postId },
+                    data: {
+                        discordMessageId: msg.id,
+                        discordChannelId: guildConfig.djNotifyChannelId,
+                    },
+                });
+            }
+        }
     } catch (error) {
         console.error("[sendDiscordNotification]", error);
     }
 }
 
-function buildPostEmbed(post: any, authorName: string, guildId: string) {
+function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const isDungeon = post.mode === "DONJON";
     const title = isDungeon
@@ -183,24 +215,11 @@ function buildPostEmbed(post: any, authorName: string, guildId: string) {
         fields.push({ name: "📜 Quête", value: post.questName || "Inconnue", inline: true });
     }
 
-    fields.push({ name: "👥 Places", value: `1/${post.maxMembers}`, inline: true });
-
-    if (post.message) {
-        fields.push({ name: "💬 Message", value: post.message });
-    }
-
-    if (post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
-        const achNames = post.dungeon.achievements
-            .filter((a: any) => post.wantedAchievementIds.includes(a.id))
-            .map((a: any) => a.challenge.name)
-            .join(", ");
-        if (achNames) {
-            fields.push({ name: "🏆 Succès visés", value: achNames });
-        }
-    }
+    const acceptedCount = acceptedParticipants.length;
+    fields.push({ name: "👥 Places", value: `${acceptedCount}/${post.maxMembers}`, inline: true });
 
     if (post.requiredClasses && post.requiredClasses.length > 0) {
-        fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.join(", ") });
+        fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.join(", "), inline: false });
     }
 
     if (post.targetDate) {
@@ -214,21 +233,107 @@ function buildPostEmbed(post: any, authorName: string, guildId: string) {
                 hour: "2-digit",
                 minute: "2-digit",
             }),
+            inline: false,
         });
     }
+
+    if (post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
+        const achNames = post.dungeon.achievements
+            .filter((a: any) => post.wantedAchievementIds.includes(a.id))
+            .map((a: any) => a.challenge.name)
+            .join(", ");
+        if (achNames) {
+            fields.push({ name: "🏆 Succès visés", value: achNames, inline: false });
+        }
+    }
+
+    if (post.message) {
+        fields.push({ name: "💬 Message", value: post.message, inline: false });
+    }
+
+    // Member list
+    const memberLines = acceptedParticipants.map((p: any) => {
+        const name = p.profile?.discordNickname || p.profile?.pseudoDofus || "Joueur";
+        const classTag = p.classe ? `[${p.classe}] ` : "";
+        return `• ${classTag}**${name}**`;
+    });
+    fields.push({
+        name: `👤 Membres (${acceptedCount}/${post.maxMembers})`,
+        value: memberLines.length > 0 ? memberLines.join("\n") : "*En attente de joueurs...*",
+        inline: false,
+    });
 
     return {
         title,
         description: `**${authorName}** cherche des compagnons !`,
         color: isDungeon ? 0x818cf8 : 0x34d399,
         fields,
-        thumbnail: post.dungeon?.imageUrl ? { url: post.dungeon.imageUrl } : undefined,
+        thumbnail: post.dungeon?.imageUrl && post.dungeon.imageUrl.startsWith("https://") ? { url: post.dungeon.imageUrl } : undefined,
         footer: {
-            text: "SigilOS — Donjons & Quêtes",
+            text: `SigilOS — Donjons & Quêtes • Aujourd'hui à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
         },
         url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes`,
         timestamp: new Date().toISOString(),
     };
+}
+
+// ---------------------------------------------------------------------------
+// UPDATE DISCORD EMBED (called after join/leave)
+// ---------------------------------------------------------------------------
+
+export async function updateDjDiscordEmbed(guildId: string, postId: string) {
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                dungeon: {
+                    include: {
+                        achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } },
+                    },
+                },
+                profile: { select: { id: true, discordNickname: true, pseudoDofus: true } },
+                participants: {
+                    where: { status: "ACCEPTED" },
+                    include: { profile: { select: { id: true, discordNickname: true, pseudoDofus: true } } },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+        });
+
+        if (!post?.discordMessageId || !post?.discordChannelId) return;
+        const token = process.env.DISCORD_BOT_TOKEN;
+        if (!token) return;
+
+        const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || "Membre";
+        const embed = buildPostEmbed(post, authorName, guildId, post.participants);
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const isOpen = post.status === "OPEN" || post.status === "FULL";
+        const components = isOpen ? [{
+            type: 1,
+            components: [
+                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
+                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            ]
+        }] : [{
+            type: 1,
+            components: [
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            ]
+        }];
+
+        await fetch(
+            `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
+            {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ embeds: [embed], components }),
+            }
+        );
+    } catch (error) {
+        console.error("[updateDjDiscordEmbed]", error);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -310,8 +415,10 @@ export async function createDjPost(
         // Discord notification
         if (data.isDiscordPublished) {
             const authorName = user.name || "Membre";
-            const embed = buildPostEmbed(post, authorName, guildId);
-            await sendDiscordNotification(guildId, embed);
+            // Creator is the first accepted participant
+            const creatorAsParticipant = [{ profile: { discordNickname: user.name, pseudoDofus: null }, classe: null }];
+            const embed = buildPostEmbed(post, authorName, guildId, creatorAsParticipant);
+            await sendDiscordNotification(guildId, post.id, embed);
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
@@ -496,6 +603,151 @@ export async function leaveDjPost(
     } catch (error) {
         console.error("[leaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// INTERNAL (Discord Interactions — no session required)
+// ---------------------------------------------------------------------------
+
+/**
+ * Called from Discord interaction endpoint when a user clicks "S'inscrire".
+ * Identified by their Discord userId (internal SigilOS user ID).
+ */
+export async function internalJoinDjPost(
+    discordGuildId: string,
+    postId: string,
+    userId: string
+): Promise<ActionResponse> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Find the profile for this user in this guild
+        const profile = await db.userProfile.findFirst({
+            where: { userId, guildId: guildConfig.id, status: "ACTIVE" },
+            select: { id: true },
+        });
+        if (!profile) return { success: false, error: "Tu n'es pas membre actif de cette guilde sur SigilOS." };
+
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                participants: { where: { status: "ACCEPTED" }, select: { id: true } },
+            },
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.status !== "OPEN" && post.status !== "FULL") {
+            return { success: false, error: "Ce post n'est plus ouvert" };
+        }
+        if (post.status === "FULL") {
+            return { success: false, error: "Ce groupe est déjà complet !" };
+        }
+
+        // Already joined?
+        const existing = await (db as any).djSearchParticipant.findFirst({
+            where: { postId, profileId: profile.id },
+        });
+        if (existing) {
+            if (existing.status === "ACCEPTED") return { success: false, error: "Tu es déjà dans ce groupe !" };
+            // Re-accept if previously rejected
+            await (db as any).djSearchParticipant.update({
+                where: { id: existing.id },
+                data: { status: "ACCEPTED", respondedAt: new Date() },
+            });
+        } else {
+            // Post full?
+            if (post.participants.length >= post.maxMembers) {
+                return { success: false, error: "Ce groupe est complet !" };
+            }
+
+            await (db as any).djSearchParticipant.create({
+                data: {
+                    postId,
+                    profileId: profile.id,
+                    userId,
+                    status: "ACCEPTED",
+                },
+            });
+        }
+
+        // Check if now full
+        const newCount = post.participants.length + 1;
+        if (newCount >= post.maxMembers) {
+            await (db as any).djSearchPost.update({
+                where: { id: postId },
+                data: { status: "FULL" },
+            });
+        }
+
+        // Update embed (fire-and-forget)
+        updateDjDiscordEmbed(discordGuildId, postId).catch(() => { });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[internalJoinDjPost]", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Called from Discord interaction endpoint when a user clicks "Se désinscrire".
+ */
+export async function internalLeaveDjPost(
+    discordGuildId: string,
+    postId: string,
+    userId: string
+): Promise<ActionResponse> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const participation = await (db as any).djSearchParticipant.findFirst({
+            where: { postId, profileId: profile.id },
+        });
+        if (!participation) return { success: false, error: "Tu n'es pas dans ce groupe" };
+
+        // Check they're not the creator
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            select: { profileId: true, status: true },
+        });
+        if (post?.profileId === profile.id) {
+            return { success: false, error: "Le créateur ne peut pas quitter son propre post. Utilise le dashboard." };
+        }
+
+        await (db as any).djSearchParticipant.delete({
+            where: { id: participation.id },
+        });
+
+        // Re-open if it was FULL
+        if (post?.status === "FULL") {
+            await (db as any).djSearchPost.update({
+                where: { id: postId },
+                data: { status: "OPEN" },
+            });
+        }
+
+        // Update embed (fire-and-forget)
+        updateDjDiscordEmbed(discordGuildId, postId).catch(() => { });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[internalLeaveDjPost]", error);
+        return { success: false, error: "Erreur serveur" };
     }
 }
 

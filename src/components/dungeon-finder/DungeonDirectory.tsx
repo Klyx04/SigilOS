@@ -98,11 +98,13 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-xl font-black text-white flex items-center gap-2">
-                                    <Users className="w-5 h-5 text-indigo-400" />
-                                    Annuaire des Succès
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                                        <Users className="w-4 h-4 text-indigo-400" />
+                                    </div>
+                                    Annuaire DJ
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-1">
-                                    Trouve avec qui valider tes succès ou aide les membres de la guilde.
+                                <p className="text-sm text-slate-400 mt-1 ml-10">
+                                    Trouve qui a ou n'a pas encore validé chaque succès de donjon dans la guilde.
                                 </p>
                             </div>
                             <div className="relative w-full md:w-72">
@@ -111,7 +113,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Rechercher un donjon..."
+                                    placeholder="Rechercher un donjon…"
                                     className="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 backdrop-blur-sm transition-all"
                                 />
                             </div>
@@ -302,16 +304,17 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                         exit={{ height: 0, opacity: 0 }}
                                                         className="overflow-hidden border-t border-slate-800/50"
                                                     >
-                                                        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-950/20">
-
-                                                            {/* Col 1: MISSING (The most important part to create groups) */}
-                                                            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
+                                                        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/20">
+                                                            {/* Col 1: MISSING */}
+                                                            <div className="bg-slate-900/60 border border-rose-900/20 rounded-2xl p-4">
                                                                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                                                                    <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
-                                                                        <Circle className="w-4 h-4" />
-                                                                        Ceux qui en ont besoin
+                                                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                                                        <div className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                                                                            <Circle className="w-3.5 h-3.5 text-rose-400" />
+                                                                        </div>
+                                                                        <span className="text-rose-300">Cherchent encore</span>
                                                                     </div>
-                                                                    <span className="text-xs font-black bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full">
+                                                                    <span className="text-xs font-black bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20">
                                                                         {achv.missing.length}
                                                                     </span>
                                                                 </div>
@@ -329,14 +332,16 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                                 )}
                                                             </div>
 
-                                                            {/* Col 2: HAS COMPLETED (Mentors/Helpers) */}
-                                                            <div className="bg-slate-900/30 border border-slate-800/50 rounded-2xl p-4">
+                                                            {/* Col 2: HAS COMPLETED */}
+                                                            <div className="bg-emerald-950/20 border border-emerald-900/20 rounded-2xl p-4">
                                                                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/50">
-                                                                    <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                                                                        <CheckCircle2 className="w-4 h-4" />
-                                                                        Ceux qui l'ont fait
+                                                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                                                        </div>
+                                                                        <span className="text-emerald-300">Peuvent aider</span>
                                                                     </div>
-                                                                    <span className="text-xs font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                                                                    <span className="text-xs font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                                                         {achv.hasCompleted.length}
                                                                     </span>
                                                                 </div>

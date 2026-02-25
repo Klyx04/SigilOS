@@ -17,6 +17,8 @@ const DEFAULT_FILTERS: DjFiltersState = {
     minLevel: 1,
     maxLevel: 1000,
     showClosed: false,
+    onlyWithAchievement: false,
+    onlyWithSpots: false,
 };
 
 type Tab = "posts" | "tracker" | "directory";
@@ -78,9 +80,17 @@ export function DungeonFinderClient({
             if (p.dungeon) {
                 if (p.dungeon.level < filters.minLevel || p.dungeon.level > filters.maxLevel) return false;
             }
+            if (filters.onlyWithSpots) {
+                const accepted = (p._acceptedCount ?? 0) + 1;
+                if (accepted >= p.maxMembers) return false;
+            }
+            if (filters.onlyWithAchievement) {
+                if (!p.wantedAchievementIds || p.wantedAchievementIds.length === 0) return false;
+            }
             return true;
         });
     }, [posts, filters]);
+
 
     const myActivePosts = posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN");
     const canCreate = myActivePosts.length < 3;
@@ -88,7 +98,7 @@ export function DungeonFinderClient({
     const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: "posts", label: "Recherche DJ", icon: Search },
         { id: "tracker", label: "Mes Succès", icon: Trophy },
-        { id: "directory", label: "Annuaire", icon: Users },
+        { id: "directory", label: "Annuaire DJ", icon: Users },
     ];
 
     return (
@@ -149,8 +159,8 @@ export function DungeonFinderClient({
                                     disabled={!canCreate}
                                     title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
                                     className={`font-black h-10 gap-2 shadow-lg ${canCreate
-                                            ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/25"
-                                            : "bg-amber-600/20 text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-70"
+                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/25"
+                                        : "bg-amber-600/20 text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-70"
                                         }`}
                                 >
                                     {canCreate ? (

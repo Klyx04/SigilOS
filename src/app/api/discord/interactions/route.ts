@@ -169,10 +169,14 @@ export async function POST(request: NextRequest) {
 
                 if (action === "join") {
                     const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    result = await internalJoinDjPost(guild_id, entityId, account.userId);
+                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
+                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
+                    else { result = await internalJoinDjPost(entityId, djProfile.id, account.userId); }
                 } else if (action === "leave") {
                     const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    result = await internalLeaveDjPost(guild_id, entityId, account.userId);
+                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
+                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
+                    else { result = await internalLeaveDjPost(entityId, djProfile.id); }
                 }
             } else if (prefix === "poll") {
                 if (action === "vote") {
@@ -208,6 +212,66 @@ export async function POST(request: NextRequest) {
                             type: 4,
                             data: { content: `✅ Ton vote a été ${actionLabel} avec succès !`, flags: 64 },
                         });
+                    }
+                }
+            } else if (prefix === "dj") {
+                if (action === "join" || action === "leave") {
+                    // Find the post + guild
+                    const post = await (db as any).djSearchPost.findUnique({
+                        where: { id: entityId },
+                        include: {
+                            guildConfig: { select: { discordGuildId: true } },
+                        },
+                    });
+
+                    if (!post) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce groupe n'existe plus ou a expiré.", flags: 64 },
+                        });
+                    }
+
+                    if (post.status !== "OPEN" && post.status !== "FULL") {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce groupe est fermé.", flags: 64 },
+                        });
+                    }
+
+                    // Find the UserProfile for this guild
+                    const profile = await db.userProfile.findFirst({
+                        where: { userId: account.userId, guildId: post.guildId },
+                    });
+
+                    if (!profile) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
+                        });
+                    }
+
+                    const discordGuildId = post.guildConfig?.discordGuildId || guild_id;
+
+                    if (action === "join") {
+                        const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                        result = await internalJoinDjPost(entityId, profile.id, account.userId);
+
+                        if (result?.success) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: { content: "✅ Tu as rejoint le groupe ! Retrouve les détails sur le site.", flags: 64 },
+                            });
+                        }
+                    } else if (action === "leave") {
+                        const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                        result = await internalLeaveDjPost(entityId, profile.id);
+
+                        if (result?.success) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: { content: "👋 Tu as quitté le groupe.", flags: 64 },
+                            });
+                        }
                     }
                 }
             } else {

@@ -31,6 +31,39 @@ const STATUS_META: Record<string, { label: string; dot: string }> = {
     EXPIRED: { label: "Expiré", dot: "bg-zinc-600" },
 };
 
+// Couleurs pastel par initiale pour un fallback visuel harmonieux
+const CLASS_COLORS: Record<string, string> = {
+    a: "#6366f1", b: "#8b5cf6", c: "#06b6d4", d: "#10b981", e: "#f59e0b",
+    f: "#ef4444", g: "#84cc16", h: "#f97316", i: "#a855f7", j: "#ec4899",
+    k: "#0ea5e9", l: "#14b8a6", m: "#eab308", n: "#64748b", o: "#d946ef",
+    p: "#22c55e", q: "#f43f5e", r: "#fb923c", s: "#38bdf8", t: "#a3e635",
+    u: "#c084fc", v: "#34d399", w: "#fbbf24", x: "#60a5fa", y: "#f472b6", z: "#94a3b8",
+};
+
+/** Icône de classe avec fallback initiale colorée */
+function ClassIcon({ name }: { name: string }) {
+    const slug = name.toLowerCase().replace(/é/g, "e").replace(/è/g, "e");
+    const initial = slug[0] || "?";
+    const color = CLASS_COLORS[initial] || "#64748b";
+
+    return (
+        <div className="relative w-full h-full">
+            <img
+                src={`/images/classes/${slug}.png`}
+                alt={name}
+                className="w-full h-full object-contain absolute inset-0"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+            <div
+                className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase"
+                style={{ color }}
+            >
+                {initial}
+            </div>
+        </div>
+    );
+}
+
 // -------------------------------------------------------
 // DjPostCard
 // -------------------------------------------------------
@@ -198,7 +231,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <div className="flex flex-wrap gap-1">
                             {post.requiredClasses.map(c => (
                                 <div key={c} title={c} className="w-6 h-6 rounded-md bg-indigo-950/30 border border-indigo-900/30 p-0.5 overflow-hidden">
-                                    <img src={`/images/classes/${c.toLowerCase().replace(/é/g, 'e').replace(/è/g, 'e')}.png`} alt={c} className="w-full h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                    <ClassIcon name={c} />
                                 </div>
                             ))}
                         </div>
@@ -219,8 +252,8 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
                             className={`inline-flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 w-max transition-colors border ${post.mode === "DONJON"
-                                    ? "text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border-cyan-500/20"
-                                    : "text-slate-400 hover:text-white bg-white/5 border-white/10"
+                                ? "text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border-cyan-500/20"
+                                : "text-slate-400 hover:text-white bg-white/5 border-white/10"
                                 }`}>
                             <Map className="w-3 h-3" />
                             {post.mode === "DONJON" && post.questName

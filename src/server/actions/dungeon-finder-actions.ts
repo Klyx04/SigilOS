@@ -153,11 +153,19 @@ async function sendDiscordNotification(
 
         if (isForumChannel) {
             // ── SALON FORUM : crée un thread avec le post comme premier message ──
-            // Titre propre : retire les emojis leadings pour un titre de thread lisible
-            const threadTitle = embed.title
-                .replace(/^[\p{Emoji}\s]+/u, "")
+            // Titre court et scannable dans la liste du forum
+            const isDungeon = embed.title?.includes("⚔️");
+            const emoji = isDungeon ? "⚔️" : "📜";
+            // Extrait le nom du donjon/quête depuis la description ou l'embed title
+            const contentName = embed.title
+                ?.replace(/^[⚔️📜\s]+/, "")
+                .replace(/Recherche de groupe ?— ?/i, "")
                 .trim()
-                .substring(0, 100) || "Recherche de groupe";
+                .substring(0, 80) || "Recherche de groupe";
+            // Places restantes depuis le champ Places
+            const placesField = embed.fields?.find((f: any) => f.name.includes("Places"));
+            const placesTag = placesField ? ` [${placesField.value}]` : "";
+            const threadTitle = `${emoji} ${contentName}${placesTag}`.substring(0, 100);
 
             const res = await fetch(
                 `https://discord.com/api/v10/channels/${channelId}/threads`,
@@ -390,6 +398,103 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// DISCORD EMBED LIFECYCLE
+// ---------------------------------------------------------------------------
+
+/**
+ * Désactive l'embed d'un post fermé : retire les boutons, affiche "🔒 TERMINÉ",
+ * et verrouille le thread si c'est un salon forum.
+ */
+async function disableDjDiscordEmbed(
+    guildId: string,
+    postId: string,
+    discordChannelId: string | null,
+    discordMessageId: string | null
+) {
+    if (!discordChannelId || !discordMessageId) return;
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return;
+
+    try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
+        // PATCH message : embed "terminé" sans boutons
+        await fetch(
+            `https://discord.com/api/v10/channels/${discordChannelId}/messages/${discordMessageId}`,
+            {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    embeds: [{
+                        title: "🔒 Recherche de groupe — Terminée",
+                        description: "Ce groupe a été fermé par son créateur.",
+                        color: 0x475569, // slate-600
+                        footer: { text: "SigilOS — Donjons & Quêtes" },
+                        timestamp: new Date().toISOString(),
+                    }],
+                    components: [{
+                        type: 1,
+                        components: [
+                            { type: 2, style: 5, label: "Voir le dashboard", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+                        ]
+                    }],
+                }),
+            }
+        );
+
+        // Si c'est un thread forum, on l'archive et le verrouille
+        await fetch(
+            `https://discord.com/api/v10/channels/${discordChannelId}`,
+            {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ archived: true, locked: true }),
+            }
+        );
+    } catch (error) {
+        console.error("[disableDjDiscordEmbed]", error);
+    }
+}
+
+/**
+ * Supprime proprement un message ou un thread forum Discord.
+ * Vérifie d'abord le type de canal pour éviter de supprimer un salon texte.
+ */
+async function deleteDiscordMessage(channelId: string, messageId: string) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return;
+
+    try {
+        // Vérifie le type de canal pour savoir si c'est un thread forum
+        const channelRes = await fetch(
+            `https://discord.com/api/v10/channels/${channelId}`,
+            { headers: { Authorization: `Bot ${token}` } }
+        );
+        if (!channelRes.ok) return;
+        const channelData = await channelRes.json();
+
+        // Types de threads Discord : 10 (news thread), 11 (public thread), 12 (private thread)
+        const isThread = [10, 11, 12].includes(channelData.type);
+
+        if (isThread) {
+            // Supprime le thread entier (safe : on ne peut supprimer que des threads, pas des salons)
+            await fetch(
+                `https://discord.com/api/v10/channels/${channelId}`,
+                { method: "DELETE", headers: { Authorization: `Bot ${token}` } }
+            );
+        } else {
+            // Salon texte : supprimer juste le message
+            await fetch(
+                `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
+                { method: "DELETE", headers: { Authorization: `Bot ${token}` } }
+            );
+        }
+    } catch (error) {
+        console.error("[deleteDiscordMessage]", error);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // CRUD
 // ---------------------------------------------------------------------------
 
@@ -495,7 +600,7 @@ export async function closeDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, guildId: true },
+            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
@@ -505,8 +610,11 @@ export async function closeDjPost(
 
         await (db as any).djSearchPost.update({
             where: { id: postId },
-            data: { status: "CLOSED" },
+            data: { status: "CLOSED", closedAt: new Date() },
         });
+
+        // Désactiver l'embed Discord (fire-and-forget)
+        disableDjDiscordEmbed(guildId, postId, post.discordChannelId, post.discordMessageId).catch(() => { });
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
@@ -529,12 +637,18 @@ export async function deleteDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
+            select: { profileId: true, discordMessageId: true, discordChannelId: true },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
 
         if (post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Non autorisé" };
+        }
+
+        // Supprimer l'embed Discord AVANT de supprimer le post (fire-and-forget)
+        if (post.discordChannelId && post.discordMessageId) {
+            deleteDiscordMessage(post.discordChannelId, post.discordMessageId).catch(() => { });
         }
 
         await (db as any).djSearchPost.delete({

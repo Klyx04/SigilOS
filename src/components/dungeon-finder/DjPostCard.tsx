@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { closeDjPost, joinDjPost, leaveDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
+import { DjCloseModal } from "./DjCloseModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -46,6 +47,7 @@ interface DjPostCardProps {
 
 export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh }: DjPostCardProps) {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
@@ -86,10 +88,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     }
 
     function handleClose() {
+        // Admin quick-close (no contribution modal)
         startTransition(async () => {
             const res = await closeDjPost(guildId, post.id);
             if (res.success) {
-                toast.success("Post fermé. Points de contribution distribués !");
+                toast.success("Post fermé.");
                 onRefresh();
             } else {
                 toast.error(res.error);
@@ -321,13 +324,24 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {isOwner && post.status === "OPEN" && (
                             <Button
                                 size="sm"
+                                onClick={() => setIsCloseModalOpen(true)}
+                                disabled={isPending}
+                                className="flex-1 h-8 text-xs font-bold bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 hover:border-violet-500/50"
+                            >
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                Terminer
+                            </Button>
+                        )}
+                        {isAdmin && !isOwner && post.status === "OPEN" && (
+                            <Button
+                                size="sm"
                                 variant="outline"
                                 onClick={handleClose}
                                 disabled={isPending}
-                                className="flex-1 h-8 text-xs font-bold border-emerald-900/50 bg-emerald-950/20 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/40"
+                                className="flex-1 h-8 text-xs font-bold border-slate-700 text-slate-500 hover:text-red-400 hover:border-red-900"
                             >
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Terminé
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Fermer
                             </Button>
                         )}
                     </div>
@@ -343,6 +357,16 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 isAdmin={isAdmin}
                 onRefresh={onRefresh}
             />
+
+            {isOwner && (
+                <DjCloseModal
+                    isOpen={isCloseModalOpen}
+                    post={post}
+                    guildId={guildId}
+                    onClose={() => setIsCloseModalOpen(false)}
+                    onClosed={onRefresh}
+                />
+            )}
         </>
     );
 }

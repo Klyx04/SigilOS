@@ -369,7 +369,55 @@ export async function createDjPost(
 }
 
 /**
- * Close a DJ search post (author or admin).
+ * Close a DJ search post (creator only) and award contribution points to validated participants.
+ * The creator themselves gets 0 points.
+ * @param validatedProfileIds - profileIds of participants who participated and should get points
+ */
+export async function closeDjPostWithContributions(
+    guildId: string,
+    postId: string,
+    validatedProfileIds: string[]
+): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.canViewFinder || !user.profileId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            select: { profileId: true, guildId: true },
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        // Only creator can close with contributions (admins use closeDjPost)
+        if (post.profileId !== user.profileId) {
+            return { success: false, error: "Seul le créateur peut valider la clôture" };
+        }
+
+        // Close the post
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: { status: "CLOSED" },
+        });
+
+        // Award 1 contributionPoint per validated participant (never the creator)
+        const toReward = validatedProfileIds.filter((pid) => pid !== post.profileId);
+        if (toReward.length > 0) {
+            await db.userProfile.updateMany({
+                where: { id: { in: toReward } },
+                data: { contributionPoints: { increment: 1 } },
+            });
+        }
+
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        return { success: true };
+    } catch (error) {
+        console.error("[closeDjPostWithContributions]", error);
+        return { success: false, error: "Erreur lors de la fermeture" };
+    }
+}
+
+/**
+ * Close a DJ search post — admin/quick version, no contribution awards.
  */
 export async function closeDjPost(
     guildId: string,

@@ -103,21 +103,27 @@ export function DungeonFinderClient({
 
     return (
         <div className="space-y-6">
-            {/* Tabs */}
-            <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-700/60 rounded-2xl p-1.5 backdrop-blur-sm w-fit">
+            {/* Gamified Tabs */}
+            <div className="relative flex bg-slate-950/50 border border-slate-800/80 rounded-2xl p-1.5 w-max shadow-inner">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
-                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/30"
-                                : "text-slate-500 hover:text-slate-200"
+                            className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-colors ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300"
                                 }`}
                         >
+                            {isActive && (
+                                <motion.div
+                                    layoutId="main-tab-indicator"
+                                    className="absolute inset-0 -z-10 bg-indigo-600 rounded-xl border-t border-indigo-400/30 shadow-lg shadow-indigo-900/40"
+                                    transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                                />
+                            )}
                             <Icon className="w-4 h-4" />
-                            {tab.label}
+                            <span className="hidden sm:inline">{tab.label}</span>
                         </button>
                     );
                 })}
@@ -134,7 +140,7 @@ export function DungeonFinderClient({
                         className="space-y-5"
                     >
                         {/* Toolbar */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col xl:flex-row xl:items-start gap-4">
                             <div className="flex-1">
                                 <DjFiltersBar
                                     filters={filters}

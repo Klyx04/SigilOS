@@ -101,7 +101,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                     <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                                         <Users className="w-4 h-4 text-indigo-400" />
                                     </div>
-                                    Succès Dj en commmun
+                                    Succès Dj en commun
                                 </h2>
                                 <p className="text-sm text-slate-400 mt-1 ml-10">
                                     Trouve qui a ou n'a pas encore validé chaque succès de donjon dans la guilde.

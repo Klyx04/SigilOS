@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, ShieldCheck, Pencil
+    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -54,7 +54,6 @@ export function DjPostDetailModal({
 }: DjPostDetailModalProps) {
     const [classe, setClasse] = useState("");
     const [message, setMessage] = useState("");
-    const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -359,26 +358,15 @@ export function DjPostDetailModal({
                         {(isOwner || isAdmin) && post.status === "OPEN" && (
                             <div className="border-t border-slate-800 pt-4 flex gap-3">
                                 {isOwner && (
-                                    <>
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800 font-bold h-10"
-                                            onClick={() => setIsEditModalOpen(true)}
-                                            disabled={isPending}
-                                        >
-                                            <Pencil className="w-4 h-4 mr-2 hidden sm:block" />
-                                            Modifier
-                                        </Button>
-                                        <Button
-                                            className="flex-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 font-bold h-10"
-                                            onClick={() => setIsCloseModalOpen(true)}
-                                            disabled={isPending}
-                                            title="Marque le groupe comme terminé et distribue les points de contribution aux membres qui ont participé"
-                                        >
-                                            <ShieldCheck className="w-4 h-4 mr-2 hidden sm:block" />
-                                            Clôturer & récompenser
-                                        </Button>
-                                    </>
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800 font-bold h-10"
+                                        onClick={() => setIsEditModalOpen(true)}
+                                        disabled={isPending}
+                                    >
+                                        <Pencil className="w-4 h-4 mr-2 hidden sm:block" />
+                                        Modifier
+                                    </Button>
                                 )}
                                 <Button
                                     variant="outline"
@@ -395,15 +383,6 @@ export function DjPostDetailModal({
                 </DialogContent>
             </Dialog>
 
-            {isOwner && (
-                <DjCloseModal
-                    isOpen={isCloseModalOpen}
-                    post={post}
-                    guildId={guildId}
-                    onClose={() => setIsCloseModalOpen(false)}
-                    onClosed={() => { onRefresh(); onClose(); }}
-                />
-            )}
             {isOwner && (
                 <DjEditModal
                     isOpen={isEditModalOpen}

@@ -330,13 +330,7 @@ export async function createDjPost(
                 requiredClasses: data.requiredClasses,
                 isDiscordPublished: data.isDiscordPublished,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                participants: {
-                    create: {
-                        profileId: user.profileId,
-                        userId: user.id!,
-                        status: "ACCEPTED",
-                    },
-                },
+                // Note: creator is NOT added as a participant — they occupy 1 slot implicitly
             },
             include: {
                 dungeon: {

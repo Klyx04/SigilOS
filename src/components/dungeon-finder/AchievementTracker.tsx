@@ -265,8 +265,8 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                         <div
                                                             onClick={() => toggleAchievement(a.id)}
                                                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${isDone
-                                                                    ? "bg-emerald-500/8 border-emerald-500/15 hover:border-emerald-500/30"
-                                                                    : "bg-slate-800/30 border-transparent hover:border-slate-700 hover:bg-slate-800/50"
+                                                                ? "bg-emerald-500/8 border-emerald-500/15 hover:border-emerald-500/30"
+                                                                : "bg-slate-800/30 border-transparent hover:border-slate-700 hover:bg-slate-800/50"
                                                                 }`}
                                                         >
                                                             {isDone
@@ -309,42 +309,39 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                 : "bg-slate-900/50 border-slate-800/80 hover:border-indigo-500/30 hover:shadow-indigo-900/20"
                                             }`}
                                     >
-                                        {/* Dungeon image */}
-                                        <div className="relative h-16 bg-slate-950 overflow-hidden">
-                                            {dungeon.imageUrl && (
-                                                <img
-                                                    src={dungeon.imageUrl}
-                                                    alt=""
-                                                    className="absolute inset-0 w-full h-full object-cover opacity-25 group-hover:opacity-35 group-hover:scale-105 transition-all duration-500"
-                                                />
-                                            )}
-                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/90" />
-                                            {/* Progress ring overlay */}
-                                            <div className="absolute top-2 right-2">
-                                                <div className="relative">
+                                        <div className="p-3 space-y-2">
+                                            {/* Top: icon + progress ring */}
+                                            <div className="flex items-start justify-between gap-2">
+                                                {/* Icon */}
+                                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-800 border border-slate-700/50 shrink-0 flex items-center justify-center">
+                                                    {dungeon.imageUrl
+                                                        ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
+                                                        : <Trophy className="w-4 h-4 text-slate-600" />
+                                                    }
+                                                </div>
+                                                {/* Progress ring */}
+                                                <div className="relative shrink-0">
                                                     <ProgressRing
                                                         pct={pct}
-                                                        size={36}
+                                                        size={34}
                                                         stroke={3}
                                                         color={isComplete ? "#22c55e" : "#818cf8"}
                                                     />
-                                                    <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white">
+                                                    <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white">
                                                         {done}/{dungeon.achievements.length}
                                                     </span>
                                                 </div>
                                             </div>
-                                            {/* Level */}
-                                            <span className="absolute bottom-1.5 left-2 text-[9px] font-bold text-slate-400 bg-slate-950/60 px-1.5 py-0.5 rounded">
-                                                Lvl {dungeon.level}
-                                            </span>
-                                        </div>
-                                        {/* Name */}
-                                        <div className="px-2.5 py-2">
-                                            <p className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-indigo-200 transition-colors">
-                                                {dungeon.name}
-                                            </p>
+                                            {/* Name */}
+                                            <div>
+                                                <p className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-indigo-200 transition-colors">
+                                                    {dungeon.name}
+                                                </p>
+                                                <p className="text-[10px] text-slate-500 mt-0.5">Lvl {dungeon.level}</p>
+                                            </div>
+                                            {/* Status */}
                                             {isComplete && (
-                                                <div className="flex items-center gap-1 mt-1">
+                                                <div className="flex items-center gap-1">
                                                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                                     <span className="text-[10px] text-emerald-400 font-bold">Complété</span>
                                                 </div>

@@ -783,9 +783,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                     `Un nouveau joueur a postulé.`,
                     {
                         embedTitle: "📩 Nouvelle candidature Songes",
-                        embedUrl: runUrl,
                         embedColor,
-                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                         fields: [
                             { name: "👤 Candidat", value: candidateName, inline: true },
                             { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
@@ -793,7 +791,8 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                             { name: "📝 Message", value: validated.data.message ? `>>> ${validated.data.message.slice(0, 200)}` : "*Aucun*", inline: false },
                         ],
                         embedFooter: `SigilOS • Songes`,
-                        mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
+                        mentionContent: `👋 ${leaderMention} — **${candidateName}** a postulé ! [→ Dashboard](<${runUrl}>)`,
+                        suppressEmbeds: true,
                     }
                 );
 

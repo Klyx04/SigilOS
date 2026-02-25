@@ -138,6 +138,14 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
+            } else if (prefix === "dj") {
+                if (action === "join") {
+                    const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    result = await internalJoinDjPost(guild_id, entityId, account.userId);
+                } else if (action === "leave") {
+                    const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    result = await internalLeaveDjPost(guild_id, entityId, account.userId);
+                }
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     const { processPollVote } = await import("@/server/actions/poll-actions");
@@ -179,7 +187,15 @@ export async function POST(request: NextRequest) {
             }
 
             if (result?.success) {
-                return NextResponse.json({ type: 6 }); // ACK
+                // DJ interactions: give ephemeral feedback
+                if (prefix === "dj") {
+                    const label = action === "join" ? "✅ Tu as rejoint le groupe !" : "👋 Tu as quitté le groupe.";
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: label, flags: 64 },
+                    });
+                }
+                return NextResponse.json({ type: 6 }); // ACK silencieux (others)
             } else {
                 return NextResponse.json({
                     type: 4,

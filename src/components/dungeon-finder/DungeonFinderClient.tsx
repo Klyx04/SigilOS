@@ -98,7 +98,7 @@ export function DungeonFinderClient({
     const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: "posts", label: "Recherche DJ", icon: Search },
         { id: "tracker", label: "Mes Succès", icon: Trophy },
-        { id: "directory", label: "Annuaire DJ", icon: Users },
+        { id: "directory", label: "Succès DJ en commun", icon: Users },
     ];
 
     return (

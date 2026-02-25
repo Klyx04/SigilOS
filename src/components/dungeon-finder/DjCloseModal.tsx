@@ -16,6 +16,15 @@ interface DjCloseModalProps {
     onClosed: () => void;
 }
 
+/** Mirror of server-side getContributionPoints */
+function getPointsFromLevel(level?: number | null): number {
+    if (!level) return 1;
+    if (level >= 200) return 4;
+    if (level >= 150) return 3;
+    if (level >= 100) return 2;
+    return 1;
+}
+
 export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjCloseModalProps) {
     const [isPending, startTransition] = useTransition();
 
@@ -38,12 +47,17 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
         });
     }
 
+    // Contribution points based on dungeon level
+    const dungeonLevel = post.dungeon?.level ?? null;
+    const pts = getPointsFromLevel(dungeonLevel);
+
     function handleConfirm() {
         startTransition(async () => {
             const res = await closeDjPostWithContributions(guildId, post.id, Array.from(validated));
             if (res.success) {
                 const count = validated.size;
-                toast.success(`Groupe clôturé ! ${count} membre${count > 1 ? "s ont" : " a"} reçu 1 point de contribution.`);
+                const awarded = (res as any).data?.pointsAwarded ?? pts;
+                toast.success(`Groupe clôturé ! ${count} membre${count > 1 ? "s ont" : " a"} reçu +${awarded} point${awarded > 1 ? "s" : ""} de contribution.`);
                 onClosed();
                 onClose();
             } else {
@@ -103,8 +117,11 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                 <Trophy className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
                                 <p className="text-xs text-slate-300 leading-relaxed">
                                     Valide les membres qui ont <strong className="text-white">réellement participé</strong> pour leur attribuer{" "}
-                                    <strong className="text-violet-300">+1 point de contribution</strong>.{" "}
-                                    <span className="text-slate-500">Tu ne reçois pas de point en tant que créateur.</span>
+                                    <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>.
+                                    {post.dungeon && (
+                                        <span className="ml-1 text-slate-500">(Donjon niveau {post.dungeon.level})</span>
+                                    )}
+                                    {" "}<span className="text-slate-500">Tu ne reçois pas de point en tant que créateur.</span>
                                 </p>
                             </div>
 
@@ -126,8 +143,8 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 key={p.profile.id}
                                                 onClick={() => toggle(p.profile.id)}
                                                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${isVal
-                                                        ? "bg-emerald-500/8 border-emerald-500/25 hover:border-emerald-500/40"
-                                                        : "bg-slate-800/40 border-slate-700/40 hover:border-slate-600 opacity-60"
+                                                    ? "bg-emerald-500/8 border-emerald-500/25 hover:border-emerald-500/40"
+                                                    : "bg-slate-800/40 border-slate-700/40 hover:border-slate-600 opacity-60"
                                                     }`}
                                             >
                                                 {/* Avatar */}
@@ -139,7 +156,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 {/* Name */}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-bold text-white truncate">
-                                                        {p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}
+                                                        {p.profile.discordNickname || p.profile.pseudoDofus || (p.profile as any).dofusPseudo || "Membre"}
                                                     </p>
                                                     {p.classe && (
                                                         <p className="text-[10px] text-slate-500">{p.classe}</p>
@@ -148,7 +165,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 {/* Point badge */}
                                                 {isVal && (
                                                     <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                                        <Star className="w-2.5 h-2.5" /> +1 pt
+                                                        <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
                                                 {/* Checkbox */}
@@ -166,7 +183,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                             {acceptedParticipants.length > 0 && (
                                 <p className="text-[11px] text-slate-500 text-center">
                                     <strong className="text-slate-300">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
-                                    <strong className="text-violet-300">+1 point de contribution</strong>
+                                    <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>
                                 </p>
                             )}
                         </div>

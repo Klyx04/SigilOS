@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { closeDjPost, joinDjPost, leaveDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
+import { DjCloseModal } from "./DjCloseModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getClass } from "@/lib/dofus-assets";
 
 // -------------------------------------------------------
 // Constants
@@ -31,39 +33,6 @@ const STATUS_META: Record<string, { label: string; dot: string }> = {
     EXPIRED: { label: "Expiré", dot: "bg-zinc-600" },
 };
 
-// Couleurs pastel par initiale pour un fallback visuel harmonieux
-const CLASS_COLORS: Record<string, string> = {
-    a: "#6366f1", b: "#8b5cf6", c: "#06b6d4", d: "#10b981", e: "#f59e0b",
-    f: "#ef4444", g: "#84cc16", h: "#f97316", i: "#a855f7", j: "#ec4899",
-    k: "#0ea5e9", l: "#14b8a6", m: "#eab308", n: "#64748b", o: "#d946ef",
-    p: "#22c55e", q: "#f43f5e", r: "#fb923c", s: "#38bdf8", t: "#a3e635",
-    u: "#c084fc", v: "#34d399", w: "#fbbf24", x: "#60a5fa", y: "#f472b6", z: "#94a3b8",
-};
-
-/** Icône de classe avec fallback initiale colorée */
-function ClassIcon({ name }: { name: string }) {
-    const slug = name.toLowerCase().replace(/é/g, "e").replace(/è/g, "e");
-    const initial = slug[0] || "?";
-    const color = CLASS_COLORS[initial] || "#64748b";
-
-    return (
-        <div className="relative w-full h-full">
-            <img
-                src={`/images/classes/${slug}.png`}
-                alt={name}
-                className="w-full h-full object-contain absolute inset-0"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-            />
-            <div
-                className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase"
-                style={{ color }}
-            >
-                {initial}
-            </div>
-        </div>
-    );
-}
-
 // -------------------------------------------------------
 // DjPostCard
 // -------------------------------------------------------
@@ -78,6 +47,7 @@ interface DjPostCardProps {
 
 export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh }: DjPostCardProps) {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
@@ -118,10 +88,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     }
 
     function handleClose() {
+        // Admin quick-close (no contribution modal)
         startTransition(async () => {
             const res = await closeDjPost(guildId, post.id);
             if (res.success) {
-                toast.success("Post fermé. Points de contribution distribués !");
+                toast.success("Post fermé.");
                 onRefresh();
             } else {
                 toast.error(res.error);
@@ -229,11 +200,21 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Required Classes */}
                     {post.requiredClasses && post.requiredClasses.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                            {post.requiredClasses.map(c => (
-                                <div key={c} title={c} className="w-6 h-6 rounded-md bg-indigo-950/30 border border-indigo-900/30 p-0.5 overflow-hidden">
-                                    <ClassIcon name={c} />
-                                </div>
-                            ))}
+                            {post.requiredClasses.map(c => {
+                                const cls = getClass(c);
+                                return (
+                                    <div key={c} title={c} className="w-6 h-6 rounded-md bg-indigo-950/30 border border-indigo-900/30 p-0.5 overflow-hidden">
+                                        {cls ? (
+                                            <img src={cls.icon} alt={c} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-[8px] font-bold flex items-center justify-center h-full w-full rounded text-white"
+                                                style={{ backgroundColor: `hsl(${(c.charCodeAt(0) * 47) % 360}, 55%, 35%)` }}>
+                                                {c[0]?.toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -346,13 +327,24 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {isOwner && post.status === "OPEN" && (
                             <Button
                                 size="sm"
+                                onClick={() => setIsCloseModalOpen(true)}
+                                disabled={isPending}
+                                className="flex-1 h-8 text-xs font-bold bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 hover:border-violet-500/50"
+                            >
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                Terminer
+                            </Button>
+                        )}
+                        {isAdmin && !isOwner && post.status === "OPEN" && (
+                            <Button
+                                size="sm"
                                 variant="outline"
                                 onClick={handleClose}
                                 disabled={isPending}
-                                className="flex-1 h-8 text-xs font-bold border-emerald-900/50 bg-emerald-950/20 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/40"
+                                className="flex-1 h-8 text-xs font-bold border-slate-700 text-slate-500 hover:text-red-400 hover:border-red-900"
                             >
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Terminé
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Fermer
                             </Button>
                         )}
                     </div>
@@ -368,6 +360,16 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 isAdmin={isAdmin}
                 onRefresh={onRefresh}
             />
+
+            {isOwner && (
+                <DjCloseModal
+                    isOpen={isCloseModalOpen}
+                    post={post}
+                    guildId={guildId}
+                    onClose={() => setIsCloseModalOpen(false)}
+                    onClosed={onRefresh}
+                />
+            )}
         </>
     );
 }

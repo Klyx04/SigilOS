@@ -55,6 +55,7 @@ interface OcreFilterBarProps {
     zones: string[];
     guildId: string;
     showMarketplace?: boolean;
+    hasOcreChannel?: boolean;
 }
 
 // =============================================================================
@@ -94,6 +95,7 @@ export function OcreFilterBar({
     zones,
     guildId,
     showMarketplace = true,
+    hasOcreChannel,
 }: OcreFilterBarProps) {
     const updateFilter = <K extends keyof OcreFilters>(key: K, value: OcreFilters[K]) => {
         onFiltersChange({ ...filters, [key]: value });
@@ -167,6 +169,7 @@ export function OcreFilterBar({
                         <div className="w-px h-8 bg-white/10 mx-2 hidden sm:block" />
                         <OcreExchangeModal
                             guildId={guildId}
+                            hasOcreChannel={hasOcreChannel}
                             trigger={
                                 <Button
                                     size="lg"

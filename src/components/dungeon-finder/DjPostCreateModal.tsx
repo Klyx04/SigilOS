@@ -206,6 +206,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             toast.error("Veuillez choisir ou saisir manuellement une quête.");
             return;
         }
+        if (!targetDate) {
+            toast.error("Veuillez définir une date et une heure prévues.");
+            return;
+        }
 
         startTransition(async () => {
             const res = await createDjPost(guildId, {
@@ -507,11 +511,15 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
 
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Date */}
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-bold text-slate-300">Date prévue (Optionnel)</p>
+                                    <div className="space-y-2 flex flex-col justify-end">
+                                        <p className="text-sm font-bold text-slate-300">
+                                            Date prévue <span className="text-rose-500">*</span>
+                                        </p>
                                         <input
                                             type="datetime-local"
+                                            required
                                             value={targetDate}
+                                            min={new Date().toISOString().slice(0, 16)}
                                             onChange={(e) => setTargetDate(e.target.value)}
                                             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 [color-scheme:dark]"
                                         />

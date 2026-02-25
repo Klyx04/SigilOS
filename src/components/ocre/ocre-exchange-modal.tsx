@@ -47,7 +47,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
 
     // Trade Request State
-    const [tradeRequest, setTradeRequest] = useState<{ targetProfileId: string; monsterId: number; targetName: string; monsterName: string } | null>(null);
+    const [tradeRequest, setTradeRequest] = useState<{ targetProfileId: string; monsterId: number; targetName: string; monsterName: string; monsterImage?: string } | null>(null);
     const [tradeMessage, setTradeMessage] = useState("");
     const [sendDiscordPing, setSendDiscordPing] = useState(hasOcreChannel ?? false);
     const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
@@ -121,6 +121,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                 guildId,
                 targetProfileId: tradeRequest.targetProfileId,
                 monsterId: tradeRequest.monsterId,
+                monsterName: tradeRequest.monsterName,
+                monsterImage: tradeRequest.monsterImage,
                 message: tradeMessage,
                 sendDiscordPing
             });
@@ -322,7 +324,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                         targetProfileId: provider.profileId,
                                                                         monsterId: monster.id,
                                                                         targetName: provider.name,
-                                                                        monsterName: monster.name
+                                                                        monsterName: monster.name,
+                                                                        monsterImage: monster.imageUrl,
                                                                     })}
                                                                 >
                                                                     <Handshake className="h-3.5 w-3.5" />
@@ -425,7 +428,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                             targetProfileId: partner.profileId,
                                                                             monsterId: monster.id,
                                                                             targetName: partner.characterName,
-                                                                            monsterName: monster.name
+                                                                            monsterName: monster.name,
+                                                                            monsterImage: monster.imageUrl,
                                                                         });
                                                                     }}
                                                                 >

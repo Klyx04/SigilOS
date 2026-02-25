@@ -363,7 +363,7 @@ export function DjPostDetailModal({
                                         disabled={isPending}
                                     >
                                         <ShieldCheck className="w-4 h-4 mr-2 hidden sm:block" />
-                                        Terminer le groupe
+                                        Valider le succès
                                     </Button>
                                 )}
                                 <Button

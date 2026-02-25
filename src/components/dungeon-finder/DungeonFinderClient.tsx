@@ -112,13 +112,13 @@ export function DungeonFinderClient({
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-colors ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300"
+                            className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-colors ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
                                 }`}
                         >
                             {isActive && (
                                 <motion.div
                                     layoutId="main-tab-indicator"
-                                    className="absolute inset-0 -z-10 bg-indigo-600 rounded-xl border-t border-indigo-400/30 shadow-lg shadow-indigo-900/40"
+                                    className="absolute inset-0 -z-10 bg-indigo-600 rounded-xl border border-indigo-500/50 shadow-lg shadow-indigo-900/40"
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                 />
                             )}
@@ -129,16 +129,10 @@ export function DungeonFinderClient({
                 })}
             </div>
 
-            <AnimatePresence mode="wait">
+            <div>
                 {/* === POSTS TAB === */}
                 {activeTab === "posts" && (
-                    <motion.div
-                        key="posts"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="space-y-5"
-                    >
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         {/* Toolbar */}
                         <div className="flex flex-col xl:flex-row xl:items-start gap-4">
                             <div className="flex-1">
@@ -245,32 +239,23 @@ export function DungeonFinderClient({
                                 </AnimatePresence>
                             </motion.div>
                         )}
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* === TRACKER TAB === */}
                 {activeTab === "tracker" && (
-                    <motion.div
-                        key="tracker"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                    >
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <AchievementTracker guildId={guildId} />
-                    </motion.div>
+                    </div>
                 )}
+
                 {/* === DIRECTORY TAB === */}
                 {activeTab === "directory" && (
-                    <motion.div
-                        key="directory"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                    >
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <DungeonDirectory guildId={guildId} onCreatePost={handleCreateGroupDirect} />
-                    </motion.div>
+                    </div>
                 )}
-            </AnimatePresence>
+            </div>
 
             {/* Create modal */}
             <DjPostCreateModal

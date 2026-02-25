@@ -202,13 +202,93 @@ async function sendDiscordNotification(
         if (!sendRes.ok) {
             const errBody = await sendRes.text();
             console.error(`[DJ Embed] Failed to send: ${sendRes.status} ${sendRes.statusText}`, errBody);
-        } else {
-            console.log("[DJ Embed] Sent successfully");
+            return null;
         }
+
+        const sentMsg = await sendRes.json();
+        console.log("[DJ Embed] Sent successfully, messageId:", sentMsg.id);
+        return { messageId: sentMsg.id as string, channelId: guildConfig.djNotifyChannelId as string };
     } catch (error) {
         console.error("[sendDiscordNotification]", error);
+        return null;
     }
 }
+
+/**
+ * Update an existing Discord embed (PATCH) after participants change.
+ */
+async function updateDiscordEmbed(postId: string) {
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                guildConfig: { select: { discordGuildId: true, djNotifyChannelId: true } },
+                dungeon: {
+                    include: { achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } } },
+                },
+                profile: {
+                    select: {
+                        discordNickname: true,
+                        pseudoDofus: true,
+                        dofusPseudo: true,
+                        user: { select: { name: true } },
+                    },
+                },
+                participants: {
+                    where: { status: "ACCEPTED" },
+                    include: {
+                        profile: {
+                            select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!post?.discordMessageId || !post?.discordChannelId) return;
+
+        const token = process.env.DISCORD_BOT_TOKEN;
+        if (!token) return;
+
+        const guildId = post.guildConfig?.discordGuildId;
+        if (!guildId) return;
+
+        const authorName =
+            post.profile?.discordNickname ||
+            post.profile?.pseudoDofus ||
+            post.profile?.dofusPseudo ||
+            post.profile?.user?.name ||
+            "Membre";
+
+        const embed = buildPostEmbed(post, authorName, guildId);
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
+        const components = [{
+            type: 1,
+            components: [
+                { type: 2, style: 3, label: "✅ S'inscrire", custom_id: `dj:join:${postId}`, emoji: { name: "⚔️" } },
+                { type: 2, style: 4, label: "Se désinscrire", custom_id: `dj:leave:${postId}` },
+                { type: 2, style: 5, label: "Voir sur le site", url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            ],
+        }];
+
+        const patchRes = await fetch(
+            `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
+            {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ embeds: [embed], components }),
+            }
+        );
+
+        if (!patchRes.ok) {
+            console.error("[updateDiscordEmbed] PATCH failed:", patchRes.status, await patchRes.text());
+        }
+    } catch (err) {
+        console.error("[updateDiscordEmbed]", err);
+    }
+}
+
 
 function buildPostEmbed(post: any, authorName: string, guildId: string) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
@@ -249,7 +329,7 @@ function buildPostEmbed(post: any, authorName: string, guildId: string) {
     if (post.targetDate) {
         const d = new Date(post.targetDate);
         fields.push({
-            name: "📅 Date prévue",
+            name: "\uD83D\uDCC5 Date prévue",
             value: d.toLocaleDateString("fr-FR", {
                 weekday: "long",
                 day: "numeric",
@@ -260,15 +340,36 @@ function buildPostEmbed(post: any, authorName: string, guildId: string) {
         });
     }
 
+    // Live participants list
+    const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
+    const totalCount = acceptedParts.length + 1; // +1 for creator
+    if (acceptedParts.length > 0) {
+        const names = acceptedParts
+            .map((p: any) => {
+                const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+                return p.classe ? `${n} *(${p.classe})*` : n;
+            })
+            .join("\n");
+        fields.push({ name: `\uD83D\uDC64 Membres (${totalCount}/${post.maxMembers})`, value: names });
+    } else {
+        fields.push({ name: `\uD83D\uDC64 Membres (1/${post.maxMembers})`, value: "En attente de joueurs\u2026" });
+    }
+
+
     return {
         title,
         description: `**${authorName}** cherche des compagnons !`,
         color: isDungeon ? 0x818cf8 : 0x34d399,
         fields,
-        // Only add thumbnail if imageUrl is a valid absolute URL
-        thumbnail: (post.dungeon?.imageUrl && post.dungeon.imageUrl.startsWith("http"))
-            ? { url: post.dungeon.imageUrl }
-            : undefined,
+        // Discord requires a publicly accessible HTTPS URL for thumbnails.
+        // Skip if appUrl is localhost (Discord cannot reach it).
+        thumbnail: (() => {
+            if (!isDungeon || !post.dungeon?.imageUrl) return undefined;
+            const rawUrl = post.dungeon.imageUrl.startsWith("http")
+                ? post.dungeon.imageUrl
+                : `${appUrl}${post.dungeon.imageUrl}`;
+            return rawUrl.startsWith("https://") ? { url: rawUrl } : undefined;
+        })(),
         footer: {
             text: "SigilOS — Donjons & Quêtes",
         },
@@ -351,9 +452,17 @@ export async function createDjPost(
         if (data.isDiscordPublished) {
             const authorName = user.name || "Membre";
             const embed = buildPostEmbed(post, authorName, guildId);
-            // Pass postId for interactive buttons
             (embed as any)._postId = post.id;
-            await sendDiscordNotification(guildId, embed);
+            const discordResult = await sendDiscordNotification(guildId, embed);
+            if (discordResult?.messageId) {
+                await (db as any).djSearchPost.update({
+                    where: { id: post.id },
+                    data: {
+                        discordMessageId: discordResult.messageId,
+                        discordChannelId: discordResult.channelId,
+                    },
+                });
+            }
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
@@ -709,6 +818,9 @@ export async function internalJoinDjPost(
             });
         }
 
+        // Fire-and-forget: update Discord embed with new participant list
+        updateDiscordEmbed(postId).catch(() => { });
+
         return { success: true };
     } catch (error) {
         console.error("[internalJoinDjPost]", error);
@@ -749,6 +861,9 @@ export async function internalLeaveDjPost(
                 data: { status: "OPEN" },
             });
         }
+
+        // Fire-and-forget: update Discord embed with new participant list
+        updateDiscordEmbed(postId).catch(() => { });
 
         return { success: true };
     } catch (error) {

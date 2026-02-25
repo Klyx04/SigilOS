@@ -701,10 +701,13 @@ export async function internalJoinDjPost(
 
         if (!post) return { success: false, error: "Post introuvable" };
         if (post.status !== "OPEN" && post.status !== "FULL") {
-            return { success: false, error: "Ce post n'est plus ouvert" };
+            return { success: false, error: "Ce post est fermé ou expiré." };
         }
         if (post.status === "FULL") {
-            return { success: false, error: "Ce groupe est déjà complet !" };
+            return {
+                success: false,
+                error: `Groupe complet (${post.participants.length}/${post.maxMembers}) 🟥\nConsulte le dashboard pour voir d’autres recherches disponibles.`,
+            };
         }
 
         // Already joined?
@@ -721,7 +724,10 @@ export async function internalJoinDjPost(
         } else {
             // Post full?
             if (post.participants.length >= post.maxMembers) {
-                return { success: false, error: "Ce groupe est complet !" };
+                return {
+                    success: false,
+                    error: `Groupe complet (${post.participants.length}/${post.maxMembers}) 🟥\nConsulte le dashboard pour d’autres recherches.`,
+                };
             }
 
             await (db as any).djSearchParticipant.create({

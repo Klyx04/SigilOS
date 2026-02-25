@@ -33,6 +33,24 @@ function checkRateLimit(key: string, maxRequests: number, windowMs: number): boo
     return true;
 }
 
+/** Returns remaining wait seconds (0 = not rate-limited) */
+function getRateLimitRemaining(key: string, maxRequests: number, windowMs: number): number {
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+        return 0;
+    }
+
+    if (entry.count >= maxRequests) {
+        return Math.ceil((entry.resetAt - now) / 1000);
+    }
+
+    entry.count++;
+    return 0;
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -139,6 +157,16 @@ export async function POST(request: NextRequest) {
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
             } else if (prefix === "dj") {
+                // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
+                const djKey = `dj:${member.user.id}:${entityId}`;
+                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                if (waitSecs > 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `⏳ Doucement ! Réessaie dans **${waitSecs}s**.`, flags: 64 },
+                    });
+                }
+
                 if (action === "join") {
                     const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
                     result = await internalJoinDjPost(guild_id, entityId, account.userId);

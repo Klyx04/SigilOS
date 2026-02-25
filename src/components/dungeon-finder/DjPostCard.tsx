@@ -14,6 +14,7 @@ import { DjPostDetailModal } from "./DjPostDetailModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getClass } from "@/lib/dofus-assets";
 
 // -------------------------------------------------------
 // Constants
@@ -196,11 +197,18 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Required Classes */}
                     {post.requiredClasses && post.requiredClasses.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                            {post.requiredClasses.map(c => (
-                                <div key={c} title={c} className="w-6 h-6 rounded-md bg-indigo-950/30 border border-indigo-900/30 p-0.5 overflow-hidden">
-                                    <img src={`/images/classes/${c.toLowerCase().replace(/é/g, 'e').replace(/è/g, 'e')}.png`} alt={c} className="w-full h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                </div>
-                            ))}
+                            {post.requiredClasses.map(c => {
+                                const cls = getClass(c);
+                                return (
+                                    <div key={c} title={c} className="w-6 h-6 rounded-md bg-indigo-950/30 border border-indigo-900/30 p-0.5 overflow-hidden">
+                                        {cls ? (
+                                            <img src={cls.icon} alt={c} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-[8px] text-slate-500 flex items-center justify-center h-full">{c[0]}</span>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -219,8 +227,8 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
                             className={`inline-flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 w-max transition-colors border ${post.mode === "DONJON"
-                                    ? "text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border-cyan-500/20"
-                                    : "text-slate-400 hover:text-white bg-white/5 border-white/10"
+                                ? "text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border-cyan-500/20"
+                                : "text-slate-400 hover:text-white bg-white/5 border-white/10"
                                 }`}>
                             <Map className="w-3 h-3" />
                             {post.mode === "DONJON" && post.questName

@@ -148,13 +148,14 @@ async function sendDiscordNotification(
 
         if (isForumChannel) {
             const isDungeon = embed.title?.includes("⚔️");
-            const contentName = embed.title
-                ?.replace(/^[⚔️📜\s]+/, "")
-                .replace(/Recherche de groupe\s?—\s?/i, "")
-                .trim().substring(0, 80) || "Recherche de groupe";
-            const placesField = embed.fields?.find((f: any) => f.name.includes("Places"));
-            const placesTag = placesField ? ` [${placesField.value}]` : "";
-            const threadTitle = `${isDungeon ? "⚔️" : "📜"} ${contentName}${placesTag}`.substring(0, 100);
+            // Extraire le nom depuis la description: "**Donjon :** Nom" ou "**Quete :** Nom"
+            const nameMatch = embed.description?.match(/[*][*](?:Donjon|Qu.te)\s*:[*][*]\s*(.+?)(?:\n|$)/i);
+            const contentName = (nameMatch && nameMatch[1] ? nameMatch[1] : "Groupe").trim().substring(0, 65);
+            const typeLabel = isDungeon ? "Donjon" : "Quete";
+            const emojiChar = embed.title ? embed.title.slice(0, 2) : "";
+            const placesField = embed.fields && embed.fields.find(function(f) { return f.name.includes("Places"); });
+            const placesTag = placesField ? " [" + placesField.value + "]" : "";
+            const threadTitle = (emojiChar + " " + typeLabel + " - " + contentName + placesTag).trim().substring(0, 100);
 
             const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
                 method: "POST",

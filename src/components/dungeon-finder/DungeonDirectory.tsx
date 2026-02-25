@@ -6,6 +6,7 @@ import { Search, Users, Trophy, ChevronLeft, ChevronDown, CheckCircle2, Circle, 
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getDungeonDirectory } from "@/server/actions/dungeon-finder-actions";
 import { Button } from "@/components/ui/button";
+import { getClass } from "@/lib/dofus-assets";
 
 interface Dungeon {
     id: string;
@@ -387,15 +388,17 @@ function MemberPill({ member, variant }: { member: any, variant: 'missing' | 'co
 
             <span className="text-xs font-medium truncate max-w-[100px]">{member.name}</span>
 
-            {member.classe && (
-                <img
-                    src={`/images/classes/${member.classe.toLowerCase().replace(/é/g, 'e').replace(/è/g, 'e')}.png`}
-                    alt={member.classe}
-                    className={`w-3.5 h-3.5 object-contain opacity-60 ${isMissing ? 'grayscale-0' : 'grayscale'}`}
-                    onError={(e) => e.currentTarget.style.display = 'none'}
-                    title={member.classe}
-                />
-            )}
+            {member.classe && (() => {
+                const cls = getClass(member.classe);
+                return cls ? (
+                    <img
+                        src={cls.icon}
+                        alt={member.classe}
+                        className={`w-3.5 h-3.5 object-contain opacity-60 ${isMissing ? 'grayscale-0' : 'grayscale'}`}
+                        title={member.classe}
+                    />
+                ) : null;
+            })()}
         </div>
     );
 }

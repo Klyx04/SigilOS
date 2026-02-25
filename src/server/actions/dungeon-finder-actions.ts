@@ -365,6 +365,58 @@ export async function createDjPost(
 }
 
 /**
+ * Update a DJ post (creator only).
+ * Cannot change dungeon/quest — only metadata fields.
+ */
+export async function updateDjPost(
+    guildId: string,
+    postId: string,
+    payload: {
+        maxMembers: number;
+        message: string | null;
+        targetDate: Date | null;
+        wantedAchievementIds: string[];
+        requiredClasses: string[];
+    }
+): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { id: postId, guildId: guildConfig.id },
+            select: { profileId: true, status: true },
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.profileId !== user.profileId) return { success: false, error: "Seul le créateur peut modifier ce post" };
+        if (post.status === "CLOSED" || post.status === "EXPIRED") return { success: false, error: "Impossible de modifier un post fermé" };
+
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: {
+                maxMembers: payload.maxMembers,
+                message: payload.message,
+                targetDate: payload.targetDate,
+                wantedAchievementIds: payload.wantedAchievementIds,
+                requiredClasses: payload.requiredClasses,
+            },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        return { success: true };
+    } catch (error) {
+        console.error("[updateDjPost]", error);
+        return { success: false, error: "Erreur lors de la modification" };
+    }
+}
+
 /**
  * Returns contribution points to award based on dungeon level.
  * Quête (no dungeon level) = 1 pt

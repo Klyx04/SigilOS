@@ -228,8 +228,8 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </a>
                     )}
 
-                    {/* Quest link — DofusDB (questId connu) */}
-                    {post.questId && (post.mode === "QUETE" || post.mode === "DONJON") && (
+                    {/* Quest link — DofusDB (questId connu et valide) */}
+                    {post.questId && post.questId > 0 && (post.mode === "QUETE" || post.mode === "DONJON") && (
                         <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
                             className={`inline-flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 w-max transition-colors border ${post.mode === "DONJON"

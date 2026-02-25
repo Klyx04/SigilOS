@@ -456,6 +456,8 @@ export async function updateDjPost(
         targetDate: Date | null;
         wantedAchievementIds: string[];
         requiredClasses: string[];
+        questName?: string | null;
+        questUrl?: string | null;
     }
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
@@ -485,6 +487,9 @@ export async function updateDjPost(
                 targetDate: payload.targetDate,
                 wantedAchievementIds: payload.wantedAchievementIds,
                 requiredClasses: payload.requiredClasses,
+                // Modifiable uniquement pour les quêtes manuelles (pas de questId valide)
+                ...(payload.questName !== undefined && { questName: payload.questName }),
+                ...(payload.questUrl !== undefined && { questUrl: payload.questUrl }),
             },
         });
 

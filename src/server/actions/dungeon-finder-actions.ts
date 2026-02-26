@@ -153,7 +153,7 @@ async function sendDiscordNotification(
             const contentName = (nameMatch && nameMatch[1] ? nameMatch[1] : "Groupe").trim().substring(0, 65);
             const typeLabel = isDungeon ? "Donjon" : "Quete";
             const emojiChar = embed.title ? embed.title.slice(0, 2) : "";
-            const placesField = embed.fields && embed.fields.find(function (f) { return f.name.includes("Places"); });
+            const placesField = embed.fields && embed.fields.find((f: { name: string; value: string }) => f.name.includes("Places"));
             const placesTag = placesField ? " [" + placesField.value + "]" : "";
             const threadTitle = (emojiChar + " " + typeLabel + " - " + contentName + placesTag).trim().substring(0, 100);
 
@@ -705,19 +705,28 @@ export async function joinDjPost(
             });
         }
 
-        // Notify post creator
+        // Notify post creator (respect leur préférence notif)
         if (post.profile?.userId && post.profile.userId !== user.id) {
-            const { createNotification } = await import("@/server/actions/notification-actions");
-            const joinerName = user.name || "Un joueur";
-            const postTitle = post.questName || post.dungeon?.name || "Groupe";
-            await createNotification(
-                post.profile.userId,
-                "SYSTEM_INFO",
-                "Nouvelle candidature DJ",
-                `**${joinerName}** a rejoint ton groupe « ${postTitle} »`,
-                `/dashboard/${guildId}/donjons-et-quetes`,
-                guildId
-            );
+            const creatorProfile = await (db as any).userProfile.findFirst({
+                where: { userId: post.profile.userId },
+                select: { notificationPrefs: true },
+            });
+            const notifPrefs = (creatorProfile?.notificationPrefs as any) || {};
+            const wantsNotif = notifPrefs.donjons !== false; // true par défaut
+
+            if (wantsNotif) {
+                const { createNotification } = await import("@/server/actions/notification-actions");
+                const joinerName = user.name || "Un joueur";
+                const postTitle = post.questName || post.dungeon?.name || "Groupe";
+                await createNotification(
+                    post.profile.userId,
+                    "SYSTEM_INFO",
+                    "Nouvelle candidature DJ",
+                    `**${joinerName}** a rejoint ton groupe « ${postTitle} »`,
+                    `/dashboard/${guildId}/donjons-et-quetes`,
+                    guildId
+                );
+            }
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target } from "lucide-react";
+import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -12,7 +12,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { DIFFICULTIES, OBJECTIVES, getEpreuve, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
 import { closeDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun, DreamRunMember } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -27,9 +27,10 @@ interface RunDetailHeaderProps {
     isLeader?: boolean;
     optimisticStatus: string;
     onStatusChange: (status: string) => void;
+    onOpenBossGuide?: () => void;
 }
 
-export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onStatusChange }: RunDetailHeaderProps) {
+export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onStatusChange, onOpenBossGuide }: RunDetailHeaderProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -38,6 +39,7 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
+    const epreuve = getEpreuve((run as any).epreuveCode);
 
     const formatDate = (date: Date | null) => {
         if (!date) return "-";
@@ -159,12 +161,29 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                             </h1>
                         </div>
 
-                        <div className="flex items-center gap-6 text-sm text-purple-200/60 mt-1">
-                            {/* Objective Badge */}
-                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5 hover:bg-white/10 transition-colors">
-                                {objective?.icon || <Target className="w-4 h-4" />}
-                                <span className="font-medium text-white/80">{objective?.label}</span>
-                            </div>
+                        <div className="flex items-center gap-6 text-sm text-purple-200/60 mt-1 flex-wrap">
+                            {/* Objective Badge — masqué si c'est une épreuve */}
+                            {!epreuve && (
+                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5 hover:bg-white/10 transition-colors">
+                                    {objective?.icon || <Target className="w-4 h-4" />}
+                                    <span className="font-medium text-white/80">{objective?.label}</span>
+                                </div>
+                            )}
+
+                            {/* Épreuve Badge — affiché uniquement si c'est une épreuve */}
+                            {epreuve && (
+                                <div
+                                    className="flex items-center gap-2 px-3 py-1 rounded-full border font-bold uppercase tracking-wider text-xs"
+                                    style={{
+                                        borderColor: `${epreuve.color}50`,
+                                        backgroundColor: `${epreuve.color}12`,
+                                        color: epreuve.color,
+                                    }}
+                                >
+                                    <span>{epreuve.icon}</span>
+                                    <span>{epreuve.label}</span>
+                                </div>
+                            )}
 
                             {/* Doc Link */}
                             <a
@@ -177,7 +196,42 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                                 <span className="font-medium">Documentation Songes</span>
                                 <ArrowLeft className="w-3 h-3 rotate-[135deg] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                             </a>
+
+                            {/* Guide Boss Button */}
+                            {onOpenBossGuide && (
+                                <button
+                                    onClick={onOpenBossGuide}
+                                    className="flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white transition-all group font-medium cursor-pointer"
+                                >
+                                    <BookOpen className="w-4 h-4 group-hover:rotate-6 transition-transform" />
+                                    <span>Guide Boss</span>
+                                </button>
+                            )}
                         </div>
+
+                        {/* Épreuve description block */}
+                        {epreuve && (
+                            <div
+                                className="mt-3 flex items-start gap-3 px-4 py-3 rounded-xl border text-sm max-w-xl"
+                                style={{
+                                    borderColor: `${epreuve.color}30`,
+                                    backgroundColor: `${epreuve.color}08`,
+                                }}
+                            >
+                                <span className="text-xl shrink-0 mt-0.5">{epreuve.icon}</span>
+                                <div>
+                                    <p className="font-bold uppercase tracking-wide text-xs mb-1" style={{ color: epreuve.color }}>
+                                        Règle spéciale — {epreuve.difficultyLabel} imposé
+                                    </p>
+                                    <p className="text-white/50 leading-relaxed text-xs">
+                                        {epreuve.description}
+                                    </p>
+                                    <p className="text-white/30 text-[11px] mt-1.5 italic">
+                                        Pas de butin ni d&apos;expérience pour les épreuves.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Metadata Row */}
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/40 mt-4 font-mono uppercase tracking-wide">

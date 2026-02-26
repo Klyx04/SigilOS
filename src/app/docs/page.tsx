@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Folder, FileText, ArrowRight } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Metadata } from "next";
 import { getAppBaseUrl } from "@/lib/utils";
 
@@ -41,13 +40,15 @@ export default async function DocsHubPage() {
             </div>
 
             {categories.length === 0 && (
-                <EmptyState
-                    icon={FileText}
-                    title="Aucun guide pour le moment"
-                    description="La documentation est en cours de rédaction. Revenez plus tard pour découvrir nos tutoriels."
-                    variant="glow"
-                    className="mt-8 border-teal-500/10"
-                />
+                <div className="relative flex flex-col items-center justify-center text-center p-12 rounded-3xl border bg-zinc-900/40 border-teal-500/10 mt-8 overflow-hidden">
+                    <div className="p-6 rounded-2xl bg-zinc-950/50 border border-white/10 mb-6">
+                        <FileText className="w-10 h-10 text-teal-400" />
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-3 tracking-tight">Aucun guide pour le moment</h3>
+                    <p className="text-base text-zinc-400/80 leading-relaxed font-medium">
+                        La documentation est en cours de rédaction. Revenez plus tard pour découvrir nos tutoriels.
+                    </p>
+                </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

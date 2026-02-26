@@ -544,6 +544,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
             await sendChannelMessage(
                 run.discordChannelId,
                 `📩 ${leaderMention} — **${candidateName}** (${classe}) a postulé ! [Dashboard](${dashboardUrl})`,
+                { suppressEmbeds: true },
             );
         }
 

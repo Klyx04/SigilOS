@@ -14,6 +14,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
 import { BugReportButton } from "@/components/layout/bug-report-button";
 import { ValidatorInbox } from "./_components/validator-inbox";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default async function DashboardLayout({
     children,
@@ -107,6 +108,10 @@ export default async function DashboardLayout({
 
                     {/* Scrollable Main Content - THE ONLY SCROLLABLE AREA */}
                     <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        {/* System Announcement Banner */}
+                        <Suspense fallback={null}>
+                            <AnnouncementBanner />
+                        </Suspense>
                         <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
 
                             {/* Page Content */}

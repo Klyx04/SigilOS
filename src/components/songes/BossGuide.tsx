@@ -84,12 +84,12 @@ function renderMarkdown(text: string) {
                 // Bold: **text**
                 content = content.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
                 // Underline: <u>text</u>
-                content = content.replace(/<u>(.*?)<\/u>/g, '<span class="underline decoration-purple-400/60">$1</span>');
+                content = content.replace(/<u>(.*?)<\/u>/g, '<span class="underline decoration-amber-400/60">$1</span>');
                 // Italic: *text*
                 content = content.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="text-white/50 not-italic text-xs">$1</em>');
                 return (
                     <li key={i} className="flex items-start gap-2">
-                        <span className="text-purple-400/60 mt-1 shrink-0">•</span>
+                        <span className="text-white/40 mt-1 shrink-0">•</span>
                         <span dangerouslySetInnerHTML={{ __html: content }} />
                     </li>
                 );
@@ -113,7 +113,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
             <div className="flex items-start gap-4">
                 {/* Boss Image */}
                 <div className="relative shrink-0">
-                    <div className="w-24 h-24 rounded-xl border border-white/10 bg-black/40 overflow-hidden shadow-lg shadow-purple-900/20">
+                    <div className="w-24 h-24 rounded-xl border border-white/10 bg-black/40 overflow-hidden shadow-lg shadow-black/30">
                         <img
                             src={`/images/songes-bosses/${boss.Image}`}
                             alt={boss.Name}
@@ -198,7 +198,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                 href={`https://dofensive.com/fr/monster/${boss.Id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-purple-500/20 bg-purple-500/5 text-purple-300 hover:bg-purple-500/15 hover:text-white transition-all text-sm font-medium group"
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-all text-sm font-medium group"
             >
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 Voir sur Dofensive (détails complets)
@@ -258,47 +258,52 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                className="absolute inset-0 bg-[#0a0415]/80 backdrop-blur-sm animate-in fade-in duration-200"
                 onClick={onClose}
             />
 
-            {/* Drawer */}
-            <div className="relative w-full max-w-lg bg-[#0a0415] border-l border-white/10 shadow-2xl shadow-black/80 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col">
+            {/* Modal */}
+            <div className="relative w-full max-w-2xl max-h-[85vh] bg-[#0a0415] border border-white/10 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col">
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-[#0a0415]/95 backdrop-blur-xl border-b border-white/5 px-5 py-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-purple-400" />
-                            <h2 className="text-lg font-black text-white tracking-tight">Guide des Boss</h2>
+                <div className="sticky top-0 z-10 bg-[#0a0415]/95 backdrop-blur-xl border-b border-white/5 px-6 py-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                <BookOpen className="w-6 h-6 text-amber-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white tracking-tight">Guide des Boss</h2>
+                                <p className="text-xs text-white/30 mt-0.5">Songes Pour Les Noobs — par Volcasaurus</p>
+                            </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Search */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                         <input
                             ref={searchRef}
                             type="text"
                             placeholder="Rechercher un boss..."
                             value={search}
                             onChange={e => { setSearch(e.target.value); setSelectedBoss(null); }}
-                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 transition-all"
+                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-base placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-all"
                         />
                         {search && (
                             <button
                                 onClick={() => { setSearch(""); setSelectedBoss(null); }}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
                             >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="w-4 h-4" />
                             </button>
                         )}
                     </div>
@@ -310,31 +315,31 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                                 type="checkbox"
                                 checked={shortVersion}
                                 onChange={e => setShortVersion(e.target.checked)}
-                                className="rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/30 w-3.5 h-3.5"
+                                className="rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500/30 w-4 h-4"
                             />
-                            <span className="text-xs text-white/40 group-hover:text-white/60 transition-colors">Version courte</span>
+                            <span className="text-sm text-white/40 group-hover:text-white/60 transition-colors">Version courte</span>
                         </label>
                         <button
                             onClick={randomBoss}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all text-xs font-medium"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 hover:text-white transition-all text-sm font-medium"
                         >
-                            <Dice5 className="w-3.5 h-3.5" />
+                            <Dice5 className="w-4 h-4" />
                             Boss aléatoire
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-auto px-6 py-5">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <div className="w-6 h-6 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                        <div className="flex items-center justify-center py-20">
+                            <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-400 rounded-full animate-spin" />
                         </div>
                     ) : selectedBoss ? (
                         <>
                             <button
                                 onClick={() => setSelectedBoss(null)}
-                                className="text-xs text-purple-300/60 hover:text-purple-300 mb-3 flex items-center gap-1 transition-colors"
+                                className="text-sm text-white/40 hover:text-white/70 mb-4 flex items-center gap-1 transition-colors"
                             >
                                 ← Retour aux résultats
                             </button>
@@ -346,9 +351,9 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                                 <button
                                     key={boss.Id}
                                     onClick={() => setSelectedBoss(boss)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left group"
+                                    className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 transition-all text-left group"
                                 >
-                                    <div className="w-10 h-10 rounded-lg border border-white/10 bg-black/40 overflow-hidden shrink-0">
+                                    <div className="w-12 h-12 rounded-xl border border-white/10 bg-black/40 overflow-hidden shrink-0">
                                         <img
                                             src={`/images/songes-bosses/${boss.Image}`}
                                             alt={boss.Name}
@@ -357,33 +362,26 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-semibold text-white/80 group-hover:text-white truncate">{boss.Name}</div>
+                                        <div className="text-base font-semibold text-white/80 group-hover:text-white truncate">{boss.Name}</div>
                                         <DifficultyStars difficulty={boss.Difficulty} />
                                     </div>
-                                    <ChevronDown className="w-4 h-4 text-white/20 -rotate-90 group-hover:text-purple-400 transition-colors" />
+                                    <ChevronDown className="w-5 h-5 text-white/20 -rotate-90 group-hover:text-amber-400 transition-colors" />
                                 </button>
                             ))}
                         </div>
                     ) : search.trim() ? (
-                        <div className="text-center py-16 text-white/30 text-sm">
+                        <div className="text-center py-20 text-white/30 text-sm">
                             Aucun boss trouvé pour « {search} »
                         </div>
                     ) : (
-                        <div className="text-center py-16 space-y-4">
-                            <BookOpen className="w-12 h-12 text-purple-500/20 mx-auto" />
+                        <div className="text-center py-20 space-y-4">
+                            <BookOpen className="w-16 h-16 text-white/10 mx-auto" />
                             <div>
-                                <p className="text-white/40 text-sm font-medium">Cherche un boss pour voir sa fiche</p>
-                                <p className="text-white/20 text-xs mt-1">Guide par Volcasaurus</p>
+                                <p className="text-white/40 text-base font-medium">Cherche un boss pour voir sa fiche</p>
+                                <p className="text-white/20 text-sm mt-1">144 boss référencés</p>
                             </div>
                         </div>
                     )}
-                </div>
-
-                {/* Footer credit */}
-                <div className="border-t border-white/5 px-5 py-2.5 text-center">
-                    <span className="text-[10px] text-white/20 uppercase tracking-wider">
-                        Données : Songes Pour Les Noobs par Volcasaurus
-                    </span>
                 </div>
             </div>
         </div>

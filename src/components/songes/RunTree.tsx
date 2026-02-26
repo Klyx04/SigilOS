@@ -24,7 +24,7 @@ const PALIERS_DATA = [
     { id: 1, nom: "Les Pensées oniriques", floors: [1, 2, 3], color: "#10b981", hex: "10b981" },
     { id: 2, nom: "Les Balades fantastiques", floors: [4, 5, 6, 7, 8, 9], color: "#3b82f6", hex: "3b82f6" },
     { id: 3, nom: "Les Espaces imaginaires", floors: [10, 11, 12, 13, 14, 15], color: "#ec4899", hex: "ec4899" },
-    { id: 4, nom: "Les Concepts brumeux", floors: [16, 17, 18, 19, 20, 21], color: "#a855f7", hex: "a855f7" },
+    { id: 4, nom: "Les Concepts brumeux", floors: [16, 17, 18, 19, 20, 21], color: "#ef4444", hex: "ef4444" },
     { id: 5, nom: "Les Abstractions chimériques", floors: [22, 23, 24, 25], color: "#f59e0b", hex: "f59e0b" },
 ] as const;
 
@@ -151,12 +151,12 @@ function FloorNode({ floor, isCurrent, isCompleted, isLocked, isLeader, palierCo
             {/* Label étage */}
             <span
                 className={cn(
-                    "text-[10px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full border transition-all",
+                    "text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border transition-all",
                     isCurrent
                         ? "bg-white text-black border-white shadow-[0_0_14px_rgba(255,255,255,0.4)] scale-110"
                         : isCompleted
-                            ? "bg-white/10 text-white/50 border-white/10"
-                            : "bg-black/30 text-white/25 border-white/5"
+                            ? "bg-white/15 text-white/70 border-white/15"
+                            : "bg-black/40 text-white/35 border-white/10"
                 )}
             >
                 {floor}
@@ -318,7 +318,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
     const isBossCompleted = currentFloor > 26;
 
     return (
-        <div className="w-full bg-[#05010a] rounded-xl border border-purple-500/20 flex flex-col relative overflow-hidden shadow-2xl">
+        <div className="w-full bg-[#05010a] rounded-xl border border-white/10 flex flex-col relative overflow-hidden shadow-2xl">
             {/* ── Background ── */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <Image
@@ -343,22 +343,22 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
 
             {/* ── Header ── */}
             <div className="relative z-20 px-6 pt-6 pb-2 text-center">
-                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-purple-100 to-purple-400/60 uppercase tracking-[0.12em] transition-all">
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-white/40 uppercase tracking-[0.12em] transition-all">
                     Run de {leaderName || "L'Inconnu"}
                 </h2>
                 <div className="flex items-center justify-center gap-3 mt-1">
-                    <div className="h-px w-10 bg-purple-500/30" />
-                    <p className="text-purple-300/40 text-xs font-mono uppercase tracking-[0.3em]">
+                    <div className="h-px w-10 bg-white/15" />
+                    <p className="text-white/30 text-xs font-mono uppercase tracking-[0.3em]">
                         Puits des Songes Infinis
                     </p>
-                    <div className="h-px w-10 bg-purple-500/30" />
+                    <div className="h-px w-10 bg-white/15" />
                 </div>
             </div>
 
             {/* ── Scrollable Timeline ── */}
             <div
                 ref={scrollRef}
-                className="relative z-20 overflow-y-auto max-h-[800px] py-8 px-4 scrollbar-thin scrollbar-thumb-purple-900/50 scrollbar-track-transparent scroll-smooth"
+                className="relative z-20 overflow-y-auto max-h-[800px] py-8 px-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent scroll-smooth"
             >
                 {/* ── Portail d'entrée ── */}
                 <div
@@ -436,8 +436,8 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                                 {/* Nom du palier */}
                                 <p
                                     className={cn(
-                                        "text-[11px] font-black uppercase tracking-[0.15em] mb-4 transition-all duration-500",
-                                        isActivePalier ? "opacity-100" : isPalierCompleted ? "opacity-30" : "opacity-20"
+                                        "text-sm font-black uppercase tracking-[0.12em] mb-4 transition-all duration-500",
+                                        isActivePalier ? "opacity-100" : isPalierCompleted ? "opacity-50" : "opacity-30"
                                     )}
                                     style={{ color: palier.color }}
                                 >
@@ -479,7 +479,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                     <TimelineConnector color="rgba(245,158,11,0.4)" />
                 </div>
 
-                {/* ── Combat Final (Palier V — Étage 26 — Vagues) ── */}
+                {/* ── Combat Final (Salle 26 — Vagues Infinies) ── */}
                 <div
                     ref={isBossActive ? activeRef : undefined}
                     className="flex flex-col items-center mt-4 pb-8"
@@ -511,7 +511,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                             )}
                             {runStatus === "COMPLETED" && (
                                 <>
-                                    <p className="text-purple-400/50 text-xs uppercase tracking-widest text-center">
+                                    <p className="text-white/30 text-xs uppercase tracking-widest text-center">
                                         Le rêve est scellé
                                     </p>
                                     <button
@@ -546,10 +546,10 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                 <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="flex flex-col items-center gap-4">
                         <div className="relative">
-                            <div className="absolute inset-0 bg-purple-500/30 blur-xl rounded-full animate-pulse" />
-                            <Loader2 className="w-12 h-12 text-purple-400 animate-spin relative z-10" />
+                            <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full animate-pulse" />
+                            <Loader2 className="w-12 h-12 text-cyan-400 animate-spin relative z-10" />
                         </div>
-                        <span className="text-purple-200 font-medium tracking-[0.3em] uppercase text-xs animate-pulse">
+                        <span className="text-white/60 font-medium tracking-[0.3em] uppercase text-xs animate-pulse">
                             Voyage Onirique...
                         </span>
                     </div>

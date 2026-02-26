@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-25)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-26)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé. Module Stats Guilde terminé (40+ métriques, Recharts). Module Recherche DJ/Quêtes finalisé (UI gamifiée, embed live, édition posts).
+**Status** : 🟢 Beta active. Songes MAJ 3.5 déployé (Fontaine refonte, Épreuves, Guide Boss intégré). Module DJ interactions Discord fixé. Repo passé en public (GitHub Actions illimité).
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -36,7 +36,16 @@ SigilOS/
 │   │   │   └── DungeonDirectory.tsx      # Répertoire donjons
 │   │   ├── editor/             # TipTap editor + extensions
 │   │   ├── landing/            # Hero, BetaGate, Features...
-│   │   ├── songes/             # CreateRunButton, etc.
+│   │   ├── songes/             # Module Songes Infinis
+│   │   │   ├── CreateRunButton.tsx     # Bouton création run
+│   │   │   ├── RunCard.tsx             # Carte de run (liste)
+│   │   │   ├── RunDetailHeader.tsx     # Header détail run + badges épreuve + bouton Guide Boss
+│   │   │   ├── RunTree.tsx             # Arbre des étages (5 paliers + Combat Final)
+│   │   │   ├── RunStatsPanel.tsx       # Stats latérales
+│   │   │   ├── BonusInventory.tsx      # Inventaire Fontaine Onirique
+│   │   │   ├── JoinRequestsPanel.tsx   # Candidatures
+│   │   │   ├── RunLeaderActions.tsx    # Actions meneur
+│   │   │   └── BossGuide.tsx           # NEW — Modale Guide Boss (144 boss, data Volcasaurus)
 │   │   └── layout/             # PublicHeader, GalacticFooter, AppSidebar...
 │   ├── lib/
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
@@ -70,7 +79,7 @@ SigilOS/
 | **UI** | Tailwind CSS + shadcn/ui + Recharts + framer-motion |
 | **Monitoring** | Grafana + Prometheus + cAdvisor |
 | **Deploy** | Docker Compose + Caddy (SSL auto) |
-| **CI/CD** | GitHub Actions (verify.yml) — ~2000 min/mois |
+| **CI/CD** | GitHub Actions (verify.yml) — Repo public (minutes illimitées) |
 | **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
 | **OCR** | OCR.space API (Engine 2, succès ladder) |
 
@@ -169,6 +178,22 @@ SigilOS/
 
 ---
 
+### Session — Songes MAJ 3.5 + Guide Boss + Fix DJ (2026-02-26)
+
+- ✅ **Songes MAJ 3.5 — Fontaine Onirique** : Suppression de 5 anciens sorts, ajout de 8 nouveaux bonus, refonte UI inventaire avec catégories (Offensif/Défensif/Utilitaire/Spécial).
+- ✅ **Épreuves de Songe** : 4 épreuves avec difficulté, icône et description. Badge épreuve affiché dans RunCard, RunDetailHeader et embeds Discord. Masquage du badge objectif standard pour les runs épreuve.
+- ✅ **Guide des Boss** (nouveau composant `BossGuide.tsx`) : Modale centrée avec recherche parmi 144 boss. Fiche détaillée (difficulté étoiles, barres Focus/Esquive/Tank, panneaux Info/Mécaniques/Conseils colorés). Version courte, boss aléatoire, lien Dofensive. Data importée depuis Volcasaurus (YAML → JSON).
+- ✅ **Assets Boss** : 158 images + 9 icônes copiées dans `public/images/songes-bosses/`.
+- ✅ **Bypass Rate-Limit** : Variable `RATE_LIMIT_BYPASS_DISCORD_IDS` dans `.env` pour les devs/admins.
+- ✅ **Embeds Discord Songes** : Affichage de l'épreuve dans le titre + field dédié pour les runs épreuve.
+- ✅ **Dépurplisation UI** : Nettoyage massif du violet dans RunTree, RunDetailHeader, BossGuide. Palier IV rouge (#ef4444), accents ambre/doré pour le Guide Boss.
+- ✅ **Fix Palier IV** : Couleur violet → rouge. RunTree : labels paliers agrandis (text-sm), floor numbers plus lisibles.
+- ✅ **Fix DJ Discord Interactions** : Correction du lookup Discord snowflake → profil via `post.guildId`.
+- ✅ **Nettoyage branches** : `fix/dj-discord-interactions`, `fix/dj-discord-join`, `feat/songes-3.5` mergées dans dev et supprimées.
+- ✅ **Repo GitHub passé en public** : Minutes GitHub Actions illimitées.
+
+---
+
 ## 🔒 Sécurité
 
 ### Patterns Obligatoires (Server Actions)
@@ -226,6 +251,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Validator Inbox flottant (widget top-right, missions + achievements en attente)
 - Stats Guilde (40+ métriques, Recharts, dashboard complet)
 - **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH), points contribution par niveau, date obligatoire, UI gamifiée (pilule glissante framer-motion)
+- **Songes MAJ 3.5** — Fontaine Onirique refonte (8 nouveaux bonus), Épreuves de Songe (4 types), Guide Boss intégré (144 boss, modale centrée), dépurplisation UI, embeds Discord épreuve
 
 ### 🔄 En cours
 - Ocre Trade Request System (demandes d'échange in-app + ping Discord)
@@ -266,7 +292,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [ ] Calcul Ladder CRON (quand > 5000 membres)
 - [ ] Pagination membres/missions (quand > 500 entrées)
 - [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)
-- [ ] Self-hosted GitHub Actions runner sur VPS (illimité, gratuit)
+- [ ] Self-hosted GitHub Actions runner sur VPS (optionnel — repo public = illimité)
 
 ### 📄 P7 — Juridique *(Conclu)*
 - [x] Toutes les tâches légales code implémentées ✅ (Reste 3 actions manuelles)

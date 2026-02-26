@@ -419,6 +419,7 @@ model MissionInterest {
   profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([missionId, profileId])
+  @@index([profileId]) // PERF: "mes missions intéressées"
 }
 
 model Submission {
@@ -706,6 +707,7 @@ model Notification {
 
   @@index([userId])
   @@index([category])
+  @@index([userId, read, createdAt]) // PERF: composite index for getUnreadNotifications
 }
 
 // -- SONGES MODULE --
@@ -874,6 +876,7 @@ model DreamJoinRequest {
 
   @@unique([runId, userId])
   @@index([runId, status])
+  @@index([userId]) // PERF: "ai-je déjà postulé à cette run ?"
 }
 
 model DreamRunReminder {

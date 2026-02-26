@@ -832,9 +832,9 @@ export async function internalJoinDjPost(
         // Fire-and-forget: update Discord embed with new participant list
         const joinPostForEmbed = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            include: { guildConfig: { select: { discordGuildId: true } } },
+            include: { guild: { select: { discordGuildId: true } } },
         });
-        const joinGuildId = joinPostForEmbed?.guildConfig?.discordGuildId;
+        const joinGuildId = joinPostForEmbed?.guild?.discordGuildId;
         if (joinGuildId) updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
 
         return { success: true };
@@ -881,9 +881,9 @@ export async function internalLeaveDjPost(
         // Fire-and-forget: update Discord embed with new participant list
         const postForEmbed = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            include: { guildConfig: { select: { discordGuildId: true } } },
+            include: { guild: { select: { discordGuildId: true } } },
         });
-        const embedGuildId = postForEmbed?.guildConfig?.discordGuildId;
+        const embedGuildId = postForEmbed?.guild?.discordGuildId;
         if (embedGuildId) updateDjDiscordEmbed(embedGuildId, postId).catch(() => { });
 
         return { success: true };

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SigilOS — Bientôt Disponible</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            color: #e2e8f0;
+            overflow: hidden;
+            background: #0a0a0f;
+        }
+
+        /* Animated background */
+        .bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(20, 184, 166, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(245, 158, 11, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+                linear-gradient(180deg, #0a0a0f 0%, #0f1118 50%, #0a0a0f 100%);
+        }
+
+        /* Floating sigils */
+        .sigil {
+            position: fixed;
+            border-radius: 50%;
+            opacity: 0.15;
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .sigil:nth-child(1) {
+            width: 300px; height: 300px;
+            top: -100px; left: -50px;
+            background: radial-gradient(circle, rgba(20, 184, 166, 0.3), transparent);
+            animation-delay: 0s;
+        }
+        .sigil:nth-child(2) {
+            width: 200px; height: 200px;
+            bottom: -50px; right: -30px;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.25), transparent);
+            animation-delay: -7s;
+        }
+        .sigil:nth-child(3) {
+            width: 150px; height: 150px;
+            top: 40%; right: 15%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent);
+            animation-delay: -14s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            33% { transform: translateY(-30px) scale(1.05); }
+            66% { transform: translateY(20px) scale(0.95); }
+        }
+
+        /* Main card */
+        .card {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 560px;
+            padding: 48px 40px;
+            background: rgba(15, 17, 24, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 80px rgba(20, 184, 166, 0.05),
+                0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Animated glow border */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 25px;
+            background: linear-gradient(135deg,
+                rgba(20, 184, 166, 0.3),
+                transparent 40%,
+                transparent 60%,
+                rgba(245, 158, 11, 0.2));
+            z-index: -1;
+            opacity: 0.5;
+            animation: glow-rotate 8s linear infinite;
+        }
+
+        @keyframes glow-rotate {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 8px;
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(20, 184, 166, 0.3)); }
+            50% { filter: drop-shadow(0 0 20px rgba(20, 184, 166, 0.6)); }
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e2e8f0, #14b8a6, #f59e0b);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-shift 4s ease-in-out infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .subtitle {
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(20, 184, 166, 0.6);
+            margin-bottom: 32px;
+        }
+
+        .divider {
+            width: 60px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.4), transparent);
+            margin: 0 auto 24px;
+        }
+
+        .message {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: rgba(226, 232, 240, 0.7);
+            margin-bottom: 28px;
+        }
+
+        .message strong {
+            color: #14b8a6;
+            font-weight: 500;
+        }
+
+        .lore {
+            font-size: 0.8rem;
+            font-style: italic;
+            color: rgba(226, 232, 240, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+            line-height: 1.6;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(20, 184, 166, 0.1);
+            border: 1px solid rgba(20, 184, 166, 0.2);
+            padding: 8px 20px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: #14b8a6;
+            margin-bottom: 28px;
+        }
+
+        .status .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #14b8a6;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        @media (max-width: 600px) {
+            .card { margin: 16px; padding: 32px 24px; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg"></div>
+    <div class="sigil"></div>
+    <div class="sigil"></div>
+    <div class="sigil"></div>
+
+    <div class="card">
+        <div class="logo">🌀</div>
+        <h1>SigilOS</h1>
+        <div class="subtitle">Forgé pour les Guildes</div>
+        <div class="divider"></div>
+
+        <div class="status">
+            <span class="dot"></span>
+            Préparation en cours
+        </div>
+
+        <p class="message">
+            Les <strong>Sigils</strong> sont en cours de calibration.<br>
+            La plateforme sera bientôt accessible aux guildes.
+        </p>
+
+        <p class="lore">
+            « Dans l'ombre du Krosmoz, les Sigils furent forgés pour unir les guildes
+            au-delà des dimensions. Bientôt, leur lumière guidera les aventuriers. »
+        </p>
+    </div>
+</body>
+</html>

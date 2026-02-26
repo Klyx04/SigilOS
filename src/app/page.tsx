@@ -14,7 +14,31 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
+import { getAppBaseUrl } from "@/lib/utils";
+
 export const dynamic = "force-dynamic";
+
+// JSON-LD Structured Data for SEO
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "SigilOS",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Web",
+  "url": "https://sigilos.fr",
+  "description": "Plateforme de gestion de guilde Dofus tout-en-un : quêtes, Songes Infinis, Dungeon Finder, Ladder XP, bot Discord et outils communautaires.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "EUR",
+  },
+  "creator": {
+    "@type": "Organization",
+    "name": "SigilOS",
+    "url": "https://sigilos.fr",
+  },
+  "aggregateRating": undefined, // Will be added when we have reviews
+};
 
 export default async function Home({
   searchParams,
@@ -35,6 +59,10 @@ export default async function Home({
 
   return (
     <NebulaClientWrapper>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col overflow-x-hidden">
 
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />

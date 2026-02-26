@@ -32,6 +32,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { StatProgress } from "./_components/stat-progress";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
+import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 
 export default async function DashboardPage({
     params,
@@ -82,6 +83,16 @@ export default async function DashboardPage({
             {/* Onboarding Welcome Modal (Admins only) */}
             {user.isAdmin && profile && !profile.hasSeenWelcome && (
                 <WelcomeModal guildId={guildId} show={true} />
+            )}
+
+            {/* Onboarding Welcome Modal (Members — non-admin) */}
+            {!user.isAdmin && profile && !profile.hasSeenWelcome && (
+                <MemberWelcomeModal
+                    guildId={guildId}
+                    guildName={user.guildName || "ta guilde"}
+                    userName={profile.pseudoDofus || user.name || "Aventurier"}
+                    show={true}
+                />
             )}
 
             <div className="relative z-10 p-4 md:p-6 space-y-10 max-w-[1600px] mx-auto">

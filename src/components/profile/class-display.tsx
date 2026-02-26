@@ -145,15 +145,15 @@ export function ClassDisplay({
                 )}
 
                 <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
-                    <DialogHeader className="p-6 pb-2 border-b border-white/5">
-                        <DialogTitle className="text-xl">Modifier votre profil</DialogTitle>
-                        <DialogDescription>Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
+                    <DialogHeader className="p-8 pb-4 border-b border-white/5">
+                        <DialogTitle className="text-2xl font-black">Modifier votre profil</DialogTitle>
+                        <DialogDescription className="text-base text-zinc-400">Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
                     </DialogHeader>
 
-                    <div className="px-6 pt-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 pl-1">
-                                <UserCircle className="w-4 h-4" />
+                    <div className="px-8 pt-6 pb-2">
+                        <div className="space-y-3">
+                            <label className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2 pl-1">
+                                <UserCircle className="w-5 h-5" />
                                 Pseudo Dofus Exact
                             </label>
                             <div className="relative">
@@ -164,20 +164,20 @@ export function ClassDisplay({
                                         setLocalPseudo(val);
                                     }}
                                     placeholder="Votre pseudo en jeu..."
-                                    className="bg-zinc-900/50 border-white/10 h-11 focus:ring-primary/20 pr-12 text-base"
+                                    className="bg-zinc-900/50 border-white/10 h-14 focus:ring-primary/20 pr-16 text-lg font-semibold"
                                     maxLength={50}
                                 />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-500">
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-mono text-zinc-500">
                                     {localPseudo.length}/50
                                 </div>
                             </div>
-                            <p className="text-xs text-zinc-500 italic pl-1">
-                                Ce pseudo doit être <strong>unique</strong> dans la guilde. Il servira pour les classements et sera lié à votre compte Metamob.
+                            <p className="text-sm text-zinc-500 pl-1">
+                                Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Il servira pour les classements et l&apos;identification dans les modules (missions, songes, etc.).
                             </p>
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded p-3 mt-2">
-                                <p className="text-xs text-amber-200 flex gap-1.5 items-start">
-                                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                                    Astuce : Mettez exactement le même pseudo que sur Metamob pour faciliter la liaison.
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                                <p className="text-sm text-amber-200 flex gap-2 items-start">
+                                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
+                                    Si vous utilisez Metamob, mettez le même pseudo ici pour faciliter la liaison automatique dans le module Quête Ocre.
                                 </p>
                             </div>
                         </div>

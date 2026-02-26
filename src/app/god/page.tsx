@@ -28,6 +28,8 @@ import { ActivityChart } from "./activity-chart";
 import { JanitorButton } from "./janitor-button";
 import { UserList } from "./user-list";
 import { GodDashboardClient } from "./god-dashboard-client";
+import { AnnouncementPanel } from "./components/announcement-panel";
+import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 
 export default async function SuperAdminPage() {
@@ -97,24 +99,31 @@ export default async function SuperAdminPage() {
                     </div>
                 }
                 maintenance={
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                        <div className="lg:col-span-2 space-y-10">
-                            {/* Lifecycle Management */}
-                            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
-                                    <LifecycleServer />
+                    <div className="space-y-12">
+                        {/* Communication Panel (Announcement Banner + Discord Broadcast) */}
+                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                            <AnnouncementServer />
+                        </Suspense>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                            <div className="lg:col-span-2 space-y-10">
+                                {/* Lifecycle Management */}
+                                <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                        <LifecycleServer />
+                                    </Suspense>
+                                </div>
+                            </div>
+
+                            <div className="space-y-8">
+                                {/* Janitor (Rebranded as Maintenance Service) */}
+                                <JanitorButton />
+
+                                {/* Ghost Users */}
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
+                                    <GhostUsersServer />
                                 </Suspense>
                             </div>
-                        </div>
-
-                        <div className="space-y-8">
-                            {/* Janitor (Rebranded as Maintenance Service) */}
-                            <JanitorButton />
-
-                            {/* Ghost Users */}
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
-                                <GhostUsersServer />
-                            </Suspense>
                         </div>
                     </div>
                 }
@@ -406,4 +415,9 @@ function TableLoading() {
             </div>
         </div>
     );
+}
+
+async function AnnouncementServer() {
+    const currentAnnouncement = await getSystemAnnouncement();
+    return <AnnouncementPanel currentAnnouncement={currentAnnouncement} />;
 }

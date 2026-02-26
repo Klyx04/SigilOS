@@ -217,6 +217,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+      - ./public/maintenance.html:/srv/static/maintenance.html:ro        # 🔴 Prod maintenance page
+      - ./public/maintenance-beta.html:/srv/static/maintenance-beta.html:ro  # 🟡 Beta maintenance page
       # Uploads are served by Next.js API route — no Caddy volume needed
     env_file: .env.prod
     networks:

@@ -1,3 +1,10 @@
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Conditions Générales d'Utilisation",
+    description: "CGU de SigilOS : règles d'utilisation, propriété intellectuelle, obligations et limitation de responsabilité.",
+};
+
 export default function CGUPage() {
     return (
         <div className="space-y-8">

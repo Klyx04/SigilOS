@@ -17,7 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 // CONSTANTS & HELPERS
 // ============================================
 
-const JOIN_REQUEST_TTL_MS = 10 * 60 * 1000; // 10 minutes (PRODUCTION)
+const JOIN_REQUEST_TTL_MS = 24 * 60 * 60 * 1000; // 24 heures
 
 /**
  * Clean up expired join requests (Auto-Reject)

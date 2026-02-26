@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-20)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-25)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé. Module Stats Guilde terminé (40+ métriques, Recharts). Module Recherche DJ/Quêtes terminé.
+**Status** : 🟢 Beta active. Phase P4 (Performance & Infra). BullMQ Worker Ocre déployé. Validator Inbox opérationnel. Système Sondages V2 (PIM) finalisé. Module Stats Guilde terminé (40+ métriques, Recharts). Module Recherche DJ/Quêtes finalisé (UI gamifiée, embed live, édition posts).
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -14,6 +14,7 @@ SigilOS/
 ├── src/
 │   ├── app/                    # Pages & API routes (Next.js App Router)
 │   │   ├── api/                # Routes API (uploads, discord, health...)
+│   │   │   └── discord/interactions/route.ts  # Boutons Discord (dj:join, dj:leave, poll:vote...)
 │   │   ├── dashboard/          # Dashboard guildes (auth required)
 │   │   │   └── [guildId]/admin/modules/  # Toggle modules par guilde
 │   │   ├── god/                # Super-admin panel (isSuperAdmin only)
@@ -23,6 +24,16 @@ SigilOS/
 │   │   ├── auth/               # Custom Auth pages (signout, error)
 │   │   └── legal/              # Documents Légaux (CGU, Privacy, Mentions)
 │   ├── components/             # Composants UI réutilisables
+│   │   ├── dungeon-finder/     # Module DJ/Quêtes complet
+│   │   │   ├── DungeonFinderClient.tsx   # Onglets (Posts/Succès/Répertoire) + framer-motion
+│   │   │   ├── DjFiltersBar.tsx          # Filtres + pilule glissante layoutId
+│   │   │   ├── DjPostCard.tsx            # Carte post (bouton Terminer)
+│   │   │   ├── DjPostDetailModal.tsx     # Modale détail (Modifier + Supprimer)
+│   │   │   ├── DjPostCreateModal.tsx     # Création post (date obligatoire)
+│   │   │   ├── DjEditModal.tsx           # NEW — modification post (créateur uniquement)
+│   │   │   ├── DjCloseModal.tsx          # Clôture + distribution points contribution
+│   │   │   ├── AchievementTracker.tsx    # Tracker succès (icônes claires)
+│   │   │   └── DungeonDirectory.tsx      # Répertoire donjons
 │   │   ├── editor/             # TipTap editor + extensions
 │   │   ├── landing/            # Hero, BetaGate, Features...
 │   │   ├── songes/             # CreateRunButton, etc.
@@ -35,6 +46,7 @@ SigilOS/
 │   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
+│       │   ├── dungeon-finder-actions.ts  # DJ complet : CRUD, internalJoin/Leave, updateDiscordEmbed
 │       │   ├── module-actions.ts  # Toggle modules par guilde
 │       │   ├── ocre-actions.ts    # Ocre exchange + trade requests
 │       │   ├── songes/         # Gestion des runs Songes
@@ -55,10 +67,10 @@ SigilOS/
 | **Cache/Queue** | Redis 7 + BullMQ (workers asynchrones) |
 | **Bot Discord** | discord.js v14 |
 | **Editor** | TipTap (rich text, slash commands, images) |
-| **UI** | Tailwind CSS + shadcn/ui + Recharts |
+| **UI** | Tailwind CSS + shadcn/ui + Recharts + framer-motion |
 | **Monitoring** | Grafana + Prometheus + cAdvisor |
 | **Deploy** | Docker Compose + Caddy (SSL auto) |
-| **CI/CD** | GitHub Actions (verify.yml) |
+| **CI/CD** | GitHub Actions (verify.yml) — ~2000 min/mois |
 | **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
 | **OCR** | OCR.space API (Engine 2, succès ladder) |
 
@@ -106,59 +118,8 @@ SigilOS/
 - ✅ **Bug Fixes (Dungeon Finder)** : Ajout des champs requis `expiresAt` et `userId` manquants pour la création et la jonction de posts DJ.
 - ✅ **Bug Fixes (Game Data Import)** : Remplacement de l'upsert par `slug` au lieu de `name` sur les challenges, résolvant un conflit de contrainte d'unicité.
 - ✅ **Bug Fixes (CI Action)** : Ajout d'un bypass TypeScript pour la CI GitHub sur le type généré unique `name_bossName` des donjons.
-- ✅ **Features (Admin Data)** : Accès exceptionnel temporaire à la route Game Data pour super-admins en production afin d'importer les seeds.
 - ✅ **Infrastructure (VPS)** : Configuration des limites de ressources Docker (Memory/Disk) et auto-updates.
 - ✅ **Infra** : Migration env var `NEXT_PUBLIC_BETA_PASSWORD` → `BETA_PASSWORD` (Dockerfile + docker-compose.prod.yml)
-
----
-
-### Session — Finalisation Sondages V2 & Sécurité (2026-02-19)
-
-- ✅ **Sondages V2 (Outcomes)** : Implémentation du système de décision (Winner/Outcome), archivage automatique et résumé Discord enrichi des résultats complets.
-- ✅ **Redesign Notifications** : Refonte complète du système (catégories, filtres persistants) et UI premium pour les préférences utilisateurs et staff.
-- ✅ **Audit & Hardening** : Audit de sécurité complet. Suppression des routes de debug (`/debug-ui`) et de test (`ui-test`). Sécurisation de l'API d'upload (Super-Admin only).
-- ✅ **Code Cleanup** : Purge des fichiers de contexte orphelins dans `src/` et suppression des reliquats de migration (Kralamoure).
-- ✅ **Robustesse & Build** : Overhaul des embeds Discord, validation du build de production et monitoring des statistiques plateforme.
-
----
-
-### Session — Module Stats Guilde (2026-02-20)
-
-- ✅ **Stats Dashboard** : Nouveau module complet `/dashboard/[guildId]/stats` avec 40+ métriques agrégées via `guild-stats-actions.ts`.
-- ✅ **Composants Recharts** : 7 composants spécialisés (StatCard, ActivityChart, MissionsStats, SongesStats, EventsStats, CommunityStats, RecordsSection) avec design glassmorphism.
-- ✅ **Optimisation** : Toutes les requêtes Prisma en `Promise.all` parallèle.
-- ✅ **Fix Dashboard** : Adaptation de `dashboard/[guildId]/page.tsx` au nouveau type `GuildStats` (`.stats` au lieu de `.data`).
-- ✅ **Branche** : `feat/guild-stats` pushée, PR disponible vers `dev`.
-
----
-
-### Session — Finalisation P2 & Correction Missions (2026-02-18)
-
-- ✅ **Missions Anomalies**: Correction de la génération de description. Ajout du niveau et de l'**Elixir uchronique** (sans mention 'majeur').
-- ✅ **Branding Catégories**: Validation des visuels `anomalie.png` et `songes.png`.
-- ✅ **TODO Management**: Validation officielle de la Phase 2. Déplacement du point technique "Plan B Discord" vers la P4 (Optimisation).
-- ✅ **Git Cleanup**: Fusion de `feat/p2-songes-ux` et `feat/guild-modules` dans `dev`, puis merge de `dev` vers `main`. Suppression des branches obsolètes.
-
----
-
-### Session — Sondages PIM & Discord Embed Overhaul (2026-02-19)
-
-- ✅ **Système Micro (PIM)** : Exclusivité 1h par membre pour créer un sondage. Micro Status Bar avec compte à rebours live dans le dashboard. Animations de disponibilité.
-- ✅ **Cooldown Catégorie** : Un membre ne peut pas créer deux sondages de la même catégorie en moins de 7 jours (hors admins).
-- ✅ **Admin Settings Sondages** : Nouvel onglet dédié dans `/admin/settings` pour configurer le canal Discord et le rôle de mention par défaut.
-- ✅ **Discord Embed Overhaul** : Bannières grand format (assets locaux), boutons de vote directs (jusqu'à 5), métadata clarifiées, titre expressif en grand.
-- ✅ **Gouvernance** : Édition dynamique des sondages actifs, limite à 10 options, audit logging (prises de micro + créations).
-- ✅ **Build & Types** : Fix `"use client"` manquant sur `poll-list.tsx`, résolution des faux positifs TypeScript sur `poll`/`voter`/`sigilRole`. Lazy Close implémenté dans `getPolls`.
-- ✅ **Nouveaux champs DB** : `pollsNotifyChannelId`, `pollsNotifyRoleId` dans `GuildConfig`.
-
----
-
-### Session — Mission Image Fix & GOD Game Data Redesign (2026-02-19)
-
-- ✅ **Mission Card Fix** : `mission-card.tsx` — remplacement de `w-[40%]` par `w-[128px]` fixe + `object-contain` pour corriger le scaling des sprites monsters/donjons sur le VPS beta.
-- ✅ **GOD Game Data UI Redesign** : Refonte ultra-wide de toutes les interfaces de gestion (Donjons, MonsterFamilies, Challenges) avec grilles 12 colonnes, galeries embarquées fixes 400px, footers normalisés (`h-14`).
-- ✅ **Nouvelles Fonctionnalités GOD** : Zone Filter dropdown pour les MonsterFamilies, champ `level` optionnel sur `MonsterFamily`, support niveaux jusqu'à 1000 pour les Donjons, liaison directe Famille/Boss ↔ Zone via `MultiSelect`.
-- ✅ **Prisma Schema** : Ajout du champ `level` sur le modèle `MonsterFamily`.
 
 ---
 
@@ -168,7 +129,6 @@ SigilOS/
 - ✅ **`npm run worker`** : Nouveau script dans `package.json`. En dev, lancer en parallèle de `npm run dev`. Worker inclus dans le build Docker via `esbuild`.
 - ✅ **Async Ocre Exchange** : `findOcreExchangePartners` transformé en action asynchrone (dispatch job → retourne `jobId`). `getOcreExchangeJobStatus` pour le polling frontend toutes les 1.5s avec progress bar.
 - ✅ **VPS Production** : Deux nouveaux containers indépendants `worker-beta` et `worker-prod` dans `docker-compose.prod.yml`. `deploy.sh` mis à jour pour redémarrer les workers automatiquement.
-- ✅ **Redis docker-compose** : Restauration de la dépendance au service Redis externe. Fix du mot de passe Redis (suppression des guillemets dans `.env`).
 
 ---
 
@@ -177,16 +137,35 @@ SigilOS/
 - ✅ **Fix Redis Auth** : `NOAUTH Authentication required` — instruction de supprimer les guillemets autour de `REDIS_PASSWORD` dans `.env`.
 - ✅ **Fix Prisma P2022** : Drift entre client Prisma du conteneur et la DB réelle — fix via rebuild complet `./scripts/deploy.sh beta`.
 - ✅ **Fix Dashboard Crash** : `TypeError` sur `pseudoDofus` d'un profil non chargé — garde `if (!profile) return null` dans `page.tsx`.
-- ✅ **Validator Inbox Flottant** : Widget persistant dans le layout (header top-right) affichant les missions et achievements en attente de validation. Visible uniquement si l'utilisateur a les permissions de validator et qu'il y a des tâches en attente. Navigation rapide vers la page de validation.
-- ✅ **Songe Module** : Ajustements complémentaires au module Songes (CreateRunButton et composants associés).
+- ✅ **Validator Inbox Flottant** : Widget persistant dans le layout (header top-right) affichant les missions et achievements en attente de validation.
 
 ---
 
-### Session — Ocre Trade Request System (En cours - 2026-02-20)
+### Session — Sondages PIM & Discord Embed Overhaul (2026-02-19)
 
-- 🔄 **Nouveau modèle `OcreTradeRequest`** : Système de demande d'échange asynchrone. Quand User A veut un monstre à User B, il envoie une demande avec message optionnel → ping Discord sur `ocreNotifyChannelId` → User B accepte depuis le dashboard → MAJ automatique Metamob API pour les deux utilisateurs.
-- 🔄 **Nouveaux types Notification** : `OCRE_TRADE_REQUEST`, `OCRE_TRADE_ACCEPTED`, `OCRE_TRADE_REJECTED`.
-- 🔄 **Nouveau champ DB** : `ocreNotifyChannelId` dans `GuildConfig`.
+- ✅ **Système Micro (PIM)** : Exclusivité 1h par membre. Micro Status Bar avec compte à rebours live. Cooldown catégorie 7 jours.
+- ✅ **Admin Settings Sondages** : Onglet dédié dans `/admin/settings` pour configurer canal Discord + rôle de mention.
+- ✅ **Discord Embed Overhaul** : Bannières grand format, boutons de vote directs (jusqu'à 5), Gouvernance & Édition dynamique.
+
+---
+
+### Session — Dungeon Finder — Refonte UI & Embed Live (2026-02-25)
+
+- ✅ **UI Gamifiée** : Onglets principaux avec pilule glissante fluide (`framer-motion layoutId`). Filtres Tous/Donjon/Quête avec même animation.
+- ✅ **Anti-layout-shift** : Conteneur fixe pour le bouton Reset (ne fait plus sauter les filtres à l'apparition).
+- ✅ **Date obligatoire** : Validation client + serveur à la création d'un post. Input `datetime-local` avec `min` à now et astérisque rouge.
+- ✅ **DjEditModal** (nouveau composant) : Modale de modification accessible uniquement au créateur du post. Champs : date, taille groupe, succès visés, classes requises, message. Donjon/Quête non modifiables.
+- ✅ **`updateDjPost`** : Server action sécurisée (propriétaire uniquement, post non fermé).
+- ✅ **Permissions claires** :
+  - Clôturer : bouton "Terminer" sur la carte (créateur uniquement → `DjCloseModal`)
+  - Modifier : bouton "Modifier" dans la modale de détail (créateur uniquement → `DjEditModal`)
+  - Supprimer : bouton "Supprimer" dans la modale (créateur + admin)
+- ✅ **Points contribution par niveau** : 1–99 → 1pt, 100–149 → 2pts, 150–199 → 3pts, 200+ → 4pts. Affiché dynamiquement dans `DjCloseModal`.
+- ✅ **Embed Discord — participants live** : Champ `👤 Membres (N/M)` mis à jour dynamiquement avec les noms des participants acceptés.
+- ✅ **`discordMessageId` sauvegardé** : Après envoi de l'embed initial, l'ID du message Discord est stocké en DB.
+- ✅ **PATCH embed auto** : `updateDiscordEmbed()` appelée (fire-and-forget) à chaque `internalJoinDjPost` / `internalLeaveDjPost` → l'embed Discord se met à jour en temps réel.
+- ✅ **Thumbnail donjon** : Guard `https://` — l'image n'est incluse que si l'URL est publiquement accessible (pas localhost).
+- ✅ **Pseudo display** : Priorité `discordNickname > pseudoDofus > dofusPseudo` dans toutes les vues.
 
 ---
 
@@ -223,6 +202,8 @@ npm run dev       # Terminal 1 — Next.js
 npm run worker    # Terminal 2 — BullMQ Worker
 ```
 
+**Assets jeu** : Les images de donjons sont dans `public/game-data/dungeons/*.webp`. Pour les synchro sur beta : `./scripts/sync-assets.sh`. Nécessaire pour que les thumbnails Discord fonctionnent en beta/prod.
+
 ---
 
 ## 📊 État Actuel des Modules
@@ -243,8 +224,8 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
 - Validator Inbox flottant (widget top-right, missions + achievements en attente)
-- **Stats Guilde** (40+ métriques, Recharts, dashboard complet — `feat/guild-stats`)
-- **Module Recherche DJ/Quêtes** — (Finder complet, embeds discord, invitations métier)
+- Stats Guilde (40+ métriques, Recharts, dashboard complet)
+- **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH), points contribution par niveau, date obligatoire, UI gamifiée (pilule glissante framer-motion)
 
 ### 🔄 En cours
 - Ocre Trade Request System (demandes d'échange in-app + ping Discord)
@@ -253,6 +234,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
 - Lazy Cleanup candidatures Songes expirées en CRON
 - Calcul Ladder en CRON pré-calculé (actuellement on-the-fly)
+- Assets game-data sync vers beta (thumbnails Discord donjons)
 
 ---
 
@@ -277,13 +259,14 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [x] Index DB critiques (`Submission`, `UserProfile`) ✅
 - [x] Cache Discord API (TTL 5min/10min) ✅
 - [x] Module Stats Guilde terminé ✅
-- [x] Module Recherche DJ/Quêtes terminé ✅
+- [x] Module Recherche DJ/Quêtes terminé ✅ (UI gamifiée, embed live, DjEditModal, points contribution)
 - [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
 - [ ] Plan B Discord API down (retry + queue)
 - [ ] Lazy Cleanup Songes vers CRON
 - [ ] Calcul Ladder CRON (quand > 5000 membres)
 - [ ] Pagination membres/missions (quand > 500 entrées)
 - [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)
+- [ ] Self-hosted GitHub Actions runner sur VPS (illimité, gratuit)
 
 ### 📄 P7 — Juridique *(Conclu)*
 - [x] Toutes les tâches légales code implémentées ✅ (Reste 3 actions manuelles)

@@ -178,10 +178,10 @@ export function DjPostDetailModal({
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                    {post.questUrl && (
+                                    {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && (
                                         <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                            className="text-[11px] font-bold text-slate-400 hover:text-cyan-400 border border-slate-700 hover:border-cyan-500/50 bg-slate-900 rounded-md px-2 py-1 transition-colors flex items-center gap-1.5">
-                                            <Link2 className="w-3 h-3" /> Tutoriel
+                                            className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-2 py-1 transition-colors flex items-center gap-1.5">
+                                            <Link2 className="w-3 h-3" /> Voir la quête
                                         </a>
                                     )}
                                     {post.questId && post.questId !== -1 && (

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords } from "lucide-react";
+import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, ScrollText, Link2 } from "lucide-react";
 import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -34,6 +34,11 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
         post.requiredClasses ?? []
     );
 
+    // Quête manuelle = pas de questId valide
+    const isManualQuest = post.mode === "QUETE" && (!post.questId || post.questId <= 0);
+    const [questName, setQuestName] = useState(post.questName ?? "");
+    const [questUrl, setQuestUrl] = useState(post.questUrl ?? "");
+
     function toggleAchievement(id: string) {
         setSelectedAchievements(prev =>
             prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
@@ -58,6 +63,10 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                 targetDate: new Date(targetDate),
                 wantedAchievementIds: selectedAchievements,
                 requiredClasses,
+                ...(isManualQuest && {
+                    questName: questName.trim() || null,
+                    questUrl: questUrl.trim() || null,
+                }),
             });
             if (res.success) {
                 toast.success("Post mis à jour !");
@@ -106,6 +115,43 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         />
                     </div>
 
+                    {/* Nom et lien quête manuelle */}
+                    {isManualQuest && (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                    <ScrollText className="w-3.5 h-3.5 text-emerald-400" />
+                                    Nom de la quête
+                                </label>
+                                <input
+                                    type="text"
+                                    value={questName}
+                                    onChange={(e) => setQuestName(e.target.value)}
+                                    maxLength={100}
+                                    placeholder="Ex : Bijoux de famille"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                    <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                                    Lien Dofus pour les Noobs
+                                    <span className="text-[10px] text-slate-500 font-normal">(optionnel)</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    value={questUrl}
+                                    onChange={(e) => setQuestUrl(e.target.value)}
+                                    placeholder="https://dofuspourlesnoobs.com/quetes/..."
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                />
+                                {questUrl && !questUrl.includes("dofuspourlesnoobs") && (
+                                    <p className="text-xs text-amber-500">⚠️ Seuls les liens dofuspourlesnoobs.com sont affichés sur la carte.</p>
+                                )}
+                            </div>
+                        </>
+                    )}
+
                     {/* Group size */}
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
@@ -140,8 +186,8 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                             key={a.id}
                                             onClick={() => toggleAchievement(a.id)}
                                             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${selected
-                                                    ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
-                                                    : "border-slate-800 bg-slate-900 hover:border-slate-600 text-slate-400"
+                                                ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
+                                                : "border-slate-800 bg-slate-900 hover:border-slate-600 text-slate-400"
                                                 }`}
                                         >
                                             {a.challenge.iconUrl && (
@@ -171,8 +217,8 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                         title={c.name}
                                         onClick={() => toggleClass(c.name)}
                                         className={`aspect-square rounded-lg flex items-center justify-center transition-all border ${isSelected
-                                                ? "border-indigo-500 bg-indigo-500/20"
-                                                : "border-transparent opacity-50 hover:opacity-100 hover:bg-slate-800"
+                                            ? "border-indigo-500 bg-indigo-500/20"
+                                            : "border-transparent opacity-50 hover:opacity-100 hover:bg-slate-800"
                                             }`}
                                     >
                                         <img

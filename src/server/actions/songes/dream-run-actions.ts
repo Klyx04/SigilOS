@@ -17,7 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 // CONSTANTS & HELPERS
 // ============================================
 
-const JOIN_REQUEST_TTL_MS = 10 * 60 * 1000; // 10 minutes (PRODUCTION)
+const JOIN_REQUEST_TTL_MS = 24 * 60 * 60 * 1000; // 24 heures
 
 /**
  * Clean up expired join requests (Auto-Reject)
@@ -783,9 +783,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                     `Un nouveau joueur a postulé.`,
                     {
                         embedTitle: "📩 Nouvelle candidature Songes",
-                        embedUrl: runUrl,
                         embedColor,
-                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                         fields: [
                             { name: "👤 Candidat", value: candidateName, inline: true },
                             { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
@@ -793,7 +791,8 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                             { name: "📝 Message", value: validated.data.message ? `>>> ${validated.data.message.slice(0, 200)}` : "*Aucun*", inline: false },
                         ],
                         embedFooter: `SigilOS • Songes`,
-                        mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
+                        mentionContent: `👋 ${leaderMention} — **${candidateName}** a postulé ! [→ Dashboard](<${runUrl}>)`,
+                        suppressEmbeds: true,
                     }
                 );
 

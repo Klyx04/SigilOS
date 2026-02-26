@@ -33,6 +33,24 @@ function checkRateLimit(key: string, maxRequests: number, windowMs: number): boo
     return true;
 }
 
+/** Returns remaining wait seconds (0 = not rate-limited) */
+function getRateLimitRemaining(key: string, maxRequests: number, windowMs: number): number {
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+        return 0;
+    }
+
+    if (entry.count >= maxRequests) {
+        return Math.ceil((entry.resetAt - now) / 1000);
+    }
+
+    entry.count++;
+    return 0;
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -138,6 +156,28 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
+            } else if (prefix === "dj") {
+                // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
+                const djKey = `dj:${member.user.id}:${entityId}`;
+                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                if (waitSecs > 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `⏳ Doucement ! Réessaie dans **${waitSecs}s**.`, flags: 64 },
+                    });
+                }
+
+                if (action === "join") {
+                    const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
+                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
+                    else { result = await internalJoinDjPost(entityId, djProfile.id, account.userId); }
+                } else if (action === "leave") {
+                    const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
+                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
+                    else { result = await internalLeaveDjPost(entityId, djProfile.id); }
+                }
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     const { processPollVote } = await import("@/server/actions/poll-actions");
@@ -239,7 +279,15 @@ export async function POST(request: NextRequest) {
             }
 
             if (result?.success) {
-                return NextResponse.json({ type: 6 }); // ACK
+                // DJ interactions: give ephemeral feedback
+                if (prefix === "dj") {
+                    const label = action === "join" ? "✅ Tu as rejoint le groupe !" : "👋 Tu as quitté le groupe.";
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: label, flags: 64 },
+                    });
+                }
+                return NextResponse.json({ type: 6 }); // ACK silencieux (others)
             } else {
                 return NextResponse.json({
                     type: 4,

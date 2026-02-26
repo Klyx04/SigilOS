@@ -1,0 +1,2471 @@
+{
+  "version": "2.0",
+  "exportedAt": "2026-02-21T18:12:03.311Z",
+  "exportedBy": "cmlvkhd71001eqkog8j4cbjlq",
+  "data": {
+    "families": [
+      {
+        "id": "cmlvk5ymx0001coogocef51y9",
+        "name": "Zarbivores ",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/zarbivores.webp",
+        "createdAt": "2026-02-21T00:06:01.111Z",
+        "updatedAt": "2026-02-21T00:24:17.076Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yn60002coogkyff536a",
+        "name": "Égarés",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/gar-s.webp",
+        "createdAt": "2026-02-21T00:06:01.121Z",
+        "updatedAt": "2026-02-21T00:24:17.097Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yne0003coogo8flsr0p",
+        "name": "Enutrofors",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/enutrofors.webp",
+        "createdAt": "2026-02-21T00:06:01.129Z",
+        "updatedAt": "2026-02-21T00:24:17.109Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ynn0004coogzc01xrfy",
+        "name": "Cour Sombre",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/cour-sombre.webp",
+        "createdAt": "2026-02-21T00:06:01.137Z",
+        "updatedAt": "2026-02-21T00:24:17.121Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ynw0005coogxfwos1fm",
+        "name": "Grand Jeu",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/grand-jeu.webp",
+        "createdAt": "2026-02-21T00:06:01.147Z",
+        "updatedAt": "2026-02-21T00:24:17.132Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yo60006coogks40zph4",
+        "name": "Rhoarims",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/rhoarims.webp",
+        "createdAt": "2026-02-21T00:06:01.156Z",
+        "updatedAt": "2026-02-21T00:24:17.144Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yoe0007coogrvhfrrsa",
+        "name": "Nécrotiques",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/n-crotiques.webp",
+        "createdAt": "2026-02-21T00:06:01.165Z",
+        "updatedAt": "2026-02-21T00:24:17.156Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yom0008coognp620ghb",
+        "name": "Hordémons",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/hord-mons.webp",
+        "createdAt": "2026-02-21T00:06:01.173Z",
+        "updatedAt": "2026-02-21T00:24:17.170Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yox0009coogb4494wub",
+        "name": "Kabombz",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/kabombz.webp",
+        "createdAt": "2026-02-21T00:06:01.182Z",
+        "updatedAt": "2026-02-21T00:24:17.183Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yp7000acoogjpnhue67",
+        "name": "Matougarous",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/matougarous.webp",
+        "createdAt": "2026-02-21T00:06:01.193Z",
+        "updatedAt": "2026-02-21T00:24:17.197Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yph000bcoogep155uoz",
+        "name": "Armutins",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/armutins.webp",
+        "createdAt": "2026-02-21T00:06:01.203Z",
+        "updatedAt": "2026-02-21T00:24:17.214Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ypp000ccooguc6uy3lf",
+        "name": "Maudits",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/maudits.webp",
+        "createdAt": "2026-02-21T00:06:01.211Z",
+        "updatedAt": "2026-02-21T00:24:17.229Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ypy000dcoogxpfb43bs",
+        "name": "Trithons",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/trithons.webp",
+        "createdAt": "2026-02-21T00:06:01.221Z",
+        "updatedAt": "2026-02-21T00:24:17.242Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yq8000ecooga34ndv2u",
+        "name": "Serviteurs de l'indicible",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/serviteurs-de-l-indicible.webp",
+        "createdAt": "2026-02-21T00:06:01.230Z",
+        "updatedAt": "2026-02-21T00:24:17.258Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yqh000fcoogko1oqydx",
+        "name": "Cuirassés",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/harrogant.webp",
+        "createdAt": "2026-02-21T00:06:01.240Z",
+        "updatedAt": "2026-02-21T00:24:17.270Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yqp000gcoog8xl8xdjq",
+        "name": "Calcinés",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/kl-mort.webp",
+        "createdAt": "2026-02-21T00:06:01.248Z",
+        "updatedAt": "2026-02-21T00:24:17.281Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yqy000hcoogavjtd7aw",
+        "name": "Sinistros ",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/sinistros.webp",
+        "createdAt": "2026-02-21T00:06:01.256Z",
+        "updatedAt": "2026-02-21T00:24:17.292Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yr4000icoogptwjw86w",
+        "name": "Brûlames",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/br-lames.webp",
+        "createdAt": "2026-02-21T00:06:01.263Z",
+        "updatedAt": "2026-02-21T00:24:17.302Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yrb000jcoogtmq25tf3",
+        "name": "Clan Martegel",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/clan-martegel.webp",
+        "createdAt": "2026-02-21T00:06:01.269Z",
+        "updatedAt": "2026-02-21T00:24:17.312Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yri000kcoogkc129om6",
+        "name": "Brikoléreux",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/brikol-reux.webp",
+        "createdAt": "2026-02-21T00:06:01.276Z",
+        "updatedAt": "2026-02-21T00:24:17.323Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yro000lcoog00xp46lh",
+        "name": "Submergés",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/submerg-s.webp",
+        "createdAt": "2026-02-21T00:06:01.283Z",
+        "updatedAt": "2026-02-21T00:24:17.335Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yrv000mcoogt6s14srd",
+        "name": "Chocomanciens",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/chocomanciens.webp",
+        "createdAt": "2026-02-21T00:06:01.290Z",
+        "updatedAt": "2026-02-21T00:24:17.345Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ys2000ncoog0n38tfa4",
+        "name": "Goules",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/goules.webp",
+        "createdAt": "2026-02-21T00:06:01.297Z",
+        "updatedAt": "2026-02-21T00:24:17.354Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ys8000ocoogmqogxlfk",
+        "name": "Sanguinaires",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/sanguinaires.webp",
+        "createdAt": "2026-02-21T00:06:01.303Z",
+        "updatedAt": "2026-02-21T00:24:17.363Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yse000pcoog6jls4489",
+        "name": "Monstres des ruines sous-marines",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/monstres-des-ruines-sous-marines.webp",
+        "createdAt": "2026-02-21T00:06:01.309Z",
+        "updatedAt": "2026-02-21T00:24:17.374Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ysk000qcoogpledttjq",
+        "name": "Krobes",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/krobes.webp",
+        "createdAt": "2026-02-21T00:06:01.315Z",
+        "updatedAt": "2026-02-21T00:24:17.384Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ysr000rcoognlvk2veo",
+        "name": "Asservis",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/asservis.webp",
+        "createdAt": "2026-02-21T00:06:01.322Z",
+        "updatedAt": "2026-02-21T00:24:17.394Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ysy000scoog6boerq5b",
+        "name": "Mercemers",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/mercemers.webp",
+        "createdAt": "2026-02-21T00:06:01.328Z",
+        "updatedAt": "2026-02-21T00:24:17.404Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yt4000tcoog66tx7m1j",
+        "name": "Possédés",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/poss-d-s.webp",
+        "createdAt": "2026-02-21T00:06:01.334Z",
+        "updatedAt": "2026-02-21T00:24:17.413Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ytc000ucoogstonv2go",
+        "name": "Crocodailles de Crocuzko",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/crocodailles-de-crocuzko.webp",
+        "createdAt": "2026-02-21T00:06:01.343Z",
+        "updatedAt": "2026-02-21T00:24:17.423Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ytl000vcoog3lg2fhh2",
+        "name": "Miséreux",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/mis-reux.webp",
+        "createdAt": "2026-02-21T00:06:01.351Z",
+        "updatedAt": "2026-02-21T00:24:17.433Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yts000wcoogibepztiv",
+        "name": "Corrompus",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/corrompus.webp",
+        "createdAt": "2026-02-21T00:06:01.359Z",
+        "updatedAt": "2026-02-21T00:24:17.444Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yu0000xcoog6roccw26",
+        "name": "Protecteurs d'Ephedrya",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/protecteurs-d-ephedrya.webp",
+        "createdAt": "2026-02-21T00:06:01.367Z",
+        "updatedAt": "2026-02-21T00:24:17.454Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yu8000ycoogiwydwcr0",
+        "name": "Bléros",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/bl-ros.webp",
+        "createdAt": "2026-02-21T00:06:01.374Z",
+        "updatedAt": "2026-02-21T00:24:17.467Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yui000zcoog3odkx2t9",
+        "name": "Marteaux-Aigris",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/marteaux-aigris.webp",
+        "createdAt": "2026-02-21T00:06:01.385Z",
+        "updatedAt": "2026-02-21T00:24:17.477Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yus0010coogc57wd2jc",
+        "name": "Chassouilleurs",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/chassouilleurs.webp",
+        "createdAt": "2026-02-21T00:06:01.394Z",
+        "updatedAt": "2026-02-21T00:24:17.487Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yv20011coognbkdc6fz",
+        "name": "Gloursons",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/gloursons.webp",
+        "createdAt": "2026-02-21T00:06:01.404Z",
+        "updatedAt": "2026-02-21T00:24:17.498Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yvd0012coognxh69xon",
+        "name": "Gobelins de Sakaï",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/gobelins-de-saka.webp",
+        "createdAt": "2026-02-21T00:06:01.416Z",
+        "updatedAt": "2026-02-21T00:24:17.508Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yvl0013coogast9qbt0",
+        "name": "Obscuranti",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/obscuranti.webp",
+        "createdAt": "2026-02-21T00:06:01.424Z",
+        "updatedAt": "2026-02-21T00:24:17.519Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yvt0014coogfn0espiu",
+        "name": "Monstres de Vulkania",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/monstres-de-vulkania.webp",
+        "createdAt": "2026-02-21T00:06:01.432Z",
+        "updatedAt": "2026-02-21T00:24:17.529Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yw00015coogahkdebkc",
+        "name": "Monstres de Nowel",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/monstres-de-nowel.webp",
+        "createdAt": "2026-02-21T00:06:01.439Z",
+        "updatedAt": "2026-02-21T00:24:17.541Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ywa0016coogao5zqmzk",
+        "name": "Bworks de Gisgoul",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/bworks-de-gisgoul.webp",
+        "createdAt": "2026-02-21T00:06:01.448Z",
+        "updatedAt": "2026-02-21T00:24:17.556Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ywi0017coog6t6xlc4a",
+        "name": "Sylvesprits",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/sylvesprits.webp",
+        "createdAt": "2026-02-21T00:06:01.456Z",
+        "updatedAt": "2026-02-21T00:24:17.569Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yws0018coog2lg2js7x",
+        "name": "Fungus",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/fungus.webp",
+        "createdAt": "2026-02-21T00:06:01.466Z",
+        "updatedAt": "2026-02-21T00:24:17.581Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5ywz0019coogk0i1gu8z",
+        "name": "Vers des sables",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/vers-des-sables.webp",
+        "createdAt": "2026-02-21T00:06:01.474Z",
+        "updatedAt": "2026-02-21T00:24:17.595Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yx6001acoogjj4o063q",
+        "name": "Givrefoux",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/givrefoux.webp",
+        "createdAt": "2026-02-21T00:06:01.481Z",
+        "updatedAt": "2026-02-21T00:24:17.606Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yxe001bcoog7953ehf2",
+        "name": "Yokai des Tombeaux",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/yokai-des-tombeaux.webp",
+        "createdAt": "2026-02-21T00:06:01.488Z",
+        "updatedAt": "2026-02-21T00:24:17.617Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yxk001ccoog4sywx513",
+        "name": "Armée de brume",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/arm-e-de-brume.webp",
+        "createdAt": "2026-02-21T00:06:01.495Z",
+        "updatedAt": "2026-02-21T00:24:17.628Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yxr001dcoog40hrefc9",
+        "name": "Sulfurieux",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/sulfurieux.webp",
+        "createdAt": "2026-02-21T00:06:01.501Z",
+        "updatedAt": "2026-02-21T00:24:17.638Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yxx001ecoogyhojt4jx",
+        "name": "Kanigs des Dents de Pierre",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/kanigs-des-dents-de-pierre.webp",
+        "createdAt": "2026-02-21T00:06:01.508Z",
+        "updatedAt": "2026-02-21T00:24:17.648Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yy3001fcoog3fbyedyq",
+        "name": "Peuple de l'Arbre",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/peuple-de-l-arbre.webp",
+        "createdAt": "2026-02-21T00:06:01.514Z",
+        "updatedAt": "2026-02-21T00:24:17.658Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yy9001gcoog6knqr7hz",
+        "name": "Ravageurs",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/ravageurs.webp",
+        "createdAt": "2026-02-21T00:06:01.520Z",
+        "updatedAt": "2026-02-21T00:24:17.670Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yyf001hcoog7um2pp09",
+        "name": "Yokianzhi d'Encre",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/yokianzhi-d-encre.webp",
+        "createdAt": "2026-02-21T00:06:01.526Z",
+        "updatedAt": "2026-02-21T00:24:17.681Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yym001icoog6vwha4o5",
+        "name": "Yokianzhi de Papier",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/yokianzhi-de-papier.webp",
+        "createdAt": "2026-02-21T00:06:01.533Z",
+        "updatedAt": "2026-02-21T00:24:17.690Z",
+        "monsters": []
+      },
+      {
+        "id": "cmlvk5yyv001jcoogwdhj88y4",
+        "name": "Alchillusions",
+        "level": null,
+        "description": "",
+        "imageUrl": "/game-data/monsters/alchillusions.webp",
+        "createdAt": "2026-02-21T00:06:01.542Z",
+        "updatedAt": "2026-02-21T00:24:17.701Z",
+        "monsters": []
+      }
+    ],
+    "challenges": [
+      {
+        "id": "cmlvkl3ce001nqkogis43zwmc",
+        "name": "Collant",
+        "slug": "collant",
+        "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+        "iconUrl": "/game-data/achievements/collant.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.054Z",
+        "updatedAt": "2026-02-21T00:24:17.732Z"
+      },
+      {
+        "id": "cmlvkl3ck001oqkogaslvheoj",
+        "name": "Compagnon",
+        "slug": "compagnon",
+        "description": "Vaincre Tel Boss dans son donjon avec 4 personnes minimum, dont au moins un des compagnons éligibles à la réalisation de ce succès",
+        "iconUrl": "/game-data/achievements/compagnon.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.060Z",
+        "updatedAt": "2026-02-21T00:24:17.736Z"
+      },
+      {
+        "id": "cmlvkl3cr001pqkog6x8cadqo",
+        "name": "Dernier",
+        "slug": "dernier",
+        "description": "La cible désignée doit être achevée en dernier.\n",
+        "iconUrl": "/game-data/achievements/dernier.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.067Z",
+        "updatedAt": "2026-02-21T00:24:17.740Z"
+      },
+      {
+        "id": "cmlvkl3cx001qqkogidmpbmgx",
+        "name": "Duel",
+        "slug": "duel",
+        "description": "Lorsqu'un combattant allié attaque un ennemi, aucun autre combattant allié ne doit attaquer cet ennemi pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/duel.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.072Z",
+        "updatedAt": "2026-02-21T00:24:17.744Z"
+      },
+      {
+        "id": "cmlvkl3df001uqkog73atrrij",
+        "name": "Liberté",
+        "slug": "libert",
+        "description": "Ne pas retirer de PM ni de portée aux adversaires.",
+        "iconUrl": "/game-data/achievements/liberte.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.091Z",
+        "updatedAt": "2026-02-21T00:24:17.759Z"
+      },
+      {
+        "id": "cmlvkl3dl001vqkog76vgblyr",
+        "name": "Mains Propres",
+        "slug": "mains-propres",
+        "description": "Les personnages alliés doivent achever les ennemis sans leur occasionner de dommages directs. \n",
+        "iconUrl": "/game-data/achievements/mains-propres.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.097Z",
+        "updatedAt": "2026-02-21T00:24:17.763Z"
+      },
+      {
+        "id": "cmlvkl3dp001wqkog2t1b47ld",
+        "name": "Misanthrope",
+        "slug": "misanthrope",
+        "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+        "iconUrl": "/game-data/achievements/misanthrope.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.101Z",
+        "updatedAt": "2026-02-21T00:24:17.767Z"
+      },
+      {
+        "id": "cmlvkl3dv001xqkog7w8htk5h",
+        "name": "Mystique",
+        "slug": "mystique",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Mystique.",
+        "iconUrl": "/game-data/achievements/mystique.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.107Z",
+        "updatedAt": "2026-02-21T00:24:17.771Z"
+      },
+      {
+        "id": "cmlvkl3e2001yqkog2v9xkax7",
+        "name": "Nomade",
+        "slug": "nomade",
+        "description": "Les combattants alliés doivent utiliser tous leurs points de mouvement à chaque tour pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/nomade.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.114Z",
+        "updatedAt": "2026-02-21T00:24:17.775Z"
+      },
+      {
+        "id": "cmlvkl3e7001zqkogmeoomnl1",
+        "name": "Premier",
+        "slug": "premier",
+        "description": "La cible désignée doit être achevée en premier.\n",
+        "iconUrl": "/game-data/achievements/premier.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.119Z",
+        "updatedAt": "2026-02-21T00:24:17.779Z"
+      },
+      {
+        "id": "cmlvkl3ec0020qkogp3n5o5yf",
+        "name": "Prudent",
+        "slug": "prudent",
+        "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+        "iconUrl": "/game-data/achievements/prudent.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.124Z",
+        "updatedAt": "2026-02-21T00:24:17.783Z"
+      },
+      {
+        "id": "cmlvkl3ei0021qkogyymnqobc",
+        "name": "Quatuor",
+        "slug": "quatuor",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Quatuor.",
+        "iconUrl": "/game-data/achievements/quatuor.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.130Z",
+        "updatedAt": "2026-02-21T00:24:17.787Z"
+      },
+      {
+        "id": "cmlvkl3en0022qkogu2ekjorm",
+        "name": "Spécial",
+        "slug": "sp-cial",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge dédié.",
+        "iconUrl": "/game-data/achievements/spécial.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.134Z",
+        "updatedAt": "2026-02-21T00:24:17.791Z"
+      },
+      {
+        "id": "cmlvkl3es0023qkog1cjeaxry",
+        "name": "Statue",
+        "slug": "statue",
+        "description": "Les combattants alliés doivent finir leur tour sur la même case que celle où ils l'ont commencé, pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/statue.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.140Z",
+        "updatedAt": "2026-02-21T00:24:17.794Z"
+      },
+      {
+        "id": "cmlvkl3ex0024qkogj9hgxi9q",
+        "name": "Survivant",
+        "slug": "survivant",
+        "description": "Aucun combattant allié ne doit mourir.\n",
+        "iconUrl": "/game-data/achievements/survivant.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.145Z",
+        "updatedAt": "2026-02-21T00:24:17.799Z"
+      },
+      {
+        "id": "cmlvkl3f30025qkogrdnvzolq",
+        "name": "Trio",
+        "slug": "trio",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Trio.",
+        "iconUrl": "/game-data/achievements/trio.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.151Z",
+        "updatedAt": "2026-02-21T00:24:17.803Z"
+      },
+      {
+        "id": "cmlvkl3f90026qkogxiaw0cdh",
+        "name": "Versatile",
+        "slug": "versatile",
+        "description": "Les combattants alliés ne doivent utiliser qu'une seule fois une même action pendant leurs tours de jeu.\n",
+        "iconUrl": "/game-data/achievements/versatile.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.157Z",
+        "updatedAt": "2026-02-21T00:24:17.808Z"
+      },
+      {
+        "id": "cmlvkl3fe0027qkog782cz4f9",
+        "name": "Zombie",
+        "slug": "zombie",
+        "description": "Les combattants alliés doivent utiliser exactement un point de mouvement par tour de jeu.\n",
+        "iconUrl": "/game-data/achievements/zombie.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.162Z",
+        "updatedAt": "2026-02-21T00:24:17.812Z"
+      },
+      {
+        "id": "cmlvkl3bq001jqkogwumfif4r",
+        "name": "Barbare",
+        "slug": "barbare",
+        "description": "Les personnages alliés doivent achever les ennemis avec une arme.\n",
+        "iconUrl": "/game-data/achievements/barbare.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.030Z",
+        "updatedAt": "2026-02-21T00:24:17.714Z"
+      },
+      {
+        "id": "cmlvkl3bw001kqkogrfe5snoc",
+        "name": "Blitzkrieg",
+        "slug": "blitzkrieg",
+        "description": "Lorsqu'un ennemi est attaqué, il doit être achevé avant le début de son tour de jeu.\n",
+        "iconUrl": "/game-data/achievements/blitzkrieg.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.036Z",
+        "updatedAt": "2026-02-21T00:24:17.721Z"
+      },
+      {
+        "id": "cmlvkl3c3001lqkogbts69dil",
+        "name": "Chrono",
+        "slug": "chrono",
+        "description": "Vaincre tel boss dans son donjon en moins de X tours.\n",
+        "iconUrl": "/game-data/achievements/chrono.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.043Z",
+        "updatedAt": "2026-02-21T00:24:17.725Z"
+      },
+      {
+        "id": "cmlvkl3c9001mqkogkp5b7stc",
+        "name": "Circulez",
+        "slug": "circulez",
+        "description": "Ne pas retirer de PM aux adversaires",
+        "iconUrl": "/game-data/achievements/circulez.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.049Z",
+        "updatedAt": "2026-02-21T00:24:17.728Z"
+      },
+      {
+        "id": "cmlvkl3d1001rqkoglkqrjifq",
+        "name": "Duo",
+        "slug": "duo",
+        "description": "Vaincre tous les monstres avec 2 personnages maximum et en moins de X tours.",
+        "iconUrl": "/game-data/achievements/duo.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.077Z",
+        "updatedAt": "2026-02-21T00:24:17.748Z"
+      },
+      {
+        "id": "cmlvkl3d6001sqkog8roxetaq",
+        "name": "Focus",
+        "slug": "focus",
+        "description": "Lorsqu'un ennemi est attaqué par un allié, il doit être achevé avant qu'un autre ennemi ne soit attaqué.\n",
+        "iconUrl": "/game-data/achievements/focus.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.082Z",
+        "updatedAt": "2026-02-21T00:24:17.752Z"
+      },
+      {
+        "id": "cmlvkl3da001tqkogz3nhqflw",
+        "name": "Hardi",
+        "slug": "hardi",
+        "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+        "iconUrl": "/game-data/achievements/hardi.png",
+        "conditions": null,
+        "createdAt": "2026-02-21T00:17:47.086Z",
+        "updatedAt": "2026-02-21T00:24:17.755Z"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": "cmlvktguz000q0kogqvixugq3",
+        "name": "Forgefroide de Missiz Frizz",
+        "bossName": "Missiz Frizz",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/forgefroide-de-missiz-frizz.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/forgefroide-de-missiz-frizz.html#expeditions",
+        "createdAt": "2026-02-21T00:24:17.819Z",
+        "updatedAt": "2026-02-21T00:24:17.819Z",
+        "achievements": [
+          {
+            "id": "cmlvktgv5000r0kogd19zpk33",
+            "dungeonId": "cmlvktguz000q0kogqvixugq3",
+            "challengeId": "cmlvkl3e2001yqkog2v9xkax7",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.825Z"
+          },
+          {
+            "id": "cmlvktgva000s0kogm1c2e9k3",
+            "dungeonId": "cmlvktguz000q0kogqvixugq3",
+            "challengeId": "cmlvkl3ce001nqkogis43zwmc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.830Z"
+          },
+          {
+            "id": "cmlvktgvf000t0koglajq97zg",
+            "dungeonId": "cmlvktguz000q0kogqvixugq3",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.835Z"
+          },
+          {
+            "id": "cmlvktgvj000u0kog6t1dmt6t",
+            "dungeonId": "cmlvktguz000q0kogqvixugq3",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.839Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgvn000v0kogrgm1e2w9",
+        "name": "Caverne de Cire Momore",
+        "bossName": "Cire Momore",
+        "level": 900,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cire-momore.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:17.843Z",
+        "updatedAt": "2026-02-21T00:24:17.843Z",
+        "achievements": []
+      },
+      {
+        "id": "cmlvktgvs000w0kog4bxy5qof",
+        "name": "Transporteur de Sylargh",
+        "bossName": "Sylargh",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/transporteur-de-sylargh.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:17.848Z",
+        "updatedAt": "2026-02-21T00:24:17.848Z",
+        "achievements": [
+          {
+            "id": "cmlvktgvw000x0kogl7i0wjyo",
+            "dungeonId": "cmlvktgvs000w0kog4bxy5qof",
+            "challengeId": "cmlvkl3dp001wqkog2t1b47ld",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.852Z"
+          },
+          {
+            "id": "cmlvktgw0000y0kog9e1lrpb3",
+            "dungeonId": "cmlvktgvs000w0kog4bxy5qof",
+            "challengeId": "cmlvkl3bq001jqkogwumfif4r",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.856Z"
+          },
+          {
+            "id": "cmlvktgw4000z0kogs8gr9uom",
+            "dungeonId": "cmlvktgvs000w0kog4bxy5qof",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.860Z"
+          },
+          {
+            "id": "cmlvktgw800100kogkz0vsyu9",
+            "dungeonId": "cmlvktgvs000w0kog4bxy5qof",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.864Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgwc00110kog9lwvvbkc",
+        "name": "Salons privés de Klime",
+        "bossName": "Klime ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/salons-priv-s-de-klime.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/salons-priveacutes-de-klime.html#expeditions",
+        "createdAt": "2026-02-21T00:24:17.868Z",
+        "updatedAt": "2026-02-21T00:24:17.868Z",
+        "achievements": [
+          {
+            "id": "cmlvktgwi00120kog0n9z1ekp",
+            "dungeonId": "cmlvktgwc00110kog9lwvvbkc",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.874Z"
+          },
+          {
+            "id": "cmlvktgwm00130kogwh83yx13",
+            "dungeonId": "cmlvktgwc00110kog9lwvvbkc",
+            "challengeId": "cmlvkl3e2001yqkog2v9xkax7",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.878Z"
+          },
+          {
+            "id": "cmlvktgwq00140kogo47t0xx5",
+            "dungeonId": "cmlvktgwc00110kog9lwvvbkc",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.882Z"
+          },
+          {
+            "id": "cmlvktgwt00150kogwtm3fj2s",
+            "dungeonId": "cmlvktgwc00110kog9lwvvbkc",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.885Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgwx00160kogss7ajbah",
+        "name": "Laboratoire de Nileza",
+        "bossName": "Nileza",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/laboratoire-de-nileza.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:17.889Z",
+        "updatedAt": "2026-02-21T00:24:17.889Z",
+        "achievements": [
+          {
+            "id": "cmlvktgx000170kogd3ktfbn2",
+            "dungeonId": "cmlvktgwx00160kogss7ajbah",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.892Z"
+          },
+          {
+            "id": "cmlvktgx400180kogcok3y7zc",
+            "dungeonId": "cmlvktgwx00160kogss7ajbah",
+            "challengeId": "cmlvkl3cr001pqkog6x8cadqo",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.896Z"
+          },
+          {
+            "id": "cmlvktgx900190kog3rmt4x5z",
+            "dungeonId": "cmlvktgwx00160kogss7ajbah",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.901Z"
+          },
+          {
+            "id": "cmlvktgxd001a0kogp1z6kzka",
+            "dungeonId": "cmlvktgwx00160kogss7ajbah",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.905Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgxg001b0kogtqr8lgpk",
+        "name": "Aquadôme de Merkator",
+        "bossName": "Merkator ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/aquad-me-de-merkator.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/aquadocircme-de-merkator.html#expeditions",
+        "createdAt": "2026-02-21T00:24:17.908Z",
+        "updatedAt": "2026-02-21T00:24:17.908Z",
+        "achievements": [
+          {
+            "id": "cmlvktgxk001c0kog3dseo1o9",
+            "dungeonId": "cmlvktgxg001b0kogtqr8lgpk",
+            "challengeId": "cmlvkl3cr001pqkog6x8cadqo",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.912Z"
+          },
+          {
+            "id": "cmlvktgxn001d0kogjqp2zi9n",
+            "dungeonId": "cmlvktgxg001b0kogtqr8lgpk",
+            "challengeId": "cmlvkl3dv001xqkog7w8htk5h",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.915Z"
+          },
+          {
+            "id": "cmlvktgxr001e0kogufjku6ff",
+            "dungeonId": "cmlvktgxg001b0kogtqr8lgpk",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.919Z"
+          },
+          {
+            "id": "cmlvktgxu001f0kogmfz4iie1",
+            "dungeonId": "cmlvktgxg001b0kogtqr8lgpk",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.922Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgxy001g0koghgfrbs15",
+        "name": "Donjon du Comte Harebour",
+        "bossName": "Comte Harebourg",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-du-comte-harebour.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-du-comte-harebourg.html#expeditions",
+        "createdAt": "2026-02-21T00:24:17.926Z",
+        "updatedAt": "2026-02-21T00:24:17.926Z",
+        "achievements": [
+          {
+            "id": "cmlvktgy2001h0kog1ofalxxl",
+            "dungeonId": "cmlvktgxy001g0koghgfrbs15",
+            "challengeId": "cmlvkl3f90026qkogxiaw0cdh",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.930Z"
+          },
+          {
+            "id": "cmlvktgy6001i0kogqoscw92g",
+            "dungeonId": "cmlvktgxy001g0koghgfrbs15",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.934Z"
+          },
+          {
+            "id": "cmlvktgya001j0kogvu5iterk",
+            "dungeonId": "cmlvktgxy001g0koghgfrbs15",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.938Z"
+          },
+          {
+            "id": "cmlvktgye001k0kogqafoi7dm",
+            "dungeonId": "cmlvktgxy001g0koghgfrbs15",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.942Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgyi001l0kognj87gw0j",
+        "name": "Palais du roi Nidas",
+        "bossName": "Roi Nidas",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/palais-du-roi-nidas.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:17.946Z",
+        "updatedAt": "2026-02-21T00:24:17.946Z",
+        "achievements": [
+          {
+            "id": "cmlvktgyl001m0kogw3k9wprj",
+            "dungeonId": "cmlvktgyi001l0kognj87gw0j",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.949Z"
+          },
+          {
+            "id": "cmlvktgyo001n0kog84avfuu6",
+            "dungeonId": "cmlvktgyi001l0kognj87gw0j",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.952Z"
+          },
+          {
+            "id": "cmlvktgyr001o0kogbs4a59tz",
+            "dungeonId": "cmlvktgyi001l0kognj87gw0j",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.955Z"
+          },
+          {
+            "id": "cmlvktgyv001p0kogsktu3t13",
+            "dungeonId": "cmlvktgyi001l0kognj87gw0j",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.959Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgyy001q0kog9zmpm07p",
+        "name": "Trône de la Cour Sombre",
+        "bossName": "Reine des Voleurs",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tr-ne-de-la-cour-sombre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:17.962Z",
+        "updatedAt": "2026-02-21T00:24:17.962Z",
+        "achievements": [
+          {
+            "id": "cmlvktgz2001r0kogvrclmlh2",
+            "dungeonId": "cmlvktgyy001q0kog9zmpm07p",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.966Z"
+          },
+          {
+            "id": "cmlvktgz6001s0koghp5da43w",
+            "dungeonId": "cmlvktgyy001q0kog9zmpm07p",
+            "challengeId": "cmlvkl3ce001nqkogis43zwmc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.970Z"
+          },
+          {
+            "id": "cmlvktgza001t0kog2xg0y21y",
+            "dungeonId": "cmlvktgyy001q0kog9zmpm07p",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.974Z"
+          },
+          {
+            "id": "cmlvktgzd001u0kog1tppz8v7",
+            "dungeonId": "cmlvktgyy001q0kog9zmpm07p",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.977Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvktgzh001v0kogfmerff3y",
+        "name": "Ventre de la Baleine",
+        "bossName": "Protozorreur ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/ventre-de-la-baleine.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/ventre-de-la-baleine.html#expeditions",
+        "createdAt": "2026-02-21T00:24:17.981Z",
+        "updatedAt": "2026-02-21T00:24:17.981Z",
+        "achievements": [
+          {
+            "id": "cmlvktgzm001w0kog22dzhvcg",
+            "dungeonId": "cmlvktgzh001v0kogfmerff3y",
+            "challengeId": "cmlvkl3bq001jqkogwumfif4r",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.986Z"
+          },
+          {
+            "id": "cmlvktgzq001x0kog6ni4ku9p",
+            "dungeonId": "cmlvktgzh001v0kogfmerff3y",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.989Z"
+          },
+          {
+            "id": "cmlvktgzt001y0kog5kfog77p",
+            "dungeonId": "cmlvktgzh001v0kogfmerff3y",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.993Z"
+          },
+          {
+            "id": "cmlvktgzw001z0kogsh5car6c",
+            "dungeonId": "cmlvktgzh001v0kogfmerff3y",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:17.996Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth0000200kogy0qu9ojn",
+        "name": "Œil de Vortex",
+        "bossName": "Vortex ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/il-de-vortex.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.000Z",
+        "updatedAt": "2026-02-21T00:24:18.000Z",
+        "achievements": [
+          {
+            "id": "cmlvkth0300210kogi9iyb7ul",
+            "dungeonId": "cmlvkth0000200kogy0qu9ojn",
+            "challengeId": "cmlvkl3d6001sqkog8roxetaq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.003Z"
+          },
+          {
+            "id": "cmlvkth0700220kog7f8ewd94",
+            "dungeonId": "cmlvkth0000200kogy0qu9ojn",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.007Z"
+          },
+          {
+            "id": "cmlvkth0b00230kogqd62vta4",
+            "dungeonId": "cmlvkth0000200kogy0qu9ojn",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.011Z"
+          },
+          {
+            "id": "cmlvkth0e00240kog1ei0v758",
+            "dungeonId": "cmlvkth0000200kogy0qu9ojn",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.014Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth0i00250kogoon14h3x",
+        "name": "Défi du Chalœil",
+        "bossName": "Chalœil ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/d-fi-du-chal-il.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.018Z",
+        "updatedAt": "2026-02-21T00:24:18.018Z",
+        "achievements": [
+          {
+            "id": "cmlvkth0m00260kogna52lbd5",
+            "dungeonId": "cmlvkth0i00250kogoon14h3x",
+            "challengeId": "cmlvkl3df001uqkog73atrrij",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.022Z"
+          },
+          {
+            "id": "cmlvkth0p00270kogox616xsc",
+            "dungeonId": "cmlvkth0i00250kogoon14h3x",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.025Z"
+          },
+          {
+            "id": "cmlvkth0t00280kogpfn86inu",
+            "dungeonId": "cmlvkth0i00250kogoon14h3x",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.029Z"
+          },
+          {
+            "id": "cmlvkth0x00290kog1q97ttdo",
+            "dungeonId": "cmlvkth0i00250kogoon14h3x",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.033Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth11002a0kogu4rb3tc9",
+        "name": "Vaisseau du Capitaine Meno",
+        "bossName": "Capitaine Meno",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/capitaine-meno.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/vaisseau-du-capitaine-meno.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.037Z",
+        "updatedAt": "2026-02-21T00:24:18.037Z",
+        "achievements": [
+          {
+            "id": "cmlvkth15002b0kog9se0355d",
+            "dungeonId": "cmlvkth11002a0kogu4rb3tc9",
+            "challengeId": "cmlvkl3bw001kqkogrfe5snoc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.041Z"
+          },
+          {
+            "id": "cmlvkth18002c0kogj2d1d5uo",
+            "dungeonId": "cmlvkth11002a0kogu4rb3tc9",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.044Z"
+          },
+          {
+            "id": "cmlvkth1d002d0kogaa779v56",
+            "dungeonId": "cmlvkth11002a0kogu4rb3tc9",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.049Z"
+          },
+          {
+            "id": "cmlvkth1h002e0kogxv0llcig",
+            "dungeonId": "cmlvkth11002a0kogu4rb3tc9",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.053Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth1l002f0kogivmi054t",
+        "name": "Temple de Koutoulou",
+        "bossName": "Larve de Koutoulou",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temple-de-koutoulou.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/temple-de-koutoulou.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.056Z",
+        "updatedAt": "2026-02-21T00:24:18.056Z",
+        "achievements": [
+          {
+            "id": "cmlvkth1o002g0kogvdl2rch9",
+            "dungeonId": "cmlvkth1l002f0kogivmi054t",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.060Z"
+          },
+          {
+            "id": "cmlvkth1s002h0kogsxuc93uo",
+            "dungeonId": "cmlvkth1l002f0kogivmi054t",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.064Z"
+          },
+          {
+            "id": "cmlvkth1v002i0kog7tzx7mhc",
+            "dungeonId": "cmlvkth1l002f0kogivmi054t",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.067Z"
+          },
+          {
+            "id": "cmlvkth1z002j0kogisrpwg69",
+            "dungeonId": "cmlvkth1l002f0kogivmi054t",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.071Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth23002k0kogec2qkqcx",
+        "name": "Palais de Dantinéa",
+        "bossName": "Dantinéa ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/palais-de-dantin-a.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/palais-de-dantineacutea.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.075Z",
+        "updatedAt": "2026-02-21T00:24:18.075Z",
+        "achievements": [
+          {
+            "id": "cmlvkth27002l0koghdf7t6ch",
+            "dungeonId": "cmlvkth23002k0kogec2qkqcx",
+            "challengeId": "cmlvkl3cr001pqkog6x8cadqo",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.079Z"
+          },
+          {
+            "id": "cmlvkth2a002m0kogyx5a1fba",
+            "dungeonId": "cmlvkth23002k0kogec2qkqcx",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.082Z"
+          },
+          {
+            "id": "cmlvkth2e002n0kogm702pnu7",
+            "dungeonId": "cmlvkth23002k0kogec2qkqcx",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.086Z"
+          },
+          {
+            "id": "cmlvkth2h002o0kogxjai8wc0",
+            "dungeonId": "cmlvkth23002k0kogec2qkqcx",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.089Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth2l002p0kogjvjzp91a",
+        "name": "Chambre de Tal Kasha",
+        "bossName": "Tal Kasha",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/chambre-de-tal-kasha.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.092Z",
+        "updatedAt": "2026-02-21T00:24:18.092Z",
+        "achievements": [
+          {
+            "id": "cmlvkth2o002q0kogctcergij",
+            "dungeonId": "cmlvkth2l002p0kogjvjzp91a",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.096Z"
+          },
+          {
+            "id": "cmlvkth2s002r0kogztww33p5",
+            "dungeonId": "cmlvkth2l002p0kogjvjzp91a",
+            "challengeId": "cmlvkl3d6001sqkog8roxetaq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.100Z"
+          },
+          {
+            "id": "cmlvkth2w002s0kogho7gq920",
+            "dungeonId": "cmlvkth2l002p0kogjvjzp91a",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.104Z"
+          },
+          {
+            "id": "cmlvkth30002t0kogaj0oojz7",
+            "dungeonId": "cmlvkth2l002p0kogjvjzp91a",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.108Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth34002u0kogdy2ozqjc",
+        "name": "Manoir des Katrepat",
+        "bossName": "Anerice la Shushess",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/manoir-des-katrepat.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.112Z",
+        "updatedAt": "2026-02-21T00:24:18.112Z",
+        "achievements": [
+          {
+            "id": "cmlvkth38002v0kog3fd9v83q",
+            "dungeonId": "cmlvkth34002u0kogdy2ozqjc",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.116Z"
+          },
+          {
+            "id": "cmlvkth3b002w0kog1oyd511b",
+            "dungeonId": "cmlvkth34002u0kogdy2ozqjc",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.119Z"
+          },
+          {
+            "id": "cmlvkth3f002x0kogkajc1nbc",
+            "dungeonId": "cmlvkth34002u0kogdy2ozqjc",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.123Z"
+          },
+          {
+            "id": "cmlvkth3i002y0kog3zhh7tlj",
+            "dungeonId": "cmlvkth34002u0kogdy2ozqjc",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.126Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth3m002z0kog28ppqeir",
+        "name": "Tour de Solar",
+        "bossName": "Solar ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tour-de-solar.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/tour-de-solar.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.130Z",
+        "updatedAt": "2026-02-21T00:24:18.130Z",
+        "achievements": [
+          {
+            "id": "cmlvkth3p00300kog5torpc00",
+            "dungeonId": "cmlvkth3m002z0kog28ppqeir",
+            "challengeId": "cmlvkl3f90026qkogxiaw0cdh",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.133Z"
+          },
+          {
+            "id": "cmlvkth3s00310kog5vo8y7de",
+            "dungeonId": "cmlvkth3m002z0kog28ppqeir",
+            "challengeId": "cmlvkl3d6001sqkog8roxetaq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.136Z"
+          },
+          {
+            "id": "cmlvkth3w00320kogo9du3yz5",
+            "dungeonId": "cmlvkth3m002z0kog28ppqeir",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.140Z"
+          },
+          {
+            "id": "cmlvkth3z00330kog9tdxcbdg",
+            "dungeonId": "cmlvkth3m002z0kog28ppqeir",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.143Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth4300340kognt2cdxa3",
+        "name": "Tour de Bethel",
+        "bossName": "Bethel Akarna",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tour-de-bethel.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.147Z",
+        "updatedAt": "2026-02-21T00:24:18.147Z",
+        "achievements": [
+          {
+            "id": "cmlvkth4600350kogw2sixta2",
+            "dungeonId": "cmlvkth4300340kognt2cdxa3",
+            "challengeId": "cmlvkl3dv001xqkog7w8htk5h",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.150Z"
+          },
+          {
+            "id": "cmlvkth4900360kog2tozh7ue",
+            "dungeonId": "cmlvkth4300340kognt2cdxa3",
+            "challengeId": "cmlvkl3fe0027qkog782cz4f9",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.153Z"
+          },
+          {
+            "id": "cmlvkth4d00370koggefvpehr",
+            "dungeonId": "cmlvkth4300340kognt2cdxa3",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.157Z"
+          },
+          {
+            "id": "cmlvkth4g00380kogf7r26xbg",
+            "dungeonId": "cmlvkth4300340kognt2cdxa3",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.160Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth4j00390koghpi57mc1",
+        "name": "Brasserie du roi Dazak",
+        "bossName": "Dazak Martegel",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/brasserie-du-roi-dazak.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/brasserie-du-roi-dazak.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.163Z",
+        "updatedAt": "2026-02-21T00:24:18.163Z",
+        "achievements": [
+          {
+            "id": "cmlvkth4n003a0kogk4b9tcl2",
+            "dungeonId": "cmlvkth4j00390koghpi57mc1",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.166Z"
+          },
+          {
+            "id": "cmlvkth4r003b0kogj2nbagc1",
+            "dungeonId": "cmlvkth4j00390koghpi57mc1",
+            "challengeId": "cmlvkl3df001uqkog73atrrij",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.171Z"
+          },
+          {
+            "id": "cmlvkth4u003c0kog5dokxkpi",
+            "dungeonId": "cmlvkth4j00390koghpi57mc1",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.174Z"
+          },
+          {
+            "id": "cmlvkth4x003d0kogpfxhby8a",
+            "dungeonId": "cmlvkth4j00390koghpi57mc1",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.177Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth51003e0kogvl882ej1",
+        "name": "Belvédère d'Ilyzaelle",
+        "bossName": "Ilyzaelle",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/belv-d-re-d-ilyzaelle.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/belvedere-d-ilyzaelle.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.181Z",
+        "updatedAt": "2026-02-21T00:24:18.181Z",
+        "achievements": [
+          {
+            "id": "cmlvkth54003f0kogt68l7r3s",
+            "dungeonId": "cmlvkth51003e0kogvl882ej1",
+            "challengeId": "cmlvkl3df001uqkog73atrrij",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.184Z"
+          },
+          {
+            "id": "cmlvkth57003g0kog4wq9hxn9",
+            "dungeonId": "cmlvkth51003e0kogvl882ej1",
+            "challengeId": "cmlvkl3d6001sqkog8roxetaq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.187Z"
+          },
+          {
+            "id": "cmlvkth5a003h0kogrs3uo5x6",
+            "dungeonId": "cmlvkth51003e0kogvl882ej1",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.190Z"
+          },
+          {
+            "id": "cmlvkth5c003i0kog0p53ie4f",
+            "dungeonId": "cmlvkth51003e0kogvl882ej1",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.192Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth5f003j0kog2hzssf94",
+        "name": "Torkélonia ",
+        "bossName": "Torkélonia",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tork-lonia.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.195Z",
+        "updatedAt": "2026-02-21T00:24:18.195Z",
+        "achievements": [
+          {
+            "id": "cmlvkth5i003k0kog4omv7py4",
+            "dungeonId": "cmlvkth5f003j0kog2hzssf94",
+            "challengeId": "cmlvkl3cr001pqkog6x8cadqo",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.198Z"
+          },
+          {
+            "id": "cmlvkth5l003l0kogncj1oohb",
+            "dungeonId": "cmlvkth5f003j0kog2hzssf94",
+            "challengeId": "cmlvkl3es0023qkog1cjeaxry",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.201Z"
+          },
+          {
+            "id": "cmlvkth5o003m0kogjmxsgiut",
+            "dungeonId": "cmlvkth5f003j0kog2hzssf94",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.204Z"
+          },
+          {
+            "id": "cmlvkth5r003n0kog1iwsitl7",
+            "dungeonId": "cmlvkth5f003j0kog2hzssf94",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.207Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth5v003o0kogzg7w6i92",
+        "name": "Arbre de mort",
+        "bossName": "Corruption",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/arbre-de-mort.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.211Z",
+        "updatedAt": "2026-02-21T00:24:18.211Z",
+        "achievements": [
+          {
+            "id": "cmlvkth5y003p0kog04x27di9",
+            "dungeonId": "cmlvkth5v003o0kogzg7w6i92",
+            "challengeId": "cmlvkl3ce001nqkogis43zwmc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.214Z"
+          },
+          {
+            "id": "cmlvkth61003q0kogqrpz5cp6",
+            "dungeonId": "cmlvkth5v003o0kogzg7w6i92",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.217Z"
+          },
+          {
+            "id": "cmlvkth65003r0koga3zsf5d4",
+            "dungeonId": "cmlvkth5v003o0kogzg7w6i92",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.221Z"
+          },
+          {
+            "id": "cmlvkth68003s0kogzhcbdlc4",
+            "dungeonId": "cmlvkth5v003o0kogzg7w6i92",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.224Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth6b003t0kogfzeh9mtd",
+        "name": "Trône de sang ",
+        "bossName": "Guerre",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tr-ne-de-sang.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/trone-de-sang.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.227Z",
+        "updatedAt": "2026-02-21T00:24:18.227Z",
+        "achievements": [
+          {
+            "id": "cmlvkth6f003u0kogcdk35xoe",
+            "dungeonId": "cmlvkth6b003t0kogfzeh9mtd",
+            "challengeId": "cmlvkl3fe0027qkog782cz4f9",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.231Z"
+          },
+          {
+            "id": "cmlvkth6n003v0kogzbouklq4",
+            "dungeonId": "cmlvkth6b003t0kogfzeh9mtd",
+            "challengeId": "cmlvkl3dp001wqkog2t1b47ld",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.239Z"
+          },
+          {
+            "id": "cmlvkth6r003w0kogaa1cchzq",
+            "dungeonId": "cmlvkth6b003t0kogfzeh9mtd",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.243Z"
+          },
+          {
+            "id": "cmlvkth6u003x0kogsszm4zqq",
+            "dungeonId": "cmlvkth6b003t0kogfzeh9mtd",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.246Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth6x003y0kogd1vd3ush",
+        "name": "Fers de la Tyrannie",
+        "bossName": "Servitude",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/fers-de-la-tyrannie.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.249Z",
+        "updatedAt": "2026-02-21T00:24:18.249Z",
+        "achievements": [
+          {
+            "id": "cmlvkth71003z0kogbd1qq1g7",
+            "dungeonId": "cmlvkth6x003y0kogd1vd3ush",
+            "challengeId": "cmlvkl3d6001sqkog8roxetaq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.253Z"
+          },
+          {
+            "id": "cmlvkth7400400koggiiz5efk",
+            "dungeonId": "cmlvkth6x003y0kogd1vd3ush",
+            "challengeId": "cmlvkl3f90026qkogxiaw0cdh",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.256Z"
+          },
+          {
+            "id": "cmlvkth7800410kogvuf9zzab",
+            "dungeonId": "cmlvkth6x003y0kogd1vd3ush",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.260Z"
+          },
+          {
+            "id": "cmlvkth7b00420kogg4f74d47",
+            "dungeonId": "cmlvkth6x003y0kogd1vd3ush",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.263Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth7g00430kogyk21xf4c",
+        "name": "Sentence de la Balance",
+        "bossName": "Misère ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/sentence-de-la-balance.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.268Z",
+        "updatedAt": "2026-02-21T00:24:18.268Z",
+        "achievements": [
+          {
+            "id": "cmlvkth7k00440kogifck39pu",
+            "dungeonId": "cmlvkth7g00430kogyk21xf4c",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.272Z"
+          },
+          {
+            "id": "cmlvkth7p00450kogwflivaxr",
+            "dungeonId": "cmlvkth7g00430kogyk21xf4c",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.277Z"
+          },
+          {
+            "id": "cmlvkth7s00460kogisz684a6",
+            "dungeonId": "cmlvkth7g00430kogyk21xf4c",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.280Z"
+          },
+          {
+            "id": "cmlvkth7w00470kogx8350nu2",
+            "dungeonId": "cmlvkth7g00430kogyk21xf4c",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.284Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth8000480kog5v2tunyf",
+        "name": "Tempête de l’Eliocalypse",
+        "bossName": "Sanctuaire du dernier espoir",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temp-te-de-l-eliocalypse.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.288Z",
+        "updatedAt": "2026-02-21T00:24:18.288Z",
+        "achievements": [
+          {
+            "id": "cmlvkth8400490kogdstz46rn",
+            "dungeonId": "cmlvkth8000480kog5v2tunyf",
+            "challengeId": "cmlvkl3df001uqkog73atrrij",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.292Z"
+          },
+          {
+            "id": "cmlvkth88004a0kogd8cqr4xn",
+            "dungeonId": "cmlvkth8000480kog5v2tunyf",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.296Z"
+          },
+          {
+            "id": "cmlvkth8c004b0kogc83wxlpo",
+            "dungeonId": "cmlvkth8000480kog5v2tunyf",
+            "challengeId": "cmlvkl3ei0021qkogyymnqobc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.300Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth8f004c0kog40bimflx",
+        "name": "Mémoire d'Orukam",
+        "bossName": "Roi Imagami",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/m-moire-d-orukam.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.303Z",
+        "updatedAt": "2026-02-21T00:24:18.303Z",
+        "achievements": [
+          {
+            "id": "cmlvkth8i004d0koglkyu7b3d",
+            "dungeonId": "cmlvkth8f004c0kog40bimflx",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.306Z"
+          },
+          {
+            "id": "cmlvkth8n004e0kogu1hcp0p7",
+            "dungeonId": "cmlvkth8f004c0kog40bimflx",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.311Z"
+          },
+          {
+            "id": "cmlvkth8s004f0kogdn8yij76",
+            "dungeonId": "cmlvkth8f004c0kog40bimflx",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.316Z"
+          },
+          {
+            "id": "cmlvkth8v004g0kogyz2hos4g",
+            "dungeonId": "cmlvkth8f004c0kog40bimflx",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.319Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth8z004h0kogzvsktvp8",
+        "name": "Souvenir d'Imagiro",
+        "bossName": "Reine Amirukam",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/souvenir-d-imagiro.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.323Z",
+        "updatedAt": "2026-02-21T00:24:18.323Z",
+        "achievements": [
+          {
+            "id": "cmlvkth93004i0kogszn0fqwr",
+            "dungeonId": "cmlvkth8z004h0kogzvsktvp8",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.327Z"
+          },
+          {
+            "id": "cmlvkth98004j0koggdr7exo1",
+            "dungeonId": "cmlvkth8z004h0kogzvsktvp8",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.332Z"
+          },
+          {
+            "id": "cmlvkth9b004k0kog4ffn9xn3",
+            "dungeonId": "cmlvkth8z004h0kogzvsktvp8",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.335Z"
+          },
+          {
+            "id": "cmlvkth9e004l0kogx7jf04rv",
+            "dungeonId": "cmlvkth8z004h0kogzvsktvp8",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.338Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth9i004m0kog6xlbdomh",
+        "name": "Rituel de Kabahal",
+        "bossName": "Kabahal ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/rituel-de-kabahal.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.342Z",
+        "updatedAt": "2026-02-21T00:24:18.342Z",
+        "achievements": [
+          {
+            "id": "cmlvkth9l004n0kog2yggvijz",
+            "dungeonId": "cmlvkth9i004m0kog6xlbdomh",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.345Z"
+          },
+          {
+            "id": "cmlvkth9p004o0kogzt95dl6i",
+            "dungeonId": "cmlvkth9i004m0kog6xlbdomh",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.349Z"
+          },
+          {
+            "id": "cmlvkth9s004p0kog2jj7x771",
+            "dungeonId": "cmlvkth9i004m0kog6xlbdomh",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.352Z"
+          },
+          {
+            "id": "cmlvkth9v004q0kogcyuesdbo",
+            "dungeonId": "cmlvkth9i004m0kog6xlbdomh",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.355Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkth9z004r0kogrlb32ci5",
+        "name": "Bataille de l'Aurore Pourpre",
+        "bossName": "L'Éternel Conflit",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/bataille-de-l-aurore-pourpre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.359Z",
+        "updatedAt": "2026-02-21T00:24:18.359Z",
+        "achievements": [
+          {
+            "id": "cmlvktha3004s0kogxnlaons6",
+            "dungeonId": "cmlvkth9z004r0kogrlb32ci5",
+            "challengeId": "cmlvkl3fe0027qkog782cz4f9",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.363Z"
+          },
+          {
+            "id": "cmlvktha6004t0koghgk009ed",
+            "dungeonId": "cmlvkth9z004r0kogrlb32ci5",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.366Z"
+          },
+          {
+            "id": "cmlvkthaa004u0kogk7ubpjjx",
+            "dungeonId": "cmlvkth9z004r0kogrlb32ci5",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.370Z"
+          },
+          {
+            "id": "cmlvkthad004v0kogfzzrdl72",
+            "dungeonId": "cmlvkth9z004r0kogrlb32ci5",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.373Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkthai004w0koggnbfeerc",
+        "name": "Chambre des maléfices",
+        "bossName": "Belladone ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/chambre-des-mal-fices.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.378Z",
+        "updatedAt": "2026-02-21T00:24:18.378Z",
+        "achievements": [
+          {
+            "id": "cmlvkthal004x0kog0nilx7kc",
+            "dungeonId": "cmlvkthai004w0koggnbfeerc",
+            "challengeId": "cmlvkl3ce001nqkogis43zwmc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.381Z"
+          },
+          {
+            "id": "cmlvkthap004y0kogizirvchk",
+            "dungeonId": "cmlvkthai004w0koggnbfeerc",
+            "challengeId": "cmlvkl3dl001vqkog76vgblyr",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.385Z"
+          },
+          {
+            "id": "cmlvkthas004z0kogi25bcmec",
+            "dungeonId": "cmlvkthai004w0koggnbfeerc",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.388Z"
+          },
+          {
+            "id": "cmlvkthav00500kog2g4771dn",
+            "dungeonId": "cmlvkthai004w0koggnbfeerc",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.391Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkthay00510kogfraoi4m9",
+        "name": "Autel de la Déchireuse",
+        "bossName": "Déchireuse",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/autel-de-la-d-chireuse.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.394Z",
+        "updatedAt": "2026-02-21T00:24:18.394Z",
+        "achievements": []
+      },
+      {
+        "id": "cmlvkthb200520koge1vhf2e3",
+        "name": "Breuil du Vénérable",
+        "bossName": "Vénérable Endormi",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/breuil-du-v-n-rable.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "createdAt": "2026-02-21T00:24:18.398Z",
+        "updatedAt": "2026-02-21T00:24:18.398Z",
+        "achievements": [
+          {
+            "id": "cmlvkthb500530kog3ieuvv3k",
+            "dungeonId": "cmlvkthb200520koge1vhf2e3",
+            "challengeId": "cmlvkl3e7001zqkogmeoomnl1",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.401Z"
+          },
+          {
+            "id": "cmlvkthb800540kogx1oozukm",
+            "dungeonId": "cmlvkthb200520koge1vhf2e3",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.404Z"
+          },
+          {
+            "id": "cmlvkthbb00550kog5akba8tr",
+            "dungeonId": "cmlvkthb200520koge1vhf2e3",
+            "challengeId": "cmlvkl3f30025qkogrdnvzolq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.407Z"
+          },
+          {
+            "id": "cmlvkthbf00560kog4ul27j6w",
+            "dungeonId": "cmlvkthb200520koge1vhf2e3",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.411Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkthbj00570koglqzyrk8x",
+        "name": "Antre du Blop Multicolore Royal",
+        "bossName": "Blop Multicolore Royal",
+        "level": 120,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-du-blop-multicolore-royal.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "http://dofuspourlesnoobs.com/antre-du-blop-multicolore-royal.html",
+        "createdAt": "2026-02-21T00:24:18.414Z",
+        "updatedAt": "2026-02-21T00:24:18.414Z",
+        "achievements": [
+          {
+            "id": "cmlvkthbn00580kogbgasvwjs",
+            "dungeonId": "cmlvkthbj00570koglqzyrk8x",
+            "challengeId": "cmlvkl3da001tqkogz3nhqflw",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.419Z"
+          },
+          {
+            "id": "cmlvkthbr00590kogsmma3d8f",
+            "dungeonId": "cmlvkthbj00570koglqzyrk8x",
+            "challengeId": "cmlvkl3cx001qqkogidmpbmgx",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.423Z"
+          },
+          {
+            "id": "cmlvkthbv005a0kogvabyqrk6",
+            "dungeonId": "cmlvkthbj00570koglqzyrk8x",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.427Z"
+          },
+          {
+            "id": "cmlvkthby005b0koglzohn1je",
+            "dungeonId": "cmlvkthbj00570koglqzyrk8x",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.430Z"
+          }
+        ]
+      },
+      {
+        "id": "cmlvkthc2005c0kogizxb4nhi",
+        "name": "Cour du Bouftou Royal",
+        "bossName": "Bouftou Royal",
+        "level": 30,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cour-du-bouftou-royal.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "http://dofuspourlesnoobs.com/cour-du-bouftou-royal.html#expeditions",
+        "createdAt": "2026-02-21T00:24:18.434Z",
+        "updatedAt": "2026-02-21T00:24:18.434Z",
+        "achievements": [
+          {
+            "id": "cmlvkthc5005d0kog2neitmrv",
+            "dungeonId": "cmlvkthc2005c0kogizxb4nhi",
+            "challengeId": "cmlvkl3ec0020qkogp3n5o5yf",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.437Z"
+          },
+          {
+            "id": "cmlvkthc8005e0kogtl5r6yeq",
+            "dungeonId": "cmlvkthc2005c0kogizxb4nhi",
+            "challengeId": "cmlvkl3bw001kqkogrfe5snoc",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.440Z"
+          },
+          {
+            "id": "cmlvkthcc005f0kogsszkn1kn",
+            "dungeonId": "cmlvkthc2005c0kogizxb4nhi",
+            "challengeId": "cmlvkl3d1001rqkoglkqrjifq",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.444Z"
+          },
+          {
+            "id": "cmlvkthcf005g0koggrn5gt4k",
+            "dungeonId": "cmlvkthc2005c0kogizxb4nhi",
+            "challengeId": "cmlvkl3en0022qkogu2ekjorm",
+            "points": 10,
+            "imageUrl": null,
+            "createdAt": "2026-02-21T00:24:18.447Z"
+          }
+        ]
+      }
+    ]
+  }
+}

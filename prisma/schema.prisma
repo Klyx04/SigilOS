@@ -718,9 +718,10 @@ model DreamRun {
   leader User @relation("RunLeader", fields: [leaderId], references: [id], onDelete: Cascade)
 
   // Configuration
-  difficulty DreamDifficulty
-  objective  DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
-  objectives DreamObjective[] // New multi-select field
+  difficulty   DreamDifficulty
+  objective    DreamObjective?  @default(FUN) // DEPRECATED: Use objectives
+  objectives   DreamObjective[] // New multi-select field
+  epreuveCode  String?          // Code épreuve de songe (FONSOCAC, REVERSED, NILEZAFF, SINJSONJ...)
 
   // State
   status       DreamRunStatus @default(RECRUITING)

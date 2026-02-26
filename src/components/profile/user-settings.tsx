@@ -41,6 +41,7 @@ import { updateNotificationPrefs } from "@/server/actions/profile-actions";
 interface NotificationPrefs {
     missions: boolean;
     songes: boolean;
+    donjons: boolean;
     events: boolean;
     ladder: boolean;
     polls: boolean;
@@ -75,6 +76,7 @@ export function UserSettings({
     const prefs = {
         missions: notificationPrefs?.missions ?? true,
         songes: notificationPrefs?.songes ?? true,
+        donjons: notificationPrefs?.donjons ?? true,
         events: notificationPrefs?.events ?? true,
         ladder: notificationPrefs?.ladder ?? true,
         polls: notificationPrefs?.polls ?? true,
@@ -247,6 +249,23 @@ export function UserSettings({
                                 <Switch
                                     checked={prefs.songes}
                                     onCheckedChange={(checked) => handleUpdatePrefs({ songes: checked })}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-indigo-500/30 transition-all duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                                        <Swords className="w-5 h-5 text-indigo-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-200">Donjons &amp; Quêtes</p>
+                                        <p className="text-[10px] text-zinc-500">Quelqu&rsquo;un rejoint ton groupe</p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={prefs.donjons}
+                                    onCheckedChange={(checked) => handleUpdatePrefs({ donjons: checked })}
                                     disabled={loading}
                                 />
                             </div>

@@ -156,28 +156,6 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
-            } else if (prefix === "dj") {
-                // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
-                const djKey = `dj:${member.user.id}:${entityId}`;
-                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
-                if (waitSecs > 0) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: `⏳ Doucement ! Réessaie dans **${waitSecs}s**.`, flags: 64 },
-                    });
-                }
-
-                if (action === "join") {
-                    const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
-                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
-                    else { result = await internalJoinDjPost(entityId, djProfile.id, account.userId); }
-                } else if (action === "leave") {
-                    const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    const djProfile = await db.userProfile.findFirst({ where: { userId: account.userId, guildId: guild_id } });
-                    if (!djProfile) { result = { success: false, error: "Tu n'es pas membre de cette guilde sur SigilOS." }; }
-                    else { result = await internalLeaveDjPost(entityId, djProfile.id); }
-                }
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     const { processPollVote } = await import("@/server/actions/poll-actions");
@@ -215,8 +193,18 @@ export async function POST(request: NextRequest) {
                     }
                 }
             } else if (prefix === "dj") {
+                // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
+                const djKey = `dj:${member.user.id}:${entityId}`;
+                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                if (waitSecs > 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `⏳ Doucement ! Réessaie dans **${waitSecs}s**.`, flags: 64 },
+                    });
+                }
+
                 if (action === "join" || action === "leave") {
-                    // Find the post + guild
+                    // Récupérer le post pour obtenir le guildId Prisma interne (≠ Discord guild_id snowflake)
                     const post = await (db as any).djSearchPost.findUnique({
                         where: { id: entityId },
                         include: {
@@ -238,7 +226,7 @@ export async function POST(request: NextRequest) {
                         });
                     }
 
-                    // Find the UserProfile for this guild
+                    // Chercher le profil via post.guildId (CUID Prisma), PAS via guild_id (Discord snowflake)
                     const profile = await db.userProfile.findFirst({
                         where: { userId: account.userId, guildId: post.guildId },
                     });
@@ -249,8 +237,6 @@ export async function POST(request: NextRequest) {
                             data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
                         });
                     }
-
-                    const discordGuildId = post.guildConfig?.discordGuildId || guild_id;
 
                     if (action === "join") {
                         const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");

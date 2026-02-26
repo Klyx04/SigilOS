@@ -251,14 +251,14 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur expiration OcreTradeRequests:", { error: String(err) });
         }
 
-        // SONGES: Auto-reject expired join requests (PENDING > 10 minutes)
+        // SONGES: Auto-reject expired join requests (PENDING > 24h)
         try {
-            const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+            const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
             const expiredRequests = await db.dreamJoinRequest.findMany({
                 where: {
                     status: "PENDING",
-                    createdAt: { lt: tenMinutesAgo },
+                    createdAt: { lt: oneDayAgo },
                 },
                 include: { run: { select: { difficulty: true, guildId: true } } },
             });
@@ -270,13 +270,13 @@ const cleanupWorker = new Worker(
                         data: { status: "REJECTED", respondedAt: new Date() },
                     });
 
-                    // Notify user directly via DB (no "use server" needed)
+                    // Notify user directly via DB
                     await db.notification.create({
                         data: {
                             userId: req.userId,
                             type: "SYSTEM_INFO",
                             title: "Candidature expirée",
-                            message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 10 minutes).`,
+                            message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
                             link: `/dashboard/${req.run.guildId}/songes`,
                         },
                     });
@@ -287,14 +287,18 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur expiration candidatures Songes:", { error: String(err) });
         }
 
-        // SONGES: Auto-abandon inactive runs (> 3 days no activity)
+        // SONGES: Auto-abandon inactive runs (> 3 days without ANY member/floor/join activity)
         try {
             const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
+            // On exclut les runs qui ont eu une candidature ou un floor actif récemment
             const inactiveRuns = await db.dreamRun.findMany({
                 where: {
                     status: { in: ["RECRUITING", "IN_PROGRESS"] },
                     updatedAt: { lt: threeDaysAgo },
+                    // Exclure les runs qui ont eu une récente joinRequest ou floor
+                    joinRequests: { none: { createdAt: { gt: threeDaysAgo } } },
+                    floors: { none: { completedAt: { gt: threeDaysAgo } } },
                 },
                 select: { id: true, guildId: true },
             });
@@ -307,7 +311,7 @@ const cleanupWorker = new Worker(
             }
 
             if (inactiveRuns.length > 0) {
-                logger.info(`[Cleanup] 🌙 ${inactiveRuns.length} runs Songes inactives abandonnées (> 3j).`);
+                logger.info(`[Cleanup] 🌙 ${inactiveRuns.length} runs Songes inactives abandonnées (> 3j sans activité).`);
             }
         } catch (err) {
             logger.error("[Cleanup] Erreur abandon runs Songes:", { error: String(err) });

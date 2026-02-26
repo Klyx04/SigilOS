@@ -1,0 +1,181 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <BlazorWebAssemblyEnablePWA>true</BlazorWebAssemblyEnablePWA>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\Icons\Conseils.png" />
+    <None Include="wwwroot\Icons\Information.png" />
+    <None Include="wwwroot\Icons\Mécanique.png" />
+    <None Include="wwwroot\Images\1027_Corailleur Magistral.png" />
+    <None Include="wwwroot\Images\1045_Kimbo.png" />
+    <None Include="wwwroot\Images\1051_Gourlo le Terrible.png" />
+    <None Include="wwwroot\Images\1071_Silf le Rasboul Majeur.png" />
+    <None Include="wwwroot\Images\1072_Tynril Consterne.png" />
+    <None Include="wwwroot\Images\107_Hell Mina.png" />
+    <None Include="wwwroot\Images\113_Dragon Cochon.png" />
+    <None Include="wwwroot\Images\1159_Ougah.png" />
+    <None Include="wwwroot\Images\1179_Sapik.png" />
+    <None Include="wwwroot\Images\1184_Blop Coco Royal.png" />
+    <None Include="wwwroot\Images\1188_Blop Multicolore Royal.png" />
+    <None Include="wwwroot\Images\1194_Pere Fwetar.png" />
+    <None Include="wwwroot\Images\121_Minotoror.png" />
+    <None Include="wwwroot\Images\1309_Bouflouth.png" />
+    <None Include="wwwroot\Images\147_Bouftou Royal.png" />
+    <None Include="wwwroot\Images\173_Abraknyde Ancestral.png" />
+    <None Include="wwwroot\Images\180_Wa Wabbit.png" />
+    <None Include="wwwroot\Images\2053_Docteur Eggob.png" />
+    <None Include="wwwroot\Images\2057_Chevalier de Glace.png" />
+    <None Include="wwwroot\Images\2058_Culbutoeuf.png" />
+    <None Include="wwwroot\Images\2181_Ali Grothor.png" />
+    <None Include="wwwroot\Images\226_Moon.png" />
+    <None Include="wwwroot\Images\230_Le Chouque.png" />
+    <None Include="wwwroot\Images\232_Meulou.png" />
+    <None Include="wwwroot\Images\2419_Aigripoil.png" />
+    <None Include="wwwroot\Images\252_Coffre des Forgerons.png" />
+    <None Include="wwwroot\Images\257_Chene Mou.png" />
+    <None Include="wwwroot\Images\2848_Mansot Royal.png" />
+    <None Include="wwwroot\Images\2854_Royalmouth.png" />
+    <None Include="wwwroot\Images\2864_Glourseleste.png" />
+    <None Include="wwwroot\Images\2877_Ben le Ripate.png" />
+    <None Include="wwwroot\Images\289_Maitre Corbac.png" />
+    <None Include="wwwroot\Images\2902_Monsieur Pingouin.png" />
+    <None Include="wwwroot\Images\2903_Katigrou.png" />
+    <None Include="wwwroot\Images\2904_Fantomayte.png" />
+    <None Include="wwwroot\Images\2905_Vengeuse Masquee.png" />
+    <None Include="wwwroot\Images\2908_Dremoan.png" />
+    <None Include="wwwroot\Images\2924_Obsidiantre.png" />
+    <None Include="wwwroot\Images\2942_Grolloum.png" />
+    <None Include="wwwroot\Images\2960_Kanniboul Ebil.png" />
+    <None Include="wwwroot\Images\2967_Tengu Givrefoux.png" />
+    <None Include="wwwroot\Images\2968_Korriandre.png" />
+    <None Include="wwwroot\Images\2970_Fuji Givrefoux.png" />
+    <None Include="wwwroot\Images\2975_Boostache.png" />
+    <None Include="wwwroot\Images\2986_Kolosso.png" />
+    <None Include="wwwroot\Images\2992_Professeur Xa.png" />
+    <None Include="wwwroot\Images\2995_Kwakwa.png" />
+    <None Include="wwwroot\Images\3100_Nelween.png" />
+    <None Include="wwwroot\Images\3234_Fuji Givrefoux Nourriciere.png" />
+    <None Include="wwwroot\Images\3238_Chafer Ronin.png" />
+    <None Include="wwwroot\Images\3306_Halouine.png" />
+    <None Include="wwwroot\Images\3356_Buldalazred.png" />
+    <None Include="wwwroot\Images\3384_Klime.png" />
+    <None Include="wwwroot\Images\3391_Missiz Frizz.png" />
+    <None Include="wwwroot\Images\3397_Nileza.png" />
+    <None Include="wwwroot\Images\3401_Mekamouth.png" />
+    <None Include="wwwroot\Images\3409_Sylargh.png" />
+    <None Include="wwwroot\Images\3413_Psikopompe.png" />
+    <None Include="wwwroot\Images\3416_Comte Harebourg.png" />
+    <None Include="wwwroot\Images\3460_Wa Wobot.png" />
+    <None Include="wwwroot\Images\3534_Merkator.png" />
+    <None Include="wwwroot\Images\3556_Kanigroula.png" />
+    <None Include="wwwroot\Images\3564_Ombre.png" />
+    <None Include="wwwroot\Images\3618_Haute Truche.png" />
+    <None Include="wwwroot\Images\3648_Roi Nidas.png" />
+    <None Include="wwwroot\Images\3651_Phossile.png" />
+    <None Include="wwwroot\Images\3652_Mallefisk.png" />
+    <None Include="wwwroot\Images\3668_Voldelor.png" />
+    <None Include="wwwroot\Images\3670_Maxi-Malle.png" />
+    <None Include="wwwroot\Images\3726_Reine des Voleurs.png" />
+    <None Include="wwwroot\Images\3752_Toxoliath.png" />
+    <None Include="wwwroot\Images\3753_Capitaine Ekarlatte.png" />
+    <None Include="wwwroot\Images\3828_Protozorreur.png" />
+    <None Include="wwwroot\Images\382_Tofu Royal.png" />
+    <None Include="wwwroot\Images\3835_Vortex.png" />
+    <None Include="wwwroot\Images\3845_Morblok.png" />
+    <None Include="wwwroot\Images\3848_Hin.png" />
+    <None Include="wwwroot\Images\3849_XLII.png" />
+    <None Include="wwwroot\Images\3851_Sicogne.png" />
+    <None Include="wwwroot\Images\3852_Fraktale.png" />
+    <None Include="wwwroot\Images\3945_Kankreblath.png" />
+    <None Include="wwwroot\Images\3996_Reine Nyee.png" />
+    <None Include="wwwroot\Images\4028_Grand Kongoku.png" />
+    <None Include="wwwroot\Images\4051_Kardorim.png" />
+    <None Include="wwwroot\Images\4263_Chaloeil.png" />
+    <None Include="wwwroot\Images\4264_Ush Galesh.png" />
+    <None Include="wwwroot\Images\4270_Roub’ Ignolles.png" />
+    <None Include="wwwroot\Images\4278_Pounicheur.png" />
+    <None Include="wwwroot\Images\430_Gelee Royale Citron.png" />
+    <None Include="wwwroot\Images\4444_Dantinea.png" />
+    <None Include="wwwroot\Images\4453_Larve de Koutoulou.png" />
+    <None Include="wwwroot\Images\4460_Capitaine Meno.png" />
+    <None Include="wwwroot\Images\4507_Takomako.png" />
+    <None Include="wwwroot\Images\4532_Homard Medali.png" />
+    <None Include="wwwroot\Images\457_Shin Larve.png" />
+    <None Include="wwwroot\Images\4609_El Piko.png" />
+    <None Include="wwwroot\Images\4621_Mantiscore.png" />
+    <None Include="wwwroot\Images\4726_Pere Ver.png" />
+    <None Include="wwwroot\Images\4734_Khepricorne.png" />
+    <None Include="wwwroot\Images\4744_Tal Kasha.png" />
+    <None Include="wwwroot\Images\478_Bworker.png" />
+    <None Include="wwwroot\Images\4803_Comte Razof.png" />
+    <None Include="wwwroot\Images\4860_Choudini.png" />
+    <None Include="wwwroot\Images\4882_Anerice la Shushess.png" />
+    <None Include="wwwroot\Images\4967_Ilyzaelle.png" />
+    <None Include="wwwroot\Images\5100_Solar.png" />
+    <None Include="wwwroot\Images\5110_Bethel Akarna.png" />
+    <None Include="wwwroot\Images\5319_Dazak Martegel.png" />
+    <None Include="wwwroot\Images\5653_Mawabouaino.png" />
+    <None Include="wwwroot\Images\5664_Croqueleur.png" />
+    <None Include="wwwroot\Images\5666_Pretresse de Kao.png" />
+    <None Include="wwwroot\Images\5806_Torkelonia.png" />
+    <None Include="wwwroot\Images\5819_Kharnozor.png" />
+    <None Include="wwwroot\Images\5823_Draegnerys.png" />
+    <None Include="wwwroot\Images\5955_Servitude.png" />
+    <None Include="wwwroot\Images\5990_Misere.png" />
+    <None Include="wwwroot\Images\6014_Guerre.png" />
+    <None Include="wwwroot\Images\6026_Corruption.png" />
+    <None Include="wwwroot\Images\6204_Shihan.png" />
+    <None Include="wwwroot\Images\6212_Hanshi.png" />
+    <None Include="wwwroot\Images\6218_Tanukoui San.png" />
+    <None Include="wwwroot\Images\6249_Founoroshi.png" />
+    <None Include="wwwroot\Images\6256_Nagate.png" />
+    <None Include="wwwroot\Images\6326_Damadrya.png" />
+    <None Include="wwwroot\Images\6388_Shogun Tofugawa.png" />
+    <None Include="wwwroot\Images\6394_Koumiho.png" />
+    <None Include="wwwroot\Images\6472_Roi Imagami.png" />
+    <None Include="wwwroot\Images\6478_Reine Amirukam.png" />
+    <None Include="wwwroot\Images\6654_Kabahal.png" />
+    <None Include="wwwroot\Images\669_Craqueleur Legendaire.png" />
+    <None Include="wwwroot\Images\670_Koulosse.png" />
+    <None Include="wwwroot\Images\6792_L%27Eternel Conflit.png" />
+    <None Include="wwwroot\Images\686_Aermyne %27Braco%27 Scalptaras.png" />
+    <None Include="wwwroot\Images\6903_Directeur Grunob.png" />
+    <None Include="wwwroot\Images\7197_Rakoopeur.png" />
+    <None Include="wwwroot\Images\7210_Belladone.png" />
+    <None Include="wwwroot\Images\7219_Barberyl Clochecuivre.png" />
+    <None Include="wwwroot\Images\7222_Cire Momore.png" />
+    <None Include="wwwroot\Images\780_Skeunk.png" />
+    <None Include="wwwroot\Images\792_Bworkette.png" />
+    <None Include="wwwroot\Images\797_Scarabosse Dore.png" />
+    <None Include="wwwroot\Images\799_Tournesol Affame.png" />
+    <None Include="wwwroot\Images\800_Batofu.png" />
+    <None Include="wwwroot\Images\8093_Supervizoeuf Perturbé.png" />
+    <None Include="wwwroot\Images\8099_Vénérable Endormi Perturbé.png" />
+    <None Include="wwwroot\Images\8103_Déchireuse Perturbé.png" />
+    <None Include="wwwroot\Images\827_Minotot.png" />
+    <None Include="wwwroot\Images\854_Crocabulia.png" />
+    <None Include="wwwroot\Images\872_Papa Nowel.png" />
+    <None Include="wwwroot\Images\928_Mob l%27Eponge.png" />
+    <None Include="wwwroot\Images\939_Rat Noir.png" />
+    <None Include="wwwroot\Images\940_Rat Blanc.png" />
+    <None Include="wwwroot\Images\943_Sphincter Cell.png" />
+    <None Include="wwwroot\Images\songes.webp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.44.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.19" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.19" PrivateAssets="all" />
+    <PackageReference Include="MudBlazor" Version="8.15.0" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+</Project>

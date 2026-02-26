@@ -1,0 +1,69 @@
+﻿@using System.Globalization
+
+<div class="search-container">
+    <input type="text"
+           class="search-bar"
+           placeholder="Rechercher un boss..."
+           @bind="searchTerm"
+           @bind:event="oninput" 
+           @onkeydown="HandleKeyDown" />
+
+    @if (FilteredMonsters.Any())
+    {
+        int index = 0;
+        <ul class="search-dropdown">
+            @foreach (var monster in FilteredMonsters.Take(5))
+            {
+                <li class="@(index == highlightedIndex ? "highlighted" : "")" @onclick="() => OnNavigate(monster.Id)">
+                    @monster.Name
+                </li>
+                ++index;
+            }
+        </ul>
+    }
+</div>
+
+@code {
+
+    [Parameter] public List<Monster> Monsters { get; set; } = new();
+    [Parameter] public EventCallback<int> OnSelect { get; set; }
+    private string searchTerm = string.Empty;
+    private int highlightedIndex = -1;
+
+    private IEnumerable<Monster> FilteredMonsters =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? Enumerable.Empty<Monster>()
+            : Monsters.Where(m =>
+                CultureInfo.CurrentCulture.CompareInfo.IndexOf(
+                    m.Name,
+                    searchTerm,
+                    CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace
+                ) >= 0);
+
+    private async Task OnNavigate(int id)
+    {
+        searchTerm = string.Empty;
+        await OnSelect.InvokeAsync(id);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (!FilteredMonsters.Any())
+            return;
+
+        if (e.Key == "ArrowDown")
+        {
+            highlightedIndex = Math.Min((highlightedIndex + 1), Math.Min(FilteredMonsters.Count(), 4));
+        }
+        else if (e.Key == "ArrowUp")
+        {
+            highlightedIndex = Math.Max((highlightedIndex - 1), 0);
+        }
+        else if (e.Key == "Tab" || e.Key == "Enter")
+        {
+            var monster = FilteredMonsters.ElementAt(highlightedIndex);
+            _ = OnNavigate(monster.Id);
+            highlightedIndex = -1;
+        }
+    }
+}

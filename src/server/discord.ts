@@ -321,6 +321,7 @@ interface SendChannelMessageOptions {
     fields?: EmbedField[];       // Structured data fields
     mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
     components?: any[];          // Discord Components (Buttons, Select Menus)
+    suppressEmbeds?: boolean;    // flags: 4 — prevent URL unfurl preview
 }
 
 /**
@@ -418,6 +419,11 @@ export async function sendChannelMessage(
     // Add components (buttons)
     if (options?.components) {
         body.components = options.components;
+    }
+
+    // Suppress URL unfurl previews (flags: 4 = SUPPRESS_EMBEDS)
+    if (options?.suppressEmbeds && !options?.embedTitle) {
+        body.flags = 4;
     }
 
     try {

@@ -1,0 +1,73 @@
+﻿<div class="main-container">
+    <div class="title">Gestion</div>
+    <div class="icon-grid">
+        <div class="icon-row">
+            <img src="Icons/Focus.png" title="Tuer vite" />
+            <div class="progress-bar">
+                @{
+                    string fillColorFocus = GetColor(Focus);
+                }
+                @for (int i = 0; i < 10; i++)
+                {
+                    string color = i < Focus ? fillColorFocus : unFilled;
+                    <div class="bar-segment" style="background-color: @color"></div>
+                }
+            </div>
+        </div>
+
+        <div class="icon-row">
+            <img src="Icons/Evasion.png" title="Esquiver" />
+            <div class="progress-bar">
+                @{
+                    string fillColorEvasion = GetColor(Evasion);
+                }
+                @for (int i = 0; i < 10; i++)
+                {
+                    string color = i < Evasion ? fillColorEvasion : unFilled;
+                    <div class="bar-segment" style="background-color: @color"></div>
+                }
+            </div>
+        </div>
+
+        <div class="icon-row">
+            <img src="Icons/Tank.png" title="Tanker" />
+            <div class="progress-bar">
+                @{
+                    string fillColorTank = GetColor(Tank);
+                }
+                @for (int i = 0; i < 10; i++)
+                {
+                    string color = i < Tank ? fillColorTank : unFilled;
+                    <div class="bar-segment" style="background-color: @color"></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Focus { get; set; } = 5;
+    [Parameter] public int Evasion { get; set; } = 5;
+    [Parameter] public int Tank { get; set; } = 5;
+    private string unFilled = "#444";
+
+    private string GetColor(int value)
+    {
+        return value switch
+        {
+            0 => "#999999",   // neutral gray for “no color”
+            1 => "#ff6666",   // light red
+            2 => "#ff3333",   // red
+            3 => "#cc0000",   // darker red
+            4 => "#ff9900",   // orange
+            5 => "#ffff00",   // yellow
+            6 => "#99cc00",   // olive green
+            7 => "#66cc00",   // medium green
+            8 => "#33cc00",   // slightly darker green
+            9 => "#00cc00",   // vivid green
+            10 => "#00ff00",  // bright pure green
+            _ => "#ffffff"
+        };
+    }
+}
+

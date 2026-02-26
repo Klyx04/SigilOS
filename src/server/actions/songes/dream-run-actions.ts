@@ -144,9 +144,21 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         return { success: false, error: validated.error.errors[0].message };
     }
 
-    // RATE LIMIT: 3 creations per 10 minutes
-    const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
-    if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter.", resetAt: limiter.reset };
+    // RATE LIMIT: 3 créations par 10 minutes
+    // 🛠️ Dev bypass : RATE_LIMIT_BYPASS_DISCORD_IDS (IDs Discord séparés par virgule)
+    const bypassDiscordIds = (process.env.RATE_LIMIT_BYPASS_DISCORD_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+    let isRateLimitBypassed = false;
+    if (bypassDiscordIds.length > 0) {
+        const account = await db.account.findFirst({
+            where: { userId: ctx.userId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        isRateLimitBypassed = bypassDiscordIds.includes(account?.providerAccountId ?? "");
+    }
+    if (!isRateLimitBypassed) {
+        const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
+        if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter.", resetAt: limiter.reset };
+    }
 
     // Rule: A leader can only have one active run
     const existingRun = await db.dreamRun.findFirst({

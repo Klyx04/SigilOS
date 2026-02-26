@@ -12,7 +12,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { DIFFICULTIES, OBJECTIVES, getEpreuve, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
 import { closeDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun, DreamRunMember } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
+    const epreuve = getEpreuve((run as any).epreuveCode);
 
     const formatDate = (date: Date | null) => {
         if (!date) return "-";
@@ -159,12 +160,29 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                             </h1>
                         </div>
 
-                        <div className="flex items-center gap-6 text-sm text-purple-200/60 mt-1">
-                            {/* Objective Badge */}
-                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5 hover:bg-white/10 transition-colors">
-                                {objective?.icon || <Target className="w-4 h-4" />}
-                                <span className="font-medium text-white/80">{objective?.label}</span>
-                            </div>
+                        <div className="flex items-center gap-6 text-sm text-purple-200/60 mt-1 flex-wrap">
+                            {/* Objective Badge — masqué si c'est une épreuve */}
+                            {!epreuve && (
+                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5 hover:bg-white/10 transition-colors">
+                                    {objective?.icon || <Target className="w-4 h-4" />}
+                                    <span className="font-medium text-white/80">{objective?.label}</span>
+                                </div>
+                            )}
+
+                            {/* Épreuve Badge — affiché uniquement si c'est une épreuve */}
+                            {epreuve && (
+                                <div
+                                    className="flex items-center gap-2 px-3 py-1 rounded-full border font-bold uppercase tracking-wider text-xs"
+                                    style={{
+                                        borderColor: `${epreuve.color}50`,
+                                        backgroundColor: `${epreuve.color}12`,
+                                        color: epreuve.color,
+                                    }}
+                                >
+                                    <span>{epreuve.icon}</span>
+                                    <span>{epreuve.label}</span>
+                                </div>
+                            )}
 
                             {/* Doc Link */}
                             <a
@@ -178,6 +196,30 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                                 <ArrowLeft className="w-3 h-3 rotate-[135deg] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                             </a>
                         </div>
+
+                        {/* Épreuve description block */}
+                        {epreuve && (
+                            <div
+                                className="mt-3 flex items-start gap-3 px-4 py-3 rounded-xl border text-sm max-w-xl"
+                                style={{
+                                    borderColor: `${epreuve.color}30`,
+                                    backgroundColor: `${epreuve.color}08`,
+                                }}
+                            >
+                                <span className="text-xl shrink-0 mt-0.5">{epreuve.icon}</span>
+                                <div>
+                                    <p className="font-bold uppercase tracking-wide text-xs mb-1" style={{ color: epreuve.color }}>
+                                        Règle spéciale — {epreuve.difficultyLabel} imposé
+                                    </p>
+                                    <p className="text-white/50 leading-relaxed text-xs">
+                                        {epreuve.description}
+                                    </p>
+                                    <p className="text-white/30 text-[11px] mt-1.5 italic">
+                                        Pas de butin ni d&apos;expérience pour les épreuves.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Metadata Row */}
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/40 mt-4 font-mono uppercase tracking-wide">

@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getDreamRunById, updateCurrentFloor, getMemberProfiles } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Moon } from "lucide-react";
+import { Moon, BookOpen } from "lucide-react";
+import { BossGuide } from "@/components/songes/BossGuide";
 import { RunDetailHeader } from "@/components/songes/RunDetailHeader";
 import { RunStatsPanel } from "@/components/songes/RunStatsPanel";
 import { BonusInventory } from "@/components/songes/BonusInventory";
@@ -35,6 +36,7 @@ export default function RunDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+    const [bossGuideOpen, setBossGuideOpen] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!guildId) return;
@@ -173,6 +175,18 @@ export default function RunDetailPage() {
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
                 </div>
             </div>
+            {/* Boss Guide Floating Button */}
+            <button
+                onClick={() => setBossGuideOpen(true)}
+                className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-900/40 hover:shadow-purple-500/30 transition-all active:scale-95 group"
+                title="Guide des Boss — Songes Pour Les Noobs"
+            >
+                <BookOpen className="w-5 h-5 group-hover:rotate-6 transition-transform" />
+                <span className="text-sm">Guide Boss</span>
+            </button>
+
+            {/* Boss Guide Drawer */}
+            <BossGuide isOpen={bossGuideOpen} onClose={() => setBossGuideOpen(false)} />
         </div>
     );
 }

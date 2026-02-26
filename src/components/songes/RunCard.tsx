@@ -291,16 +291,39 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-[#1a0933] border-red-500/30 text-white">
-                                    <DialogHeader>
-                                        <DialogTitle>Supprimer la Run ?</DialogTitle>
-                                    </DialogHeader>
-                                    <p className="text-purple-200 text-sm">Cette action est irréversible. Tous les membres seront retirés.</p>
-                                    <div className="flex gap-2 justify-end mt-4">
-                                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-                                        <Button onClick={handleDelete} disabled={loading} className="bg-red-600 hover:bg-red-500">
-                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Supprimer"}
-                                        </Button>
+                                <DialogContent className="bg-[#0d0515] border border-red-500/25 text-white max-w-sm w-full rounded-2xl shadow-[0_0_60px_rgba(239,68,68,0.15)] p-0 overflow-hidden">
+                                    {/* Header rouge */}
+                                    <div className="bg-gradient-to-br from-red-950/80 to-[#0d0515] px-6 pt-6 pb-4 border-b border-red-500/15">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                                <Trash2 className="w-5 h-5 text-red-400" />
+                                            </div>
+                                            <DialogTitle className="text-base font-black text-white tracking-wide">
+                                                Supprimer la Run ?
+                                            </DialogTitle>
+                                        </div>
+                                    </div>
+                                    {/* Body */}
+                                    <div className="px-6 py-5 space-y-5">
+                                        <p className="text-sm text-white/50 leading-relaxed">
+                                            Cette action est <span className="text-red-400 font-semibold">irréversible</span>. Tous les membres seront retirés et la run sera définitivement supprimée.
+                                        </p>
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setDeleteDialogOpen(false)}
+                                                className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 text-sm"
+                                            >
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                onClick={handleDelete}
+                                                disabled={loading}
+                                                className="bg-red-600 hover:bg-red-500 text-white font-bold shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-all text-sm"
+                                            >
+                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-3.5 h-3.5 mr-1.5" />Supprimer</>}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </DialogContent>
                             </Dialog>

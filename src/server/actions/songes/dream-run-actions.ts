@@ -90,11 +90,11 @@ const CreateRunSchema = z.object({
         "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
     ])).min(1, "Sélectionnez au moins un objectif"),
     publishToDiscord: z.boolean().optional(),
+    epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
 }).refine((data) => {
-    // Validate restrictions: DROP_LEGENDE and SUCCES_NO_ACHAT require PARADOXE or CAUCHEMAR
+    if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
     const restrictedObjectives = ["DROP_LEGENDE", "SUCCES_NO_ACHAT"];
-
     if (!isParadoxeOrHigher) {
         const hasRestricted = data.objectives.some(o => restrictedObjectives.includes(o));
         if (hasRestricted) return false;
@@ -146,7 +146,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
 
     // RATE LIMIT: 3 creations per 10 minutes
     const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
-    if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter." };
+    if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter.", resetAt: limiter.reset };
 
     // Rule: A leader can only have one active run
     const existingRun = await db.dreamRun.findFirst({
@@ -168,6 +168,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             difficulty: validated.data.difficulty,
             objectives: validated.data.objectives,
             objective: validated.data.objectives[0], // Init legacy field
+            epreuveCode: validated.data.epreuveCode ?? null,
             members: {
                 create: {
                     userId: ctx.userId,

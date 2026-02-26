@@ -285,3 +285,66 @@ export function filterBonusByType(
 ): SongesBonus[] {
     return bonuses.filter(b => b.type === type);
 }
+
+// ============================================
+// ÉPREUVES DE SONGE (MAJ 3.5)
+// Parcours prédéfinis liés à des succès en jeu
+// ============================================
+
+export const EPREUVES_SONGE = [
+    {
+        code: "FONSOCAC",
+        label: "Épreuve FONSOCAC",
+        difficulty: "CAUCHEMAR_I" as DifficultyKey,
+        difficultyLabel: "Cauchemar I",
+        description: "Les armes ont : -1 PA, +1 lancer par tour et +10 dégâts de base. Les monstres ont des PV supplémentaires.",
+        icon: "⚔️",
+        color: "#dc2626",
+        borderClass: "border-red-500/40",
+        textClass: "text-red-400",
+        badgeClass: "bg-red-900/20 text-red-400 border-red-500/30",
+    },
+    {
+        code: "REVERSED",
+        label: "Épreuve REVERSED",
+        difficulty: "CAUCHEMAR_I" as DifficultyKey,
+        difficultyLabel: "Cauchemar I",
+        description: "Vous incarnez un boss aléatoire et affrontez des PNJ qui ont l'apparence et les sorts des classes Dofus.",
+        icon: "🔄",
+        color: "#dc2626",
+        borderClass: "border-red-500/40",
+        textClass: "text-red-400",
+        badgeClass: "bg-red-900/20 text-red-400 border-red-500/30",
+    },
+    {
+        code: "NILEZAFF",
+        label: "Épreuve NILEZAFF",
+        difficulty: "PARADOXE_II" as DifficultyKey,
+        difficultyLabel: "Paradoxe II",
+        description: "Lorsqu'une entité reçoit des dommages à distance, elle force l'échange de position avec son attaquant et renvoie les dommages en zone.",
+        icon: "🌀",
+        color: "#f59e0b",
+        borderClass: "border-amber-500/40",
+        textClass: "text-amber-400",
+        badgeClass: "bg-amber-900/20 text-amber-400 border-amber-500/30",
+    },
+    {
+        code: "SINJSONJ",
+        label: "Épreuve SINJSONJ",
+        difficulty: "PARADOXE_II" as DifficultyKey,
+        difficultyLabel: "Paradoxe II",
+        description: "Vous incarnez un Kongoku qui invoque un Moon dès le début du combat.",
+        icon: "🐵",
+        color: "#f59e0b",
+        borderClass: "border-amber-500/40",
+        textClass: "text-amber-400",
+        badgeClass: "bg-amber-900/20 text-amber-400 border-amber-500/30",
+    },
+] as const;
+
+export type EpreuveCode = typeof EPREUVES_SONGE[number]["code"];
+
+export function getEpreuve(code: string | null | undefined) {
+    if (!code) return null;
+    return EPREUVES_SONGE.find(e => e.code === code) ?? null;
+}

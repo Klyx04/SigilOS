@@ -263,6 +263,7 @@ export type SongesBonus = {
     effets: string;
     infos?: string;
     cout: number;
+    nouveau?: boolean; // MAJ 3.5 : nouveau bonus
 };
 
 /**

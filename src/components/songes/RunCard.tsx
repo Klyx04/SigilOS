@@ -249,9 +249,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         />
                         <span className="text-white font-semibold">{difficulty?.label}</span>
                     </div>
-                    <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
-                        {objective?.icon} {objective?.label}
-                    </div>
+                    {!epreuve && (
+                        <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
+                            {objective?.icon} {objective?.label}
+                        </div>
+                    )}
                     <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1">
                         <Crown className="w-3 h-3 text-amber-400/70" />
                         <span className="flex items-center gap-1">

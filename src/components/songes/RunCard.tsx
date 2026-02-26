@@ -33,7 +33,7 @@ import {
     getPendingJoinRequests,
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
-import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
+import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass, getEpreuve } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
@@ -94,6 +94,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const progress = (run.currentFloor / 26) * 100;
     const isLeader = currentUserId === run.leaderId;
     const isMember = run.members.some((m) => m.userId === currentUserId);
+    const epreuve = getEpreuve((run as any).epreuveCode);
 
     // Check if user can apply (includes permission check)
     const canApplyConditions = (run.status === "RECRUITING" || run.status === "IN_PROGRESS") &&
@@ -438,6 +439,32 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     )}
                 </div>
             </div>
+
+            {/* Épreuve Banner */}
+            {epreuve && (
+                <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border mb-3 -mt-1"
+                    style={{ borderColor: `${epreuve.color}40`, backgroundColor: `${epreuve.color}10` }}
+                >
+                    <span className="text-base shrink-0">{epreuve.icon}</span>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black uppercase tracking-widest" style={{ color: epreuve.color }}>
+                                {epreuve.label}
+                            </span>
+                            <span
+                                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                style={{ color: epreuve.color, borderColor: `${epreuve.color}50`, backgroundColor: `${epreuve.color}15` }}
+                            >
+                                Succès
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-white/35 leading-relaxed mt-0.5 truncate">
+                            {epreuve.description}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Progress Bar */}
             <div className="mb-4">

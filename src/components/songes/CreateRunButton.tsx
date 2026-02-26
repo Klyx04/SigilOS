@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Loader2, MessageSquare, Trophy, Swords } from "lucide-react";
+import { useState, useTransition, useEffect } from "react";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -21,55 +21,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
-import { DIFFICULTIES, OBJECTIVES, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-// ─────────────────────────────────────────────────────────
-// Épreuves de Songe (MAJ 3.5 — parcours prédéfinis)
-// Liées à des succès spécifiques et à une intensité fixe.
-// ─────────────────────────────────────────────────────────
-const EPREUVES = [
-    {
-        code: "FONSOCAC",
-        label: "Épreuve FONSOCAC",
-        difficulty: "CAUCHEMAR_I" as DifficultyKey,
-        difficultyLabel: "Cauchemar I",
-        description: "Les armes ont : -1 PA, +1 lancer par tour et +10 dégâts de base. Les monstres ont des PV supplémentaires.",
-        icon: "⚔️",
-        color: "#dc2626",
-    },
-    {
-        code: "REVERSED",
-        label: "Épreuve REVERSED",
-        difficulty: "CAUCHEMAR_I" as DifficultyKey,
-        difficultyLabel: "Cauchemar I",
-        description: "Vous incarnez un boss aléatoire et affrontez des PNJ qui ont l'apparence et les sorts des classes Dofus.",
-        icon: "🔄",
-        color: "#dc2626",
-    },
-    {
-        code: "NILEZAFF",
-        label: "Épreuve NILEZAFF",
-        difficulty: "PARADOXE_II" as DifficultyKey,
-        difficultyLabel: "Paradoxe II",
-        description: "Lorsqu'une entité reçoit des dommages à distance, elle force l'échange de position avec son attaquant. Elle érode et renvoie les dommages qu'elle subit en zone autour d'elle.",
-        icon: "🌀",
-        color: "#f59e0b",
-    },
-    {
-        code: "SINJSONJ",
-        label: "Épreuve SINJSONJ",
-        difficulty: "PARADOXE_II" as DifficultyKey,
-        difficultyLabel: "Paradoxe II",
-        description: "Vous incarnez un Kongoku qui invoque un Moon dès le début du combat. Leurs sorts sont différents et ils peuvent se transformer pour gagner des effets sur leurs sorts.",
-        icon: "🐵",
-        color: "#f59e0b",
-    },
-] as const;
-
-
-type EpreuveCode = typeof EPREUVES[number]["code"];
+import { toast } from "sonner";
 
 // Couleur selon difficulté
 function getDifficultyBadgeColor(diffKey: DifficultyKey) {
@@ -78,7 +33,7 @@ function getDifficultyBadgeColor(diffKey: DifficultyKey) {
     return "text-emerald-400 bg-emerald-900/20 border-emerald-500/30";
 }
 
-// ─────────────────────────────────────────────────────────
+
 // Component
 // ─────────────────────────────────────────────────────────
 export function CreateRunButton({ guildId }: { guildId: string }) {
@@ -95,8 +50,25 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
     // Shared
     const [publishToDiscord, setPublishToDiscord] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [rateLimitReset, setRateLimitReset] = useState<number | null>(null); // timestamp ms
+    const [countdown, setCountdown] = useState<string | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+
+    // Countdown timer tick
+    useEffect(() => {
+        if (!rateLimitReset) { setCountdown(null); return; }
+        const tick = () => {
+            const remaining = rateLimitReset - Date.now();
+            if (remaining <= 0) { setRateLimitReset(null); setCountdown(null); setError(null); return; }
+            const m = Math.floor(remaining / 60000);
+            const s = Math.floor((remaining % 60000) / 1000);
+            setCountdown(m > 0 ? `${m}m ${s.toString().padStart(2, "0")}s` : `${s}s`);
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [rateLimitReset]);
 
     const handleCreate = () => {
         if (mode === "standard") {
@@ -108,9 +80,13 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
             startTransition(async () => {
                 const result = await createDreamRun(guildId, { difficulty, objectives, publishToDiscord });
                 if (result.success) {
+                    toast.success("Run créée avec succès !");
                     setOpen(false);
                     setObjectives([]);
                     router.refresh();
+                } else if (result.resetAt) {
+                    setRateLimitReset(result.resetAt);
+                    toast.error("Limite atteinte", { description: "Tu as créé trop de runs récemment. Patiente un peu." });
                 } else {
                     setError(result.error || "Erreur inconnue");
                 }
@@ -121,21 +97,23 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                 setError("Veuillez sélectionner une épreuve.");
                 return;
             }
-            const epreuve = EPREUVES.find(e => e.code === selectedEpreuve)!;
+            const epreuve = EPREUVES_SONGE.find(e => e.code === selectedEpreuve)!;
             setError(null);
             startTransition(async () => {
-                // L'épreuve code est passé comme objectif spécial dédié
-                // On cible l'objectif SUCCES_NO_ACHAT pour les compatibilité DB
-                // + on note l'épreuve dans le nom via le premier objectif
                 const result = await createDreamRun(guildId, {
                     difficulty: epreuve.difficulty,
                     objectives: ["SUCCES_NO_ACHAT"],
                     publishToDiscord,
+                    epreuveCode: epreuve.code,
                 });
                 if (result.success) {
+                    toast.success(`Épreuve ${epreuve.code} lancée !`);
                     setOpen(false);
                     setSelectedEpreuve(null);
                     router.refresh();
+                } else if (result.resetAt) {
+                    setRateLimitReset(result.resetAt);
+                    toast.error("Limite atteinte", { description: "Tu as créé trop de runs récemment. Patiente un peu." });
                 } else {
                     setError(result.error || "Erreur inconnue");
                 }
@@ -255,7 +233,7 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                             Parcours prédéfinis liés à des succès en jeu. La difficulté et le mode sont imposés par l'épreuve choisie.
                         </p>
                         <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                            {EPREUVES.map((epreuve) => {
+                            {EPREUVES_SONGE.map((epreuve) => {
                                 const isSelected = selectedEpreuve === epreuve.code;
                                 const badgeColor = getDifficultyBadgeColor(epreuve.difficulty);
                                 return (
@@ -343,8 +321,17 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                     </p>
                 )}
 
-                {/* Error */}
-                {error && (
+                {/* Error / Rate Limit countdown */}
+                {countdown && (
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-950/30 text-sm">
+                        <Timer className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
+                        <div className="flex-1">
+                            <p className="text-amber-300 font-bold text-sm">Limite de création atteinte</p>
+                            <p className="text-amber-500/70 text-xs mt-0.5">Disponible dans <span className="font-mono font-black text-amber-300">{countdown}</span></p>
+                        </div>
+                    </div>
+                )}
+                {!countdown && error && (
                     <div className="text-red-400 text-sm bg-red-900/15 p-3 rounded-lg border border-red-500/25">
                         {error}
                     </div>

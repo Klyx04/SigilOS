@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target } from "lucide-react";
+import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -27,9 +27,10 @@ interface RunDetailHeaderProps {
     isLeader?: boolean;
     optimisticStatus: string;
     onStatusChange: (status: string) => void;
+    onOpenBossGuide?: () => void;
 }
 
-export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onStatusChange }: RunDetailHeaderProps) {
+export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onStatusChange, onOpenBossGuide }: RunDetailHeaderProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -195,6 +196,17 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                                 <span className="font-medium">Documentation Songes</span>
                                 <ArrowLeft className="w-3 h-3 rotate-[135deg] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                             </a>
+
+                            {/* Guide Boss Button */}
+                            {onOpenBossGuide && (
+                                <button
+                                    onClick={onOpenBossGuide}
+                                    className="flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white transition-all group font-medium cursor-pointer"
+                                >
+                                    <BookOpen className="w-4 h-4 group-hover:rotate-6 transition-transform" />
+                                    <span>Guide Boss</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Épreuve description block */}

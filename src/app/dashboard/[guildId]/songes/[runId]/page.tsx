@@ -140,6 +140,7 @@ export default function RunDetailPage() {
                 isLeader={isLeader}
                 optimisticStatus={optimisticStatus || run.status}
                 onStatusChange={setOptimisticStatus}
+                onOpenBossGuide={() => setBossGuideOpen(true)}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -175,16 +176,6 @@ export default function RunDetailPage() {
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
                 </div>
             </div>
-            {/* Boss Guide Floating Button */}
-            <button
-                onClick={() => setBossGuideOpen(true)}
-                className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-900/40 hover:shadow-purple-500/30 transition-all active:scale-95 group"
-                title="Guide des Boss — Songes Pour Les Noobs"
-            >
-                <BookOpen className="w-5 h-5 group-hover:rotate-6 transition-transform" />
-                <span className="text-sm">Guide Boss</span>
-            </button>
-
             {/* Boss Guide Drawer */}
             <BossGuide isOpen={bossGuideOpen} onClose={() => setBossGuideOpen(false)} />
         </div>

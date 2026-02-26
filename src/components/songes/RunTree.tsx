@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { updateCurrentFloor } from "@/server/actions/songes/dream-run-actions";
 import Image from "next/image";
-import { Loader2, CheckCircle2, PlayCircle } from "lucide-react";
-import { getFloorColor, type RoomTypeKey } from "@/lib/songes/types";
+import { Loader2, CheckCircle2, PlayCircle, Waves, ChevronRight } from "lucide-react";
+import { type RoomTypeKey } from "@/lib/songes/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
@@ -21,277 +21,276 @@ interface RunTreeProps {
 }
 
 const PALIERS_DATA = [
-    { id: 5, nom: "V - Les Abstractions chimériques", min: 22, max: 25, color: "#f59e0b" }, // Amber (Stopped at 25 to separate Boss)
-    { id: 4, nom: "IV - Les Concepts brumeux", min: 16, max: 21, color: "#a855f7" }, // Purple
-    { id: 3, nom: "III - Les Espaces imaginaires", min: 10, max: 15, color: "#ec4899" }, // Pink
-    { id: 2, nom: "II - Les Balades fantastiques", min: 4, max: 9, color: "#3b82f6" }, // Blue
-    { id: 1, nom: "I - Les Pensées oniriques", min: 1, max: 3, color: "#10b981" }, // Green
-];
+    { id: 1, nom: "Les Pensées oniriques", floors: [1, 2, 3], color: "#10b981", hex: "10b981" },
+    { id: 2, nom: "Les Balades fantastiques", floors: [4, 5, 6, 7, 8, 9], color: "#3b82f6", hex: "3b82f6" },
+    { id: 3, nom: "Les Espaces imaginaires", floors: [10, 11, 12, 13, 14, 15], color: "#ec4899", hex: "ec4899" },
+    { id: 4, nom: "Les Concepts brumeux", floors: [16, 17, 18, 19, 20, 21], color: "#a855f7", hex: "a855f7" },
+    { id: 5, nom: "Les Abstractions chimériques", floors: [22, 23, 24, 25], color: "#f59e0b", hex: "f59e0b" },
+] as const;
 
-// Logic for floor types
-const getFloorType = (floor: number): RoomTypeKey => {
-    if (floor === 26) return "BOSS";
-    if (floor === 0) return "COMBAT";
-    return "COMBAT";
-};
+// Chiffres romains
+const ROMAN = ["I", "II", "III", "IV", "V"] as const;
 
-// Cyber Check: React escapes variables by default. 
-// LeaderName is coming from a controlled source (DB/Session) and rendered safely.
-// No sensitive data is exposed in the DOM attributes.
-// Best Practice: Ensure images have alt text (done) and use optimized Next.js Image component (done).
+/* ─────────────────────────────────────────────── */
+/*  Tilt Card — réutilisable                       */
+/* ─────────────────────────────────────────────── */
+function TiltCard({
+    className,
+    children,
+    onClick,
+    disabled,
+}: {
+    className?: string;
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+}) {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+    const mouseX = useSpring(x, { stiffness: 600, damping: 120 });
+    const mouseY = useSpring(y, { stiffness: 600, damping: 120 });
+    const rotateX = useTransform(mouseY, [-0.5, 0.5], ["12deg", "-12deg"]);
+    const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-12deg", "12deg"]);
 
-// Cyber Check: Input sanitization handled by framework. No user HTML injection possible here.
-// Images are static assets or pre-validated URLs.
+    function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        x.set((e.clientX - rect.left) / rect.width - 0.5);
+        y.set((e.clientY - rect.top) / rect.height - 0.5);
+    }
+    function onMouseLeave() { x.set(0); y.set(0); }
 
+    return (
+        <motion.div
+            onClick={disabled ? undefined : onClick}
+            onMouseMove={onMouseMove}
+            onMouseLeave={onMouseLeave}
+            style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+            className={cn("transition-transform duration-200", className)}
+        />
+    );
+}
+
+/* ─────────────────────────────────────────────── */
+/*  Floor Node                                     */
+/* ─────────────────────────────────────────────── */
 interface FloorNodeProps {
     floor: number;
-    type: RoomTypeKey;
     isCurrent: boolean;
     isCompleted: boolean;
     isLocked: boolean;
     isLeader: boolean;
+    palierColor: string;
     onClick: () => void;
-    customLabel?: string;
-    description?: string;
-    customColor?: string;
 }
 
-function FloorNode({ floor, type, isCurrent, isCompleted, isLeader, isLocked, onClick, customLabel, description, customColor }: FloorNodeProps) {
-    const isBoss = floor === 26;
-    const isStart = floor === 0;
-
-    // FRAMER MOTION TILT LOGIC
+function FloorNode({ floor, isCurrent, isCompleted, isLocked, isLeader, palierColor, onClick }: FloorNodeProps) {
     const x = useMotionValue(0);
     const y = useMotionValue(0);
-
     const mouseX = useSpring(x, { stiffness: 500, damping: 100 });
     const mouseY = useSpring(y, { stiffness: 500, damping: 100 });
+    const rotateX = useTransform(mouseY, [-0.5, 0.5], ["14deg", "-14deg"]);
+    const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-14deg", "14deg"]);
 
-    const rotateX = useTransform(mouseY, [-0.5, 0.5], ["15deg", "-15deg"]);
-    const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-15deg", "15deg"]);
+    const canClick = isLeader || (!isLocked && isCurrent);
 
-    function onMouseMove(event: React.MouseEvent<HTMLDivElement>) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        const xPct = mouseX / width - 0.5;
-        const yPct = mouseY / height - 0.5;
-        x.set(xPct);
-        y.set(yPct);
+    function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        x.set((e.clientX - rect.left) / rect.width - 0.5);
+        y.set((e.clientY - rect.top) / rect.height - 0.5);
     }
+    function onMouseLeave() { x.set(0); y.set(0); }
 
-    function onMouseLeave() {
-        x.set(0);
-        y.set(0);
-    }
-
-    const interactionClasses = (isLeader || isCompleted || (!isLocked && isCurrent))
-        ? "cursor-pointer"
-        : "cursor-default opacity-60 grayscale-[0.5]";
-
-    /* -------------------------------------------------------------------------- */
-    /*                                 BOSS NODE                                  */
-    /* -------------------------------------------------------------------------- */
-    if (isBoss) {
-        return (
-            <div className="relative z-10 mb-16 flex flex-col items-center justify-center perspective-[1200px]">
-                <motion.div
-                    onClick={isLeader || isCompleted ? onClick : undefined}
-                    onMouseMove={onMouseMove}
-                    onMouseLeave={onMouseLeave}
-                    style={{
-                        rotateX,
-                        rotateY,
-                        transformStyle: "preserve-3d",
-                    }}
-                    className={cn(
-                        "relative w-72 h-72 md:w-96 md:h-96 flex items-center justify-center transition-transform duration-200 ease-out",
-                        interactionClasses
-                    )}
-                >
-                    {/* 
-                        LAYER -1: THE GLOW (Shadow)
-                        This is SEPARATE from the image mask. It creates the round aura.
-                     */}
-                    <div
-                        className={cn(
-                            "absolute inset-10 rounded-full bg-amber-500/20 blur-[60px] transition-all duration-500",
-                            isCurrent && "bg-amber-500/40 blur-[80px]",
-                        )}
-                        style={{ transform: "translateZ(-50px)" }}
-                    />
-
-                    {/* 
-                        LAYER 0: THE TOKEN CONTAINER (Masked)
-                        We mask this container to hide the square corners of the PNG.
-                    */}
-                    <div
-                        className="relative w-64 h-64 md:w-80 md:h-80"
-                        style={{
-                            transform: "translateZ(20px)",
-                            maskImage: 'radial-gradient(circle at center, black 60%, transparent 70%)',
-                            WebkitMaskImage: 'radial-gradient(circle at center, black 60%, transparent 70%)'
-                        }}
-                    >
-                        <Image
-                            src="/songes/boss_token.png"
-                            alt="Final Boss"
-                            fill
-                            className={cn(
-                                "object-contain",
-                                isCurrent && "brightness-110 drop-shadow-[0_0_20px_rgba(245,158,11,0.5)]"
-                            )}
-                            priority
-                        />
-                    </div>
-
-                    {/* LAYER 1: ORBITAL RINGS (Independent of mask) */}
-                    <div className="absolute inset-0 w-full h-full pointer-events-none opacity-50 mix-blend-screen animate-[spin_60s_linear_infinite]" style={{ transform: 'translateZ(0px) scale(1.1)' }}>
-                        <div className="w-full h-full rounded-full border border-amber-500/20 skew-y-12" />
-                    </div>
-
-                    {/* CHECKMARK */}
-                    {isCompleted && (
-                        <div className="absolute bottom-12 right-12 z-50" style={{ transform: "translateZ(60px)" }}>
-                            <div className="bg-amber-500 text-black rounded-full p-3 shadow-lg animate-in zoom-in spin-in-180">
-                                <CheckCircle2 className="w-8 h-8" />
-                            </div>
-                        </div>
-                    )}
-                </motion.div>
-
-                {/* Floating Label */}
-                <div className="mt-8 relative z-20 text-center">
-                    <h4 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-600 uppercase tracking-[0.3em] drop-shadow-[0_5px_15px_rgba(245,158,11,0.5)] text-shadow-lg">
-                        {description || "Combat Final"}
-                    </h4>
-                </div>
-            </div>
-        )
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*                                STANDARD FLOOR                              */
-    /* -------------------------------------------------------------------------- */
     return (
-        <div className="relative z-10 h-48 flex flex-col items-center justify-end pb-8 perspective-[1000px]">
+        <div className="flex flex-col items-center gap-3 perspective-[1000px]">
             <motion.div
-                onClick={(isLeader || (!isLocked && !isCompleted && isCurrent)) ? onClick : undefined}
+                onClick={canClick ? onClick : undefined}
                 onMouseMove={onMouseMove}
                 onMouseLeave={onMouseLeave}
-                style={{
-                    rotateX,
-                    rotateY,
-                    transformStyle: "preserve-3d",
-                }}
+                style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
                 className={cn(
-                    "relative w-36 h-36 md:w-40 md:h-40 flex items-center justify-center transition-all duration-200",
-                    interactionClasses
+                    "relative w-16 h-16 flex items-center justify-center transition-all duration-200",
+                    canClick ? "cursor-pointer" : "cursor-default",
+                    isLocked && !isLeader && "opacity-40 grayscale-[0.6]",
                 )}
             >
-                {/* 
-                   GROUND SHADOW (Detached)
-                   Placed far behind to simulate height.
-                */}
-                <div
-                    className={cn(
-                        "absolute -bottom-10 left-1/2 -translate-x-1/2 w-[60%] h-8 bg-black/60 blur-[30px] rounded-[100%] transition-opacity duration-500",
-                        isCurrent ? "opacity-60" : "opacity-30"
-                    )}
-                    style={{ transform: "rotateX(60deg) translateZ(-80px)" }}
-                />
-
-                {/* 
-                   MAIN TOKEN (Levitating)
-                */}
-                <div
-                    className="relative w-32 h-32 md:w-36 md:h-36"
-                    style={{ transform: "translateZ(30px)" }}
-                >
-                    {/* MASKED IMAGE CONTAINER */}
-                    <div
-                        className="relative w-full h-full"
-                        style={{
-                            maskImage: 'radial-gradient(circle at center, black 55%, transparent 72%)',
-                            WebkitMaskImage: 'radial-gradient(circle at center, black 55%, transparent 72%)'
-                        }}
-                    >
-                        <Image
-                            src={isStart ? "/songes/salle0.png" : "/songes/combat_token.png"}
-                            alt={`Floor ${floor}`}
-                            fill
-                            className={cn(
-                                "object-contain",
-                                isCurrent && "brightness-110"
-                            )}
-                        />
-                        {/* Inner Shine */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    </div>
-                </div>
-
-                {/* ACTIVE GLOW (Behind Token but above Shadow) */}
+                {/* Shadow / glow */}
                 {isCurrent && (
                     <div
-                        className="absolute inset-0 rounded-full bg-white/5 blur-[40px] animate-pulse pointer-events-none -z-10"
-                        style={{ transform: "translateZ(-20px)" }}
+                        className="absolute inset-0 rounded-full blur-[20px] opacity-40 animate-pulse pointer-events-none"
+                        style={{ background: palierColor, transform: "translateZ(-20px) scale(1.4)" }}
                     />
                 )}
 
-                {/* CHECKMARK (Floating Front) */}
+                {/* Token image */}
+                <div
+                    className="relative w-14 h-14"
+                    style={{
+                        transform: "translateZ(20px)",
+                        maskImage: "radial-gradient(circle at center, black 55%, transparent 72%)",
+                        WebkitMaskImage: "radial-gradient(circle at center, black 55%, transparent 72%)",
+                    }}
+                >
+                    <Image
+                        src="/songes/combat_token.png"
+                        alt={`Étage ${floor}`}
+                        fill
+                        className={cn("object-contain", isCurrent && "brightness-110")}
+                    />
+                </div>
+
+                {/* Checkmark */}
                 {isCompleted && (
-                    <div className="absolute bottom-0 right-0 z-50" style={{ transform: "translateZ(50px)" }}>
-                        <div className="bg-emerald-500 text-white rounded-full p-1 shadow-lg border-2 border-black scale-90">
-                            <CheckCircle2 className="w-4 h-4" />
+                    <div className="absolute -bottom-1 -right-1 z-10" style={{ transform: "translateZ(30px)" }}>
+                        <div className="bg-emerald-500 rounded-full p-0.5 border border-black/60 shadow">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                         </div>
                     </div>
                 )}
             </motion.div>
 
-            {/* Label */}
-            <div className="absolute -bottom-8 z-20">
-                <span className={cn(
-                    "text-[10px] font-black tracking-[0.2em] px-3 py-0.5 rounded-full transition-all border uppercase shadow-xl backdrop-blur-sm block shadow-black/80",
+            {/* Label étage */}
+            <span
+                className={cn(
+                    "text-[10px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full border transition-all",
                     isCurrent
-                        ? "bg-white/90 text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-110"
-                        : "text-white/40 bg-black/40 border-white/5"
-                )}>
-                    {isStart ? "Départ" : `Étage ${floor}`}
-                </span>
+                        ? "bg-white text-black border-white shadow-[0_0_14px_rgba(255,255,255,0.4)] scale-110"
+                        : isCompleted
+                            ? "bg-white/10 text-white/50 border-white/10"
+                            : "bg-black/30 text-white/25 border-white/5"
+                )}
+            >
+                {floor}
+            </span>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────── */
+/*  Boss Node (MAJ 3.5 — Vagues infinies)          */
+/* ─────────────────────────────────────────────── */
+function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
+    isCurrent: boolean;
+    isCompleted: boolean;
+    isLeader: boolean;
+    onClick: () => void;
+}) {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+    const mouseX = useSpring(x, { stiffness: 500, damping: 100 });
+    const mouseY = useSpring(y, { stiffness: 500, damping: 100 });
+    const rotateX = useTransform(mouseY, [-0.5, 0.5], ["12deg", "-12deg"]);
+    const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-12deg", "12deg"]);
+
+    function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        x.set((e.clientX - rect.left) / rect.width - 0.5);
+        y.set((e.clientY - rect.top) / rect.height - 0.5);
+    }
+    function onMouseLeave() { x.set(0); y.set(0); }
+
+    return (
+        <div className="flex flex-col items-center gap-4 perspective-[1200px]">
+            <motion.div
+                onClick={(isLeader || isCompleted) ? onClick : undefined}
+                onMouseMove={onMouseMove}
+                onMouseLeave={onMouseLeave}
+                style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+                className={cn(
+                    "relative w-52 h-52 flex items-center justify-center",
+                    (isLeader || isCompleted) ? "cursor-pointer" : "cursor-default"
+                )}
+            >
+                {/* Aura */}
+                <div
+                    className={cn(
+                        "absolute inset-8 rounded-full bg-amber-500/20 blur-[50px] transition-all duration-700",
+                        isCurrent && "bg-amber-500/40 blur-[70px]"
+                    )}
+                    style={{ transform: "translateZ(-40px)" }}
+                />
+                {/* Orbital rings */}
+                <div className="absolute inset-0 rounded-full border border-dashed border-amber-500/15 animate-[spin_40s_linear_infinite] pointer-events-none" />
+                <div className="absolute inset-4 rounded-full border border-amber-500/10 animate-[spin_25s_linear_infinite_reverse] pointer-events-none" />
+
+                {/* Token */}
+                <div
+                    className="relative w-40 h-40"
+                    style={{
+                        transform: "translateZ(20px)",
+                        maskImage: "radial-gradient(circle at center, black 60%, transparent 72%)",
+                        WebkitMaskImage: "radial-gradient(circle at center, black 60%, transparent 72%)",
+                    }}
+                >
+                    <Image
+                        src="/songes/boss_token.png"
+                        alt="Combat Final"
+                        fill
+                        className={cn("object-contain", isCurrent && "brightness-110")}
+                        priority
+                    />
+                </div>
+
+                {/* Checkmark */}
+                {isCompleted && (
+                    <div className="absolute bottom-6 right-6 z-10" style={{ transform: "translateZ(50px)" }}>
+                        <div className="bg-amber-500 text-black rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
+                            <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                    </div>
+                )}
+            </motion.div>
+
+            {/* Label boss */}
+            <div className="text-center space-y-1">
+                <h4 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-600 uppercase tracking-[0.25em] drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">
+                    Combat Final
+                </h4>
+                {/* Badge MAJ 3.5 */}
+                <div className="flex items-center justify-center gap-2">
+                    <Waves className="w-3.5 h-3.5 text-amber-400/70" />
+                    <span className="text-[11px] font-bold text-amber-400/70 uppercase tracking-wider">
+                        Vagues infinies
+                    </span>
+                    <Waves className="w-3.5 h-3.5 text-amber-400/70" />
+                </div>
+                <p className="text-[10px] text-white/25 tracking-wider">
+                    Enchaînez les vagues pour maximiser vos Bribes de Rêve
+                </p>
             </div>
         </div>
     );
 }
 
+/* ─────────────────────────────────────────────── */
+/*  RunTree principal                              */
+/* ─────────────────────────────────────────────── */
 export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, leaderName, onStatusChange, onUpdate }: RunTreeProps) {
     const [updating, setUpdating] = useState(false);
-    // State to track expanded sections (default to all open or current)
-    const [expandedPaliers, setExpandedPaliers] = useState<number[]>([1, 2, 3, 4, 5, 26]);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const activeRef = useRef<HTMLDivElement>(null);
 
-    const togglePalier = (id: number) => {
-        setExpandedPaliers(prev =>
-            prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-        );
-    };
+    // Auto-scroll vers l'étage actif au chargement et au changement
+    useEffect(() => {
+        if (activeRef.current && scrollRef.current) {
+            // Légère temporisation pour laisser le DOM se stabiliser
+            const timer = setTimeout(() => {
+                activeRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                });
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [currentFloor]);
 
-    // ... existing handlers ...
-
-    // (Kept handler code same)
     const handleCloseRun = async () => {
         const prevStatus = runStatus;
         onStatusChange?.("COMPLETED");
         setUpdating(true);
         const { closeDreamRun } = await import("@/server/actions/songes/dream-run-actions");
         const result = await closeDreamRun(guildId, runId);
-        if (result.success) {
-            toast.success("Run clôturée");
-            onUpdate?.();
-        } else {
-            onStatusChange?.(prevStatus);
-            toast.error(result.error);
-        }
+        if (result.success) { toast.success("Run clôturée"); onUpdate?.(); }
+        else { onStatusChange?.(prevStatus); toast.error(result.error); }
         setUpdating(false);
     };
 
@@ -301,13 +300,8 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
         setUpdating(true);
         const { reopenDreamRun } = await import("@/server/actions/songes/dream-run-actions");
         const result = await reopenDreamRun(guildId, runId);
-        if (result.success) {
-            toast.success("Run réouverte");
-            onUpdate?.();
-        } else {
-            onStatusChange?.(prevStatus);
-            toast.error(result.error);
-        }
+        if (result.success) { toast.success("Run réouverte"); onUpdate?.(); }
+        else { onStatusChange?.(prevStatus); toast.error(result.error); }
         setUpdating(false);
     };
 
@@ -316,202 +310,272 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
         setUpdating(true);
         const result = await updateCurrentFloor(guildId, runId, floor);
         setUpdating(false);
-        if (!result.success) {
-            toast.error(result.error);
-        } else {
-            toast.success(`Étage ${floor} défini`);
-            onUpdate?.();
-        }
+        if (!result.success) toast.error(result.error);
+        else { toast.success(`Étage ${floor === 0 ? "Portail" : floor === 26 ? "Combat Final" : floor} défini`); onUpdate?.(); }
     };
 
+    const isBossActive = currentFloor === 26;
+    const isBossCompleted = currentFloor > 26;
+
     return (
-        <div className="w-full bg-[#05010a] rounded-xl border border-purple-500/20 flex flex-col items-center relative overflow-hidden min-h-[900px] shadow-2xl transition-all duration-500">
-            {/* Background Texture */}
-            <div className="absolute inset-0 z-0">
+        <div className="w-full bg-[#05010a] rounded-xl border border-purple-500/20 flex flex-col relative overflow-hidden shadow-2xl">
+            {/* ── Background ── */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
                 <Image
                     src="/songes/background_dreams.png"
                     alt="Background"
                     fill
-                    className="object-cover opacity-60 mix-blend-lighten pointer-events-none"
-                    quality={100}
+                    className="object-cover opacity-50 mix-blend-lighten"
+                    quality={80}
                 />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(5,1,10,0.85)_80%)]" />
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#05010a] to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#05010a] to-transparent" />
+                {/* Watermark si run terminée */}
                 {runStatus === "COMPLETED" && (
-                    <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
-                        <span className="text-9xl font-black text-amber-500/5 uppercase tracking-[0.3em] -rotate-45 whitespace-nowrap select-none">
+                    <div className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden">
+                        <span className="text-8xl font-black text-amber-500/4 uppercase tracking-[0.4em] -rotate-45 select-none whitespace-nowrap">
                             Terminée
                         </span>
                     </div>
                 )}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent,rgba(5,1,10,0.8)_80%)] pointer-events-none" />
-                <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#05010a] to-transparent pointer-events-none" />
-                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#05010a] to-transparent pointer-events-none" />
             </div>
 
-            {/* Scrollable Container with Smooth Scrolling */}
-            <div className="w-full overflow-y-auto max-h-[900px] py-16 px-4 scrollbar-thin scrollbar-thumb-purple-900/50 scrollbar-track-transparent space-y-12 relative z-20 scroll-smooth">
-
-                {/* Header Title */}
-                <div className="text-center mb-12 relative z-30">
-                    <div className="inline-block relative group cursor-default">
-                        <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-purple-100 to-purple-400/50 uppercase tracking-[0.1em] drop-shadow-[0_5px_15px_rgba(168,85,247,0.3)] transition-all group-hover:tracking-[0.15em]">
-                            Run de {leaderName || "L'Inconnu"}
-                        </h2>
-                        <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent absolute bottom-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <p className="text-purple-300/50 text-sm mt-3 font-mono uppercase tracking-[0.3em] flex items-center justify-center gap-4">
-                        <span className="h-px w-12 bg-purple-500/30"></span>
+            {/* ── Header ── */}
+            <div className="relative z-20 px-6 pt-6 pb-2 text-center">
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-purple-100 to-purple-400/60 uppercase tracking-[0.12em] transition-all">
+                    Run de {leaderName || "L'Inconnu"}
+                </h2>
+                <div className="flex items-center justify-center gap-3 mt-1">
+                    <div className="h-px w-10 bg-purple-500/30" />
+                    <p className="text-purple-300/40 text-xs font-mono uppercase tracking-[0.3em]">
                         Puits des Songes Infinis
-                        <span className="h-px w-12 bg-purple-500/30"></span>
                     </p>
+                    <div className="h-px w-10 bg-purple-500/30" />
+                </div>
+            </div>
+
+            {/* ── Scrollable Timeline ── */}
+            <div
+                ref={scrollRef}
+                className="relative z-20 overflow-y-auto max-h-[800px] py-8 px-4 scrollbar-thin scrollbar-thumb-purple-900/50 scrollbar-track-transparent scroll-smooth"
+            >
+                {/* ── Portail d'entrée ── */}
+                <div
+                    ref={currentFloor === 0 ? activeRef : undefined}
+                    className="flex flex-col items-center mb-10"
+                >
+                    <div
+                        onClick={isLeader ? () => handleNodeClick(0) : undefined}
+                        className={cn(
+                            "relative w-20 h-20 rounded-full flex items-center justify-center border-2 transition-all duration-300 backdrop-blur-md",
+                            isLeader && "cursor-pointer",
+                            currentFloor === 0
+                                ? "bg-cyan-950/80 border-cyan-400 shadow-[0_0_40px_rgba(6,182,212,0.5)] scale-110"
+                                : "bg-black/60 border-cyan-900/50 hover:border-cyan-600/50"
+                        )}
+                    >
+                        <div className="absolute inset-0 rounded-full border border-dashed border-cyan-400/20 animate-[spin_20s_linear_infinite]" />
+                        <div className="absolute inset-0 bg-cyan-500/10 blur-xl rounded-full animate-pulse" />
+                        <span className="text-2xl font-bold text-cyan-300 z-10">0</span>
+                        {currentFloor > 0 && (
+                            <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-cyan-500/50">
+                                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+                            </div>
+                        )}
+                    </div>
+                    <span className="mt-2 text-[10px] font-black uppercase tracking-[0.25em] text-cyan-700">
+                        Portail Dimensionnel
+                    </span>
+                    {/* Connecteur vers palier I */}
+                    <TimelineConnector />
                 </div>
 
-                {/* Floor 0 Entrance (Always visible) */}
-                <div className="flex flex-col items-center relative gap-6 mb-8 group">
-                    {/* ... (Kept same portal code) ... */}
-                    <div className="relative cursor-pointer transition-transform hover:scale-105 duration-500" onClick={() => handleNodeClick(0)}>
-                        <div className="absolute inset-0 -m-8 rounded-full border border-dashed border-cyan-500/20 animate-[spin_20s_linear_infinite]" />
-                        <div className="absolute inset-0 -m-4 rounded-full border border-cyan-500/30 animate-[spin_15s_linear_infinite_reverse]" />
-                        <div className="absolute inset-0 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" />
-                        <div className={cn(
-                            "relative w-24 h-24 rounded-full flex items-center justify-center border-2 shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all duration-300 backdrop-blur-md",
-                            currentFloor === 0 ? "bg-cyan-950/80 border-cyan-400 text-cyan-100 scale-110 shadow-[0_0_50px_rgba(6,182,212,0.5)]" : "bg-black/60 border-cyan-900/50 text-cyan-700 hover:border-cyan-500/50 hover:text-cyan-400"
-                        )}>
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-b from-cyan-500/10 to-transparent" />
-                            <span className="text-3xl font-bold z-10">0</span>
-                            {currentFloor > 0 && (
-                                <div className="absolute -bottom-2 -right-2 bg-black rounded-full p-1 border border-cyan-500/50 shadow-lg">
-                                    <CheckCircle2 className="w-5 h-5 text-cyan-400" />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-base font-bold uppercase tracking-widest text-cyan-800 group-hover:text-cyan-500 transition-colors">Portail Dimensionnel</span>
-                    </div>
-                    <div className="h-16 w-px bg-gradient-to-b from-cyan-500/50 to-transparent relative overflow-hidden mt-2" />
-                </div>
+                {/* ── Paliers I à V ── */}
+                {PALIERS_DATA.map((palier, palierIdx) => {
+                    const palierMin = palier.floors[0];
+                    const palierMax = palier.floors[palier.floors.length - 1];
+                    const isActivePalier = currentFloor >= palierMin && currentFloor <= palierMax;
+                    const isPalierCompleted = currentFloor > palierMax;
 
-                {PALIERS_DATA.slice().reverse().map((palier) => {
-                    const isExpanded = expandedPaliers.includes(palier.id);
                     return (
-                        <div key={palier.id} className="relative w-full max-w-6xl mx-auto transition-all duration-500">
-
-                            {/* Palier Header / Toggle */}
-                            <div
-                                onClick={() => togglePalier(palier.id)}
-                                className="flex items-center gap-6 mb-8 cursor-pointer group select-none"
-                            >
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-white/20 transition-all" />
-                                <div className={cn(
-                                    "px-8 py-3 rounded-full border shadow-[0_0_30px_rgba(0,0,0,0.5)] z-10 relative transition-all duration-300 flex items-center gap-3 backdrop-blur-md",
-                                    isExpanded ? "bg-[#0f0518]/90 border-white/20" : "bg-black/50 border-white/5 opacity-70 hover:opacity-100"
-                                )}>
-                                    <h3 className="text-xl font-bold tracking-[0.2em] uppercase text-center flex items-center gap-3" style={{ color: palier.color }}>
-                                        <span className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>▼</span>
-                                        {palier.nom}
-                                        <span className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>▼</span>
-                                    </h3>
+                        <div key={palier.id} className="relative flex gap-4 mb-0">
+                            {/* ── Barre latérale colorée (palier indicator) ── */}
+                            <div className="flex flex-col items-center shrink-0 w-10">
+                                {/* Numéro du palier */}
+                                <div
+                                    className={cn(
+                                        "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all duration-500 shrink-0",
+                                        isActivePalier
+                                            ? "scale-110 shadow-[0_0_15px_var(--p-glow)] border-current"
+                                            : isPalierCompleted
+                                                ? "opacity-50 border-white/10"
+                                                : "opacity-30 border-white/5"
+                                    )}
+                                    style={{
+                                        color: palier.color,
+                                        borderColor: isActivePalier ? palier.color : undefined,
+                                        // @ts-ignore
+                                        "--p-glow": palier.color + "66",
+                                    }}
+                                >
+                                    {ROMAN[palierIdx]}
                                 </div>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-white/20 transition-all" />
+
+                                {/* Ligne verticale colorée */}
+                                <div
+                                    className="w-0.5 flex-1 min-h-[120px] transition-opacity duration-500"
+                                    style={{
+                                        background: `linear-gradient(to bottom, ${palier.color}${isActivePalier ? "80" : "20"}, ${palier.color}10)`,
+                                    }}
+                                />
                             </div>
 
-                            {/* Content Grid (Collapsible) */}
-                            <div className={cn(
-                                "grid overflow-hidden transition-all duration-700 ease-in-out",
-                                isExpanded ? "grid-rows-[1fr] opacity-100 mb-16" : "grid-rows-[0fr] opacity-0 mb-0"
-                            )}>
-                                <div className="min-h-0 flex flex-wrap justify-center gap-12 md:gap-16 relative px-4 py-12 perspective-[2000px]">
+                            {/* ── Contenu du palier ── */}
+                            <div className="flex-1 pb-8">
+                                {/* Nom du palier */}
+                                <p
+                                    className={cn(
+                                        "text-[11px] font-black uppercase tracking-[0.15em] mb-4 transition-all duration-500",
+                                        isActivePalier ? "opacity-100" : isPalierCompleted ? "opacity-30" : "opacity-20"
+                                    )}
+                                    style={{ color: palier.color }}
+                                >
+                                    Palier {ROMAN[palierIdx]} — {palier.nom}
+                                </p>
 
-                                    {Array.from({ length: palier.max - palier.min + 1 }, (_, i) => palier.min + i).map((floor, idx, arr) => (
-                                        <div key={floor} className="relative group/node">
+                                {/* Grille d'étages */}
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-6">
+                                    {palier.floors.map((floor) => {
+                                        const isActive = currentFloor === floor;
+                                        const isDone = floor < currentFloor;
+                                        const isLocked = floor > currentFloor;
 
-                                            <FloorNode
-                                                floor={floor}
-                                                type={getFloorType(floor)}
-                                                isCurrent={currentFloor === floor}
-                                                isCompleted={floor < currentFloor}
-                                                isLocked={floor > currentFloor}
-                                                isLeader={isLeader}
-                                                onClick={() => handleNodeClick(floor)}
-                                                customColor={palier.color}
-                                            />
-                                        </div>
-                                    ))}
+                                        return (
+                                            <div
+                                                key={floor}
+                                                ref={isActive ? activeRef : undefined}
+                                            >
+                                                <FloorNode
+                                                    floor={floor}
+                                                    isCurrent={isActive}
+                                                    isCompleted={isDone}
+                                                    isLocked={isLocked}
+                                                    isLeader={isLeader}
+                                                    palierColor={palier.color}
+                                                    onClick={() => handleNodeClick(floor)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
                     );
                 })}
 
-                {/* FINAL BOSS SECTION - WRAPPED IN COLLAPSIBLE */}
-                {(() => {
-                    const bossPalierId = 26;
-                    const isExpanded = expandedPaliers.includes(bossPalierId);
-                    return (
-                        <div className="relative w-full max-w-6xl mx-auto transition-all duration-500 pb-20">
-                            {/* Boss Header Toggle */}
-                            <div onClick={() => togglePalier(bossPalierId)} className="flex items-center gap-6 mb-8 cursor-pointer group select-none">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent group-hover:via-amber-500/40 transition-all" />
-                                <div className={cn("px-8 py-3 rounded-full border shadow-[0_0_30px_rgba(245,158,11,0.2)] z-10 relative transition-all duration-300 flex items-center gap-3 backdrop-blur-md", isExpanded ? "bg-amber-950/30 border-amber-500/30" : "bg-black/50 border-amber-500/10 opacity-70 hover:opacity-100")}>
-                                    <h3 className="text-xl font-bold tracking-[0.2em] uppercase text-center flex items-center gap-3 text-amber-500">
-                                        <span className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>▼</span>
-                                        Combat Final
-                                        <span className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>▼</span>
-                                    </h3>
-                                </div>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent group-hover:via-amber-500/40 transition-all" />
-                            </div>
+                {/* ── Connecteur vers Boss ── */}
+                <div className="ml-10 pl-4">
+                    <TimelineConnector color="rgba(245,158,11,0.4)" />
+                </div>
 
-                            <div className={cn(
-                                "grid overflow-hidden transition-all duration-700 ease-in-out",
-                                isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                            )}>
-                                <div className="min-h-0 flex flex-col items-center gap-8 perspective-[2000px] py-8">
-                                    <FloorNode floor={26} type="BOSS" isCurrent={currentFloor === 26} isCompleted={currentFloor > 26} isLocked={false} isLeader={isLeader} onClick={() => handleNodeClick(26)} description="Gardiens des Songes" customColor="#f59e0b" />
+                {/* ── Combat Final (Palier V — Étage 26 — Vagues) ── */}
+                <div
+                    ref={isBossActive ? activeRef : undefined}
+                    className="flex flex-col items-center mt-4 pb-8"
+                >
+                    <BossNode
+                        isCurrent={isBossActive}
+                        isCompleted={isBossCompleted}
+                        isLeader={isLeader}
+                        onClick={() => handleNodeClick(26)}
+                    />
 
-                                    {/* Leader Actions */}
-                                    {isLeader && currentFloor >= 26 && (
-                                        <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                            {runStatus === "IN_PROGRESS" && (
-                                                <>
-                                                    <p className="text-amber-500/60 text-sm uppercase tracking-widest mb-4">L'aventure touche à sa fin</p>
-                                                    <button onClick={handleCloseRun} disabled={updating} className="group relative px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest hover:bg-amber-500 hover:text-black transition-all duration-300 shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_40px_rgba(245,158,11,0.6)] disabled:opacity-50">
-                                                        <span className="relative z-10 flex items-center gap-2">
-                                                            {updating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                                            Clôturer la run
-                                                        </span>
-                                                    </button>
-                                                </>
-                                            )}
-                                            {runStatus === "COMPLETED" && (
-                                                <>
-                                                    <p className="text-purple-400/60 text-sm uppercase tracking-widest mb-4">Le rêve est scellé</p>
-                                                    <button onClick={handleReopenRun} disabled={updating} className="group relative px-8 py-3 bg-[#05010a] border border-white/20 text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300 shadow-lg disabled:opacity-50">
-                                                        <span className="relative z-10 flex items-center gap-2">{updating ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />} Réouvrir le portail</span>
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                    {/* ── Actions du leader ── */}
+                    {isLeader && currentFloor >= 26 && (
+                        <div className="mt-8 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            {runStatus === "IN_PROGRESS" && (
+                                <>
+                                    <p className="text-amber-500/50 text-xs uppercase tracking-widest text-center">
+                                        Le rêve touche à sa fin
+                                    </p>
+                                    <button
+                                        onClick={handleCloseRun}
+                                        disabled={updating}
+                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-black transition-all duration-300 shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_40px_rgba(245,158,11,0.5)] disabled:opacity-50"
+                                    >
+                                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                        Clôturer la run
+                                    </button>
+                                </>
+                            )}
+                            {runStatus === "COMPLETED" && (
+                                <>
+                                    <p className="text-purple-400/50 text-xs uppercase tracking-widest text-center">
+                                        Le rêve est scellé
+                                    </p>
+                                    <button
+                                        onClick={handleReopenRun}
+                                        disabled={updating}
+                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-white/20 text-white font-bold uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-300 shadow-lg disabled:opacity-50"
+                                    >
+                                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                                        Réouvrir le portail
+                                    </button>
+                                </>
+                            )}
                         </div>
-                    )
-                })()}
-
+                    )}
+                </div>
             </div>
 
+            {/* ── Legend compacte en bas ── */}
+            <div className="relative z-20 border-t border-white/5 px-5 py-3 flex items-center gap-4 flex-wrap">
+                <LegendItem color="bg-emerald-500" label="Étage actif" />
+                <LegendItem color="bg-white/20" label="Terminé" />
+                <LegendItem color="bg-white/5" label="Verrouillé" />
+                {isLeader && (
+                    <span className="ml-auto text-[10px] text-white/20 uppercase tracking-widest">
+                        {isLeader && "Cliquer pour définir l'étage"}
+                    </span>
+                )}
+            </div>
+
+            {/* ── Overlay chargement ── */}
             {updating && (
-                <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center backdrop-blur-sm animate-in fade-in duration-500">
-                    <div className="flex flex-col items-center gap-6">
+                <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="flex flex-col items-center gap-4">
                         <div className="relative">
                             <div className="absolute inset-0 bg-purple-500/30 blur-xl rounded-full animate-pulse" />
-                            <Loader2 className="w-16 h-16 text-purple-400 animate-spin relative z-10" />
+                            <Loader2 className="w-12 h-12 text-purple-400 animate-spin relative z-10" />
                         </div>
-                        <span className="text-purple-200 font-medium tracking-[0.3em] uppercase animate-pulse text-sm">Voyage Onirique...</span>
+                        <span className="text-purple-200 font-medium tracking-[0.3em] uppercase text-xs animate-pulse">
+                            Voyage Onirique...
+                        </span>
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────── */
+/*  Helpers UI                                     */
+/* ─────────────────────────────────────────────── */
+function TimelineConnector({ color = "rgba(139,92,246,0.3)" }: { color?: string }) {
+    return (
+        <div className="flex flex-col items-center my-1" style={{ minHeight: "32px" }}>
+            <div className="w-px h-6" style={{ background: `linear-gradient(to bottom, ${color}, transparent)` }} />
+            <ChevronRight className="w-3 h-3 rotate-90 opacity-20" style={{ color }} />
+        </div>
+    );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+    return (
+        <div className="flex items-center gap-1.5">
+            <div className={cn("w-2 h-2 rounded-full", color)} />
+            <span className="text-[10px] text-white/25 uppercase tracking-wider">{label}</span>
         </div>
     );
 }

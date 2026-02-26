@@ -46,7 +46,8 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
                 userId: session.user.id,
                 read: false
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "desc" },
+            take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
         return { success: true, data: notifications as Notification[] };

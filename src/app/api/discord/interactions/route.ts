@@ -101,6 +101,41 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            // =============================================================
+            // RBAC Permission Gate (centralized for ALL Discord interactions)
+            // --
+            // Maps interaction prefix → required permission.
+            // When adding a NEW MODULE with Discord buttons:
+            //   1. Add the permission constant in lib/permissions.ts
+            //   2. Add an entry here: "prefix": PERMISSIONS.XXX
+            //   3. Handle the prefix logic below (join/leave/etc.)
+            // Owners and Discord admins bypass automatically (see internalCheckPermission).
+            // =============================================================
+            const { internalCheckPermission } = await import("@/server/actions/user-actions");
+            const { PERMISSIONS } = await import("@/lib/permissions");
+
+            const DISCORD_PERM_MAP: Record<string, string> = {
+                calendar: PERMISSIONS.CALENDAR_VIEW,
+                songes: PERMISSIONS.SONGES_JOIN,
+                dj: PERMISSIONS.FINDER_VIEW,
+                poll: PERMISSIONS.POLLS_VIEW,
+                // 🆕 Future modules: add entry here
+            };
+
+            const requiredPerm = DISCORD_PERM_MAP[prefix];
+            if (requiredPerm) {
+                const isAuthorized = await internalCheckPermission(guild_id, member.user.id, requiredPerm as any);
+                if (!isAuthorized) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.",
+                            flags: 64,
+                        },
+                    });
+                }
+            }
+
             let result;
 
             if (prefix === "calendar") {
@@ -159,9 +194,8 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     const { processPollVote } = await import("@/server/actions/poll-actions");
-                    const { internalCheckPermission } = await import("@/server/actions/user-actions");
-                    const { PERMISSIONS } = await import("@/lib/permissions");
 
+                    // RBAC already checked by centralized gate above (PERMISSIONS.POLLS_VIEW)
                     const profile = await db.userProfile.findUnique({
                         where: { userId_guildId: { userId: account.userId, guildId: guild_id } }
                     });
@@ -170,15 +204,6 @@ export async function POST(request: NextRequest) {
                         return NextResponse.json({
                             type: 4,
                             data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
-                        });
-                    }
-
-                    // Strict RBAC check
-                    const isAuthorized = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.POLLS_VIEW);
-                    if (!isAuthorized) {
-                        return NextResponse.json({
-                            type: 4,
-                            data: { content: "🚫 Tes rôles Discord ne t'autorisent pas à voter sur les sondages de cette guilde.", flags: 64 },
                         });
                     }
 
@@ -207,9 +232,7 @@ export async function POST(request: NextRequest) {
                     // Récupérer le post pour obtenir le guildId Prisma interne (≠ Discord guild_id snowflake)
                     const post = await (db as any).djSearchPost.findUnique({
                         where: { id: entityId },
-                        include: {
-                            guildConfig: { select: { discordGuildId: true } },
-                        },
+                        select: { id: true, status: true, guildId: true },
                     });
 
                     if (!post) {
@@ -303,6 +326,20 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({
                         type: 4,
                         data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                // RBAC check for modal submits (same gate as button clicks)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.SONGES_JOIN);
+                if (!canJoinSonges) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🚫 Tes rôles Discord ne t'autorisent pas à postuler aux Songes. Contacte un admin de ta guilde.",
+                            flags: 64,
+                        },
                     });
                 }
 

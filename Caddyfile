@@ -9,20 +9,43 @@
     header Referrer-Policy "strict-origin-when-cross-origin"
 }
 
+# =============================================================================
+# 🔴 PRODUCTION — Page d'attente premium (pas encore lancée)
+# =============================================================================
 sigilos.fr {
     import security_headers
-    respond "Maintenance en cours. SigilOS revient bientôt." 503
+    root * /srv/static
+    rewrite * /maintenance.html
+    file_server
 }
 
+# =============================================================================
+# 🟡 BETA — Reverse proxy + toggle maintenance pendant les déploiements
+# =============================================================================
+# Pour activer la maintenance :  touch /srv/maintenance-beta-on
+# Pour la désactiver :           rm /srv/maintenance-beta-on
+# (Automatisé par deploy.sh)
+# =============================================================================
 beta.sigilos.fr {
     import security_headers
 
-    # All traffic goes to Next.js (including /uploads/* via API route rewrite)
-    # No Caddy file_server needed — Next.js handles uploads via /api/uploads/[...path]
-    reverse_proxy sigilos-beta:3000
+    # If maintenance flag file exists, serve the maintenance page
+    @maintenance_on expression `file("/srv/maintenance-beta-on")`
+    handle @maintenance_on {
+        root * /srv/static
+        rewrite * /maintenance-beta.html
+        file_server
+    }
+
+    # Normal operation: proxy to Next.js
+    handle {
+        reverse_proxy sigilos-beta:3000
+    }
 }
 
-
+# =============================================================================
+# 📊 MONITORING
+# =============================================================================
 monitor.sigilos.fr {
     import security_headers
     reverse_proxy sigilos-grafana:3000

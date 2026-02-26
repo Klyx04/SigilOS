@@ -1,4 +1,10 @@
 import { ShieldCheck } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Politique de Confidentialité",
+    description: "Politique RGPD de SigilOS : données collectées, finalités, sécurité, hébergement UE et droits des utilisateurs.",
+};
 
 export default function PrivacyPage() {
     return (

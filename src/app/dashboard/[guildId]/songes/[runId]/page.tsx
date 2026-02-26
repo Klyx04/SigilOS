@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getDreamRunById, updateCurrentFloor, getMemberProfiles } from "@/server/actions/songes/dream-run-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Moon } from "lucide-react";
+import { Moon, BookOpen } from "lucide-react";
+import { BossGuide } from "@/components/songes/BossGuide";
 import { RunDetailHeader } from "@/components/songes/RunDetailHeader";
 import { RunStatsPanel } from "@/components/songes/RunStatsPanel";
 import { BonusInventory } from "@/components/songes/BonusInventory";
@@ -35,6 +36,7 @@ export default function RunDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+    const [bossGuideOpen, setBossGuideOpen] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!guildId) return;
@@ -138,6 +140,7 @@ export default function RunDetailPage() {
                 isLeader={isLeader}
                 optimisticStatus={optimisticStatus || run.status}
                 onStatusChange={setOptimisticStatus}
+                onOpenBossGuide={() => setBossGuideOpen(true)}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -173,6 +176,8 @@ export default function RunDetailPage() {
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
                 </div>
             </div>
+            {/* Boss Guide Drawer */}
+            <BossGuide isOpen={bossGuideOpen} onClose={() => setBossGuideOpen(false)} />
         </div>
     );
 }

@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { ProfileStatus } from "@prisma/client";
 
 /**
  * Returns a list of users who have been active in the last X minutes.
@@ -16,26 +17,37 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
             select: { id: true }
         });
 
-        if (!guildConfig) return { success: false, data: [] };
+        if (!guildConfig) return { success: false, data: [], totalActive: 0 };
 
-        const activeUsers = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                lastActivityAt: { gte: threshold }
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                pseudoDofus: true,
-                lastActivityAt: true,
-                user: { select: { name: true, image: true } }
-            },
-            orderBy: { lastActivityAt: "desc" },
-            take: limit
-        });
+        const [totalActive, activeUsers] = await Promise.all([
+            db.userProfile.count({
+                where: {
+                    guildId: guildConfig.id,
+                    lastActivityAt: { gte: threshold },
+                    status: ProfileStatus.ACTIVE
+                }
+            }),
+            db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    lastActivityAt: { gte: threshold },
+                    status: ProfileStatus.ACTIVE
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    pseudoDofus: true,
+                    lastActivityAt: true,
+                    user: { select: { name: true, image: true } }
+                },
+                orderBy: { lastActivityAt: "desc" },
+                take: limit
+            })
+        ]);
 
         return {
             success: true,
+            totalActive,
             data: activeUsers.map(u => ({
                 id: u.id,
                 name: u.discordNickname || u.pseudoDofus || u.user.name || "Inconnu",

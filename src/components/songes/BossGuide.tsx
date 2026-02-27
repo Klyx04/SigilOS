@@ -73,6 +73,8 @@ function DifficultyStars({ difficulty }: { difficulty: number }) {
 // MARKDOWN-LIKE RENDERER (simple)
 // ============================================
 
+import { sanitizeHtml } from "@/lib/security";
+
 function renderMarkdown(text: string) {
     if (!text) return null;
     // Split into lines
@@ -87,10 +89,13 @@ function renderMarkdown(text: string) {
                 content = content.replace(/<u>(.*?)<\/u>/g, '<span class="underline decoration-amber-400/60">$1</span>');
                 // Italic: *text*
                 content = content.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="text-white/50 not-italic text-xs">$1</em>');
+
+                const safeContent = sanitizeHtml(content) || "";
+
                 return (
                     <li key={i} className="flex items-start gap-2">
                         <span className="text-white/40 mt-1 shrink-0">•</span>
-                        <span dangerouslySetInnerHTML={{ __html: content }} />
+                        <span dangerouslySetInnerHTML={{ __html: safeContent }} />
                     </li>
                 );
             })}

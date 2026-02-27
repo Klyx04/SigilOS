@@ -1,9 +1,10 @@
 "use server";
 
 import { getUserContext } from "@/server/actions/user-actions";
-import { getWelcomePosts, toggleWelcomeReaction } from "@/server/actions/onboarding-admin-actions";
+import { getWelcomePosts } from "@/server/actions/onboarding-admin-actions";
 import { WelcomeFeedClient } from "./_components/welcome-feed-client";
 import { MessageSquare, Sparkles } from "lucide-react";
+import { AccessDenied } from "@/components/layout/access-denied";
 
 export default async function WelcomePage({
     params,
@@ -12,7 +13,20 @@ export default async function WelcomePage({
 }) {
     const { guildId } = await params;
     const user = await getUserContext(guildId);
+
+    // SECURITY: RBAC guard — requires welcome:view permission
+    if (!user.canViewWelcome) {
+        return (
+            <AccessDenied
+                title="Accès Restreint"
+                message="Votre rôle Discord ne vous donne pas accès à cette page. Contactez un administrateur."
+                variant="lock"
+            />
+        );
+    }
+
     const posts = await getWelcomePosts(guildId);
+
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">

@@ -133,7 +133,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
     return (
         <div className="space-y-5">
             {/* Global stats banner */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/30 border border-slate-700/60 rounded-2xl p-5">
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/30 border border-white/5 shadow-inner rounded-2xl p-5">
                 <div className="absolute top-0 right-0 w-48 h-48 opacity-5">
                     <Trophy className="w-full h-full text-indigo-400" />
                 </div>
@@ -183,7 +183,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Chercher un donjon…"
-                        className="w-full bg-slate-900/70 border border-slate-700/60 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner h-11"
                     />
                     {search && (
                         <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white">
@@ -192,7 +192,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                     )}
                 </div>
                 {/* Status filter */}
-                <div className="flex gap-1 bg-slate-900/70 border border-slate-700/60 rounded-xl p-1 shrink-0">
+                <div className="flex gap-1 bg-slate-900/50 border border-white/5 shadow-inner rounded-xl p-1 shrink-0 h-11 items-center">
                     {[
                         { id: "all" as const, label: "Tous" },
                         { id: "todo" as const, label: "À faire" },
@@ -238,7 +238,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                             onClick={() => expandDungeon(dungeon.id)}
                                             className="w-full flex items-center gap-4 p-4 hover:bg-slate-800/30 transition-colors text-left"
                                         >
-                                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 shrink-0">
+                                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/5 shadow-inner shrink-0 flex items-center justify-center">
                                                 {dungeon.imageUrl
                                                     ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                     : <Trophy className="w-5 h-5 m-2.5 text-slate-600" />
@@ -256,7 +256,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                             </div>
                                         </button>
                                         {/* Achievements */}
-                                        <div className="border-t border-slate-800 p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div className="border-t border-white/5 p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             {dungeon.achievements.map((a) => {
                                                 const isDone = completedIds.has(a.id);
                                                 const missingInfo = missing.find((m) => m.achievementId === a.id);
@@ -266,7 +266,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                             onClick={() => toggleAchievement(a.id)}
                                                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${isDone
                                                                 ? "bg-emerald-500/8 border-emerald-500/15 hover:border-emerald-500/30"
-                                                                : "bg-slate-800/30 border-transparent hover:border-slate-700 hover:bg-slate-800/50"
+                                                                : "bg-white/5 border-transparent hover:border-white/10 hover:bg-white/10"
                                                                 }`}
                                                         >
                                                             {isDone
@@ -305,15 +305,15 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                     <button
                                         onClick={() => expandDungeon(dungeon.id)}
                                         className={`group w-full rounded-2xl border transition-all duration-200 overflow-hidden text-left hover:scale-[1.02] hover:shadow-xl ${isComplete
-                                                ? "bg-emerald-950/20 border-emerald-700/30 hover:border-emerald-600/50 hover:shadow-emerald-900/20"
-                                                : "bg-slate-900/50 border-slate-800/80 hover:border-indigo-500/30 hover:shadow-indigo-900/20"
+                                            ? "bg-emerald-950/20 border-emerald-700/30 hover:border-emerald-600/50 hover:shadow-emerald-900/20"
+                                            : "bg-slate-900/40 border-white/5 hover:border-indigo-500/30 hover:bg-slate-900/60 shadow-sm"
                                             }`}
                                     >
                                         <div className="p-3 space-y-2">
                                             {/* Top: icon + progress ring */}
                                             <div className="flex items-start justify-between gap-2">
                                                 {/* Icon */}
-                                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-800 border border-slate-700/50 shrink-0 flex items-center justify-center">
+                                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-900 border border-white/5 shadow-inner shrink-0 flex items-center justify-center">
                                                     {dungeon.imageUrl
                                                         ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                         : <Trophy className="w-4 h-4 text-slate-600" />

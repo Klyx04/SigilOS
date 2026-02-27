@@ -15,6 +15,18 @@ import { sendChannelMessage, deleteChannelMessage, validateChannelBelongsToGuild
 import { createAuditLog } from "@/server/actions/audit-actions";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
 
+/**
+ * Generates a visual progress bar for Discord embeds.
+ */
+function getProgressBar(percentage: number, length = 12): string {
+    const filledLength = Math.max(0, Math.min(length, Math.round((percentage / 100) * length)));
+    const emptyLength = length - filledLength;
+    // Using standard Discord emojis for better compatibility
+    const filled = "🟩".repeat(filledLength);
+    const empty = "⬜".repeat(emptyLength);
+    return filled + empty;
+}
+
 // --- Types ---
 
 export type ActionResponse<T = unknown> = {
@@ -529,9 +541,17 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
             metadata: { title: data.title || poll.title },
         });
 
-        // Optional: Update Discord embed?
-        // For now, site updates only. If we wanted to update Discord, we'd need to fetch messageId and re-send.
-        // Given complexity, we'll stick to site updates first as per request scope.
+        // Sync Discord embed if it exists
+        if (poll.discordMessageId && poll.discordChannelId) {
+            publishPollToDiscord(
+                data.guildId,
+                poll.id,
+                poll.discordChannelId,
+                false,
+                undefined,
+                true
+            ).catch(err => logger.error("[Polls] Failed to sync Discord edit", { error: err }));
+        }
 
         revalidatePath(`/dashboard/${data.guildId}/sondages`);
         revalidatePath(`/dashboard/${data.guildId}/sondages/${poll.id}`);
@@ -625,6 +645,21 @@ export async function processPollVote(
 
         revalidatePath(`/dashboard/${discordGuildId}/sondages`);
         revalidatePath(`/dashboard/${discordGuildId}/sondages/${option.poll.id}`);
+
+        // Update Discord Message if it exists
+        if (option.poll.discordMessageId && option.poll.discordChannelId) {
+            // We use a delayed execution or direct call to avoid blocking the user response
+            // For stability, we fetch the latest state inside the sync function
+            publishPollToDiscord(
+                discordGuildId,
+                option.poll.id,
+                option.poll.discordChannelId,
+                false, // Don't re-mention
+                undefined,
+                true // Is update
+            ).catch(err => logger.error("[Polls] Failed to sync Discord vote", { error: err }));
+        }
+
         return { success: true, data: { action: "voted" } };
     } catch (error) {
         logger.error("[Polls] processPollVote error", { error, optionId, profileId });
@@ -724,10 +759,15 @@ async function sendPollOutcomeToDiscord(
     const totalVotes = poll.options.reduce((acc: number, o: any) => acc + o._count.votes, 0);
 
     const resultsList = poll.options
-        .map((o: any) => `**${o.emoji || "🔹"} ${o.label}** — ${o._count.votes} votes (${totalVotes > 0 ? Math.round((o._count.votes / totalVotes) * 100) : 0}%)`)
-        .join("\n");
+        .map((o: any) => {
+            const votes = o._count.votes || 0;
+            const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+            const bar = getProgressBar(pct, 10);
+            return `**${o.emoji || "🔹"} ${o.label}**\n${bar} \`${pct}%\` (${votes} votes)`;
+        })
+        .join("\n\n");
 
-    const description = `## 🏆 Résultat : ${winner?._count.votes > 0 ? winner.label : "Aucun vote"}\n\n${resultsList}\n\n---\n\n### 📝 Décision Finale :\n${outcome}\n\n*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`;
+    const description = `## � Résultats du vote\n\n${resultsList}\n\n---\n\n### 📝 Décision Finale :\n${outcome}\n\n*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`;
 
     await sendChannelMessage(poll.discordChannelId, description, {
         embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,
@@ -815,20 +855,29 @@ async function publishPollToDiscord(
     pollId: string,
     channelId: string,
     mentionEveryone: boolean,
-    mentionRoleId?: string
+    mentionRoleId?: string,
+    isUpdate = false
 ): Promise<void> {
     try {
-        // Security: validate channel belongs to guild
-        const isValid = await validateChannelBelongsToGuild(channelId, discordGuildId);
-        if (!isValid) {
-            logger.error("[Polls] Channel does not belong to guild", { channelId, discordGuildId });
-            return;
+        const { updateChannelMessage } = await import("@/server/discord");
+
+        // Security: validate channel belongs to guild (only on initial publish)
+        if (!isUpdate) {
+            const isValid = await validateChannelBelongsToGuild(channelId, discordGuildId);
+            if (!isValid) {
+                logger.error("[Polls] Channel does not belong to guild", { channelId, discordGuildId });
+                return;
+            }
         }
 
-        const poll = await (db as any).poll.findUnique({
+        const poll = await db.poll.findUnique({
             where: { id: pollId },
             include: {
-                options: { orderBy: { order: "asc" } },
+                options: {
+                    include: { _count: { select: { votes: true } } },
+                    orderBy: { order: "asc" }
+                },
+                creator: { include: { user: { select: { image: true } } } }
             },
         });
         if (!poll) return;
@@ -837,55 +886,70 @@ async function publishPollToDiscord(
         const appUrl = getAppBaseUrl();
         const voteUrl = `${appUrl}/dashboard/${discordGuildId}/sondages/${pollId}`;
 
-        // Build embed fields
+        // Calculate total votes
+        const totalVotes = poll.options.reduce((acc, opt) => acc + (opt._count.votes || 0), 0);
+
+        // Build options list with progress bars
         const optionsList = poll.options
-            .map((o: any, i: number) => `${o.emoji || `**${i + 1}**`} — ${o.label}`)
-            .join("\n");
+            .map((o: any, i: number) => {
+                const votes = o._count.votes || 0;
+                const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                const bar = getProgressBar(pct, 10);
+                return `${o.emoji || `**${i + 1}**`} — **${o.label}**\n${bar} \`${pct}%\` (${votes})`;
+            })
+            .join("\n\n");
 
         const descriptionParts = [];
 
         if (poll.description) {
-            descriptionParts.push(`*${poll.description}*\n`);
+            descriptionParts.push(`> *${poll.description}*`);
         }
 
-        descriptionParts.push(`### 📊 Options :\n${optionsList}\n`);
+        descriptionParts.push(`\n**📌 Options :**\n${optionsList}`);
 
         const metadata = [];
         if (poll.expiresAt) {
             metadata.push(`⏰ **Expire** — <t:${Math.floor(poll.expiresAt.getTime() / 1000)}:R>`);
         }
         metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Votes multiples** — Un seul choix");
+
         if (poll.isAnonymous) {
-            metadata.push("🕵️ **Anonymat** — Activé");
+            metadata.push("🕵️ **Anonymat** — Activé (voters masqués)");
         }
 
-        descriptionParts.push("> " + metadata.join("\n> "));
+        descriptionParts.push(`\n---\n${metadata.join("\n")}`);
 
         // Permission notice
-        descriptionParts.push(`\n\n*📌 Seuls les membres autorisés de la guilde sur [SigilOS](${voteUrl}) peuvent participer au vote.*`);
+        descriptionParts.push(`\n*Seuls les membres de la guilde peuvent voter sur [SigilOS](${voteUrl})*`);
 
-        const description = descriptionParts.join("\n\n");
+        const description = descriptionParts.join("\n");
 
-        // Build mention content
+        // Build mention content (only on first publish)
         let mentionContent: string | undefined;
-        if (mentionEveryone) {
-            mentionContent = "@everyone";
-        } else if (mentionRoleId) {
-            mentionContent = `<@&${mentionRoleId}>`;
+        if (!isUpdate) {
+            if (mentionEveryone) {
+                mentionContent = "@everyone";
+            } else if (mentionRoleId) {
+                mentionContent = `<@&${mentionRoleId}>`;
+            }
         }
 
-        const messageId = await sendChannelMessage(channelId, description, {
+        const embedOptions = {
             embedTitle: `📊 ${poll.title.toUpperCase()}`,
             embedColor: catConfig.color,
             embedImage: `${appUrl}${catConfig.imageUrl}`,
-            embedFooter: `SigilOS • ${catConfig.label} par ${poll.creatorName}`,
+            embedFooter: `SigilOS • ${catConfig.label}`,
+            embedAuthor: {
+                name: `Sondage lancé par ${poll.creatorName}`,
+                iconUrl: (poll.creator as any)?.user?.image || undefined
+            },
             embedUrl: voteUrl,
             mentionContent,
             components: [
                 {
                     type: 1, // ActionRow
                     components: [
-                        ...poll.options.slice(0, 5).map((o: any, idx: number) => ({
+                        ...poll.options.slice(0, 4).map((o: any, idx: number) => ({
                             type: 2, // Button
                             style: 1, // Primary (Blur)
                             label: `${o.emoji || idx + 1}`,
@@ -894,19 +958,24 @@ async function publishPollToDiscord(
                         {
                             type: 2, // Button
                             style: 5, // Link
-                            label: "🌐 Voir sur le site",
+                            label: "🌐 Voter / Détails",
                             url: voteUrl,
                         },
                     ],
                 },
             ],
-        });
+        };
 
-        if (messageId) {
-            await (db as any).poll.update({
-                where: { id: pollId },
-                data: { discordMessageId: messageId, discordChannelId: channelId },
-            });
+        if (isUpdate && poll.discordMessageId && poll.discordChannelId) {
+            await updateChannelMessage(poll.discordChannelId, poll.discordMessageId, description, embedOptions);
+        } else {
+            const messageId = await sendChannelMessage(channelId, description, embedOptions);
+            if (messageId) {
+                await (db as any).poll.update({
+                    where: { id: pollId },
+                    data: { discordMessageId: messageId, discordChannelId: channelId },
+                });
+            }
         }
     } catch (error) {
         logger.error("[Polls] publishToDiscord error", { error, pollId, channelId });

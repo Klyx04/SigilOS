@@ -28,6 +28,10 @@ const UpdateModulesSchema = z.object({
     // Admin
     logs: z.boolean(),
     admin: z.boolean(),
+    // Coming Soon
+    quests: z.boolean(),
+    worldmap: z.boolean(),
+    resources: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -70,6 +74,9 @@ export async function getGuildModules(
             polls: m.polls,
             logs: m.logs,
             admin: m.admin,
+            quests: m.quests,
+            worldmap: m.worldmap,
+            resources: m.resources,
         };
     } catch {
         // Fail open — if we can't read modules, assume all enabled

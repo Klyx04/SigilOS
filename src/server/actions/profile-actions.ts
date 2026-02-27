@@ -103,7 +103,19 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                     guildId: guildConfig.id
                 }
             },
-            include: { user: true }
+            include: {
+                user: true,
+                roleGrants: {
+                    where: {
+                        revokedAt: null,
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                    include: { role: true }
+                }
+            }
         });
 
         if (!profile) return { success: false, error: "Profil introuvable" };
@@ -127,6 +139,15 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
                 hasSeenWelcome: profile.hasSeenWelcome,
+                introduction: profile.introduction,
+                sigilRoles: profile.roleGrants.map(rg => ({
+                    id: rg.role.id,
+                    slug: rg.role.slug,
+                    label: rg.role.label,
+                    color: rg.role.color,
+                    icon: rg.role.icon,
+                    expiresAt: rg.expiresAt
+                })),
                 pendingSubmission: pendingSubmission ? {
                     id: pendingSubmission.id,
                     points: pendingSubmission.points,
@@ -172,6 +193,16 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                             select: { providerAccountId: true }
                         }
                     }
+                },
+                roleGrants: {
+                    where: {
+                        revokedAt: null,
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                    include: { role: true }
                 }
             }
         });
@@ -259,7 +290,16 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
+                introduction: profile.introduction,
                 discordInfo,
+                sigilRoles: profile.roleGrants.map(rg => ({
+                    id: rg.role.id,
+                    slug: rg.role.slug,
+                    label: rg.role.label,
+                    color: rg.role.color,
+                    icon: rg.role.icon,
+                    expiresAt: rg.expiresAt
+                })),
                 validatedMissionsCount,
                 weeklyMissions,
                 weeklyXp

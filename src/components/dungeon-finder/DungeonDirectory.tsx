@@ -114,7 +114,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Rechercher un donjon…"
-                                    className="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 backdrop-blur-sm transition-all"
+                                    className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 backdrop-blur-sm transition-all shadow-inner h-11"
                                 />
                             </div>
                         </div>
@@ -128,10 +128,10 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                         whileHover={{ y: -2, scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         onClick={() => handleSelectDungeon(dungeon)}
-                                        className="relative group overflow-hidden rounded-lg flex flex-col items-center text-center border border-slate-800/80 bg-slate-950 hover:border-indigo-500/40 shadow-md transition-all p-2 pb-2.5"
+                                        className="relative group overflow-hidden rounded-xl flex flex-col items-center text-center border border-white/5 bg-slate-900/40 hover:bg-slate-900/60 hover:border-indigo-500/40 shadow-sm transition-all p-2 pb-2.5"
                                     >
                                         {/* Image */}
-                                        <div className="w-full aspect-square flex items-center justify-center mb-1.5">
+                                        <div className="w-full aspect-square flex items-center justify-center mb-1.5 relative">
                                             {dungeon.imageUrl ? (
                                                 <img
                                                     src={dungeon.imageUrl}
@@ -139,7 +139,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                     className="w-4/5 h-4/5 object-contain drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
                                                 />
                                             ) : (
-                                                <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                                                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shadow-inner border border-white/5">
                                                     <Search className="w-5 h-5 text-slate-600" />
                                                 </div>
                                             )}
@@ -172,7 +172,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                         className="space-y-6"
                     >
                         {/* Selected Dungeon Hero */}
-                        <div className="relative rounded-3xl overflow-hidden border border-slate-700/50 bg-slate-900 shadow-2xl">
+                        <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-zinc-950 shadow-2xl">
                             {selectedDungeon.imageUrl && (
                                 <div className="absolute inset-0 w-full h-full">
                                     <img
@@ -187,7 +187,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                 <div>
                                     <button
                                         onClick={() => setSelectedDungeon(null)}
-                                        className="inline-flex items-center text-xs font-bold text-slate-400 hover:text-white mb-3 transition-colors bg-slate-800/50 hover:bg-slate-700/50 px-3 py-1.5 rounded-full backdrop-blur-md"
+                                        className="inline-flex items-center text-xs font-bold text-slate-400 hover:text-white mb-3 transition-colors bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full backdrop-blur-md"
                                     >
                                         <ChevronLeft className="w-4 h-4 mr-1" /> Retour à l'annuaire
                                     </button>
@@ -240,14 +240,14 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                     return (
                                         <div
                                             key={achv.achievementId}
-                                            className={`rounded-2xl transition-all duration-300 overflow-hidden border ${isExpanded ? 'bg-slate-900/90 border-indigo-500/30 shadow-2xl shadow-indigo-900/10' : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-900/60'}`}
+                                            className={`rounded-2xl transition-all duration-300 overflow-hidden border ${isExpanded ? 'bg-slate-900/90 border-indigo-500/30 shadow-2xl shadow-indigo-900/10' : 'bg-slate-900/40 border-white/5 hover:bg-slate-900/60 shadow-sm'}`}
                                         >
                                             <button
                                                 onClick={() => setExpandedAchv(isExpanded ? null : achv.achievementId)}
                                                 className="w-full flex items-center justify-between p-4 md:p-5 text-left focus:outline-none"
                                             >
                                                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700/50">
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 shadow-inner">
                                                         {achv.iconUrl ? (
                                                             <img src={achv.iconUrl} alt="" className="w-6 h-6 object-contain" />
                                                         ) : (
@@ -290,7 +290,7 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                         </div>
                                                     )}
 
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-400'}`}>
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-slate-400 border border-white/5'}`}>
                                                         <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                                                     </div>
                                                 </div>
@@ -302,9 +302,9 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                         initial={{ height: 0, opacity: 0 }}
                                                         animate={{ height: "auto", opacity: 1 }}
                                                         exit={{ height: 0, opacity: 0 }}
-                                                        className="overflow-hidden border-t border-slate-800/50"
+                                                        className="overflow-hidden border-t border-white/5"
                                                     >
-                                                        <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-950/30">
+                                                        <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-900/20 shadow-inner">
                                                             {/* Col 1: MISSING */}
                                                             <div className="bg-slate-900/60 border border-rose-900/20 rounded-2xl p-4">
                                                                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
@@ -333,10 +333,10 @@ export function DungeonDirectory({ guildId, onCreatePost }: DungeonDirectoryProp
                                                             </div>
 
                                                             {/* Col 2: HAS COMPLETED */}
-                                                            <div className="bg-emerald-950/20 border border-emerald-900/20 rounded-2xl p-4">
-                                                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/50">
+                                                            <div className="bg-emerald-950/10 border border-emerald-900/10 shadow-sm rounded-2xl p-4">
+                                                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-900/20">
                                                                     <div className="flex items-center gap-2 font-bold text-sm">
-                                                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-inner flex items-center justify-center">
                                                                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                                                                         </div>
                                                                         <span className="text-emerald-300">Déjà validé</span>
@@ -380,10 +380,10 @@ function MemberPill({ member, variant }: { member: any, variant: 'missing' | 'co
 
     return (
         <div className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-colors ${isMissing
-            ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-slate-500 text-slate-200'
-            : 'bg-slate-900 border-slate-800 text-slate-400'
+            ? 'bg-slate-900/60 hover:bg-slate-900/80 border-white/5 hover:border-white/10 text-slate-200'
+            : 'bg-black/20 border-white/5 text-slate-400'
             }`}>
-            <div className={`w-6 h-6 rounded-full overflow-hidden shrink-0 ${!member.imageUrl && 'bg-slate-700 flex items-center justify-center'}`}>
+            <div className={`w-6 h-6 rounded-full overflow-hidden shrink-0 ${!member.imageUrl && 'bg-slate-800 flex items-center justify-center border border-white/5'}`}>
                 {member.imageUrl ? (
                     <img src={member.imageUrl} alt={member.name} className="w-full h-full object-cover" />
                 ) : (

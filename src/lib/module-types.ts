@@ -20,7 +20,11 @@ export type ModuleKey =
     | "polls"
     // Admin
     | "logs"
-    | "admin";
+    | "admin"
+    // Coming Soon
+    | "quests"
+    | "worldmap"
+    | "resources";
 
 export type GuildModulesState = {
     // Général
@@ -42,6 +46,10 @@ export type GuildModulesState = {
     logs: boolean;
     polls: boolean;
     admin: boolean;
+    // Coming Soon
+    quests: boolean;
+    worldmap: boolean;
+    resources: boolean;
 };
 
 export const DEFAULT_MODULES: GuildModulesState = {
@@ -60,4 +68,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
     logs: false,
     polls: true,
     admin: true,
+    quests: false,
+    worldmap: false,
+    resources: false,
 };

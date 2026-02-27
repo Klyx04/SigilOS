@@ -112,6 +112,7 @@ export default async function MemberProfilePage({
                     metamobVerified: profile.metamobVerified,
                     metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                     dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                    roleGrants: profile.roleGrants || [],
                 }}
                 user={{
                     name: profile.user.name,

@@ -372,7 +372,7 @@ export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) throw new Error("Unauthorized");
 
-    return db.userProfile.findMany({
+    const members = await db.userProfile.findMany({
         where: { guildId },
         include: {
             user: {
@@ -388,4 +388,21 @@ export async function getGuildMembersForGod(guildId: string) {
         },
         orderBy: { updatedAt: "desc" }
     });
+
+    return members.map(m => ({
+        id: m.id,
+        userId: m.userId,
+        status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
+        createdAt: m.createdAt.toISOString(),
+        updatedAt: m.updatedAt.toISOString(),
+        archivedAt: m.archivedAt?.toISOString() || null,
+        archiveReason: m.archiveReason,
+        pseudoDofus: m.pseudoDofus,
+        discordNickname: m.discordNickname,
+        user: {
+            name: m.user.name,
+            image: m.user.image,
+            accounts: m.user.accounts
+        }
+    }));
 }

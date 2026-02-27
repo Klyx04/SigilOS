@@ -211,6 +211,17 @@ SigilOS/
 
 ---
 
+### Session — Restauration Beta, Drift PRISMA & RBAC Strict (2026-02-27)
+
+- ✅ **Drift Prisma & Hook Git** : Correction du décalage (Drift) entre le schéma Prisma local et la DB sur Beta. Ajout d'un script `.husky/pre-commit` pour empêcher un commit si `schema.prisma` est modifié sans fichier de migration associé.
+- ✅ **Scripts & PRA** : Création de `scripts/reset-beta.sh` (purge totale des données user + backup auto DB, tout en gardant intacts l'infra de jeu comme les donjons). Création de workflows documentés (`/disaster-recovery` sur R2 et `/prisma-schema-change`).
+- ✅ **Sécurité RBAC Stricte** : Suppression des passes-droits par défaut sur le Dashboard, page Bienvenue, et Docs. Redirection sur `AccessDenied` si le rôle Discord mappé n'a pas explicitement le droit. Ajout des guards server-side (`canViewDashboard`, `canViewWelcome`).
+- ✅ **Permissions Manager** : Ajout d'une barre de recherche intelligente multi-critères temps-réel (recherche par nom de droit, description ou rôle assigné) dans l'admin.
+- ✅ **Nav Admin** : Refonte visuelle de la sidebar Admin (hiérarchie `Centre Admin` suivie d'une liste unifiée `[ADM] ...` avec marqueur coloré `rose`).
+- ✅ **Clean Repository** : Suppression des branches obsolètes (`docs/audit-roadmap`, `feat/module-services`).
+
+---
+
 ## 🔒 Sécurité
 
 ### Patterns Obligatoires (Server Actions)

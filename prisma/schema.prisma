@@ -110,9 +110,10 @@ model GuildConfig {
   ownerId          String? // Discord ID of the guild owner
   iconUrl          String?
   isActive         Boolean @default(true)
-  rolesMapping     Json    @default("{}") // Record<DiscordRoleId, PermissionId[]>
-  absenceChannelId String? // Discord channel ID for absence notifications
-  metamobApiKey    String? // Per-guild Metamob API key (optional, falls back to global)
+  rolesMapping           Json    @default("{}") // Record<DiscordRoleId, PermissionId[]>
+  absenceChannelId       String? // Discord channel ID for absence notifications
+  systemNotifyChannelId  String? // Discord channel ID for platform-level announcements (SigilOS)
+  metamobApiKey          String? // Per-guild Metamob API key (optional, falls back to global)
   maxMembers       Int     @default(350) // Maximum number of active members allowed
 
   // Dofus Server Configuration (for Ladder scraping)
@@ -149,6 +150,17 @@ model GuildConfig {
 
   // Prêts & Coffre Module Configuration
   loansNotifyChannelId String? // Discord channel ID for loans & vault movement notifications
+
+  // Onboarding & Accueil Module Configuration
+  welcomeEnabled         Boolean   @default(false)
+  welcomeNotifyChannelId String? // Discord channel ID for welcome messages
+  welcomeDashboardEnabled Boolean @default(true) // Show on dashboard "Bienvenue" channel
+  welcomeDiscordEnabled Boolean @default(false) // Send to Discord
+  welcomeMessageTemplate String? @db.Text // Welcome message text
+  welcomeMentionRoleId   String? // Discord role ID to ping, or "everyone"
+
+  // Probation Role Configuration
+  probationRoleName String @default("Période d'essai")
 
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
@@ -204,6 +216,9 @@ model GuildConfig {
   // Activity Feed (real-time broadcast)
   guildActivities GuildActivity[]
 
+  // Welcome Dashboard Posts
+  welcomePosts MemberWelcome[]
+
   // Logs immuables (audit trail)
   serviceActivityLogs ServiceActivityLog[]
 }
@@ -237,6 +252,11 @@ model GuildModules {
   logs  Boolean @default(true) // Logs d'audit admin
   polls Boolean @default(true) // Sondages de guilde
   admin Boolean @default(true) // Accès administration
+
+  // === COMING SOON ===
+  quests    Boolean @default(false) // Optimisation Quêtes Dofus
+  worldmap  Boolean @default(false) // Mini-Jeux / Carte du Monde
+  resources Boolean @default(false) // Ressources Communautaires
 
   updatedAt DateTime @updatedAt
   updatedBy String? // Discord user ID of last admin who changed settings
@@ -397,6 +417,8 @@ model UserProfile {
 
   // Onboarding
   hasSeenWelcome Boolean @default(false)
+  introduction   String? @db.Text // Membre presentation text
+
 
   // Ocre Trades
   sentOcreRequests     OcreTradeRequest[] @relation("Requester")
@@ -415,6 +437,9 @@ model UserProfile {
   loansGiven    GuildLoan[]  @relation("LoansGiven")
   loansReceived GuildLoan[]  @relation("LoansReceived")
   vaultEntries  VaultEntry[]
+
+  // Onboarding
+  welcomePosts MemberWelcome[]
 
   // Logs immuables
   serviceActivityLogs ServiceActivityLog[]
@@ -1750,4 +1775,18 @@ model ServiceActivityLog {
   @@index([guildId, module, createdAt])
   @@index([entityId])
   @@index([actorId])
+}
+
+model MemberWelcome {
+  id        String   @id @default(cuid())
+  guildId   String
+  profileId String   // ID of the new member
+  content   String   @db.Text
+  reactions Json?    // { "🎉": ["profileId1", "profileId2"], ... }
+  createdAt DateTime @default(now())
+
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
 }

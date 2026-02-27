@@ -87,16 +87,16 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 12 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="relative w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden"
+                        className="relative w-full max-w-md bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
                     >
                         {/* Header glow */}
                         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
                         {/* Header */}
-                        <div className="p-6 pb-4 border-b border-slate-800/60">
+                        <div className="p-6 pb-4 border-b border-white/5 bg-slate-900/30">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+                                    <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 shadow-inner flex items-center justify-center shrink-0">
                                         <ShieldCheck className="w-5 h-5 text-violet-400" />
                                     </div>
                                     <div>
@@ -111,7 +111,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                         </div>
 
                         {/* Body */}
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-5">
                             {/* Info banner */}
                             <div className="flex items-start gap-2.5 bg-violet-500/8 border border-violet-500/20 rounded-xl px-3.5 py-3">
                                 <Trophy className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
@@ -142,9 +142,9 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                             <button
                                                 key={p.profile.id}
                                                 onClick={() => toggle(p.profile.id)}
-                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${isVal
-                                                    ? "bg-emerald-500/8 border-emerald-500/25 hover:border-emerald-500/40"
-                                                    : "bg-slate-800/40 border-slate-700/40 hover:border-slate-600 opacity-60"
+                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${isVal
+                                                    ? "bg-emerald-500/10 border-emerald-500/30 shadow-inner"
+                                                    : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60"
                                                     }`}
                                             >
                                                 {/* Avatar */}
@@ -164,7 +164,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 </div>
                                                 {/* Point badge */}
                                                 {isVal && (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30 shadow-sm">
                                                         <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
@@ -194,19 +194,19 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 border border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                                className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold max-h-12 h-12 transition-all"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending}
-                                className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-black shadow-lg shadow-violet-900/30"
+                                className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-black max-h-12 h-12 shadow-md shadow-violet-900/20"
                             >
                                 {isPending ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Clôture…</>
+                                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Clôture…</>
                                 ) : (
-                                    <><ShieldCheck className="w-4 h-4 mr-2" /> Confirmer</>
+                                    <><ShieldCheck className="w-5 h-5 mr-2" /> Confirmer</>
                                 )}
                             </Button>
                         </div>

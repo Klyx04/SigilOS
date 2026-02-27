@@ -91,15 +91,17 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
             </Button>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-lg bg-zinc-950 border-white/10 text-white">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-black flex items-center gap-2">
-                            <Pencil className="h-4 w-4 text-cyan-400" />
-                            Modifier l&apos;annonce
+                <DialogContent className="max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white p-0 gap-0">
+                    <div className="p-5 pb-4 border-b border-white/5 bg-slate-900/30">
+                        <DialogTitle className="text-base font-black flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <Pencil className="w-4 h-4 text-cyan-400" />
+                            </div>
+                            Modifier l'annonce
                         </DialogTitle>
-                    </DialogHeader>
+                    </div>
 
-                    <div className="space-y-4 py-2">
+                    <div className="p-6 space-y-5">
 
                         {/* Contexte en lecture seule — donjon / succès / quête */}
                         {(listing.dungeonName || listing.questName) && (
@@ -107,11 +109,11 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                 {listing.dungeonName && (
                                     <div className="flex items-center gap-2">
                                         {listing.dungeonImageUrl ? (
-                                            <div className="relative h-8 w-8 rounded shrink-0 overflow-hidden border border-cyan-500/20">
+                                            <div className="relative h-8 w-8 rounded-lg shrink-0 overflow-hidden border border-cyan-500/20 shadow-inner">
                                                 <Image src={listing.dungeonImageUrl} alt={listing.dungeonName} fill className="object-cover" />
                                             </div>
                                         ) : (
-                                            <div className="h-8 w-8 rounded shrink-0 bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+                                            <div className="h-8 w-8 rounded-lg shrink-0 bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-inner">
                                                 <Swords className="h-4 w-4 text-cyan-400" />
                                             </div>
                                         )}
@@ -225,18 +227,22 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setOpen(false)} className="text-zinc-400 hover:text-white">
+                    <div className="px-6 pb-6 flex gap-3 border-t border-white/5 pt-5 bg-slate-900/30">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setOpen(false)}
+                            className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all"
+                        >
                             Annuler
                         </Button>
                         <Button
                             onClick={handleSave}
                             disabled={loading || !title.trim()}
-                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold"
+                            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-md shadow-cyan-900/20"
                         >
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
         </>

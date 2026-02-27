@@ -12,17 +12,17 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 const STEPS = [
     {
         icon: DiscordIcon,
-        title: "Pacte de Discord",
+        title: "Ouvrez un ticket sur Discord",
         description: "Scellez votre alliance sur le Discord SigilOS."
     },
     {
         icon: Mic,
-        title: "Rite d'Admission",
+        title: "Échange en vocal sur vos attentes",
         description: "Un entretien vocal pour valider votre allégeance au projet."
     },
     {
         icon: LayoutDashboard,
-        title: "Éveil du Dashboard",
+        title: "Onboarding et accès au Dashboard",
         description: "Accédez à votre grimoire de gestion personnalisé."
     }
 ];

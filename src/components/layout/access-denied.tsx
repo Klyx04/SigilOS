@@ -12,13 +12,61 @@ interface AccessDeniedProps {
     message?: string;
     variant?: "lock" | "ban" | "archive";
     action?: React.ReactNode;
+    countdownDate?: string | null;
+}
+
+import { useState, useEffect } from "react";
+
+function Countdown({ date }: { date: string }) {
+    const [timeLeft, setTimeLeft] = useState<string>("");
+
+    useEffect(() => {
+        const target = new Date(date).getTime();
+
+        const update = () => {
+            const now = new Date().getTime();
+            const diff = target - now;
+
+            if (diff <= 0) {
+                setTimeLeft("Suppression imminente...");
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (days > 0) {
+                setTimeLeft(`${days}j ${hours}h ${minutes}m`);
+            } else {
+                setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+            }
+        };
+
+        update();
+        const timer = setInterval(update, 1000);
+        return () => clearInterval(timer);
+    }, [date]);
+
+    return (
+        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-pulse">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">
+                ⚠️ Suppression définitive des données dans
+            </p>
+            <p className="text-xl font-black text-amber-400 tabular-nums">
+                {timeLeft}
+            </p>
+        </div>
+    );
 }
 
 export function AccessDenied({
     title = "Accès Restreint",
     message = "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
     variant = "lock",
-    action
+    action,
+    countdownDate
 }: AccessDeniedProps) {
     const { data: session } = useSession();
 
@@ -26,6 +74,7 @@ export function AccessDenied({
         <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-center relative overflow-hidden">
             <PublicHeader user={session?.user} />
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
+
             {/* Ambient Noise Overlay */}
             <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
 
@@ -49,13 +98,19 @@ export function AccessDenied({
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-black text-white tracking-tighter uppercase font-heading">
+                    <h1 className="text-4xl font-black text-white tracking-tighter uppercase font-heading leading-tight">
                         {title}
                     </h1>
                     <div className="h-1 w-24 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto rounded-full opacity-50"></div>
                     <p className="text-zinc-400 text-lg leading-relaxed px-4">
                         {message}
                     </p>
+
+                    {countdownDate && (
+                        <div className="px-8">
+                            <Countdown date={countdownDate} />
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-4 pt-4 px-6">

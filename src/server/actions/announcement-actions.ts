@@ -105,6 +105,30 @@ export async function clearSystemAnnouncement(): Promise<{ success: boolean; err
     }
 }
 
+/**
+ * Get all channels for the main Stellium guild (Dev guild)
+ */
+export async function getStelliumChannels() {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    if (!(await isSuperAdmin())) return [];
+
+    const stelliumId = process.env.DISCORD_GUILD_ID;
+    if (!stelliumId) return [];
+
+    try {
+        const { fetchGuildChannels } = await import("@/server/discord");
+        const channels = await fetchGuildChannels(stelliumId);
+        // Only text channels (type 0 or 5 for announcement)
+        return channels.filter(c => c.type === 0 || c.type === 5);
+    } catch (e) {
+        console.error("[Stellium Channels] Failed:", e);
+        return [];
+    }
+}
+
 // =============================================================================
 // DISCORD BROADCAST (Send maintenance embed to all guild channels)
 // =============================================================================
@@ -116,7 +140,8 @@ export async function clearSystemAnnouncement(): Promise<{ success: boolean; err
 export async function broadcastDiscordAnnouncement(
     message: string,
     type: "maintenance" | "update" | "info",
-    mentionEveryone: boolean = false
+    mentionEveryone: boolean = false,
+    stelliumChannelOverride?: string
 ): Promise<{ success: boolean; sent: number; failed: number; error?: string }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, sent: 0, failed: 0, error: "Unauthorized" };
@@ -137,8 +162,9 @@ export async function broadcastDiscordAnnouncement(
                 songesNotifyChannelId: true,
                 calendarNotifyChannelId: true,
                 absenceChannelId: true,
-            },
-        });
+                systemNotifyChannelId: true,
+            } as any,
+        }) as any[];
 
         if (guilds.length === 0) {
             return { success: true, sent: 0, failed: 0, error: "Aucune guilde active" };
@@ -165,12 +191,21 @@ export async function broadcastDiscordAnnouncement(
         let failed = 0;
 
         for (const guild of guilds) {
-            // Find the first available channel for this guild
-            const channelId =
+            // Stellium Override Logic
+            const isStellium = guild.discordGuildId === process.env.DISCORD_GUILD_ID;
+
+            // Find the best channel (Priority: System > Override (Stellium only) > Missions > Songes > Calendar > Absence)
+            let channelId: string | null =
+                guild.systemNotifyChannelId ||
                 guild.missionNotifyChannelId ||
                 guild.songesNotifyChannelId ||
                 guild.calendarNotifyChannelId ||
                 guild.absenceChannelId;
+
+            // If it's Stellium and an override is provided, use it
+            if (isStellium && stelliumChannelOverride) {
+                channelId = stelliumChannelOverride;
+            }
 
             if (!channelId) {
                 console.warn(`[Broadcast] Guild ${guild.name} has no notification channel configured, skipping`);
@@ -199,5 +234,35 @@ export async function broadcastDiscordAnnouncement(
     } catch (error) {
         console.error("[Broadcast] Error:", error);
         return { success: false, sent: 0, failed: 0, error: "Database error" };
+    }
+}
+
+/**
+ * Save the system announcement channel for a specific guild (Admin only)
+ */
+export async function saveSystemAnnouncementSettings(
+    guildId: string,
+    channelId: string | null
+): Promise<{ success: boolean; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const { getUserContext } = await import("@/server/actions/user-actions");
+        const user = await getUserContext(guildId);
+        if (!user.isAdmin) return { success: false, error: "Admin required" };
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { systemNotifyChannelId: channelId },
+        });
+
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+
+        return { success: true };
+    } catch (error) {
+        console.error("[Announcement Settings] Save failed:", error);
+        return { success: false, error: "Database error" };
     }
 }

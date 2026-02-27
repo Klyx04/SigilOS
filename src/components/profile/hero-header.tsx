@@ -2,7 +2,9 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck } from "lucide-react";
+import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck, Sparkles, UserCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 
@@ -56,6 +58,9 @@ interface HeroHeaderProps {
     canViewMissions?: boolean;
     canViewLadder?: boolean;
     guildName?: string;
+    sigilRoles?: any[];
+    discordRoleName?: string;
+    discordRoleColor?: number;
 }
 
 export function HeroHeader({
@@ -76,7 +81,10 @@ export function HeroHeader({
     isAdmin = false,
     canViewMissions = true,
     canViewLadder = true,
-    guildName = "Guilde"
+    guildName = "Guilde",
+    sigilRoles = [],
+    discordRoleName,
+    discordRoleColor,
 }: HeroHeaderProps) {
     const roleHexColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
@@ -132,6 +140,11 @@ export function HeroHeader({
                                 <Palmtree className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />
                             </div>
                         )}
+                        {sigilRoles.some(g => g.role?.slug === "probation") && (
+                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)] shadow-lg animate-pulse" title="Nouvelle Recrue">
+                                <Sparkles className="w-5 h-5 text-emerald-400 fill-emerald-500/10" />
+                            </div>
+                        )}
                     </div>
 
                     {/* Info Section */}
@@ -176,6 +189,52 @@ export function HeroHeader({
                             {joinedAt && (
                                 <Badge variant="outline" className="bg-white/5 text-zinc-400 border-white/10">
                                     Membre depuis {new Date(joinedAt).toLocaleDateString("fr-FR", { month: 'long', year: 'numeric' })}
+                                </Badge>
+                            )}
+
+                            {sigilRoles.filter(g => g.role?.slug !== "probation").map((grant: any) => (
+                                <Badge
+                                    key={grant.id}
+                                    className="bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 font-black uppercase tracking-[0.1em] text-[10px] py-1 gap-1.5"
+                                >
+                                    <Sparkles className="w-3 h-3" />
+                                    {grant.label}
+                                    {grant.expiresAt && (
+                                        <span className="opacity-50 text-[9px] font-medium lowercase italic">
+                                            expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
+                                        </span>
+                                    )}
+                                </Badge>
+                            ))}
+
+                            {/* Specific NEW/PROBATION Badge - High Visibility */}
+                            {sigilRoles.filter(g => g.role?.slug === "probation").map((grant: any) => (
+                                <Badge
+                                    key={grant.id}
+                                    className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 font-black uppercase tracking-[0.1em] text-[11px] py-1 gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5 fill-emerald-400/20" />
+                                    {grant.label || "Nouveau"}
+                                    {grant.expiresAt && (
+                                        <span className="opacity-60 text-[9px] font-medium lowercase italic border-l border-emerald-500/30 pl-2">
+                                            expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
+                                        </span>
+                                    )}
+                                </Badge>
+                            ))}
+
+                            {discordRoleName && (
+                                <Badge
+                                    variant="outline"
+                                    className="font-bold uppercase tracking-[0.1em] text-[10px] py-1 border-white/10 bg-white/5"
+                                    style={{
+                                        color: discordRoleColor && discordRoleColor > 0
+                                            ? `#${discordRoleColor.toString(16).padStart(6, "0")}`
+                                            : "#94a3b8"
+                                    }}
+                                >
+                                    <UserCircle className="w-3.5 h-3.5 mr-1.5" />
+                                    {discordRoleName}
                                 </Badge>
                             )}
                         </div>

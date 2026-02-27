@@ -45,6 +45,13 @@ export type UserContext = {
     canManagePolls: boolean;
     canViewDocs: boolean;
     canViewProfile: boolean;
+    // Coming Soon Permissions
+    canViewQuests: boolean;
+    canManageQuests: boolean;
+    canViewWorldmap: boolean;
+    canManageWorldmap: boolean;
+    canViewResources: boolean;
+    canManageResources: boolean;
     isAdmin: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
@@ -54,6 +61,7 @@ export type UserContext = {
     joinedAt?: string | null;
     guildId?: string;
     isCapacityFull?: boolean;
+    scheduledDeletion?: string | null;
 };
 
 export type ActionResponse<T = any> = {
@@ -130,6 +138,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDocs: false,
         canViewProfile: false,
         canManageMembers: false,
+        canViewQuests: false,
+        canManageQuests: false,
+        canViewWorldmap: false,
+        canManageWorldmap: false,
+        canViewResources: false,
+        canManageResources: false,
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -145,19 +159,32 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const effectiveGuildId = targetGuildId || process.env.DISCORD_GUILD_ID;
     if (!effectiveGuildId) return { ...baseContext, ...authPartial };
 
+    // --- SECURITY: SUPER ADMIN BYPASS ---
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isGod = await isSuperAdmin();
+
+    // 1. Get Guild Config for Mappings (Try Internal ID first, then Discord ID)
+    const guildConfig = await db.guildConfig.findFirst({
+        where: {
+            OR: [
+                { id: effectiveGuildId },
+                { discordGuildId: effectiveGuildId }
+            ]
+        },
+        select: { id: true, discordGuildId: true, rolesMapping: true, name: true, dofusServerId: true }
+    }) as any;
+
+    const actualDiscordGuildId = guildConfig?.discordGuildId || effectiveGuildId;
+
     // --- SECURITY: DEEP WHITELIST CHECK (Database-based) ---
     const { isGuildAllowed } = await import("@/server/actions/super-admin-actions");
-    const allowed = await isGuildAllowed(effectiveGuildId);
-    if (!allowed) {
-        logger.warn(`[Security] Blocked access to unauthorized guild: ${effectiveGuildId}`);
+    const allowed = await isGuildAllowed(actualDiscordGuildId);
+
+    // Only block if not allowed AND not a God
+    if (!allowed && !isGod) {
+        logger.warn(`[Security] Blocked access to unauthorized guild: ${actualDiscordGuildId}`);
         return { ...baseContext, isAuthenticated: false };
     }
-
-    // 1. Get Guild Config for Mappings
-    const guildConfig = await db.guildConfig.findUnique({
-        where: { discordGuildId: effectiveGuildId },
-        select: { id: true, rolesMapping: true, name: true, dofusServerId: true }
-    }) as any;
 
     // 2. Fetch User's Roles from Discord
     const account = await db.account.findFirst({
@@ -176,13 +203,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const platformBan = await db.platformBan.findUnique({
         where: { discordId: discordUserId }
     });
-    if (platformBan && platformBan.entityType === "USER") {
+    if (platformBan && platformBan.entityType === "USER" && !isGod) {
         logger.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
         return { ...baseContext, isAuthenticated: false };
     }
-
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
-    const isGod = await isSuperAdmin();
 
     // --- ENSURE USER PROFILE EXISTS ---
     let profile = await db.userProfile.findUnique({
@@ -234,11 +258,110 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         }
     }
 
+    // ── SECURITY: Block ARCHIVED and BANNED — they cannot self-reactivate even if they re-join Discord ──
+    if (profile?.status === "ARCHIVED" && !isGod) {
+        return {
+            ...baseContext,
+            isAuthenticated: true,
+            id: session.user.id,
+            name: displayName,
+            image: session.user.image || undefined,
+            isMember: false,
+            guildName: guildConfig?.name || "Serveur Inconnu",
+            isArchived: true,
+            scheduledDeletion: profile.scheduledDeletion?.toISOString() || null
+        } as any;
+    }
+
+    if (profile?.status === "BANNED" && !isGod) {
+        return {
+            ...baseContext,
+            isAuthenticated: true,
+            id: session.user.id,
+            name: displayName,
+            image: session.user.image || undefined,
+            isMember: false,
+            guildName: guildConfig?.name || "Serveur Inconnu",
+            isBanned: true,
+            scheduledDeletion: profile.scheduledDeletion?.toISOString() || null
+        } as any;
+    }
+
     // --- AUTO-ARCHIVE ---
     if (guildConfig && !memberRes.ok && profile && profile.status === "ACTIVE") {
         if (memberRes.status === 404) {
-            if (!isGod) return { ...baseContext, isAuthenticated: true, isMember: false };
+            // Member left or was kicked from Discord -> Auto-archive on platform
+            const scheduledDeletion = new Date();
+            scheduledDeletion.setDate(scheduledDeletion.getDate() + 30); // 30 days retention
+
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: {
+                    status: "ARCHIVED",
+                    archivedAt: new Date(),
+                    archiveReason: "LEFT_GUILD",
+                    scheduledDeletion
+                }
+            });
+
+            if (!isGod) return {
+                ...baseContext,
+                isAuthenticated: true,
+                isMember: false,
+                isArchived: true,
+                guildName: guildConfig?.name || "Serveur Inconnu",
+                scheduledDeletion: scheduledDeletion.toISOString()
+            } as any;
         }
+    }
+
+    // --- NON-MEMBER CHECK (Not on Discord and not already handled) ---
+    if (!memberRes.ok) {
+        return {
+            ...baseContext,
+            isAuthenticated: true,
+            id: session.user.id,
+            name: displayName,
+            isMember: isGod, // Only Gods can see dashboards of guilds they aren't in
+            isArchived: profile?.status === "ARCHIVED",
+            isBanned: profile?.status === "BANNED",
+            // If God, grant all perms even if not in Discord
+            ...(isGod ? {
+                isAdmin: true,
+                canViewMissions: true,
+                canManageMissions: true,
+                canValidateMissions: true,
+                canManageBonus: true,
+                canViewRoster: true,
+                canViewSonges: true,
+                canCreateSonges: true,
+                canJoinSonges: true,
+                canViewArchis: true,
+                canViewPolls: true,
+                canManagePolls: true,
+                canViewLadder: true,
+                canEditPresentation: true,
+                canViewCalendar: true,
+                canManageCalendar: true,
+                canViewAdminDocs: true,
+                canViewDashboard: true,
+                canViewPresentation: true,
+                canViewStats: true,
+                canViewServices: true,
+                canCreateServices: true,
+                canViewFinder: true,
+                canViewProfile: true,
+                canManageMembers: true,
+                canViewQuests: true,
+                canManageQuests: true,
+                canViewWorldmap: true,
+                canManageWorldmap: true,
+                canViewResources: true,
+                canManageResources: true,
+                roleName: "Administrateur",
+                roleColor: 0x5865F2,
+            } : {})
+        } as any;
     }
 
     // --- CAPACITY CHECK ---
@@ -259,34 +382,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     isCapacityFull: true
                 };
             }
-        }
-
-        // ── SECURITY: Block ARCHIVED and BANNED — they cannot self-reactivate ──
-        if (profile?.status === "ARCHIVED") {
-            return {
-                ...baseContext,
-                isAuthenticated: true,
-                id: session.user.id,
-                name: displayName,
-                image: session.user.image || undefined,
-                isMember: false,
-                guildName: guildConfig?.name || "Serveur Inconnu",
-                // Custom flag for layout to show specific message
-                isArchived: true,
-            } as any;
-        }
-
-        if (profile?.status === "BANNED") {
-            return {
-                ...baseContext,
-                isAuthenticated: true,
-                id: session.user.id,
-                name: displayName,
-                image: session.user.image || undefined,
-                isMember: false,
-                guildName: guildConfig?.name || "Serveur Inconnu",
-                isBanned: true,
-            } as any;
         }
 
         // Upsert Profile — only for brand new members (no profile yet)
@@ -377,6 +472,13 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
     const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
     const canManagePolls = myPerms.has(PERMISSIONS.POLLS_MANAGE) || isAdmin;
+    // Coming Soon
+    const canViewQuests = myPerms.has(PERMISSIONS.QUESTS_VIEW) || isAdmin;
+    const canManageQuests = myPerms.has(PERMISSIONS.QUESTS_MANAGE) || isAdmin;
+    const canViewWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_VIEW) || isAdmin;
+    const canManageWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_MANAGE) || isAdmin;
+    const canViewResources = myPerms.has(PERMISSIONS.RESOURCES_VIEW) || isAdmin;
+    const canManageResources = myPerms.has(PERMISSIONS.RESOURCES_MANAGE) || isAdmin;
 
     const isAdminFinal = isAdmin || isGod;
 
@@ -416,6 +518,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewFinder: canViewFinder || isGod,
         canViewDocs: true, // Open access as requested
         canViewProfile: canViewProfile || isGod,
+        canViewQuests: canViewQuests || isGod,
+        canManageQuests: canManageQuests || isGod,
+        canViewWorldmap: canViewWorldmap || isGod,
+        canManageWorldmap: canManageWorldmap || isGod,
+        canViewResources: canViewResources || isGod,
+        canManageResources: canManageResources || isGod,
         isAdmin: isAdminFinal,
         isSuperAdmin: isGod,
         isMember: true,
@@ -663,7 +771,7 @@ export async function getGuildMembers(guildId: string) {
                 }
             }
         },
-        orderBy: { updatedAt: "desc" }
+        orderBy: { createdAt: "desc" }
     });
 
     // Return only the fields needed by MemberManagementTable
@@ -672,9 +780,12 @@ export async function getGuildMembers(guildId: string) {
         id: m.id,
         userId: m.userId,
         status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
+        createdAt: m.createdAt.toISOString(),
         updatedAt: m.updatedAt.toISOString(),
         archivedAt: m.archivedAt?.toISOString() || null,
         archiveReason: m.archiveReason,
+        pseudoDofus: m.pseudoDofus,
+        discordNickname: m.discordNickname,
         user: {
             name: m.user.name,
             image: m.user.image,
@@ -711,13 +822,20 @@ export async function updateMemberProfileStatus(
         throw new Error("Vous ne pouvez pas modifier votre propre statut (Protection anti-lockout)");
     }
 
-    // 4. Update
+    // 4. Update with retention policy
+    const scheduledDeletion = status === "ACTIVE"
+        ? null
+        : status === "BANNED"
+            ? new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h for BANNED
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30d for ARCHIVED
+
     const updated = await db.userProfile.update({
         where: { id: profileId },
         data: {
             status,
             archivedAt: status !== "ACTIVE" ? new Date() : null,
-            archiveReason: status !== "ACTIVE" ? (reason || "MANUAL_ADMIN_ACTION") : null
+            archiveReason: status !== "ACTIVE" ? (reason || "MANUAL_ADMIN_ACTION") : null,
+            scheduledDeletion
         }
     });
 
@@ -759,6 +877,51 @@ export async function updateMemberProfileStatus(
     ).catch(() => { });
 
     return updated;
+}
+
+/**
+ * Update a member's Dofus pseudo (Admin only)
+ */
+export async function updateMemberPseudo(profileId: string, pseudoDofus: string) {
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
+    const profile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        include: { guild: { select: { discordGuildId: true } } }
+    });
+
+    if (!profile) throw new Error("Profile not found");
+
+    const actor = await getUserContext(profile.guild.discordGuildId);
+    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required");
+
+    const updated = await db.userProfile.update({
+        where: { id: profileId },
+        data: { pseudoDofus }
+    });
+
+    // Audit log
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isGod = await isSuperAdmin();
+
+    if (!isGod) {
+        await db.auditLog.create({
+            data: {
+                guildId: profile.guildId,
+                actorUserId: session.user.id as string,
+                actorName: session.user.name || "Admin",
+                action: "MEMBER_PSEUDO_UPDATE",
+                targetType: "PROFILE",
+                targetId: profileId,
+                oldValue: { pseudo: profile.pseudoDofus } as any,
+                newValue: { pseudo: pseudoDofus } as any,
+            }
+        });
+    }
+
+    revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
+    return { success: true, data: updated };
 }
 
 export async function getDiscordRolesAction(guildId: string) {

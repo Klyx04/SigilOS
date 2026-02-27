@@ -89,6 +89,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         altPseudos: (profile.altPseudos as string[]) || [],
                         successPoints: profile.successPoints,
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
+                        roleGrants: profile.roleGrants || [],
                     }}
                     user={{
                         name: profile.user.name,
@@ -99,7 +100,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     guildName={userContext.guildName}
                     dofusServerId={userContext.dofusServerId}
                     discordNickname={userContext.name}
-                    roleColor={userContext.roleColor}
                     isAdmin={userContext.isAdmin}
                     permissions={{
                         canViewArchis: userContext.canViewArchis,
@@ -107,6 +107,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         canViewLadder: userContext.canViewLadder,
                         canViewMissions: userContext.canViewMissions,
                     }}
+                    roleName={userContext.roleName}
+                    roleColor={userContext.roleColor}
                     readOnly={false}
                 />
             </div>

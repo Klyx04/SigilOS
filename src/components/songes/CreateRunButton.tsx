@@ -36,7 +36,7 @@ function getDifficultyBadgeColor(diffKey: DifficultyKey) {
 
 // Component
 // ─────────────────────────────────────────────────────────
-export function CreateRunButton({ guildId }: { guildId: string }) {
+export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: string; isDiscordConfigured?: boolean }) {
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState<"standard" | "epreuve">("standard");
 
@@ -48,7 +48,7 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
     const [selectedEpreuve, setSelectedEpreuve] = useState<EpreuveCode | null>(null);
 
     // Shared
-    const [publishToDiscord, setPublishToDiscord] = useState(true);
+    const [publishToDiscord, setPublishToDiscord] = useState(!!isDiscordConfigured);
     const [error, setError] = useState<string | null>(null);
     const [rateLimitReset, setRateLimitReset] = useState<number | null>(null); // timestamp ms
     const [countdown, setCountdown] = useState<string | null>(null);
@@ -298,19 +298,27 @@ export function CreateRunButton({ guildId }: { guildId: string }) {
                 </Tabs>
 
                 {/* ─── DISCORD TOGGLE (commun aux 2 modes) ─── */}
-                <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
-                    <div className="flex items-center gap-3">
-                        <MessageSquare className="w-5 h-5 text-[#5865F2]" />
-                        <div>
-                            <p className="text-sm font-medium text-white/80">Publier sur Discord</p>
-                            <p className="text-xs text-white/35">Embed avec boutons rejoindre/quitter</p>
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
+                        <div className="flex items-center gap-3">
+                            <MessageSquare className="w-5 h-5 text-[#5865F2]" />
+                            <div>
+                                <p className="text-sm font-medium text-white/80">Publier sur Discord</p>
+                                <p className="text-xs text-white/35">Embed avec boutons rejoindre/quitter</p>
+                            </div>
                         </div>
+                        <Switch
+                            checked={publishToDiscord}
+                            onCheckedChange={setPublishToDiscord}
+                            disabled={!isDiscordConfigured}
+                            className="data-[state=checked]:bg-[#5865F2]"
+                        />
                     </div>
-                    <Switch
-                        checked={publishToDiscord}
-                        onCheckedChange={setPublishToDiscord}
-                        className="data-[state=checked]:bg-[#5865F2]"
-                    />
+                    {!isDiscordConfigured && (
+                        <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
+                            ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
+                        </p>
+                    )}
                 </div>
 
                 {/* Note épreuve */}

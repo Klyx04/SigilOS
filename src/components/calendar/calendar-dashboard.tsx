@@ -51,6 +51,7 @@ interface CalendarDashboardProps {
     guildId: string;
     currentUserId: string;
     canManage: boolean;
+    isDiscordConfigured?: boolean;
 }
 
 type ViewMode = "grid" | "list";
@@ -106,7 +107,7 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
     },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscordConfigured }: CalendarDashboardProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("grid");
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<any[]>([]);
@@ -549,7 +550,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                     <DialogDescription className="text-zinc-400">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
-                    <EventForm onSubmit={handleCreate} />
+                    <EventForm onSubmit={handleCreate} isDiscordConfigured={isDiscordConfigured} />
                 </DialogContent>
             </Dialog>
 
@@ -596,6 +597,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                         <EventForm
                             initialData={editingEvent}
                             onSubmit={handleUpdate}
+                            isDiscordConfigured={isDiscordConfigured}
                         />
                     )}
                 </DialogContent>

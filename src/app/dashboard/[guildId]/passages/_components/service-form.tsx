@@ -194,16 +194,13 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl bg-zinc-950 border-white/10 text-white max-h-[92vh] overflow-y-auto p-0">
-
+            <DialogContent className="max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[92vh] overflow-y-auto p-0 gap-0">
                 {/* Gradient header */}
                 <div className={`bg-gradient-to-r ${cat?.color ?? ""} px-6 pt-6 pb-4 border-b border-white/5`}>
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-black flex items-center gap-2.5">
-                            <span className={`p-1.5 rounded-lg border ${cat?.accent ?? ""}`}>{cat?.icon}</span>
-                            Publier un service
-                        </DialogTitle>
-                    </DialogHeader>
+                    <DialogTitle className="text-lg font-black flex items-center gap-2.5">
+                        <span className={`p-1.5 rounded-lg border shadow-inner ${cat?.accent ?? ""}`}>{cat?.icon}</span>
+                        Publier un service
+                    </DialogTitle>
 
                     {/* Category pills */}
                     <div className="flex flex-wrap gap-2 mt-4">
@@ -730,16 +727,16 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                     </div>
                 </div>
 
-                <DialogFooter className="px-6 pb-5 pt-0 border-t border-white/5">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-zinc-400 hover:text-white">Annuler</Button>
+                <div className="px-6 py-5 bg-slate-900/40 border-t border-white/5 flex gap-3 sticky bottom-0 z-10 mt-2">
+                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all">Annuler</Button>
                     <Button
                         onClick={handleSubmit}
                         disabled={loading || !title.trim()}
-                        className={`font-bold text-white ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500" : "bg-emerald-600 hover:bg-emerald-500"}`}
+                        className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
                     >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

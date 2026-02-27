@@ -1,6 +1,6 @@
 # 🗺️ SigilOS — Feuille de Route
 
-> Dernière mise à jour : 26 février 2026
+> Dernière mise à jour : 27 février 2026
 > Remplace `src/todo.md` et `src/.prepa-avant-beta-membre`
 
 ---
@@ -16,7 +16,13 @@
 - [x] Fix boutons DJ/Quêtes "Échec de l'interaction" (relation Prisma `guildConfig` → `guild`)
 - [x] Fix preview SigilOS géante sur notifications Songes (`suppressEmbeds: true`)
 - [x] Audit performance — 3 indexes DB ajoutés (Notification, DreamJoinRequest, MissionInterest)
-- [x] Limite notifications non-lues (`take: 50`)
+- [x] Refonte complète Welcome Embed (Premium)
+- [x] Gestion manuelle des pseudos membres (Audit Logs)
+- [x] Tri des membres par date d'arrivée
+- [x] Badge "Nouveau" dynamique lié au rôle probation
+- [x] Refonte Sondages Discord (Progress bars, % vifs, sync live)
+- [x] Refonte UI Poll Creator (Expiration grid control)
+- [x] Audit sécurité patterns multi-tenant validé
 
 ### Infrastructure
 
@@ -24,6 +30,8 @@
 - [x] Toggle maintenance automatique dans `deploy.sh` (flag file Caddy)
 - [x] Volumes Docker montés pour les pages statiques Caddy
 - [x] Workflow Discord module documenté (`.agents/workflows/discord-module.md`)
+- [x] Nettoyage fichiers obsolètes (17 fichiers : logs, scripts Python, audit, dofusdude.yaml)
+- [x] Mise à jour `.gitignore` (patterns debug .txt, .py one-shot)
 
 ### À vérifier manuellement
 
@@ -117,27 +125,36 @@ Le broadcast utilise l'API Discord Bot (`POST /channels/{id}/messages`) pour env
 
 ## Phase 3 — Nouveaux Modules (Mars 2026)
 
-### Module Optimisation Quêtes Dofus
+### Module Optimisation Quêtes Dofus (Page "Coming Soon" ✅)
 
 > Trouver les quêtes en commun entre membres de guilde, optimiser les parcours.
 
+- [x] Page `/dashboard/{guildId}/quetes-dofus` avec bandeau "En développement" et image preview
+- [x] Toggle module admin (`quests` dans GuildModules)
+- [x] Lien sidebar (section "Bientôt")
 - [ ] Définir le scope exact (quêtes des Dofus, quêtes d'exploration, quêtes de classe ?)
 - [ ] Import des données quêtes depuis DofusDB / game data
 - [ ] Tracker de progression par membre
 - [ ] "Quêtes en commun" — matchmaking entre membres
 
-### Module Mini-Jeux / Carte du Monde
+### Module Mini-Jeux / Carte du Monde (Page "Coming Soon" ✅)
 
 > Comme [dofusdb.fr/fr/tools/map](https://dofusdb.fr/fr/tools/map) mais intégré à SigilOS.
 
+- [x] Page `/dashboard/{guildId}/mini-jeux` avec bandeau "En développement"
+- [x] Toggle module admin (`worldmap` dans GuildModules)
+- [x] Lien sidebar (section "Bientôt")
 - [ ] Étude de faisabilité : données cartographiques Dofus disponibles ?
 - [ ] Définir le MVP — affichage basique ou interactions avancées ?
 - [ ] Assets à extraire / API à consommer
 
-### Module Ressources Dofus
+### Module Ressources Dofus (Page "Coming Soon" ✅)
 
 > Hub centralisé avec toutes les ressources autour de Dofus.
 
+- [x] Page `/dashboard/{guildId}/ressources` avec bandeau "En développement"
+- [x] Toggle module admin (`resources` dans GuildModules)
+- [x] Lien sidebar (section "Bientôt")
 - [ ] Définir le contenu : liens utiles, guides, builds, recettes ?
 - [ ] Intégration avec DofusDB / DofusPourLesNoobs / Dofensive
 - [ ] Page statique avec catégories ou système dynamique ?

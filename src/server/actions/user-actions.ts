@@ -7,6 +7,7 @@ import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { emitGuildActivity } from "./activity-actions";
 
 export type UserContext = {
     isAuthenticated: boolean;
@@ -38,6 +39,7 @@ export type UserContext = {
     canViewPresentation: boolean;
     canViewStats: boolean;
     canViewServices: boolean;
+    canCreateServices: boolean;
     canViewFinder: boolean;
     canViewPolls: boolean;
     canManagePolls: boolean;
@@ -123,6 +125,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDashboard: false,
         canViewStats: false,
         canViewServices: false,
+        canCreateServices: false,
         canViewFinder: false,
         canViewDocs: false,
         canViewProfile: false,
@@ -258,10 +261,40 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             }
         }
 
-        // Upsert Profile
+        // ── SECURITY: Block ARCHIVED and BANNED — they cannot self-reactivate ──
+        if (profile?.status === "ARCHIVED") {
+            return {
+                ...baseContext,
+                isAuthenticated: true,
+                id: session.user.id,
+                name: displayName,
+                image: session.user.image || undefined,
+                isMember: false,
+                guildName: guildConfig?.name || "Serveur Inconnu",
+                // Custom flag for layout to show specific message
+                isArchived: true,
+            } as any;
+        }
+
+        if (profile?.status === "BANNED") {
+            return {
+                ...baseContext,
+                isAuthenticated: true,
+                id: session.user.id,
+                name: displayName,
+                image: session.user.image || undefined,
+                isMember: false,
+                guildName: guildConfig?.name || "Serveur Inconnu",
+                isBanned: true,
+            } as any;
+        }
+
+        // Upsert Profile — only for brand new members (no profile yet)
         const now = new Date();
         const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
-        if (!profile || profile.status === "ARCHIVED") {
+
+        if (!profile) {
+            // NEW MEMBER — first time on the platform
             try {
                 profile = await db.userProfile.upsert({
                     where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
@@ -276,9 +309,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         lastActivityAt: now,
                     },
                     update: {
-                        status: "ACTIVE",
-                        archivedAt: null,
-                        archiveReason: null,
+                        // If profile exists but was somehow missed, only update Discord cache — NOT status
                         discordNickname: displayName,
                         discordRoleName: roleName,
                         discordRoleColor: roleColor,
@@ -295,11 +326,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         } else {
-            // Update last activity
+            // EXISTING ACTIVE member — just refresh Discord cache + heartbeat
             try {
                 await db.userProfile.update({
                     where: { id: profile.id },
-                    data: { lastActivityAt: now }
+                    data: {
+                        lastActivityAt: now,
+                        discordNickname: displayName,
+                        discordRoleName: roleName,
+                        discordRoleColor: roleColor,
+                        discordCacheUpdatedAt: now,
+                    }
                 });
             } catch { }
         }
@@ -334,6 +371,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewPresentation = myPerms.has(PERMISSIONS.PRESENTATION_VIEW) || isAdmin;
     const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
     const canViewServices = myPerms.has(PERMISSIONS.SERVICES_VIEW) || isAdmin;
+    const canCreateServices = myPerms.has(PERMISSIONS.SERVICES_CREATE) || isAdmin;
     const canViewFinder = myPerms.has(PERMISSIONS.FINDER_VIEW) || isAdmin;
     const canViewProfile = myPerms.has(PERMISSIONS.PROFILE_VIEW) || isAdmin;
     const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
@@ -374,6 +412,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPresentation: canViewPresentation || isGod,
         canViewStats: canViewStats || isGod,
         canViewServices: canViewServices || isGod,
+        canCreateServices: canCreateServices || isGod,
         canViewFinder: canViewFinder || isGod,
         canViewDocs: true, // Open access as requested
         canViewProfile: canViewProfile || isGod,
@@ -703,6 +742,22 @@ export async function updateMemberProfileStatus(
     }
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
+
+    // Emit activity feed event
+    const targetProfile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true, image: true } } }
+    });
+    const targetName = targetProfile?.pseudoDofus || targetProfile?.discordNickname || targetProfile?.user?.name || "Membre";
+    const activityType = status === "BANNED" ? "BANNED" : status === "ARCHIVED" ? "ARCHIVED" : "UNARCHIVED";
+    await emitGuildActivity(
+        profile.guildId,
+        activityType,
+        targetName,
+        targetProfile?.user?.image ?? null,
+        reason ? { reason } : undefined
+    ).catch(() => { });
+
     return updated;
 }
 

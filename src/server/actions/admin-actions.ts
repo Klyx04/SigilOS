@@ -918,3 +918,60 @@ export async function getGuildAdminsWithPermission(
         return [];
     }
 }
+
+// ============================================================================
+// LOANS & VAULT NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getLoansConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { loansNotifyChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { loansNotifyChannelId: true } as Record<string, true>
+        }) as { loansNotifyChannelId?: string | null } | null;
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return { success: true, data: { loansNotifyChannelId: config.loansNotifyChannelId ?? null } };
+    } catch (error) {
+        console.error("Get Loans Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateLoansChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { loansNotifyChannelId: channelId } as Record<string, string | null>
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Loans Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}

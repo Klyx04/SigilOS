@@ -9,6 +9,7 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Sparkles } from "lucide-react";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
+import { BossGuideLauncher } from "@/components/songes/BossGuideLauncher";
 
 export default async function SongesPage({
     params,
@@ -50,9 +51,12 @@ export default async function SongesPage({
                 iconColor="#d946ef"
                 backHref={`/dashboard/${guildId}`}
                 actions={
-                    (userContext.canCreateSonges || userContext.isAdmin) && (
-                        <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
-                    )
+                    <div className="flex items-center gap-3">
+                        <BossGuideLauncher />
+                        {(userContext.canCreateSonges || userContext.isAdmin) && (
+                            <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+                        )}
+                    </div>
                 }
             />
 

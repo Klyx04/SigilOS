@@ -173,7 +173,19 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 { discordGuildId: effectiveGuildId }
             ]
         },
-        select: { id: true, discordGuildId: true, rolesMapping: true, name: true, dofusServerId: true }
+        select: {
+            id: true,
+            discordGuildId: true,
+            rolesMapping: true,
+            name: true,
+            dofusServerId: true,
+            welcomeEnabled: true,
+            welcomeDashboardEnabled: true,
+            welcomeDiscordEnabled: true,
+            welcomeNotifyChannelId: true,
+            welcomeMentionRoleId: true,
+            welcomeMessageTemplate: true
+        }
     }) as any;
 
     const actualDiscordGuildId = guildConfig?.discordGuildId || effectiveGuildId;
@@ -393,9 +405,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         if (!profile) {
             // NEW MEMBER — first time on the platform
             try {
-                profile = await db.userProfile.upsert({
-                    where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
-                    create: {
+                // Try create first to confidently trigger 'first-time' actions
+                profile = await db.userProfile.create({
+                    data: {
                         userId: session.user.id,
                         guildId: guildConfig.id,
                         discordNickname: displayName,
@@ -404,19 +416,36 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         discordJoinedAt: joinedAt,
                         discordCacheUpdatedAt: now,
                         lastActivityAt: now,
-                    },
-                    update: {
-                        // If profile exists but was somehow missed, only update Discord cache — NOT status
-                        discordNickname: displayName,
-                        discordRoleName: roleName,
-                        discordRoleColor: roleColor,
-                        discordJoinedAt: joinedAt || undefined,
-                        discordCacheUpdatedAt: now,
-                        lastActivityAt: now,
                     }
                 });
-            } catch (e) {
-                if (!profile) {
+
+                // ---- NEW MEMBER WELCOME LOGIC ----
+                Promise.resolve().then(async () => {
+                    if (!guildConfig.welcomeEnabled) return;
+
+                    try {
+                        const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
+                        await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
+                    } catch (welcomeErr) {
+                        logger.error("[Welcome] Failed to process welcome notifications", { error: welcomeErr });
+                    }
+                });
+            } catch (e: any) {
+                // P2002 means it already exists (race condition or they left and rejoined without profile deletion)
+                if (e.code === 'P2002') {
+                    profile = await db.userProfile.update({
+                        where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+                        data: {
+                            discordNickname: displayName,
+                            discordRoleName: roleName,
+                            discordRoleColor: roleColor,
+                            discordJoinedAt: joinedAt || undefined,
+                            discordCacheUpdatedAt: now,
+                            lastActivityAt: now,
+                        }
+                    });
+                } else {
+                    // Fallback read
                     profile = await db.userProfile.findUnique({
                         where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
                     });

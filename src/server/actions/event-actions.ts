@@ -100,15 +100,22 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     return allEvents.slice(0, limit);
 }
 
-export async function getExternalKralamoureDetails(kralaId: number) {
+import { logger } from "@/lib/logger";
+
+export async function getExternalKralamoureDetails(kralaId: number, guildId: string) {
     const session = await auth();
     if (!session?.user?.id) return null;
+
+    // SECURITY: Ensure user is a member of the requested guild
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return null;
 
     // We need an API key. Try to find one from the user's profile first, or any guild config they are part of.
     // Since this is a specific event ID, we don't strictly need the server ID, just a valid key.
 
     const userProfile = await db.userProfile.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, guildId: ctx.guildId },
         select: { metamobApiKey: true, guild: { select: { metamobApiKey: true } } }
     });
 
@@ -122,7 +129,7 @@ export async function getExternalKralamoureDetails(kralaId: number) {
         const details = await getKralamoureEventDetails(kralaId, { guildApiKey: apiKey });
         return details;
     } catch (error) {
-        console.error("[getExternalKralamoureDetails] Failed:", error);
+        logger.error("[getExternalKralamoureDetails] Failed:", { error, kralaId, guildId });
         return null;
     }
 }

@@ -532,6 +532,12 @@ export async function submitMissionProof(
 
         const buffer = Buffer.from(base64Data, 'base64');
 
+        // SECURITY: Limit image size to 10MB before processing
+        const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+        if (buffer.length > MAX_SIZE_BYTES) {
+            return { success: false, error: "Image trop grande. Maximum 10MB autorisé." };
+        }
+
         // SECURITY: Verify HelperIds integrity (Multi-tenant check)
         if (helperIds.length > 0) {
             const helperProfiles = await db.userProfile.findMany({

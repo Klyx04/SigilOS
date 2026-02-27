@@ -163,7 +163,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
         if (isNaN(kralaId)) return { success: false, error: "ID invalide" };
 
         const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
-        const details = await getExternalKralamoureDetails(kralaId);
+        const details = await getExternalKralamoureDetails(kralaId, guildId);
 
         if (!details) return { success: false, error: "Événement Metamob introuvable" };
 
@@ -244,7 +244,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             // Try to fetch live participants from Metamob
             try {
                 const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
-                const details = await getExternalKralamoureDetails(meta.metamobId);
+                const details = await getExternalKralamoureDetails(meta.metamobId, guildId);
 
                 if (details && details.participants) {
                     // Replace participants with live data
@@ -479,7 +479,7 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
         // Try to fetch participants immediately to populate metadata
         try {
             const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
-            const details = await getExternalKralamoureDetails(kralaEvent.id);
+            const details = await getExternalKralamoureDetails(kralaEvent.id, guildId);
 
             if (details && details.participants) {
                 await db.guildEvent.update({

@@ -5,7 +5,8 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
-    HandCoins, ArrowLeft, ChevronRight,
+    HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
+    ShieldAlert, UserCheck, Sparkles
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
@@ -14,6 +15,7 @@ import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-c
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
+import { OnboardingSettingsClient } from "../_components/onboarding-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
@@ -23,7 +25,8 @@ import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-acti
 import { PollSettingsClient } from "../_components/poll-settings-client";
 import { DjSettingsClient } from "../_components/dj-settings-client";
 import { LoansSettingsClient } from "../_components/loans-settings-client";
-import { ShieldAlert, UserCheck } from "lucide-react";
+import { SystemSettingsClient } from "../_components/system-settings-client";
+import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import Link from "next/link";
 
 // ============================================================================
@@ -40,6 +43,7 @@ type SettingsSection = {
 
 function buildNavItems(): SettingsSection[] {
     return [
+        { id: "annonces", label: "Annonces Platform", icon: Megaphone, description: "Infos & Maintenances", accent: "indigo" },
         { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "cyan" },
         { id: "songes", label: "Songes", icon: Moon, description: "Runs Songes Infinis", accent: "purple" },
         { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "green" },
@@ -49,6 +53,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
         { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
+        { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Probation", accent: "rose" },
         { id: "membres", label: "Membres & Sync", icon: Users, description: "Gestion & synchronisation", accent: "violet" },
     ];
 }
@@ -92,6 +97,8 @@ export default async function FeatureSettingsPage({
 
     const memberStats = await getGuildMemberStats(guildId);
     const members = await getGuildMembers(guildId);
+    const onboardingRes = await getOnboardingSettings(guildId);
+    const probationRoleName = onboardingRes.success ? onboardingRes.data!.probationRoleName : "Période d'essai";
 
     const navItems = buildNavItems();
     const activeItem = navItems.find(n => n.id === activeTab) ?? navItems[0];
@@ -118,8 +125,8 @@ export default async function FeatureSettingsPage({
                                 key={item.id}
                                 href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
                                 className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                        ? `${ac.bg} ${ac.border} border`
-                                        : "border border-transparent hover:bg-white/[0.03] hover:border-white/8"
+                                    ? `${ac.bg} ${ac.border} border`
+                                    : "border border-transparent hover:bg-white/[0.03] hover:border-white/8"
                                     }`}
                             >
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? ac.bg : "bg-white/5 group-hover:bg-white/8"}`}>
@@ -149,6 +156,7 @@ export default async function FeatureSettingsPage({
                     </div>
 
                     {/* Content pane */}
+                    {activeTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
                     {activeTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
                     {activeTab === "songes" && <SongesSettingsClient guildId={guildId} />}
                     {activeTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
@@ -173,6 +181,7 @@ export default async function FeatureSettingsPage({
                     )}
                     {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                     {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
+                    {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
                     {activeTab === "membres" && (
                         <div className="space-y-8">
                             <MemberStatsOverview stats={memberStats} />
@@ -184,7 +193,11 @@ export default async function FeatureSettingsPage({
                                     </h3>
                                     <p className="text-sm text-zinc-500">Contrôle direct sur l&apos;archivage et les bannissements SigilOS.</p>
                                 </div>
-                                <MemberManagementTable initialMembers={members as never} guildId={guildId} />
+                                <MemberManagementTable
+                                    initialMembers={members as never}
+                                    guildId={guildId}
+                                    probationRoleName={probationRoleName}
+                                />
                             </div>
                             <div className="max-w-4xl">
                                 <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 relative overflow-hidden group">

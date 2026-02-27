@@ -935,6 +935,7 @@ export async function getDjPosts(
 
         const where: any = {
             guildId: guildConfig.id,
+            profile: { status: "ACTIVE" }
         };
 
         if (filters.status && filters.status.length > 0) {

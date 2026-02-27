@@ -83,25 +83,25 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-[95vw] max-w-lg bg-slate-950 border-slate-800 text-white max-h-[90vh] overflow-y-auto p-0 gap-0">
+            <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 custom-scrollbar">
                 {/* Header */}
-                <div className="p-5 pb-4 border-b border-slate-800">
+                <div className="p-5 pb-4 border-b border-white/5 bg-slate-900/30">
                     <DialogTitle className="text-base font-black flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                            <Pencil className="w-3.5 h-3.5 text-indigo-400" />
+                        <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                            <Pencil className="w-4 h-4 text-indigo-400" />
                         </div>
                         <div>
-                            <span className="text-white">Modifier le post</span>
-                            <p className="text-[11px] font-normal text-slate-500 mt-0.5 truncate max-w-[300px]">{title}</p>
+                            <span className="text-white">Modifier le groupe</span>
+                            <p className="text-xs font-medium text-slate-500 mt-0.5 truncate max-w-[300px]">{title}</p>
                         </div>
                     </DialogTitle>
                 </div>
 
                 {/* Body */}
-                <div className="p-5 space-y-5">
+                <div className="p-6 space-y-6">
                     {/* Date */}
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5 text-indigo-400" />
                             Date prévue <span className="text-rose-500">*</span>
                         </label>
@@ -111,16 +111,16 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             value={targetDate}
                             min={new Date().toISOString().slice(0, 16)}
                             onChange={(e) => setTargetDate(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 [color-scheme:dark]"
+                            className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all [color-scheme:dark] shadow-inner"
                         />
                     </div>
 
                     {/* Nom et lien quête manuelle */}
                     {isManualQuest && (
-                        <>
+                        <div className="p-4 bg-cyan-950/10 border border-cyan-900/30 rounded-xl space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                    <ScrollText className="w-3.5 h-3.5 text-emerald-400" />
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+                                    <ScrollText className="w-3.5 h-3.5 text-cyan-400" />
                                     Nom de la quête
                                 </label>
                                 <input
@@ -129,13 +129,13 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                     onChange={(e) => setQuestName(e.target.value)}
                                     maxLength={100}
                                     placeholder="Ex : Bijoux de famille"
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 shadow-inner transition-all"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                                     <Link2 className="w-3.5 h-3.5 text-amber-400" />
-                                    Lien Dofus pour les Noobs
+                                    Tutoriel Noobs
                                     <span className="text-[10px] text-slate-500 font-normal">(optionnel)</span>
                                 </label>
                                 <input
@@ -143,27 +143,27 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                     value={questUrl}
                                     onChange={(e) => setQuestUrl(e.target.value)}
                                     placeholder="https://dofuspourlesnoobs.com/quetes/..."
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 shadow-inner transition-all"
                                 />
                                 {questUrl && !questUrl.includes("dofuspourlesnoobs") && (
-                                    <p className="text-xs text-amber-500">⚠️ Seuls les liens dofuspourlesnoobs.com sont affichés sur la carte.</p>
+                                    <p className="text-xs text-amber-500 font-medium">⚠️ Seuls les liens dofuspourlesnoobs.com sont affichés.</p>
                                 )}
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {/* Group size */}
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5 text-indigo-400" />
                             Taille du groupe
                         </label>
-                        <div className="flex bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-1 gap-0.5">
+                        <div className="flex bg-slate-900/80 border border-white/5 rounded-xl p-1 shadow-inner h-12 items-center">
                             {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                                 <button
                                     key={n}
                                     onClick={() => setMaxMembers(n)}
-                                    className={`flex-1 py-2 text-sm font-bold transition-all rounded-lg ${maxMembers === n ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+                                    className={`flex-1 flex justify-center items-center h-full text-sm font-bold transition-all rounded-lg ${maxMembers === n ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 shadow-sm" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
                                 >
                                     {n}
                                 </button>
@@ -171,11 +171,11 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         </div>
                     </div>
 
-                    {/* Achievements — only for dungeons that have them */}
+                    {/* Achievements */}
                     {post.mode === "DONJON" && achievements.length > 0 && (
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                <Swords className="w-3.5 h-3.5 text-yellow-400" />
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+                                <Swords className="w-3.5 h-3.5 text-amber-400" />
                                 Succès visés
                             </label>
                             <div className="flex flex-wrap gap-2">
@@ -185,16 +185,16 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                         <button
                                             key={a.id}
                                             onClick={() => toggleAchievement(a.id)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${selected
-                                                ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
-                                                : "border-slate-800 bg-slate-900 hover:border-slate-600 text-slate-400"
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold transition-all ${selected
+                                                ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                                : "border-white/5 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-slate-300"
                                                 }`}
                                         >
                                             {a.challenge.iconUrl && (
                                                 <img src={a.challenge.iconUrl} alt="" className="w-4 h-4 object-contain" />
                                             )}
                                             {a.challenge.name}
-                                            {selected && <CheckCircle2 className="w-3.5 h-3.5 text-yellow-500 ml-1" />}
+                                            {selected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 ml-1" />}
                                         </button>
                                     );
                                 })}
@@ -204,10 +204,10 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
 
                     {/* Required Classes */}
                     <div className="space-y-2">
-                        <p className="text-sm font-bold text-slate-300 flex justify-between">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex justify-between items-center mb-1.5">
                             Classes demandées
-                            <span className="text-xs text-slate-500 font-normal">{requiredClasses.length} sélec.</span>
-                        </p>
+                            <span className="text-[10px] text-slate-500 font-normal normal-case">{requiredClasses.length} sélec.</span>
+                        </label>
                         <div className="grid grid-cols-9 sm:grid-cols-10 gap-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
                             {DOFUS_CLASSES.map((c) => {
                                 const isSelected = requiredClasses.includes(c.name);
@@ -217,14 +217,14 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                         title={c.name}
                                         onClick={() => toggleClass(c.name)}
                                         className={`aspect-square rounded-lg flex items-center justify-center transition-all border ${isSelected
-                                            ? "border-indigo-500 bg-indigo-500/20"
-                                            : "border-transparent opacity-50 hover:opacity-100 hover:bg-slate-800"
+                                            ? "border-indigo-500/40 bg-indigo-500/20 shadow-inner"
+                                            : "border-transparent opacity-40 hover:opacity-100 hover:bg-white/5"
                                             }`}
                                     >
                                         <img
                                             src={c.icon}
                                             alt={c.name}
-                                            className="w-6 h-6 object-contain"
+                                            className="w-6 h-6 object-contain drop-shadow-md"
                                             onError={(e) => (e.currentTarget.style.display = "none")}
                                         />
                                     </button>
@@ -235,8 +235,8 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
 
                     {/* Message */}
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                            <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
                             Message (optionnel)
                         </label>
                         <textarea
@@ -245,26 +245,26 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             rows={2}
                             maxLength={500}
                             placeholder="Ex : Je cherche des gens stuffs pour clean vite…"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 resize-none"
+                            className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner resize-none transition-all"
                         />
-                        <p className="text-[10px] text-slate-600 text-right">{message.length}/500</p>
+                        <p className="text-[10px] text-slate-500 text-right font-medium">{message.length}/500</p>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 pb-5 flex gap-3 border-t border-slate-800 pt-4">
+                <div className="px-6 pb-6 flex gap-3 border-t border-white/5 pt-5 bg-slate-900/30">
                     <Button
                         variant="ghost"
                         onClick={onClose}
                         disabled={isPending}
-                        className="flex-1 border border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                        className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all"
                     >
                         Annuler
                     </Button>
                     <Button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black shadow-lg shadow-indigo-900/30"
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black h-12 shadow-md shadow-indigo-900/20"
                     >
                         {isPending ? "Sauvegarde…" : "Enregistrer"}
                     </Button>

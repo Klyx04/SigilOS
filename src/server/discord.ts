@@ -314,6 +314,7 @@ interface SendChannelMessageOptions {
     embedUrl?: string;           // Makes the title clickable
     embedThumbnail?: string;     // Small image on the right
     embedImage?: string;         // Large image at bottom
+    embedDescription?: string;   // Explicit description (prevents auto-placement logic)
     embedAuthor?: {              // Author section at top
         name: string;
         iconUrl?: string;
@@ -348,10 +349,12 @@ export async function sendChannelMessage(
             timestamp: new Date().toISOString(),
         };
 
-        // Add description only if content is provided and not a mention
-        // Mentions should go in body.content, not embed.description
         const isMention = content.startsWith("@") || content.startsWith("<@");
-        if (content && !isMention) {
+
+        // Add description
+        if (options.embedDescription) {
+            embed.description = options.embedDescription;
+        } else if (content && !isMention) {
             embed.description = content;
         }
 
@@ -475,7 +478,10 @@ export async function updateChannelMessage(
         };
 
         const isMention = content.startsWith("@") || content.startsWith("<@");
-        if (content && !isMention) {
+
+        if (options.embedDescription) {
+            embed.description = options.embedDescription;
+        } else if (content && !isMention) {
             embed.description = content;
         }
 

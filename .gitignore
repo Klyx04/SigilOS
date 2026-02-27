@@ -70,6 +70,14 @@ test-api.mjs
 # Build logs & output
 build_log*.txt
 lint-output.txt
+lint-errors.txt
+lint-results.txt
+out.txt
+ts_errors.txt
+tsc.txt
+
+# One-shot scripts (dev only)
+/*.py
 
 # Backup files
 *.backup

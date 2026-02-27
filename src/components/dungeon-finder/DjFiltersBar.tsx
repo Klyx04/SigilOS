@@ -68,7 +68,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                         value={filters.search}
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
-                        className="w-full bg-slate-900/70 border border-slate-700/60 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 transition-all"
+                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner transition-all h-11"
                     />
                     <AnimatePresence>
                         {filters.search && (
@@ -86,7 +86,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 </div>
 
                 {/* Gamified Mode: Donjon / Quête / All */}
-                <div className="flex bg-slate-950/80 border border-slate-800/80 rounded-xl p-1 shrink-0 relative shadow-inner">
+                <div className="flex bg-slate-900/50 border border-white/5 rounded-xl p-1 shrink-0 relative shadow-inner h-11 items-center">
                     {[
                         { value: "", label: "Tous", icon: null },
                         { value: "DONJON", label: "Donjon", icon: Swords },
@@ -97,15 +97,15 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                             <button
                                 key={value}
                                 onClick={() => onChange({ ...filters, mode: value })}
-                                className={`relative z-10 flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap min-w-[80px] ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300"
+                                className={`relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-xs font-bold transition-colors whitespace-nowrap min-w-[80px] ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300"
                                     }`}
                             >
                                 {isActive && (
                                     <motion.div
                                         layoutId="active-mode-pill"
-                                        className={`absolute inset-0 rounded-lg -z-10 shadow-lg ${value === "DONJON" ? "bg-indigo-600 border-t border-indigo-400/30 shadow-indigo-900/40"
-                                                : value === "QUETE" ? "bg-cyan-600 border-t border-cyan-400/30 shadow-cyan-900/40"
-                                                    : "bg-slate-700 border-t border-slate-500/30 shadow-black/40"
+                                        className={`absolute inset-0 rounded-lg -z-10 shadow-md ${value === "DONJON" ? "bg-indigo-600 border border-indigo-500/50 shadow-indigo-900/40"
+                                            : value === "QUETE" ? "bg-cyan-600 border border-cyan-500/50 shadow-cyan-900/40"
+                                                : "bg-slate-700 border border-slate-600 shadow-black/40"
                                             }`}
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                     />
@@ -126,7 +126,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                 animate={{ opacity: 1, scale: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.8, x: -10 }}
                                 onClick={() => onChange({ ...DEFAULT_FILTERS })}
-                                className="flex items-center justify-center gap-1.5 px-3 py-2 w-full rounded-xl text-xs font-bold text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-900/50 bg-slate-900/70 hover:bg-rose-950/30 transition-all"
+                                className="flex items-center justify-center gap-1.5 px-3 w-full rounded-xl text-xs font-bold text-slate-400 hover:text-rose-400 border border-white/5 hover:border-rose-900/50 bg-slate-900/50 hover:bg-rose-950/30 transition-all shadow-inner h-11"
                                 title="Réinitialiser les filtres"
                             >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -148,7 +148,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                             onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
                             className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border shadow-sm ${isActive
                                 ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30 shadow-indigo-900/20"
-                                : "bg-slate-900/40 text-slate-500 border-slate-800 hover:bg-slate-800 hover:text-slate-300"
+                                : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-300 shadow-inner"
                                 }`}
                         >
                             Lvl {preset.label}
@@ -156,7 +156,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     );
                 })}
 
-                <div className="w-px h-4 bg-slate-800 mx-0.5" />
+                <div className="w-px h-4 bg-white/10 mx-0.5" />
 
                 {/* Smart toggles */}
                 <ToggleChip
@@ -206,7 +206,7 @@ function ToggleChip({
             onClick={onToggle}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border shadow-sm transition-all ${active
                 ? colorClass
-                : "bg-slate-900/40 text-slate-500 border-slate-800 hover:bg-slate-800 hover:text-slate-300"
+                : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-300 shadow-inner"
                 }`}
         >
             {icon}

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { db } from "@/lib/prisma";
 
 interface GodGuildDetailsPageProps {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }
 
 export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPageProps) {
@@ -22,7 +22,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     // Fetch individual guild config for the header
     const guild = await db.guildConfig.findUnique({
         where: { id: guildId },
-        select: { name: true, discordGuildId: true, iconUrl: true }
+        select: { name: true, discordGuildId: true, iconUrl: true, probationRoleName: true }
     });
 
     if (!guild) {
@@ -93,7 +93,11 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                     </h3>
                 </div>
                 <div className="p-6">
-                    <MemberManagementTable initialMembers={members as any} guildId={guildId} />
+                    <MemberManagementTable
+                        initialMembers={members as any}
+                        guildId={guildId as string}
+                        probationRoleName={guild.probationRoleName!}
+                    />
                 </div>
             </div>
 

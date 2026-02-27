@@ -555,18 +555,18 @@ export function PollCreator({
                                                 exit={{ opacity: 0, height: 0 }}
                                                 className="overflow-hidden"
                                             >
-                                                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/50 border border-white/5 overflow-x-auto scrollbar-none pb-2 sm:pb-1.5">
+                                                <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-zinc-900/80 border border-white/5 mt-3">
                                                     {[
-                                                        { value: 24, label: "24 Heures", emoji: "⏳" },
-                                                        { value: 48, label: "48 Heures", emoji: "⌛" },
-                                                        { value: 168, label: "1 Semaine", emoji: "🔥" }
+                                                        { value: 24, label: "24h", emoji: "⏳" },
+                                                        { value: 48, label: "48h", emoji: "⌛" },
+                                                        { value: 168, label: "7j", emoji: "📅" }
                                                     ].map((opt) => (
                                                         <button
                                                             key={opt.value}
                                                             type="button"
                                                             onClick={() => setExpiryHours(opt.value)}
                                                             className={cn(
-                                                                "relative flex-1 min-w-[120px] py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all",
+                                                                "relative py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
                                                                 expiryHours === opt.value
                                                                     ? "text-cyan-400"
                                                                     : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5"
@@ -575,12 +575,13 @@ export function PollCreator({
                                                             {expiryHours === opt.value && (
                                                                 <motion.div
                                                                     layoutId="expiry-bg"
-                                                                    className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl"
+                                                                    className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-lg"
                                                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                                                 />
                                                             )}
-                                                            <span className="relative z-10 flex items-center justify-center gap-2 whitespace-nowrap">
-                                                                <span className="text-sm">{opt.emoji}</span> {opt.label}
+                                                            <span className="relative z-10 flex flex-col items-center gap-1">
+                                                                <span className="text-sm opacity-80">{opt.emoji}</span>
+                                                                <span>{opt.label}</span>
                                                             </span>
                                                         </button>
                                                     ))}

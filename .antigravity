@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-26)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-27)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Module Passages (Services, Prêts, Coffre) refondu et terminé avec statistiques, cleanup auto, et archivages. Fix Discord Forum pour les Donjons.
+**Status** : 🟢 Beta active. Module Passages terminé. Refonte complète de l'Onboarding (Discord Embed Premium) et Gestion Manuelle des Membres (Pseudos, Tri Arrivée). Sondages V2 Premium.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -136,7 +136,7 @@ SigilOS/
 
 - ✅ **Infrastructure BullMQ** : Queue `metamob-queue.ts` dans `src/lib/queue/`. Worker dédié `src/workers/metamob-worker.ts` — processus entièrement indépendant du runtime Next.js.
 - ✅ **`npm run worker`** : Nouveau script dans `package.json`. En dev, lancer en parallèle de `npm run dev`. Worker inclus dans le build Docker via `esbuild`.
-- ✅ **Async Ocre Exchange** : `findOcreExchangePartners` transformé en action asynchrone (dispatch job → retourne `jobId`). `getOcreExchangeJobStatus` pour le polling frontend toutes les 1.5s avec progress bar.
+- ✅ **Async Ocre Exchange** : `findOcreExchangePartners` transformé en action asynchrone (dispatch job → retourne `jobId`). `getOcreExchangeJobStatus` pour le polling frontend toutes les 1.5s with progress bar.
 - ✅ **VPS Production** : Deux nouveaux containers indépendants `worker-beta` et `worker-prod` dans `docker-compose.prod.yml`. `deploy.sh` mis à jour pour redémarrer les workers automatiquement.
 
 ---
@@ -194,18 +194,20 @@ SigilOS/
 
 ---
 
-### Session — Module Passages, Coffre & Prêts (2026-02-27)
+### Session — Passages, Sondages V2 & Probation Badge (2026-02-27)
 
 - ✅ **UI Passages / Services** : Refonte de la page Passages avec onglets (Services, Prêts, Coffre de Guilde). Affichage de la disponibilité en direct (heatmap) sur les cartes de service.
 - ✅ **Formulaire Donjons / Combos** : Sélection multiple de succès sous forme d'icônes cliquables pour configurer des prix de packages.
 - ✅ **Module Prêts (Loans)** : Création de prêts avec date limite et captures d'écran. Système de retour et d'annulation automatique avec rétention sécurisée des preuves.
-- ✅ **Archivage et Hard Deletion** : Les prêts rendus/annulés passent dans un onglet "Archives". Tâche cron (`POST /api/cron/cleanup-proofs`) effectuant le hard delete passé 30 jours, plus suppression automatique des images du VPS pour libérer de l'espace.
-- ✅ **Coffre de Guilde (Vault)** : Suivi des dépôts et retraits. Historique complet filtrable et triable (Dépôts/Retraits/Plus récent). Upload de screenshot lors du dépôt.
-- ✅ **Item Icons via DofusDB** : Intégration du champ `linkedItemIconUrl` synchronisé avec la DB, permettant d'afficher les icônes officielles des ressources Dofus directement dans le solde du coffre et l'historique de guilde.
-- ✅ **Statistiques Guilde — Prêts & Coffre** : Ajout d'une section entière sur `/stats` remontant au leader les KPIs : Total prêts, En cours, Rendus, Annulés, Top Prêteurs, Dépôts/Retraits, Item le + stocké, Top Contributeurs.
-- ✅ **Fix Graphiques Stats UI** : Correction des bugs de fond noir (`background: transparent`) sur les composants `PieChart` (Evénements & Missions).
-- ✅ **Notifications Discord — Services & Prêts** : Envoi de beaux embeds Discord lors de la création d'un service ou prêt, pingant le prêteur et l'emprunteur, intégrant les URLs de dashboard directes.
-- ✅ **Fix Critique — Discord Forum & DJ Posts** : Correction du bug d'API Discord `40067 FORUM_POST_REQUIRES_TAG`. Le bot détecte si le salon configuré est de type Forum, et y attache automatiquement le 1er tag non modéré disponible via la property `applied_tags` du POST `/threads`. Les embeds LFG partent niquel.
+- ✅ **Archivage et Hard Deletion** : Les prêts rendus/annulés passent dans un onglet "Archives". Tâche cron (`POST /api/cron/cleanup-proofs`) effectuant le hard delete passé 30 jours.
+- ✅ **Coffre de Guilde (Vault)** : Suivi des dépôts et retraits. Historique complet filtrable et triable. Item Icons via DofusDB.
+- ✅ **Statistiques Guilde — Passages & Coffre** : KPIs complets sur `/stats`.
+- ✅ **Refonte Welcome Embed (Premium)** : Embed Discord riche avec séparation des pings, thumbnail avatar, bannière de guilde.
+- ✅ **Gestion Manuelle des Membres** : Modification du `pseudoDofus` par les admins avec Audit Log. Tri par date d'arrivée (`asc`/`desc`).
+- ✅ **Badge "Nouveau" Profil** : Badge émeraude pulsant lié dynamiquement au rôle `probation` défini par l'admin (PIM-ready).
+- ✅ **Refonte Sondages Discord (Premium)** : Progress bars `🟩`/`⬜`, % et décompte de votes en temps réel. Patch auto de l'embed.
+- ✅ **UI Poll Creator** : Remplacement du sélecteur d'expiration par une grille compacte (fin de la scrollbar native).
+- ✅ **Gestion Membres V2** : Affichage discret et premium de l'expiration probation sur le profil.
 
 ---
 
@@ -265,53 +267,26 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
 - Validator Inbox flottant (widget top-right, missions + achievements en attente)
 - Stats Guilde (40+ métriques, Recharts, dashboard complet)
-- **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH), points contribution par niveau, date obligatoire, UI gamifiée (pilule glissante framer-motion)
-- **Songes MAJ 3.5** — Fontaine Onirique refonte (8 nouveaux bonus), Épreuves de Songe (4 types), Guide Boss intégré (144 boss, modale centrée), dépurplisation UI, embeds Discord épreuve
-- **Module Passages (Services, Prêts, Coffre)** — Heatmap de dispo, archivage automatique, hard delete, preuves upload VPS, icônes Dofus, fix Forum Discord
-
-### 🔄 En cours
-- Ocre Trade Request System (demandes d'échange in-app + ping Discord)
-
-### ❌ Manquant (Non-bloquant Beta)
-- Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
-- Lazy Cleanup candidatures Songes expirées en CRON
-- Calcul Ladder en CRON pré-calculé (actuellement on-the-fly)
-- Assets game-data sync vers beta (thumbnails Discord donjons)
+- **Module Onboarding & Membres** — Welcome Embed Premium, tri par arrivée, gestion manuelle des pseudos, badge "Nouveau" auto.
+- **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH).
+- **Songes MAJ 3.5** — Fontaine Onirique refonte, Épreuves de Songe, Guide Boss intégré (144 boss).
+- **Module Passages (Services, Prêts, Coffre)** — Heatmap de dispo, archivage automatique, icônes Dofus.
 
 ---
 
 ## 📋 TODO Prioritaire (Backlog)
 
 ### 🔴 P0 — Critiques
-- [x] Toutes les tâches P0 critiques complétées ✅
 - [ ] Déplacer les calculs `getActivityLadder` vers un CRON pré-calculé
 
 ### 🎯 P2 — Features Core
-- [x] Toutes les tâches P2 complétées ✅
+- [ ] Ocre Trade Request System (demandes d'échange in-app + ping Discord)
 
 ### 🎨 P3 — Polish UI/UX
-- [x] Unification du Branding Landing ✅
-- [x] Refonte complète du Footer ✅
-- [x] Signature créateur & Lore (Wylan) ✅
-- [x] Refonte UI Documentation ✅
 - [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
 
 ### 🚀 P4 — Scripts, Worker & Nouveaux Modules
-- [x] BullMQ Worker MetaMob Ocre déployé ✅
-- [x] Index DB critiques (`Submission`, `UserProfile`) ✅
-- [x] Cache Discord API (TTL 5min/10min) ✅
-- [x] Module Stats Guilde terminé ✅
-- [x] Module Recherche DJ/Quêtes terminé ✅ (UI gamifiée, embed live, DjEditModal, points contribution)
-- [x] Module Service Passages complet ✅ (Prêts, Coffre, Stats, Icons, Cleanup auto)
 - [ ] Plan B Discord API down (retry + queue)
-- [ ] Lazy Cleanup Songes vers CRON
 - [ ] Calcul Ladder CRON (quand > 5000 membres)
 - [ ] Pagination membres/missions (quand > 500 entrées)
 - [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)
-- [ ] Self-hosted GitHub Actions runner sur VPS (optionnel — repo public = illimité)
-
-### 📄 P7 — Juridique *(Conclu)*
-- [x] Toutes les tâches légales code implémentées ✅ (Reste 3 actions manuelles)
-
-### 🧪 P8 — Tests Finaux *(Conclu)*
-- [x] Tous items vérifiables en code validés ✅ (Reste 4 tests manuels beta)

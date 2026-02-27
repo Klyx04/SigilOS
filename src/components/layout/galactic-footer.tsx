@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Activity } from "lucide-react";
+import { Activity, HelpCircle } from "lucide-react";
 
 type SystemStatus = "online" | "degraded" | "offline";
 
@@ -66,6 +66,7 @@ export function GalacticFooter({ variant = "standard", isMember = false }: Galac
                                 <Link href="/legal/cgu" className="hover:text-accent-teal transition-colors">CGU</Link>
                                 <Link href="/legal/privacy" className="hover:text-accent-teal transition-colors">Confidentialité</Link>
                                 <Link href="/legal/mentions" className="hover:text-accent-teal transition-colors">Mentions</Link>
+                                <Link href="/legal/faq" className="hover:text-accent-teal transition-colors text-white">FAQ</Link>
                             </div>
                         </div>
 
@@ -144,8 +145,11 @@ export function GalacticFooter({ variant = "standard", isMember = false }: Galac
 
                     {/* Legal */}
                     <div className="flex flex-col gap-4">
-                        <h4 className="text-white font-bold text-sm uppercase tracking-widest">Légal</h4>
+                        <h4 className="text-white font-bold text-sm uppercase tracking-widest">Aide & Légal</h4>
                         <nav className="flex flex-col gap-2">
+                            <Link href="/legal/faq" className="text-zinc-300 font-bold hover:text-accent-teal transition-colors text-sm flex items-center gap-2">
+                                <HelpCircle className="w-4 h-4" /> FAQ & Sécurité
+                            </Link>
                             <Link href="/legal/cgu" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">CGU</Link>
                             <Link href="/legal/privacy" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">Confidentialité</Link>
                             <Link href="/legal/mentions" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">Mentions Légales</Link>

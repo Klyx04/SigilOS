@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Users, Star, Coins, CheckCircle2, Target, Moon, CalendarDays, HandHeart } from "lucide-react";
+import { BarChart3, Users, Star, Coins, CheckCircle2, Target, Moon, CalendarDays, HandHeart, Key } from "lucide-react";
 import type { GuildStats } from "@/server/actions/guild-stats-actions";
 import StatCard from "./stat-card";
 import ActivityChart from "./activity-chart";
@@ -8,6 +8,7 @@ import MissionsStats from "./missions-stats";
 import SongesStats from "./songes-stats";
 import EventsStats from "./events-stats";
 import CommunityStats from "./community-stats";
+import ServicesStats from "./services-stats";
 import RecordsSection from "./records-section";
 
 interface StatsClientProps {
@@ -75,7 +76,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 </section>
             </div>
 
-            {/* Events & Community — 2 columns */}
+            {/* Events & Community & Services — 3 sections en grilles */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -93,6 +94,15 @@ export default function StatsClient({ stats }: StatsClientProps) {
                     <CommunityStats community={stats.community} />
                 </section>
             </div>
+
+            {/* Prêts & Coffre */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Key className="w-5 h-5 text-amber-400" />
+                    Services Guilde — Prêts & Coffre
+                </h3>
+                <ServicesStats services={stats.services} />
+            </section>
 
             {/* Records */}
             <section>

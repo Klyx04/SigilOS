@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Lock, ArrowLeft, MessageSquare } from "lucide-react";
+import { ShieldAlert, Lock, ArrowLeft, MessageSquare, Archive } from "lucide-react";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { useSession } from "next-auth/react";
@@ -10,7 +10,7 @@ import { useSession } from "next-auth/react";
 interface AccessDeniedProps {
     title?: string;
     message?: string;
-    variant?: "lock" | "ban";
+    variant?: "lock" | "ban" | "archive";
     action?: React.ReactNode;
 }
 
@@ -40,6 +40,8 @@ export function AccessDenied({
                     <div className="relative bg-zinc-900/50 p-8 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-xl">
                         {variant === "lock" ? (
                             <Lock className="w-16 h-16 text-zinc-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]" />
+                        ) : variant === "archive" ? (
+                            <Archive className="w-16 h-16 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]" />
                         ) : (
                             <ShieldAlert className="w-16 h-16 text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
                         )}

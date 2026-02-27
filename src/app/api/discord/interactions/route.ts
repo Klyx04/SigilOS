@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
                 songes: PERMISSIONS.SONGES_JOIN,
                 dj: PERMISSIONS.FINDER_VIEW,
                 poll: PERMISSIONS.POLLS_VIEW,
-                // 🆕 Future modules: add entry here
+                svc: PERMISSIONS.SERVICES_VIEW,
             };
 
             const requiredPerm = DISCORD_PERM_MAP[prefix];
@@ -281,6 +281,21 @@ export async function POST(request: NextRequest) {
                                 data: { content: "👋 Tu as quitté le groupe.", flags: 64 },
                             });
                         }
+                    }
+                }
+            } else if (prefix === "svc") {
+                if (action === "contact") {
+                    const { internalContactService } = await import("@/server/actions/service-actions");
+                    result = await internalContactService(entityId, "", account.userId);
+
+                    if (result?.success && result.data) {
+                        const lines = [`📩 **Prestataire :** ${result.data.pseudo}`];
+                        if (result.data.contactMethod) lines.push(`📌 **Contact :** ${result.data.contactMethod}`);
+                        lines.push(`\n_Envoie-lui un MP Discord ou en jeu pour organiser le service !_`);
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: lines.join("\n"), flags: 64 },
+                        });
                     }
                 }
             } else {

@@ -60,7 +60,7 @@ export default function EventsStats({ events }: EventsStatsProps) {
             {pieData.length > 0 && (
                 <div className="h-44">
                     <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
+                        <PieChart style={{ background: "transparent" }}>
                             <Pie
                                 data={pieData}
                                 cx="50%"

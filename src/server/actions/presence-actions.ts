@@ -21,25 +21,16 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
         const activeUsers = await db.userProfile.findMany({
             where: {
                 guildId: guildConfig.id,
-                lastActivityAt: {
-                    gte: threshold
-                }
+                lastActivityAt: { gte: threshold }
             },
             select: {
                 id: true,
                 discordNickname: true,
                 pseudoDofus: true,
                 lastActivityAt: true,
-                user: {
-                    select: {
-                        name: true,
-                        image: true
-                    }
-                }
+                user: { select: { name: true, image: true } }
             },
-            orderBy: {
-                lastActivityAt: "desc"
-            },
+            orderBy: { lastActivityAt: "desc" },
             take: limit
         });
 
@@ -60,6 +51,7 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
 
 /**
  * Updates the lastActivityAt timestamp for the current user/guild.
+ * Also emits LOGIN or NEW_MEMBER activity events when relevant.
  */
 export async function updateHeartbeat(guildId: string) {
     try {
@@ -74,15 +66,25 @@ export async function updateHeartbeat(guildId: string) {
 
         if (!guildConfig) return { success: false };
 
-        await db.userProfile.updateMany({
-            where: {
-                guildId: guildConfig.id,
-                userId
-            },
-            data: {
-                lastActivityAt: new Date()
+        // Fetch current profile to detect login vs new_member
+        const profile = await db.userProfile.findFirst({
+            where: { guildId: guildConfig.id, userId, status: "ACTIVE" },
+            select: {
+                id: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                lastActivityAt: true,
+                user: { select: { name: true, image: true } }
             }
         });
+
+        const now = new Date();
+
+        await db.userProfile.updateMany({
+            where: { guildId: guildConfig.id, userId },
+            data: { lastActivityAt: now }
+        });
+
         return { success: true };
     } catch (error) {
         console.error("[Presence] Heartbeat failed:", error);

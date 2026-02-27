@@ -15,6 +15,7 @@ import { AccessDenied } from "@/components/layout/access-denied";
 import { BugReportButton } from "@/components/layout/bug-report-button";
 import { ValidatorInbox } from "./_components/validator-inbox";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
 
 export default async function DashboardLayout({
     children,
@@ -47,6 +48,31 @@ export default async function DashboardLayout({
         getGuildModules(guildId),
     ]);
 
+    // ── ARCHIVED: specific message to contact staff ──
+    if ((user as any).isArchived) {
+        return (
+            <AccessDenied
+                title="Compte Archivé"
+                message={`Votre profil sur ${user.guildName} a été archivé par un administrateur. Contactez votre staff sur Discord pour demander votre réactivation.`}
+                variant="archive"
+                action={<SignOutButton variant="ghost" />}
+            />
+        );
+    }
+
+    // ── BANNED ──
+    if ((user as any).isBanned) {
+        return (
+            <AccessDenied
+                title="Accès Banni"
+                message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
+                variant="ban"
+                action={<SignOutButton variant="ghost" />}
+            />
+        );
+    }
+
+    // ── NOT A MEMBER ──
     if (!user.isMember) {
         return (
             <AccessDenied
@@ -138,6 +164,9 @@ export default async function DashboardLayout({
 
                 {/* Floating Bug Report Button */}
                 <BugReportButton />
+
+                {/* Guild Activity Stream — popup toasts only */}
+                <GuildActivityStream guildId={guildId} />
             </div>
         </NebulaClientWrapper>
     );

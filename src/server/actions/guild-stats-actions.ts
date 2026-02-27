@@ -60,6 +60,22 @@ interface GuildRecord {
     icon: string;
 }
 
+interface ServicesStats {
+    loans: {
+        total: number;
+        active: number;
+        returned: number;
+        cancelled: number;
+        topLenders: LeaderboardEntry[];
+    };
+    vault: {
+        totalDeposits: number;
+        totalWithdrawals: number;
+        topContributors: LeaderboardEntry[];
+        topItem: string | null;
+    };
+}
+
 export interface GuildStats {
     // KPI
     activeMembers: number;
@@ -80,6 +96,7 @@ export interface GuildStats {
     songes: SongesStats;
     events: EventsStats;
     community: CommunityStats;
+    services: ServicesStats;
     records: GuildRecord[];
 }
 
@@ -128,6 +145,12 @@ export async function getGuildStats(guildId: string): Promise<{
             bonuses,
             topXpMember,
             oldestMember,
+            loansByStatus,
+            loansByLender,
+            vaultDeposits,
+            vaultWithdrawals,
+            vaultByProfile,
+            vaultTopItem,
         ] = await Promise.all([
             db.userProfile.count({
                 where: { guildId: internalGuildId, status: "ACTIVE" },
@@ -213,6 +236,35 @@ export async function getGuildStats(guildId: string): Promise<{
                 where: { guildId: internalGuildId, status: "ACTIVE", discordJoinedAt: { not: null } },
                 orderBy: { discordJoinedAt: "asc" },
                 select: { discordNickname: true, pseudoDofus: true, discordJoinedAt: true, user: { select: { name: true } } },
+            }),
+            // -- Services (loans + vault) --
+            db.guildLoan.groupBy({
+                by: ["status"],
+                where: { guildId: internalGuildId },
+                _count: true,
+            }),
+            db.guildLoan.groupBy({
+                by: ["lenderId"],
+                where: { guildId: internalGuildId },
+                _count: true,
+                orderBy: { _count: { lenderId: "desc" } },
+                take: 5,
+            }),
+            db.vaultEntry.count({ where: { guildId: internalGuildId, action: "DEPOSIT" } }),
+            db.vaultEntry.count({ where: { guildId: internalGuildId, action: "WITHDRAW" } }),
+            db.vaultEntry.groupBy({
+                by: ["profileId"],
+                where: { guildId: internalGuildId },
+                _count: true,
+                orderBy: { _count: { profileId: "desc" } },
+                take: 5,
+            }),
+            db.vaultEntry.groupBy({
+                by: ["itemName"],
+                where: { guildId: internalGuildId },
+                _count: true,
+                orderBy: { _count: { itemName: "desc" } },
+                take: 1,
             }),
         ]);
 
@@ -310,6 +362,25 @@ export async function getGuildStats(guildId: string): Promise<{
             }
         }
 
+        // -- Services stats --
+        const loansTotal = loansByStatus.reduce((acc, s) => acc + s._count, 0);
+        const loansActive = loansByStatus.find(s => s.status === "ACTIVE")?._count ?? 0
+            + (loansByStatus.find(s => s.status === "PARTIAL")?._count ?? 0);
+        const loansReturned = loansByStatus.find(s => s.status === "RETURNED")?._count ?? 0;
+        const loansCancelled = loansByStatus.find(s => s.status === "CANCELLED")?._count ?? 0;
+
+        const topLenders = await resolveLeaderboard(
+            loansByLender.map(l => [l.lenderId, l._count] as [string, number]),
+            internalGuildId,
+            "profileId"
+        );
+
+        const topVaultContributors = await resolveLeaderboard(
+            vaultByProfile.map(v => [v.profileId, v._count] as [string, number]),
+            internalGuildId,
+            "profileId"
+        );
+
         return {
             success: true,
             stats: {
@@ -350,6 +421,21 @@ export async function getGuildStats(guildId: string): Promise<{
                     pollParticipationRate,
                     bonusesPurchased: bonuses.reduce((acc, b) => acc + b._count, 0),
                     bonusByType: bonuses.map(b => ({ type: b.bonusType, count: b._count })),
+                },
+                services: {
+                    loans: {
+                        total: loansTotal,
+                        active: loansActive,
+                        returned: loansReturned,
+                        cancelled: loansCancelled,
+                        topLenders,
+                    },
+                    vault: {
+                        totalDeposits: vaultDeposits,
+                        totalWithdrawals: vaultWithdrawals,
+                        topContributors: topVaultContributors,
+                        topItem: vaultTopItem[0]?.itemName ?? null,
+                    },
                 },
                 records,
             },

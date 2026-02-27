@@ -44,6 +44,7 @@ export type UserContext = {
     canViewPolls: boolean;
     canManagePolls: boolean;
     canViewDocs: boolean;
+    canViewWelcome: boolean;
     canViewProfile: boolean;
     // Coming Soon Permissions
     canViewQuests: boolean;
@@ -136,6 +137,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canCreateServices: false,
         canViewFinder: false,
         canViewDocs: false,
+        canViewWelcome: false,
         canViewProfile: false,
         canManageMembers: false,
         canViewQuests: false,
@@ -469,6 +471,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canCreateServices = myPerms.has(PERMISSIONS.SERVICES_CREATE) || isAdmin;
     const canViewFinder = myPerms.has(PERMISSIONS.FINDER_VIEW) || isAdmin;
     const canViewProfile = myPerms.has(PERMISSIONS.PROFILE_VIEW) || isAdmin;
+    const canViewWelcome = myPerms.has(PERMISSIONS.WELCOME_VIEW) || isAdmin;
     const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
     const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
     const canManagePolls = myPerms.has(PERMISSIONS.POLLS_MANAGE) || isAdmin;
@@ -516,7 +519,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewServices: canViewServices || isGod,
         canCreateServices: canCreateServices || isGod,
         canViewFinder: canViewFinder || isGod,
-        canViewDocs: true, // Open access as requested
+        canViewDocs: myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin || isGod,
+        canViewWelcome: canViewWelcome || isGod,
         canViewProfile: canViewProfile || isGod,
         canViewQuests: canViewQuests || isGod,
         canManageQuests: canManageQuests || isGod,

@@ -7,7 +7,8 @@ import { updateRoleMapping } from "@/server/actions/admin-actions";
 import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
 import { cn } from "@/lib/utils";
-import { Save, Filter, ChevronDown, ChevronRight } from "lucide-react";
+import { Save, Filter, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type Role = {
     id: string;
@@ -40,6 +41,7 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     const [permState, setPermState] = useState(initialPermState);
     const [isPending, startTransition] = useTransition();
     const [activeModule, setActiveModule] = useState<PermissionModule | "all">("all");
+    const [searchQuery, setSearchQuery] = useState("");
     // Track which module sections are collapsed (only relevant in "all" view)
     const [collapsed, setCollapsed] = useState<Record<PermissionModule, boolean>>({} as Record<PermissionModule, boolean>);
 
@@ -83,9 +85,32 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     }, []);
 
     const visiblePermissions = useMemo(() => {
-        if (activeModule === "all") return Object.keys(PERMISSION_DETAILS) as PermissionId[];
-        return permissionsByModule[activeModule] || [];
-    }, [activeModule, permissionsByModule]);
+        const base = activeModule === "all"
+            ? Object.keys(PERMISSION_DETAILS) as PermissionId[]
+            : permissionsByModule[activeModule] || [];
+
+        if (!searchQuery.trim()) return base;
+
+        const q = searchQuery.toLowerCase().trim();
+        return base.filter(permId => {
+            const detail = PERMISSION_DETAILS[permId];
+            // Match on permission label
+            if (detail.label.toLowerCase().includes(q)) return true;
+            // Match on description
+            if (detail.description.toLowerCase().includes(q)) return true;
+            // Match on permission ID (technical)
+            if (permId.toLowerCase().includes(q)) return true;
+            // Match on assigned role names
+            const assignedRoleIds = permState[permId] || [];
+            const assignedRoleNames = assignedRoleIds
+                .map(id => roles.find(r => r.id === id)?.name || "")
+                .join(" ");
+            if (assignedRoleNames.toLowerCase().includes(q)) return true;
+            return false;
+        });
+    }, [activeModule, permissionsByModule, searchQuery, permState, roles]);
+
+    const isSearchActive = searchQuery.trim().length > 0;
 
     const moduleStats = useMemo(() => {
         const stats = {} as Record<PermissionModule, number>;
@@ -118,6 +143,30 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
                     <Save className="w-3.5 h-3.5 mr-1.5" />
                     {isPending ? "Sauvegarde..." : "Sauvegarder"}
                 </Button>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <Input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Rechercher une permission, une description ou un rôle assigné..."
+                    className="pl-9 pr-9 bg-zinc-900/60 border-white/8 h-10 text-sm placeholder:text-zinc-600 focus-visible:ring-primary/40"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                )}
+                {isSearchActive && (
+                    <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                        {visiblePermissions.length} résultat{visiblePermissions.length !== 1 ? "s" : ""}
+                    </span>
+                )}
             </div>
 
             {/* Module filter chips */}
@@ -172,7 +221,35 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
             </div>
 
             {/* Permissions list */}
-            {activeModule === "all" ? (
+            {isSearchActive ? (
+                // Search results — flat list, no module grouping
+                <div className="rounded-xl border border-white/5 overflow-hidden">
+                    {visiblePermissions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <Search className="w-8 h-8 text-zinc-700 mb-3" />
+                            <p className="text-sm font-bold text-zinc-500">Aucune permission trouvée</p>
+                            <p className="text-xs text-zinc-600 mt-1">Essaie un autre mot-clé ou nom de rôle</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
+                            {visiblePermissions.map((permId) => {
+                                const moduleColor = PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color;
+                                return (
+                                    <PermissionCard
+                                        key={permId}
+                                        permissionId={permId}
+                                        allRoles={roleOptions}
+                                        selectedRoleIds={permState[permId] || []}
+                                        onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                        onSave={handleSave}
+                                        moduleColor={moduleColor}
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            ) : activeModule === "all" ? (
                 <div className="space-y-3">
                     {MODULE_ORDER.map(moduleKey => {
                         const module = PERMISSION_MODULES[moduleKey];

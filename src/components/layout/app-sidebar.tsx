@@ -72,7 +72,7 @@ export function AppSidebar({
     // --- NAVIGATION GROUPS ---
     const NAV_INFO = [
         { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
-        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.isMember && modules.admin },
+        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewWelcome },
         { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
         { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
         { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
@@ -100,14 +100,15 @@ export function AppSidebar({
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
 
-    const NAV_ADMIN = [
-        { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "text-rose-500", visible: user.isAdmin || user.canEditPresentation },
-        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, color: "text-rose-500", visible: user.canValidateMissions || user.isAdmin },
-        { name: "Missions (Admin)", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "text-rose-500", visible: user.canManageMissions },
-        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "text-rose-500", visible: (user.isAdmin) && modules.logs },
+    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };
+
+    const NAV_ADMIN_SUB = [
+        { name: "ADM Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
+        { name: "ADM Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
+        { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
+        { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
+        { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
 
     const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
@@ -272,18 +273,33 @@ export function AppSidebar({
 
                     {/* ADMIN */}
                     {hasAnyAdminPermission && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center justify-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2 whitespace-nowrap">
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-center gap-2 px-2 mb-2">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 flex items-center gap-2 whitespace-nowrap">
                                     <Shield className="w-3 h-3" />
                                     Admin
                                 </h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
                             </div>
-                            {NAV_ADMIN.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                            ))}
+
+                            {/* Centre Admin — item principal */}
+                            {NAV_ADMIN_TOP.visible && (
+                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={isActive(NAV_ADMIN_TOP.href, true)} />
+                            )}
+
+                            {/* Sous-items ADM */}
+                            {NAV_ADMIN_SUB.some(i => i.visible) && (
+                                <div className="ml-2 mt-1 pl-3 border-l border-rose-500/20 space-y-0.5">
+                                    {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
+                                        <AdminSubItem
+                                            key={item.href}
+                                            item={item}
+                                            isActive={isActive(item.href)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -402,6 +418,50 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
             {!isActive && (
                 <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             )}
+        </Link>
+    );
+}
+
+function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
+    // Split "ADM Permissions" → prefix "ADM" + label "Permissions"
+    const [prefix, ...rest] = item.name.split(" ");
+    const label = rest.join(" ");
+
+    return (
+        <Link
+            href={item.href}
+            className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group relative overflow-hidden",
+                isActive
+                    ? "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/20"
+                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
+            )}
+        >
+            {/* Active dot */}
+            {isActive && (
+                <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+            )}
+
+            <item.icon className={cn(
+                "h-3 w-3 shrink-0 transition-all duration-200",
+                isActive ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400"
+            )} />
+
+            <span className={cn(
+                "font-mono text-[10px] font-black tracking-widest px-1 py-0.5 rounded shrink-0",
+                isActive
+                    ? "text-rose-400 bg-rose-500/15"
+                    : "text-zinc-600 bg-zinc-800/60 group-hover:text-rose-400/70"
+            )}>
+                {prefix}
+            </span>
+
+            <span className={cn(
+                "text-xs transition-all duration-200 truncate",
+                isActive ? "font-black text-rose-200" : "font-medium group-hover:text-zinc-200"
+            )}>
+                {label}
+            </span>
         </Link>
     );
 }

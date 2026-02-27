@@ -86,6 +86,18 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── NO DASHBOARD ACCESS (role-based) ──
+    if (!user.canViewDashboard) {
+        return (
+            <AccessDenied
+                title="Accès Non Autorisé"
+                message={`Votre rôle Discord ne vous donne pas accès au tableau de bord de ${user.guildName}. Contactez un administrateur pour obtenir les permissions nécessaires.`}
+                variant="lock"
+                action={<SignOutButton variant="ghost" />}
+            />
+        );
+    }
+
     if (user.isCapacityFull) {
         return (
             <AccessDenied

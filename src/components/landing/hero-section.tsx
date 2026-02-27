@@ -41,7 +41,7 @@ export function HeroSection() {
                     className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-white font-heading"
                 >
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-emerald-400">
-                        Maîtrisez votre destin, <br /> Guidez votre Guilde vers la <span className="italic">Légende.</span>
+                        Arrêtez les fichiers Excel, <br /> Passez sur un outil <span className="italic">Professionnel</span> et <span className="italic">sécurisé</span>.
                     </span>
                 </motion.h1>
 
@@ -66,7 +66,6 @@ export function HeroSection() {
                     className="pt-8 w-full space-y-4"
                 >
                     <BetaGate />
-
                 </motion.div>
 
             </div>

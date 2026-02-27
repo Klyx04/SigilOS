@@ -104,7 +104,7 @@ export function DungeonFinderClient({
     return (
         <div className="space-y-6">
             {/* Gamified Tabs */}
-            <div className="relative flex bg-slate-950/50 border border-slate-800/80 rounded-2xl p-1.5 w-max shadow-inner">
+            <div className="relative flex bg-zinc-950 border border-white/10 rounded-2xl p-1.5 w-max shadow-2xl">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -118,7 +118,7 @@ export function DungeonFinderClient({
                             {isActive && (
                                 <motion.div
                                     layoutId="main-tab-indicator"
-                                    className="absolute inset-0 -z-10 bg-indigo-600 rounded-xl border border-indigo-500/50 shadow-lg shadow-indigo-900/40"
+                                    className="absolute inset-0 -z-10 bg-indigo-500/20 rounded-xl border border-indigo-500/30 shadow-inner"
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                 />
                             )}
@@ -200,12 +200,12 @@ export function DungeonFinderClient({
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-slate-800 rounded-2xl bg-slate-900/20"
+                                className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-white/10 rounded-2xl bg-zinc-950/50 shadow-inner"
                             >
-                                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
-                                    <Search className="w-6 h-6 text-slate-600" />
+                                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 shadow-sm flex items-center justify-center mb-4">
+                                    <Search className="w-6 h-6 text-slate-500" />
                                 </div>
-                                <h3 className="text-base font-bold text-slate-400 mb-1">Aucun post actif</h3>
+                                <h3 className="text-base font-bold text-slate-300 mb-1">Aucun post actif</h3>
                                 <p className="text-sm text-slate-600 text-center max-w-xs">
                                     {filters.search || filters.mode
                                         ? "Modifie les filtres pour voir plus de posts."

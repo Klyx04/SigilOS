@@ -33,6 +33,14 @@ export default async function SongesPage({
     const { runs } = await getDreamRuns(guildId, ["RECRUITING", "IN_PROGRESS", "COMPLETED"]);
     const currentUserId = userContext.isAuthenticated ? userContext.id : undefined;
 
+    // Fetch Discord Config for the guild
+    const { db } = await import("@/lib/prisma");
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { songesNotifyChannelId: true }
+    });
+    const isDiscordConfigured = !!guildConfig?.songesNotifyChannelId;
+
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
@@ -43,7 +51,7 @@ export default async function SongesPage({
                 backHref={`/dashboard/${guildId}`}
                 actions={
                     (userContext.canCreateSonges || userContext.isAdmin) && (
-                        <CreateRunButton guildId={guildId} />
+                        <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
                     )
                 }
             />

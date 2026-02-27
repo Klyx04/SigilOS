@@ -17,7 +17,9 @@ import {
     setSystemAnnouncement,
     clearSystemAnnouncement,
     broadcastDiscordAnnouncement,
+    getStelliumChannels,
 } from "@/server/actions/announcement-actions";
+import { useEffect } from "react";
 import type { SystemAnnouncement } from "@/server/actions/announcement-actions";
 
 interface AnnouncementPanelProps {
@@ -41,6 +43,14 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
 
     // Active announcement
     const [activeAnnouncement, setActiveAnnouncement] = useState(currentAnnouncement);
+
+    // Stellium Specific
+    const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string }[]>([]);
+    const [stelliumChannelId, setStelliumChannelId] = useState<string>("");
+
+    useEffect(() => {
+        getStelliumChannels().then(setStelliumChannels);
+    }, []);
 
     const handleSetBanner = () => {
         if (!bannerMessage.trim()) return;
@@ -78,7 +88,12 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
     const handleBroadcast = () => {
         if (!discordMessage.trim()) return;
         startDiscordTransition(async () => {
-            const result = await broadcastDiscordAnnouncement(discordMessage, discordType, mentionEveryone);
+            const result = await broadcastDiscordAnnouncement(
+                discordMessage,
+                discordType,
+                mentionEveryone,
+                stelliumChannelId || undefined
+            );
             if (result.success) {
                 setDiscordResult(`✅ Envoyé à ${result.sent} guilde(s)${result.failed ? ` (${result.failed} échec)` : ""}`);
                 setDiscordMessage("");
@@ -169,8 +184,8 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                     key={t}
                                     onClick={() => setBannerType(t)}
                                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${bannerType === t
-                                            ? typeColors[t]
-                                            : "border-white/5 text-zinc-600 hover:text-zinc-400"
+                                        ? typeColors[t]
+                                        : "border-white/5 text-zinc-600 hover:text-zinc-400"
                                         }`}
                                 >
                                     {t}
@@ -279,8 +294,8 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                     key={t.value}
                                     onClick={() => setDiscordType(t.value)}
                                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center gap-1.5 ${discordType === t.value
-                                            ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
-                                            : "border-white/5 text-zinc-600 hover:text-zinc-400"
+                                        ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
+                                        : "border-white/5 text-zinc-600 hover:text-zinc-400"
                                         }`}
                                 >
                                     {t.icon}
@@ -302,6 +317,33 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                             </span>
                         </label>
                     </div>
+
+                    {/* Stellium Channel Selector (Hidden if no channels found) */}
+                    {stelliumChannels.length > 0 && (
+                        <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                                    Option Stellium Exclusive
+                                </span>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">
+                                    Salon de destination pour Stellium
+                                </label>
+                                <select
+                                    value={stelliumChannelId}
+                                    onChange={(e) => setStelliumChannelId(e.target.value)}
+                                    className="w-full bg-zinc-950/60 border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500/30"
+                                >
+                                    <option value="">Par défaut (Config Guilde)</option>
+                                    {stelliumChannels.map(c => (
+                                        <option key={c.id} value={c.id}># {c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-3">
                         <button

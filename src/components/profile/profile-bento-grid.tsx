@@ -12,6 +12,7 @@ import { AltPseudos } from "./alt-pseudos";
 import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
+import { IntroductionCard } from "./introduction-card";
 import { DreamRunHistory } from "./dream-run-history";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
@@ -56,6 +57,8 @@ interface ProfileBentoGridProps {
             ocrScore: number;
             createdAt: Date;
         } | null;
+        roleGrants?: any[];
+        introduction?: string | null;
     };
     user: {
         name?: string | null;
@@ -74,7 +77,6 @@ interface ProfileBentoGridProps {
     };
     guildId: string;
     discordNickname?: string | null;
-    roleColor?: number;
     readOnly?: boolean;
     isAdmin?: boolean;
     permissions?: {
@@ -85,6 +87,8 @@ interface ProfileBentoGridProps {
     };
     guildName?: string;
     dofusServerId?: string | null;
+    roleName?: string;
+    roleColor?: number;
 }
 
 export function ProfileBentoGrid({
@@ -93,12 +97,13 @@ export function ProfileBentoGrid({
     stats,
     guildId,
     discordNickname,
-    roleColor = 0,
     readOnly = false,
     isAdmin = false,
     permissions = {},
     guildName,
     dofusServerId,
+    roleName = "Membre",
+    roleColor = 0,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
@@ -261,6 +266,9 @@ export function ProfileBentoGrid({
                     canViewMissions={permissions.canViewMissions}
                     canViewLadder={canViewLadder}
                     guildName={guildName}
+                    sigilRoles={localProfile.roleGrants || []}
+                    discordRoleName={roleName}
+                    discordRoleColor={roleColor}
                 />
             </div>
 
@@ -273,6 +281,12 @@ export function ProfileBentoGrid({
                             className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
                         >
                             Général
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="intro"
+                            className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
+                        >
+                            Ma Présentation
                         </TabsTrigger>
                         <TabsTrigger
                             value="combat"
@@ -354,6 +368,17 @@ export function ProfileBentoGrid({
                             readOnly={readOnly}
                         />
                     </div>
+                </TabsContent>
+
+                {/* INTRODUCTION TAB */}
+                <TabsContent value="intro" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <IntroductionCard
+                        introduction={localProfile.introduction || ""}
+                        onSave={(text: string) => setLocalProfile(prev => ({ ...prev, introduction: text }))}
+                        readOnly={readOnly}
+                        guildId={guildId}
+                        displayName={displayName}
+                    />
                 </TabsContent>
 
                 {/* COMBAT TAB */}

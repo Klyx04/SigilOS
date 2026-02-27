@@ -19,97 +19,118 @@ import { cn } from "@/lib/utils";
 const FEATURES = [
     {
         title: "Quête Ocre",
-        description: "Synchronisation Metamob en un clic et tableaux de bord temps réel.",
+        description: "Synchronisation Metamob et matching de doublons automatisé.",
         icon: Target,
         className: "md:col-span-2 md:row-span-1 bg-gradient-to-br from-[#13171A] to-[#0E1110] border-accent-teal/20",
         color: "text-accent-teal"
     },
     {
         title: "Missions de Guilde",
-        description: "Automatisation et validation visuelle des succès en jeu.",
+        description: "Gestion des missions hebdomadaires et validation par capture d'écran.",
         icon: Zap,
         className: "md:col-span-2",
         color: "text-amber-400"
     },
     {
         title: "Songes Infinis",
-        description: "Optimisation des runs et partage de stratégies.",
+        description: "Organisation de parcours avec guides stratégiques intégrés.",
         icon: Sparkles,
         className: "md:col-span-2",
         color: "text-purple-400"
     },
     {
-        title: "Annuaire",
-        description: "Visibilité publique et recrutement facilité pour votre guilde.",
+        title: "Profil & Annuaire",
+        description: "Fiches membres dynamiques et annuaire de guilde.",
         icon: Globe,
         className: "md:col-span-1",
         color: "text-blue-400"
     },
     {
         title: "Administration",
-        description: "Contrôle total des permissions et sécurité des données.",
+        description: "RBAC granulaire et logs de sécurité.",
         icon: Shield,
         className: "md:col-span-1",
         color: "text-rose-400"
     },
     {
         title: "Calendrier",
-        description: "Planification des sorties, événements et défenses.",
+        description: "Planning des événements communautaires.",
         icon: Calendar,
         className: "md:col-span-1",
         color: "text-emerald-400"
     },
     {
-        title: "Ladder & Prestige",
-        description: "Classement interne et mise en avant de l'activité.",
+        title: "Ladder Dofus",
+        description: "Classement par succès synchronisé au site officiel.",
         icon: Trophy,
         className: "md:col-span-1",
         color: "text-yellow-500"
     },
     {
-        title: "Présentation Guilde",
-        description: "Vitrine premium personnalisable pour votre identité.",
-        icon: Layout,
+        title: "Services Guilde",
+        description: "Demandes de crafts, passages et emprunts d'équipements.",
+        icon: Handshake,
         className: "md:col-span-1",
-        color: "text-indigo-400"
+        color: "text-cyan-400"
+    },
+    {
+        title: "Donjons & Quêtes",
+        description: "Plateforme de recherche de groupe intra-guilde.",
+        icon: Sword,
+        className: "md:col-span-1",
+        color: "text-red-400"
+    },
+    {
+        title: "Sondages",
+        description: "Prises de décisions et votes démocratiques.",
+        icon: Activity,
+        className: "md:col-span-1",
+        color: "text-pink-400"
     },
     {
         title: "Documentation",
-        description: "Wiki complet pour guider vos membres au quotidien.",
+        description: "Wiki collaboratif hébergé dans l'écosystème.",
         icon: BookOpen,
         className: "md:col-span-1",
         color: "text-violet-400"
     },
     {
+        title: "Vitrine Publique",
+        description: "Site de présentation dynamique pour le recrutement.",
+        icon: Layout,
+        className: "md:col-span-1",
+        color: "text-indigo-400"
+    },
+    {
+        title: "Quêtes Dofus",
+        description: "Suivi coordonné de la progression neuronale des quêtes.",
+        icon: BookOpen,
+        className: "md:col-span-1",
+        color: "text-amber-400",
+        isDevelopment: true
+    },
+    {
+        title: "Carte & Mini-Jeux",
+        description: "Map du monde interactive et animations de guilde.",
+        icon: Globe,
+        className: "md:col-span-1",
+        color: "text-cyan-400",
+        isDevelopment: true
+    },
+    {
+        title: "Hub Ressources",
+        description: "Agrégation de guides, builds et actualités Dofus.",
+        icon: BookOpen,
+        className: "md:col-span-1",
+        color: "text-violet-400",
+        isDevelopment: true
+    },
+    {
         title: "Statistiques",
-        description: "Analyses profondes de l'évolution de la guilde.",
+        description: "Analyses de l'évolution de la guilde.",
         icon: BarChart,
         className: "md:col-span-1",
         color: "text-accent-gold",
-        isDevelopment: true
-    },
-    {
-        title: "Services Guilde",
-        description: "Outils d'entraide et gestion de ressources communes.",
-        icon: Handshake,
-        className: "md:col-span-1",
-        color: "text-orange-400",
-        isDevelopment: true
-    },
-    {
-        title: "Donjons & Quêtes",
-        description: "Suivi coordonné de la progression de groupe.",
-        icon: Sword,
-        className: "md:col-span-1",
-        color: "text-red-400",
-        isDevelopment: true
-    },
-    {
-        title: "Sondages",
-        description: "Système de vote interne pour les prises de décision.",
-        icon: Activity,
-        className: "md:col-span-1",
-        color: "text-cyan-400",
         isDevelopment: true
     }
 ];

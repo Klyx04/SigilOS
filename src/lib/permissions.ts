@@ -33,6 +33,14 @@ export const PERMISSIONS = {
     DOCS_VIEW: "docs:view",
     DOCS_VIEW_ADMIN: "docs:view_admin",
 
+    // Coming Soon Modules
+    QUESTS_VIEW: "quests:view",
+    QUESTS_MANAGE: "quests:manage",
+    WORLDMAP_VIEW: "worldmap:view",
+    WORLDMAP_MANAGE: "worldmap:manage",
+    RESOURCES_VIEW: "resources:view",
+    RESOURCES_MANAGE: "resources:manage",
+
     // Calendar
     CALENDAR_VIEW: "calendar:view",
     CALENDAR_MANAGE: "calendar:manage",
@@ -87,6 +95,14 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.PRESENTATION_EDIT]: { label: "Éditer Présentation", description: "Modifier la page publique.", module: "admin" },
     [PERMISSIONS.DOCS_VIEW]: { label: "Voir Documentation", description: "Accès au Wiki public.", module: "info" },
     [PERMISSIONS.DOCS_VIEW_ADMIN]: { label: "Voir Documentation Admin", description: "Accès au Wiki réservé.", module: "admin" },
+    [PERMISSIONS.RESOURCES_VIEW]: { label: "Voir Ressources", description: "Accès au hub des ressources Dofus.", module: "info" },
+    [PERMISSIONS.RESOURCES_MANAGE]: { label: "Gérer Ressources", description: "Gérer les ressources communautaires.", module: "admin" },
+
+    // Coming Soon Modules (placed in tools for now)
+    [PERMISSIONS.QUESTS_VIEW]: { label: "Voir Quêtes Dofus", description: "Suivre et trouver des partenaires de quêtes.", module: "tools" },
+    [PERMISSIONS.QUESTS_MANAGE]: { label: "Gérer Quêtes Dofus", description: "Gérer les arbres de progression.", module: "admin" },
+    [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir Carte & Mini-Jeux", description: "Accès à la carte du monde et jeux.", module: "tools" },
+    [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer Carte & Mini-Jeux", description: "Gérer les marqueurs de la carte.", module: "admin" },
 
     // Calendar
     [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },

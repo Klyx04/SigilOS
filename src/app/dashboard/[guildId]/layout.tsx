@@ -56,6 +56,7 @@ export default async function DashboardLayout({
                 message={`Votre profil sur ${user.guildName} a été archivé par un administrateur. Contactez votre staff sur Discord pour demander votre réactivation.`}
                 variant="archive"
                 action={<SignOutButton variant="ghost" />}
+                countdownDate={(user as any).scheduledDeletion}
             />
         );
     }
@@ -68,6 +69,7 @@ export default async function DashboardLayout({
                 message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
                 variant="ban"
                 action={<SignOutButton variant="ghost" />}
+                countdownDate={(user as any).scheduledDeletion}
             />
         );
     }

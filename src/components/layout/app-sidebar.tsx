@@ -72,6 +72,7 @@ export function AppSidebar({
     // --- NAVIGATION GROUPS ---
     const NAV_INFO = [
         { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
+        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.isMember && modules.admin },
         { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
         { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
         { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
@@ -91,6 +92,12 @@ export function AppSidebar({
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
         { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewProfile && modules.profile },
+    ];
+
+    const NAV_COMING_SOON = [
+        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
+        { name: "Carte & Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
+        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
 
     const NAV_ADMIN = [
@@ -241,6 +248,23 @@ export function AppSidebar({
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
                             </div>
                             {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* BIENTÔT (Coming Soon) */}
+                    {NAV_COMING_SOON.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/60 flex items-center gap-2 whitespace-nowrap">
+                                    <Sparkles className="w-3 h-3" />
+                                    Bientôt
+                                </h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                            </div>
+                            {NAV_COMING_SOON.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
                             ))}
                         </div>

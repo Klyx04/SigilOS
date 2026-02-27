@@ -34,6 +34,14 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     const canManage = ctx.canManageCalendar;
 
+    // Fetch Discord Config for the guild
+    const { db } = await import("@/lib/prisma");
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { calendarNotifyChannelId: true }
+    });
+    const isDiscordConfigured = !!guildConfig?.calendarNotifyChannelId;
+
     return (
         <div className="flex flex-col h-full bg-black/40 pb-12">
             <main className="flex-1 overflow-auto">
@@ -50,6 +58,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                         guildId={guildId}
                         currentUserId={session.user.id}
                         canManage={canManage}
+                        isDiscordConfigured={isDiscordConfigured}
                     />
                 </div>
             </main>

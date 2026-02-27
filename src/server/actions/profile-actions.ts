@@ -26,7 +26,7 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string()
         .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
-        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]+$/, "Le pseudo ne doit contenir que des lettres (pas de chiffres ni de caractères spéciaux)")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]+$/, "Le pseudo ne doit contenir que des lettres et tirets (pas de chiffres ni de caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
     classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
@@ -555,8 +555,7 @@ const UpdateDofusBookLinksSchema = z.object({
         id: z.string(),
         name: z.string()
             .min(1, "Nom requis")
-            .max(30, "Nom trop long (max 30)")
-            .regex(/^[a-zA-Z0-9À-ÿ\s\-_'().]+$/, "Caractères non autorisés"),
+            .max(30, "Nom trop long (max 30)"),
         url: z.string().regex(
             /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
             "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"

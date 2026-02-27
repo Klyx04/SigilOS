@@ -113,7 +113,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
                                 <Plus className="w-4 h-4" />
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl">
                             <DialogHeader>
                                 <DialogTitle>Ajouter un Build DofusBook</DialogTitle>
                                 <DialogDescription className="text-zinc-400">

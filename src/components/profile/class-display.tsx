@@ -160,7 +160,8 @@ export function ClassDisplay({
                                 <Input
                                     value={localPseudo}
                                     onChange={(e) => {
-                                        const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]/g, "");
+                                        // On autorise lettres, espaces, et tirets
+                                        const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]/g, "");
                                         setLocalPseudo(val);
                                     }}
                                     placeholder="Votre pseudo en jeu..."
@@ -172,7 +173,7 @@ export function ClassDisplay({
                                 </div>
                             </div>
                             <p className="text-sm text-zinc-500 pl-1">
-                                Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Il servira pour les classements et l&apos;identification dans les modules (missions, songes, etc.).
+                                Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Caractères autorisés : lettres, espaces et tirets (-).
                             </p>
                             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
                                 <p className="text-sm text-amber-200 flex gap-2 items-start">

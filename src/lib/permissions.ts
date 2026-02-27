@@ -30,6 +30,7 @@ export const PERMISSIONS = {
     // Guild Info & Presentation
     PRESENTATION_VIEW: "presentation:view",
     PRESENTATION_EDIT: "presentation:edit",
+    WELCOME_VIEW: "welcome:view",
     DOCS_VIEW: "docs:view",
     DOCS_VIEW_ADMIN: "docs:view_admin",
 
@@ -93,6 +94,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     // Guild Info
     [PERMISSIONS.PRESENTATION_VIEW]: { label: "Voir Présentation", description: "Accès à la page de guilde.", module: "info" },
     [PERMISSIONS.PRESENTATION_EDIT]: { label: "Éditer Présentation", description: "Modifier la page publique.", module: "admin" },
+    [PERMISSIONS.WELCOME_VIEW]: { label: "Voir Bienvenue", description: "Accès au canal Bienvenue des nouveaux membres.", module: "info" },
     [PERMISSIONS.DOCS_VIEW]: { label: "Voir Documentation", description: "Accès au Wiki public.", module: "info" },
     [PERMISSIONS.DOCS_VIEW_ADMIN]: { label: "Voir Documentation Admin", description: "Accès au Wiki réservé.", module: "admin" },
     [PERMISSIONS.RESOURCES_VIEW]: { label: "Voir Ressources", description: "Accès au hub des ressources Dofus.", module: "info" },

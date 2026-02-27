@@ -185,28 +185,31 @@ export function RunDetailHeader({ run, guildId, isLeader, optimisticStatus, onSt
                                 </div>
                             )}
 
-                            {/* Doc Link */}
-                            <a
-                                href="https://www.dofuspourlesnoobs.com/songes-infinis.html"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-white transition-all group"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                                <span className="font-medium">Documentation Songes</span>
-                                <ArrowLeft className="w-3 h-3 rotate-[135deg] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            </a>
-
-                            {/* Guide Boss Button */}
-                            {onOpenBossGuide && (
-                                <button
-                                    onClick={onOpenBossGuide}
-                                    className="flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white transition-all group font-medium cursor-pointer"
+                            {/* IMPORTANT GUIDES (Bigger Buttons) */}
+                            <div className="flex flex-wrap gap-4 mt-2 w-full">
+                                {/* Doc Link (Guide Songes) */}
+                                <a
+                                    href="https://www.dofuspourlesnoobs.com/songes-infinis.html"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-6 py-3 rounded-2xl border-2 border-blue-500/40 bg-blue-600/20 text-blue-200 hover:bg-blue-500/40 hover:text-white hover:border-blue-400 hover:-translate-y-1 shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all group cursor-pointer font-bold text-base uppercase tracking-wider"
                                 >
-                                    <BookOpen className="w-4 h-4 group-hover:rotate-6 transition-transform" />
-                                    <span>Guide Boss</span>
-                                </button>
-                            )}
+                                    <span className="w-3 h-3 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse" />
+                                    <span>Guide Songes</span>
+                                    <ArrowLeft className="w-5 h-5 rotate-[135deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                </a>
+
+                                {/* Guide Boss Button */}
+                                {onOpenBossGuide && (
+                                    <button
+                                        onClick={onOpenBossGuide}
+                                        className="flex items-center gap-3 px-6 py-3 rounded-2xl border-2 border-fuchsia-500/40 bg-fuchsia-600/20 text-fuchsia-200 hover:bg-fuchsia-500/40 hover:text-white hover:border-fuchsia-400 hover:-translate-y-1 shadow-[0_0_15px_rgba(217,70,239,0.3)] transition-all group font-bold text-base uppercase tracking-wider cursor-pointer"
+                                    >
+                                        <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform drop-shadow-[0_0_8px_rgba(217,70,239,0.8)]" />
+                                        <span>Guide Boss Dofus</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Épreuve description block */}

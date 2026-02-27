@@ -52,10 +52,26 @@ async function notifyValidators(guildId: string, title: string, message: string,
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, missionNotifyChannelId: true }
         });
 
         if (!guild) return;
+
+        // 0. Send Discord Message if channel is configured
+        if (guild.missionNotifyChannelId) {
+            try {
+                const { sendChannelMessage } = await import("@/server/discord");
+                const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+                await sendChannelMessage(guild.missionNotifyChannelId, "", {
+                    embedTitle: title,
+                    embedDescription: message,
+                    embedColor: 0x9333ea, // Purple
+                    embedUrl: absoluteLink,
+                });
+            } catch (discordError) {
+                logger.error("[NotifyValidators] Discord Error", { error: discordError });
+            }
+        }
 
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm

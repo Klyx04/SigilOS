@@ -162,8 +162,8 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                     </div>
                 </div>
 
-                <div className="flex-1 min-w-0 relative z-10">
-                    <h3 className="font-black text-sm sm:text-base text-white truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase">
+                <div className="flex-1 relative z-10 break-words pr-2">
+                    <h3 className="font-black text-sm sm:text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase leading-tight">
                         {submission.mission.title || "Mission Sans Titre"}
                     </h3>
                 </div>

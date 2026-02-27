@@ -148,3 +148,70 @@ function getWeekNumber(d: Date) {
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
     return weekNo;
 }
+
+export async function sendWelcomeNotifications(guildConfig: any, profileId: string, displayName: string) {
+    if (!guildConfig) return;
+
+    // Fetch user profile to get Discord ID if needed for pinging
+    const profile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        select: { userId: true },
+    });
+
+    // 1. Dashboard Welcome Post
+    if (guildConfig.welcomeDashboardEnabled) {
+        const defaultMessage = `🎉 Bienvenue à **${displayName}** qui vient de rejoindre le serveur Dashboard!`;
+        const content = guildConfig.welcomeMessageTemplate
+            ? guildConfig.welcomeMessageTemplate.replace(/{user}/g, `**${displayName}**`)
+            : defaultMessage;
+
+        try {
+            await Promise.all([
+                db.memberWelcome.create({
+                    data: {
+                        guildId: guildConfig.id,
+                        profileId: profileId,
+                        content: content
+                    }
+                }),
+                db.guildActivity.create({
+                    data: {
+                        guildId: guildConfig.id,
+                        type: "NEW_MEMBER",
+                        actorName: displayName,
+                        meta: { message: content, profileId }
+                    }
+                })
+            ]);
+        } catch (e) {
+            console.error("[Welcome] Failed to create welcome records", e);
+        }
+    }
+
+    // 2. Discord Welcome Ping
+    if (guildConfig.welcomeDiscordEnabled && guildConfig.welcomeNotifyChannelId) {
+        const { sendChannelMessage } = await import("@/server/discord");
+
+        const content = guildConfig.welcomeMessageTemplate
+            ? guildConfig.welcomeMessageTemplate.replace(/{user}/g, profile ? `<@${profile.userId}>` : `**${displayName}**`)
+            : `🎉 Bienvenue à <@${profile?.userId || displayName}> sur le Dashboard SigilOS !`;
+
+        let mentionContent = "";
+        if (guildConfig.welcomeMentionRoleId) {
+            mentionContent = guildConfig.welcomeMentionRoleId === "everyone"
+                ? "@everyone"
+                : `<@&${guildConfig.welcomeMentionRoleId}>`;
+        }
+
+        try {
+            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, mentionContent, {
+                embedTitle: `Nouveau Membre Dashboard !`,
+                embedDescription: content,
+                embedColor: 0x10b981, // Emerald Green
+                embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
+            });
+        } catch (e) {
+            console.error("[Welcome] Failed to send Discord welcome message", e);
+        }
+    }
+}

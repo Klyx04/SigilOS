@@ -1125,6 +1125,24 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 }
             });
 
+            // Notify validators via Discord (Using the same channel as missions for now)
+            try {
+                if (guildConfig.missionNotifyChannelId) {
+                    const { sendChannelMessage } = await import("@/server/discord");
+                    const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
+                    const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+
+                    await sendChannelMessage(guildConfig.missionNotifyChannelId, "", {
+                        embedTitle: `[Validation] ${userName} - Succès`,
+                        embedDescription: `${userName} a posté une preuve pour confirmation manuelle de ${points} points de succès.`,
+                        embedColor: 0x0ea5e9, // Sky blue for achievements
+                        embedUrl: absoluteLink,
+                    });
+                }
+            } catch (discordError) {
+                logger.error("[SyncSuccess] Discord Notification Error", { error: discordError });
+            }
+
 
             return {
                 success: true,

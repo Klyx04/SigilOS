@@ -23,6 +23,7 @@ export const PERMISSIONS = {
     LADDER_VIEW: "ladder:view",
     FINDER_VIEW: "donjons:view",
     SERVICES_VIEW: "services:view",
+    SERVICES_CREATE: "services:create",
     POLLS_VIEW: "polls:view",
     POLLS_MANAGE: "polls:manage",
 
@@ -77,6 +78,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.LADDER_VIEW]: { label: "Classements", description: "Accès aux ladders de guilde.", module: "features" },
     [PERMISSIONS.FINDER_VIEW]: { label: "Donjons & Quêtes", description: "Accès au chercheur d'activités.", module: "tools" },
     [PERMISSIONS.SERVICES_VIEW]: { label: "Services Guilde", description: "Accès à la marketplace.", module: "tools" },
+    [PERMISSIONS.SERVICES_CREATE]: { label: "Créer Services/Prêts/Coffre", description: "Publier des annonces, enregistrer des prêts et dépôts coffre.", module: "tools" },
     [PERMISSIONS.POLLS_VIEW]: { label: "Voir Sondages", description: "Consulter et voter aux sondages.", module: "tools" },
     [PERMISSIONS.POLLS_MANAGE]: { label: "Gérer Sondages", description: "Créer et modifier les sondages.", module: "admin" },
 

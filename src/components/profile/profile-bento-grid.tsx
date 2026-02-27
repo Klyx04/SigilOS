@@ -278,7 +278,7 @@ export function ProfileBentoGrid({
                             value="combat"
                             className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
                         >
-                            Stuffs et Autres Pseudos
+                            Stuffs et Autres Personnages
                         </TabsTrigger>
                         <TabsTrigger
                             value="planning"

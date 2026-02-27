@@ -144,6 +144,12 @@ model GuildConfig {
   // Donjons & Quêtes Module Configuration
   djNotifyChannelId String? // Discord channel ID for DJ Finder post notifications
 
+  // Services Module Configuration
+  servicesNotifyChannelId String? // Discord channel ID for service listing notifications
+
+  // Prêts & Coffre Module Configuration
+  loansNotifyChannelId String? // Discord channel ID for loans & vault movement notifications
+
   // === GUILD PRESENTATION MODULE ===
   presentationEnabled      Boolean   @default(false) // Visible in public directory
   presentationHistory      String?   @db.Text // Guild history (Markdown, emojis allowed)
@@ -187,6 +193,19 @@ model GuildConfig {
 
   // Donjons & Quêtes
   djSearchPosts DjSearchPost[]
+
+  // Services Guilde (Marketplace)
+  serviceListings ServiceListing[]
+
+  // Prêts & Coffre de Guilde
+  guildLoans   GuildLoan[]
+  vaultEntries VaultEntry[]
+
+  // Activity Feed (real-time broadcast)
+  guildActivities GuildActivity[]
+
+  // Logs immuables (audit trail)
+  serviceActivityLogs ServiceActivityLog[]
 }
 
 // -- Guild Modules (Feature Flags) --
@@ -251,6 +270,23 @@ model AuditLog {
   @@index([guildId, createdAt])
   @@index([actorUserId])
   @@index([action])
+}
+
+// ---------------------------------------------------------------------------
+// GUILD ACTIVITY FEED — Real-time broadcast events (login, new member, ban, archive)
+// ---------------------------------------------------------------------------
+model GuildActivity {
+  id        String   @id @default(cuid())
+  guildId   String   // GuildConfig.id (not discordGuildId)
+  type      String   // "LOGIN" | "NEW_MEMBER" | "ARCHIVED" | "BANNED" | "UNARCHIVED"
+  actorName String   // Name displayed in feed
+  actorImage String? // Avatar URL
+  meta      Json?    // Extra data (reason, etc.)
+  createdAt DateTime @default(now())
+
+  guild GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
 }
 
 model UserProfile {
@@ -371,6 +407,17 @@ model UserProfile {
   djParticipations        DjSearchParticipant[]
   dungeonProgress         UserDungeonProgress[]
   userDungeonAchievements UserDungeonAchievement[]
+
+  // Services Guilde
+  serviceListings ServiceListing[]
+
+  // Prêts & Coffre
+  loansGiven    GuildLoan[]  @relation("LoansGiven")
+  loansReceived GuildLoan[]  @relation("LoansReceived")
+  vaultEntries  VaultEntry[]
+
+  // Logs immuables
+  serviceActivityLogs ServiceActivityLog[]
 
   @@unique([userId, guildId])
   @@index([guildId])
@@ -1518,4 +1565,189 @@ model GameQuest {
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+// -- Services Guilde (Marketplace interne) --
+// Petites annonces de services entre membres (passages, FM, métiers, etc.)
+
+enum ServiceCategory {
+  PASSAGE_DONJON // Passages donjons (simple, succès, packs)
+  FORGEMAGIE     // FM, exo, over
+  METIER         // Montée métier, craft sur commande
+  QUETE          // Aide quêtes, alignement, combats bloquants
+  OCRE           // Vente captures âmes, packs Ocre
+  AUTRE          // Catch-all
+}
+
+enum ServiceStatus {
+  ACTIVE
+  PAUSED // Prestataire indisponible temporairement
+  CLOSED // Offre terminée
+}
+
+model ServiceListing {
+  id        String @id @default(cuid())
+  guildId   String
+  profileId String
+
+  category ServiceCategory
+  status   ServiceStatus   @default(ACTIVE)
+
+  title       String          // "Passage Cawotte Duo/Statue 100k"
+  description String? @db.Text // Détails libres
+  price       String?         // "50k / succès", "200k full", "gratuit", libre
+
+  // Disponibilité
+  availability String? // "Soirs 20h-23h", "Weekend", libre
+
+  // Discord notification tracking
+  discordMessageId String?
+  discordChannelId String?
+
+  contactMethod String? // "MP Discord", "MP en jeu", etc.
+
+  // === Phase 3: Champs contextuels par catégorie ===
+
+  // PASSAGE_DONJON — référence donjon BDD
+  dungeonId             String? // Dungeon.id (optionnel, null si donjon non en BDD)
+  dungeonName           String? // Nom libre si pas en BDD
+  dungeonImageUrl       String? // Image boss du donjon (CDN)
+  selectedAchievements  Json?   // String[] — IDs de DungeonAchievement cochés
+  selectedAchievementNames Json? // String[] — noms des succès cochés (dénormalisé pour affichage)
+
+  // QUETE — référence quête BDD ou libre
+  questId   String? // GameQuest.id (optionnel)
+  questName String? // Nom quête libre ou depuis BDD
+
+  // Item Dofus (via Dofusdude) — pour tous types
+  dofusItemAnkamaId  Int?    // ID Ankama de l'item lié
+  dofusItemName      String? // Nom de l'item
+  dofusItemIconUrl   String? // URL icône CDN Dofusdude
+
+  // Paliers de prix — remplace/complète le champ price libre
+  // Format: [{ label: "Simple", price: "50k" }, { label: "Full succès", price: "200k" }]
+  priceTiers Json?
+
+  // FORGEMAGIE — méta spécifique
+  // Format: { fmItems?: string, passTrans?: string, commandeExo?: string }
+  craftMeta  Json?
+  // Liste de métiers proposés ex: ["Cordonnier", "Bijoutier"]
+  professions Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+  @@index([guildId, category])
+  @@index([profileId])
+}
+
+// -- Prêts entre membres --
+// Tracking des prêts kamas/stuff/ressources avec preuve screenshot
+
+enum LoanType {
+  KAMAS
+  STUFF
+  RESSOURCES
+  AUTRE
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  PARTIAL
+  CANCELLED
+}
+
+model GuildLoan {
+  id         String     @id @default(cuid())
+  guildId    String
+  lenderId   String     // Profil du prêteur
+  borrowerId String     // Profil de l'emprunteur
+
+  type        LoanType
+  status      LoanStatus @default(ACTIVE)
+
+  description String     // "2M kamas pour stuff Cra"
+  amount      String?    // "2 000 000 kamas" / "Gelano PA" — texte libre
+  proofUrl    String?    // Screenshot du trade compressé WebP
+  returnProofUrl String? // Screenshot du retour
+
+  linkedItemName    String? // Item lié (Dofusdude — Stuff/Ressources)
+  linkedItemIconUrl String? // Icône item (CDN Dofusdude)
+
+  lentAt     DateTime   @default(now())
+  dueDate    DateTime?  // Date limite optionnelle
+  returnedAt DateTime?
+
+  notes String? @db.Text
+
+  guild    GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  lender   UserProfile @relation("LoansGiven", fields: [lenderId], references: [id], onDelete: Cascade)
+  borrower UserProfile @relation("LoansReceived", fields: [borrowerId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+  @@index([lenderId])
+  @@index([borrowerId])
+}
+
+// -- Coffre de Guilde (Registre externe) --
+// Log persistant des dépôts/retraits du coffre de guilde
+
+enum VaultAction {
+  DEPOSIT
+  WITHDRAW
+}
+
+model VaultEntry {
+  id        String      @id @default(cuid())
+  guildId   String
+  profileId String
+  action    VaultAction
+
+  itemName          String     // "Gelano PA", "50x Bois d'Ébène"
+  quantity          Int?       @default(1)
+  description       String?
+  proofUrl          String?    // Screenshot compressé WebP
+  linkedItemIconUrl String?    // URL icône item Dofus (DofusDB/assets locaux)
+
+  createdAt DateTime @default(now())
+
+  guild   GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
+  @@index([profileId])
+}
+
+// -- Journal d'activité immuable --
+// Chaque action sur services/prêts/coffre crée une entrée.
+// JAMAIS supprimé ni modifié — preuve en cas de litige.
+
+model ServiceActivityLog {
+  id        String   @id @default(cuid())
+  guildId   String
+  actorId   String   // Profil qui a effectué l'action
+
+  // Contexte
+  module    String   // "SERVICE" | "LOAN" | "VAULT"
+  action    String   // "CREATED" | "UPDATED" | "DELETED" | "STATUS_CHANGE" | "RETURNED" | "CANCELLED"
+  entityId  String   // ID du service/prêt/vault entry
+
+  // Snapshot lisible
+  summary   String   // "Prêt: 2M kamas → Joueur-X" / "Service publié: Passage Cawotte Duo"
+  details   String?  @db.Text  // JSON ou texte enrichi avec l'état avant/après
+  metadata  String?  @db.Text  // Infos complémentaires JSON (ex: screenshot URL)
+
+  createdAt DateTime @default(now())
+
+  guild GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  actor UserProfile @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, module, createdAt])
+  @@index([entityId])
+  @@index([actorId])
 }

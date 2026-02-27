@@ -118,7 +118,7 @@ export function AltPseudos({
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold text-zinc-200 flex items-center gap-2">
                         <Users className="w-4 h-4 text-primary" />
-                        Autres Pseudos
+                        Pseudo Mules
                         <span className="text-xs text-zinc-500 bg-zinc-900 border border-white/5 px-1.5 py-0.5 rounded shadow-sm">
                             {localPseudos.length}/{maxPseudos}
                         </span>

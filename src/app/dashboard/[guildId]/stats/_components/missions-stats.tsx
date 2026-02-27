@@ -39,7 +39,7 @@ export default function MissionsStats({ categories, topValidators }: MissionsSta
                 ) : (
                     <div className="h-52">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
+                            <PieChart style={{ background: "transparent" }}>
                                 <Pie
                                     data={pieData}
                                     cx="50%"

@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-26)
 
 **Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Songes MAJ 3.5 déployé (Fontaine refonte, Épreuves, Guide Boss intégré). Module DJ interactions Discord fixé. Repo passé en public (GitHub Actions illimité).
+**Status** : 🟢 Beta active. Module Passages (Services, Prêts, Coffre) refondu et terminé avec statistiques, cleanup auto, et archivages. Fix Discord Forum pour les Donjons.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -194,6 +194,21 @@ SigilOS/
 
 ---
 
+### Session — Module Passages, Coffre & Prêts (2026-02-27)
+
+- ✅ **UI Passages / Services** : Refonte de la page Passages avec onglets (Services, Prêts, Coffre de Guilde). Affichage de la disponibilité en direct (heatmap) sur les cartes de service.
+- ✅ **Formulaire Donjons / Combos** : Sélection multiple de succès sous forme d'icônes cliquables pour configurer des prix de packages.
+- ✅ **Module Prêts (Loans)** : Création de prêts avec date limite et captures d'écran. Système de retour et d'annulation automatique avec rétention sécurisée des preuves.
+- ✅ **Archivage et Hard Deletion** : Les prêts rendus/annulés passent dans un onglet "Archives". Tâche cron (`POST /api/cron/cleanup-proofs`) effectuant le hard delete passé 30 jours, plus suppression automatique des images du VPS pour libérer de l'espace.
+- ✅ **Coffre de Guilde (Vault)** : Suivi des dépôts et retraits. Historique complet filtrable et triable (Dépôts/Retraits/Plus récent). Upload de screenshot lors du dépôt.
+- ✅ **Item Icons via DofusDB** : Intégration du champ `linkedItemIconUrl` synchronisé avec la DB, permettant d'afficher les icônes officielles des ressources Dofus directement dans le solde du coffre et l'historique de guilde.
+- ✅ **Statistiques Guilde — Prêts & Coffre** : Ajout d'une section entière sur `/stats` remontant au leader les KPIs : Total prêts, En cours, Rendus, Annulés, Top Prêteurs, Dépôts/Retraits, Item le + stocké, Top Contributeurs.
+- ✅ **Fix Graphiques Stats UI** : Correction des bugs de fond noir (`background: transparent`) sur les composants `PieChart` (Evénements & Missions).
+- ✅ **Notifications Discord — Services & Prêts** : Envoi de beaux embeds Discord lors de la création d'un service ou prêt, pingant le prêteur et l'emprunteur, intégrant les URLs de dashboard directes.
+- ✅ **Fix Critique — Discord Forum & DJ Posts** : Correction du bug d'API Discord `40067 FORUM_POST_REQUIRES_TAG`. Le bot détecte si le salon configuré est de type Forum, et y attache automatiquement le 1er tag non modéré disponible via la property `applied_tags` du POST `/threads`. Les embeds LFG partent niquel.
+
+---
+
 ## 🔒 Sécurité
 
 ### Patterns Obligatoires (Server Actions)
@@ -252,6 +267,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Stats Guilde (40+ métriques, Recharts, dashboard complet)
 - **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH), points contribution par niveau, date obligatoire, UI gamifiée (pilule glissante framer-motion)
 - **Songes MAJ 3.5** — Fontaine Onirique refonte (8 nouveaux bonus), Épreuves de Songe (4 types), Guide Boss intégré (144 boss, modale centrée), dépurplisation UI, embeds Discord épreuve
+- **Module Passages (Services, Prêts, Coffre)** — Heatmap de dispo, archivage automatique, hard delete, preuves upload VPS, icônes Dofus, fix Forum Discord
 
 ### 🔄 En cours
 - Ocre Trade Request System (demandes d'échange in-app + ping Discord)
@@ -286,7 +302,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [x] Cache Discord API (TTL 5min/10min) ✅
 - [x] Module Stats Guilde terminé ✅
 - [x] Module Recherche DJ/Quêtes terminé ✅ (UI gamifiée, embed live, DjEditModal, points contribution)
-- [ ] Module Service Passages (DJ/Succès/Prêts/Pack)
+- [x] Module Service Passages complet ✅ (Prêts, Coffre, Stats, Icons, Cleanup auto)
 - [ ] Plan B Discord API down (retry + queue)
 - [ ] Lazy Cleanup Songes vers CRON
 - [ ] Calcul Ladder CRON (quand > 5000 membres)

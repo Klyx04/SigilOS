@@ -256,7 +256,7 @@ export function SuccessSync({
                                     <span className="text-sm font-bold uppercase tracking-wider">Étape 1 : Le Détourage</span>
                                 </div>
                                 <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                                    Ne prenez pas tout l'écran ! Utilisez l'outil de capture pour détourer uniquement la zone avec vos points.
+                                    Ne prenez pas tout l'écran ! Utilisez un outil de capture d'écran (windows , greenshot , etc) pour détourer uniquement la zone avec vos points.
                                 </p>
                                 <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
                                     <img

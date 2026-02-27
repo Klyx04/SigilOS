@@ -144,8 +144,25 @@ Le broadcast utilise l'API Discord Bot (`POST /channels/{id}/messages`) pour env
 
 ### Module Service Passages DJ/Succès/Prêts/Pack
 
-- [ ] Définir le scope (marketplace interne de services entre membres)
-- [ ] Modèle DB : offres, demandes, notes/reviews
+- [ ] Définir le scope (marketplace interne de services entre membres) , passage 
+Le  module service passages Donjons(avec ou sans succès / Quêtes / Combats Tactiques , Forgemagie
+
+
+
+Pour faire simple et aller droit au but, voici comment structurer ce module de petites annonces internes à la guilde, en se basant sur les offres de services réelles du marché (comme celles visibles sur des plateformes telles que les Halles des Douze) :
+
+1. Catégorie : Passages de Donjons & Combats (Mercenariat) Les joueurs peuvent proposer leurs services de "passeurs" avec une tarification à la carte :
+• Passage Simple : Aider un client à simplement vaincre le boss du donjon.
+• Succès à la carte : Facturation supplémentaire pour valider des succès spécifiques lors du passage (ex: Duo, Statue, Dernier, Spécial, Hardi, Mains Propres, Zombie, etc.).
+• Packs de Succès : Offres groupées pour les joueurs voulant valider plusieurs succès d'un coup avec une réduction (ex: "Dernier + Statue", "Duo + Spécial" ou l'offre ultime "Full Succès").
+• Combats de Quête : Aide pour les combats de quête bloquants (combats solo sur lesquels on peut se faire aider, combats à plusieurs, combats à vagues ou combats tactiques).
+• Quêtes d'Alignement : Passages dédiés aux combats difficiles des quêtes d'alignement (ex: Erazal, Krobe, Qu'Tan, Puits de l'Ordre).
+2. Catégorie : Forgemagie & Métiers Les artisans de la guilde peuvent afficher leur catalogue :
+• Prestations FM : Tarification pour remonter un jet parfait, réaliser un overmage (ex: over vitalité) ou un exomage (ex: PA/PM/PO).
+• Packs Métier : Un service très demandé où un joueur paie pour qu'on lui fournisse toutes les ressources nécessaires (ou le craft direct) pour monter un métier (ex: Joaillomage, Tailleur, etc.) du niveau 1 à 200.
+
+• Packs Ocre : Vente du lot complet (ou par étapes) de toutes les captures d'âmes de monstres, de boss et d'archimonstres nécessaires pour terminer la quête du Dofus Ocre.
+
 - [ ] Intégration Discord (notif quand un service est demandé)
 
 ---

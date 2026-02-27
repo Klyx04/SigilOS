@@ -157,10 +157,23 @@ async function sendDiscordNotification(
             const placesTag = placesField ? " [" + placesField.value + "]" : "";
             const threadTitle = (emojiChar + " " + typeLabel + " - " + contentName + placesTag).trim().substring(0, 100);
 
+            // Extraire les tags disponibles depuis channelData (déjà fetchée)
+            const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
+            const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
+
+            const forumBody: Record<string, unknown> = {
+                name: threadTitle,
+                message: { embeds: [embed], components },
+                auto_archive_duration: 1440,
+            };
+            if (firstUsableTag) {
+                forumBody.applied_tags = [firstUsableTag.id];
+            }
+
             const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
                 method: "POST",
                 headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ name: threadTitle, message: { embeds: [embed], components }, auto_archive_duration: 1440 }),
+                body: JSON.stringify(forumBody),
             });
             if (res.ok) { const t = await res.json(); discordChannelId = t.id; discordMessageId = t.message?.id; }
             else { console.error("[DJ Embed] Forum thread error:", await res.json()); }

@@ -260,14 +260,14 @@ export function SuccessSync({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto">
                                 <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
                                     <img
-                                        src="/uploads/ladder/exemple-succes.png"
+                                        src="/assets/ladder/exemple-succes.png"
                                         alt="Exemple valide 1"
                                         className="w-full h-auto rounded-lg"
                                     />
                                 </div>
                                 <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
                                     <img
-                                        src="/uploads/ladder/exemple4.png"
+                                        src="/assets/ladder/exemple4.png"
                                         alt="Exemple valide 2"
                                         className="w-full h-auto rounded-lg"
                                     />

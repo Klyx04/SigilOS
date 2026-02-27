@@ -87,6 +87,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         include: {
             members: { orderBy: { slot: "asc" } },
             waitlist: { orderBy: { position: "asc" } },
+            joinRequests: { orderBy: { createdAt: "desc" } },
         },
     });
     if (!run) return null;
@@ -105,7 +106,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const memberLines: string[] = [];
     for (const m of run.members) {
         const p = await getUserProfileData(m.userId, guildConfig.id);
-        const classTag = p.classe ? `[${p.classe}] ` : "";
+        const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
+        const displayClass = reqClass || p.classe;
+        const classTag = displayClass ? `[${displayClass}] ` : "";
         memberLines.push(`• ${classTag}**${p.name}**`);
     }
     const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
@@ -114,7 +117,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const waitlistLines: string[] = [];
     for (const w of run.waitlist) {
         const p = await getUserProfileData(w.userId, guildConfig.id);
-        const classTag = p.classe ? `[${p.classe}] ` : "";
+        const reqClass = run.joinRequests.find(r => r.userId === w.userId)?.classe;
+        const displayClass = reqClass || p.classe;
+        const classTag = displayClass ? `[${displayClass}] ` : "";
         waitlistLines.push(`• ${classTag}${p.name}`);
     }
     const waitlistList = waitlistLines.length > 0 ? waitlistLines.join("\n") : "*Personne en file d'attente*";

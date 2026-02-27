@@ -42,7 +42,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                 <main className="flex-1 relative flex flex-col h-full overflow-y-auto overflow-x-hidden">
                     <div className="flex-1 flex flex-col">
                         {/* Public Header for shared brand identity */}
-                        <div className="flex-shrink-0 z-50">
+                        <div className="flex-shrink-0 z-50 h-20">
                             <PublicHeader user={session.user} isMember={true} backHref="/" backLabel="Retour Platform" />
                         </div>
 

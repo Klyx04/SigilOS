@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 interface AltPseudosProps {
     altPseudos?: string[];
-    onSave?: (pseudos: string[]) => void;
+    onSave?: (pseudos: string[]) => Promise<any>;
     readOnly?: boolean;
     maxPseudos?: number;
 }
@@ -24,6 +24,7 @@ export function AltPseudos({
     const [isEditing, setIsEditing] = useState(false);
     const [localPseudos, setLocalPseudos] = useState<string[]>(altPseudos);
     const [newPseudo, setNewPseudo] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Sync local state when props change
     useEffect(() => {
@@ -54,10 +55,10 @@ export function AltPseudos({
         if (pseudo.length < 3) return { valid: false, error: "Minimum 3 caractères" };
         if (pseudo.length > 20) return { valid: false, error: "Maximum 20 caractères" };
 
-        // Dofus pattern: Starts with letter, alphanumeric, one dash allowed inside
-        const regex = /^[A-Z][a-z0-9]*(-[A-Z][a-z0-9]*)?$/;
+        // Dofus pattern: Starts with uppercase letter, alphanumeric, hyphens allowed
+        const regex = /^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/;
         if (!regex.test(pseudo)) {
-            return { valid: false, error: "Format invalide (Ex: Pseudo, Pseudo-Surnom)" };
+            return { valid: false, error: "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)" };
         }
         return { valid: true };
     };
@@ -90,10 +91,36 @@ export function AltPseudos({
         setLocalPseudos(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleSave = () => {
-        onSave?.(localPseudos);
-        setIsEditing(false);
-        toast.success("Personnages sauvegardés");
+    const handleSave = async () => {
+        setIsSubmitting(true);
+        try {
+            let finalPseudos = [...localPseudos];
+
+            // Si l'utilisateur a tapé quelque chose mais a oublié de cliquer sur "+"
+            const trimmed = newPseudo.trim();
+            if (trimmed) {
+                const validation = validatePseudo(trimmed);
+                if (validation.valid && !localPseudos.includes(trimmed) && localPseudos.length < maxPseudos) {
+                    finalPseudos.push(trimmed);
+                    setLocalPseudos(finalPseudos);
+                    setNewPseudo("");
+                } else if (!validation.valid) {
+                    toast.error(validation.error);
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            if (onSave) {
+                await onSave(finalPseudos);
+            }
+            setIsEditing(false);
+            toast.success("Personnages secondaires mis à jour");
+        } catch (error) {
+            console.error("Save alt pseudos error:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleCancel = () => {
@@ -226,10 +253,15 @@ export function AltPseudos({
                                 size="sm"
                                 variant="default"
                                 onClick={handleSave}
+                                disabled={isSubmitting}
                                 className="h-9 px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
                             >
-                                <Save className="w-3.5 h-3.5 mr-2" />
-                                Enregistrer les changements
+                                {isSubmitting ? (
+                                    <Save className="w-3.5 h-3.5 mr-2 animate-spin" />
+                                ) : (
+                                    <Save className="w-3.5 h-3.5 mr-2" />
+                                )}
+                                {isSubmitting ? "Enregistrement..." : "Enregistrer les changements"}
                             </Button>
                         </div>
                     </div>

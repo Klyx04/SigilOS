@@ -112,6 +112,10 @@ export default async function MemberProfilePage({
                     metamobVerified: profile.metamobVerified,
                     metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                     dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                    introduction: profile.introduction,
+                    notificationPrefs: profile.notificationPrefs as any,
+                    successPoints: profile.successPoints,
+                    lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                     roleGrants: profile.roleGrants || [],
                 }}
                 user={{
@@ -123,6 +127,7 @@ export default async function MemberProfilePage({
                 guildName={guildData.name}
                 discordNickname={discordNickname}
                 roleColor={roleColor}
+                welcomeBadgeName={guildData.welcomeBadgeName}
                 readOnly={true}
                 isAdmin={profile.discordInfo?.isAdmin || false}
                 permissions={{

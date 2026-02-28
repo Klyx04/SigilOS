@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
@@ -16,6 +18,7 @@ import { BugReportButton } from "@/components/layout/bug-report-button";
 import { ValidatorInbox } from "./_components/validator-inbox";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
+import { ChangelogModal } from "@/components/changelog/changelog-modal";
 
 export default async function DashboardLayout({
     children,
@@ -25,6 +28,10 @@ export default async function DashboardLayout({
     params: Promise<{ guildId: string }>;
 }) {
     const { guildId } = await params;
+
+    // --- SECURITY: BASE AUTH CHECK ---
+    const session = await auth();
+    if (!session?.user) redirect("/");
 
     // --- SECURITY: GUILD WHITELIST (Database-based) ---
     const allowed = await isGuildAllowed(guildId);
@@ -170,7 +177,7 @@ export default async function DashboardLayout({
                 </div>
 
                 {/* Validator Inbox - Fixed floating reminder for validators (all pages) */}
-                <div className="fixed top-[68px] right-4 z-40 hidden md:block">
+                <div className="fixed top-[68px] right-8 z-40 hidden md:block">
                     <Suspense fallback={null}>
                         <ValidatorInbox guildId={guildId} />
                     </Suspense>
@@ -181,6 +188,9 @@ export default async function DashboardLayout({
 
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
+
+                {/* Changelog Modal (Global Platform Updates) */}
+                <ChangelogModal />
             </div>
         </NebulaClientWrapper>
     );

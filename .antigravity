@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-27)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-28)
 
-**Branche Active** : `dev` (Beta mise à jour)  
-**Status** : 🟢 Beta active. Module Passages terminé. Refonte complète de l'Onboarding (Discord Embed Premium) et Gestion Manuelle des Membres (Pseudos, Tri Arrivée). Sondages V2 Premium.
+**Branche Active** : `bug-fixes-modif` (En cours de merge vers `dev`)  
+**Status** : � Audit Sécurité Pré-Merge terminé. Nouveau système de Changelog V2 (Popups automatiques). Fix UI Profil (Scrolling modale classe). Prêt pour déploiement VPS Beta.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -34,6 +34,9 @@ SigilOS/
 │   │   │   ├── DjCloseModal.tsx          # Clôture + distribution points contribution
 │   │   │   ├── AchievementTracker.tsx    # Tracker succès (icônes claires)
 │   │   │   └── DungeonDirectory.tsx      # Répertoire donjons
+│   │   ├── changelog/          # NEW — Modale Changelog persistante
+│   │   ├── profile/            # Profil utilisateur & sélection classes
+│   │   │   └── class-display.tsx  # FIXED — Layout flexbox + Native Scroll (Mobile ready)
 │   │   ├── editor/             # TipTap editor + extensions
 │   │   ├── landing/            # Hero, BetaGate, Features...
 │   │   ├── songes/             # Module Songes Infinis
@@ -50,6 +53,7 @@ SigilOS/
 │   ├── lib/
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
 │   │   ├── queue/              # BullMQ queue (metamob-queue.ts)
+│   │   ├── security.ts         # Central Sanitization & Security Utils
 │   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
 │   ├── workers/
 │   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
@@ -59,6 +63,8 @@ SigilOS/
 │       │   ├── module-actions.ts  # Toggle modules par guilde
 │       │   ├── ocre-actions.ts    # Ocre exchange + trade requests
 │       │   ├── songes/         # Gestion des runs Songes
+│       │   ├── changelog-actions.ts  # NEW — CRUD Changelog + Visibility Check
+│       │   ├── user-actions.ts       # RBAC, Guards & Context Management
 │       │   └── ...
 │       ├── songes-service.ts   # Service embeds Discord Songes
 │       └── discord.ts          # Discord API integration
@@ -79,9 +85,9 @@ SigilOS/
 | **UI** | Tailwind CSS + shadcn/ui + Recharts + framer-motion |
 | **Monitoring** | Grafana + Prometheus + cAdvisor |
 | **Deploy** | Docker Compose + Caddy (SSL auto) |
-| **CI/CD** | GitHub Actions (verify.yml) — Repo public (minutes illimitées) |
+| **CI/CD** | GitHub Actions (verify.yml) + Husky (Prisma guard) |
 | **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
-| **OCR** | OCR.space API (Engine 2, succès ladder) |
+| **OCR** | OCR.space API (Ladder) / LLM-OCR for complex proofs |
 
 ---
 
@@ -89,11 +95,9 @@ SigilOS/
 
 | Branche | Rôle |
 |---------|------|
-| `main` | 🔴 Production (`sigilos.fr`) — **À jour (SYNC)** |
-| `dev` | 🟠 Beta (`beta.sigilos.fr`) — **À jour (SYNC)** |
-| `feat/*` / `fix/*` | Branches de travail → PR vers `dev` |
-
-**Branche courante** : `dev`
+| `main` | 🔴 Production (`sigilos.fr`) — **SYNC** |
+| `dev` | 🟠 Beta (`beta.sigilos.fr`) — **SYNC** |
+| `bug-fixes-modif` | 👨‍💻 Branche courante — Préparation RELEASE |
 
 ---
 
@@ -222,21 +226,28 @@ SigilOS/
 
 ---
 
-## 🔒 Sécurité
+### Session — Changelog V2, UI Profil & Audit Sécurité (2026-02-28)
 
-### Patterns Obligatoires (Server Actions)
+- ✅ **Changelog V2 (Premium)** : Implémentation du modèle `ChangelogEntry` avec flag `isInternal`. Système de popup automatique sur le Dashboard via `lastSeenChangelogId` (User model).
+- ✅ **Profile Modal UI Fix** : Refonte du composant `ClassDisplay`. Remplacement de `ScrollArea` par `overflow-y-auto` + `flex-1 min-h-0` pour garantir un défilement parfait même sur petits écrans (iPhone SE/Android).
+- ✅ **Audit Sécurité Applicative** : Revue complète des Server Actions. Validation des guards `auth()`, `guildId` isolation et protection du dashboard GOD via super-admin check Discord ID.
+- ✅ **Prisma Hygiene** : Nettoyage des modèles Changelog redondants. Migration `20260228012544_cleanup` validée localement.
+- ✅ **Persistence Pseudos** : Merge branche `fix/profile-persistence-pseudos` — les Alts Dofus sont désormais persistants après refresh.
+
+---
+
+## 🔒 Sécurité & Standards
+
+### patterns Applicatifs (Server Actions)
 ```typescript
 const ctx = await getUserContext(guildId);
 if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 if (!ctx.isMember) return { success: false, error: "Not a member" };
-if (!ctx.isAdmin) return { success: false, error: "Admin required" }; // mutations admin
+if (!ctx.isAdmin) return { success: false, error: "Admin required" };
 ```
 
-### Isolation Multi-tenant
-```typescript
-// TOUJOURS filtrer par guildId
-await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } });
-```
+### Protection Multi-Tenant
+Toute requête DB **doit** inclure un filtre par `guildId` ou `profileId` vérifié en amont.
 
 ---
 
@@ -266,9 +277,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Dashboard guildes (missions, membres, profils)
 - Songes (runs, candidatures, embeds Discord, historique par membre)
 - Calendrier événements (Modales Premium, Draggable)
-- Sondages V2 (PIM/Micro system, Discord Embeds premium, Cooldowns, Édition, Outcomes)
 - Documentation (viewer + éditeur TipTap)
-- Changelog (public + admin, isInternal flag)
 - GOD Dashboard (whitelist, lifecycle, stats, game data ultra-wide)
 - Upload images (docs, preuves missions, bannières)
 - Notifications in-app (Glassmorphism, Couverture missions, filtres par catégorie)
@@ -276,25 +285,29 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
-- Validator Inbox flottant (widget top-right, missions + achievements en attente)
 - Stats Guilde (40+ métriques, Recharts, dashboard complet)
-- **Module Onboarding & Membres** — Welcome Embed Premium, tri par arrivée, gestion manuelle des pseudos, badge "Nouveau" auto.
-- **Module Recherche DJ/Quêtes** — Finder complet, DjEditModal, embed Discord live (participants + PATCH).
-- **Songes MAJ 3.5** — Fontaine Onirique refonte, Épreuves de Songe, Guide Boss intégré (144 boss).
-- **Module Passages (Services, Prêts, Coffre)** — Heatmap de dispo, archivage automatique, icônes Dofus.
+- **Changelog V2** : Popup automatique pour informer les users des updates.
+- **Profil Utilisateur** : Sélection de classe fixe, pseudos persistants.
+- **Dungeon Finder / Finder Quêtes** : Multi-membres, embeds Discord live.
+- **Songes MAJ 3.5** : Guide Boss complet, Fontaine Onirique, Épreuves.
+- **Sondages Premium** : PIM compatible, Progress bars Discord.
+- **Passages & Prêts** : Gestion des preuves par capture d'écran, archivage auto.
+- **Onboarding Premium** : Embeds de bienvenue stylisés guilde-par-guilde.
 
 ---
 
 ## 📋 TODO Prioritaire (Backlog)
 
 ### 🔴 P0 — Critiques
-- [ ] Déplacer les calculs `getActivityLadder` vers un CRON pré-calculé
+- [ ] Merge `bug-fixes-modif` -> `dev` et deploy VPS Beta.
+- [ ] Vérifier les pings Discord sur le nouveau module Prêts (Loans).
 
 ### 🎯 P2 — Features Core
-- [ ] Ocre Trade Request System (demandes d'échange in-app + ping Discord)
+- [ ] Système d'échange Ocre interne (Trade Request Link).
 
 ### 🎨 P3 — Polish UI/UX
-- [ ] Ambiance Lore Dofus (Fonds de page, Iconographie, Typographies thématiques)
+- [ ] Dark Mode Harmonization (certains fonds God Dashboard encore trop clairs).
+- [ ] Micro-interactions Recharts sur les stats guilde.
 
 ### 🚀 P4 — Scripts, Worker & Nouveaux Modules
 - [ ] Plan B Discord API down (retry + queue)

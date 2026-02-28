@@ -1329,6 +1329,12 @@ export async function updateDjSettings(
     if (!user.isAdmin) return { success: false, error: "Accès refusé" };
 
     try {
+        if (data.djNotifyChannelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValid = await validateChannelBelongsToGuild(data.djNotifyChannelId, guildId);
+            if (!isValid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
         await (db as any).guildConfig.update({
             where: { discordGuildId: guildId },
             data: { djNotifyChannelId: data.djNotifyChannelId },

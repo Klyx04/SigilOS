@@ -53,7 +53,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
         { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
-        { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Probation", accent: "rose" },
+        { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
         { id: "membres", label: "Membres & Sync", icon: Users, description: "Gestion & synchronisation", accent: "violet" },
     ];
 }
@@ -98,7 +98,7 @@ export default async function FeatureSettingsPage({
     const memberStats = await getGuildMemberStats(guildId);
     const members = await getGuildMembers(guildId);
     const onboardingRes = await getOnboardingSettings(guildId);
-    const probationRoleName = onboardingRes.success ? onboardingRes.data!.probationRoleName : "Période d'essai";
+    const welcomeBadgeName = onboardingRes.success ? (onboardingRes.data as any).welcomeBadgeName : "Nouveau";
 
     const navItems = buildNavItems();
     const activeItem = navItems.find(n => n.id === activeTab) ?? navItems[0];
@@ -196,7 +196,7 @@ export default async function FeatureSettingsPage({
                                 <MemberManagementTable
                                     initialMembers={members as never}
                                     guildId={guildId}
-                                    probationRoleName={probationRoleName}
+                                    welcomeBadgeName={welcomeBadgeName}
                                 />
                             </div>
                             <div className="max-w-4xl">

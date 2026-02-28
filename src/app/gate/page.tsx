@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { logBetaAccessAttempt } from "@/server/actions/audit-actions";
 
-export default function BetaGate() {
+export default function GatePage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();

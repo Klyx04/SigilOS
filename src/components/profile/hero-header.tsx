@@ -61,6 +61,7 @@ interface HeroHeaderProps {
     sigilRoles?: any[];
     discordRoleName?: string;
     discordRoleColor?: number;
+    welcomeBadgeName?: string | null;
 }
 
 export function HeroHeader({
@@ -85,6 +86,7 @@ export function HeroHeader({
     sigilRoles = [],
     discordRoleName,
     discordRoleColor,
+    welcomeBadgeName,
 }: HeroHeaderProps) {
     const roleHexColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
@@ -140,9 +142,9 @@ export function HeroHeader({
                                 <Palmtree className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />
                             </div>
                         )}
-                        {sigilRoles.some(g => g.role?.slug === "probation") && (
-                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)] shadow-lg animate-pulse" title="Nouvelle Recrue">
-                                <Sparkles className="w-5 h-5 text-emerald-400 fill-emerald-500/10" />
+                        {welcomeBadgeName && sigilRoles.some(g => g.role?.slug === "probation") && (
+                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] shadow-lg animate-pulse" title={welcomeBadgeName}>
+                                <Sparkles className="w-5 h-5 text-indigo-400 fill-indigo-500/10" />
                             </div>
                         )}
                     </div>
@@ -208,15 +210,15 @@ export function HeroHeader({
                             ))}
 
                             {/* Specific NEW/PROBATION Badge - High Visibility */}
-                            {sigilRoles.filter(g => g.role?.slug === "probation").map((grant: any) => (
+                            {welcomeBadgeName && sigilRoles.filter(g => g.role?.slug === "probation").map((grant: any) => (
                                 <Badge
                                     key={grant.id}
-                                    className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 font-black uppercase tracking-[0.1em] text-[11px] py-1 gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse"
+                                    className="bg-indigo-500/30 text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/40 font-black uppercase tracking-[0.1em] text-[11px] py-1 gap-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
                                 >
-                                    <Sparkles className="w-3.5 h-3.5 fill-emerald-400/20" />
-                                    {grant.label || "Nouveau"}
+                                    <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
+                                    {welcomeBadgeName}
                                     {grant.expiresAt && (
-                                        <span className="opacity-60 text-[9px] font-medium lowercase italic border-l border-emerald-500/30 pl-2">
+                                        <span className="opacity-60 text-[9px] font-medium lowercase italic border-l border-indigo-500/30 pl-2">
                                             expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
                                         </span>
                                     )}

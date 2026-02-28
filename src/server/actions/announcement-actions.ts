@@ -252,6 +252,12 @@ export async function saveSystemAnnouncementSettings(
         const user = await getUserContext(guildId);
         if (!user.isAdmin) return { success: false, error: "Admin required" };
 
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { systemNotifyChannelId: channelId },

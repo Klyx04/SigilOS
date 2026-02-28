@@ -19,9 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { grantProbationRole } from "@/server/actions/onboarding-admin-actions";
+import { grantWelcomeBadge } from "@/server/actions/onboarding-admin-actions";
 
-interface ProbationGrantDialogProps {
+interface WelcomeBadgeDialogProps {
     guildId: string;
     profileId: string;
     memberName: string;
@@ -31,7 +31,7 @@ interface ProbationGrantDialogProps {
     onSuccess?: () => void;
 }
 
-export function ProbationGrantDialog({
+export function WelcomeBadgeDialog({
     guildId,
     profileId,
     memberName,
@@ -39,20 +39,20 @@ export function ProbationGrantDialog({
     open,
     onOpenChange,
     onSuccess
-}: ProbationGrantDialogProps) {
+}: WelcomeBadgeDialogProps) {
     const [days, setDays] = useState(30);
     const [loading, setLoading] = useState(false);
 
     const handleGrant = async () => {
         setLoading(true);
         try {
-            const res = await grantProbationRole({
+            const res = await grantWelcomeBadge({
                 guildId,
                 profileId,
                 days
             });
             if (res.success) {
-                toast.success(`Le rôle "${roleName}" a été attribué à ${memberName} pour ${days} jours.`);
+                toast.success(`Le badge "${roleName}" a été attribué à ${memberName} pour ${days} jours.`);
                 onOpenChange(false);
                 onSuccess?.();
             } else {
@@ -73,7 +73,7 @@ export function ProbationGrantDialog({
                         <Sparkles className="w-6 h-6 text-amber-400" />
                     </div>
                     <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
-                        Attribuer un rôle d'essai
+                        Attribuer un badge spécial
                     </DialogTitle>
                     <DialogDescription className="text-zinc-500 italic">
                         Le membre recevra le badge "{roleName}" sur son profil pendant la durée choisie.
@@ -87,7 +87,7 @@ export function ProbationGrantDialog({
                             <p className="text-sm font-bold text-white">{memberName}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rôle</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Badge</p>
                             <p className="text-sm font-bold text-amber-400">{roleName}</p>
                         </div>
                     </div>
@@ -121,7 +121,7 @@ export function ProbationGrantDialog({
                     <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
                         <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                         <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                            Ce rôle est purement visuel sur SigilOS et n'affecte pas les permissions Discord. Il sera automatiquement retiré à l'expiration.
+                            Ce badge est purement visuel sur SigilOS et n'affecte pas les permissions Discord. Il sera automatiquement retiré à l'expiration.
                         </p>
                     </div>
                 </div>
@@ -140,10 +140,12 @@ export function ProbationGrantDialog({
                         className="bg-amber-600 hover:bg-amber-500 text-white font-black px-8 gap-2"
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                        Appliquer le rôle
+                        Appliquer le badge
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 }
+
+export { WelcomeBadgeDialog as ProbationGrantDialog };

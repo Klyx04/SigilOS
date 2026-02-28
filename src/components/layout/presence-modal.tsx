@@ -55,7 +55,7 @@ export function PresenceModal({ isOpen, onOpenChange, users }: PresenceModalProp
                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <Link href={`/dashboard/${guildId}/roster/${user.id}`} onClick={() => onOpenChange(false)}>
+                                        <Link href={`/dashboard/${guildId}/members/${user.id}`} onClick={() => onOpenChange(false)}>
                                             <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors cursor-pointer hover:underline">{user.name}</span>
                                         </Link>
                                         <span className="text-[10px] text-zinc-500 font-medium">

@@ -89,6 +89,7 @@ interface ProfileBentoGridProps {
     dofusServerId?: string | null;
     roleName?: string;
     roleColor?: number;
+    welcomeBadgeName?: string | null;
 }
 
 export function ProfileBentoGrid({
@@ -104,6 +105,7 @@ export function ProfileBentoGrid({
     dofusServerId,
     roleName = "Membre",
     roleColor = 0,
+    welcomeBadgeName,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
@@ -227,10 +229,12 @@ export function ProfileBentoGrid({
     };
 
     const handleAltPseudosSave = async (altPseudos: string[]) => {
-        setLocalProfile(prev => ({ ...prev, altPseudos }));
         const res = await updateAltPseudos({ guildId, altPseudos });
-        if (!res.success) {
-            toast.error(res.error || "Erreur");
+        if (res.success) {
+            setLocalProfile(prev => ({ ...prev, altPseudos }));
+        } else {
+            toast.error(res.error || "Erreur lors de la sauvegarde");
+            throw new Error(res.error); // Allow component to handle error
         }
     };
 
@@ -269,6 +273,7 @@ export function ProfileBentoGrid({
                     sigilRoles={localProfile.roleGrants || []}
                     discordRoleName={roleName}
                     discordRoleColor={roleColor}
+                    welcomeBadgeName={welcomeBadgeName}
                 />
             </div>
 

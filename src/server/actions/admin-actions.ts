@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
-import { type PermissionId } from "@/lib/permissions";
+import { type PermissionId, PERMISSIONS } from "@/lib/permissions";
 import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -788,6 +788,8 @@ export async function getMissionConfig(guildId: string): Promise<{
     data?: {
         missionChannelId: string | null;
         missionNotifyRoleId: string | null;
+        missionValidationChannelId: string | null;
+        missionValidationNotifyRoleId: string | null;
     }
 }> {
     const session = await auth();
@@ -800,7 +802,7 @@ export async function getMissionConfig(guildId: string): Promise<{
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { missionNotifyChannelId: true, missionNotifyRoleId: true }
+            select: { missionNotifyChannelId: true, missionNotifyRoleId: true, missionValidationChannelId: true, missionValidationNotifyRoleId: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -809,7 +811,9 @@ export async function getMissionConfig(guildId: string): Promise<{
             success: true,
             data: {
                 missionChannelId: config.missionNotifyChannelId,
-                missionNotifyRoleId: config.missionNotifyRoleId
+                missionNotifyRoleId: config.missionNotifyRoleId,
+                missionValidationChannelId: config.missionValidationChannelId,
+                missionValidationNotifyRoleId: config.missionValidationNotifyRoleId
             }
         };
     } catch (error) {
@@ -820,7 +824,12 @@ export async function getMissionConfig(guildId: string): Promise<{
 
 export async function updateMissionNotifySettings(
     guildId: string,
-    data: { channelId: string | null; roleId: string | null }
+    data: {
+        channelId: string | null;
+        roleId: string | null;
+        validationChannelId?: string | null;
+        validationRoleId?: string | null;
+    }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -830,12 +839,16 @@ export async function updateMissionNotifySettings(
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
-        // SECURITY: Validate channel (if provided)
-        if (data.channelId) {
+        // SECURITY: Validate channels (if provided)
+        const channelsToValidate = [data.channelId, data.validationChannelId].filter(Boolean) as string[];
+
+        if (channelsToValidate.length > 0) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
-            const isValidChannel = await validateChannelBelongsToGuild(data.channelId, guildId);
-            if (!isValidChannel) {
-                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            for (const cId of channelsToValidate) {
+                const isValidChannel = await validateChannelBelongsToGuild(cId, guildId);
+                if (!isValidChannel) {
+                    return { success: false, error: `Le salon ${cId} n'appartient pas à votre serveur Discord` };
+                }
             }
         }
 
@@ -843,7 +856,9 @@ export async function updateMissionNotifySettings(
             where: { discordGuildId: guildId },
             data: {
                 missionNotifyChannelId: data.channelId,
-                missionNotifyRoleId: data.roleId
+                missionNotifyRoleId: data.roleId,
+                missionValidationChannelId: data.validationChannelId,
+                missionValidationNotifyRoleId: data.validationRoleId
             }
         });
 
@@ -973,5 +988,49 @@ export async function updateLoansChannel(
     } catch (error) {
         console.error("Update Loans Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getPendingValidationsCount(guildId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { checkGuildPermission } = await import("./user-actions");
+    const [missionGuard, adminGuard] = await Promise.all([
+        checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE),
+        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS),
+    ]);
+
+    if (!missionGuard.allowed && !adminGuard.allowed) {
+        return { success: false, error: "Forbidden" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+
+        if (!guild) return { success: false, error: "Guild not found" };
+
+        const [pendingMissions, pendingAchievements] = await Promise.all([
+            missionGuard.allowed
+                ? db.submission.count({ where: { mission: { guildId: guild.id }, status: "PENDING" } })
+                : 0,
+            adminGuard.allowed
+                ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } })
+                : 0,
+        ]);
+
+        return {
+            success: true,
+            data: {
+                pendingMissions,
+                pendingAchievements,
+                total: pendingMissions + pendingAchievements
+            }
+        };
+    } catch (error) {
+        return { success: false, error: "Server error" };
     }
 }

@@ -51,7 +51,7 @@ export default async function SongesPage({
                 iconColor="#d946ef"
                 backHref={`/dashboard/${guildId}`}
                 actions={
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
                         <BossGuideLauncher />
                         {(userContext.canCreateSonges || userContext.isAdmin) && (
                             <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />

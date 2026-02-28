@@ -22,6 +22,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Helper to format breadcrumbs
 const formatSegment = (segment: string) => {
+    // Detect CUIDs or long technical IDs (e.g. for runs, missions, etc)
+    // SigilOS IDs are typically cuids (starts with c, ~24-25 chars)
+    if (segment.length > 20) {
+        return "Détails";
+    }
+
     return segment
         .replace(/-/g, " ")
         .replace(/^\w/, c => c.toUpperCase());
@@ -37,8 +43,9 @@ interface TopNavProps {
 
 export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavProps) {
     const pathname = usePathname();
-    const segments = pathname.split("/").filter(Boolean).slice(1);
-    const relevantSegments = segments.slice(1);
+    const segments = pathname.split("/").filter(Boolean);
+    // segments: ["dashboard", "guildId", "module", "subpage", ...]
+    const breadcrumbSegments = segments.slice(2);
 
     return (
         <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
@@ -64,9 +71,9 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                         <Home className="w-4 h-4" />
                     </Link>
 
-                    {relevantSegments.slice(1).map((segment, index) => {
-                        const href = `/dashboard/${sidebarProps.guildId}/${relevantSegments.slice(1, index + 1).join("/")}`;
-                        const isLast = index === relevantSegments.slice(1).length - 1;
+                    {breadcrumbSegments.map((segment, index) => {
+                        const href = `/dashboard/${sidebarProps.guildId}/${breadcrumbSegments.slice(0, index + 1).join("/")}`;
+                        const isLast = index === breadcrumbSegments.length - 1;
 
                         return (
                             <div key={href} className="flex items-center">
@@ -74,7 +81,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                                 <Link
                                     href={href}
                                     className={cn(
-                                        "transition-colors truncate max-w-[80px] lg:max-w-[150px]",
+                                        "transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast ? "text-zinc-100 font-semibold" : "hover:text-zinc-300"
                                     )}
                                 >

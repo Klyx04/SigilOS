@@ -507,28 +507,33 @@ const UpdateAltPseudosSchema = z.object({
         z.string()
             .min(2, "Pseudo trop court")
             .max(20, "Pseudo trop long")
-            .regex(/^[A-Z][a-z0-9]*(-[A-Z][a-z0-9]*)?$/, "Format invalide (Ex: Pseudo, Pseudo-Surnom)")
+            .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)")
     ).max(5, "Maximum 5 personnages"),
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Données invalides" };
+    if (!validation.success) {
+        console.error("[Dofusbook] Validation error:", validation.error.format());
+        return { success: false, error: "Données invalides" };
+    }
     const { guildId, altPseudos } = validation.data;
+
+    console.log(`[Dofusbook] Updating alt pseudos for guild ${guildId}:`, altPseudos);
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
-    if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        // Clean and validate pseudos
         const cleanedPseudos = altPseudos
             .map(p => p.trim())
             .filter(p => p.length > 0)
-            .slice(0, 5); // Max 5 pseudos
+            .slice(0, 5);
+
+        console.log(`[Dofusbook] Profile ${user.id} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
 
         await db.userProfile.update({
             where: {
@@ -537,11 +542,13 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             data: { altPseudos: cleanedPseudos }
         });
 
+        console.log(`[Dofusbook] Successfully updated database for ${user.id}`);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error: unknown) {
-        logger.error("Update Alt Pseudos Error", { error, guildId });
-        return { success: false, error: "Erreur serveur" };
+        console.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR:", error);
+        return { success: false, error: "Erreur serveur critique" };
     }
 }
 

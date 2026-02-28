@@ -22,7 +22,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     // Fetch individual guild config for the header
     const guild = await db.guildConfig.findUnique({
         where: { id: guildId },
-        select: { name: true, discordGuildId: true, iconUrl: true, probationRoleName: true }
+        select: { name: true, discordGuildId: true, iconUrl: true, welcomeBadgeName: true }
     });
 
     if (!guild) {
@@ -96,7 +96,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                     <MemberManagementTable
                         initialMembers={members as any}
                         guildId={guildId as string}
-                        probationRoleName={guild.probationRoleName!}
+                        welcomeBadgeName={guild.welcomeBadgeName}
                     />
                 </div>
             </div>

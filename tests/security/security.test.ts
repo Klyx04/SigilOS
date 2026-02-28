@@ -3,7 +3,7 @@
  * Automated tests for authentication, authorization, and CSRF protection
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Security: Authentication', () => {
     it('should block unauthenticated access to dashboard', async () => {
@@ -88,7 +88,7 @@ describe('Security: CSRF Protection', () => {
 describe('Security: XSS Prevention', () => {
     it('should sanitize HTML content to prevent XSS', () => {
         // Test sanitizeHtml function
-        const maliciousInput = '<script>alert("XSS")</script><p>Safe content</p>';
+        // const maliciousInput = '<script>alert("XSS")</script><p>Safe content</p>';
 
         // TODO: Import sanitizeHtml and test
         // const sanitized = sanitizeHtml(maliciousInput);

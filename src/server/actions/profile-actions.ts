@@ -323,6 +323,18 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized profile update attempt by ${user.id} on ${session.user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
+        }
+
         // Uniqueness Check for Pseudo Dofus
         if (pseudoDofus) {
             const existing = await db.userProfile.findFirst({
@@ -395,6 +407,18 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized availability update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces disponibilités." };
+        }
+
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
@@ -420,6 +444,18 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized vacation update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce mode absence." };
+        }
 
         await db.userProfile.update({
             where: {
@@ -460,6 +496,18 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
         const currentPrefs = (currentProfile?.notificationPrefs as any) || {};
         const newPrefs = { ...currentPrefs, ...prefs };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized notification prefs update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces préférences." };
+        }
+
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
@@ -487,6 +535,18 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized forgemagie update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce statut." };
+        }
+
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
@@ -512,6 +572,9 @@ const UpdateAltPseudosSchema = z.object({
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
     if (!validation.success) {
         console.error("[Dofusbook] Validation error:", validation.error.format());
@@ -534,6 +597,17 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             .slice(0, 5);
 
         console.log(`[Dofusbook] Profile ${user.id} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
+
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized alt pseudos update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
+        }
 
         await db.userProfile.update({
             where: {
@@ -571,6 +645,9 @@ const UpdateDofusBookLinksSchema = z.object({
 });
 
 export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBookLinksSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
     const { guildId, links } = validation.data;
@@ -582,6 +659,15 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const isOwner = user.id === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized builds update attempt by ${user.id} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces builds." };
+        }
 
         await db.userProfile.update({
             where: {

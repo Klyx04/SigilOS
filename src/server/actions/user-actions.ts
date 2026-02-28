@@ -847,9 +847,9 @@ export async function updateMemberProfileStatus(
 
     if (!profile) throw new Error("Profile not found");
 
-    // 2. SECURITY: Check if actor is Admin of THIS guild
+    // 2. SECURITY: Check if actor is Super Admin (God mode)
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required");
+    if (!actor.isSuperAdmin) throw new Error("Forbidden: Super Admin access required for manual status override");
 
     // 3. Prevent self-archiving if last admin (optional check, better stay safe)
     if (status !== "ACTIVE" && profile.userId === session.user.id) {
@@ -928,7 +928,7 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
     if (!profile) throw new Error("Profile not found");
 
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required");
+    if (!actor.isSuperAdmin) throw new Error("Forbidden: Super Admin access required for manual pseudo override");
 
     const updated = await db.userProfile.update({
         where: { id: profileId },

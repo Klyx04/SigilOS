@@ -305,7 +305,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
 
 const IntroductionSchema = z.string().max(5000, "La présentation est trop longue (max 5000 caractères)");
 
-export async function saveMemberIntroduction(guildId: string, introduction: string) {
+export async function saveMemberIntroduction(guildId: string, introduction: string, targetUserId?: string) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Non autorisé" };
 
@@ -325,10 +325,22 @@ export async function saveMemberIntroduction(guildId: string, introduction: stri
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            return { success: false, error: "Vous n'avez pas la permission de modifier cette présentation." };
+        }
+
         await db.userProfile.update({
             where: {
                 userId_guildId: {
-                    userId: session.user.id as string,
+                    userId: effectiveUserId as string,
                     guildId: guild.id
                 }
             },

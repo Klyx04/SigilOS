@@ -55,7 +55,8 @@ interface UserSettingsProps {
     profileId: string;
     notificationPrefs?: NotificationPrefs | null;
     onNotificationPrefsSave?: (prefs: any) => void;
-    isAdmin: boolean; // Added isAdmin prop
+    isAdmin: boolean;
+    targetUserId?: string;
 }
 
 export function UserSettings({
@@ -64,7 +65,8 @@ export function UserSettings({
     profileId,
     notificationPrefs,
     onNotificationPrefsSave,
-    isAdmin // Destructure isAdmin
+    isAdmin,
+    targetUserId
 }: UserSettingsProps) {
     const [performanceMode, setPerformanceMode] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -90,7 +92,8 @@ export function UserSettings({
 
         const res = await updateNotificationPrefs({
             guildId,
-            prefs: newPrefs
+            prefs: newPrefs,
+            targetUserId
         });
 
         if (res.success) {

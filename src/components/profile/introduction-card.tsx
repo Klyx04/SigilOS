@@ -16,6 +16,7 @@ interface IntroductionCardProps {
     readOnly?: boolean;
     guildId: string;
     displayName: string;
+    targetUserId?: string;
 }
 
 export function IntroductionCard({
@@ -23,7 +24,8 @@ export function IntroductionCard({
     onSave,
     readOnly = false,
     guildId,
-    displayName
+    displayName,
+    targetUserId
 }: IntroductionCardProps) {
     const [text, setText] = useState(introduction);
     const [isEditing, setIsEditing] = useState(false);
@@ -37,7 +39,7 @@ export function IntroductionCard({
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await saveMemberIntroduction(guildId, text);
+            const res = await saveMemberIntroduction(guildId, text, targetUserId);
             if (res.success) {
                 onSave(text);
                 setIsEditing(false);

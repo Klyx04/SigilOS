@@ -28,6 +28,7 @@ interface MetamobLinkProps {
     metamobLastSync?: Date | null;
     readOnly?: boolean;
     isAdmin?: boolean;
+    targetUserId?: string;
 }
 
 export function MetamobLink({
@@ -37,6 +38,7 @@ export function MetamobLink({
     metamobLastSync,
     readOnly = false,
     isAdmin = false,
+    targetUserId,
 }: MetamobLinkProps) {
     const [isLinked, setIsLinked] = useState(Boolean(metamobPseudo && metamobVerified));
     const [currentPseudo, setCurrentPseudo] = useState(metamobPseudo || "");
@@ -70,6 +72,7 @@ export function MetamobLink({
             pseudo: inputPseudo.trim(),
             apiKey: inputApiKey.trim() || undefined,
             force,
+            targetUserId,
         });
 
         if (result.success && result.data) {
@@ -99,7 +102,7 @@ export function MetamobLink({
     const handleUnlink = async () => {
         setIsUnlinking(true);
 
-        const result = await unlinkOcreAccount({ guildId });
+        const result = await unlinkOcreAccount({ guildId, targetUserId });
 
         if (result.success) {
             setIsLinked(false);
@@ -116,7 +119,7 @@ export function MetamobLink({
     const handleRefresh = async () => {
         setIsRefreshing(true);
 
-        const result = await forceRefreshOcre(guildId);
+        const result = await forceRefreshOcre(guildId, targetUserId);
 
         if (result.success) {
             toast.success("Données Metamob actualisées");
@@ -130,7 +133,7 @@ export function MetamobLink({
     const handleOpenSwitch = async () => {
         setQuestsLoading(true);
         setShowSwitchDialog(true);
-        const result = await getAvailableOcreQuests(guildId);
+        const result = await getAvailableOcreQuests(guildId, targetUserId);
         if (result.success && result.data) {
             setAvailableQuests(result.data.sort((a, b) => b.quest_template.id - a.quest_template.id)); // Unity first? Or by date?
         } else {
@@ -142,7 +145,7 @@ export function MetamobLink({
 
     const handleSwitch = async (questSlug: string) => {
         setIsSwitching(true);
-        const result = await switchOcreQuest(guildId, questSlug);
+        const result = await switchOcreQuest(guildId, questSlug, targetUserId);
         if (result.success) {
             toast.success("Quête active mise à jour !");
             setShowSwitchDialog(false);

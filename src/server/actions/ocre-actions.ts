@@ -121,10 +121,12 @@ const LinkAccountSchema = z.object({
         .regex(/^[a-f0-9]+$/, "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)")
         .optional(),
     force: z.boolean().optional(),
+    targetUserId: z.string().optional(),
 });
 
 const UnlinkAccountSchema = z.object({
     guildId: z.string().min(1),
+    targetUserId: z.string().optional(),
 });
 
 const GetProgressSchema = z.object({
@@ -184,11 +186,17 @@ export async function linkOcreAccount(
         const pseudo = parsed.data.pseudo.trim();
         const apiKey = parsed.data.apiKey?.trim();
         const force = parsed.data.force;
+        const targetUserId = parsed.data.targetUserId;
 
-        // Get user profile (multi-tenant check) - include pseudoEnJeu for ownership verification
+        // DB / RBAC Check
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+
         const profile = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
                 status: "ACTIVE",
             },
@@ -270,7 +278,7 @@ export async function linkOcreAccount(
             const existingKeyUser = await db.userProfile.findFirst({
                 where: {
                     metamobApiKey: apiKey,
-                    userId: { not: session.user.id }
+                    userId: { not: effectiveUserId }
                 },
                 include: { user: true }
             });
@@ -289,7 +297,7 @@ export async function linkOcreAccount(
             where: {
                 guild: { discordGuildId: guildId },
                 metamobPseudo: { equals: metamobPseudo, mode: "insensitive" }, // Case insensitive check
-                userId: { not: session.user.id },
+                userId: { not: effectiveUserId },
                 status: "ACTIVE"
             },
             include: { user: true }
@@ -367,7 +375,7 @@ export async function linkOcreAccount(
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
 
         // Force clear Redis progress cache
-        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        await invalidateCache(`ocre:progress:${guildId}:${effectiveUserId}`);
 
         return {
             success: true,
@@ -414,11 +422,17 @@ export async function unlinkOcreAccount(
         if (!parsed.success) {
             return { success: false, error: "Données invalides" };
         }
-        const { guildId } = parsed.data;
+        const { guildId, targetUserId } = parsed.data;
+
+        // DB / RBAC Check
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
 
         const profile = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
                 status: "ACTIVE",
             },
@@ -1316,17 +1330,19 @@ export async function refreshOcreCache(
  * This invalidates the Next.js cache and updates the Last Sync timestamp.
  */
 export async function forceRefreshOcre(
-    guildId: string
+    guildId: string,
+    targetUserId?: string
 ): Promise<ActionResponse<{ questUpdated: boolean }>> {
     try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return { success: false, error: "Non authentifié" };
-        }
+        // DB / RBAC Check
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : user.id!;
 
         const profile = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
                 status: "ACTIVE",
             },
@@ -1344,7 +1360,7 @@ export async function forceRefreshOcre(
         }
 
         // [RateLimit] Prevent abuse (1 refresh per minute)
-        const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 1, 60);
+        const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60);
         if (!rateCheck.success) {
             return { success: false, error: "Veuillez attendre une minute avant de rafraîchir à nouveau." };
         }
@@ -1395,7 +1411,7 @@ export async function forceRefreshOcre(
         revalidatePath(`/dashboard/${guildId}/quete-ocre`, "page");
 
         // Force clear Redis progress cache
-        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        await invalidateCache(`ocre:progress:${guildId}:${effectiveUserId}`);
 
         return { success: true, data: { questUpdated } };
 
@@ -1409,14 +1425,20 @@ export async function forceRefreshOcre(
 // MULTI-QUEST SUPPORT
 // -----------------------------------------------------------------------------
 
-export async function getAvailableOcreQuests(guildId: string): Promise<ActionResponse<UserQuest[]>> {
+export async function getAvailableOcreQuests(guildId: string, targetUserId?: string): Promise<ActionResponse<UserQuest[]>> {
     try {
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
+        // DB / RBAC Check
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+
         const profile = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
             },
             select: { metamobPseudo: true, metamobApiKey: true, guild: { select: { metamobApiKey: true } } }
@@ -1439,14 +1461,20 @@ export async function getAvailableOcreQuests(guildId: string): Promise<ActionRes
     }
 }
 
-export async function switchOcreQuest(guildId: string, questSlug: string): Promise<ActionResponse> {
+export async function switchOcreQuest(guildId: string, questSlug: string, targetUserId?: string): Promise<ActionResponse> {
     try {
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
+        // DB / RBAC Check
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+
         const member = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
                 status: "ACTIVE",
             },
@@ -1482,7 +1510,7 @@ export async function switchOcreQuest(guildId: string, questSlug: string): Promi
         revalidatePath(`/dashboard/${guildId}/profile`, "page");
 
         // Force clear Redis progress cache
-        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        await invalidateCache(`ocre:progress:${guildId}:${effectiveUserId}`);
 
         return { success: true };
 

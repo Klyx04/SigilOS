@@ -23,7 +23,8 @@ const getConnectionString = () => {
     const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
 
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    const protocol = 'postgresql';
+    return `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
 };
 
 const connectionString = getConnectionString();
@@ -125,7 +126,7 @@ async function seed() {
 
     // 0.3 Ensure Super Admin account exists in DB (User + Account)
     // This allows the session to link correctly even after a hard reset
-    let account = await prisma.account.findFirst({
+    const account = await prisma.account.findFirst({
         where: { provider: 'discord', providerAccountId: superAdminDiscordId }
     });
 

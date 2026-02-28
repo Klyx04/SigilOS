@@ -94,7 +94,7 @@ export function AltPseudos({
     const handleSave = async () => {
         setIsSubmitting(true);
         try {
-            let finalPseudos = [...localPseudos];
+            const finalPseudos = [...localPseudos];
 
             // Si l'utilisateur a tapé quelque chose mais a oublié de cliquer sur "+"
             const trimmed = newPseudo.trim();

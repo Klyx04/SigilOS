@@ -137,7 +137,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
         }
 
         // Simple HTML to Markdown conversion for preview purposes
-        let processed = content
+        const processed = content
             .replace(/<p>/g, "")
             .replace(/<\/p>/g, "\n")
             .replace(/<strong>/g, "**")
@@ -165,7 +165,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
             return <p className="text-zinc-600 italic text-xs">Le message Discord est vide...</p>;
         }
 
-        let processed = content
+        const processed = content
             .replace(/{member}/g, `**@${previewUser}**`)
             .replace(/{user}/g, `**@${previewUser}**`)
             .replace(/{guild}/g, `**${previewGuild}**`);

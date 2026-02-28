@@ -95,6 +95,7 @@ export default async function MemberProfilePage({
             <ProfileBentoGrid
                 profile={{
                     id: profile.id,
+                    userId: profile.userId,
                     pseudoDofus: profile.pseudoDofus,
                     classe: profile.classe,
                     classeSecondaires: (profile.classeSecondaires as string[]) || [],
@@ -129,6 +130,7 @@ export default async function MemberProfilePage({
                 roleColor={roleColor}
                 welcomeBadgeName={guildData.welcomeBadgeName}
                 readOnly={true}
+                isSuperAdmin={viewerContext.isSuperAdmin}
                 isAdmin={profile.discordInfo?.isAdmin || false}
                 permissions={{
                     canViewArchis: viewerContext.canViewArchis,

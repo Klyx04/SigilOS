@@ -113,6 +113,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     roleName={userContext.roleName}
                     roleColor={userContext.roleColor}
                     readOnly={false}
+                    isSuperAdmin={userContext.isSuperAdmin}
                 />
             </div>
         </div>

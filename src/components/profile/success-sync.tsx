@@ -26,6 +26,7 @@ interface SuccessSyncProps {
         createdAt: Date;
     } | null;
     onCancel?: () => void;
+    targetUserId?: string;
 }
 
 import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
@@ -41,7 +42,8 @@ export function SuccessSync({
     onTabChange,
     onSuccess,
     pendingSubmission,
-    onCancel
+    onCancel,
+    targetUserId
 }: SuccessSyncProps) {
     const [isUploading, setIsUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
@@ -57,7 +59,7 @@ export function SuccessSync({
 
     const handleCancel = async () => {
         setIsUploading(true);
-        const res = await cancelAchievementSubmission(guildId);
+        const res = await cancelAchievementSubmission(guildId, targetUserId);
         setIsUploading(false);
         if (res.success) {
             toast.success("Demande annulée");
@@ -96,6 +98,7 @@ export function SuccessSync({
                 const res = await syncMemberSuccessPoints({
                     guildId,
                     imageData: compressedBase64,
+                    targetUserId,
                 });
 
                 if (res.success) {

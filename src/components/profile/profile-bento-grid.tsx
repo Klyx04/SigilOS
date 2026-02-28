@@ -321,13 +321,15 @@ export function ProfileBentoGrid({
                                 Songes
                             </TabsTrigger>
                         )}
-                        <TabsTrigger
-                            value="settings"
-                            className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Paramètres
-                        </TabsTrigger>
+                        {!readOnly && (
+                            <TabsTrigger
+                                value="settings"
+                                className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
+                            >
+                                <Settings className="w-4 h-4" />
+                                Paramètres
+                            </TabsTrigger>
+                        )}
                     </TabsList>
                 </div>
 
@@ -466,16 +468,18 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SETTINGS TAB */}
-                <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <UserSettings
-                        guildId={guildId}
-                        guildName={guildName || "la guilde"}
-                        profileId={profile.id}
-                        notificationPrefs={localProfile.notificationPrefs as any}
-                        onNotificationPrefsSave={handleNotificationPrefsSave}
-                        isAdmin={isAdmin}
-                    />
-                </TabsContent>
+                {!readOnly && (
+                    <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <UserSettings
+                            guildId={guildId}
+                            guildName={guildName || "la guilde"}
+                            profileId={profile.id}
+                            notificationPrefs={localProfile.notificationPrefs as any}
+                            onNotificationPrefsSave={handleNotificationPrefsSave}
+                            isAdmin={isAdmin}
+                        />
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );

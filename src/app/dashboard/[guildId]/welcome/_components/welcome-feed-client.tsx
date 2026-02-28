@@ -75,12 +75,12 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
     return (
         <div className="space-y-6">
             {posts.map((post) => (
-                <Card key={post.id} className="p-6 bg-zinc-900/40 border-white/5 relative overflow-hidden group hover:bg-zinc-900/60 transition-all duration-500">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                <Card key={post.id} className="p-6 bg-zinc-900/40 border-white/5 relative overflow-hidden group hover:bg-zinc-900/60 transition-all duration-500 rounded-[2rem]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                     <div className="flex gap-4 relative">
                         <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
-                            <Avatar className="h-12 w-12 rounded-xl ring-2 ring-emerald-500/20 group-hover:ring-emerald-500/50 transition-all duration-500">
+                            <Avatar className="h-12 w-12 rounded-xl ring-2 ring-amber-500/10 group-hover:ring-amber-500/40 transition-all duration-500">
                                 <AvatarImage src={post.profile.user.image || ""} />
                                 <AvatarFallback className="bg-zinc-800 text-sm font-black text-zinc-400">
                                     {post.profile.user.name?.slice(0, 2).toUpperCase()}
@@ -93,7 +93,7 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
                                 <div className="flex items-center justify-between">
                                     <Link
                                         href={`/dashboard/${guildId}/members/${post.profile.id}`}
-                                        className="text-lg font-black text-white hover:text-emerald-400 transition-colors"
+                                        className="text-lg font-black text-white hover:text-amber-400 transition-colors"
                                     >
                                         {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
                                     </Link>
@@ -108,16 +108,16 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
 
                             {/* Presentation Preview if exists */}
                             {post.profile.introduction && (
-                                <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-2">
+                                <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                        <Smile className="w-3 h-3 text-emerald-400" /> Présentation
+                                        <Smile className="w-3 h-3 text-amber-500" /> Présentation
                                     </p>
                                     <p className="text-xs text-zinc-400 italic line-clamp-3">
                                         "{post.profile.introduction}"
                                     </p>
                                     <Link
                                         href={`/dashboard/${guildId}/members/${post.profile.id}`}
-                                        className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-widest"
+                                        className="text-[10px] font-bold text-amber-500 hover:text-amber-400 uppercase tracking-widest"
                                     >
                                         Voir son profil complet →
                                     </Link>
@@ -139,7 +139,7 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
                                             className={cn(
                                                 "h-8 px-2 rounded-lg transition-all gap-2 border",
                                                 hasReacted
-                                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
                                                     : "bg-white/5 border-transparent text-zinc-500 hover:border-white/10 hover:text-zinc-300"
                                             )}
                                         >

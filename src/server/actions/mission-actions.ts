@@ -52,21 +52,34 @@ async function notifyValidators(guildId: string, title: string, message: string,
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, missionNotifyChannelId: true }
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionValidationChannelId: true,
+                missionValidationNotifyRoleId: true
+            }
         });
 
         if (!guild) return;
 
         // 0. Send Discord Message if channel is configured
-        if (guild.missionNotifyChannelId) {
+        // Priority: validation channel > notification channel
+        const discordChannelId = guild.missionValidationChannelId || guild.missionNotifyChannelId;
+        const mentionRole = guild.missionValidationNotifyRoleId;
+        const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+
+        if (discordChannelId) {
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
                 const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
-                await sendChannelMessage(guild.missionNotifyChannelId, "", {
-                    embedTitle: title,
+
+                // Compact validation alert
+                await sendChannelMessage(discordChannelId, content, {
+                    embedTitle: "🎯 Nouvelle Mission à Valider",
                     embedDescription: message,
                     embedColor: 0x9333ea, // Purple
                     embedUrl: absoluteLink,
+                    embedFooter: "Système de Validation SigilOS",
                 });
             } catch (discordError) {
                 logger.error("[NotifyValidators] Discord Error", { error: discordError });

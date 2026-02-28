@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
+import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
 
 type DofusBookLink = {
     id: string;
@@ -160,35 +161,21 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
                 )}
             </div>
 
-            {/* List */}
-            <div className="flex flex-col gap-2">
+            {/* List or Grid */}
+            <div className={cn(
+                "grid gap-4 w-full",
+                links.length > 0 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            )}>
                 {links.length > 0 ? (
                     links.map(link => (
-                        <div key={link.id} className="group flex items-center justify-between p-3 bg-zinc-950/30 rounded-lg border border-white/5 hover:border-emerald-500/20 hover:bg-zinc-950/50 transition-all">
-                            <a
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 flex items-center gap-3 overflow-hidden"
-                            >
-                                <div className="w-8 h-8 rounded-md bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shrink-0">
-                                    <ExternalLink className="w-4 h-4 text-emerald-400" />
-                                </div>
-                                <div className="flex flex-col overflow-hidden">
-                                    <span className="text-base font-semibold text-zinc-200 truncate group-hover:text-emerald-300 transition-colors">
-                                        {link.name}
-                                    </span>
-                                    <span className="text-xs text-zinc-400 group-hover:text-zinc-300 font-mono truncate transition-colors">
-                                        {link.url}
-                                    </span>
-                                </div>
-                            </a>
+                        <div key={link.id} className="relative group/card">
+                            <DofusbookPreview url={link.url} title={link.name} />
 
                             {!readOnly && (
                                 <button
                                     onClick={() => handleDeleteLink(link.id)}
-                                    className="p-2 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                    title="Supprimer"
+                                    className="absolute top-2 right-2 p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all opacity-0 group-hover/card:opacity-100 z-20 shadow-xl"
+                                    title="Supprimer ce build"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -196,8 +183,11 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
                         </div>
                     ))
                 ) : (
-                    <div className="text-center py-6 text-zinc-600 text-xs italic border border-dashed border-white/5 rounded-lg">
-                        Aucun build enregistré
+                    <div className="text-center py-12 bg-zinc-950/20 rounded-2xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-zinc-900/50 flex items-center justify-center border border-white/5">
+                            <Link2 className="w-6 h-6 text-zinc-700" />
+                        </div>
+                        <p className="text-zinc-600 text-sm italic">Aucun build enregistré</p>
                     </div>
                 )}
             </div>

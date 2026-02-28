@@ -339,6 +339,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: isGod, // Only Gods can see dashboards of guilds they aren't in
             isArchived: profile?.status === "ARCHIVED",
             isBanned: profile?.status === "BANNED",
+            guildName: guildConfig?.name || "Serveur Inconnu",
             // If God, grant all perms even if not in Discord
             ...(isGod ? {
                 isAdmin: true,

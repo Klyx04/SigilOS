@@ -33,7 +33,7 @@ export default async function WelcomePage({
             {/* Header Area */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-white/5">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-[0.2em] text-[10px]">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold uppercase tracking-[0.2em] text-[10px]">
                         <Sparkles className="w-3 h-3" /> Accueil & Intros
                     </div>
                     <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
@@ -59,7 +59,7 @@ export default async function WelcomePage({
                     </div>
                 ) : (
                     <WelcomeFeedClient
-                        initialPosts={posts as any}
+                        initialPosts={JSON.parse(JSON.stringify(posts))}
                         currentProfileId={user.profileId || ""}
                         guildId={guildId}
                     />

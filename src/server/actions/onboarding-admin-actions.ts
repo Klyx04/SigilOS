@@ -6,7 +6,7 @@ import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ActionResponse } from "./admin-actions";
-import { sendChannelMessage, fetchGuildRoles } from "@/server/discord";
+import { sendChannelMessage, fetchGuildRoles, validateChannelBelongsToGuild } from "@/server/discord";
 import { emitGuildActivity } from "./activity-actions";
 
 const WelcomeSettingsSchema = z.object({
@@ -14,17 +14,18 @@ const WelcomeSettingsSchema = z.object({
     enabled: z.boolean(),
     channelId: z.string().nullable(),
     template: z.string().nullable(),
+    discordTemplate: z.string().nullable(),
     mentionRoleId: z.string().nullable(),
     dashboardEnabled: z.boolean().default(true),
     discordEnabled: z.boolean().default(false),
 });
 
-const ProbationRoleSchema = z.object({
+const WelcomeBadgeSchema = z.object({
     guildId: z.string(),
-    roleName: z.string().min(1).max(50),
+    badgeName: z.string().min(1).max(50),
 });
 
-const GrantProbationSchema = z.object({
+const GrantBadgeSchema = z.object({
     guildId: z.string(),
     profileId: z.string(),
     days: z.number().min(1).max(365),
@@ -41,10 +42,11 @@ export async function getOnboardingSettings(guildId: string) {
                 welcomeEnabled: true,
                 welcomeNotifyChannelId: true,
                 welcomeMessageTemplate: true,
+                welcomeDiscordMessageTemplate: true,
                 welcomeMentionRoleId: true,
                 welcomeDashboardEnabled: true,
                 welcomeDiscordEnabled: true,
-                probationRoleName: true,
+                welcomeBadgeName: true,
             }
         });
 
@@ -53,19 +55,20 @@ export async function getOnboardingSettings(guildId: string) {
         // 3. Fetch Discord Roles for selection
         const roles = await fetchGuildRoles(guildId, { excludeManaged: true }).catch(() => []);
 
-        return {
+        return JSON.parse(JSON.stringify({
             success: true,
             data: {
                 enabled: guild.welcomeEnabled,
                 channelId: guild.welcomeNotifyChannelId,
                 template: guild.welcomeMessageTemplate,
+                discordTemplate: guild.welcomeDiscordMessageTemplate,
                 mentionRoleId: guild.welcomeMentionRoleId,
                 dashboardEnabled: guild.welcomeDashboardEnabled,
                 discordEnabled: guild.welcomeDiscordEnabled,
-                probationRoleName: guild.probationRoleName,
+                welcomeBadgeName: guild.welcomeBadgeName,
                 availableRoles: roles.map(r => ({ id: r.id, name: r.name })),
             }
-        };
+        }));
     } catch (e) {
         console.error("Failed to get onboarding settings", e);
         return { success: false, error: "Database error" };
@@ -77,12 +80,21 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
     if (!user.isAdmin) return { success: false, error: "Unauthorized" };
 
     try {
+        // SECURITY: Validate that the channel belongs to the guild
+        if (data.channelId && data.discordEnabled) {
+            const isValid = await validateChannelBelongsToGuild(data.channelId, data.guildId);
+            if (!isValid) {
+                return { success: false, error: "Le salon Discord saisi n'appartient pas à ce serveur." };
+            }
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: data.guildId },
             data: {
                 welcomeEnabled: data.enabled,
                 welcomeNotifyChannelId: data.channelId,
                 welcomeMessageTemplate: data.template,
+                welcomeDiscordMessageTemplate: data.discordTemplate,
                 welcomeMentionRoleId: data.mentionRoleId,
                 welcomeDashboardEnabled: data.dashboardEnabled,
                 welcomeDiscordEnabled: data.discordEnabled,
@@ -97,7 +109,7 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
     }
 }
 
-export async function updateProbationRoleName(data: z.infer<typeof ProbationRoleSchema>) {
+export async function updateWelcomeBadgeName(data: z.infer<typeof WelcomeBadgeSchema>) {
     const user = await getUserContext(data.guildId);
     if (!user.isAdmin) return { success: false, error: "Unauthorized" };
 
@@ -105,7 +117,7 @@ export async function updateProbationRoleName(data: z.infer<typeof ProbationRole
         const guildConfig = await db.guildConfig.update({
             where: { discordGuildId: data.guildId },
             data: {
-                probationRoleName: data.roleName,
+                welcomeBadgeName: data.badgeName,
             },
             select: { id: true }
         });
@@ -115,14 +127,14 @@ export async function updateProbationRoleName(data: z.infer<typeof ProbationRole
                 where: {
                     guildId_slug: {
                         guildId: guildConfig.id,
-                        slug: "probation"
+                        slug: "probation" // Keep internal slug for backwards compatibility if needed, or change it
                     }
                 },
-                update: { label: data.roleName },
+                update: { label: data.badgeName },
                 create: {
                     guildId: guildConfig.id,
                     slug: "probation",
-                    label: data.roleName,
+                    label: data.badgeName,
                     permissions: [],
                     color: "#f59e0b" // Amber 500
                 }
@@ -133,19 +145,19 @@ export async function updateProbationRoleName(data: z.infer<typeof ProbationRole
         revalidatePath(`/dashboard/${data.guildId}/profile`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to update probation role name", e);
+        console.error("Failed to update welcome badge name", e);
         return { success: false, error: "Database error" };
     }
 }
 
-export async function grantProbationRole(data: z.infer<typeof GrantProbationSchema>) {
+export async function grantWelcomeBadge(data: z.infer<typeof GrantBadgeSchema>) {
     const user = await getUserContext(data.guildId);
     if (!user.isAdmin) return { success: false, error: "Unauthorized" };
 
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: data.guildId },
-            select: { id: true, probationRoleName: true }
+            select: { id: true, welcomeBadgeName: true }
         });
         if (!guild) return { success: false, error: "Guild not found" };
 
@@ -156,11 +168,11 @@ export async function grantProbationRole(data: z.infer<typeof GrantProbationSche
                     slug: "probation"
                 }
             },
-            update: { label: guild.probationRoleName },
+            update: { label: guild.welcomeBadgeName },
             create: {
                 guildId: guild.id,
                 slug: "probation",
-                label: guild.probationRoleName,
+                label: guild.welcomeBadgeName,
                 permissions: [],
                 color: "#f59e0b"
             }
@@ -193,7 +205,7 @@ export async function grantProbationRole(data: z.infer<typeof GrantProbationSche
         revalidatePath(`/dashboard/${data.guildId}/members`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to grant probation role", e);
+        console.error("Failed to grant welcome badge", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -219,6 +231,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
 
         const channelId = guild.welcomeNotifyChannelId;
         const template = guild.welcomeMessageTemplate || "Bienvenue {member} parmi nous !";
+        const discordTemplate = guild.welcomeDiscordMessageTemplate || template;
 
         // 1. Emit Guild Activity (for Dashboard feed)
         await emitGuildActivity(
@@ -226,7 +239,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
             "NEW_MEMBER",
             memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre",
             memberProfile.user.image,
-            { message: template.replace(/{member}/g, "").replace(/{guild}/g, guild.name) }
+            { message: template.replace(/{member}/g, "").replace(/{user}/g, "").replace(/{guild}/g, guild.name) }
         );
 
         // 2. Publish to Dashboard if configured
@@ -234,6 +247,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
             const memberName = memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre";
             const content = template
                 .replace(/{member}/g, `**${memberName}**`)
+                .replace(/{user}/g, `**${memberName}**`)
                 .replace(/{guild}/g, `**${guild.name}**`);
 
             await db.memberWelcome.create({
@@ -256,8 +270,9 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
             const memberMention = discordAccount ? `<@${discordAccount.providerAccountId}>` : `**${memberName}**`;
 
             // Keep the welcome text clean for the embed description
-            const welcomeDescription = template
+            const welcomeDescription = discordTemplate
                 .replace(/{member}/g, memberMention)
+                .replace(/{user}/g, memberMention)
                 .replace(/{guild}/g, `**${guild.name}**`);
 
             // Pings go outside the embed (trigger notification)
@@ -273,7 +288,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
                 mentionContent: pings,
                 embedTitle: `✨ Une nouvelle légende rejoint ${guild.name} !`,
                 embedDescription: welcomeDescription,
-                embedColor: 0x10b981, // Emerald 500
+                embedColor: 0xf59e0b, // Amber 500
                 embedThumbnail: memberProfile.user.image || undefined,
                 embedImage: (guild as any).presentationBannerUrl || undefined,
                 embedFooter: `Souhaité par ${user.name} • SigilOS`,
@@ -288,11 +303,22 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
     }
 }
 
+const IntroductionSchema = z.string().max(5000, "La présentation est trop longue (max 5000 caractères)");
+
 export async function saveMemberIntroduction(guildId: string, introduction: string) {
     const session = await auth();
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    if (!session?.user) return { success: false, error: "Non autorisé" };
 
     try {
+        // Validation & Sanitization
+        const validation = IntroductionSchema.safeParse(introduction);
+        if (!validation.success) {
+            return { success: false, error: validation.error.errors[0].message };
+        }
+
+        // Simple HTML stripping to ensure double-layer security (client-side React already escapes)
+        const sanitized = introduction.replace(/<[^>]*>?/gm, '').trim();
+
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { id: true }
@@ -306,14 +332,14 @@ export async function saveMemberIntroduction(guildId: string, introduction: stri
                     guildId: guild.id
                 }
             },
-            data: { introduction }
+            data: { introduction: sanitized }
         });
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (e) {
         console.error("Failed to save introduction", e);
-        return { success: false, error: "Database error" };
+        return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
 
@@ -325,7 +351,7 @@ export async function getWelcomePosts(guildId: string) {
         });
         if (!guild) return [];
 
-        return await db.memberWelcome.findMany({
+        const posts = await db.memberWelcome.findMany({
             where: { guildId: guild.id },
             include: {
                 profile: {
@@ -335,6 +361,8 @@ export async function getWelcomePosts(guildId: string) {
             orderBy: { createdAt: "desc" },
             take: 50
         });
+
+        return JSON.parse(JSON.stringify(posts));
     } catch (e) {
         console.error("Failed to get welcome posts", e);
         return [];

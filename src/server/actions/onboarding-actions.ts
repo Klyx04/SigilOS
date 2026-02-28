@@ -152,18 +152,34 @@ function getWeekNumber(d: Date) {
 export async function sendWelcomeNotifications(guildConfig: any, profileId: string, displayName: string) {
     if (!guildConfig) return;
 
+    // Helper to strip HTML tags
+    const stripHtml = (html: string) => {
+        if (!html) return "";
+        return html
+            .replace(/<p>/g, "")
+            .replace(/<\/p>/g, "\n")
+            .replace(/<br\s*\/?>/g, "\n")
+            .replace(/<strong>/g, "**")
+            .replace(/<\/strong>/g, "**")
+            .replace(/<em>/g, "_")
+            .replace(/<\/em>/g, "_")
+            .replace(/<[^>]*>?/gm, "")
+            .trim();
+    };
+
     // Fetch user profile to get Discord ID if needed for pinging
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        select: { userId: true },
+        select: { userId: true, user: { select: { image: true } } },
     });
 
     // 1. Dashboard Welcome Post
     if (guildConfig.welcomeDashboardEnabled) {
-        const defaultMessage = `🎉 Bienvenue à **${displayName}** qui vient de rejoindre le serveur Dashboard!`;
-        const content = guildConfig.welcomeMessageTemplate
-            ? guildConfig.welcomeMessageTemplate.replace(/{user}/g, `**${displayName}**`)
-            : defaultMessage;
+        const template = guildConfig.welcomeMessageTemplate || "<p>🎉 Bienvenue à <strong>{member}</strong> parmi nous !</p>";
+        const content = template
+            .replace(/{member}/g, `**${displayName}**`)
+            .replace(/{user}/g, `**${displayName}**`)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
 
         try {
             await Promise.all([
@@ -179,7 +195,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                         guildId: guildConfig.id,
                         type: "NEW_MEMBER",
                         actorName: displayName,
-                        meta: { message: content, profileId }
+                        meta: { message: stripHtml(content), profileId }
                     }
                 })
             ]);
@@ -188,13 +204,57 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         }
     }
 
-    // 2. Discord Welcome Ping
+    // 2. Global In-App Notification (Small bell for everyone)
+    try {
+        const { createNotification } = await import("@/server/actions/notification-actions");
+
+        const activeMembers = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                id: { not: profileId }
+            },
+            select: { userId: true }
+        });
+
+        if (activeMembers.length > 0) {
+            const notificationTitle = "✨ Arrivée d'un nouveau membre";
+            const notificationMessage = `Dites bonjour à ${displayName} qui vient d'intégrer le Dashboard ! 👋`;
+
+            const notificationPromises = activeMembers.map(m =>
+                createNotification(
+                    m.userId,
+                    "SYSTEM_INFO",
+                    notificationTitle,
+                    notificationMessage,
+                    `/dashboard/${guildConfig.discordGuildId}/profile`,
+                    guildConfig.discordGuildId,
+                    "SYSTEM"
+                )
+            );
+
+            const CHUNK_SIZE = 50;
+            for (let i = 0; i < notificationPromises.length; i += CHUNK_SIZE) {
+                await Promise.all(notificationPromises.slice(i, i + CHUNK_SIZE));
+            }
+        }
+    } catch (e) {
+        console.error("[Welcome] Failed to send global notifications", e);
+    }
+
+    // 3. Discord Welcome Ping
     if (guildConfig.welcomeDiscordEnabled && guildConfig.welcomeNotifyChannelId) {
         const { sendChannelMessage } = await import("@/server/discord");
 
-        const content = guildConfig.welcomeMessageTemplate
-            ? guildConfig.welcomeMessageTemplate.replace(/{user}/g, profile ? `<@${profile.userId}>` : `**${displayName}**`)
-            : `🎉 Bienvenue à <@${profile?.userId || displayName}> sur le Dashboard SigilOS !`;
+        const rawTemplate = guildConfig.welcomeDiscordMessageTemplate || guildConfig.welcomeMessageTemplate || "🎉 Bienvenue à {member} !";
+        const template = stripHtml(rawTemplate);
+
+        const memberMention = profile?.userId ? `<@${profile.userId}>` : `**${displayName}**`;
+
+        const content = template
+            .replace(/{member}/g, memberMention)
+            .replace(/{user}/g, memberMention)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
 
         let mentionContent = "";
         if (guildConfig.welcomeMentionRoleId) {
@@ -205,10 +265,11 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
 
         try {
             await sendChannelMessage(guildConfig.welcomeNotifyChannelId, mentionContent, {
-                embedTitle: `Nouveau Membre Dashboard !`,
+                embedTitle: `🌟 Nouvelle Recrue Dashboard !`,
                 embedDescription: content,
-                embedColor: 0x10b981, // Emerald Green
-                embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
+                embedColor: 0xf59e0b, // Amber 500
+                embedThumbnail: profile?.user?.image || "https://i.imgur.com/AfFp7pu.png",
+                embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {
             console.error("[Welcome] Failed to send Discord welcome message", e);

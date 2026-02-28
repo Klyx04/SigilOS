@@ -8,6 +8,7 @@ export type GuildHeaderData = {
     memberCount: number;
     activeCount: number; // Users active in last 15 minutes
     exists: boolean;
+    welcomeBadgeName?: string | null;
 };
 
 export async function getGuildHeaderData(discordGuildId: string): Promise<GuildHeaderData> {
@@ -17,6 +18,7 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
             id: true, // Internal ID needed for relations
             name: true,
             iconUrl: true,
+            welcomeBadgeName: true,
         }
     });
 
@@ -55,7 +57,8 @@ export async function getGuildHeaderData(discordGuildId: string): Promise<GuildH
         iconUrl: guildConfig.iconUrl,
         memberCount,
         activeCount,
-        exists: true
+        exists: true,
+        welcomeBadgeName: guildConfig.welcomeBadgeName
     };
 }
 

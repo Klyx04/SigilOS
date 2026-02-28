@@ -4,15 +4,12 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Pencil, Check, X, Info, Plus } from "lucide-react";
+import { Pencil, Info, Plus, UserCircle } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { UserCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface ClassDisplayProps {
@@ -144,13 +141,13 @@ export function ClassDisplay({
                     </div>
                 )}
 
-                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
-                    <DialogHeader className="p-8 pb-4 border-b border-white/5">
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <DialogHeader className="p-8 pb-4 border-b border-white/5 shrink-0">
                         <DialogTitle className="text-2xl font-black">Modifier votre profil</DialogTitle>
                         <DialogDescription className="text-base text-zinc-400">Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
                     </DialogHeader>
 
-                    <div className="px-8 pt-6 pb-2">
+                    <div className="px-8 pt-6 pb-2 shrink-0">
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2 pl-1">
                                 <UserCircle className="w-5 h-5" />
@@ -160,7 +157,6 @@ export function ClassDisplay({
                                 <Input
                                     value={localPseudo}
                                     onChange={(e) => {
-                                        // On autorise lettres, espaces, et tirets
                                         const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]/g, "");
                                         setLocalPseudo(val);
                                     }}
@@ -184,16 +180,16 @@ export function ClassDisplay({
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-hidden p-6">
+                    <div className="flex-1 min-h-0 overflow-hidden px-8">
                         <Tabs defaultValue="main" className="h-full flex flex-col">
-                            <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-900/50">
+                            <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-900/50 shrink-0">
                                 <TabsTrigger value="main">Classe Principale</TabsTrigger>
                                 <TabsTrigger value="secondary">Classes Secondaires ({selectedSecondary.length})</TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="main" className="flex-1 overflow-hidden mt-0">
-                                <ScrollArea className="h-[50vh] pr-4">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-4 pb-12">
+                            <TabsContent value="main" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
+                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 py-4 pb-24">
                                         {DOFUS_CLASSES.map(c => {
                                             const isSelected = selectedMain === c.id;
                                             return (
@@ -235,16 +231,16 @@ export function ClassDisplay({
                                             );
                                         })}
                                     </div>
-                                </ScrollArea>
+                                </div>
                             </TabsContent>
 
-                            <TabsContent value="secondary" className="flex-1 overflow-hidden mt-0">
-                                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3 text-sm text-blue-300">
+                            <TabsContent value="secondary" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
+                                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3 text-sm text-blue-300 shrink-0">
                                     <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                    <p>Sélectionnez les classes secondaires que vous jouez régulièrement. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name}) n'est pas sélectionnable ici.</p>
+                                    <p>Sélectionnez vos classes secondaires. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name || "non selectionnée"}) est bloquée ici.</p>
                                 </div>
-                                <ScrollArea className="h-[45vh] pr-4">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-4 pb-12">
+                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-24">
                                         {DOFUS_CLASSES.map(c => {
                                             const isSelected = selectedSecondary.includes(c.id);
                                             const isMain = selectedMain === c.id;
@@ -291,12 +287,12 @@ export function ClassDisplay({
                                             );
                                         })}
                                     </div>
-                                </ScrollArea>
+                                </div>
                             </TabsContent>
                         </Tabs>
                     </div>
 
-                    <div className="p-6 border-t border-white/5 bg-zinc-900/30 flex justify-end gap-3">
+                    <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex justify-end gap-3 shrink-0">
                         <div className="flex-1 flex items-center">
                             {selectedSecondary.length > 0 && (
                                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-950/50 px-3 py-1.5 rounded-full border border-white/5">

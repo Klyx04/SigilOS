@@ -65,10 +65,10 @@ interface Member {
 interface MemberManagementTableProps {
     initialMembers: Member[];
     guildId: string;
-    probationRoleName: string;
+    welcomeBadgeName: string;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, probationRoleName }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
@@ -76,7 +76,7 @@ export function MemberManagementTable({ initialMembers, guildId, probationRoleNa
     const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc"); // desc = newer first
 
     // Dialog state
-    const [probationTarget, setProbationTarget] = useState<{ id: string, name: string } | null>(null);
+    const [badgeTarget, setBadgeTarget] = useState<{ id: string, name: string } | null>(null);
 
     const filteredMembers = members
         .filter((member: Member) =>
@@ -313,11 +313,11 @@ export function MemberManagementTable({ initialMembers, guildId, probationRoleNa
                                             <DropdownMenuLabel className="text-[10px] text-zinc-600 font-black uppercase tracking-widest px-2 py-1.5 font-bold">Nouveau Membre</DropdownMenuLabel>
 
                                             <DropdownMenuItem
-                                                onClick={() => setProbationTarget({ id: member.id, name: member.user.name || "Membre" })}
+                                                onClick={() => setBadgeTarget({ id: member.id, name: member.user.name || "Membre" })}
                                                 className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer"
                                             >
                                                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                                                Appliquer {probationRoleName}
+                                                Appliquer {welcomeBadgeName}
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
@@ -354,14 +354,14 @@ export function MemberManagementTable({ initialMembers, guildId, probationRoleNa
                 </Table>
             </div>
 
-            {probationTarget && (
+            {badgeTarget && (
                 <ProbationGrantDialog
                     guildId={guildId}
-                    profileId={probationTarget.id}
-                    memberName={probationTarget.name}
-                    roleName={probationRoleName}
-                    open={!!probationTarget}
-                    onOpenChange={(open) => !open && setProbationTarget(null)}
+                    profileId={badgeTarget.id}
+                    memberName={badgeTarget.name}
+                    roleName={welcomeBadgeName}
+                    open={!!badgeTarget}
+                    onOpenChange={(open) => !open && setBadgeTarget(null)}
                 />
             )}
         </div>

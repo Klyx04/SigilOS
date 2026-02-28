@@ -84,11 +84,15 @@ export const viewport: Viewport = {
   themeColor: "#14b8a6", // Teal — matches actual design
 };
 
-export default function RootLayout({
+import { auth } from "@/auth";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} antialiased`}>
@@ -98,7 +102,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
+          <AuthProvider session={session}>
             <TooltipProvider>
               {children}
               <Toaster

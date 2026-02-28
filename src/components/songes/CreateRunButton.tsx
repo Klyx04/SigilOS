@@ -138,8 +138,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-purple-600 hover:bg-purple-500 text-white gap-2">
-                    <Plus className="w-4 h-4" />
+                <Button className="h-14 px-8 text-lg bg-purple-600 hover:bg-purple-500 text-white gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all">
+                    <Plus className="w-6 h-6" />
                     Créer une Run
                 </Button>
             </DialogTrigger>

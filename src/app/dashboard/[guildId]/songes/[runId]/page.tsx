@@ -138,6 +138,7 @@ export default function RunDetailPage() {
                 run={run}
                 guildId={guildId}
                 isLeader={isLeader}
+                leaderName={getLeaderName()}
                 optimisticStatus={optimisticStatus || run.status}
                 onStatusChange={setOptimisticStatus}
                 onOpenBossGuide={() => setBossGuideOpen(true)}

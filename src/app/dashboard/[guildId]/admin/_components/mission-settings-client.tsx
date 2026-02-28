@@ -75,8 +75,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
         <div className="space-y-6 max-w-5xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* 1. PUBLICATION SETTINGS */}
-                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-amber-400">
                             <Target className="w-5 h-5 font-black" />
@@ -120,8 +120,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 </Card>
 
                 {/* 2. VALIDATION SETTINGS */}
-                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-purple-400">
                             <ShieldCheck className="w-5 h-5" />

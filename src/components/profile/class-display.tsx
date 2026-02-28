@@ -33,13 +33,13 @@ export function ClassDisplay({
     const [selectedSecondary, setSelectedSecondary] = useState<string[]>(secondaryClasses);
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
 
-    // Auto-open if redirected with ?edit=identity
+    // Auto-open if redirected with ?edit=identity (Security: check readOnly)
     useEffect(() => {
-        if (searchParams.get("edit") === "identity") {
+        if (!readOnly && searchParams.get("edit") === "identity") {
             setIsOpen(true);
             handleOpen();
         }
-    }, [searchParams]);
+    }, [searchParams, readOnly]);
 
     const mainClassData = getClass(mainClass || "");
 
@@ -123,21 +123,27 @@ export function ClassDisplay({
                     </div>
                 ) : (
                     <div className="flex flex-col gap-4">
-                        <DialogTrigger asChild>
-                            <button
-                                onClick={handleOpen}
-                                className="w-full p-6 text-center border-2 border-dashed border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 rounded-xl mb-4 transition-all group/cta relative overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover/cta:opacity-100 transition-opacity" />
-                                <div className="relative z-10 flex flex-col items-center gap-2">
-                                    <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center group-hover/cta:scale-110 transition-transform">
-                                        <Plus className="w-5 h-5 text-amber-500" />
+                        {!readOnly ? (
+                            <DialogTrigger asChild>
+                                <button
+                                    onClick={handleOpen}
+                                    className="w-full p-6 text-center border-2 border-dashed border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 rounded-xl mb-4 transition-all group/cta relative overflow-hidden"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover/cta:opacity-100 transition-opacity" />
+                                    <div className="relative z-10 flex flex-col items-center gap-2">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center group-hover/cta:scale-110 transition-transform">
+                                            <Plus className="w-5 h-5 text-amber-500" />
+                                        </div>
+                                        <p className="text-sm font-black text-zinc-300 uppercase tracking-widest">Configurer mon Identité</p>
+                                        <p className="text-xs text-zinc-500 font-bold uppercase tracking-tighter">Pseudo Dofus & Classe requis</p>
                                     </div>
-                                    <p className="text-sm font-black text-zinc-300 uppercase tracking-widest">Configurer mon Identité</p>
-                                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-tighter">Pseudo Dofus & Classe requis</p>
-                                </div>
-                            </button>
-                        </DialogTrigger>
+                                </button>
+                            </DialogTrigger>
+                        ) : (
+                            <div className="w-full p-6 text-center border-2 border-zinc-800/50 rounded-xl mb-4 bg-zinc-900/10">
+                                <p className="text-sm font-black text-zinc-600 uppercase tracking-widest italic">Profil non configuré</p>
+                            </div>
+                        )}
                     </div>
                 )}
 

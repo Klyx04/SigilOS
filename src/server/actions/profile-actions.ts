@@ -35,6 +35,7 @@ const UpdateProfileSchema = z.object({
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceExo: z.number().min(0, "Prix invalide").nullable().optional(),
+    targetUserId: z.string().optional(),
 });
 
 // Schema allows both legacy map (for validation) and new GlobalAvailability structure
@@ -43,6 +44,7 @@ const UpdateAvailabilitySchema = z.object({
     // We accept any JSON structure here, validation will happen in component/render logic
     // primarily to allow the flexible "weeks" structure without complex Zod recursion
     availability: z.any(),
+    targetUserId: z.string().optional(),
 });
 
 const UpdateVacationSchema = z.object({
@@ -50,11 +52,13 @@ const UpdateVacationSchema = z.object({
     vacationStart: z.string().datetime().nullable().optional(),
     vacationEnd: z.string().datetime().nullable().optional(),
     vacationNotify: z.boolean().optional(),
+    targetUserId: z.string().optional(),
 });
 
 const UpdateForgemagieSchema = z.object({
     guildId: z.string(),
     status: z.enum(["FREE", "PAID", "UNAVAILABLE"]),
+    targetUserId: z.string().optional(),
 });
 
 const SendVacationNotificationSchema = z.object({
@@ -77,11 +81,13 @@ const UpdateNotificationPrefsSchema = z.object({
         ocre: z.boolean().optional(),
         donjons: z.boolean().optional(),
     }),
+    targetUserId: z.string().optional(),
 });
 
 const SyncSuccessPointsSchema = z.object({
     guildId: z.string(),
     imageData: z.string(), // Base64 image string (data:image/...)
+    targetUserId: z.string().optional(),
 });
 
 // ============================================================================
@@ -317,7 +323,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo } = validation.data;
+    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -327,11 +333,13 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const isOwner = user.id === session.user.id;
+        // Effective user is self, or target if God
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized profile update attempt by ${user.id} on ${session.user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized profile update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
         }
 
@@ -341,7 +349,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 where: {
                     guildId: guildConfig.id,
                     pseudoDofus: { equals: pseudoDofus, mode: "insensitive" },
-                    userId: { not: session.user.id } // Exclude self
+                    userId: { not: effectiveUserId } // Exclude target
                 }
             });
 
@@ -353,7 +361,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         await db.userProfile.upsert({
             where: {
                 userId_guildId: {
-                    userId: session.user.id,
+                    userId: effectiveUserId,
                     guildId: guildConfig.id
                 }
             },
@@ -368,7 +376,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 fmPriceExo: fmPriceExo !== undefined ? fmPriceExo : undefined,
             },
             create: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guildId: guildConfig.id,
                 pseudoDofus: pseudoDofus || null,
                 classe,
@@ -401,7 +409,7 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
 
     const validation = UpdateAvailabilitySchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, availability } = validation.data;
+    const { guildId, availability, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -411,17 +419,18 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const isOwner = user.id === session.user.id;
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized availability update attempt by ${user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized availability update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ces disponibilités." };
         }
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { availability: availability as any }
         });
@@ -439,7 +448,7 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
 
     const validation = UpdateVacationSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, vacationStart, vacationEnd, vacationNotify } = validation.data;
+    const { guildId, vacationStart, vacationEnd, vacationNotify, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -449,17 +458,18 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const isOwner = user.id === session.user.id;
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized vacation update attempt by ${user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ce mode absence." };
         }
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: {
                 vacationStart: vacationStart ? new Date(vacationStart) : null,
@@ -482,35 +492,36 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
 
     const validation = UpdateNotificationPrefsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, prefs } = validation.data;
+    const { guildId, prefs, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized notification prefs update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces préférences." };
+        }
+
         const currentProfile = await db.userProfile.findUnique({
-            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
             select: { notificationPrefs: true }
         });
 
         const currentPrefs = (currentProfile?.notificationPrefs as any) || {};
         const newPrefs = { ...currentPrefs, ...prefs };
 
-        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
-        const user = await getUserContext(guildId);
-        if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
-
-        const isOwner = user.id === session.user.id;
-        const isGod = user.isSuperAdmin;
-
-        if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized notification prefs update attempt by ${user.id} (God: ${isGod})`);
-            return { success: false, error: "Vous n'avez pas la permission de modifier ces préférences." };
-        }
-
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { notificationPrefs: newPrefs }
         });
@@ -529,7 +540,7 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
     const validation = UpdateForgemagieSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, status } = validation.data;
+    const { guildId, status, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -539,17 +550,18 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const isOwner = user.id === session.user.id;
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized forgemagie update attempt by ${user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized forgemagie update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ce statut." };
         }
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { forgemagieStatus: status }
         });
@@ -569,6 +581,7 @@ const UpdateAltPseudosSchema = z.object({
             .max(20, "Pseudo trop long")
             .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)")
     ).max(5, "Maximum 5 personnages"),
+    targetUserId: z.string().optional(),
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
@@ -580,7 +593,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         console.error("[Dofusbook] Validation error:", validation.error.format());
         return { success: false, error: "Données invalides" };
     }
-    const { guildId, altPseudos } = validation.data;
+    const { guildId, altPseudos, targetUserId } = validation.data;
 
     console.log(`[Dofusbook] Updating alt pseudos for guild ${guildId}:`, altPseudos);
 
@@ -592,26 +605,25 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const cleanedPseudos = altPseudos
-            .map(p => p.trim())
-            .filter(p => p.length > 0)
+            .map((p: string) => p.trim())
+            .filter((p: string) => p.length > 0)
             .slice(0, 5);
 
-        console.log(`[Dofusbook] Profile ${user.id} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
-
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
-        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
-
-        const isOwner = user.id === session.user.id;
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized alt pseudos update attempt by ${user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized alt pseudos update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
         }
 
+        console.log(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
+
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { altPseudos: cleanedPseudos }
         });
@@ -641,7 +653,8 @@ const UpdateDofusBookLinksSchema = z.object({
             /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
             "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
         )
-    })).max(10, "Maximum 10 builds")
+    })).max(10, "Maximum 10 builds"),
+    targetUserId: z.string().optional(),
 });
 
 export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBookLinksSchema>): Promise<ActionResponse> {
@@ -650,7 +663,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
 
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, links } = validation.data;
+    const { guildId, links, targetUserId } = validation.data;
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -661,17 +674,18 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
-        const isOwner = user.id === session.user.id;
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized builds update attempt by ${user.id} (God: ${isGod})`);
+            logger.warn(`[Security] Unauthorized builds update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ces builds." };
         }
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { dofusBookLinks: links as any }
         });
@@ -1035,13 +1049,15 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSuccessPointsSchema>): Promise<ActionResponse<{ points: number, debugImage?: string, pending?: boolean, confidence?: number }>> {
     const validation = SyncSuccessPointsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, imageData } = validation.data;
+    const { guildId, imageData, targetUserId } = validation.data;
 
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!user.isMember) return { success: false, error: "Non membre de cette guilde" };
+    if (!user.isMember && !user.isSuperAdmin) return { success: false, error: "Permissions insuffisantes" };
+
+    const effectiveUserId = (targetUserId && user.isSuperAdmin) ? targetUserId : session.user.id;
 
     // 1. Sanitization & Rate Limiting
     const limiter = await rateLimit(`sync_success:${user.id}`, 10, 10 * 60 * 1000);
@@ -1078,7 +1094,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         }
 
         const currentProfile = await db.userProfile.findFirst({
-            where: { userId: user.id!, guildId: guildConfig.id }
+            where: { userId: effectiveUserId, guildId: guildConfig.id }
         });
         if (!currentProfile) return { success: false, error: "Profil introuvable" };
 

@@ -169,14 +169,21 @@ export async function cleanupExpiredAchievements(guildId: string) {
 /**
  * Cancel a pending achievement submission (User action)
  */
-export async function cancelAchievementSubmission(guildId: string): Promise<ActionResponse> {
+export async function cancelAchievementSubmission(guildId: string, targetUserId?: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     try {
+        // DB / RBAC Check
+        const { getUserContext } = await import("@/server/actions/user-actions");
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (targetUserId && user.isSuperAdmin) ? targetUserId : session.user.id;
+
         const profile = await db.userProfile.findFirst({
             where: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guild: { discordGuildId: guildId }
             }
         });

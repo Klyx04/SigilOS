@@ -22,9 +22,10 @@ interface BuildsCardProps {
     onSave: (links: DofusBookLink[]) => void;
     readOnly?: boolean;
     guildId: string;
+    targetUserId?: string;
 }
 
-export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: BuildsCardProps) {
+export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targetUserId }: BuildsCardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [newLinkName, setNewLinkName] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -59,7 +60,11 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
         const updatedLinks = [...links, newLink];
 
         try {
-            const result = await updateDofusBookLinks({ guildId, links: updatedLinks });
+            const result = await updateDofusBookLinks({
+                guildId,
+                links: updatedLinks,
+                targetUserId
+            });
             if (result.success) {
                 onSave(updatedLinks);
                 setIsOpen(false);
@@ -83,7 +88,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
         // Optimistic update
         onSave(updatedLinks);
 
-        const result = await updateDofusBookLinks({ guildId, links: updatedLinks });
+        const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
         if (!result.success) {
             toast.error("Erreur lors de la suppression");
             // Revert (not easily done without local state refetch, but acceptable for now)

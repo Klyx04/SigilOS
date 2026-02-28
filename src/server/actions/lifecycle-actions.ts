@@ -81,7 +81,7 @@ export async function archiveProfile(guildId: string, profileId?: string) {
  */
 export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.canManageMembers) return { success: false, error: "Unauthorized" };
+    if (!ctx.isAuthenticated || !ctx.isSuperAdmin) return { success: false, error: "Unauthorized: Super Admin access required" };
 
     try {
         const target = await db.userProfile.findUnique({

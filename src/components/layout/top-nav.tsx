@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+
 import { cn } from "@/lib/utils";
 import {
     ChevronRight,
@@ -16,8 +17,8 @@ import { AppSidebar } from "./app-sidebar";
 import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { CommandMenu } from "@/components/layout/command-menu";
-import { getDocForRoute } from "@/config/docs-mapping";
 import { CircleHelp } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Helper to format breadcrumbs
@@ -114,7 +115,7 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 {/* 2. Context-Aware Help (Docs) */}
                 <div className="relative z-10 border-r border-white/10">
                     <Link
-                        href={`/docs/${getDocForRoute(pathname)}`}
+                        href="/docs"
                         target="_blank"
                         className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/docs active:scale-95"
                         title="Documentation Utilisateur"

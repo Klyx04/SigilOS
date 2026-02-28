@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Plus, ExternalLink, ShieldAlert } from "lucide-react";
+import { Link2, Trash2, Plus, Pencil, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -30,6 +30,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
     const [newLinkName, setNewLinkName] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingLink, setEditingLink] = useState<DofusBookLink | null>(null);
 
     const handleAddLink = async () => {
         if (!newLinkName.trim() || !newLinkUrl.trim()) {
@@ -75,6 +76,35 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 toast.error(result.error || "Erreur lors de l'ajout");
             }
         } catch (error) {
+            toast.error("Erreur serveur");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleEditLink = async () => {
+        if (!editingLink) return;
+        if (!editingLink.name.trim() || !editingLink.url.trim()) {
+            toast.error("Veuillez remplir tous les champs");
+            return;
+        }
+        const urlPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/;
+        if (!urlPattern.test(editingLink.url.trim())) {
+            toast.error("Format de lien invalide (d-bk.net ou dofusbook.net requis)");
+            return;
+        }
+        setIsSubmitting(true);
+        const updatedLinks = links.map(l => l.id === editingLink.id ? editingLink : l);
+        try {
+            const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
+            if (result.success) {
+                onSave(updatedLinks);
+                setEditingLink(null);
+                toast.success("Build mis à jour");
+            } else {
+                toast.error(result.error || "Erreur lors de la modification");
+            }
+        } catch {
             toast.error("Erreur serveur");
         } finally {
             setIsSubmitting(false);
@@ -177,13 +207,22 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                             <DofusbookPreview url={link.url} title={link.name} />
 
                             {!readOnly && (
-                                <button
-                                    onClick={() => handleDeleteLink(link.id)}
-                                    className="absolute top-2 right-2 p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all opacity-0 group-hover/card:opacity-100 z-20 shadow-xl"
-                                    title="Supprimer ce build"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20">
+                                    <button
+                                        onClick={() => setEditingLink({ ...link })}
+                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        title="Modifier ce build"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteLink(link.id)}
+                                        className="p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all shadow-xl"
+                                        title="Supprimer ce build"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))
@@ -196,6 +235,51 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     </div>
                 )}
             </div>
+
+            {/* Edit Dialog */}
+            <Dialog open={!!editingLink} onOpenChange={(open) => !open && setEditingLink(null)}>
+                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le Build</DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                            Modifiez le nom ou le lien de votre build.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingLink && (
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Nom du build (Max 30)</Label>
+                                <Input
+                                    id="edit-name"
+                                    maxLength={30}
+                                    value={editingLink.name}
+                                    onChange={(e) => setEditingLink(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                    className="bg-zinc-900 border-white/10"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-url">Lien DofusBook</Label>
+                                <Input
+                                    id="edit-url"
+                                    value={editingLink.url}
+                                    onChange={(e) => setEditingLink(prev => prev ? { ...prev, url: e.target.value } : null)}
+                                    className="bg-zinc-900 border-white/10 font-mono text-xs"
+                                />
+                                <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                                    <ShieldAlert className="w-3 h-3" />
+                                    Seuls les liens d-bk.net et dofusbook.net sécurisés (https) sont acceptés.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setEditingLink(null)}>Annuler</Button>
+                        <Button onClick={handleEditLink} disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                            {isSubmitting ? "Sauvegarde..." : "Enregistrer"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

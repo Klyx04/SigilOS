@@ -63,7 +63,7 @@ export function MissionDiscordPublishDialog({
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent
                 draggable
-                className="sm:max-w-[500px] bg-zinc-950 border-white/10 shadow-2xl p-0 overflow-hidden outline-none"
+                className="sm:max-w-[440px] bg-zinc-950 border-white/10 shadow-2xl p-0 overflow-hidden outline-none"
             >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-purple-500/10 pointer-events-none" />
 

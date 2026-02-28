@@ -653,7 +653,7 @@ export async function submitMissionProof(
         });
 
         // Notify Validators
-        const userName = profile.user.name || "Un membre";
+        const userName = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
         const missionTitle = mission.title || "Mission Inconnue";
         await notifyValidators(
             mission.guild.discordGuildId,

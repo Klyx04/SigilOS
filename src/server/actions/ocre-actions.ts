@@ -1697,7 +1697,7 @@ export async function createTradeRequest(
                     userId: targetProfile.userId,
                     type: "OCRE_TRADE_REQUEST",
                     title: "Demande d'Échange",
-                    message: `${requesterProfile.discordNickname || requesterProfile.user.name || "Un membre"} souhaite vous échanger un monstre !`,
+                    message: `${requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre"} souhaite vous échanger un monstre !`,
                     link: `/dashboard/${guildId}/quete-ocre`,
                 }
             });
@@ -1714,7 +1714,7 @@ export async function createTradeRequest(
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                const requesterName = requesterProfile.discordNickname || requesterProfile.user.name || "Un membre";
+                const requesterName = requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre";
 
                 await sendChannelMessage(
                     guildConfig.ocreNotifyChannelId,

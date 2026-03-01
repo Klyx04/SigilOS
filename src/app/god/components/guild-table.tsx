@@ -544,19 +544,17 @@ function GuildRow({ guild, selected, onSelect }: {
                             <DropdownMenuLabel className="text-xs text-zinc-500 uppercase tracking-widest p-3">Actions God Mode</DropdownMenuLabel>
                             <DropdownMenuSeparator className="bg-white/5" />
 
-                            <DropdownMenuItem asChild className="gap-3 p-3 cursor-pointer focus:bg-violet-500/10 focus:text-violet-400">
-                                <Link href={`/god/guilds/${guild.id}`}>
-                                    <Eye className="w-4 h-4" />
-                                    Voir le Roster
-                                </Link>
-                            </DropdownMenuItem>
+                            {!guild.isWhitelistOnly && (
+                                <>
+                                    <DropdownMenuItem asChild className="gap-3 p-3 cursor-pointer focus:bg-violet-500/10 focus:text-violet-400">
+                                        <Link href={`/god/guilds/${guild.id}`}>
+                                            <Eye className="w-4 h-4" />
+                                            Voir le Roster
+                                        </Link>
+                                    </DropdownMenuItem>
 
-                            <DropdownMenuItem className="gap-3 p-3 cursor-pointer focus:bg-blue-500/10 focus:text-blue-400">
-                                <Calendar className="w-4 h-4" />
-                                Journal d'Audit
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator className="bg-white/5" />
+                                </>
+                            )}
 
                             {guild.isWhitelistOnly ? (
                                 <>

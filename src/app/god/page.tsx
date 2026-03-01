@@ -29,6 +29,8 @@ import { JanitorButton } from "./janitor-button";
 import { UserList } from "./user-list";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
+import { GhostRadarPanel } from "./components/ghost-radar-panel";
+import { StoragePanel } from "./components/storage-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 
@@ -67,7 +69,7 @@ export default async function SuperAdminPage() {
 
             <GodDashboardClient
                 overview={
-                    <div className="space-y-20">
+                    <div className="space-y-12">
                         {/* Live Stats */}
                         <Suspense fallback={<StatsLoading />}>
                             <LiveStatsServer />
@@ -83,12 +85,15 @@ export default async function SuperAdminPage() {
                                 <ChartServer />
                             </Suspense>
                         </div>
-
+                    </div>
+                }
+                guilds={
+                    <div className="space-y-12">
                         {/* Guilds Management */}
                         <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 pb-10 shadow-2xl">
                             <div className="p-8 pb-4">
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-                                    <LayoutDashboard className="w-6 h-6 text-violet-500" />
+                                    <LayoutDashboard className="w-6 h-6 text-blue-500" />
                                     Guildes Actives
                                 </h2>
                             </div>
@@ -98,79 +103,88 @@ export default async function SuperAdminPage() {
                         </div>
                     </div>
                 }
-                maintenance={
+                infrastructure={
                     <div className="space-y-12">
                         {/* Communication Panel (Announcement Banner + Discord Broadcast) */}
                         <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
                             <AnnouncementServer />
                         </Suspense>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                            <div className="lg:col-span-2 space-y-10">
-                                {/* Lifecycle Management */}
-                                <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
-                                        <LifecycleServer />
-                                    </Suspense>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {/* OCR Stats */}
+                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
+                                <OcrStatsServer />
+                            </Suspense>
+
+                            {/* Database Links */}
+                            <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
+                                <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em]">Resources</h3>
+                                <div className="grid gap-3">
+                                    <Link
+                                        href="/god/changelog"
+                                        className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                    >
+                                        <Book className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
+                                        Changelog
+                                    </Link>
+                                    <Link
+                                        href="/god/onboarding"
+                                        className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                    >
+                                        <Shield className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                        Docs Onboarding B2B
+                                    </Link>
+                                    <Link
+                                        href="/god/docs"
+                                        className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                    >
+                                        <Database className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
+                                        API Specs
+                                    </Link>
                                 </div>
                             </div>
-
-                            <div className="space-y-8">
-                                {/* Janitor (Rebranded as Maintenance Service) */}
-                                <JanitorButton />
-
-                                {/* Ghost Users */}
-                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
-                                    <GhostUsersServer />
-                                </Suspense>
-                            </div>
                         </div>
+
+                        {/* Janitor (Rebranded as Maintenance Service) */}
+                        <JanitorButton />
+
+                        {/* Storage Stats Panel */}
+                        <StoragePanel />
                     </div>
                 }
-                logs={
+                security={
                     <div className="space-y-12">
                         <div className="flex flex-col gap-2">
-                            <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-blue-200 to-blue-500 bg-clip-text text-transparent uppercase tracking-tight">
-                                🛡️ Security Audit
+                            <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-red-200 to-red-500 bg-clip-text text-transparent uppercase tracking-tight">
+                                🛡️ Opérations de Sécurité
                             </h2>
                             <p className="text-lg text-zinc-500 font-medium">
-                                Tracking en temps réel des actions sensibles et tentatives d'accès.
+                                Tracking des actions sensibles, détection de fantômes et gestion du cycle de vie.
                             </p>
                         </div>
 
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Ghost Users */}
+                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
+                                <GhostUsersServer />
+                            </Suspense>
+
+                            {/* Ghost Discord Guilds Radar */}
+                            <GhostRadarPanel />
+                        </div>
+
+                        {/* Lifecycle Management */}
+                        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                <LifecycleServer />
+                            </Suspense>
+                        </div>
+
+                        {/* Security Audit Log */}
                         <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">
                             <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
                                 <GlobalLogsServer />
                             </Suspense>
-                        </div>
-                    </div>
-                }
-                systems={
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {/* OCR Stats */}
-                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
-                            <OcrStatsServer />
-                        </Suspense>
-
-                        {/* Database Links */}
-                        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
-                            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em]">Resources</h3>
-                            <div className="grid gap-3">
-                                <Link
-                                    href="/god/changelog"
-                                    className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
-                                >
-                                    <Book className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
-                                    Changelog
-                                </Link>
-                                <Link
-                                    href="/god/docs"
-                                    className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-zinc-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
-                                >
-                                    <Database className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
-                                    API Specs
-                                </Link>
-                            </div>
                         </div>
                     </div>
                 }

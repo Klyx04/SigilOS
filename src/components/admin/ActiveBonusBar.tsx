@@ -33,17 +33,17 @@ function getCountdown(bonus: BonusData) {
     const now = new Date();
 
     if (bonus.status === "PURCHASED") {
-        const activatesAt = new Date(bonus.activatesAt);
+        const expiresAt = new Date(bonus.activatesAt); // activatesAt in DB is actually the 24h deadline
         const totalDuration = 24 * 60 * 60 * 1000;
-        const timeLeft = activatesAt.getTime() - now.getTime();
+        const timeLeft = expiresAt.getTime() - now.getTime();
 
-        if (timeLeft <= 0) return { text: "Activation...", progress: 100 };
+        if (timeLeft <= 0) return { text: "Expiré", progress: 100 };
 
         const hours = Math.floor(timeLeft / (60 * 60 * 1000));
         const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
         return {
             text: `${hours}h ${String(minutes).padStart(2, "0")}m`,
-            progress: ((totalDuration - timeLeft) / totalDuration) * 100,
+            progress: 100 - ((timeLeft / totalDuration) * 100),
         };
     }
 
@@ -78,12 +78,7 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
     }, [bonus]);
 
     return (
-        <div
-            className={`
-                flex items-center gap-3 rounded-lg border-2 px-3 py-2 transition-all
-                ${isActive ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"}
-            `}
-        >
+        <div className="flex items-center gap-3 rounded-lg border-2 px-3 py-2 transition-all border-green-500/50 bg-green-500/5">
             {/* Icon + Info */}
             <div className="flex items-center gap-2 min-w-0">
                 <img
@@ -97,11 +92,7 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
                 <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                         <h4 className="font-bold text-white text-xs truncate uppercase">{bonus.config.name}</h4>
-                        {isActive ? (
-                            <Sparkles className="w-3 h-3 text-green-400 animate-pulse flex-shrink-0" />
-                        ) : (
-                            <Clock className="w-3 h-3 text-orange-400 flex-shrink-0" />
-                        )}
+                        <Sparkles className="w-3 h-3 text-green-400 animate-pulse flex-shrink-0" />
                     </div>
                     <p className="text-[10px] text-slate-400 truncate">
                         Acheté par {bonus.purchaserName || "un membre"}
@@ -113,29 +104,21 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
             <div className="flex-1 min-w-[100px]">
                 <div className="relative h-1.5 bg-slate-800 rounded-full overflow-hidden mb-0.5">
                     <div
-                        className={`
-                            h-full transition-all duration-1000 rounded-full
-                            ${isActive ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-orange-500 to-yellow-400"}
-                        `}
+                        className="h-full transition-all duration-1000 rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
                         style={{ width: `${countdown.progress}%` }}
                     />
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
-                    <span className={isActive ? "text-green-400" : "text-orange-400"}>
-                        {isActive ? "Expire dans" : "Active dans"}
+                    <span className="text-green-400">
+                        Expire dans
                     </span>
                     <span className="font-mono font-bold text-white">{countdown.text}</span>
                 </div>
             </div>
 
             {/* Status Badge */}
-            <div
-                className={`
-                    px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap flex-shrink-0
-                    ${isActive ? "bg-green-500/20 text-green-400" : "bg-orange-500/20 text-orange-400"}
-                `}
-            >
-                {isActive ? "✨ Actif" : "⏳ Attente"}
+            <div className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap flex-shrink-0 bg-green-500/20 text-green-400">
+                ✨ DISPONIBLE
             </div>
         </div>
     );

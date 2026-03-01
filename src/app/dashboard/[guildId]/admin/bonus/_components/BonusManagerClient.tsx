@@ -67,6 +67,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    const [activating, setActivating] = useState(false);
 
     // Purchase form state
     const [selectedBonus, setSelectedBonus] = useState<BonusType | null>(null);
@@ -124,7 +125,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
             );
 
             if (result.success) {
-                toast.success("Bonus acheté avec succès ! Il sera actif dans 24h.");
+                toast.success("Bonus acheté avec succès ! Il est dispo en jeu pendant 24h.");
                 setSelectedBonus(null);
                 setChannelId("");
                 setMentionType(MentionType.NONE);
@@ -158,37 +159,39 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                 <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                        <h3 className="font-bold text-orange-400 mb-1">Bonus actif ou en attente</h3>
+                        <h3 className="font-bold text-orange-400 mb-1">Bonus actuellement disponible</h3>
                         <p className="text-sm text-orange-300/80">
-                            Vous ne pouvez acheter qu'un seul bonus à la fois. Attendez que le bonus actuel expire avant d'en acheter un autre.
+                            Vous ne pouvez acheter qu'un seul bonus à la fois. N'importe quel membre de la guilde peut activer le bonus **en jeu** pendant ce délai de 24h.
                         </p>
                         <div className="mt-2 text-xs text-orange-400">
                             <strong>Bonus actuel :</strong> {activeBonus?.config?.name || "Inconnu"}
                             <br />
-                            <strong>Statut :</strong> {activeBonus?.status === "ACTIVE" ? "Actif" : "En attente (24h)"}
+                            <strong>Statut :</strong> {activeBonus?.status === "PURCHASED" ? "Disponible en jeu (24h)" : "Actif (en cours)"}
                         </div>
                     </div>
-                    {canCancel && (
-                        <Button
-                            onClick={handleCancelBonus}
-                            disabled={cancelling}
-                            variant="outline"
-                            size="sm"
-                            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                        >
-                            {cancelling ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Annulation...
-                                </>
-                            ) : (
-                                <>
-                                    <XCircle className="w-4 h-4 mr-2" />
-                                    Annuler
-                                </>
-                            )}
-                        </Button>
-                    )}
+                    <div className="flex flex-col gap-2">
+                        {canCancel && (
+                            <Button
+                                onClick={handleCancelBonus}
+                                disabled={cancelling}
+                                variant="outline"
+                                size="sm"
+                                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                            >
+                                {cancelling ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Annulation...
+                                    </>
+                                ) : (
+                                    <>
+                                        <XCircle className="w-4 h-4 mr-2" />
+                                        Annuler l'achat
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             )}
 

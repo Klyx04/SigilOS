@@ -130,8 +130,8 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
     if (readOnly && links.length === 0) return null;
 
     return (
-        <div className="p-6 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+        <div className="p-6 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 transition-all hover:border-white/20 group h-full flex flex-col">
+            <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <Link2 className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-base font-semibold text-zinc-200">Mes Builds</h3>

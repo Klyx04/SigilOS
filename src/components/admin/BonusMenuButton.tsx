@@ -148,7 +148,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
             );
 
             if (result.success) {
-                toast.success("Bonus acheté avec succès ! Il sera actif dans 24h.");
+                toast.success("Bonus acheté avec succès ! Il est dispo en jeu pendant 24h.");
                 setSelectedBonus(null);
                 setMentionType(MentionType.NONE);
                 setRoleId("");
@@ -185,7 +185,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                         Bonus de Guilde
                     </DialogTitle>
                     <DialogDescription>
-                        Achetez des bonus pour votre guilde. Les bonus s&apos;activent automatiquement après 24h et durent 2h.
+                        Achetez des bonus pour votre guilde. N'importe quel membre pourra l'activer en jeu pendant les 24h qui suivent !
                     </DialogDescription>
                 </DialogHeader>
 
@@ -206,7 +206,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 {bonus.config?.name || "Bonus"}
                                             </span>
                                             <span className="text-xs text-orange-300/60 ml-2">
-                                                {bonus.status === "ACTIVE" ? "✨ Actif" : "⏳ En attente (24h)"}
+                                                ⏳ Dispo en jeu (24h max)
                                             </span>
                                         </div>
                                         {bonus.status === "PURCHASED" && (

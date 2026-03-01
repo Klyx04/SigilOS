@@ -291,7 +291,7 @@ export function ProfileBentoGrid({
             {/* Tabs Navigation */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
+                    <TabsList className="bg-zinc-900/60 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full text-zinc-400">
                         <TabsTrigger
                             value="overview"
                             className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"

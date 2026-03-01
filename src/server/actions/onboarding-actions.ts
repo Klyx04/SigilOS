@@ -219,7 +219,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
 
         if (activeMembers.length > 0) {
             const notificationTitle = "✨ Arrivée d'un nouveau membre";
-            const notificationMessage = `Dites bonjour à ${displayName} qui vient d'intégrer le Dashboard ! 👋`;
+            const notificationMessage = `${displayName} vient d'intégrer le Dashboard ! 👋`;
 
             const notificationPromises = activeMembers.map(m =>
                 createNotification(
@@ -227,7 +227,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                     "SYSTEM_INFO",
                     notificationTitle,
                     notificationMessage,
-                    `/dashboard/${guildConfig.discordGuildId}/profile`,
+                    `/dashboard/${guildConfig.discordGuildId}/welcome`,
                     guildConfig.discordGuildId,
                     "SYSTEM"
                 )

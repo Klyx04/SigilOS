@@ -69,7 +69,7 @@ export function ClassDisplay({
     };
 
     return (
-        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
+        <div className="p-4 bg-zinc-900/40 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold text-zinc-200 flex items-center gap-2">

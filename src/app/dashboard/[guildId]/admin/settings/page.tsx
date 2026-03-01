@@ -6,7 +6,7 @@ import AccessDenied from "@/components/access-denied";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles
+    ShieldAlert, UserCheck, Sparkles, Gem
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
@@ -27,6 +27,7 @@ import { DjSettingsClient } from "../_components/dj-settings-client";
 import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
 import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
+import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import Link from "next/link";
 
 // ============================================================================
@@ -49,6 +50,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "green" },
         { id: "donjons", label: "Donjons & Quêtes", icon: Sword, description: "DJ Finder & succès", accent: "blue" },
         { id: "missions", label: "Missions", icon: Target, description: "Annonces hebdomadaires", accent: "amber" },
+        { id: "bonus", label: "Bonus de Guilde", icon: Gem, description: "Oracles & notifications", accent: "purple" },
         { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald" },
         { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
@@ -162,6 +164,7 @@ export default async function FeatureSettingsPage({
                     {activeTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
                     {activeTab === "donjons" && <DjSettingsClient guildId={guildId} />}
                     {activeTab === "missions" && <MissionSettingsClient guildId={guildId} />}
+                    {activeTab === "bonus" && <BonusSettingsClient guildId={guildId} />}
                     {activeTab === "prets" && <LoansSettingsClient guildId={guildId} />}
                     {activeTab === "metamob" && (
                         <div className="space-y-8">

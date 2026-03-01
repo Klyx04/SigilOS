@@ -1,5 +1,7 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
+
 import { useState, useTransition } from "react";
 import {
     Megaphone,
@@ -273,7 +275,9 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                                 ? "🚀 Mise à Jour SigilOS"
                                                 : "📢 Annonce SigilOS"}
                                     </div>
-                                    <div className="text-sm text-zinc-400">{discordMessage}</div>
+                                    <div className="text-sm text-zinc-400 prose prose-invert prose-p:my-1 prose-a:text-blue-400 prose-strong:text-white max-w-none">
+                                        <ReactMarkdown>{discordMessage}</ReactMarkdown>
+                                    </div>
                                     {mentionEveryone && (
                                         <div className="text-xs text-blue-400 font-mono">@everyone</div>
                                     )}

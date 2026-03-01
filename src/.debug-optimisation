@@ -1,0 +1,62 @@
+
+- vérifie ceci : pop up de validation/non validation des missions/succès pour les membres mais pas de vraies notif dans leur interface notif j'ai l'impression? 
+
+- Possibilité de markdown avec full option compatible embed discord avec preview coté god dans maintenance pour les envoi de notif aux gens (maintenance, update, info)
+
+- grossir lien ladder officiel coté module profil c ilisible actuellement
+
+- le lien vers la doc n'est pas le même depuis la navbar et depuis le header , j'aimes pas cette page https://beta.sigilos.fr/docs/intro depuis le header elle sert à rien
+cette page est très bien : https://beta.sigilos.fr/docs (page depuis la navbar)
+
+- Revoir l'ui complète coté GOD car des composants sont bug, les rosters pointent parfois vers une page inexistante , enfin ya beaucoup de chose à revoir sur cette UI pour etre clean visuel etc
+
+- ajoute une petite infobulle dans la page welcome admin qui fait pop un modal avec un tutoriel sur le markdown en rapide 
+
+- changement d'onglet dans la page validation missions fait bouger la page bizarrement
+
+
+explique à quoi s'est du pendant un déploiement sur le vps ,si on peut faire mieux :
+💀
+Erreur Critique
+Une erreur inattendue s'est produite. L'équipe a été notifiée.
+
+Référence : 2343447725
+
+Réessayer
+
+
+- ou est le param pour les embed d'achat de bonus guilde?
+
+- modale publication mission trop large
+
+- changelog ok modale mais proposer un lien dans la modale aussi pour allez sieutez le changelog pour les membres , proposer une icone coté header Dashboard pour accéder facilement au changelog pour les membres
+
+- Ajouter un bouton dans les cartes de missions a coté de inscrit : déjà validé (modale liste membre ayant validé)
+
+- supprimer les embed envoyé des notif de demande de validation sur discord une fois une mission validés non validés par un admin
+
+- impossible d'éditer ses stuff coté profil une fois enregistré 
+
+- bouton postuler run songes dans la run pas uniquement dans la carte
+
+- possibilité de voir les candidatures dans une run songes  en attente meme pour les non proprio de la run mais pas possible de les valider évidemment (que les proprio peuvent)
+
+- composant coté profil (dispo etctrop noir sur noir) idem annuaire
+
+- valide si fait déjà ceci  detection d'un serveur discord supprimé si onboardé coté god était actif
+
+- quand on clique sur la notif d'arrivée d'un nouveau membre : doit nous envoyer vers la page bienvenue et pas vers notre propre profil , rendre cliquable vers page lecture seule la personne dans le message de bienvenue
+
+- Les notifs d'envoi de preuves missions/succès doivent renvoyer le pseudo du serveur discord , pas le nom du compte discord (beaucoup d'endroit comme ça j'ai l'impression)
+
+
+-  Avoir un chat live sur le Dashboard , qui ne consomme pas de place sur le vps sur le long terme évidement , pas d'upload possible , une base d'emoji , sanitizé , chat qui apporte une plus value , comment gérer l'historique du chat , prévisu des gens qui tapent, pseudo exact , best practices chat 2026 et ou le metttre sur le Dashboard plus possiblité de le cacher pour les gens ?
+
+
+- coté god:
+
+Panneau par guilde la consommation espace disque
+
+Nb de Capture en cours qui prennent de la place , timer de suppression etc (succès/mission) par guilde
+Stats espaces disque / jour voir la diff entre chaque jour ,; sur le temps , comment optimiser l'espace disque sur le long terme sur le vps 
+Autres?

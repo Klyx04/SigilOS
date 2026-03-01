@@ -13,6 +13,7 @@ import { BonusInventory } from "@/components/songes/BonusInventory";
 import { JoinRequestsPanel } from "@/components/songes/JoinRequestsPanel";
 import { RunTree } from "@/components/songes/RunTree";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
+import { RunCandidacyBox } from "@/components/songes/RunCandidacyBox";
 import type { DreamRun, DreamRunMember, DreamWaitlist, DreamFloor, DreamRunBonus, DreamJoinRequest } from "@prisma/client";
 
 type RunWithRelations = DreamRun & {
@@ -37,6 +38,7 @@ export default function RunDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
     const [bossGuideOpen, setBossGuideOpen] = useState(false);
+    const [canJoinSonges, setCanJoinSonges] = useState<boolean>(true);
 
     const loadData = useCallback(async () => {
         if (!guildId) return;
@@ -65,6 +67,7 @@ export default function RunDetailPage() {
 
         if (userContext.isAuthenticated && userContext.id) {
             setCurrentUserId(userContext.id);
+            setCanJoinSonges(userContext.canJoinSonges);
         }
 
         setLoading(false);
@@ -165,8 +168,19 @@ export default function RunDetailPage() {
                         <RunLeaderActions guildId={guildId} runId={run.id} />
                     )}
 
-                    {/* Join Requests Panel - Only for leader, both RECRUITING and IN_PROGRESS */}
-                    {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                    {/* Candidacy Box pour rejoindre la run (gère si le membre peut postuler ou a postulé) */}
+                    <RunCandidacyBox
+                        guildId={guildId}
+                        runId={run.id}
+                        status={optimisticStatus || run.status}
+                        membersCount={run.members.length}
+                        isMember={run.members.some(m => m.userId === currentUserId)}
+                        isLeader={isLeader}
+                        canJoinSonges={canJoinSonges}
+                    />
+
+                    {/* Join Requests Panel - Visible to all for RECRUITING and IN_PROGRESS */}
+                    {(optimisticStatus === "RECRUITING" || optimisticStatus === "IN_PROGRESS") && (
                         <JoinRequestsPanel guildId={guildId} runId={run.id} isLeader={isLeader} />
                     )}
 

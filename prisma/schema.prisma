@@ -344,17 +344,18 @@ model MissionInterest {
 }
 
 model Submission {
-  id          String           @id @default(cuid())
-  missionId   String
-  profileId   String
-  status      SubmissionStatus @default(PENDING)
-  proofUrl    String
-  validatorId String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  ocrResult   Json?
-  ocrScore    Float?
-  ocrStatus   OcrStatus        @default(PENDING)
+  id               String           @id @default(cuid())
+  missionId        String
+  profileId        String
+  status           SubmissionStatus @default(PENDING)
+  proofUrl         String
+  validatorId      String?
+  discordMessageId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  ocrResult        Json?
+  ocrScore         Float?
+  ocrStatus        OcrStatus        @default(PENDING)
   mission     Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
   profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
   helpers     UserProfile[]    @relation("SubmissionHelpers")

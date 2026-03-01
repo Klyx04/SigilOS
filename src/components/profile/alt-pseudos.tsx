@@ -137,7 +137,7 @@ export function AltPseudos({
     };
 
     return (
-        <Card className="bg-black/20 backdrop-blur-md border-white/10 relative overflow-hidden group">
+        <Card className="bg-zinc-900/40 backdrop-blur-md border-white/10 relative overflow-hidden group h-full">
             {/* Subtle Glow to match other components */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 opacity-0 group-hover:opacity-100 transition-opacity" />
 

@@ -276,7 +276,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         <div className="space-y-1">
                                             <p className="text-[11px] text-white font-black uppercase tracking-widest">Guide des Balises</p>
                                             <p className="text-[10px] text-zinc-500 leading-relaxed font-bold italic">
-                                                Les tags <code className="text-amber-500 font-mono tracking-tighter">{`{member}`}</code> et <code className="text-amber-500 font-mono tracking-tighter">{`{guild}`}</code> injecteront dynamiquement le profil et le nom de votre serveur.
+                                                Les tags <code className="text-amber-500 font-mono tracking-tighter">{`{member}`}</code> et <code className="text-amber-500 font-mono tracking-tighter">{`{guild}`}</code> injecteront dynamiquement le profil et le nom de la guilde. Le <strong>formatage Markdown</strong> est supporté pour mettre en page le texte.
                                             </p>
                                         </div>
                                     </div>

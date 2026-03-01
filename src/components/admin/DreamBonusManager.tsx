@@ -25,6 +25,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ImageDownloader } from "./ImageDownloader";
 
 interface DreamBonus {
     id: string;
@@ -286,12 +287,13 @@ export default function DreamBonusManager() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">URL Image</label>
-                            <Input
-                                value={formData.imageUrl}
-                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-                                placeholder="https://..."
-                                className="bg-slate-900 border-slate-700 text-white"
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Illustration</label>
+                            <ImageDownloader
+                                type="item"
+                                imageUrl={formData.imageUrl || ""}
+                                identifier={formData.name}
+                                onImageDownloaded={(path) => setFormData({ ...formData, imageUrl: path })}
+                                className="w-full"
                             />
                         </div>
                         <div className="flex gap-3 pt-2">

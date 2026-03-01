@@ -280,6 +280,10 @@ export async function joinDreamRun(guildId: string, runId: string) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    if (!ctx.canJoinSonges) {
+        return { success: false, error: "Non autorisé: permission requise pour rejoindre les Songes" };
+    }
+
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
         include: { members: true, waitlist: true },
@@ -647,6 +651,11 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         return { success: false, error: "Données invalides" };
     }
 
+    // Security Check: Ensure user has the 'canJoinSonges' permission 
+    if (!ctx.canJoinSonges) {
+        return { success: false, error: "Non autorisé: permission requise pour rejoindre les Songes" };
+    }
+
     // Find run by ID AND Guild ID (Isolation)
     const run = await db.dreamRun.findFirst({
         where: {
@@ -839,10 +848,8 @@ export async function getPendingJoinRequests(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée ou accès refusé", requests: [] };
     }
 
-    // Only leader can see pending requests
-    if (run.leaderId !== ctx.id) {
-        return { success: false, error: "Non autorisé", requests: [] };
-    }
+    // Non-leaders are now allowed to see pending requests (UI requirement)
+    // Visibility restriction handled by UI (Action buttons hidden for non-leaders)
 
     // Cleanup is now handled by the BullMQ worker (daily job)
 

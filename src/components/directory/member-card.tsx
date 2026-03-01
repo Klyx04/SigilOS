@@ -67,8 +67,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         <Link href={`/dashboard/${guildId}/members/${profile.id}`}>
             <Card
                 className={cn(
-                    "bg-zinc-900/40 hover:bg-zinc-900/60 transition-all group overflow-hidden cursor-pointer border-2",
-                    roleColor ? "" : "border-white/5 hover:border-primary/50"
+                    "bg-white/[0.03] hover:bg-white/[0.08] transition-all group overflow-hidden cursor-pointer border-2 shadow-lg",
+                    roleColor ? "" : "border-white/5"
                 )}
                 style={roleColor ? { borderColor: roleColor } : undefined}
             >

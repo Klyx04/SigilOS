@@ -42,10 +42,9 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
     };
 
     useEffect(() => {
-        if (!isLeader) return;
         loadRequests();
         // No polling - will refresh on actions or manual page reload
-    }, [runId, isLeader]);
+    }, [runId]);
 
     const handleRespond = (requestId: string, accept: boolean) => {
         setActionLoading(requestId);
@@ -59,8 +58,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
         });
     };
 
-    // Only leaders can see this panel
-    if (!isLeader) return null;
+    // Tous les membres peuvent voir ce panneau (UI modifiée)
 
     if (loading) {
         return (
@@ -117,30 +115,32 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex gap-1 shrink-0">
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white"
-                                        onClick={() => handleRespond(request.id, true)}
-                                        disabled={actionLoading === request.id || isPending}
-                                    >
-                                        {actionLoading === request.id ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Check className="w-4 h-4" />
-                                        )}
-                                    </Button>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white"
-                                        onClick={() => handleRespond(request.id, false)}
-                                        disabled={actionLoading === request.id || isPending}
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </Button>
-                                </div>
+                                {isLeader && (
+                                    <div className="flex gap-1 shrink-0">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white"
+                                            onClick={() => handleRespond(request.id, true)}
+                                            disabled={actionLoading === request.id || isPending}
+                                        >
+                                            {actionLoading === request.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Check className="w-4 h-4" />
+                                            )}
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white"
+                                            onClick={() => handleRespond(request.id, false)}
+                                            disabled={actionLoading === request.id || isPending}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

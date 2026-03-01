@@ -336,10 +336,10 @@ export function AvailabilityHeatmap({
                                                             // Normal State (Active Future)
                                                             !isVacationDay && !isPastDay && isActive
                                                                 ? cn(colors.bg, colors.border, "shadow-sm")
-                                                                : "bg-white/5 border-white/5",
+                                                                : "bg-white/10 border-white/5",
 
                                                             // Hover States (Active Future)
-                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && !isActive && "scale-105 bg-white/10 border-white/20",
+                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && !isActive && "scale-105 bg-white/20 border-white/20",
                                                             !readOnly && !isVacationDay && !isPastDay && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
 
                                                             // Past State

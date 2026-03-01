@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         const type = searchParams.get("type") || "achievement";
 
         // Validate type
-        const validTypes = ["achievement", "monster", "dungeon"];
+        const validTypes = ["achievement", "monster", "dungeon", "item"];
         if (!validTypes.includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },

@@ -20,16 +20,21 @@ import {
     CheckCircle2,
     Hourglass,
     XCircle,
-    Loader2
+    Loader2,
+    ShieldCheck,
+    Trophy
 } from "lucide-react";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toggleMissionInterest, cancelMissionSubmission } from "@/server/actions/mission-actions";
+import { toggleMissionInterest, cancelMissionSubmission, getMissionValidators } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ProofUploadDialog } from "./proof-upload-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // --- Props ---
 
@@ -133,6 +138,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 export function MissionCard({ mission, currentUserId, guildId, onInterestClick }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
+    const [showValidators, setShowValidators] = useState(false);
+    const [isLoadingValidators, setIsLoadingValidators] = useState(false);
+    const [validatorsList, setValidatorsList] = useState<any[]>([]);
     const router = useRouter();
 
     const isInterested = mission.interests.some(i => i.profile.userId === currentUserId);
@@ -210,6 +218,21 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
         e.stopPropagation();
         if (onInterestClick) {
             onInterestClick(mission.id);
+        }
+    };
+
+    const handleShowValidators = async () => {
+        setShowValidators(true);
+        setIsLoadingValidators(true);
+        try {
+            const res = await getMissionValidators(guildId, mission.id);
+            if (res.success && res.data) {
+                setValidatorsList(res.data);
+            }
+        } catch {
+            toast.error("Erreur chargement validateurs");
+        } finally {
+            setIsLoadingValidators(false);
         }
     };
 
@@ -381,6 +404,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                     )}
                 </Button>
 
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all ml-2 border-white/10"
+                    onClick={handleShowValidators}
+                    title="Voir les membres ayant validé"
+                >
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
+                    Validés
+                </Button>
+
                 <div className="flex items-center gap-4">
                     {/* Participant List */}
                     {interestCount > 0 && (
@@ -441,6 +475,53 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                 category={mission.category}
                 payload={payload}
             />
+
+            {/* Validators Dialog */}
+            <Dialog open={showValidators} onOpenChange={setShowValidators}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-white/10 shadow-2xl overflow-hidden p-0">
+                    <div className="p-6 pb-4 bg-zinc-900/40 border-b border-white/5 relative z-10">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-3 text-lg font-black text-white">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <span className="uppercase tracking-widest italic text-sm">Validations Réussies</span>
+                            </DialogTitle>
+                        </DialogHeader>
+                    </div>
+
+                    <ScrollArea className="max-h-[300px] w-full bg-[#121417]">
+                        {isLoadingValidators ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
+                                <Loader2 className="w-6 h-6 animate-spin mb-3 text-emerald-500/50" />
+                                <span className="text-[10px] uppercase font-bold tracking-widest">Recherche des archives...</span>
+                            </div>
+                        ) : validatorsList.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
+                                <Trophy className="w-8 h-8 mb-3 opacity-20 text-zinc-400" />
+                                <p className="text-xs font-bold uppercase tracking-widest text-zinc-600">Aucune validation pour l'instant</p>
+                            </div>
+                        ) : (
+                            <div className="p-2 space-y-1">
+                                {validatorsList.map((val) => (
+                                    <div key={val.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                                        <Avatar className="w-8 h-8 border border-white/10 shadow-sm">
+                                            <AvatarImage src={val.image} />
+                                            <AvatarFallback className="bg-zinc-800 text-[10px] font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                            <span className="text-sm font-black text-white truncate">{val.pseudo}</span>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                                                Validé le {new Date(val.date).toLocaleDateString('fr-FR')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

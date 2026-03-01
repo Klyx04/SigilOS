@@ -176,12 +176,7 @@ export default function DungeonManager() {
         setIsDialogOpen(true);
     }
 
-    // Helper options for MultiSelect
-    const challengeOptions = challenges.map(c => ({
-        label: c.name,
-        value: c.id,
-        icon: c.iconUrl
-    }));
+
 
     const filteredDungeons = dungeons.filter(d =>
         d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -447,14 +442,63 @@ export default function DungeonManager() {
                                         </div>
 
                                         <div className="flex-1 flex flex-col min-h-[500px]">
-                                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1 mb-3">Challenges Associés</label>
-                                            <MultiSelect
-                                                options={challengeOptions}
-                                                selected={formData.challengeIds}
-                                                onChange={(ids) => setFormData({ ...formData, challengeIds: ids })}
-                                                placeholder="Sélectionner les succès..."
-                                                className="flex-1 min-h-[450px]"
-                                            />
+                                            <div className="flex items-center justify-between mb-4">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">
+                                                    Challenges Associés
+                                                </label>
+                                                <Badge variant="outline" className="bg-indigo-500/10 border-indigo-500/20 text-indigo-400">
+                                                    {formData.challengeIds.length} sélectionné(s)
+                                                </Badge>
+                                            </div>
+
+                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[500px]">
+                                                {challenges.map((challenge) => {
+                                                    const isSelected = formData.challengeIds.includes(challenge.id);
+                                                    return (
+                                                        <button
+                                                            key={challenge.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData((prev) => ({
+                                                                    ...prev,
+                                                                    challengeIds: isSelected
+                                                                        ? prev.challengeIds.filter((id) => id !== challenge.id)
+                                                                        : [...prev.challengeIds, challenge.id],
+                                                                }));
+                                                            }}
+                                                            className={`
+                                                                relative aspect-square rounded-xl p-2 border-2 transition-all group flex flex-col items-center justify-center gap-1
+                                                                ${isSelected
+                                                                    ? "border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                                                    : "border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800"
+                                                                }
+                                                            `}
+                                                            title={challenge.name}
+                                                        >
+                                                            {challenge.iconUrl ? (
+                                                                <img
+                                                                    src={challenge.iconUrl}
+                                                                    alt={challenge.name}
+                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-hover:scale-110"}`}
+                                                                />
+                                                            ) : (
+                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-indigo-400" : "text-slate-600"}`} />
+                                                            )}
+                                                            <span className="text-[9px] font-bold text-slate-400 text-center leading-tight line-clamp-2 w-full mt-1">
+                                                                {challenge.name}
+                                                            </span>
+
+                                                            {isSelected && (
+                                                                <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white rounded-full p-0.5 shadow-lg">
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

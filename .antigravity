@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-28)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-01)
 
 **Branche Active** : `bug-fixes-modif` (En cours de merge vers `dev`)  
-**Status** : � Audit Sécurité Pré-Merge terminé. Nouveau système de Changelog V2 (Popups automatiques). Fix UI Profil (Scrolling modale classe). Prêt pour déploiement VPS Beta.
+**Status** : Refonte UI SuperAdmin (God Panel), Correction Game Data (Dungeons/Songes UI), Module Guilde (Barre Bonus Actifs & Notifs Discord). Prêt pour déploiement VPS Beta.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -233,6 +233,16 @@ SigilOS/
 - ✅ **Audit Sécurité Applicative** : Revue complète des Server Actions. Validation des guards `auth()`, `guildId` isolation et protection du dashboard GOD via super-admin check Discord ID.
 - ✅ **Prisma Hygiene** : Nettoyage des modèles Changelog redondants. Migration `20260228012544_cleanup` validée localement.
 - ✅ **Persistence Pseudos** : Merge branche `fix/profile-persistence-pseudos` — les Alts Dofus sont désormais persistants après refresh.
+
+---
+
+### Session — Game Data UI, God Panel & Bonus Guilde (2026-03-01)
+
+- ✅ **God Dashboard Refactor (Premium)** : Transition du tableau de bord Super Admin vers un Layout avec Navigation Verticale (Sidebar), organisé en catégories logiques (Vue Générale, Guildes & Onboarding, Infrastructure & Ops, Sécurité & Logs).
+- ✅ **Nettoyage Actions God** : Suppression des vieux boutons de dropdown (Roster/Audit Log) non fonctionnels.
+- ✅ **Module Guilde (Bonus Actifs)** : Développement de la `ActiveBonusBar` pour alerter les joueurs des buffs lancés sur Dofus (2h). Ajout de la double notification Discord 🟢 "Bonus de Guilde Activé". Clarification de la règle "activation en jeu sous 24h par un membre".
+- ✅ **UI Game Data (Donjons)** : Refonte majeure de l'ajout/édition des donjons. Suppression du composant `MultiSelect` bloquant, remplacé par une somptueuse **grille visuelle interactive** pour la sélection des challenges (icônes).
+- ✅ **UI Game Data (Songes)** : Amélioration du formulaire d'édition des Bonus de Rêve pour inclure `<ImageDownloader type="item" />` (permet le télécargement depuis Doflex + gestion de la galerie locale), remplaçant l'ancien champ texte. Fix du z-index des menus Popover.
 
 ---
 

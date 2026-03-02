@@ -48,41 +48,78 @@ const CreateWeekSchema = z.object({
     notifyMembers: z.boolean().optional(),
 }).strict();
 
-async function notifyValidators(guildId: string, title: string, message: string, link?: string) {
+async function notifyValidators(guildId: string, title: string, message: string, link?: string): Promise<string | undefined> {
     try {
-        const { fetchGuild } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-
-        if (!guildInfo) {
-            logger.error("[Notification] Guild info not found", { guildId });
-            return;
-        }
-        if (!guildInfo.owner_id) {
-            logger.error("[Notification] Guild owner_id missing", { guildId });
-            return;
-        }
-
-        // Find owner user internally
-        const account = await db.account.findFirst({
-            where: {
-                provider: "discord",
-                providerAccountId: guildInfo.owner_id
-            },
-            select: { userId: true }
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionValidationChannelId: true,
+                missionValidationNotifyRoleId: true
+            }
         });
 
-        if (account) {
-            await createNotification(
-                account.userId,
+        if (!guild) return;
+
+        // 0. Send Discord Message if channel is configured
+        // Priority: validation channel > notification channel
+        const discordChannelId = guild.missionValidationChannelId || guild.missionNotifyChannelId;
+        const mentionRole = guild.missionValidationNotifyRoleId;
+        const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+
+        let resultDiscordId: string | undefined = undefined;
+        if (discordChannelId) {
+            try {
+                const { sendChannelMessage } = await import("@/server/discord");
+                const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+
+                // Compact validation alert
+                const messageId = await sendChannelMessage(discordChannelId, content, {
+                    embedTitle: "🎯 Nouvelle Mission à Valider",
+                    embedDescription: message,
+                    embedColor: 0x9333ea, // Purple
+                    embedUrl: absoluteLink,
+                    embedFooter: "Système de Validation SigilOS",
+                });
+
+                if (messageId) {
+                    resultDiscordId = `${discordChannelId}:${messageId}`;
+                }
+            } catch (discordError) {
+                logger.error("[NotifyValidators] Discord Error", { error: discordError });
+            }
+        }
+
+        // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
+        // We first get the guild's roles mapping to see which roles have this perm
+        const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
+        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_VALIDATE);
+
+        if (validators.length === 0) {
+            logger.warn(`[Notification] No validators found for guild ${guildId}`);
+            return;
+        }
+
+        // 2. Notify all of them (granular prefs will be checked in createNotification)
+        const notificationPromises = validators.map(v =>
+            createNotification(
+                v.userId,
                 "NEW_SUBMISSION_PENDING",
                 title,
                 message,
                 link,
-                guildId
-            );
-        }
+                guildId,
+                "ADMIN_ALERT"
+            )
+        );
+
+        await Promise.all(notificationPromises);
+
+        return resultDiscordId;
     } catch (e) {
         logger.error("Notify Validators Error", { error: e });
+        return undefined;
     }
 }
 
@@ -181,15 +218,20 @@ export async function createWeekMissions(
                 });
 
                 if (activeProfiles.length > 0) {
-                    await tx.notification.createMany({
-                        data: activeProfiles.map(p => ({
-                            userId: p.userId,
-                            title: "🎯 Nouvel objectif hebdomadaire",
-                            message: `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
-                            type: "SYSTEM_INFO",
-                            link: `/dashboard/${data.guildId}/missions`
-                        }))
-                    });
+                    // We don't use createMany because we want to check individual preferences via createNotification
+                    // Although createNotification is "use server", we call it here. 
+                    // Note: transactions and async hooks might be tricky but for notifications it's fine to run after or use Promise.all
+                    const notificationPromises = activeProfiles.map(p =>
+                        createNotification(
+                            p.userId,
+                            "SYSTEM_INFO",
+                            "🎯 Nouvel objectif hebdomadaire",
+                            `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
+                            `/dashboard/${data.guildId}/missions`,
+                            data.guildId
+                        )
+                    );
+                    await Promise.all(notificationPromises);
                 }
             }
         });
@@ -527,6 +569,12 @@ export async function submitMissionProof(
 
         const buffer = Buffer.from(base64Data, 'base64');
 
+        // SECURITY: Limit image size to 10MB before processing
+        const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+        if (buffer.length > MAX_SIZE_BYTES) {
+            return { success: false, error: "Image trop grande. Maximum 10MB autorisé." };
+        }
+
         // SECURITY: Verify HelperIds integrity (Multi-tenant check)
         if (helperIds.length > 0) {
             const helperProfiles = await db.userProfile.findMany({
@@ -613,14 +661,21 @@ export async function submitMissionProof(
         });
 
         // Notify Validators
-        const userName = profile.user.name || "Un membre";
+        const userName = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
         const missionTitle = mission.title || "Mission Inconnue";
-        await notifyValidators(
+        const discordMessageId = await notifyValidators(
             mission.guild.discordGuildId,
             `[Validation] ${userName} - ${missionTitle}`,
             `${userName} a posté une preuve pour : ${missionTitle}`,
             `/dashboard/${mission.guild.discordGuildId}/admin/validation`
         );
+
+        if (discordMessageId) {
+            await db.submission.update({
+                where: { id: submission.id },
+                data: { discordMessageId }
+            });
+        }
 
         revalidatePath(`/dashboard/${mission.guild.discordGuildId}/missions`);
         await invalidateCache(`missions:${mission.guild.discordGuildId}:${mission.year}:${mission.weekNumber}`);
@@ -629,7 +684,11 @@ export async function submitMissionProof(
             success: true,
             data: { submissionId: submission.id, status: "PENDING" }
         };
-    } catch (error) {
+    } catch (error: any) {
+        // AUDIT-FUNC-07: Handle race-condition duplicate submission gracefully
+        if (error?.code === "P2002") {
+            return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+        }
         logger.error("Submit Mission Proof Error", { error, missionId });
         return { success: false, error: "Erreur serveur lors de la soumission" };
     }
@@ -676,6 +735,19 @@ export async function validateSubmission(
             }
         });
 
+        // 1.6 Delete Discord embed message if present
+        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    logger.error("Failed to delete Discord validation message", { error: e });
+                }
+            }
+        }
+
         // 2. Update DB
         const updatedSubmission = await db.submission.update({
             where: { id: submissionId },
@@ -686,7 +758,7 @@ export async function validateSubmission(
                 updatedAt: new Date() // Force update time for stats
             },
             include: {
-                profile: true,
+                profile: { include: { user: true } },
                 helpers: true // Need this for point distribution below
             }
         });
@@ -724,6 +796,22 @@ export async function validateSubmission(
                 undefined,
                 discordGuildId
             );
+        }
+
+        // 5. Guild Feed Message (if validated)
+        if (status === "VALIDATED") {
+            try {
+                const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+                const userName = updatedSubmission.profile.discordNickname || updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.user.name || "Un membre";
+                const missionTitle = submission.mission.title || "Mission Inconnue";
+                await pushSystemChatMessage(
+                    discordGuildId,
+                    `🎯 **${userName}** a accompli la mission **${missionTitle}** !`,
+                    { type: "mission_validated", submissionId, missionId: submission.mission.id }
+                );
+            } catch (chatErr) {
+                logger.error("Failed to push system chat message for mission", { error: chatErr });
+            }
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
@@ -817,6 +905,17 @@ export async function cancelMySubmission(
                 sourceId: submissionId
             }
         });
+
+        // 3.6 Delete Discord embed message if present
+        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) { }
+            }
+        }
 
         // 4. Delete the submission
         await db.submission.delete({
@@ -939,6 +1038,81 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
     }
 }
 
+export async function getMissionValidators(guildId: string, missionId: string): Promise<ActionResponse<any>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        // 1. Fetch submissions where status is VALIDATED for this mission
+        const submissions = await db.submission.findMany({
+            where: {
+                missionId,
+                status: "VALIDATED",
+                mission: { guildId: guildConfig.id }
+            },
+            include: {
+                profile: {
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true, image: true } }
+                    }
+                },
+                helpers: {
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true, image: true } }
+                    }
+                }
+            },
+            orderBy: { updatedAt: "desc" }
+        });
+
+        // Resolve unique validators (profiles + helpers)
+        const validatorMap = new Map<string, any>();
+
+        for (const sub of submissions) {
+            // Main profile
+            if (sub.profile && !validatorMap.has(sub.profile.id)) {
+                validatorMap.set(sub.profile.id, {
+                    id: sub.profile.id,
+                    pseudo: sub.profile.pseudoDofus || sub.profile.discordNickname || sub.profile.user.name,
+                    image: sub.profile.user.image,
+                    date: sub.updatedAt
+                });
+            }
+            // Helpers
+            for (const helper of sub.helpers) {
+                if (!validatorMap.has(helper.id)) {
+                    validatorMap.set(helper.id, {
+                        id: helper.id,
+                        pseudo: helper.pseudoDofus || helper.discordNickname || helper.user.name,
+                        image: helper.user.image,
+                        date: sub.updatedAt
+                    });
+                }
+            }
+        }
+
+        const validators = Array.from(validatorMap.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        return { success: true, data: validators };
+
+    } catch (error) {
+        console.error("Fetch Validators Error:", error);
+        return { success: false, error: "Erreur BDD" };
+    }
+}
+
+
 export async function cancelMissionSubmission(
     missionId: string
 ): Promise<ActionResponse> {
@@ -972,6 +1146,18 @@ export async function cancelMissionSubmission(
 
         for (const sub of submissions) {
             await deleteProofFile(sub.proofUrl);
+
+            // Delete from Discord
+            if (sub.discordMessageId && sub.discordMessageId.includes(":")) {
+                const [channelId, msgId] = sub.discordMessageId.split(":");
+                if (channelId && msgId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(channelId, msgId);
+                    } catch (e) { }
+                }
+            }
+
             await db.submission.delete({ where: { id: sub.id } });
 
             // Delete Image Hash to allow retry

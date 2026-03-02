@@ -180,3 +180,70 @@ export async function getChangelogEntry(id: string) {
         return null;
     }
 }
+
+/**
+ * Get the latest published changelog entry
+ */
+export async function getLatestChangelogEntry() {
+    try {
+        const entry = await db.changelogEntry.findFirst({
+            orderBy: { publishedAt: 'desc' }
+        });
+
+        if (!entry) return null;
+
+        return {
+            ...entry,
+            publishedAt: entry.publishedAt.toISOString()
+        };
+    } catch (error) {
+        console.error('[Changelog] Fetch latest error:', error);
+        return null;
+    }
+}
+
+/**
+ * Check if the user should see the changelog modal
+ */
+export async function checkChangelogVisibility() {
+    const session = await auth();
+    if (!session?.user?.id) return { show: false };
+
+    try {
+        const [user, latest] = await Promise.all([
+            db.user.findUnique({
+                where: { id: session.user.id },
+                select: { lastSeenChangelogId: true }
+            }),
+            getLatestChangelogEntry()
+        ]);
+
+        if (!latest) return { show: false };
+        if (user?.lastSeenChangelogId === latest.id) return { show: false };
+
+        return { show: true, changelog: latest };
+    } catch (error) {
+        console.error('[Changelog] Visibility check error:', error);
+        return { show: false };
+    }
+}
+
+/**
+ * Mark a changelog entry as seen by the user
+ */
+export async function markChangelogAsSeen(changelogId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false };
+
+    try {
+        await db.user.update({
+            where: { id: session.user.id },
+            data: { lastSeenChangelogId: changelogId }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error('[Changelog] Mark as seen error:', error);
+        return { success: false };
+    }
+}

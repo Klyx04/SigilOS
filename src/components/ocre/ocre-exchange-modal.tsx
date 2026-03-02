@@ -8,6 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,38 +21,80 @@ import {
     Sparkles,
     Copy,
     Check,
-    PackageOpen
+    PackageOpen,
+    Handshake,
+    Bell
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { findOcreExchangePartners, type ExchangePartner } from "@/server/actions/ocre-actions";
+import { findOcreExchangePartners, getOcreExchangeJobStatus, createTradeRequest, type ExchangePartner } from "@/server/actions/ocre-actions";
 
 interface OcreExchangeModalProps {
     guildId: string;
+    hasOcreChannel?: boolean;
     trigger?: React.ReactNode;
 }
 
-export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) {
+export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExchangeModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState(0);
     const [partners, setPartners] = useState<ExchangePartner[]>([]);
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
 
+    // Trade Request State
+    const [tradeRequest, setTradeRequest] = useState<{ targetProfileId: string; monsterId: number; targetName: string; monsterName: string; monsterImage?: string } | null>(null);
+    const [tradeMessage, setTradeMessage] = useState("");
+    const [sendDiscordPing, setSendDiscordPing] = useState(hasOcreChannel ?? false);
+    const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
+
     const fetchExchanges = async () => {
         setLoading(true);
+        setProgress(0);
         try {
             const result = await findOcreExchangePartners({ guildId });
-            if (result.success && result.data) {
-                // Sort by match score (descending)
-                const sorted = [...result.data].sort((a, b) => b.matchScore - a.matchScore);
-                setPartners(sorted);
+            if (result.success && result.data?.jobId) {
+                const jobId = result.data.jobId;
+
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusResult = await getOcreExchangeJobStatus(jobId);
+                        if (statusResult.success && statusResult.data) {
+                            const { state, progress: jobProgress, result: jobResult } = statusResult.data;
+
+                            if (typeof jobProgress === 'number') {
+                                setProgress(jobProgress);
+                            }
+
+                            if (state === "completed" && jobResult) {
+                                clearInterval(pollInterval);
+                                const sorted = [...jobResult].sort((a, b) => b.matchScore - a.matchScore);
+                                setPartners(sorted);
+                                setLoading(false);
+                            } else if (state === "failed") {
+                                clearInterval(pollInterval);
+                                toast.error(statusResult.error || "Le calcul a échoué");
+                                setLoading(false);
+                            }
+                        } else {
+                            clearInterval(pollInterval);
+                            toast.error(statusResult.error || "Erreur lors du traitement asynchrone");
+                            setLoading(false);
+                        }
+                    } catch (e) {
+                        // Ignore occasional network errors during polling
+                    }
+                }, 1500);
             } else {
-                toast.error(result.error || "Impossible de charger les échanges");
+                toast.error(result.error || "Impossible d'initier la recherche");
+                setLoading(false);
             }
         } catch (error) {
             toast.error("Erreur de connexion");
-        } finally {
             setLoading(false);
         }
     };
@@ -70,8 +113,36 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
         setTimeout(() => setCopiedUser(null), 2000);
     };
 
+    const submitTradeRequest = async () => {
+        if (!tradeRequest) return;
+        setIsSubmittingTrade(true);
+        try {
+            const res = await createTradeRequest({
+                guildId,
+                targetProfileId: tradeRequest.targetProfileId,
+                monsterId: tradeRequest.monsterId,
+                monsterName: tradeRequest.monsterName,
+                monsterImage: tradeRequest.monsterImage,
+                message: tradeMessage,
+                sendDiscordPing
+            });
+            if (res.success) {
+                toast.success("Demande d'échange envoyée !");
+                setTradeRequest(null);
+                setTradeMessage("");
+            } else {
+                toast.error(res.error || "Erreur lors de l'envoi");
+            }
+        } catch (e) {
+            toast.error("Erreur de connexion");
+        } finally {
+            setIsSubmittingTrade(false);
+        }
+    };
+
     // Aggregate by monster
     const monstersMap = new Map<number, {
+        id: number;
         name: string;
         imageUrl?: string;
         coversNeed: boolean;
@@ -89,6 +160,7 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
         partner.monstersTheyHave.forEach(monster => {
             if (!monstersMap.has(monster.id)) {
                 monstersMap.set(monster.id, {
+                    id: monster.id,
                     name: monster.name,
                     imageUrl: monster.imageUrl,
                     coversNeed: monster.coversNeed,
@@ -153,9 +225,21 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
 
                 <div className="flex-1 overflow-hidden">
                     {loading && partners.length === 0 ? (
-                        <div className="h-[400px] flex flex-col items-center justify-center gap-4 text-muted-foreground">
-                            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-                            <p>Analyse des doublons de la guilde...</p>
+                        <div className="h-[400px] flex flex-col items-center justify-center gap-6 text-muted-foreground w-full max-w-sm mx-auto px-6">
+                            <div className="relative">
+                                <div className="absolute -inset-4 bg-emerald-500/20 blur-xl rounded-full" />
+                                <Loader2 className="h-10 w-10 animate-spin text-emerald-500 relative z-10" />
+                            </div>
+                            <div className="w-full space-y-2 text-center">
+                                <p className="text-zinc-300 font-medium">Analyse méticuleuse des doublons de la guilde...</p>
+                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-emerald-500 transition-all duration-500 ease-out"
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs opacity-50">{progress}%</p>
+                            </div>
                         </div>
                     ) : partners.length === 0 ? (
                         <div className="h-[400px] flex flex-col items-center justify-center gap-4 text-muted-foreground p-8 text-center">
@@ -230,18 +314,36 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                                                     </Link>
                                                                 </div>
                                                             </div>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-5 w-5 p-0 hover:text-emerald-400"
-                                                                onClick={() => handleCopyMP(provider.metamobName, monster.name)}
-                                                            >
-                                                                {copiedUser === provider.metamobName ? (
-                                                                    <Check className="h-3 w-3 text-emerald-500" />
-                                                                ) : (
-                                                                    <Copy className="h-3 w-3" />
-                                                                )}
-                                                            </Button>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                    title="Envoyer une demande d'échange SigilOS"
+                                                                    onClick={() => setTradeRequest({
+                                                                        targetProfileId: provider.profileId,
+                                                                        monsterId: monster.id,
+                                                                        targetName: provider.name,
+                                                                        monsterName: monster.name,
+                                                                        monsterImage: monster.imageUrl,
+                                                                    })}
+                                                                >
+                                                                    <Handshake className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                    title="Copier le MP Discord"
+                                                                    onClick={() => handleCopyMP(provider.metamobName, monster.name)}
+                                                                >
+                                                                    {copiedUser === provider.metamobName ? (
+                                                                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                                    ) : (
+                                                                        <Copy className="h-3.5 w-3.5" />
+                                                                    )}
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -314,7 +416,42 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                                                                     {monster.name}
                                                                 </span>
                                                             </div>
-                                                            <Copy className={cn("h-3 w-3 transition-opacity", monster.coversNeed ? "text-emerald-500" : "opacity-0 group-hover:opacity-100 text-zinc-500")} />
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                    title="Envoyer une demande d'échange SigilOS"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setTradeRequest({
+                                                                            targetProfileId: partner.profileId,
+                                                                            monsterId: monster.id,
+                                                                            targetName: partner.characterName,
+                                                                            monsterName: monster.name,
+                                                                            monsterImage: monster.imageUrl,
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <Handshake className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                    title="Copier le MP Discord"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCopyMP(partner.characterName, monster.name);
+                                                                    }}
+                                                                >
+                                                                    {copiedUser === partner.characterName ? (
+                                                                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                                    ) : (
+                                                                        <Copy className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
+                                                                    )}
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -327,6 +464,61 @@ export function OcreExchangeModal({ guildId, trigger }: OcreExchangeModalProps) 
                     )}
                 </div>
             </DialogContent>
+
+            {/* Sub-Dialog for Trade Message */}
+            {
+                tradeRequest && (
+                    <Dialog open={!!tradeRequest} onOpenChange={(open) => !open && setTradeRequest(null)}>
+                        <DialogContent className="bg-zinc-950 border-white/10 sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <Handshake className="h-5 w-5 text-emerald-500" />
+                                    Demander un échange
+                                </DialogTitle>
+                                <DialogDescription>
+                                    Proposer un échange à <strong className="text-emerald-400">{tradeRequest.targetName}</strong> pour <strong className="text-emerald-400">{tradeRequest.monsterName}</strong>.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                                <Textarea
+                                    placeholder="Message optionnel (ex: Dispo ce soir 20h zaap astrub ? J'ai un Piou Vert en échange)"
+                                    value={tradeMessage}
+                                    onChange={(e) => setTradeMessage(e.target.value)}
+                                    className="bg-black/50 border-white/10 resize-none h-24 text-sm"
+                                    maxLength={500}
+                                />
+                                <div className="flex flex-row items-center justify-between rounded-lg border border-white/5 bg-black/40 p-3">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm font-medium flex items-center gap-2 text-zinc-300">
+                                            <Bell className="h-4 w-4 text-emerald-400" />
+                                            Mentionner sur Discord
+                                        </Label>
+                                        <p className="text-xs text-zinc-500">
+                                            {hasOcreChannel
+                                                ? "Envoie une notification dans le salon Ocre de la guilde."
+                                                : "Configuration manquante. Demandez à un officier de configurer le salon Ocre."}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={sendDiscordPing}
+                                        onCheckedChange={setSendDiscordPing}
+                                        disabled={!hasOcreChannel}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setTradeRequest(null)} disabled={isSubmittingTrade}>
+                                    Annuler
+                                </Button>
+                                <Button onClick={submitTradeRequest} disabled={isSubmittingTrade} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                                    {isSubmittingTrade ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                                    Envoyer la demande
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
         </Dialog >
     );
 }

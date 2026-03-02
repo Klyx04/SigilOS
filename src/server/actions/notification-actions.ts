@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { NotificationType } from "@prisma/client";
+import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // --- Types ---
@@ -12,10 +12,27 @@ export type Notification = {
     title: string;
     message: string;
     type: NotificationType;
+    category: NotificationCategory;
     read: boolean;
     link: string | null;
     createdAt: Date;
 };
+
+// --- Helpers ---
+
+/**
+ * Infer category from notification type or content for legacy support
+ */
+function inferCategory(type: NotificationType, title: string): NotificationCategory {
+    if (["MISSION_VALIDATED", "MISSION_REJECTED"].includes(type)) return "MISSION";
+    if (["ACHIEVEMENT_VALIDATED", "ACHIEVEMENT_REJECTED"].includes(type)) return "SUCCESS";
+    if (type === "NEW_SUBMISSION_PENDING") return "ADMIN_ALERT";
+    if (type === "SONGES_JOIN_REQUEST" || title.toLowerCase().includes("songes")) return "SONGES";
+    if (type === "EVENT_REMINDER" || title.toLowerCase().includes("rappel") || title.toLowerCase().includes("event")) return "EVENT";
+    if (type === "POLL_CREATED" || type === "POLL_CLOSED" || title.toLowerCase().includes("sondage")) return "POLL";
+    if (type === "SYSTEM_INFO") return "SYSTEM";
+    return "SYSTEM";
+}
 
 // --- Actions ---
 
@@ -29,10 +46,11 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
                 userId: session.user.id,
                 read: false
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "desc" },
+            take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
-        return { success: true, data: notifications };
+        return { success: true, data: notifications as Notification[] };
     } catch (error) {
         console.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -48,7 +66,7 @@ export async function markAsRead(notificationId: string) {
             where: { id: notificationId, userId: session.user.id },
             data: { read: true }
         });
-        revalidatePath("/"); // Ideally revalidate where widget is used
+        revalidatePath("/");
     } catch (error) {
         console.error("Mark Read Error:", error);
     }
@@ -79,47 +97,35 @@ export async function createNotification(
     title: string,
     message: string,
     link?: string,
-    guildId?: string // Optional: check guild-specific preferences
+    guildId?: string,
+    category?: NotificationCategory
 ) {
     try {
+        const finalCategory = category || inferCategory(type, title);
+
         // 1. Check Preferences if guildId is provided
         if (guildId) {
-            const profile = await db.userProfile.findFirst({
-                where: { userId, guildId: { contains: guildId } }, // Just in case guildId is discordId vs dbId, but usually it's dbId here
+            let internalGuildId = guildId;
+            if (guildId.length > 15) { // Discord ID lookup
+                const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+                if (guild) internalGuildId = guild.id;
+            }
+
+            const profile = await db.userProfile.findUnique({
+                where: { userId_guildId: { userId, guildId: internalGuildId } },
                 select: { notificationPrefs: true }
             });
 
-            // Fallback: if guildId provided is Discord Guild ID, try to find by that
-            let actualProfile = profile;
-            if (!actualProfile) {
-                const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
-                if (guild) {
-                    actualProfile = await db.userProfile.findUnique({
-                        where: { userId_guildId: { userId, guildId: guild.id } },
-                        select: { notificationPrefs: true }
-                    });
-                }
-            }
+            if (profile?.notificationPrefs) {
+                const prefs = profile.notificationPrefs as any;
 
-            if (actualProfile?.notificationPrefs) {
-                const prefs = actualProfile.notificationPrefs as any;
-
-                // --- Logic: Block if preference is explicitly set to false ---
-
-                // Missions Category
-                if (type === "MISSION_VALIDATED" || type === "MISSION_REJECTED" || type === "NEW_SUBMISSION_PENDING") {
-                    if (prefs.missions === false) return;
-                }
-
-                // Songes Category
-                if (type === "SONGES_JOIN_REQUEST") {
-                    if (prefs.songes === false) return;
-                }
-
-                // Events Category
-                if (type === "EVENT_REMINDER" || (type === "SYSTEM_INFO" && title.includes("Rappel:"))) {
-                    if (prefs.events === false) return;
-                }
+                // Stop if preference is explicitly false
+                if (finalCategory === "MISSION" && prefs.missions === false) return;
+                if (finalCategory === "SUCCESS" && prefs.success === false) return;
+                if (finalCategory === "SONGES" && prefs.songes === false) return;
+                if (finalCategory === "EVENT" && prefs.events === false) return;
+                if (finalCategory === "POLL" && prefs.polls === false) return;
+                if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
             }
         }
 
@@ -128,9 +134,10 @@ export async function createNotification(
             data: {
                 userId,
                 type,
+                category: finalCategory,
                 title,
                 message,
-                link
+                link: link || null
             }
         });
     } catch (error) {

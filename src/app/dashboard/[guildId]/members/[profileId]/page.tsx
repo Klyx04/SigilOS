@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getMemberProfile, getProfileStats } from "@/server/actions/profile-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
+import { getUserContext } from "@/server/actions/user-actions";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { ArchiMatchingWidget } from "@/components/profile/archi-matching-widget";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
@@ -19,11 +20,17 @@ export default async function MemberProfilePage({
 
     const { guildId, profileId } = await params;
 
-    // Fetch member profile and guild data
-    const [profileResult, guildData] = await Promise.all([
+    // Fetch member profile, guild data and viewer context
+    const [profileResult, guildData, viewerContext] = await Promise.all([
         getMemberProfile(guildId, profileId),
-        getGuildHeaderData(guildId)
+        getGuildHeaderData(guildId),
+        getUserContext(guildId)
     ]);
+
+    // RBAC: Check if viewer can see profiles
+    if (!viewerContext.canViewRoster) {
+        redirect(`/dashboard/${guildId}`);
+    }
 
     if (!profileResult.success || !profileResult.data) {
         notFound();
@@ -88,6 +95,7 @@ export default async function MemberProfilePage({
             <ProfileBentoGrid
                 profile={{
                     id: profile.id,
+                    userId: profile.userId,
                     pseudoDofus: profile.pseudoDofus,
                     classe: profile.classe,
                     classeSecondaires: (profile.classeSecondaires as string[]) || [],
@@ -105,6 +113,11 @@ export default async function MemberProfilePage({
                     metamobVerified: profile.metamobVerified,
                     metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                     dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                    introduction: profile.introduction,
+                    notificationPrefs: profile.notificationPrefs as any,
+                    successPoints: profile.successPoints,
+                    lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
+                    roleGrants: profile.roleGrants || [],
                 }}
                 user={{
                     name: profile.user.name,
@@ -115,17 +128,26 @@ export default async function MemberProfilePage({
                 guildName={guildData.name}
                 discordNickname={discordNickname}
                 roleColor={roleColor}
+                welcomeBadgeName={guildData.welcomeBadgeName}
                 readOnly={true}
+                isSuperAdmin={viewerContext.isSuperAdmin}
                 isAdmin={profile.discordInfo?.isAdmin || false}
+                permissions={{
+                    canViewArchis: viewerContext.canViewArchis,
+                    canViewSonges: viewerContext.canViewSonges,
+                    canViewLadder: viewerContext.canViewLadder,
+                    canViewMissions: viewerContext.canViewMissions,
+                }}
             />
 
             {/* Archi Matching Widget - shows potential exchanges */}
-            <ArchiMatchingWidget
-                guildId={guildId}
-                profileId={profileId}
-                ownerDisplayName={displayName}
-            />
+            {viewerContext.canViewArchis && (
+                <ArchiMatchingWidget
+                    guildId={guildId}
+                    profileId={profileId}
+                    ownerDisplayName={displayName}
+                />
+            )}
         </div>
     );
 }
-

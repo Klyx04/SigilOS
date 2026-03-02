@@ -1,6 +1,7 @@
 import { db } from "@/lib/prisma";
 import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
+import { createNotification } from "@/server/actions/notification-actions";
 
 // ============================================
 // CONSTANTS
@@ -27,6 +28,13 @@ const OBJECTIVE_LABELS: Record<string, string> = {
     SUCCES_NO_ACHAT: "🏆 Succès No Achat",
     FUN: "🎮 Fun",
     QUETE: "📜 Quête",
+};
+
+const EPREUVE_META: Record<string, { icon: string; label: string }> = {
+    FONSOCAC: { icon: "⚔️", label: "Épreuve FONSOCAC" },
+    REVERSED: { icon: "🔄", label: "Épreuve REVERSED" },
+    NILEZAFF: { icon: "🌀", label: "Épreuve NILEZAFF" },
+    SINJSONJ: { icon: "🐵", label: "Épreuve SINJSONJ" },
 };
 
 // ============================================
@@ -79,6 +87,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         include: {
             members: { orderBy: { slot: "asc" } },
             waitlist: { orderBy: { position: "asc" } },
+            joinRequests: { orderBy: { createdAt: "desc" } },
         },
     });
     if (!run) return null;
@@ -97,7 +106,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const memberLines: string[] = [];
     for (const m of run.members) {
         const p = await getUserProfileData(m.userId, guildConfig.id);
-        const classTag = p.classe ? `[${p.classe}] ` : "";
+        const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
+        const displayClass = reqClass || p.classe;
+        const classTag = displayClass ? `[${displayClass}] ` : "";
         memberLines.push(`• ${classTag}**${p.name}**`);
     }
     const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
@@ -106,7 +117,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const waitlistLines: string[] = [];
     for (const w of run.waitlist) {
         const p = await getUserProfileData(w.userId, guildConfig.id);
-        const classTag = p.classe ? `[${p.classe}] ` : "";
+        const reqClass = run.joinRequests.find(r => r.userId === w.userId)?.classe;
+        const displayClass = reqClass || p.classe;
+        const classTag = displayClass ? `[${displayClass}] ` : "";
         waitlistLines.push(`• ${classTag}${p.name}`);
     }
     const waitlistList = waitlistLines.length > 0 ? waitlistLines.join("\n") : "*Personne en file d'attente*";
@@ -116,10 +129,17 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         ? run.objectives.map(o => OBJECTIVE_LABELS[o] || o).join(", ")
         : "*Aucun objectif*";
 
+    // Épreuve de Songe (if applicable)
+    const epreuveMeta = run.epreuveCode ? EPREUVE_META[run.epreuveCode] : null;
+    const embedTitle = epreuveMeta
+        ? `${epreuveMeta.icon} ${epreuveMeta.label} — ${diffConfig.label}`
+        : `🌙 Run Songes — ${diffConfig.label}`;
+
     const fields = [
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
         { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
         { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
+        ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
         { name: "🎯 Objectifs", value: objectivesStr, inline: false },
         { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },
         { name: `⏳ File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
@@ -164,6 +184,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         statusText,
         dashboardUrl,
         leaderProfile,
+        embedTitle,
     };
 }
 
@@ -192,7 +213,7 @@ export async function publishDiscordRun(guildId: string, runId: string) {
             guildConfig.songesNotifyChannelId,
             "",
             {
-                embedTitle: `🌙 Run Songes — ${diffConfig.label}`,
+                embedTitle: data.embedTitle,
                 embedColor: diffConfig.color,
                 embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                 embedAuthor: {
@@ -241,7 +262,7 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
             run.discordMessageId,
             "",
             {
-                embedTitle: `🌙 Run Songes — ${diffConfig.label}`,
+                embedTitle: data.embedTitle,
                 embedColor: diffConfig.color,
                 embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                 embedAuthor: {
@@ -362,7 +383,7 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
             message, // Becomes embed.description
             {
                 mentionContent: mentions.join(" "), // Triggers the ping
-                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}`,
+                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${EPREUVE_META[embedData.run.epreuveCode]?.label ?? ""}` : ""}`,
                 embedUrl: dashboardUrl,
                 embedColor: diffConfig.color,
                 fields: [
@@ -370,7 +391,10 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                     ...fields.filter(f =>
                         f.name.includes("Équipe") ||
                         f.name.includes("Places")
-                    )
+                    ),
+                    ...(embedData.run.epreuveCode && EPREUVE_META[embedData.run.epreuveCode]
+                        ? [{ name: "🏆 Épreuve", value: `${EPREUVE_META[embedData.run.epreuveCode].icon} **${EPREUVE_META[embedData.run.epreuveCode].label}**`, inline: true }]
+                        : []),
                 ],
                 embedFooter: `SigilOS • Songes Infinis`,
                 embedThumbnail: "https://plutonio.fr/i/sigil_songes.png"
@@ -507,15 +531,15 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         const publicUrl = getAppBaseUrl();
         const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
 
-        await db.notification.create({
-            data: {
-                userId: run.leaderId,
-                title: "Candidature Songes",
-                message: `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${guildId}/songes/${run.id}`,
-            },
-        });
+        // Notify leader in-app
+        await createNotification(
+            run.leaderId,
+            "SONGES_JOIN_REQUEST",
+            "Candidature Songes",
+            `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
+            `/dashboard/${guildId}/songes/${run.id}`,
+            guildId
+        );
 
         // Ping leader in Discord channel
         if (run.discordChannelId) {
@@ -525,6 +549,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
             await sendChannelMessage(
                 run.discordChannelId,
                 `📩 ${leaderMention} — **${candidateName}** (${classe}) a postulé ! [Dashboard](${dashboardUrl})`,
+                { suppressEmbeds: true },
             );
         }
 

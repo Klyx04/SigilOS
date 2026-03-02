@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Plus, ExternalLink, ShieldAlert } from "lucide-react";
+import { Link2, Trash2, Plus, Pencil, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
+import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
 
 type DofusBookLink = {
     id: string;
@@ -21,13 +22,15 @@ interface BuildsCardProps {
     onSave: (links: DofusBookLink[]) => void;
     readOnly?: boolean;
     guildId: string;
+    targetUserId?: string;
 }
 
-export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: BuildsCardProps) {
+export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targetUserId }: BuildsCardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [newLinkName, setNewLinkName] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingLink, setEditingLink] = useState<DofusBookLink | null>(null);
 
     const handleAddLink = async () => {
         if (!newLinkName.trim() || !newLinkUrl.trim()) {
@@ -58,7 +61,11 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
         const updatedLinks = [...links, newLink];
 
         try {
-            const result = await updateDofusBookLinks({ guildId, links: updatedLinks });
+            const result = await updateDofusBookLinks({
+                guildId,
+                links: updatedLinks,
+                targetUserId
+            });
             if (result.success) {
                 onSave(updatedLinks);
                 setIsOpen(false);
@@ -75,6 +82,35 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
         }
     };
 
+    const handleEditLink = async () => {
+        if (!editingLink) return;
+        if (!editingLink.name.trim() || !editingLink.url.trim()) {
+            toast.error("Veuillez remplir tous les champs");
+            return;
+        }
+        const urlPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/;
+        if (!urlPattern.test(editingLink.url.trim())) {
+            toast.error("Format de lien invalide (d-bk.net ou dofusbook.net requis)");
+            return;
+        }
+        setIsSubmitting(true);
+        const updatedLinks = links.map(l => l.id === editingLink.id ? editingLink : l);
+        try {
+            const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
+            if (result.success) {
+                onSave(updatedLinks);
+                setEditingLink(null);
+                toast.success("Build mis à jour");
+            } else {
+                toast.error(result.error || "Erreur lors de la modification");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleDeleteLink = async (id: string) => {
         if (readOnly) return;
         const updatedLinks = links.filter(l => l.id !== id);
@@ -82,7 +118,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
         // Optimistic update
         onSave(updatedLinks);
 
-        const result = await updateDofusBookLinks({ guildId, links: updatedLinks });
+        const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
         if (!result.success) {
             toast.error("Erreur lors de la suppression");
             // Revert (not easily done without local state refetch, but acceptable for now)
@@ -94,8 +130,8 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
     if (readOnly && links.length === 0) return null;
 
     return (
-        <div className="p-6 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+        <div className="p-6 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 transition-all hover:border-white/20 group h-full flex flex-col">
+            <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <Link2 className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-base font-semibold text-zinc-200">Mes Builds</h3>
@@ -113,7 +149,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
                                 <Plus className="w-4 h-4" />
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl">
                             <DialogHeader>
                                 <DialogTitle>Ajouter un Build DofusBook</DialogTitle>
                                 <DialogDescription className="text-zinc-400">
@@ -160,47 +196,90 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId }: Bu
                 )}
             </div>
 
-            {/* List */}
-            <div className="flex flex-col gap-2">
+            {/* List or Grid */}
+            <div className={cn(
+                "grid gap-4 w-full",
+                links.length > 0 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            )}>
                 {links.length > 0 ? (
                     links.map(link => (
-                        <div key={link.id} className="group flex items-center justify-between p-3 bg-zinc-950/30 rounded-lg border border-white/5 hover:border-emerald-500/20 hover:bg-zinc-950/50 transition-all">
-                            <a
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 flex items-center gap-3 overflow-hidden"
-                            >
-                                <div className="w-8 h-8 rounded-md bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shrink-0">
-                                    <ExternalLink className="w-4 h-4 text-emerald-400" />
-                                </div>
-                                <div className="flex flex-col overflow-hidden">
-                                    <span className="text-base font-semibold text-zinc-200 truncate group-hover:text-emerald-300 transition-colors">
-                                        {link.name}
-                                    </span>
-                                    <span className="text-xs text-zinc-400 group-hover:text-zinc-300 font-mono truncate transition-colors">
-                                        {link.url}
-                                    </span>
-                                </div>
-                            </a>
+                        <div key={link.id} className="relative group/card">
+                            <DofusbookPreview url={link.url} title={link.name} />
 
                             {!readOnly && (
-                                <button
-                                    onClick={() => handleDeleteLink(link.id)}
-                                    className="p-2 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                    title="Supprimer"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20">
+                                    <button
+                                        onClick={() => setEditingLink({ ...link })}
+                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        title="Modifier ce build"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteLink(link.id)}
+                                        className="p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all shadow-xl"
+                                        title="Supprimer ce build"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))
                 ) : (
-                    <div className="text-center py-6 text-zinc-600 text-xs italic border border-dashed border-white/5 rounded-lg">
-                        Aucun build enregistré
+                    <div className="text-center py-12 bg-zinc-950/20 rounded-2xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-zinc-900/50 flex items-center justify-center border border-white/5">
+                            <Link2 className="w-6 h-6 text-zinc-700" />
+                        </div>
+                        <p className="text-zinc-600 text-sm italic">Aucun build enregistré</p>
                     </div>
                 )}
             </div>
+
+            {/* Edit Dialog */}
+            <Dialog open={!!editingLink} onOpenChange={(open) => !open && setEditingLink(null)}>
+                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le Build</DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                            Modifiez le nom ou le lien de votre build.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingLink && (
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Nom du build (Max 30)</Label>
+                                <Input
+                                    id="edit-name"
+                                    maxLength={30}
+                                    value={editingLink.name}
+                                    onChange={(e) => setEditingLink(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                    className="bg-zinc-900 border-white/10"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-url">Lien DofusBook</Label>
+                                <Input
+                                    id="edit-url"
+                                    value={editingLink.url}
+                                    onChange={(e) => setEditingLink(prev => prev ? { ...prev, url: e.target.value } : null)}
+                                    className="bg-zinc-900 border-white/10 font-mono text-xs"
+                                />
+                                <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                                    <ShieldAlert className="w-3 h-3" />
+                                    Seuls les liens d-bk.net et dofusbook.net sécurisés (https) sont acceptés.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setEditingLink(null)}>Annuler</Button>
+                        <Button onClick={handleEditLink} disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                            {isSubmitting ? "Sauvegarde..." : "Enregistrer"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

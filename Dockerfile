@@ -30,7 +30,7 @@ RUN npx prisma generate
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-ARG NEXT_PUBLIC_BETA_PASSWORD
+ARG BETA_PASSWORD
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
@@ -46,6 +46,9 @@ RUN npm run build:seeds
 
 # Build maintenance scripts
 RUN npm run build:maintenance
+
+# Build worker script
+RUN npm run build:worker
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -82,6 +85,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 # Copy bundled seeds
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
+
+# Copy bundled worker
+COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js
 
 # Copy entrypoint script
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./

@@ -12,7 +12,7 @@ services:
     restart: always
     environment:
       # Database connection string (internal docker network alias 'db')
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sigilos}
       # Auth & App secrets
       - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_URL=https://${DOMAIN_NAME}
@@ -23,10 +23,15 @@ services:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       # Redis (internal docker network)
       - REDIS_URL=redis://:${REDIS_PASSWORD:-sigilos-redis-secret}@redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-sigilos-redis-secret}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       # Metamob
       - METAMOB_API_KEY=${METAMOB_API_KEY}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - internal-net
@@ -62,7 +67,7 @@ services:
       dockerfile: services/discord-bot/Dockerfile
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sigilos}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       db:
@@ -119,8 +124,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sigilos}
     volumes:
       - db-data:/var/lib/postgresql/data
-    # ⚠️ SECURITY: Do not expose port 5432 to the outside world
-    # Only services in 'internal-net' can access it.
+    ports:
+      - "5433:5432"
+    # ⚠️ SECURITY: Exposed locally so 'npm run dev' on host can reach it. Production uses docker-compose.prod.yml.
     networks:
       - internal-net
     healthcheck:
@@ -147,6 +153,8 @@ services:
     container_name: sigilos-redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-sigilos-redis-secret}
+    # SEC-02: Ports supprimés — Redis accessible uniquement via internal-net
+    # Pour le dev local sans Docker, lancez Redis sur localhost:6379 séparément
     volumes:
       - redis-data:/data
     networks:

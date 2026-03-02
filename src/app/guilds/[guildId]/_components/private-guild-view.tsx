@@ -14,15 +14,16 @@ type Props = {
         name: string;
         iconUrl: string | null;
     };
+    isMember?: boolean;
 };
 
-export function PrivateGuildView({ guild }: Props) {
+export function PrivateGuildView({ guild, isMember }: Props) {
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-indigo-500/30 font-sans flex flex-col relative overflow-hidden">
-            <PublicHeader variant="standard" />
+        <div className="min-h-screen bg-black text-white selection:bg-accent-teal/30 font-sans flex flex-col relative overflow-hidden">
+            <PublicHeader variant="standard" isMember={isMember} />
 
             {/* Background Effects (5% Opacity as per 2026 specs) */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
+            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />
             <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
 
             <main className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -76,7 +77,7 @@ export function PrivateGuildView({ guild }: Props) {
                 </div>
             </main>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={isMember} />
         </div>
     );
 }

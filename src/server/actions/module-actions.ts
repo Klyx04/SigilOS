@@ -24,8 +24,16 @@ const UpdateModulesSchema = z.object({
     donjons: z.boolean(),
     profile: z.boolean(),
     docs: z.boolean(),
+    polls: z.boolean(),
     // Admin
     logs: z.boolean(),
+    admin: z.boolean(),
+    // Coming Soon
+    quests: z.boolean(),
+    worldmap: z.boolean(),
+    resources: z.boolean(),
+    // Nouveau
+    chat: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -65,7 +73,13 @@ export async function getGuildModules(
             donjons: m.donjons,
             profile: m.profile,
             docs: m.docs,
+            polls: m.polls,
             logs: m.logs,
+            admin: m.admin,
+            quests: m.quests,
+            worldmap: m.worldmap,
+            resources: m.resources,
+            chat: m.chat,
         };
     } catch {
         // Fail open — if we can't read modules, assume all enabled

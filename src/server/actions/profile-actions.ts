@@ -26,15 +26,17 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string()
         .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
-        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F]+$/, "Le pseudo ne doit contenir que des lettres (pas de chiffres ni de caractères spéciaux)")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]+$/, "Le pseudo ne doit contenir que des lettres et tirets (pas de chiffres ni de caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    classeSecondaires: z.array(z.string()).optional(),
+    classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceExo: z.number().min(0, "Prix invalide").nullable().optional(),
+    showPresence: z.boolean().optional(),
+    targetUserId: z.string().optional(),
 });
 
 // Schema allows both legacy map (for validation) and new GlobalAvailability structure
@@ -43,6 +45,7 @@ const UpdateAvailabilitySchema = z.object({
     // We accept any JSON structure here, validation will happen in component/render logic
     // primarily to allow the flexible "weeks" structure without complex Zod recursion
     availability: z.any(),
+    targetUserId: z.string().optional(),
 });
 
 const UpdateVacationSchema = z.object({
@@ -50,11 +53,13 @@ const UpdateVacationSchema = z.object({
     vacationStart: z.string().datetime().nullable().optional(),
     vacationEnd: z.string().datetime().nullable().optional(),
     vacationNotify: z.boolean().optional(),
+    targetUserId: z.string().optional(),
 });
 
 const UpdateForgemagieSchema = z.object({
     guildId: z.string(),
     status: z.enum(["FREE", "PAID", "UNAVAILABLE"]),
+    targetUserId: z.string().optional(),
 });
 
 const SendVacationNotificationSchema = z.object({
@@ -72,12 +77,18 @@ const UpdateNotificationPrefsSchema = z.object({
         songes: z.boolean().optional(),
         events: z.boolean().optional(),
         ladder: z.boolean().optional(),
+        polls: z.boolean().optional(),
+        admin_validations: z.boolean().optional(),
+        ocre: z.boolean().optional(),
+        donjons: z.boolean().optional(),
     }),
+    targetUserId: z.string().optional(),
 });
 
 const SyncSuccessPointsSchema = z.object({
     guildId: z.string(),
     imageData: z.string(), // Base64 image string (data:image/...)
+    targetUserId: z.string().optional(),
 });
 
 // ============================================================================
@@ -99,7 +110,19 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                     guildId: guildConfig.id
                 }
             },
-            include: { user: true }
+            include: {
+                user: true,
+                roleGrants: {
+                    where: {
+                        revokedAt: null,
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                    include: { role: true }
+                }
+            }
         });
 
         if (!profile) return { success: false, error: "Profil introuvable" };
@@ -122,6 +145,17 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 lastActivityAt: profile.lastActivityAt?.toISOString() || null,
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
+                hasSeenWelcome: profile.hasSeenWelcome,
+                introduction: profile.introduction,
+                showPresence: profile.showPresence,
+                sigilRoles: profile.roleGrants.map(rg => ({
+                    id: rg.role.id,
+                    slug: rg.role.slug,
+                    label: rg.role.label,
+                    color: rg.role.color,
+                    icon: rg.role.icon,
+                    expiresAt: rg.expiresAt
+                })),
                 pendingSubmission: pendingSubmission ? {
                     id: pendingSubmission.id,
                     points: pendingSubmission.points,
@@ -167,6 +201,16 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                             select: { providerAccountId: true }
                         }
                     }
+                },
+                roleGrants: {
+                    where: {
+                        revokedAt: null,
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                    include: { role: true }
                 }
             }
         });
@@ -254,7 +298,16 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
+                introduction: profile.introduction,
                 discordInfo,
+                sigilRoles: profile.roleGrants.map(rg => ({
+                    id: rg.role.id,
+                    slug: rg.role.slug,
+                    label: rg.role.label,
+                    color: rg.role.color,
+                    icon: rg.role.icon,
+                    expiresAt: rg.expiresAt
+                })),
                 validatedMissionsCount,
                 weeklyMissions,
                 weeklyXp
@@ -272,11 +325,25 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo } = validation.data;
+    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        // Effective user is self, or target if God
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized profile update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
+        }
 
         // Uniqueness Check for Pseudo Dofus
         if (pseudoDofus) {
@@ -284,7 +351,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 where: {
                     guildId: guildConfig.id,
                     pseudoDofus: { equals: pseudoDofus, mode: "insensitive" },
-                    userId: { not: session.user.id } // Exclude self
+                    userId: { not: effectiveUserId } // Exclude target
                 }
             });
 
@@ -296,7 +363,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         await db.userProfile.upsert({
             where: {
                 userId_guildId: {
-                    userId: session.user.id,
+                    userId: effectiveUserId,
                     guildId: guildConfig.id
                 }
             },
@@ -309,9 +376,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
                 fmPriceTrans: fmPriceTrans !== undefined ? fmPriceTrans : undefined,
                 fmPriceExo: fmPriceExo !== undefined ? fmPriceExo : undefined,
+                showPresence: showPresence !== undefined ? showPresence : undefined,
             },
             create: {
-                userId: session.user.id,
+                userId: effectiveUserId,
                 guildId: guildConfig.id,
                 pseudoDofus: pseudoDofus || null,
                 classe,
@@ -321,6 +389,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 fmPriceClassic: fmPriceClassic || null,
                 fmPriceTrans: fmPriceTrans || null,
                 fmPriceExo: fmPriceExo || null,
+                showPresence: showPresence ?? true,
                 status: "ACTIVE"
             }
         });
@@ -344,15 +413,28 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
 
     const validation = UpdateAvailabilitySchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, availability } = validation.data;
+    const { guildId, availability, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized availability update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces disponibilités." };
+        }
+
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { availability: availability as any }
         });
@@ -370,15 +452,28 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
 
     const validation = UpdateVacationSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, vacationStart, vacationEnd, vacationNotify } = validation.data;
+    const { guildId, vacationStart, vacationEnd, vacationNotify, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce mode absence." };
+        }
+
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: {
                 vacationStart: vacationStart ? new Date(vacationStart) : null,
@@ -401,14 +496,27 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
 
     const validation = UpdateNotificationPrefsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, prefs } = validation.data;
+    const { guildId, prefs, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized notification prefs update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces préférences." };
+        }
+
         const currentProfile = await db.userProfile.findUnique({
-            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
             select: { notificationPrefs: true }
         });
 
@@ -417,7 +525,7 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { notificationPrefs: newPrefs }
         });
@@ -436,15 +544,28 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
     const validation = UpdateForgemagieSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, status } = validation.data;
+    const { guildId, status, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized forgemagie update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ce statut." };
+        }
+
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: session.user.id, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { forgemagieStatus: status }
         });
@@ -462,41 +583,62 @@ const UpdateAltPseudosSchema = z.object({
         z.string()
             .min(2, "Pseudo trop court")
             .max(20, "Pseudo trop long")
-            .regex(/^[A-Z][a-z0-9]*(-[A-Z][a-z0-9]*)?$/, "Format invalide (Ex: Pseudo, Pseudo-Surnom)")
+            .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)")
     ).max(5, "Maximum 5 personnages"),
+    targetUserId: z.string().optional(),
 });
 
 export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, altPseudos } = validation.data;
+    if (!validation.success) {
+        console.error("[Dofusbook] Validation error:", validation.error.format());
+        return { success: false, error: "Données invalides" };
+    }
+    const { guildId, altPseudos, targetUserId } = validation.data;
+
+    console.log(`[Dofusbook] Updating alt pseudos for guild ${guildId}:`, altPseudos);
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
-    if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        // Clean and validate pseudos
         const cleanedPseudos = altPseudos
-            .map(p => p.trim())
-            .filter(p => p.length > 0)
-            .slice(0, 5); // Max 5 pseudos
+            .map((p: string) => p.trim())
+            .filter((p: string) => p.length > 0)
+            .slice(0, 5);
+
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized alt pseudos update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
+        }
+
+        console.log(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
 
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { altPseudos: cleanedPseudos }
         });
 
+        console.log(`[Dofusbook] Successfully updated database for ${user.id}`);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error: unknown) {
-        logger.error("Update Alt Pseudos Error", { error, guildId });
-        return { success: false, error: "Erreur serveur" };
+        console.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR:", error);
+        return { success: false, error: "Erreur serveur critique" };
     }
 }
 
@@ -510,19 +652,22 @@ const UpdateDofusBookLinksSchema = z.object({
         id: z.string(),
         name: z.string()
             .min(1, "Nom requis")
-            .max(30, "Nom trop long (max 30)")
-            .regex(/^[a-zA-Z0-9À-ÿ\s\-_'().]+$/, "Caractères non autorisés"),
+            .max(30, "Nom trop long (max 30)"),
         url: z.string().regex(
             /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
             "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
         )
-    })).max(10, "Maximum 10 builds")
+    })).max(10, "Maximum 10 builds"),
+    targetUserId: z.string().optional(),
 });
 
 export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBookLinksSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, links } = validation.data;
+    const { guildId, links, targetUserId } = validation.data;
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -532,9 +677,19 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // --- SECURITY: RBAC / OWNERSHIP CHECK ---
+        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const isOwner = effectiveUserId === session.user.id;
+        const isGod = user.isSuperAdmin;
+
+        if (!isOwner && !isGod) {
+            logger.warn(`[Security] Unauthorized builds update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            return { success: false, error: "Vous n'avez pas la permission de modifier ces builds." };
+        }
+
         await db.userProfile.update({
             where: {
-                userId_guildId: { userId: user.id!, guildId: guildConfig.id }
+                userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
             data: { dofusBookLinks: links as any }
         });
@@ -898,13 +1053,15 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSuccessPointsSchema>): Promise<ActionResponse<{ points: number, debugImage?: string, pending?: boolean, confidence?: number }>> {
     const validation = SyncSuccessPointsSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, imageData } = validation.data;
+    const { guildId, imageData, targetUserId } = validation.data;
 
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!user.isMember) return { success: false, error: "Non membre de cette guilde" };
+    if (!user.isMember && !user.isSuperAdmin) return { success: false, error: "Permissions insuffisantes" };
+
+    const effectiveUserId = (targetUserId && user.isSuperAdmin) ? targetUserId : session.user.id;
 
     // 1. Sanitization & Rate Limiting
     const limiter = await rateLimit(`sync_success:${user.id}`, 10, 10 * 60 * 1000);
@@ -941,7 +1098,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         }
 
         const currentProfile = await db.userProfile.findFirst({
-            where: { userId: user.id!, guildId: guildConfig.id }
+            where: { userId: effectiveUserId, guildId: guildConfig.id }
         });
         if (!currentProfile) return { success: false, error: "Profil introuvable" };
 
@@ -1080,6 +1237,24 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                     uploaderId: session.user.id
                 }
             });
+
+            // Notify validators via Discord (Using the same channel as missions for now)
+            try {
+                if (guildConfig.missionNotifyChannelId) {
+                    const { sendChannelMessage } = await import("@/server/discord");
+                    const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
+                    const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+
+                    await sendChannelMessage(guildConfig.missionNotifyChannelId, "", {
+                        embedTitle: `[Validation] ${userName} - Succès`,
+                        embedDescription: `${userName} a posté une preuve pour confirmation manuelle de ${points} points de succès.`,
+                        embedColor: 0x0ea5e9, // Sky blue for achievements
+                        embedUrl: absoluteLink,
+                    });
+                }
+            } catch (discordError) {
+                logger.error("[SyncSuccess] Discord Notification Error", { error: discordError });
+            }
 
 
             return {

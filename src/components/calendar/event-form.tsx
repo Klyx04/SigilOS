@@ -151,9 +151,10 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 interface EventFormProps {
     initialData?: any;
     onSubmit: (data: any) => Promise<void>;
+    isDiscordConfigured?: boolean;
 }
 
-export function EventForm({ initialData, onSubmit }: EventFormProps) {
+export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventFormProps) {
     const [submitting, setSubmitting] = useState(false);
     // Fallback to EVENT_GUILD for unknown types
     const validType = initialData?.type && TYPE_CONFIG[initialData.type] ? initialData.type : "EVENT_GUILD";
@@ -178,7 +179,7 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
             startTime: "20:00",
             endTime: "22:00",
             maxParticipants: undefined,
-            publishOnDiscord: true,
+            publishOnDiscord: !!isDiscordConfigured,
         },
     });
 
@@ -466,23 +467,31 @@ export function EventForm({ initialData, onSubmit }: EventFormProps) {
                     control={form.control}
                     name="publishOnDiscord"
                     render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border bg-background/50 p-4">
-                            <div className="space-y-0.5">
-                                <FormLabel className="text-base text-zinc-100">
-                                    Publier sur Discord
-                                </FormLabel>
-                                <div className="text-sm text-zinc-400">
-                                    Envoie immédiatement l'annonce dans le canal configuré.
+                        <FormItem className="space-y-3">
+                            <div className="flex flex-row items-center justify-between rounded-lg border border-border bg-background/50 p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base text-zinc-100">
+                                        Publier sur Discord
+                                    </FormLabel>
+                                    <div className="text-sm text-zinc-400">
+                                        Envoie immédiatement l'annonce dans le canal configuré.
+                                    </div>
                                 </div>
+                                <FormControl>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            disabled={!isDiscordConfigured}
+                                        />
+                                    </div>
+                                </FormControl>
                             </div>
-                            <FormControl>
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                </div>
-                            </FormControl>
+                            {!isDiscordConfigured && (
+                                <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
+                                    ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
+                                </p>
+                            )}
                         </FormItem>
                     )}
                 />

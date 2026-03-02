@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Check, Loader2, MapPin, User, Users, Sparkles } from "lucide-react";
 import type { OcreMonster } from "@/lib/metamob-client";
-import { findMonsterOwnersAction } from "@/server/actions/ocre-actions";
+import { findMonsterOwnersAction, type ExchangePartner } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ interface MonsterCardProps {
     // Pre-computed number of available helpers (from doublonsMap)
     availableHelpers?: number;
     // Pre-loaded owners from parent (optional optimization)
-    preloadedOwners?: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; }[];
+    preloadedOwners?: ExchangePartner[];
 }
 
 export function MonsterCard({
@@ -32,7 +32,7 @@ export function MonsterCard({
     availableHelpers = 0,
     preloadedOwners,
 }: MonsterCardProps) {
-    const [owners, setOwners] = useState<{ metamobPseudo: string; profileId: string; displayName: string; quantite: number; }[]>(preloadedOwners || []);
+    const [owners, setOwners] = useState<ExchangePartner[]>(preloadedOwners || []);
     const [loadingOwners, setLoadingOwners] = useState(false);
     const [ownersLoaded, setOwnersLoaded] = useState(!!preloadedOwners);
     const [showOwnersSection, setShowOwnersSection] = useState(false);
@@ -76,12 +76,12 @@ export function MonsterCard({
     const config = stateConfig[monster.state];
     const hasAvailableExchange = availableHelpers > 0;
 
-    const handleCopyMP = (owner: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; }, e: React.MouseEvent) => {
+    const handleCopyMP = (owner: ExchangePartner, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const message = `/w ${owner.displayName} Salut ! Tu aurais ${monster.name} en doublon à échanger ? :)`;
+        const message = `/w ${owner.characterName} Salut ! Tu aurais ${monster.name} en doublon à échanger ? :)`;
         navigator.clipboard.writeText(message);
-        setCopiedPseudo(owner.metamobPseudo);
+        setCopiedPseudo(owner.username);
         toast.success("Message copié !");
         setTimeout(() => setCopiedPseudo(null), 2000);
     };
@@ -269,13 +269,13 @@ function OwnerBadge({
     copiedPseudo,
     onCopy,
 }: {
-    owner: { metamobPseudo: string; profileId: string; displayName: string; quantite: number; };
+    owner: ExchangePartner;
     guildId: string;
     monsterName: string;
     copiedPseudo: string | null;
     onCopy: (e: React.MouseEvent) => void;
 }) {
-    const isCopied = copiedPseudo === owner.metamobPseudo;
+    const isCopied = copiedPseudo === owner.username;
 
     return (
         <Tooltip>
@@ -286,9 +286,9 @@ function OwnerBadge({
                         className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                         <User className="h-3 w-3" />
-                        {owner.displayName}
+                        {owner.characterName}
                     </Link>
-                    <span className="text-[10px] text-primary/70">x{owner.quantite}</span>
+                    <span className="text-[10px] text-primary/70">x{owner.monstersTheyHave[0]?.available || 1}</span>
                     <button
                         onClick={onCopy}
                         className="ml-0.5 p-0.5 rounded hover:bg-primary/30 transition-colors"
@@ -302,7 +302,7 @@ function OwnerBadge({
                 </div>
             </TooltipTrigger>
             <TooltipContent>
-                <p>Voir le profil de {owner.displayName}</p>
+                <p>Voir le profil de {owner.characterName}</p>
                 <p className="text-xs text-muted-foreground">Cliquer sur 📋 pour copier le MP</p>
             </TooltipContent>
         </Tooltip>

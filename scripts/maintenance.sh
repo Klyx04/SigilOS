@@ -70,4 +70,8 @@ else
     sudo docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute
 fi
 
+# 6. Audit Final
+echo "🩺 Lancement de l'audit de santé..."
+bash "$(dirname "$0")/audit.sh"
+
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"

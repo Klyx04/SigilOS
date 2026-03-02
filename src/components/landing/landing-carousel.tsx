@@ -6,18 +6,16 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SCREENSHOTS = [
-    { src: "/assets/screenshots/screenshot1.png", alt: "Tableau de bord SigilOS" },
-    { src: "/assets/screenshots/screenshot2.png", alt: "Profil Personnel Complet" },
-    { src: "/assets/screenshots/screenshot3.png", alt: "Calendrier de guilde Complet" },
-    { src: "/assets/screenshots/screenshot4.png", alt: "Gestion des Songes" },
-    { src: "/assets/screenshots/screenshot5.png", alt: "Intégration Metamob OCRE" },
-    { src: "/assets/screenshots/screenshot6.png", alt: "Validation Missions de Guilde" },
-    { src: "/assets/screenshots/screenshot7.png", alt: "Annuaire de Guilde Interne" },
-    { src: "/assets/screenshots/screenshot8.png", alt: "Annuaire de Guilde Publique" },
-    { src: "/assets/screenshots/screenshot9.png", alt: "Gestion des droits granulaire" },
-    { src: "/assets/screenshots/screenshot10.png", alt: "Intégration Discord complète" },
-    { src: "/assets/screenshots/screenshot11.png", alt: "Journaux d'évènements" },
-    { src: "/assets/screenshots/screenshot12.png", alt: "Gestion des membres" },
+    { src: "/assets/screenshots/screenshot1.png?v=2", alt: "Tableau de bord SigilOS" },
+    { src: "/assets/screenshots/screenshot2.png?v=2", alt: "Profil Personnel Complet" },
+    { src: "/assets/screenshots/screenshot3.png?v=2", alt: "Calendrier de guilde Complet" },
+    { src: "/assets/screenshots/screenshot4.png?v=2", alt: "Gestion des Songes" },
+    { src: "/assets/screenshots/screenshot5.png?v=2", alt: "Intégration Metamob OCRE" },
+    { src: "/assets/screenshots/screenshot6.png?v=2", alt: "Validation Missions de Guilde" },
+    { src: "/assets/screenshots/screenshot7.png?v=2", alt: "Annuaire de Guilde Interne" },
+    { src: "/assets/screenshots/screenshot8.png?v=2", alt: "Annuaire de Guilde Publique" },
+    { src: "/assets/screenshots/screenshot9.png?v=2", alt: "Gestion des droits granulaire" },
+    { src: "/assets/screenshots/screenshot10.png?v=2", alt: "Module administration complet" },
 ];
 
 export function LandingCarousel() {
@@ -37,14 +35,14 @@ export function LandingCarousel() {
 
     return (
         <div
-            className="relative group w-full max-w-6xl mx-auto"
+            className="relative group w-full mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
             {/* Main Framework Wrap */}
-            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shadow-purple-500/10">
+            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shadow-accent-teal/10">
                 {/* Background Glow */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 opacity-50" />
+                <div className="absolute inset-0 bg-gradient-to-br from-accent-teal/10 via-transparent to-accent-gold/5 opacity-50" />
 
                 {/* Image Track */}
                 <div className="relative w-full h-full">
@@ -66,6 +64,7 @@ export function LandingCarousel() {
                                 fill
                                 className="object-cover object-top p-2 md:p-4 rounded-[2rem] md:rounded-[3rem]"
                                 priority={index === 0}
+                                unoptimized
                             />
                         </div>
                     ))}
@@ -100,7 +99,7 @@ export function LandingCarousel() {
                             className={cn(
                                 "h-1.5 transition-all duration-500 rounded-full",
                                 index === currentIndex
-                                    ? "w-8 bg-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                    ? "w-8 bg-accent-teal shadow-[0_0_15px_rgba(42,191,176,0.5)]"
                                     : "w-1.5 bg-zinc-600 hover:bg-zinc-400"
                             )}
                         />

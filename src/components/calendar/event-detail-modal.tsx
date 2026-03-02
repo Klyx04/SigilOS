@@ -655,7 +655,7 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
             </div>
             <div className="min-w-0">
                 <p className="text-zinc-500 text-xs">{label}</p>
-                <p className="text-zinc-100 font-medium truncate">{value}</p>
+                <div className="text-zinc-100 font-medium truncate">{value}</div>
             </div>
         </div>
     );

@@ -79,21 +79,28 @@ export async function getActivityLadder(
 
             const cacheKey = `ladder:activity:${guildId}:${view}:${startDate.getTime()}`;
             const ladder = await withCache(cacheKey, 300, async () => {
-                // Get all validated submissions in this period
-                const monthlyStats = await db.submission.groupBy({
-                    by: ["profileId"],
-                    where: {
-                        status: "VALIDATED",
-                        updatedAt: { gte: startDate },
-                        profile: {
-                            guildId: guildConfig.id,
-                            status: "ACTIVE"
-                        }
-                    },
-                    _count: true
-                });
+                // PERF-01: Single aggregation query — SUM xpReward grouped by profileId
+                // Replaces the old N+1 pattern (loading submissions inline per profile)
+                const xpByProfile = await db.$queryRaw<{ profileId: string; totalXp: number }[]>`
+                    SELECT s."profileId", COALESCE(SUM(m."xpReward"), 0)::int AS "totalXp"
+                    FROM "Submission" s
+                    JOIN "Mission" m ON s."missionId" = m."id"
+                    JOIN "UserProfile" up ON s."profileId" = up."id"
+                    WHERE s."status" = 'VALIDATED'
+                      AND s."updatedAt" >= ${startDate}
+                      AND up."guildId" = ${guildConfig.id}
+                      AND up."status" = 'ACTIVE'
+                    GROUP BY s."profileId"
+                    HAVING COALESCE(SUM(m."xpReward"), 0) > 0
+                    ORDER BY "totalXp" DESC
+                `;
 
-                const profileIds = monthlyStats.map(s => s.profileId);
+                if (xpByProfile.length === 0) return [];
+
+                // Bulk fetch profile display data (single query, no submissions loaded)
+                const profileIds = xpByProfile.map(x => x.profileId);
+                const xpMap = new Map(xpByProfile.map(x => [x.profileId, x.totalXp]));
+
                 const profiles = await db.userProfile.findMany({
                     where: { id: { in: profileIds }, status: "ACTIVE" },
                     select: {
@@ -105,20 +112,16 @@ export async function getActivityLadder(
                         pseudoDofus: true,
                         classe: true,
                         user: { select: { image: true } },
-                        submissions: {
-                            where: { status: "VALIDATED", updatedAt: { gte: startDate } },
-                            select: { mission: { select: { xpReward: true } } }
-                        }
                     }
                 });
 
-                const rankedProfiles = profiles.map(p => ({
-                    ...p,
-                    periodXp: p.submissions.reduce((sum, sub) => sum + (sub.mission.xpReward || 0), 0)
-                })).sort((a, b) => {
-                    if (b.periodXp !== a.periodXp) return b.periodXp - a.periodXp;
-                    return (a.discordJoinedAt?.getTime() || Infinity) - (b.discordJoinedAt?.getTime() || Infinity);
-                });
+                // Sort by XP desc, then seniority asc for tie-breaking
+                const rankedProfiles = profiles
+                    .map(p => ({ ...p, periodXp: xpMap.get(p.id) || 0 }))
+                    .sort((a, b) => {
+                        if (b.periodXp !== a.periodXp) return b.periodXp - a.periodXp;
+                        return (a.discordJoinedAt?.getTime() || Infinity) - (b.discordJoinedAt?.getTime() || Infinity);
+                    });
 
                 const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
                 return rankedProfiles.map((p, idx) => ({
@@ -131,7 +134,7 @@ export async function getActivityLadder(
                     classe: p.classe,
                     value: p.periodXp,
                     isAdmin: p.discordRoleName === "Administrateur" ||
-                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
                 }));
             });
 
@@ -173,7 +176,7 @@ export async function getActivityLadder(
                     classe: p.classe,
                     value: p.xp,
                     isAdmin: p.discordRoleName === "Administrateur" ||
-                        Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName
+                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
                 }));
             });
 
@@ -244,7 +247,7 @@ export async function getSeniorityLadder(
 
             const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,
@@ -321,7 +324,7 @@ export async function getSuccessLadder(
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,
@@ -398,7 +401,7 @@ export async function getContributionLadder(
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
             const isAdmin = p.discordRoleName === "Administrateur" ||
-                Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName;
+                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,

@@ -39,6 +39,10 @@ export async function getDungeons(): Promise<ActionResponse<any[]>> {
 export async function getZones(): Promise<ActionResponse<any[]>> {
     try {
         const zones = await db.zone.findMany({
+            include: {
+                families: true,
+                dungeons: true
+            },
             orderBy: { level: 'asc' }
         });
         return { success: true, data: zones };
@@ -131,6 +135,10 @@ export async function searchZones(query: string = ""): Promise<ActionResponse<an
         const zones = await db.zone.findMany({
             where: {
                 name: { contains: query, mode: 'insensitive' }
+            },
+            include: {
+                families: true,
+                dungeons: true
             },
             take: 20,
             orderBy: { name: 'asc' }

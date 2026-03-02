@@ -2,7 +2,9 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck } from "lucide-react";
+import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck, Sparkles, UserCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 
@@ -53,7 +55,13 @@ interface HeroHeaderProps {
     missionsValidated: number;
     weeklyMissions: number;
     isAdmin?: boolean;
+    canViewMissions?: boolean;
+    canViewLadder?: boolean;
     guildName?: string;
+    sigilRoles?: any[];
+    discordRoleName?: string;
+    discordRoleColor?: number;
+    welcomeBadgeName?: string | null;
 }
 
 export function HeroHeader({
@@ -72,7 +80,13 @@ export function HeroHeader({
     missionsValidated,
     weeklyMissions,
     isAdmin = false,
-    guildName = "Guilde"
+    canViewMissions = true,
+    canViewLadder = true,
+    guildName = "Guilde",
+    sigilRoles = [],
+    discordRoleName,
+    discordRoleColor,
+    welcomeBadgeName,
 }: HeroHeaderProps) {
     const roleHexColor = roleColor > 0
         ? `#${roleColor.toString(16).padStart(6, "0")}`
@@ -128,6 +142,11 @@ export function HeroHeader({
                                 <Palmtree className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />
                             </div>
                         )}
+                        {welcomeBadgeName && sigilRoles.some(g => g.role?.slug === "probation") && (
+                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] shadow-lg animate-pulse" title={welcomeBadgeName}>
+                                <Sparkles className="w-5 h-5 text-indigo-400 fill-indigo-500/10" />
+                            </div>
+                        )}
                     </div>
 
                     {/* Info Section */}
@@ -174,45 +193,99 @@ export function HeroHeader({
                                     Membre depuis {new Date(joinedAt).toLocaleDateString("fr-FR", { month: 'long', year: 'numeric' })}
                                 </Badge>
                             )}
+
+                            {sigilRoles.filter(g => g.role?.slug !== "probation").map((grant: any) => (
+                                <Badge
+                                    key={grant.id}
+                                    className="bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 font-black uppercase tracking-[0.1em] text-[10px] py-1 gap-1.5"
+                                >
+                                    <Sparkles className="w-3 h-3" />
+                                    {grant.label}
+                                    {grant.expiresAt && (
+                                        <span className="opacity-50 text-[9px] font-medium lowercase italic">
+                                            expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
+                                        </span>
+                                    )}
+                                </Badge>
+                            ))}
+
+                            {/* Specific NEW/PROBATION Badge - High Visibility */}
+                            {welcomeBadgeName && sigilRoles.filter(g => g.role?.slug === "probation").map((grant: any) => (
+                                <Badge
+                                    key={grant.id}
+                                    className="bg-indigo-500/30 text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/40 font-black uppercase tracking-[0.1em] text-[11px] py-1 gap-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
+                                    {welcomeBadgeName}
+                                    {grant.expiresAt && (
+                                        <span className="opacity-60 text-[9px] font-medium lowercase italic border-l border-indigo-500/30 pl-2">
+                                            expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
+                                        </span>
+                                    )}
+                                </Badge>
+                            ))}
+
+                            {discordRoleName && (
+                                <Badge
+                                    variant="outline"
+                                    className="font-bold uppercase tracking-[0.1em] text-[10px] py-1 border-white/10 bg-white/5"
+                                    style={{
+                                        color: discordRoleColor && discordRoleColor > 0
+                                            ? `#${discordRoleColor.toString(16).padStart(6, "0")}`
+                                            : "#94a3b8"
+                                    }}
+                                >
+                                    <UserCircle className="w-3.5 h-3.5 mr-1.5" />
+                                    {discordRoleName}
+                                </Badge>
+                            )}
                         </div>
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                             {/* Total XP */}
-                            <div className="px-4 py-3 rounded-lg bg-purple-500/10 border border-purple-500/20 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <TrendingUp className="w-4 h-4 text-purple-400" />
-                                    <span className="text-xs text-purple-300 font-medium">XP Total</span>
+                            {canViewLadder && (
+                                <div className="px-4 py-3 rounded-lg bg-purple-500/10 border border-purple-500/20 backdrop-blur-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <TrendingUp className="w-4 h-4 text-purple-400" />
+                                        <span className="text-xs text-purple-300 font-medium">XP Total</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-white">{xp.toLocaleString()}</p>
                                 </div>
-                                <p className="text-xl font-bold text-white">{xp.toLocaleString()}</p>
-                            </div>
+                            )}
 
                             {/* Weekly XP */}
-                            <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <TrendingUp className="w-4 h-4 text-green-400" />
-                                    <span className="text-xs text-green-300 font-medium">XP Semaine</span>
+                            {canViewLadder && (
+                                <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 backdrop-blur-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <TrendingUp className="w-4 h-4 text-green-400" />
+                                        <span className="text-xs text-green-300 font-medium">XP Semaine</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-white">+{weeklyXp.toLocaleString()}</p>
                                 </div>
-                                <p className="text-xl font-bold text-white">+{weeklyXp.toLocaleString()}</p>
-                            </div>
+                            )}
 
                             {/* Total Missions */}
-                            <div className="px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <Target className="w-4 h-4 text-blue-400" />
-                                    <span className="text-xs text-blue-300 font-medium">Missions Totales</span>
+                            {canViewMissions && (
+                                <div className="px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20 backdrop-blur-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Target className="w-4 h-4 text-blue-400" />
+                                        <span className="text-xs text-blue-300 font-medium">Missions Totales</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-white">{missionsValidated}</p>
                                 </div>
-                                <p className="text-xl font-bold text-white">{missionsValidated}</p>
-                            </div>
+                            )}
 
                             {/* Weekly Missions */}
-                            <div className="px-4 py-3 rounded-lg bg-orange-500/10 border border-orange-500/20 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <Target className="w-4 h-4 text-orange-400" />
-                                    <span className="text-xs text-orange-300 font-medium">Missions Semaine</span>
+                            {canViewMissions && (
+                                <div className="px-4 py-3 rounded-lg bg-orange-500/10 border border-orange-500/20 backdrop-blur-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Target className="w-4 h-4 text-orange-400" />
+                                        <span className="text-xs text-orange-300 font-medium">Missions Semaine</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-white">{weeklyMissions}</p>
                                 </div>
-                                <p className="text-xl font-bold text-white">{weeklyMissions}</p>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

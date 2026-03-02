@@ -9,6 +9,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
 
@@ -16,7 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 // CONSTANTS & HELPERS
 // ============================================
 
-const JOIN_REQUEST_TTL_MS = 10 * 60 * 1000; // 10 minutes (PRODUCTION)
+const JOIN_REQUEST_TTL_MS = 24 * 60 * 60 * 1000; // 24 heures
 
 /**
  * Clean up expired join requests (Auto-Reject)
@@ -49,15 +50,14 @@ async function cleanupExpiredRequests(guildId: string) {
         });
 
         // 2. Notify the user
-        await db.notification.create({
-            data: {
-                userId: req.userId,
-                title: "Candidature expirée",
-                message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 10 minutes).`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${guildId}/songes`, // Redirect to list
-            },
-        });
+        await createNotification(
+            req.userId,
+            "SYSTEM_INFO",
+            "Candidature expirée",
+            `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 10 minutes).`,
+            `/dashboard/${guildId}/songes`,
+            guildId
+        );
     }
 }
 
@@ -90,11 +90,11 @@ const CreateRunSchema = z.object({
         "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
     ])).min(1, "Sélectionnez au moins un objectif"),
     publishToDiscord: z.boolean().optional(),
+    epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
 }).refine((data) => {
-    // Validate restrictions: DROP_LEGENDE and SUCCES_NO_ACHAT require PARADOXE or CAUCHEMAR
+    if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
     const restrictedObjectives = ["DROP_LEGENDE", "SUCCES_NO_ACHAT"];
-
     if (!isParadoxeOrHigher) {
         const hasRestricted = data.objectives.some(o => restrictedObjectives.includes(o));
         if (hasRestricted) return false;
@@ -144,9 +144,21 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         return { success: false, error: validated.error.errors[0].message };
     }
 
-    // RATE LIMIT: 3 creations per 10 minutes
-    const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
-    if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter." };
+    // RATE LIMIT: 3 créations par 10 minutes
+    // 🛠️ Dev bypass : RATE_LIMIT_BYPASS_DISCORD_IDS (IDs Discord séparés par virgule)
+    const bypassDiscordIds = (process.env.RATE_LIMIT_BYPASS_DISCORD_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+    let isRateLimitBypassed = false;
+    if (bypassDiscordIds.length > 0) {
+        const account = await db.account.findFirst({
+            where: { userId: ctx.userId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        isRateLimitBypassed = bypassDiscordIds.includes(account?.providerAccountId ?? "");
+    }
+    if (!isRateLimitBypassed) {
+        const limiter = await rateLimit(`create_dream_run:${ctx.userId}:${guildId}`, 3, 10 * 60 * 1000);
+        if (!limiter.success) return { success: false, error: "Trop de runs créées. Veuillez patienter.", resetAt: limiter.reset };
+    }
 
     // Rule: A leader can only have one active run
     const existingRun = await db.dreamRun.findFirst({
@@ -168,6 +180,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             difficulty: validated.data.difficulty,
             objectives: validated.data.objectives,
             objective: validated.data.objectives[0], // Init legacy field
+            epreuveCode: validated.data.epreuveCode ?? null,
             members: {
                 create: {
                     userId: ctx.userId,
@@ -185,6 +198,18 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         await publishDiscordRun(ctx.guildId, run.id);
     }
 
+    try {
+        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+        const leaderName = ctx.name || "Un explorateur";
+        await pushSystemChatMessage(
+            ctx.guildId,
+            `🌌 **${leaderName}** a lancé une expédition Songes Infinis (${run.difficulty.replace("_", " ")}) !`,
+            { type: "songes_run_created", runId: run.id }
+        );
+    } catch (chatErr) {
+        console.error("Failed to push system chat message for songes run", chatErr);
+    }
+
     return { success: true, runId: run.id };
 }
 
@@ -196,10 +221,7 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", runs: [] };
 
-    // Trigger cleanup
-    const { cleanupInactiveRuns } = await import("@/server/songes-service");
-    await cleanupInactiveRuns(ctx.guildId);
-    await cleanupExpiredRequests(ctx.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const runs = await db.dreamRun.findMany({
         where: {
@@ -232,10 +254,7 @@ export async function getDreamRunById(guildId: string, runId: string) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé", run: null };
 
-    // Trigger cleanup
-    const { cleanupInactiveRuns } = await import("@/server/songes-service");
-    await cleanupInactiveRuns(ctx.guildId);
-    await cleanupExpiredRequests(ctx.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const run = await db.dreamRun.findFirst({
         where: {
@@ -273,6 +292,10 @@ export async function joinDreamRun(guildId: string, runId: string) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    if (!ctx.canJoinSonges) {
+        return { success: false, error: "Non autorisé: permission requise pour rejoindre les Songes" };
+    }
+
     const run = await db.dreamRun.findFirst({
         where: { id: runId, guildId: ctx.guildId },
         include: { members: true, waitlist: true },
@@ -306,13 +329,21 @@ export async function joinDreamRun(guildId: string, runId: string) {
 
     if (nextSlot) {
         // Join directly
-        await db.dreamRunMember.create({
-            data: {
-                runId,
-                userId: ctx.userId,
-                slot: nextSlot,
-            },
-        });
+        try {
+            await db.dreamRunMember.create({
+                data: {
+                    runId,
+                    userId: ctx.userId,
+                    slot: nextSlot,
+                },
+            });
+        } catch (error: any) {
+            // P2002: Unique constraint violation (Race condition on the slot)
+            if (error.code === 'P2002') {
+                return { success: false, error: "Ce slot vient tout juste d'être pris par un autre joueur. Veuillez réessayer." };
+            }
+            throw error; // Re-throw other unexpected errors
+        }
     } else {
         // Add to waitlist
         const maxPosition = run.waitlist.length > 0
@@ -632,6 +663,11 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         return { success: false, error: "Données invalides" };
     }
 
+    // Security Check: Ensure user has the 'canJoinSonges' permission 
+    if (!ctx.canJoinSonges) {
+        return { success: false, error: "Non autorisé: permission requise pour rejoindre les Songes" };
+    }
+
     // Find run by ID AND Guild ID (Isolation)
     const run = await db.dreamRun.findFirst({
         where: {
@@ -690,13 +726,13 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
     }
 
     // 2. Check for recent notifications (Last 5 minutes)
-    // We look for a notification sent to the LEADER, with title "Nouvelle candidature Songes",
+    // We look for a notification sent to the LEADER, with title "Candidature Songes",
     // and containing the candidate's name.
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const recentSpam = await db.notification.findFirst({
         where: {
             userId: run.leaderId,
-            title: "Nouvelle candidature Songes",
+            title: "Candidature Songes",
             message: { contains: candidateName },
             createdAt: { gt: fiveMinutesAgo },
         },
@@ -736,15 +772,14 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
 
     // Create notification for leader if enabled
     if (run.notifyOnJoinRequest) {
-        await db.notification.create({
-            data: {
-                userId: run.leaderId,
-                title: "Candidature Songes",
-                message: `**${candidateName}** (${validated.data.classe}) • Étage ${run.currentFloor}`,
-                type: "SONGES_JOIN_REQUEST",
-                link: `/dashboard/${guildId}/songes/${validated.data.runId}`,
-            },
-        });
+        await createNotification(
+            run.leaderId,
+            "SONGES_JOIN_REQUEST",
+            "Candidature Songes",
+            `**${candidateName}** (${validated.data.classe}) • Étage ${run.currentFloor}`,
+            `/dashboard/${guildId}/songes/${validated.data.runId}`,
+            guildId
+        );
 
         // Also send Discord notification if channel is configured
         if (guildConfig && guildConfig.songesNotifyChannelId) {
@@ -782,9 +817,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                     `Un nouveau joueur a postulé.`,
                     {
                         embedTitle: "📩 Nouvelle candidature Songes",
-                        embedUrl: runUrl,
                         embedColor,
-                        embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
                         fields: [
                             { name: "👤 Candidat", value: candidateName, inline: true },
                             { name: "🛡️ Classe", value: `**${validated.data.classe}**`, inline: true },
@@ -792,7 +825,8 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
                             { name: "📝 Message", value: validated.data.message ? `>>> ${validated.data.message.slice(0, 200)}` : "*Aucun*", inline: false },
                         ],
                         embedFooter: `SigilOS • Songes`,
-                        mentionContent: `👋 Bonjour ${leaderMention} ! Une nouvelle candidature est arrivée.`,
+                        mentionContent: `👋 ${leaderMention} — **${candidateName}** a postulé ! [→ Dashboard](<${runUrl}>)`,
+                        suppressEmbeds: true,
                     }
                 );
 
@@ -826,13 +860,10 @@ export async function getPendingJoinRequests(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée ou accès refusé", requests: [] };
     }
 
-    // Only leader can see pending requests
-    if (run.leaderId !== ctx.id) {
-        return { success: false, error: "Non autorisé", requests: [] };
-    }
+    // Non-leaders are now allowed to see pending requests (UI requirement)
+    // Visibility restriction handled by UI (Action buttons hidden for non-leaders)
 
-    // Trigger cleanup for this guild
-    await cleanupExpiredRequests(run.guildId);
+    // Cleanup is now handled by the BullMQ worker (daily job)
 
     const requests = await db.dreamJoinRequest.findMany({
         where: { runId, status: "PENDING" },
@@ -933,15 +964,14 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
         ]);
 
         // Notify candidate of acceptance
-        await db.notification.create({
-            data: {
-                userId: request.userId,
-                title: "Candidature acceptée !",
-                message: `Votre candidature pour la run ${request.run.difficulty} a été acceptée. Bienvenue dans l'équipe !`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${request.run.guildId}/songes/${request.runId}`,
-            },
-        });
+        await createNotification(
+            request.userId,
+            "SYSTEM_INFO",
+            "Candidature acceptée !",
+            `Votre candidature pour la run ${request.run.difficulty} a été acceptée. Bienvenue dans l'équipe !`,
+            `/dashboard/${request.run.guildId}/songes/${request.runId}`,
+            request.run.guildId
+        );
 
         // Update Discord embed
         const { updateDiscordRunEmbed } = await import("@/server/songes-service");
@@ -954,15 +984,14 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
         });
 
         // Notify candidate of rejection
-        await db.notification.create({
-            data: {
-                userId: request.userId,
-                title: "Candidature refusée",
-                message: `Votre candidature pour la run ${request.run.difficulty} a été refusée.`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${request.run.guildId}/songes`,
-            },
-        });
+        await createNotification(
+            request.userId,
+            "SYSTEM_INFO",
+            "Candidature refusée",
+            `Votre candidature pour la run ${request.run.difficulty} a été refusée.`,
+            `/dashboard/${request.run.guildId}/songes`,
+            request.run.guildId
+        );
     }
 
     // Clean up Discord candidacy embed if it exists
@@ -1009,6 +1038,24 @@ export async function deleteDreamRun(guildId: string, runId: string) {
         where: { id: runId },
     });
 
+    // Audit Log for admin deletion
+    if (ctx.isAdmin && run.leaderId !== ctx.userId) {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        if (guildConfig) {
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: ctx.userId,
+                    actorName: ctx.name || "Admin",
+                    action: "SONGES_RUN_DELETED_BY_ADMIN",
+                    targetType: "DREAM_RUN",
+                    targetId: runId,
+                    metadata: { leaderId: run.leaderId, difficulty: run.difficulty } as any,
+                }
+            });
+        }
+    }
+
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
@@ -1050,15 +1097,14 @@ export async function kickMember(guildId: string, runId: string, targetUserId: s
     await db.dreamRunMember.delete({ where: { id: member.id } });
 
     // Notify kicked member
-    await db.notification.create({
-        data: {
-            userId: targetUserId,
-            title: "Retiré d'une run Songes",
-            message: `Vous avez été retiré de la run ${run.difficulty} par le leader.`,
-            type: "SYSTEM_INFO",
-            link: `/dashboard/${ctx.guildId}/songes`,
-        },
-    });
+    await createNotification(
+        targetUserId,
+        "SYSTEM_INFO",
+        "Retiré d'une run Songes",
+        `Vous avez été retiré de la run ${run.difficulty} par le leader.`,
+        `/dashboard/${ctx.guildId}/songes`,
+        guildId
+    );
 
     // Promote first waitlisted user
     const firstWaitlisted = run.waitlist[0];
@@ -1082,6 +1128,22 @@ export async function kickMember(guildId: string, runId: string, targetUserId: s
     // Update Discord embed
     const { updateDiscordRunEmbed } = await import("@/server/songes-service");
     await updateDiscordRunEmbed(ctx.guildId, runId);
+
+    // Audit Log if kick by admin (redundant with leader check but for completeness)
+    if (ctx.isAdmin && run.leaderId !== ctx.userId) {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        await db.auditLog.create({
+            data: {
+                guildId: guildConfig!.id,
+                actorUserId: ctx.userId,
+                actorName: ctx.name || "Admin",
+                action: "SONGES_MEMBER_KICKED_BY_ADMIN",
+                targetType: "DREAM_RUN_MEMBER",
+                targetId: targetUserId,
+                metadata: { runId, leaderId: run.leaderId } as any,
+            }
+        });
+    }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
@@ -1120,15 +1182,14 @@ export async function getMyJoinRequestStatus(guildId: string, runId: string) {
         });
 
         // Notify
-        await db.notification.create({
-            data: {
-                userId: request.userId,
-                title: "Candidature expirée",
-                message: "Votre candidature a expiré (délai dépassé).",
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${request.run.guildId}/songes`
-            }
-        });
+        await createNotification(
+            request.userId,
+            "SYSTEM_INFO",
+            "Candidature expirée",
+            "Votre candidature a expiré (délai dépassé).",
+            `/dashboard/${request.run.guildId}/songes`,
+            request.run.guildId
+        );
 
         return { success: true, status: "REJECTED" };
     }
@@ -1398,19 +1459,18 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
         return { success: false, error: `Anti-spam : Veuillez attendre ${remainingMinutes} minute(s) avant le prochain rappel.` };
     }
 
-    // Dashboard notifications for each member (except leader maybe, but let's include all for confirmation)
+    // Dashboard notifications for each member
     const notificationPromises = run.members.map(member =>
-        db.notification.create({
-            data: {
-                userId: member.userId,
-                title: "Rappel Songes",
-                message: scheduledAt
-                    ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
-                    : `Message du leader : ${message}`,
-                type: "SYSTEM_INFO",
-                link: `/dashboard/${ctx.guildId}/songes/${runId}`,
-            }
-        })
+        createNotification(
+            member.userId,
+            "SYSTEM_INFO",
+            "Rappel Songes",
+            scheduledAt
+                ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
+                : `Message du leader : ${message}`,
+            `/dashboard/${ctx.guildId}/songes/${runId}`,
+            guildId
+        )
     );
 
     await Promise.all(notificationPromises);

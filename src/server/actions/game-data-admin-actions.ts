@@ -20,6 +20,7 @@ type ActionResponse<T = void> = {
 
 const MonsterFamilySchema = z.object({
     name: z.string().min(1, "Nom requis").max(100),
+    level: z.number().int().min(1).max(1000).optional().nullable(),
     description: z.string().optional(),
     imageUrl: z.string().optional().or(z.literal("")),
     zoneIds: z.array(z.string()).optional(),
@@ -37,7 +38,7 @@ const ChallengeSchema = z.object({
 const DungeonFormSchema = z.object({
     name: z.string().min(1, "Nom requis").max(150),
     bossName: z.string().min(1, "Nom du boss requis").max(150),
-    level: z.number().min(1, "Niveau invalide").max(200),
+    level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
     imageUrl: z.string().optional().or(z.literal("")),
     isExpedition: z.boolean().default(false),
@@ -88,7 +89,7 @@ export async function getMonsterFamilies(
                 zones: { select: { id: true, name: true } }
             },
             take: filters.search ? 20 : 100, // Limit results if searching
-            orderBy: { name: 'asc' }
+            orderBy: { level: 'asc' }
         });
         return { success: true, data: families };
     } catch (error) {
@@ -415,6 +416,150 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
 }
 
 // ===========================
+// DREAM BONUSES (Songes)
+// ===========================
+
+const DreamBonusSchema = z.object({
+    name: z.string().min(1, "Nom requis").max(100),
+    type: z.enum(["ACTIF", "PASSIF", "CONSOMMABLE"]).default("ACTIF"),
+    description: z.string().optional(),
+    imageUrl: z.string().optional().or(z.literal("")),
+    costMin: z.number().int().min(0).optional().nullable(),
+    costMax: z.number().int().min(0).optional().nullable(),
+});
+
+export async function getDreamBonuses(): Promise<ActionResponse<any[]>> {
+    try {
+        const bonuses = await db.dreamBonus.findMany({ orderBy: [{ type: 'asc' }, { name: 'asc' }] });
+        return { success: true, data: bonuses };
+    } catch (error) {
+        console.error('[getDreamBonuses] Error:', error);
+        return { success: false, error: 'Erreur lors du chargement des bonus de rêve' };
+    }
+}
+
+export async function createDreamBonus(data: z.infer<typeof DreamBonusSchema>): Promise<ActionResponse<any>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        const validated = DreamBonusSchema.parse(data);
+        const bonus = await db.dreamBonus.create({
+            data: { ...validated, imageUrl: validated.imageUrl || null }
+        });
+        revalidatePath('/god/game-data');
+        return { success: true, data: bonus };
+    } catch (error: any) {
+        console.error('[createDreamBonus] Error:', error);
+        if (error.code === 'P2002') return { success: false, error: 'Ce bonus existe déjà' };
+        return { success: false, error: 'Erreur lors de la création' };
+    }
+}
+
+export async function updateDreamBonus(id: string, data: z.infer<typeof DreamBonusSchema>): Promise<ActionResponse<any>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        const validated = DreamBonusSchema.parse(data);
+        const bonus = await db.dreamBonus.update({
+            where: { id },
+            data: { ...validated, imageUrl: validated.imageUrl || null }
+        });
+        revalidatePath('/god/game-data');
+        return { success: true, data: bonus };
+    } catch (error: any) {
+        console.error('[updateDreamBonus] Error:', error);
+        if (error.code === 'P2002') return { success: false, error: 'Ce bonus existe déjà' };
+        return { success: false, error: 'Erreur lors de la mise à jour' };
+    }
+}
+
+export async function deleteDreamBonus(id: string): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        await db.dreamBonus.delete({ where: { id } });
+        revalidatePath('/god/game-data');
+        return { success: true };
+    } catch (error: any) {
+        console.error('[deleteDreamBonus] Error:', error);
+        return { success: false, error: 'Erreur lors de la suppression' };
+    }
+}
+
+// ===========================
+// GAME QUESTS
+// ===========================
+
+const GameQuestSchema = z.object({
+    name: z.string().min(1, "Nom requis").max(200),
+    dofusDbId: z.number().int().positive().optional().nullable(),
+    levelMin: z.number().int().min(1).max(1000).optional().nullable(),
+    levelMax: z.number().int().min(1).max(1000).optional().nullable(),
+    description: z.string().optional(),
+    imageUrl: z.string().optional().or(z.literal("")),
+    category: z.string().optional(),
+});
+
+export async function getGameQuests(): Promise<ActionResponse<any[]>> {
+    try {
+        const quests = await db.gameQuest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+        return { success: true, data: quests };
+    } catch (error) {
+        console.error('[getGameQuests] Error:', error);
+        return { success: false, error: 'Erreur lors du chargement des quêtes' };
+    }
+}
+
+export async function createGameQuest(data: z.infer<typeof GameQuestSchema>): Promise<ActionResponse<any>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        const validated = GameQuestSchema.parse(data);
+        const quest = await db.gameQuest.create({
+            data: { ...validated, imageUrl: validated.imageUrl || null }
+        });
+        revalidatePath('/god/game-data');
+        return { success: true, data: quest };
+    } catch (error: any) {
+        console.error('[createGameQuest] Error:', error);
+        if (error.code === 'P2002') return { success: false, error: 'Cette quête existe déjà' };
+        return { success: false, error: 'Erreur lors de la création' };
+    }
+}
+
+export async function updateGameQuest(id: string, data: z.infer<typeof GameQuestSchema>): Promise<ActionResponse<any>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        const validated = GameQuestSchema.parse(data);
+        const quest = await db.gameQuest.update({
+            where: { id },
+            data: { ...validated, imageUrl: validated.imageUrl || null }
+        });
+        revalidatePath('/god/game-data');
+        return { success: true, data: quest };
+    } catch (error: any) {
+        console.error('[updateGameQuest] Error:', error);
+        if (error.code === 'P2002') return { success: false, error: 'Cette quête existe déjà' };
+        return { success: false, error: 'Erreur lors de la mise à jour' };
+    }
+}
+
+export async function deleteGameQuest(id: string): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        await db.gameQuest.delete({ where: { id } });
+        revalidatePath('/god/game-data');
+        return { success: true };
+    } catch (error: any) {
+        console.error('[deleteGameQuest] Error:', error);
+        return { success: false, error: 'Erreur lors de la suppression' };
+    }
+}
+
+
+// ===========================
 // DUNGEON ACHIEVEMENTS (Manual management)
 // ===========================
 
@@ -493,6 +638,8 @@ const ZoneSchema = z.object({
     name: z.string().min(1, "Nom requis").max(100),
     level: z.number().min(1, "Niveau invalide").max(200),
     dpnlUrl: z.string().url("URL invalide").optional().or(z.literal("")),
+    familyIds: z.array(z.string()).optional(),
+    dungeonIds: z.array(z.string()).optional(),
 });
 
 export async function createZone(
@@ -505,8 +652,19 @@ export async function createZone(
         const validated = ZoneSchema.parse(data);
         const zone = await db.zone.create({
             data: {
-                ...validated,
+                name: validated.name,
+                level: validated.level,
                 dpnlUrl: validated.dpnlUrl || null,
+                families: validated.familyIds && validated.familyIds.length > 0 ? {
+                    connect: validated.familyIds.map((id) => ({ id }))
+                } : undefined,
+                dungeons: validated.dungeonIds && validated.dungeonIds.length > 0 ? {
+                    connect: validated.dungeonIds.map((id) => ({ id }))
+                } : undefined,
+            },
+            include: {
+                families: true,
+                dungeons: true
             }
         });
 
@@ -533,8 +691,19 @@ export async function updateZone(
         const zone = await db.zone.update({
             where: { id },
             data: {
-                ...validated,
+                name: validated.name,
+                level: validated.level,
                 dpnlUrl: validated.dpnlUrl || null,
+                families: validated.familyIds ? {
+                    set: validated.familyIds.map((id) => ({ id }))
+                } : undefined,
+                dungeons: validated.dungeonIds ? {
+                    set: validated.dungeonIds.map((id) => ({ id }))
+                } : undefined,
+            },
+            include: {
+                families: true,
+                dungeons: true
             }
         });
 
@@ -570,6 +739,10 @@ export async function searchZones(query: string = ""): Promise<ActionResponse<an
             where: {
                 name: { contains: query, mode: 'insensitive' }
             },
+            include: {
+                families: true,
+                dungeons: true
+            },
             take: 20,
             orderBy: { name: 'asc' }
         });
@@ -602,6 +775,10 @@ export async function searchDungeons(query: string = ""): Promise<ActionResponse
 export async function getAdminZones(): Promise<ActionResponse<any[]>> {
     try {
         const zones = await db.zone.findMany({
+            include: {
+                families: true,
+                dungeons: true
+            },
             orderBy: { name: 'asc' }
         });
         return { success: true, data: zones };
@@ -615,22 +792,60 @@ export async function getAdminZones(): Promise<ActionResponse<any[]>> {
 // EXPORT / IMPORT (for beta/prod sync)
 // ===========================
 
+/**
+ * Export all game data as JSON for cross-environment sync.
+ * Includes: zones, families (with monsters), challenges, dungeons (with achievements).
+ * IDs are exported for reference but the import uses name-based matching,
+ * so the same export can be imported into any environment safely.
+ */
 export async function exportGameData(): Promise<ActionResponse<any>> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
-        const families = await db.monsterFamily.findMany({ include: { monsters: true } });
-        const challenges = await db.challenge.findMany();
-        const dungeons = await db.dungeon.findMany({
-            include: { achievements: true }
-        });
+        const [zones, families, challenges, dungeons] = await Promise.all([
+            db.zone.findMany({ orderBy: { name: 'asc' } }),
+            db.monsterFamily.findMany({
+                include: {
+                    monsters: true,
+                    zones: { select: { id: true, name: true } }
+                },
+                orderBy: { name: 'asc' }
+            }),
+            db.challenge.findMany({ orderBy: { name: 'asc' } }),
+            db.dungeon.findMany({
+                include: {
+                    achievements: {
+                        include: { challenge: { select: { name: true, slug: true } } }
+                    }
+                },
+                orderBy: { level: 'asc' }
+            }),
+        ]);
 
         const exportData = {
-            version: "2.0",
+            version: "3.0",
             exportedAt: new Date().toISOString(),
             exportedBy: userId,
-            data: { families, challenges, dungeons }
+            data: {
+                zones,
+                families: families.map(f => ({
+                    ...f,
+                    zoneNames: f.zones?.map(z => z.name) || [],
+                    zones: undefined,
+                })),
+                challenges,
+                dungeons: dungeons.map(d => ({
+                    ...d,
+                    achievements: d.achievements.map(a => ({
+                        ...a,
+                        // Include challenge name for cross-env resolution
+                        challengeName: a.challenge?.name || null,
+                        challengeSlug: a.challenge?.slug || null,
+                        challenge: undefined,
+                    })),
+                })),
+            }
         };
 
         return { success: true, data: exportData };
@@ -654,45 +869,21 @@ export async function exportGameDataToGit(): Promise<ActionResponse<string>> {
     }
 
     try {
-        // Fetch all data with zones included
-        const zones = await db.zone.findMany();
-        const families = await db.monsterFamily.findMany({
-            include: {
-                zones: { select: { id: true } }
-            }
-        });
-        const challenges = await db.challenge.findMany();
-        const dungeons = await db.dungeon.findMany({
-            include: { achievements: true }
-        });
-
-        const exportData = {
-            version: "2.0",
-            exportedAt: new Date().toISOString(),
-            exportedBy: userId,
-            data: {
-                zones,
-                families: families.map(f => ({
-                    ...f,
-                    zones: undefined, // Remove relation, keep only metadata
-                    zoneIds: f.zones?.map(z => z.id) || []
-                })),
-                challenges,
-                dungeons
-            }
-        };
+        const result = await exportGameData();
+        if (!result.success || !result.data) {
+            return { success: false, error: result.error || 'Erreur export' };
+        }
 
         // Write to seed file
         const seedFilePath = join(process.cwd(), 'prisma', 'seed-data', 'game-data.json');
-        writeFileSync(seedFilePath, JSON.stringify(exportData, null, 2), 'utf-8');
+        writeFileSync(seedFilePath, JSON.stringify(result.data, null, 2), 'utf-8');
 
-        console.log(`✅ [EXPORT] Game data exported to ${seedFilePath}`);
-
+        const d = result.data.data;
         return {
             success: true,
             data: `Export réussi ! Fichier sauvegardé dans prisma/seed-data/game-data.json\n\n` +
-                `Zones: ${zones.length} | Familles: ${families.length} | ` +
-                `Challenges: ${challenges.length} | Donjons: ${dungeons.length}\n\n` +
+                `Zones: ${d.zones?.length || 0} | Familles: ${d.families?.length || 0} | ` +
+                `Challenges: ${d.challenges?.length || 0} | Donjons: ${d.dungeons?.length || 0}\n\n` +
                 `💡 Commit ce fichier dans Git pour versionner tes données !`
         };
     } catch (error: any) {
@@ -701,6 +892,16 @@ export async function exportGameDataToGit(): Promise<ActionResponse<string>> {
     }
 }
 
+/**
+ * Import game data from JSON export. Handles cross-environment ID differences.
+ * 
+ * Strategy:
+ *  - All entities are matched by their NATURAL KEY (name, name+bossName, etc.)
+ *  - IDs from the source are remapped to the target DB's IDs
+ *  - Cross-references (e.g. dungeon→challenge achievements) use remapped IDs
+ *  - Entire import runs in a transaction for atomicity (safe for hot imports)
+ *  - Supports both v2.0 and v3.0 export formats
+ */
 export async function importGameData(jsonData: string): Promise<ActionResponse<string>> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
@@ -712,111 +913,271 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             return { success: false, error: 'Format de fichier invalide' };
         }
 
-        let importedCount = 0;
+        const stats = { zones: 0, families: 0, challenges: 0, dungeons: 0, achievements: 0, skipped: 0 };
+        const warnings: string[] = [];
 
-        // Import families (without monsters for now)
-        if (parsed.data.families) {
-            for (const family of parsed.data.families) {
-                await db.monsterFamily.upsert({
-                    where: { name: family.name },
-                    update: {
-                        description: family.description,
-                        imageUrl: family.imageUrl,
-                    },
-                    create: {
-                        name: family.name,
-                        description: family.description,
-                        imageUrl: family.imageUrl,
-                    }
-                });
-                importedCount++;
-            }
-        }
+        await db.$transaction(async (tx) => {
+            // ============================
+            // PHASE 1: Import Zones
+            // ============================
+            const zoneIdMap = new Map<string, string>(); // oldId → newId
 
-        // Import challenges
-        if (parsed.data.challenges) {
-            for (const challenge of parsed.data.challenges) {
-                await db.challenge.upsert({
-                    where: { slug: challenge.slug },
-                    update: {
-                        name: challenge.name,
-                        description: challenge.description,
-                        iconUrl: challenge.iconUrl,
+            if (parsed.data.zones) {
+                for (const zone of parsed.data.zones) {
+                    const existing = await tx.zone.findUnique({ where: { name: zone.name } });
 
-                        conditions: challenge.conditions,
-                    },
-                    create: {
-                        name: challenge.name,
-                        slug: challenge.slug,
-                        description: challenge.description,
-                        iconUrl: challenge.iconUrl,
-
-                        conditions: challenge.conditions,
-                    }
-                });
-                importedCount++;
-            }
-        }
-
-        // Import dungeons with achievements
-        if (parsed.data.dungeons) {
-            for (const dungeon of parsed.data.dungeons) {
-                const created = await db.dungeon.upsert({
-                    where: { name: dungeon.name },
-                    update: {
-                        bossName: dungeon.bossName,
-                        level: dungeon.level,
-                        dpnlUrl: dungeon.dpnlUrl,
-                        imageUrl: dungeon.imageUrl,
-                        isExpedition: dungeon.isExpedition,
-                        expeditionModes: dungeon.expeditionModes,
-                        expeditionMechanics: dungeon.expeditionMechanics,
-                    },
-                    create: {
-                        name: dungeon.name,
-                        bossName: dungeon.bossName,
-                        level: dungeon.level,
-                        dpnlUrl: dungeon.dpnlUrl,
-                        imageUrl: dungeon.imageUrl,
-                        isExpedition: dungeon.isExpedition,
-                        expeditionModes: dungeon.expeditionModes,
-                        expeditionMechanics: dungeon.expeditionMechanics,
-                    }
-                });
-
-                // Import achievements
-                if (dungeon.achievements) {
-                    for (const ach of dungeon.achievements) {
-                        await db.dungeonAchievement.upsert({
-                            where: {
-                                dungeonId_challengeId: {
-                                    dungeonId: created.id,
-                                    challengeId: ach.challengeId
-                                }
-                            },
-                            update: { points: ach.points },
-                            create: {
-                                dungeonId: created.id,
-                                challengeId: ach.challengeId,
-                                points: ach.points
+                    if (existing) {
+                        await tx.zone.update({
+                            where: { id: existing.id },
+                            data: {
+                                level: zone.level,
+                                dpnlUrl: zone.dpnlUrl || null,
                             }
                         });
+                        zoneIdMap.set(zone.id, existing.id);
+                    } else {
+                        const created = await tx.zone.create({
+                            data: {
+                                name: zone.name,
+                                level: zone.level,
+                                dpnlUrl: zone.dpnlUrl || null,
+                            }
+                        });
+                        zoneIdMap.set(zone.id, created.id);
                     }
+                    stats.zones++;
                 }
-
-                importedCount++;
             }
-        }
+
+            // ============================
+            // PHASE 2: Import Challenges
+            // ============================
+            const challengeIdMap = new Map<string, string>(); // oldId → newId
+
+            if (parsed.data.challenges) {
+                for (const challenge of parsed.data.challenges) {
+                    // Find by name (natural unique key) — slug as fallback
+                    const existing = await tx.challenge.findFirst({
+                        where: {
+                            OR: [
+                                { name: challenge.name },
+                                ...(challenge.slug ? [{ slug: challenge.slug }] : []),
+                            ]
+                        }
+                    });
+
+                    const slug = challenge.slug || challenge.name.toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+                    if (existing) {
+                        await tx.challenge.update({
+                            where: { id: existing.id },
+                            data: {
+                                description: challenge.description,
+                                iconUrl: challenge.iconUrl,
+                                conditions: challenge.conditions || undefined,
+                                slug: slug,
+                            }
+                        });
+                        challengeIdMap.set(challenge.id, existing.id);
+                    } else {
+                        const created = await tx.challenge.create({
+                            data: {
+                                name: challenge.name,
+                                slug: slug,
+                                description: challenge.description,
+                                iconUrl: challenge.iconUrl,
+                                conditions: challenge.conditions || undefined,
+                            }
+                        });
+                        challengeIdMap.set(challenge.id, created.id);
+                    }
+                    stats.challenges++;
+                }
+            }
+
+            // ============================
+            // PHASE 3: Import Families
+            // ============================
+            const familyIdMap = new Map<string, string>(); // oldId → newId
+
+            if (parsed.data.families) {
+                for (const family of parsed.data.families) {
+                    const trimmedName = family.name.trim();
+                    const existing = await tx.monsterFamily.findFirst({
+                        where: { name: { equals: trimmedName, mode: 'insensitive' } }
+                    });
+
+                    if (existing) {
+                        await tx.monsterFamily.update({
+                            where: { id: existing.id },
+                            data: {
+                                level: family.level || null,
+                                description: family.description || null,
+                                imageUrl: family.imageUrl || null,
+                            }
+                        });
+                        familyIdMap.set(family.id, existing.id);
+                    } else {
+                        const created = await tx.monsterFamily.create({
+                            data: {
+                                name: trimmedName,
+                                level: family.level || null,
+                                description: family.description || null,
+                                imageUrl: family.imageUrl || null,
+                            }
+                        });
+                        familyIdMap.set(family.id, created.id);
+                    }
+
+                    // Link to zones (v3.0 format: zoneNames)
+                    const resolvedFamilyId = familyIdMap.get(family.id);
+                    if (resolvedFamilyId && family.zoneNames && Array.isArray(family.zoneNames)) {
+                        const zoneRecords = await tx.zone.findMany({
+                            where: { name: { in: family.zoneNames } },
+                            select: { id: true }
+                        });
+                        if (zoneRecords.length > 0) {
+                            await tx.monsterFamily.update({
+                                where: { id: resolvedFamilyId },
+                                data: { zones: { set: zoneRecords.map(z => ({ id: z.id })) } }
+                            });
+                        }
+                    }
+
+                    stats.families++;
+                }
+            }
+
+            // ============================
+            // PHASE 4: Import Dungeons + Achievements
+            // ============================
+            if (parsed.data.dungeons) {
+                for (const dungeon of parsed.data.dungeons) {
+                    // Find by composite natural key: name + bossName
+                    const existing = await tx.dungeon.findFirst({
+                        where: { name: dungeon.name, bossName: dungeon.bossName }
+                    });
+
+                    let dungeonId: string;
+
+                    if (existing) {
+                        await tx.dungeon.update({
+                            where: { id: existing.id },
+                            data: {
+                                level: dungeon.level,
+                                dpnlUrl: dungeon.dpnlUrl || null,
+                                imageUrl: dungeon.imageUrl || null,
+                                isExpedition: dungeon.isExpedition ?? false,
+                                expeditionModes: dungeon.expeditionModes || null,
+                                expeditionMechanics: dungeon.expeditionMechanics || null,
+                            }
+                        });
+                        dungeonId = existing.id;
+                    } else {
+                        const created = await tx.dungeon.create({
+                            data: {
+                                name: dungeon.name,
+                                bossName: dungeon.bossName,
+                                level: dungeon.level,
+                                dpnlUrl: dungeon.dpnlUrl || null,
+                                imageUrl: dungeon.imageUrl || null,
+                                isExpedition: dungeon.isExpedition ?? false,
+                                expeditionModes: dungeon.expeditionModes || null,
+                                expeditionMechanics: dungeon.expeditionMechanics || null,
+                            }
+                        });
+                        dungeonId = created.id;
+                    }
+
+                    // Import achievements with ID remapping
+                    if (dungeon.achievements && Array.isArray(dungeon.achievements)) {
+                        for (const ach of dungeon.achievements) {
+                            // Resolve challengeId: try ID map first, then name/slug lookup
+                            let resolvedChallengeId = challengeIdMap.get(ach.challengeId);
+
+                            if (!resolvedChallengeId) {
+                                // v3.0: use embedded challengeName/challengeSlug
+                                // v2.0: lookup directly by old challengeId
+                                const challengeLookup = await tx.challenge.findFirst({
+                                    where: {
+                                        OR: [
+                                            ...(ach.challengeName ? [{ name: ach.challengeName }] : []),
+                                            ...(ach.challengeSlug ? [{ slug: ach.challengeSlug }] : []),
+                                            { id: ach.challengeId }, // last resort: same ID
+                                        ]
+                                    }
+                                });
+
+                                if (challengeLookup) {
+                                    resolvedChallengeId = challengeLookup.id;
+                                } else {
+                                    warnings.push(`⚠️ Challenge introuvable pour succès donjon "${dungeon.name}" (challengeId: ${ach.challengeId})`);
+                                    stats.skipped++;
+                                    continue;
+                                }
+                            }
+
+                            // Upsert the achievement
+                            const existingAch = await tx.dungeonAchievement.findUnique({
+                                where: {
+                                    dungeonId_challengeId: {
+                                        dungeonId: dungeonId,
+                                        challengeId: resolvedChallengeId
+                                    }
+                                }
+                            });
+
+                            if (existingAch) {
+                                await tx.dungeonAchievement.update({
+                                    where: { id: existingAch.id },
+                                    data: { points: ach.points || 10 }
+                                });
+                            } else {
+                                await tx.dungeonAchievement.create({
+                                    data: {
+                                        dungeonId: dungeonId,
+                                        challengeId: resolvedChallengeId,
+                                        points: ach.points || 10,
+                                    }
+                                });
+                            }
+                            stats.achievements++;
+                        }
+                    }
+
+                    stats.dungeons++;
+                }
+            }
+        }, { timeout: 60000 }); // 60s timeout for large imports
 
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
 
-        return {
-            success: true,
-            data: `${importedCount} entrées importées avec succès`
-        };
+        const summary = [
+            `✅ Import terminé avec succès !`,
+            ``,
+            `📊 Résumé :`,
+            stats.zones > 0 ? `  • Zones : ${stats.zones}` : null,
+            `  • Familles : ${stats.families}`,
+            `  • Challenges : ${stats.challenges}`,
+            `  • Donjons : ${stats.dungeons}`,
+            stats.achievements > 0 ? `  • Succès donjons : ${stats.achievements}` : null,
+            stats.skipped > 0 ? `  • ⚠️ Ignorés : ${stats.skipped}` : null,
+            ...warnings,
+        ].filter(Boolean).join('\n');
+
+        return { success: true, data: summary };
     } catch (error: any) {
         console.error('[importGameData] Error:', error);
+
+        // Provide user-friendly error messages
+        if (error.code === 'P2002') {
+            const field = error.meta?.target?.join(', ') || 'unknown';
+            return { success: false, error: `Conflit de données : le champ (${field}) existe déjà avec une valeur différente. Vérifiez les données du fichier.` };
+        }
+
         return { success: false, error: `Erreur lors de l'import: ${error.message}` };
     }
 }

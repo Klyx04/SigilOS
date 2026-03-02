@@ -21,47 +21,7 @@ export default async function GameDataPage() {
         redirect("/");
     }
 
-    // 🔒 SECURITY: Block access in production (Game Data should only be managed locally)
-    if (process.env.NODE_ENV === 'production') {
-        // Log blocked access attempt
-        const { logPageAccess } = await import('@/lib/audit-log');
-        logPageAccess({
-            userId: session.user.id,
-            userEmail: session.user.email || 'unknown',
-            page: '/god/game-data',
-            details: { blocked: true, reason: 'production_environment' }
-        });
-
-        return (
-            <div className="min-h-[70vh] flex items-center justify-center p-8">
-                <div className="relative z-10 max-w-2xl w-full text-center space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-1000">
-                    <div className="mx-auto w-48 h-48 relative mb-8">
-                        <Database className="w-full h-full text-red-500/20 drop-shadow-[0_0_80px_rgba(239,68,68,0.3)]" />
-                    </div>
-                    <div className="space-y-6">
-                        <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-xs font-black text-red-400 uppercase tracking-widest shadow-xl">
-                            <Database className="w-4 h-4" />
-                            <span>Protocole de Sécurité Actif</span>
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter font-heading leading-tight drop-shadow-2xl">
-                            Accès <br />
-                            <span className="text-red-500">Verrouillé</span>
-                        </h1>
-                    </div>
-                    <p className="text-zinc-400 text-xl max-w-md mx-auto leading-relaxed font-medium">
-                        La gestion des données de référence est exclusivement réservée à l'environnement de <strong>développement local</strong>.
-                    </p>
-                    <div className="pt-8">
-                        <Button asChild variant="outline" className="h-16 px-12 text-base rounded-full border-white/10 hover:bg-white/5 text-white font-black uppercase tracking-widest transition-all hover:scale-105">
-                            <a href="/god">
-                                ← Retour au Dashboard
-                            </a>
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Removed production block to allow import via GUI in prod/beta
 
     return (
         <div className="p-8 md:p-12 md:pt-16 space-y-16">

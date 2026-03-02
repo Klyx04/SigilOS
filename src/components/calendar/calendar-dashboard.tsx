@@ -14,6 +14,11 @@ import {
     LayoutGrid,
     Loader2,
     Sparkles,
+    Swords,
+    PartyPopper,
+    Target,
+    Wheat,
+    Eye,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -46,6 +51,7 @@ interface CalendarDashboardProps {
     guildId: string;
     currentUserId: string;
     canManage: boolean;
+    isDiscordConfigured?: boolean;
 }
 
 type ViewMode = "grid" | "list";
@@ -56,16 +62,52 @@ interface DiscordRole {
     color?: number;
 }
 
-const FILTER_TYPES: Record<string, string> = {
-    RAID_OFFICIAL: "Raid 3.6",
-    EVENT_GUILD: "Event Guilde",
-    SESSION_MISSIONS: "Missions Guilde",
-    SORTIE_FARM: "Sortie Farm",
-    KRALAMOURE: "Kralamoure",
-    OTHERS: "Autres",
+const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg: string; border: string; }> = {
+    RAID_OFFICIAL: {
+        label: "Raid 3.6",
+        icon: Swords,
+        color: "text-red-400",
+        bg: "bg-red-500/15",
+        border: "border-red-500/40",
+    },
+    EVENT_GUILD: {
+        label: "Event Guilde",
+        icon: PartyPopper,
+        color: "text-purple-400",
+        bg: "bg-purple-500/15",
+        border: "border-purple-500/40",
+    },
+    SESSION_MISSIONS: {
+        label: "Missions Guilde",
+        icon: Target,
+        color: "text-amber-400",
+        bg: "bg-amber-500/15",
+        border: "border-amber-500/40",
+    },
+    SORTIE_FARM: {
+        label: "Sortie Farm",
+        icon: Wheat,
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/15",
+        border: "border-emerald-500/40",
+    },
+    KRALAMOURE: {
+        label: "Kralamoure",
+        icon: Eye,
+        color: "text-pink-400",
+        bg: "bg-pink-500/15",
+        border: "border-pink-500/40",
+    },
+    OTHERS: {
+        label: "Autres",
+        icon: List,
+        color: "text-zinc-400",
+        bg: "bg-zinc-500/15",
+        border: "border-zinc-500/40",
+    },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscordConfigured }: CalendarDashboardProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("grid");
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<any[]>([]);
@@ -83,6 +125,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
+
+    // Dynamic counts for filters
+    const typeCounts = events.reduce((acc, e) => {
+        acc[e.type] = (acc[e.type] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
 
     // Filter and group events
     const filteredEvents = events.filter(e => selectedFilter === "ALL" || e.type === selectedFilter)
@@ -284,7 +332,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
 
     const handleDayClick = (date: Date) => {
         // Future: ouvrir le formulaire pré-rempli avec cette date
-        console.log("Day clicked:", date);
     };
 
     return (
@@ -385,33 +432,54 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                         </div>
 
                         {/* Filters Bar */}
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide">
                             <button
                                 onClick={() => setSelectedFilter("ALL")}
                                 className={cn(
-                                    "px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap",
+                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
                                     selectedFilter === "ALL"
                                         ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md shadow-zinc-900/10"
                                         : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
                                 )}
                             >
-                                Tout voir
+                                Tous
+                                <span className={cn(
+                                    "px-2 py-0.5 rounded-md text-xs font-bold",
+                                    selectedFilter === "ALL" ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
+                                )}>
+                                    {events.length}
+                                </span>
                             </button>
-                            <div className="h-4 w-px bg-zinc-800 mx-1" />
-                            {Object.entries(FILTER_TYPES).map(([type, label]) => (
-                                <button
-                                    key={type}
-                                    onClick={() => setSelectedFilter(type)}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap",
-                                        selectedFilter === type
-                                            ? "bg-zinc-800 text-zinc-100 border-zinc-700 shadow-md shadow-black/20"
-                                            : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
-                                    )}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+
+                            <div className="h-6 w-px bg-zinc-800/50 mx-1 shrink-0" />
+
+                            {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                                const count = typeCounts[type] || 0;
+                                const Icon = config.icon;
+                                const isActive = selectedFilter === type;
+
+                                return (
+                                    <button
+                                        key={type}
+                                        onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
+                                            isActive
+                                                ? cn(config.bg, config.color, config.border, "shadow-md")
+                                                : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                        )}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                        {config.label}
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded-md text-xs font-bold",
+                                            isActive ? "bg-white/10" : "bg-zinc-800"
+                                        )}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -482,7 +550,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                     <DialogDescription className="text-zinc-400">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
-                    <EventForm onSubmit={handleCreate} />
+                    <EventForm onSubmit={handleCreate} isDiscordConfigured={isDiscordConfigured} />
                 </DialogContent>
             </Dialog>
 
@@ -529,6 +597,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage }: Calenda
                         <EventForm
                             initialData={editingEvent}
                             onSubmit={handleUpdate}
+                            isDiscordConfigured={isDiscordConfigured}
                         />
                     )}
                 </DialogContent>

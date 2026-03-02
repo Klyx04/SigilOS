@@ -206,18 +206,15 @@ export async function getActiveBonuses(
         for (const bonus of bonuses) {
             let current = bonus;
 
-            // Auto-activate if 24h has passed
+            // Auto-expire if 24h has passed without being activated
             if (current.status === BonusStatus.PURCHASED && now >= current.activatesAt) {
-                const config = BONUS_CONFIG[current.bonusType];
-                const expiresAt = new Date(current.activatesAt.getTime() + config.duration);
-
                 current = await db.guildBonus.update({
                     where: { id: current.id },
                     data: {
-                        status: BonusStatus.ACTIVE,
-                        expiresAt,
+                        status: BonusStatus.EXPIRED,
                     },
                 });
+                continue; // Skip expired bonus
             }
 
             // Auto-expire if duration has passed
@@ -376,6 +373,30 @@ export async function purchaseBonus(
             }
         });
 
+        // 🟢 SEND DISCORD NOTIFICATION
+        if (notificationChannelId) {
+            const { sendChannelMessage } = await import("@/server/discord");
+
+            let mentionText = "";
+            if (validated.mentionType === MentionType.EVERYONE) mentionText = "@everyone";
+            else if (validated.mentionType === MentionType.ROLE && validated.roleId) mentionText = `<@&${validated.roleId}>`;
+
+            const discordTimestamp = Math.floor(activatesAt.getTime() / 1000);
+
+            await sendChannelMessage(notificationChannelId, mentionText, {
+                embedTitle: "💎 Bonus de Guilde disponible : " + config.name,
+                embedColor: 0x9333ea,
+                embedDescription: `Un nouveau bonus a été acheté par **${session?.user?.name || "un membre"}**.\nN'importe quel membre peut l'activer en jeu !`,
+                fields: [
+                    { name: "Effet du bonus", value: config.description, inline: true },
+                    { name: "Disponibilité restante", value: `<t:${discordTimestamp}:R>`, inline: false }
+                ],
+                embedFooter: "SigilOS • Module Bonus",
+                embedThumbnail: "https://i.imgur.com/AfFp7pu.png",
+                mentionContent: mentionText
+            });
+        }
+
         return {
             success: true,
             data: {
@@ -459,53 +480,6 @@ export async function cancelBonus(
             const firstError = (error as any).errors?.[0]?.message || "Données invalides";
             return { success: false, error: firstError };
         }
-        return { success: false, error: (error as Error).message };
-    }
-}
-
-/**
- * Activate a bonus (internal use / cron only)
- * NOT exposed to client — requires bonusId known only server-side
- */
-export async function activateBonus(bonusId: string): Promise<ActionResponse> {
-    try {
-        if (!bonusId || typeof bonusId !== "string") {
-            return { success: false, error: "bonusId invalide" };
-        }
-
-        const bonus = await db.guildBonus.findUnique({
-            where: { id: bonusId },
-        });
-
-        if (!bonus) {
-            return { success: false, error: "Bonus introuvable" };
-        }
-
-        if (bonus.status !== BonusStatus.PURCHASED) {
-            return { success: false, error: "Le bonus n'est pas en attente" };
-        }
-
-        const now = new Date();
-        if (now < bonus.activatesAt) {
-            return { success: false, error: "Le bonus ne peut pas encore être activé" };
-        }
-
-        const config = BONUS_CONFIG[bonus.bonusType];
-        const expiresAt = new Date(bonus.activatesAt.getTime() + config.duration);
-
-        await db.guildBonus.update({
-            where: { id: bonusId },
-            data: {
-                status: BonusStatus.ACTIVE,
-                expiresAt,
-            },
-        });
-
-        revalidatePath(`/admin/bonus`);
-        revalidatePath(`/[guildSlug]/missions`);
-
-        return { success: true };
-    } catch (error) {
         return { success: false, error: (error as Error).message };
     }
 }

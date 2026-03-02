@@ -21,8 +21,13 @@ import {
     BarChart3,
     FileText,
     LayoutDashboard,
+    BookMarked,
+    Map,
+    Library,
+    MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GuidePulse } from "@/components/dashboard/guide-pulse";
 
 // ============================================================================
 // MODULE DEFINITIONS
@@ -36,6 +41,7 @@ type ModuleDef = {
     color: string;
     bgColor: string;
     borderColor: string;
+    comingSoon?: boolean;
 };
 
 type ModuleGroup = {
@@ -124,6 +130,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 bgColor: "bg-yellow-500/10",
                 borderColor: "border-yellow-500/30",
             },
+            {
+                key: "chat",
+                label: "Chat Live",
+                description: "Taverne virtuelle de la guilde. Chat temps réel éphémère (24h), isolé par guilde, avec chat dédié dans chaque run Songes.",
+                icon: MessageCircle,
+                color: "text-indigo-400",
+                bgColor: "bg-indigo-500/10",
+                borderColor: "border-indigo-500/30",
+            },
         ],
     },
     {
@@ -178,6 +193,41 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-rose-400",
                 bgColor: "bg-rose-500/10",
                 borderColor: "border-rose-500/30",
+            },
+        ],
+    },
+    {
+        label: "Bientôt",
+        modules: [
+            {
+                key: "quests",
+                label: "Quêtes Dofus",
+                description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
+                icon: BookMarked,
+                color: "text-amber-400",
+                bgColor: "bg-amber-500/10",
+                borderColor: "border-amber-500/30",
+                comingSoon: true,
+            },
+            {
+                key: "worldmap",
+                label: "Carte & Mini-Jeux",
+                description: "Carte du monde interactive et mini-jeux de guilde inspirés de dofusdb.fr.",
+                icon: Map,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
+                comingSoon: true,
+            },
+            {
+                key: "resources",
+                label: "Ressources Communautaires",
+                description: "Hub centralisé des ressources Dofus : sites communautaires, guides, actus et mises à jour.",
+                icon: Library,
+                color: "text-violet-400",
+                bgColor: "bg-violet-500/10",
+                borderColor: "border-violet-500/30",
+                comingSoon: true,
             },
         ],
     },
@@ -266,12 +316,24 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                 )} />
                                             </div>
                                             <div>
-                                                <h3 className={cn(
-                                                    "font-semibold text-sm",
-                                                    isEnabled ? "text-foreground" : "text-muted-foreground"
-                                                )}>
-                                                    {mod.label}
-                                                </h3>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h3 className={cn(
+                                                        "font-semibold text-sm",
+                                                        isEnabled ? "text-foreground" : "text-muted-foreground"
+                                                    )}>
+                                                        {mod.label}
+                                                    </h3>
+                                                    {mod.comingSoon && (
+                                                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-400 font-black uppercase tracking-wider">
+                                                            Bientôt
+                                                        </Badge>
+                                                    )}
+                                                    <GuidePulse
+                                                        description={mod.description}
+                                                        className="w-2.5 h-2.5"
+                                                        side="top"
+                                                    />
+                                                </div>
                                                 <span className={cn(
                                                     "text-xs font-medium",
                                                     isEnabled ? mod.color : "text-muted-foreground/60"

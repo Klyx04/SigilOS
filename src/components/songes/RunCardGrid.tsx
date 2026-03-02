@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { RunCard } from "./RunCard";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Moon, Sparkles, Flame, Star } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -104,18 +105,16 @@ export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, i
 
             {/* Grid or Empty State */}
             {filteredRuns.length === 0 ? (
-                <div className="text-center py-16">
-                    <div className="text-6xl mb-4">🌙</div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                        {tierFilter === "ALL" ? "Aucune run en cours" : `Aucune run ${TIER_CONFIG[tierFilter].label}`}
-                    </h3>
-                    <p className="text-purple-300/70">
-                        {tierFilter === "ALL"
-                            ? "Créez une nouvelle run pour commencer l'aventure dans les Songes Infinis"
-                            : "Changez de filtre ou créez une nouvelle run"
-                        }
-                    </p>
-                </div>
+                <EmptyState
+                    icon={Moon}
+                    title={tierFilter === "ALL" ? "Aucune run en cours" : `Aucune run ${TIER_CONFIG[tierFilter].label}`}
+                    description={tierFilter === "ALL"
+                        ? "Créez une nouvelle run pour commencer l'aventure dans les Songes Infinis."
+                        : "Changez de filtre ou créez une nouvelle run."
+                    }
+                    variant="premium"
+                    className="py-20"
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredRuns.map((run) => (

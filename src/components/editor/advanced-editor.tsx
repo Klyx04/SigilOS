@@ -46,9 +46,10 @@ interface AdvancedEditorProps {
     initialContent?: string;
     onChange: (content: string) => void;
     editable?: boolean;
+    contentClassName?: string;
 }
 
-export function AdvancedEditor({ initialContent, onChange, editable = true }: AdvancedEditorProps) {
+export function AdvancedEditor({ initialContent, onChange, editable = true, contentClassName }: AdvancedEditorProps) {
     // Force re-render on selection change to update toolbar state
     const [, forceUpdate] = useState(0);
 
@@ -85,7 +86,10 @@ export function AdvancedEditor({ initialContent, onChange, editable = true }: Ad
         editable,
         editorProps: {
             attributes: {
-                class: "prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2",
+                class: cn(
+                    "prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2",
+                    contentClassName
+                ),
             },
             handlePaste: (view, event) => {
                 const items = event.clipboardData?.items;

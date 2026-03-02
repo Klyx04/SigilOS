@@ -152,3 +152,56 @@ export async function deleteGuildImage(
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
+
+/**
+ * Upload a proof screenshot (for loans, vault entries, etc.)
+ * Aggressively compressed (1280px max, 65% quality WebP)
+ * Same OWASP security as uploadGuildImage
+ */
+export async function uploadProofImage(
+    internalGuildId: string,
+    formData: FormData
+): Promise<UploadResult> {
+    try {
+        const file = formData.get("file") as File | null;
+        if (!file) return { success: false, error: "Aucun fichier fourni" };
+
+        if (!ALLOWED_MIME_TYPES.includes(file.type as any)) {
+            return { success: false, error: "Type de fichier non autorisé. Utilisez JPEG, PNG ou WebP." };
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            return { success: false, error: `Fichier trop volumineux. Maximum : ${MAX_FILE_SIZE / 1024 / 1024}MB` };
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        if (!validateMagicBytes(buffer, file.type)) {
+            return { success: false, error: "Contenu du fichier invalide." };
+        }
+
+        // Aggressive compression for proofs
+        const optimizedBuffer = await sharp(buffer)
+            .resize(1280, null, { withoutEnlargement: true, fit: "inside" })
+            .webp({ quality: 65 })
+            .toBuffer();
+
+        const safeFilename = generateSafeFilename("webp");
+        const proofDir = path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs");
+        if (!existsSync(proofDir)) {
+            await mkdir(proofDir, { recursive: true });
+        }
+
+        const filePath = path.join(proofDir, safeFilename);
+        const normalizedPath = path.normalize(filePath);
+        if (!normalizedPath.startsWith(path.normalize(proofDir))) {
+            return { success: false, error: "Chemin de fichier invalide" };
+        }
+
+        await writeFile(filePath, optimizedBuffer);
+        const publicUrl = `/uploads/guilds/${internalGuildId}/proofs/${safeFilename}`;
+
+        return { success: true, url: publicUrl };
+    } catch (error) {
+        logger.error("Upload Proof Image Error", { error, internalGuildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}

@@ -22,7 +22,7 @@ const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? def
 const dbUrl = getEnv('DATABASE_URL', '');
 const protocol = 'postgres' + 'ql://';
 const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
-const connectionString = (user && pwd) ? safeFromComponents : (dbUrl || safeFromComponents);
+const connectionString = dbUrl || safeFromComponents;
 
 const createPrismaClient = () => {
     const pool = new Pool({
@@ -40,21 +40,23 @@ const createPrismaClient = () => {
 
     return basePrisma.$extends({
         query: {
-            $allModels: {
-                async $allOperations({ operation, model, args, query }) {
-                    const start = performance.now();
-                    if (process.env.NODE_ENV === 'development') {
-                        // console.log(`[Prisma] Starting ${model}.${operation}`);
-                    }
-                    const result = await query(args);
-                    const end = performance.now();
-                    const duration = end - start;
-                    if (duration > 200) {
-                        console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
-                    }
-                    return result;
-                }
-            },
+            /*
+                        $allModels: {
+                            async $allOperations({ operation, model, args, query }) {
+                                const start = performance.now();
+                                if (process.env.NODE_ENV === 'development') {
+                                    // console.log(`[Prisma] Starting ${model}.${operation}`);
+                                }
+                                const result = await query(args);
+                                const end = performance.now();
+                                const duration = end - start;
+                                if (duration > 200) {
+                                    console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
+                                }
+                                return result;
+                            }
+                        },
+                        */
             account: {
                 async create({ args, query }) {
                     if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);

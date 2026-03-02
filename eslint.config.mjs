@@ -1,10 +1,11 @@
 import { defineConfig, globalIgnores } from "eslint/config";
+import { fixupConfigRules } from "@eslint/compat";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...fixupConfigRules(nextVitals),
+  ...fixupConfigRules(nextTs),
   {
     rules: {
       // On est tolerant avec les apostrophes dans le texte (121 erreurs d'un coup !)
@@ -38,6 +39,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
     "next-env.d.ts",
     // Bundled seed files
     "prisma/*.js",

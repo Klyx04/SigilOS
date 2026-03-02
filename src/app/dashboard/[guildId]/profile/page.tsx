@@ -18,8 +18,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     // Fetch user context for Discord info + RBAC
     const userContext = await getUserContext(guildId);
 
-    // RBAC: Must be authenticated member of the guild
-    if (!userContext.isAuthenticated || !userContext.isMember) {
+    // RBAC: Must be authenticated member of the guild with profile view permission
+    if (!userContext.isAuthenticated || !userContext.isMember || !userContext.canViewProfile) {
         return <AccessDenied />;
     }
 
@@ -87,8 +87,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         metamobVerified: profile.metamobVerified,
                         metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                         altPseudos: (profile.altPseudos as string[]) || [],
+                        dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                        introduction: profile.introduction,
+                        notificationPrefs: profile.notificationPrefs as any,
                         successPoints: profile.successPoints,
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
+                        roleGrants: profile.roleGrants || [],
                     }}
                     user={{
                         name: profile.user.name,
@@ -99,9 +103,17 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     guildName={userContext.guildName}
                     dofusServerId={userContext.dofusServerId}
                     discordNickname={userContext.name}
-                    roleColor={userContext.roleColor}
                     isAdmin={userContext.isAdmin}
+                    permissions={{
+                        canViewArchis: userContext.canViewArchis,
+                        canViewSonges: userContext.canViewSonges,
+                        canViewLadder: userContext.canViewLadder,
+                        canViewMissions: userContext.canViewMissions,
+                    }}
+                    roleName={userContext.roleName}
+                    roleColor={userContext.roleColor}
                     readOnly={false}
+                    isSuperAdmin={userContext.isSuperAdmin}
                 />
             </div>
         </div>

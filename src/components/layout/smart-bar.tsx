@@ -39,6 +39,36 @@ export function SmartBar({ almanax, memberCount, onlineCount }: SmartBarProps) {
         return () => clearInterval(interval);
     }, []);
 
+    const [liveOnlineCount, setLiveOnlineCount] = useState(onlineCount);
+
+    // Sync if server sends a new onlineCount
+    useEffect(() => {
+        if (onlineCount !== undefined) {
+            setLiveOnlineCount(onlineCount);
+        }
+    }, [onlineCount]);
+
+    // Periodically fetch real presence to stay fully in sync
+    useEffect(() => {
+        let mounted = true;
+        const fetchLivePresence = async () => {
+            if (!guildId) return;
+            // Limit 1 to save bandwidth as we only need the count here
+            const result = await getActivePresence(guildId, 1);
+            if (result.success && mounted && result.totalActive !== undefined) {
+                setLiveOnlineCount(result.totalActive);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchLivePresence, 2000);
+        const intervalId = setInterval(fetchLivePresence, 60000); // 1 minute
+        return () => {
+            mounted = false;
+            clearTimeout(timeoutId);
+            clearInterval(intervalId);
+        };
+    }, [guildId]);
+
     return (
         <div className="hidden md:flex items-center gap-1.5 p-1">
 
@@ -59,15 +89,21 @@ export function SmartBar({ almanax, memberCount, onlineCount }: SmartBarProps) {
                         onClick={async () => {
                             setIsModalOpen(true);
                             setIsLoading(true);
-                            const result = await getActivePresence(guildId);
-                            if (result.success) setActiveUsers(result.data);
+                            // Fetch up to 50 active users to fill the modal
+                            const result = await getActivePresence(guildId, 50);
+                            if (result.success) {
+                                setActiveUsers(result.data);
+                                if (result.totalActive !== undefined) {
+                                    setLiveOnlineCount(result.totalActive);
+                                }
+                            }
                             setIsLoading(false);
                         }}
                         className="flex flex-col items-center justify-center leading-none px-2 py-1 rounded-lg hover:bg-white/5 transition-colors group/stats active:scale-95"
                     >
                         <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest scale-90 mb-0.5 group-hover/stats:text-indigo-400 transition-colors">Membres</span>
                         <div className="flex items-center gap-1 text-[11px] font-black text-zinc-300">
-                            <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">{onlineCount ?? 0}</span>
+                            <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">{liveOnlineCount ?? 0}</span>
                             <span className="text-zinc-700">/</span>
                             <span>{memberCount ?? 0}</span>
                         </div>

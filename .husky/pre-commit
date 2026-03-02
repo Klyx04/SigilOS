@@ -51,6 +51,33 @@ echo "✅ No secrets found"
 echo ""
 
 # ─────────────────────────────────────────────────────────────
+# STAGE 1.5: PRISMA MIGRATION DRIFT CHECK
+# Si schema.prisma est staged sans nouvelle migration → BLOQUÉ
+# ─────────────────────────────────────────────────────────────
+
+SCHEMA_STAGED=$(git diff --cached --name-only | grep "prisma/schema.prisma" || true)
+MIGRATION_STAGED=$(git diff --cached --name-only | grep "prisma/migrations/" || true)
+
+if [ -n "$SCHEMA_STAGED" ] && [ -z "$MIGRATION_STAGED" ]; then
+    echo "❌ PRISMA MIGRATION MANQUANTE !"
+    echo ""
+    echo "   Tu as modifié prisma/schema.prisma sans créer de migration."
+    echo "   La DB beta/prod sera désynchronisée après le deploy."
+    echo ""
+    echo "   👉 Lance : npx prisma migrate dev --name ta_description"
+    echo "   👉 Puis   : git add prisma/migrations/ && git commit"
+    echo ""
+    exit 1
+fi
+
+if [ -n "$SCHEMA_STAGED" ] && [ -n "$MIGRATION_STAGED" ]; then
+    echo "✅ Prisma migration détectée avec le schema"
+elif [ -z "$SCHEMA_STAGED" ]; then
+    echo "✅ Prisma schema non modifié"
+fi
+echo ""
+
+# ─────────────────────────────────────────────────────────────
 # STAGE 2: LINT (only staged files, fast)
 # ─────────────────────────────────────────────────────────────
 

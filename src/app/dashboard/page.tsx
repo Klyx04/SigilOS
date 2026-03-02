@@ -185,13 +185,17 @@ export default async function GuildSelectorPage() {
     const isEmpty = active.length === 0 && pending.length === 0;
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
+        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50% )]" />
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50% )] pointer-events-none" />
 
-            <PublicHeader user={session.user} dashboardHref="/dashboard" />
+            <PublicHeader user={session.user} dashboardHref="/dashboard" isMember={active.length > 0} />
 
-            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-12 overflow-y-auto custom-scrollbar">
+            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24 overflow-y-auto custom-scrollbar">
 
                 {isEmpty ? (
                     <NoGuildMessage rateLimited={rateLimited} />
@@ -200,14 +204,14 @@ export default async function GuildSelectorPage() {
 
                         {/* Hero Section */}
                         <div className="text-center space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-zinc-300 backdrop-blur-md">
-                                <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-widest text-emerald-400 backdrop-blur-md">
+                                <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />
                                 <span>Portail Unifié</span>
                             </div>
                             <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-2 font-heading">
-                                Votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">QG Galactique</span>
+                                Votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-emerald-400 to-emerald-200">QG Galactique</span>
                             </h1>
-                            <p className="text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                            <p className="text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium">
                                 Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
                         </div>
@@ -327,7 +331,7 @@ export default async function GuildSelectorPage() {
                 )}
             </main>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={active.length > 0} />
         </div>
     );
 }

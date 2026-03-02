@@ -12,7 +12,7 @@ import { LocalImagePicker } from "./LocalImagePicker";
 
 type Props = {
     imageUrl: string;
-    type: "monster" | "achievement" | "dungeon";
+    type: "monster" | "achievement" | "dungeon" | "item";
     identifier: string;
     onImageDownloaded: (localPath: string) => void;
     className?: string;
@@ -88,16 +88,16 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
             <Label>Image</Label>
 
             <Tabs defaultValue="gallery" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-slate-800/50">
-                    <TabsTrigger value="gallery" className="data-[state=active]:bg-indigo-600">
-                        🖼️ Galerie
+                <TabsList className="flex w-full bg-slate-800/50 p-1 h-auto">
+                    <TabsTrigger value="gallery" className="flex-1 py-3 data-[state=active]:bg-indigo-600 font-bold transition-all">
+                        🖼️ Galerie d'images
                     </TabsTrigger>
-                    <TabsTrigger value="download" className="data-[state=active]:bg-indigo-600">
-                        🌐 URL
+                    <TabsTrigger value="download" className="flex-1 py-3 data-[state=active]:bg-indigo-600 font-bold transition-all">
+                        🌐 Télécharger via URL
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="gallery" className="space-y-3 mt-4">
+                <TabsContent value="gallery" className="space-y-3 mt-6">
                     <LocalImagePicker
                         type={type}
                         selected={imageUrl}
@@ -106,7 +106,7 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
                             toast.success("Image sélectionnée !");
                         }}
                         gridSize="small"
-                        className="max-h-64"
+                        className="max-h-[400px]"
                     />
                 </TabsContent>
 

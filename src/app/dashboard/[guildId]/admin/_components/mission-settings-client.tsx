@@ -4,11 +4,12 @@ import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Save, Hash, Target, Users, Bell } from "lucide-react";
+import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RoleSelector } from "@/components/admin/role-selector";
+import { cn } from "@/lib/utils";
 
 interface MissionSettingsClientProps {
     guildId: string;
@@ -16,7 +17,9 @@ interface MissionSettingsClientProps {
 
 export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
-    const [roleId, setRoleId] = useState<string>("NONE");
+    const [validationChannelId, setValidationChannelId] = useState<string>("");
+    const [roleId, setRoleId] = useState<string | null>(null);
+    const [validationRoleId, setValidationRoleId] = useState<string | null>(null);
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -30,7 +33,9 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
 
             if (configRes.success && configRes.data) {
                 setChannelId(configRes.data.missionChannelId || "");
-                setRoleId(configRes.data.missionNotifyRoleId || "NONE");
+                setValidationChannelId(configRes.data.missionValidationChannelId || "");
+                setRoleId(configRes.data.missionNotifyRoleId || null);
+                setValidationRoleId(configRes.data.missionValidationNotifyRoleId || null);
             }
 
             if (rolesRes.success && rolesRes.data) {
@@ -46,7 +51,9 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
         startTransition(async () => {
             const result = await updateMissionNotifySettings(guildId, {
                 channelId: channelId.trim() || null,
-                roleId: roleId === "NONE" ? null : roleId
+                roleId: roleId,
+                validationChannelId: validationChannelId.trim() || null,
+                validationRoleId: validationRoleId
             });
             if (result.success) {
                 toast.success("Paramètres des missions mis à jour !");
@@ -65,88 +72,123 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <span className="bg-amber-500/20 text-amber-400 p-2 rounded-lg">
-                            <Target className="w-5 h-5" />
-                        </span>
-                        Notifications de Publication
-                    </CardTitle>
-                    <CardDescription>
-                        Configurez comment et où notifier vos membres lors de la publication des missions hebdomadaires sur Discord.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-                                <Hash className="w-4 h-4" /> Salon Discord (ID)
+        <div className="space-y-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. PUBLICATION SETTINGS */}
+                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-amber-400">
+                            <Target className="w-5 h-5 font-black" />
+                            Publication
+                        </CardTitle>
+                        <CardDescription className="text-[10px] font-medium leading-relaxed">
+                            Configuration de l&apos;annonce hebdomadaire des nouvelles missions.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 relative z-10">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                <Hash className="w-3 h-3" /> Salon de Publication
                             </label>
                             <Input
                                 value={channelId}
                                 onChange={(e) => setChannelId(e.target.value)}
-                                placeholder="ID du salon (ex: 123456789...)"
-                                className="font-mono bg-black/20 border-white/10 text-white"
+                                placeholder="ID du salon..."
+                                className="font-mono bg-black/40 border-white/10 text-white h-11 focus:ring-amber-500/20 focus:border-amber-500/50 rounded-xl"
                             />
-                            <p className="text-[10px] text-zinc-500">
-                                Activez le mode développeur sur Discord pour copier l'identifiant du salon.
-                            </p>
                         </div>
 
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-                                <Users className="w-4 h-4" /> Rôle par défaut à mentionner (Optionnel)
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                <Users className="w-3 h-3" /> Rôle à Mentionner
                             </label>
-                            <Select value={roleId} onValueChange={setRoleId}>
-                                <SelectTrigger className="bg-black/20 border-white/10 text-zinc-300">
-                                    <SelectValue placeholder="Choisir un rôle" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-zinc-900 border-white/10 text-zinc-300 shadow-2xl">
-                                    <SelectItem value="NONE" className="focus:bg-zinc-800">Aucun (Pas de mention auto)</SelectItem>
-                                    {roles.map(role => (
-                                        <SelectItem key={role.id} value={role.id} className="focus:bg-zinc-800">
-                                            @{role.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-[10px] text-zinc-500">
-                                Ce rôle sera proposé comme option rapide lors de la publication manuelle.
-                            </p>
+                            <RoleSelector
+                                value={roleId}
+                                onChange={setRoleId}
+                                roles={roles}
+                                className="h-11"
+                            />
                         </div>
 
-                        <div className="pt-4 flex justify-end">
-                            <Button
-                                onClick={handleSave}
-                                disabled={isPending}
-                                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-8 shadow-lg shadow-amber-900/20"
-                            >
-                                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                SAUVEGARDER
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="space-y-6">
-                <Card className="bg-indigo-500/5 border-indigo-500/10 h-fit">
-                    <CardContent className="p-4 flex gap-3">
-                        <div className="p-2 bg-indigo-500/20 rounded-lg shrink-0 h-fit">
-                            <Bell className="w-4 h-4 text-indigo-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <h4 className="text-sm font-medium text-indigo-200">Fonctionnement</h4>
-                            <p className="text-xs text-indigo-300/70 leading-relaxed">
-                                Une fois configuré, un bouton <strong>"Notifier Discord"</strong> apparaîtra sur la page de gestion des missions.
-                                <br /><br />
-                                Vous pourrez déclencher manuellement une annonce élégante (Embed) avec un recap interactif.
+                        <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                            <p className="text-[10px] text-amber-500/60 leading-relaxed italic">
+                                "Ce message est envoyé chaque lundi matin lors de la génération automatique ou manuelle."
                             </p>
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* 2. VALIDATION SETTINGS */}
+                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-purple-400">
+                            <ShieldCheck className="w-5 h-5" />
+                            Alertes Validation
+                        </CardTitle>
+                        <CardDescription className="text-[10px] font-medium leading-relaxed">
+                            Configuration des notifications d&apos;admin lors du dépôt d&apos;une preuve.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 relative z-10">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                <Hash className="w-3 h-3" /> Salon d&apos;Alertes
+                            </label>
+                            <Input
+                                value={validationChannelId}
+                                onChange={(e) => setValidationChannelId(e.target.value)}
+                                placeholder="ID du salon (souvent le même)..."
+                                className="font-mono bg-black/40 border-white/10 text-white h-11 focus:ring-purple-500/20 focus:border-purple-500/50 rounded-xl"
+                            />
+                            <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
+                                Vide = Salon de publication par défaut.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                <Users className="w-3 h-3" /> Staff à Alerter
+                            </label>
+                            <RoleSelector
+                                value={validationRoleId}
+                                onChange={setValidationRoleId}
+                                roles={roles}
+                                className="h-11 border-purple-500/20"
+                            />
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                            <div className="flex gap-2">
+                                <Bell className="w-3 h-3 text-purple-400 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+                                    "Un nouvel embed compact avec un lien direct vers la validation sera envoyé à chaque nouvelle preuve postée."
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* ACTION FOOTER */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-white/5">
+                <div className="flex items-start gap-4 max-w-md">
+                    <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                        <Search className="w-4 h-4 text-indigo-400" />
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">
+                        Ces réglages s&apos;appliquent à l&apos;ensemble de la guilde. Assurez-vous que le bot SigilOS a les permissions d&apos;écrire dans les salons choisis.
+                    </p>
+                </div>
+                <Button
+                    onClick={handleSave}
+                    disabled={isPending}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 h-12 shadow-lg shadow-indigo-900/20 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    SAUVEGARDER LES CHANGEMENTS
+                </Button>
             </div>
         </div>
     );

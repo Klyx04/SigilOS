@@ -33,7 +33,7 @@ import {
     getPendingJoinRequests,
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
-import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass } from "@/lib/songes/types";
+import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass, getEpreuve } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
@@ -94,6 +94,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const progress = (run.currentFloor / 26) * 100;
     const isLeader = currentUserId === run.leaderId;
     const isMember = run.members.some((m) => m.userId === currentUserId);
+    const epreuve = getEpreuve((run as any).epreuveCode);
 
     // Check if user can apply (includes permission check)
     const canApplyConditions = (run.status === "RECRUITING" || run.status === "IN_PROGRESS") &&
@@ -248,9 +249,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         />
                         <span className="text-white font-semibold">{difficulty?.label}</span>
                     </div>
-                    <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
-                        {objective?.icon} {objective?.label}
-                    </div>
+                    {!epreuve && (
+                        <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
+                            {objective?.icon} {objective?.label}
+                        </div>
+                    )}
                     <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1">
                         <Crown className="w-3 h-3 text-amber-400/70" />
                         <span className="flex items-center gap-1">
@@ -291,16 +294,39 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-[#1a0933] border-red-500/30 text-white">
-                                    <DialogHeader>
-                                        <DialogTitle>Supprimer la Run ?</DialogTitle>
-                                    </DialogHeader>
-                                    <p className="text-purple-200 text-sm">Cette action est irréversible. Tous les membres seront retirés.</p>
-                                    <div className="flex gap-2 justify-end mt-4">
-                                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-                                        <Button onClick={handleDelete} disabled={loading} className="bg-red-600 hover:bg-red-500">
-                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Supprimer"}
-                                        </Button>
+                                <DialogContent className="bg-[#0d0515] border border-red-500/25 text-white max-w-sm w-full rounded-2xl shadow-[0_0_60px_rgba(239,68,68,0.15)] p-0 overflow-hidden">
+                                    {/* Header rouge */}
+                                    <div className="bg-gradient-to-br from-red-950/80 to-[#0d0515] px-6 pt-6 pb-4 border-b border-red-500/15">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                                <Trash2 className="w-5 h-5 text-red-400" />
+                                            </div>
+                                            <DialogTitle className="text-base font-black text-white tracking-wide">
+                                                Supprimer la Run ?
+                                            </DialogTitle>
+                                        </div>
+                                    </div>
+                                    {/* Body */}
+                                    <div className="px-6 py-5 space-y-5">
+                                        <p className="text-sm text-white/50 leading-relaxed">
+                                            Cette action est <span className="text-red-400 font-semibold">irréversible</span>. Tous les membres seront retirés et la run sera définitivement supprimée.
+                                        </p>
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setDeleteDialogOpen(false)}
+                                                className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 text-sm"
+                                            >
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                onClick={handleDelete}
+                                                disabled={loading}
+                                                className="bg-red-600 hover:bg-red-500 text-white font-bold shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-all text-sm"
+                                            >
+                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-3.5 h-3.5 mr-1.5" />Supprimer</>}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </DialogContent>
                             </Dialog>
@@ -415,6 +441,32 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     )}
                 </div>
             </div>
+
+            {/* Épreuve Banner */}
+            {epreuve && (
+                <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border mb-3 -mt-1"
+                    style={{ borderColor: `${epreuve.color}40`, backgroundColor: `${epreuve.color}10` }}
+                >
+                    <span className="text-base shrink-0">{epreuve.icon}</span>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black uppercase tracking-widest" style={{ color: epreuve.color }}>
+                                {epreuve.label}
+                            </span>
+                            <span
+                                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                style={{ color: epreuve.color, borderColor: `${epreuve.color}50`, backgroundColor: `${epreuve.color}15` }}
+                            >
+                                Succès
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-white/35 leading-relaxed mt-0.5 truncate">
+                            {epreuve.description}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Progress Bar */}
             <div className="mb-4">

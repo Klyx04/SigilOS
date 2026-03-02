@@ -24,7 +24,8 @@ import {
     LogOut,
     ChevronsUpDown,
     Plus,
-    Hammer
+    Hammer,
+    Activity
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,36 +69,47 @@ export function AppSidebar({
 
     // --- NAVIGATION GROUPS ---
 
-    const NAV_CORE = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-blue-400" },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-blue-400", visible: modules.presentation },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-blue-400", visible: (user.isMember || user.canViewCalendar) && modules.calendar },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-blue-400", visible: user.canViewRoster && modules.roster },
-        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-blue-400", visible: modules.stats },
+    // --- NAVIGATION GROUPS ---
+    const NAV_INFO = [
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
+        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewWelcome },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
+        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
-    const NAV_FEATURES = [
+    const NAV_ACTIVITIES = [
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", visible: user.canViewArchis && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", visible: user.canViewLadder && modules.ladder },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
     ];
 
     const NAV_TOOLS = [
-        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: modules.services },
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-cyan-400", visible: modules.donjons },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-cyan-400", visible: modules.docs },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: modules.profile },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewFinder && modules.donjons },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewProfile && modules.profile },
     ];
 
-    const NAV_ADMIN = [
-        { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "text-rose-500", visible: user.isAdmin },
-        { name: "Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "text-rose-500", visible: user.isAdmin || user.canEditPresentation },
-        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, color: "text-rose-500", visible: user.canValidateMissions || user.isAdmin },
-        { name: "Missions (Admin)", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "text-rose-500", visible: user.canManageMissions },
-        { name: "Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "text-rose-500", visible: (user.isAdmin) && modules.logs },
+    const NAV_COMING_SOON = [
+        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
+        { name: "Carte & Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
+        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewResources && modules.resources },
+    ];
+
+    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };
+
+    const NAV_ADMIN_SUB = [
+        { name: "ADM Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
+        { name: "ADM Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
+        { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
+        { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
+        { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
+        { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
 
     const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
@@ -201,56 +213,94 @@ export function AppSidebar({
             <ScrollArea className="flex-1 px-3 py-4 overflow-hidden">
                 <nav className="space-y-8">
 
-                    {/* CORE */}
-                    <div className="space-y-1.5 peer">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-blue-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/60">Général</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-blue-500/30" />
+                    {/* INFORMATION */}
+                    {NAV_INFO.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5 peer">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-400 whitespace-nowrap">Information</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
+                            </div>
+                            {NAV_INFO.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
+                            ))}
                         </div>
-                        {NAV_CORE.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
-                        ))}
-                    </div>
+                    )}
 
-                    {/* FEATURES */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-emerald-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Fonctionnalités</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-emerald-500/30" />
+                    {/* ACTIVITES */}
+                    {NAV_ACTIVITIES.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Activités</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                            </div>
+                            {NAV_ACTIVITIES.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
                         </div>
-                        {NAV_FEATURES.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                        ))}
-                    </div>
+                    )}
 
-                    {/* TOOLS */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-2 mb-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cyan-500/30" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Outils</h4>
-                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cyan-500/30" />
+                    {/* OUTILS */}
+                    {NAV_TOOLS.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 whitespace-nowrap">Outils</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
+                            </div>
+                            {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
                         </div>
-                        {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
-                            <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                        ))}
-                    </div>
+                    )}
+
+                    {/* BIENTÔT (Coming Soon) */}
+                    {NAV_COMING_SOON.some(i => i.visible !== false) && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 px-2 mb-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/60 flex items-center gap-2 whitespace-nowrap">
+                                    <Sparkles className="w-3 h-3" />
+                                    Bientôt
+                                </h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+                            </div>
+                            {NAV_COMING_SOON.filter(i => i.visible !== false).map((item) => (
+                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                            ))}
+                        </div>
+                    )}
 
                     {/* ADMIN */}
                     {hasAnyAdminPermission && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/20" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 flex items-center gap-2">
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-center gap-2 px-2 mb-2">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 flex items-center gap-2 whitespace-nowrap">
                                     <Shield className="w-3 h-3" />
                                     Admin
                                 </h4>
-                                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/20" />
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
                             </div>
-                            {NAV_ADMIN.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                            ))}
+
+                            {/* Centre Admin — item principal */}
+                            {NAV_ADMIN_TOP.visible && (
+                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={isActive(NAV_ADMIN_TOP.href, true)} />
+                            )}
+
+                            {/* Sous-items ADM */}
+                            {NAV_ADMIN_SUB.some(i => i.visible) && (
+                                <div className="ml-2 mt-1 pl-3 border-l border-rose-500/20 space-y-0.5">
+                                    {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
+                                        <AdminSubItem
+                                            key={item.href}
+                                            item={item}
+                                            isActive={isActive(item.href)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -266,18 +316,13 @@ export function AppSidebar({
                             className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
                         >
                             <div className="flex items-center gap-3 w-full">
-                                <div className="relative">
-                                    <Avatar className="h-9 w-9 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
-                                        <AvatarImage src={user.image} />
-                                        <AvatarFallback className="bg-zinc-800 text-xs font-black text-zinc-400">
-                                            {user.name?.slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                </div>
+                                <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
+                                    <AvatarImage src={user.image || ""} />
+                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
                                     <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
-                                        {user.name}
+                                        {user.name || "Compte"}
                                     </span>
                                     <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
                                         {user.roleName || "Membre"}
@@ -293,20 +338,23 @@ export function AppSidebar({
                             <span>Session Active</span>
                         </div>
                         <DropdownMenuSeparator className="bg-white/10" />
+                        {user.canViewProfile && (
+                            <>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                    <Link href={`/dashboard/${guildId}/profile`}>
+                                        <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
+                                        <span className="font-bold">Mon Profil</span>
+                                    </Link>
+                                </DropdownMenuItem>
 
-                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                            <Link href={`/dashboard/${guildId}/profile`}>
-                                <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
-                                <span className="font-bold">Mon Profil</span>
-                            </Link>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                            <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
-                                <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                                <span className="font-bold">Paramètres</span>
-                            </Link>
-                        </DropdownMenuItem>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                    <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
+                                        <Settings className="mr-2 h-4 w-4 text-zinc-500" />
+                                        <span className="font-bold">Paramètres</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                            </>
+                        )}
 
                         <DropdownMenuSeparator className="bg-white/10" />
                         <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
@@ -328,7 +376,7 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
                 isActive
                     ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
-                    : "text-zinc-400 hover:text-white hover:bg-white/[0.02]"
+                    : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
             )}
         >
             {/* Active Glow Indicator */}
@@ -344,7 +392,7 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
                     "h-4 w-4 shrink-0 transition-all duration-300",
                     isActive
                         ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
-                        : cn(item.color ? `${item.color} opacity-40 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3")
+                        : cn(item.color ? `${item.color} opacity-70 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3 group-hover:drop-shadow-[0_0_8px_currentColor]")
                 )}
             />
             <span className={cn(
@@ -366,6 +414,50 @@ function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
             {!isActive && (
                 <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             )}
+        </Link>
+    );
+}
+
+function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
+    // Split "ADM Permissions" → prefix "ADM" + label "Permissions"
+    const [prefix, ...rest] = item.name.split(" ");
+    const label = rest.join(" ");
+
+    return (
+        <Link
+            href={item.href}
+            className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group relative overflow-hidden",
+                isActive
+                    ? "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/20"
+                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
+            )}
+        >
+            {/* Active dot */}
+            {isActive && (
+                <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+            )}
+
+            <item.icon className={cn(
+                "h-3 w-3 shrink-0 transition-all duration-200",
+                isActive ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400"
+            )} />
+
+            <span className={cn(
+                "font-mono text-[10px] font-black tracking-widest px-1 py-0.5 rounded shrink-0",
+                isActive
+                    ? "text-rose-400 bg-rose-500/15"
+                    : "text-zinc-600 bg-zinc-800/60 group-hover:text-rose-400/70"
+            )}>
+                {prefix}
+            </span>
+
+            <span className={cn(
+                "text-xs transition-all duration-200 truncate",
+                isActive ? "font-black text-rose-200" : "font-medium group-hover:text-zinc-200"
+            )}>
+                {label}
+            </span>
         </Link>
     );
 }

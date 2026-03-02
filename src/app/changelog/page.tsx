@@ -22,25 +22,34 @@ const categoryConfig: Record<ChangelogCategory, { label: string; color: string }
 
 export const dynamic = "force-dynamic";
 
+import { getAppBaseUrl } from "@/lib/utils";
+
 export const metadata = {
     title: "Changelog",
     description: "Suivez l'évolution de SigilOS : mises à jour, correctifs et nouvelles fonctionnalités en temps réel.",
     alternates: {
-        canonical: "/changelog",
+        canonical: `${getAppBaseUrl()}/changelog`,
     },
 };
 
 export default async function ChangelogPage() {
     const session = await auth();
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const userContext = await getUserContext();
+
     // Non-logged-in users only see public entries
     const allEntries = await getChangelogEntries(undefined, !session);
 
     return (
-        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-purple-500/30">
+        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05),transparent_50%)]" />
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50%)] pointer-events-none" />
 
-            <PublicHeader user={session?.user} activePage="changelog" />
+            <PublicHeader user={session?.user} activePage="changelog" isMember={userContext.isMember} />
 
             <main className="flex-1 pt-24 pb-12 relative z-10">
                 <div className="max-w-4xl mx-auto px-6">
@@ -56,13 +65,13 @@ export default async function ChangelogPage() {
                     </div>
 
                     {/* Hero Header */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/30 via-purple-900/20 to-zinc-900/30 border border-indigo-500/20 p-8 sm:p-12 mb-12">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900/30 via-emerald-900/20 to-zinc-900/30 border border-emerald-500/20 p-8 sm:p-12 mb-12">
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent" />
                         <div className="relative z-10">
                             <h1 className="text-3xl sm:text-4xl font-black text-white font-heading mb-4">
                                 📝 Changelog SigilOS
                             </h1>
-                            <p className="text-lg text-indigo-200/80 max-w-2xl">
+                            <p className="text-lg text-emerald-200/80 max-w-2xl">
                                 Toutes les mises à jour, fonctionnalités et corrections de bugs.
                                 Suivez l&apos;évolution de SigilOS en temps réel.
                             </p>
@@ -119,7 +128,7 @@ export default async function ChangelogPage() {
                 </div>
             </main>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={userContext.isMember} />
         </div>
     );
 }

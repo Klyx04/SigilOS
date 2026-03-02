@@ -24,6 +24,7 @@ import {
     BookMarked,
     Map,
     Library,
+    MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -128,6 +129,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-yellow-400",
                 bgColor: "bg-yellow-500/10",
                 borderColor: "border-yellow-500/30",
+            },
+            {
+                key: "chat",
+                label: "Chat Live",
+                description: "Taverne virtuelle de la guilde. Chat temps réel éphémère (24h), isolé par guilde, avec chat dédié dans chaque run Songes.",
+                icon: MessageCircle,
+                color: "text-indigo-400",
+                bgColor: "bg-indigo-500/10",
+                borderColor: "border-indigo-500/30",
             },
         ],
     },

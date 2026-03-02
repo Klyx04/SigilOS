@@ -59,6 +59,7 @@ interface ProfileBentoGridProps {
         } | null;
         roleGrants?: any[];
         introduction?: string | null;
+        showPresence?: boolean;
     };
     user: {
         name?: string | null;
@@ -246,6 +247,16 @@ export function ProfileBentoGrid({
         } else {
             toast.error(res.error || "Erreur lors de la sauvegarde");
             throw new Error(res.error); // Allow component to handle error
+        }
+    };
+
+    const handlePresenceToggle = async (enabled: boolean) => {
+        setLocalProfile(prev => ({ ...prev, showPresence: enabled }));
+        const res = await updateUserProfile({ guildId, showPresence: enabled, targetUserId });
+        if (res.success) {
+            toast.success(enabled ? "Visibilité de l'activité activée" : "Visibilité de l'activité désactivée");
+        } else {
+            toast.error(res.error || "Erreur");
         }
     };
 
@@ -491,6 +502,8 @@ export function ProfileBentoGrid({
                             profileId={profile.id}
                             notificationPrefs={localProfile.notificationPrefs as any}
                             onNotificationPrefsSave={handleNotificationPrefsSave}
+                            showPresence={localProfile.showPresence ?? true}
+                            onPresenceToggle={handlePresenceToggle}
                             isAdmin={isAdmin}
                             targetUserId={targetUserId}
                         />

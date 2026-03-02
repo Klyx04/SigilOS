@@ -9,9 +9,9 @@ export function BugReportButton() {
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+        <div className="relative z-50 flex flex-col items-end gap-2">
             {expanded && (
-                <div className="bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-4 w-64 animate-in slide-in-from-bottom-4 fade-in duration-200">
+                <div className="absolute bottom-[calc(100%+8px)] right-0 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-4 w-64 animate-in slide-in-from-bottom-4 fade-in duration-200">
                     <p className="text-xs font-semibold text-zinc-300 mb-1">Vous avez trouvé un bug ?</p>
                     <p className="text-[11px] text-zinc-500 mb-3 leading-relaxed">
                         Rejoignez le Discord SigilOS et postez dans <span className="text-emerald-400 font-mono">#bugs-beta</span>.

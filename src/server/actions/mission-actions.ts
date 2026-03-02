@@ -758,7 +758,7 @@ export async function validateSubmission(
                 updatedAt: new Date() // Force update time for stats
             },
             include: {
-                profile: true,
+                profile: { include: { user: true } },
                 helpers: true // Need this for point distribution below
             }
         });
@@ -796,6 +796,22 @@ export async function validateSubmission(
                 undefined,
                 discordGuildId
             );
+        }
+
+        // 5. Guild Feed Message (if validated)
+        if (status === "VALIDATED") {
+            try {
+                const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+                const userName = updatedSubmission.profile.discordNickname || updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.user.name || "Un membre";
+                const missionTitle = submission.mission.title || "Mission Inconnue";
+                await pushSystemChatMessage(
+                    discordGuildId,
+                    `🎯 **${userName}** a accompli la mission **${missionTitle}** !`,
+                    { type: "mission_validated", submissionId, missionId: submission.mission.id }
+                );
+            } catch (chatErr) {
+                logger.error("Failed to push system chat message for mission", { error: chatErr });
+            }
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);

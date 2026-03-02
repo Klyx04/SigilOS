@@ -6,6 +6,7 @@ import {
     Database,
     Activity,
     LayoutDashboard,
+    MessageSquare,
 } from "lucide-react";
 import {
     isSuperAdmin,
@@ -140,6 +141,13 @@ export default async function SuperAdminPage() {
                                     >
                                         <Database className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" />
                                         API Specs
+                                    </Link>
+                                    <Link
+                                        href="/god/chat"
+                                        className="px-6 py-4 bg-zinc-900/50 hover:bg-zinc-900 border border-white/5 rounded-xl text-sm font-black text-rose-400 hover:text-white transition-all flex items-center gap-3 uppercase tracking-widest group"
+                                    >
+                                        <MessageSquare className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+                                        Chat Firewall
                                     </Link>
                                 </div>
                             </div>

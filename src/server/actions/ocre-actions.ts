@@ -1856,6 +1856,20 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
             }
         });
 
+        // Guild Feed Message
+        try {
+            const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+            const targetName = tradeRequest.target.discordNickname || tradeRequest.target.pseudoDofus || tradeRequest.target.metamobPseudo || "Un membre";
+            const requesterName = tradeRequest.requester.discordNickname || tradeRequest.requester.pseudoDofus || tradeRequest.requester.metamobPseudo || "Un membre";
+            await pushSystemChatMessage(
+                guildId,
+                `🤝 **${targetName}** a accepté une demande d'échange Ocre avec **${requesterName}** !`,
+                { type: "ocre_trade_accepted", requestId }
+            );
+        } catch (chatErr) {
+            console.error("Failed to push system chat message for ocre trade", chatErr);
+        }
+
         // Metamob Auto-Update
         try {
             const { getUserMonsters, updateMonsterQuantity } = await import("@/lib/metamob-client");

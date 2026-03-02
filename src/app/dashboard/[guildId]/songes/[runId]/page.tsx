@@ -14,6 +14,7 @@ import { JoinRequestsPanel } from "@/components/songes/JoinRequestsPanel";
 import { RunTree } from "@/components/songes/RunTree";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import { RunCandidacyBox } from "@/components/songes/RunCandidacyBox";
+import { RunChatPanel } from "@/components/chat/RunChatPanel";
 import type { DreamRun, DreamRunMember, DreamWaitlist, DreamFloor, DreamRunBonus, DreamJoinRequest } from "@prisma/client";
 
 type RunWithRelations = DreamRun & {
@@ -39,6 +40,7 @@ export default function RunDetailPage() {
     const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
     const [bossGuideOpen, setBossGuideOpen] = useState(false);
     const [canJoinSonges, setCanJoinSonges] = useState<boolean>(true);
+    const [currentUserContext, setCurrentUserContext] = useState<any>(null);
 
     const loadData = useCallback(async () => {
         if (!guildId) return;
@@ -51,8 +53,9 @@ export default function RunDetailPage() {
         if (runResult.success && runResult.run) {
             setRun(runResult.run);
             setOptimisticStatus(runResult.run.status);
-
-            // Fetch profiles for names
+            setCurrentUserContext(userContext);
+            setCanJoinSonges(userContext.canJoinSonges);
+            setCurrentUserId(userContext.id || null);
             const userIds = runResult.run.members.map((m: any) => m.userId);
             if (userIds.length > 0) {
                 const profilesResult = await getMemberProfiles(guildId, userIds);
@@ -189,6 +192,18 @@ export default function RunDetailPage() {
 
                     {/* Bonus Inventory */}
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
+
+                    {currentUserId && (run.members.some((m: DreamRunMember) => m.userId === currentUserId) || isLeader) &&
+                        (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                            <RunChatPanel
+                                runId={run.id}
+                                guildId={guildId}
+                                userId={currentUserId}
+                                userRoleName={currentUserContext?.roleName}
+                                userRoleNames={currentUserContext?.roleNames}
+                                userPseudo={currentUserContext?.pseudo}
+                            />
+                        )}
                 </div>
             </div>
             {/* Boss Guide Drawer */}

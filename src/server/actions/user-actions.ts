@@ -376,6 +376,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canCreateServices: true,
                 canViewFinder: true,
                 canViewProfile: true,
+                canViewWelcome: true, // FIX: was missing from God bypass
                 canManageMembers: true,
                 canViewQuests: true,
                 canManageQuests: true,

@@ -14,10 +14,12 @@ import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
-import { BugReportButton } from "@/components/layout/bug-report-button";
+
 import { ValidatorInbox } from "./_components/validator-inbox";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
+import { ChatWidget } from "@/components/chat/ChatWidget";
+import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 
 export default async function DashboardLayout({
@@ -183,14 +185,28 @@ export default async function DashboardLayout({
                     </Suspense>
                 </div>
 
-                {/* Floating Bug Report Button */}
-                <BugReportButton />
+
 
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
 
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />
+
+                {/* Live Chat Widget — visible si module activé + permission RBAC */}
+                {modules.chat && user.canViewChat && (
+                    <ChatWidget
+                        guildId={guildId}
+                        userId={user.id || ""}
+                        canModerate={user.canModerateChat}
+                        displayName={user.name}
+                        avatarUrl={user.image}
+                        userRoleName={user.roleName}
+                        userRoleNames={user.roleNames}
+                        userRoleIds={user.roles}
+                        userPseudo={user.pseudo}
+                    />
+                )}
             </div>
         </NebulaClientWrapper>
     );

@@ -37,7 +37,11 @@ export type AuditAction =
     | "POLL_CREATED"          // Poll created
     | "POLL_CLOSED"           // Poll closed
     | "POLL_DELETED"          // Poll deleted
-    | "POLL_CREATOR_ROLE_ACQUIRED"; // Member took the guild micro
+    | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
+    | "CHAT_MUTE"                  // Admin muted a user in chat
+    | "CHAT_CLEAR"                 // Admin cleared guild chat history
+    | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
+    | "CHAT_MOTD_UPDATE";          // Admin updated the MOTD
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -51,6 +55,7 @@ export type AuditTargetType =
     | "USER"
     | "MISSION"
     | "GUILD"
+    | "CHAT"
     | "POLL";
 
 export type AuditLogEntry = {

@@ -15,6 +15,8 @@ export type UserContext = {
     name?: string;
     image?: string;
     roleName?: string;
+    roleNames: string[];
+    pseudo?: string;
     roleColor?: number;
     canViewMissions: boolean;
     canManageMissions: boolean;
@@ -46,6 +48,9 @@ export type UserContext = {
     canViewDocs: boolean;
     canViewWelcome: boolean;
     canViewProfile: boolean;
+    // Chat Permissions
+    canViewChat: boolean;
+    canModerateChat: boolean;
     // Coming Soon Permissions
     canViewQuests: boolean;
     canManageQuests: boolean;
@@ -61,6 +66,7 @@ export type UserContext = {
     dofusServerId?: string | null;
     joinedAt?: string | null;
     guildId?: string;
+    roles: string[];
     isCapacityFull?: boolean;
     scheduledDeletion?: string | null;
 };
@@ -146,6 +152,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageWorldmap: false,
         canViewResources: false,
         canManageResources: false,
+        canViewChat: false,
+        canModerateChat: false,
+        roles: [],
+        roleNames: []
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -373,6 +383,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canManageWorldmap: true,
                 canViewResources: true,
                 canManageResources: true,
+                canViewChat: true,
+                canModerateChat: true,
                 roleName: "Administrateur",
                 roleColor: 0x5865F2,
             } : {})
@@ -427,6 +439,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     try {
                         const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
                         await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
+
+                        // Push system message to chat
+                        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+                        await pushSystemChatMessage(guildConfig.discordGuildId, `🎊 **${displayName}** vient de rejoindre la guilde. Souhaitez-lui la bienvenue !`, { type: "user_joined", profileId: profile!.id });
                     } catch (welcomeErr) {
                         logger.error("[Welcome] Failed to process welcome notifications", { error: welcomeErr });
                     }
@@ -512,6 +528,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canManageWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_MANAGE) || isAdmin;
     const canViewResources = myPerms.has(PERMISSIONS.RESOURCES_VIEW) || isAdmin;
     const canManageResources = myPerms.has(PERMISSIONS.RESOURCES_MANAGE) || isAdmin;
+    const canViewChat = myPerms.has(PERMISSIONS.CHAT_VIEW) || isAdmin;
+    const canModerateChat = myPerms.has(PERMISSIONS.CHAT_MODERATE) || isAdmin;
 
     const isAdminFinal = isAdmin || isGod;
 
@@ -558,9 +576,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageWorldmap: canManageWorldmap || isGod,
         canViewResources: canViewResources || isGod,
         canManageResources: canManageResources || isGod,
+        canViewChat: canViewChat || isGod,
+        canModerateChat: canModerateChat || isGod,
         isAdmin: isAdminFinal,
         isSuperAdmin: isGod,
         isMember: true,
+        roles: memberRoles,
+        roleNames: myRoles.map(r => r.name),
+        pseudo: profile?.discordNickname || profile?.pseudoDofus || displayName,
         isCapacityFull: false,
         profileId: profile?.id,
         guildName: guildConfig?.name || "Serveur Inconnu",

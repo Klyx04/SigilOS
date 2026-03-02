@@ -110,22 +110,16 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     )}
 
                     {/* Avatar */}
-                    <div className="relative">
+                    <div className="relative group/avatar">
                         <Avatar
-                            className={cn(
-                                "w-20 h-20 border-2 transition-all",
-                                isOnline && "ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-black"
-                            )}
+                            className="w-20 h-20 border-2 transition-all shadow-xl group-hover:shadow-primary/20"
                             style={roleColor ? { borderColor: roleColor } : { borderColor: "rgba(255,255,255,0.1)" }}
                         >
                             <AvatarImage src={profile.user.image || ""} />
-                            <AvatarFallback className="text-xl bg-primary/10 text-primary">
-                                {displayName?.[0]?.toUpperCase() ?? "?"}
+                            <AvatarFallback className="text-xl font-bold bg-zinc-800 text-zinc-400">
+                                {displayName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
-                        {isOnline && (
-                            <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-zinc-950 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.6)] animate-pulse" />
-                        )}
                     </div>
 
                     {/* Name & Class */}

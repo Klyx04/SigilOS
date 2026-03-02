@@ -32,6 +32,8 @@ const UpdateModulesSchema = z.object({
     quests: z.boolean(),
     worldmap: z.boolean(),
     resources: z.boolean(),
+    // Nouveau
+    chat: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -77,6 +79,7 @@ export async function getGuildModules(
             quests: m.quests,
             worldmap: m.worldmap,
             resources: m.resources,
+            chat: m.chat,
         };
     } catch {
         // Fail open — if we can't read modules, assume all enabled

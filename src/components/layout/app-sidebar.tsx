@@ -108,6 +108,7 @@ export function AppSidebar({
         { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
         { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
         { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
         { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
 
@@ -315,18 +316,13 @@ export function AppSidebar({
                             className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
                         >
                             <div className="flex items-center gap-3 w-full">
-                                <div className="relative">
-                                    <Avatar className="h-9 w-9 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
-                                        <AvatarImage src={user.image} />
-                                        <AvatarFallback className="bg-zinc-800 text-xs font-black text-zinc-400">
-                                            {user.name?.slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                </div>
+                                <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
+                                    <AvatarImage src={user.image || ""} />
+                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
                                     <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
-                                        {user.name}
+                                        {user.name || "Compte"}
                                     </span>
                                     <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
                                         {user.roleName || "Membre"}

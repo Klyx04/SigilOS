@@ -198,6 +198,18 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         await publishDiscordRun(ctx.guildId, run.id);
     }
 
+    try {
+        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+        const leaderName = ctx.name || "Un explorateur";
+        await pushSystemChatMessage(
+            ctx.guildId,
+            `🌌 **${leaderName}** a lancé une expédition Songes Infinis (${run.difficulty.replace("_", " ")}) !`,
+            { type: "songes_run_created", runId: run.id }
+        );
+    } catch (chatErr) {
+        console.error("Failed to push system chat message for songes run", chatErr);
+    }
+
     return { success: true, runId: run.id };
 }
 

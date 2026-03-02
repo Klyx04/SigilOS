@@ -1,100 +1,215 @@
-"use client";
-
+import Image from "next/image";
 import {
-    LayoutDashboard,
-    ShieldCheck,
     Zap,
-    Users,
-    BarChart3,
-    Bot,
-    Globe2,
-    CalendarCheck
+    Shield,
+    Globe,
+    BarChart,
+    Calendar,
+    Target,
+    Handshake,
+    Sword,
+    Sparkles,
+    Trophy,
+    Layout,
+    Activity,
+    BookOpen
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const FEATURES = [
     {
-        title: "Suivi des Missions",
-        description: "Suivez l'avancement de vos membres sur l'Ocre, le Vulbis et l'Abyssal en temps réel.",
-        icon: LayoutDashboard,
-        gradient: "from-blue-500 to-cyan-500"
+        title: "Quête Ocre",
+        description: "Synchronisation Metamob et matching de doublons automatisé.",
+        icon: Target,
+        className: "md:col-span-2 md:row-span-1 bg-gradient-to-br from-[#13171A] to-[#0E1110] border-accent-teal/20",
+        color: "text-accent-teal"
     },
     {
-        title: "Gestion des Rôles",
-        description: "Synchronisation automatique des rôles avec Discord. Gestion fine des permissions.",
-        icon: ShieldCheck,
-        gradient: "from-purple-500 to-pink-500"
+        title: "Missions de Guilde",
+        description: "Gestion des missions hebdomadaires et validation par capture d'écran.",
+        icon: Zap,
+        className: "md:col-span-2",
+        color: "text-amber-400"
     },
     {
-        title: "Créateur de Roster",
-        description: "Créez des compositions d'équipe optimisées pour les Songes et les donjons.",
-        icon: Users,
-        gradient: "from-amber-500 to-orange-500",
-        isComingSoon: true
+        title: "Songes Infinis",
+        description: "Organisation de parcours avec guides stratégiques intégrés.",
+        icon: Sparkles,
+        className: "md:col-span-2",
+        color: "text-purple-400"
     },
     {
-        title: "Automatisation OCR",
-        description: "Validation automatique des screenshots par IA. Plus de saisie manuelle.",
-        icon: Bot,
-        gradient: "from-emerald-500 to-green-500",
-        isComingSoon: true
+        title: "Profil & Annuaire",
+        description: "Fiches membres dynamiques et annuaire de guilde.",
+        icon: Globe,
+        className: "md:col-span-1",
+        color: "text-blue-400"
+    },
+    {
+        title: "Administration",
+        description: "RBAC granulaire et logs de sécurité.",
+        icon: Shield,
+        className: "md:col-span-1",
+        color: "text-rose-400"
+    },
+    {
+        title: "Calendrier",
+        description: "Planning des événements communautaires.",
+        icon: Calendar,
+        className: "md:col-span-1",
+        color: "text-emerald-400"
+    },
+    {
+        title: "Ladder Dofus",
+        description: "Classement par succès synchronisé au site officiel.",
+        icon: Trophy,
+        className: "md:col-span-1",
+        color: "text-yellow-500"
+    },
+    {
+        title: "Services Guilde",
+        description: "Demandes de crafts, passages et emprunts d'équipements.",
+        icon: Handshake,
+        className: "md:col-span-1",
+        color: "text-cyan-400"
+    },
+    {
+        title: "Donjons & Quêtes",
+        description: "Plateforme de recherche de groupe intra-guilde.",
+        icon: Sword,
+        className: "md:col-span-1",
+        color: "text-red-400"
+    },
+    {
+        title: "Sondages",
+        description: "Prises de décisions et votes démocratiques.",
+        icon: Activity,
+        className: "md:col-span-1",
+        color: "text-pink-400"
+    },
+    {
+        title: "Documentation",
+        description: "Wiki collaboratif hébergé dans l'écosystème.",
+        icon: BookOpen,
+        className: "md:col-span-1",
+        color: "text-violet-400"
+    },
+    {
+        title: "Vitrine Publique",
+        description: "Site de présentation dynamique pour le recrutement.",
+        icon: Layout,
+        className: "md:col-span-1",
+        color: "text-indigo-400"
+    },
+    {
+        title: "Quêtes Dofus",
+        description: "Suivi coordonné de la progression neuronale des quêtes.",
+        icon: BookOpen,
+        className: "md:col-span-1",
+        color: "text-amber-400",
+        isDevelopment: true
+    },
+    {
+        title: "Carte & Mini-Jeux",
+        description: "Map du monde interactive et animations de guilde.",
+        icon: Globe,
+        className: "md:col-span-1",
+        color: "text-cyan-400",
+        isDevelopment: true
+    },
+    {
+        title: "Hub Ressources",
+        description: "Agrégation de guides, builds et actualités Dofus.",
+        icon: BookOpen,
+        className: "md:col-span-1",
+        color: "text-violet-400",
+        isDevelopment: true
     },
     {
         title: "Statistiques",
-        description: "Visualisez la croissance de votre guilde avec des graphiques détaillés.",
-        icon: BarChart3,
-        gradient: "from-indigo-500 to-violet-500"
-    },
-    {
-        title: "Almanax & Événements",
-        description: "Planifiez vos sorties en fonction des bonus Almanax et du calendrier.",
-        icon: CalendarCheck,
-        gradient: "from-rose-500 to-red-500"
+        description: "Analyses de l'évolution de la guilde.",
+        icon: BarChart,
+        className: "md:col-span-1",
+        color: "text-accent-gold",
+        isDevelopment: true
     }
 ];
 
 export function SaasFeatures() {
     return (
-        <section className="py-24 bg-zinc-950/50">
-            <div className="container px-4 mx-auto">
-                <div className="text-center max-w-4xl mx-auto mb-24">
-                    <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-6 uppercase">
-                        Libérez le potentiel de votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-400 to-indigo-400">guilde</span>
-                    </h2>
-                    <p className="text-zinc-400 text-xl max-w-3xl mx-auto leading-relaxed font-medium">
-                        De l&apos;automatisation des missions à la coordination de vos rosters, SigilOS centralise tous les services dont votre guilde a besoin pour dominer le Monde des Douze.
-                    </p>
+        <section className="py-24 bg-background relative overflow-hidden border-t border-white/5">
+            <div className="container px-6 mx-auto">
+                <div className="max-w-2xl mb-16 px-4">
+                    <h2 className="text-4xl font-heading text-white mb-4">L'écosystème pour <br /><span className="text-accent-gold italic">les guildes sérieuses.</span></h2>
+                    <p className="text-zinc-500 font-medium font-sans">Tout ce dont vous avez besoin pour dominer votre serveur, rationalisé dans un seul OS.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {FEATURES.map((feature, i) => (
-                        <div key={i} className="group relative p-10 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 hover:border-white/15 transition-all duration-500 hover:-translate-y-2 shadow-2xl overflow-hidden">
-                            {/* Inner Glow/Beam Effect */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-[0.08] transition-opacity duration-700`} />
-
-                            {/* Animated Border Beam (Simulated with scale) */}
-                            <div className={`absolute -inset-[1px] bg-gradient-to-r ${feature.gradient} rounded-[2.5rem] opacity-0 group-hover:opacity-30 blur-[1px] transition-opacity duration-500`} />
-                            <div className="absolute inset-[1px] bg-zinc-950 rounded-[2.5rem] z-0" />
-
-                            {/* Decorative Corner Glow */}
-                            <div className={`absolute -top-12 -right-12 w-24 h-24 bg-gradient-to-br ${feature.gradient} blur-[40px] opacity-0 group-hover:opacity-20 transition-opacity duration-700`} />
-
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {FEATURES.map((feature, idx) => (
+                        <div
+                            key={idx}
+                            className={cn(
+                                "group relative overflow-hidden rounded-[2rem] p-8 glass-premium border border-white/5 transition-all duration-500 hover:-translate-y-1 flex flex-col justify-between",
+                                feature.className
+                            )}
+                        >
                             <div className="relative z-10">
-                                <div className="h-16 w-16 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-2xl shadow-black">
-                                    <feature.icon className="w-8 h-8 text-white" />
-                                </div>
-
-                                <h3 className="text-2xl font-black text-white mb-4 tracking-tight flex items-center justify-between gap-3">
-                                    {feature.title}
-                                    {feature.isComingSoon && (
-                                        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] uppercase tracking-[0.2em] text-zinc-400 font-black whitespace-nowrap">
-                                            En cours de développement
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/5 w-fit transition-all group-hover:scale-110", feature.color)}>
+                                        <feature.icon className="w-8 h-8" />
+                                    </div>
+                                    {feature.isDevelopment && (
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                                            En développement
                                         </span>
                                     )}
-                                </h3>
-                                <p className="text-zinc-400 text-lg leading-relaxed font-medium opacity-80 group-hover:opacity-100 transition-opacity">
+                                </div>
+                                <h3 className="text-xl font-heading text-white mb-3 tracking-tight">{feature.title}</h3>
+                                <p className="text-zinc-500 text-sm leading-relaxed font-medium font-sans max-w-[200px] relative z-20">
                                     {feature.description}
                                 </p>
                             </div>
+
+                            {/* Ocre Dofus Image for the specific card */}
+                            {feature.title === "Quête Ocre" && (
+                                <div className="absolute top-1/2 right-4 -translate-y-1/2 w-44 h-44 opacity-40 group-hover:opacity-80 group-hover:scale-110 transition-all duration-700 pointer-events-none">
+                                    <Image
+                                        src="/assets/icons/ocre.png"
+                                        alt="Dofus Ocre"
+                                        fill
+                                        className="object-contain"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Mission Preview Image */}
+                            {feature.title === "Missions de Guilde" && (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-48 opacity-20 group-hover:opacity-60 group-hover:-translate-x-4 transition-all duration-700 pointer-events-none rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 rotate-3">
+                                    <Image
+                                        src="/assets/landing/mission-preview.png"
+                                        alt="Missions Preview"
+                                        fill
+                                        className="object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#0a0a0b]/90" />
+                                </div>
+                            )}
+
+                            {/* Songes Preview Image */}
+                            {feature.title === "Songes Infinis" && (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-48 opacity-20 group-hover:opacity-60 group-hover:-translate-x-4 transition-all duration-700 pointer-events-none rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 -rotate-2">
+                                    <Image
+                                        src="/assets/landing/songes-preview.png"
+                                        alt="Songes Preview"
+                                        fill
+                                        className="object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#0a0a0b]/90" />
+                                </div>
+                            )}
+
+                            {/* Decorative background glow */}
+                            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 blur-[50px] rounded-full group-hover:bg-white/10 transition-colors pointer-events-none" />
                         </div>
                     ))}
                 </div>

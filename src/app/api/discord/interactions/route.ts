@@ -33,6 +33,24 @@ function checkRateLimit(key: string, maxRequests: number, windowMs: number): boo
     return true;
 }
 
+/** Returns remaining wait seconds (0 = not rate-limited) */
+function getRateLimitRemaining(key: string, maxRequests: number, windowMs: number): number {
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+        return 0;
+    }
+
+    if (entry.count >= maxRequests) {
+        return Math.ceil((entry.resetAt - now) / 1000);
+    }
+
+    entry.count++;
+    return 0;
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -81,6 +99,41 @@ export async function POST(request: NextRequest) {
                     type: 4,
                     data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.", flags: 64 },
                 });
+            }
+
+            // =============================================================
+            // RBAC Permission Gate (centralized for ALL Discord interactions)
+            // --
+            // Maps interaction prefix → required permission.
+            // When adding a NEW MODULE with Discord buttons:
+            //   1. Add the permission constant in lib/permissions.ts
+            //   2. Add an entry here: "prefix": PERMISSIONS.XXX
+            //   3. Handle the prefix logic below (join/leave/etc.)
+            // Owners and Discord admins bypass automatically (see internalCheckPermission).
+            // =============================================================
+            const { internalCheckPermission } = await import("@/server/actions/user-actions");
+            const { PERMISSIONS } = await import("@/lib/permissions");
+
+            const DISCORD_PERM_MAP: Record<string, string> = {
+                calendar: PERMISSIONS.CALENDAR_VIEW,
+                songes: PERMISSIONS.SONGES_JOIN,
+                dj: PERMISSIONS.FINDER_VIEW,
+                poll: PERMISSIONS.POLLS_VIEW,
+                svc: PERMISSIONS.SERVICES_VIEW,
+            };
+
+            const requiredPerm = DISCORD_PERM_MAP[prefix];
+            if (requiredPerm) {
+                const isAuthorized = await internalCheckPermission(guild_id, member.user.id, requiredPerm as any);
+                if (!isAuthorized) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.",
+                            flags: 64,
+                        },
+                    });
+                }
             }
 
             let result;
@@ -138,12 +191,127 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account.userId);
                 }
+            } else if (prefix === "poll") {
+                if (action === "vote") {
+                    const { processPollVote } = await import("@/server/actions/poll-actions");
+
+                    // RBAC already checked by centralized gate above (PERMISSIONS.POLLS_VIEW)
+                    const profile = await db.userProfile.findUnique({
+                        where: { userId_guildId: { userId: account.userId, guildId: guild_id } }
+                    });
+
+                    if (!profile) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
+                        });
+                    }
+
+                    result = await processPollVote(guild_id, profile.id, entityId);
+
+                    if (result.success) {
+                        const actionLabel = result.data?.action === "voted" ? "enregistré" : "retiré";
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: `✅ Ton vote a été ${actionLabel} avec succès !`, flags: 64 },
+                        });
+                    }
+                }
+            } else if (prefix === "dj") {
+                // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
+                const djKey = `dj:${member.user.id}:${entityId}`;
+                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                if (waitSecs > 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `⏳ Doucement ! Réessaie dans **${waitSecs}s**.`, flags: 64 },
+                    });
+                }
+
+                if (action === "join" || action === "leave") {
+                    // Récupérer le post pour obtenir le guildId Prisma interne (≠ Discord guild_id snowflake)
+                    const post = await (db as any).djSearchPost.findUnique({
+                        where: { id: entityId },
+                        select: { id: true, status: true, guildId: true },
+                    });
+
+                    if (!post) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce groupe n'existe plus ou a expiré.", flags: 64 },
+                        });
+                    }
+
+                    if (post.status !== "OPEN" && post.status !== "FULL") {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce groupe est fermé.", flags: 64 },
+                        });
+                    }
+
+                    // Chercher le profil via post.guildId (CUID Prisma), PAS via guild_id (Discord snowflake)
+                    const profile = await db.userProfile.findFirst({
+                        where: { userId: account.userId, guildId: post.guildId },
+                    });
+
+                    if (!profile) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 },
+                        });
+                    }
+
+                    if (action === "join") {
+                        const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                        result = await internalJoinDjPost(entityId, profile.id, account.userId);
+
+                        if (result?.success) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: { content: "✅ Tu as rejoint le groupe ! Retrouve les détails sur le site.", flags: 64 },
+                            });
+                        }
+                    } else if (action === "leave") {
+                        const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                        result = await internalLeaveDjPost(entityId, profile.id);
+
+                        if (result?.success) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: { content: "👋 Tu as quitté le groupe.", flags: 64 },
+                            });
+                        }
+                    }
+                }
+            } else if (prefix === "svc") {
+                if (action === "contact") {
+                    const { internalContactService } = await import("@/server/actions/service-actions");
+                    result = await internalContactService(entityId, "", account.userId);
+
+                    if (result?.success && result.data) {
+                        const lines = [`📩 **Prestataire :** ${result.data.pseudo}`];
+                        if (result.data.contactMethod) lines.push(`📌 **Contact :** ${result.data.contactMethod}`);
+                        lines.push(`\n_Envoie-lui un MP Discord ou en jeu pour organiser le service !_`);
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: lines.join("\n"), flags: 64 },
+                        });
+                    }
+                }
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }
 
             if (result?.success) {
-                return NextResponse.json({ type: 6 }); // ACK
+                // DJ interactions: give ephemeral feedback
+                if (prefix === "dj") {
+                    const label = action === "join" ? "✅ Tu as rejoint le groupe !" : "👋 Tu as quitté le groupe.";
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: label, flags: 64 },
+                    });
+                }
+                return NextResponse.json({ type: 6 }); // ACK silencieux (others)
             } else {
                 return NextResponse.json({
                     type: 4,
@@ -173,6 +341,20 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({
                         type: 4,
                         data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                // RBAC check for modal submits (same gate as button clicks)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.SONGES_JOIN);
+                if (!canJoinSonges) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🚫 Tes rôles Discord ne t'autorisent pas à postuler aux Songes. Contacte un admin de ta guilde.",
+                            flags: 64,
+                        },
                     });
                 }
 

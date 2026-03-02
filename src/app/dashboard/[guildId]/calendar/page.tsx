@@ -27,12 +27,20 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     const ctx = await getUserContext(guildId);
 
-    // Check view permission or global member access
-    if (!ctx.isMember && !ctx.canViewCalendar) {
+    // Check view permission
+    if (!ctx.canViewCalendar) {
         return <AccessDenied />;
     }
 
     const canManage = ctx.canManageCalendar;
+
+    // Fetch Discord Config for the guild
+    const { db } = await import("@/lib/prisma");
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { calendarNotifyChannelId: true }
+    });
+    const isDiscordConfigured = !!guildConfig?.calendarNotifyChannelId;
 
     return (
         <div className="flex flex-col h-full bg-black/40 pb-12">
@@ -50,6 +58,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                         guildId={guildId}
                         currentUserId={session.user.id}
                         canManage={canManage}
+                        isDiscordConfigured={isDiscordConfigured}
                     />
                 </div>
             </main>

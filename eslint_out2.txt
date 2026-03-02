@@ -1,0 +1,73 @@
+﻿
+A:\SigilOS\src\components\chat\ChatAutocomplete.tsx
+    2:28  warning  'useRef' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   40:32  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  125:25  error    'searchKey' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                     prefer-const
+  146:62  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  152:79  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  238:8   warning  React Hook useEffect has a missing dependency: 'input'. Either include it or remove the dependency array                                                                                                                                                                                 react-hooks/exhaustive-deps
+  295:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  325:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+A:\SigilOS\src\components\chat\ChatTransparencyModal.tsx
+  12:5  warning  'MessageCircle' is defined but never used  @typescript-eslint/no-unused-vars
+  14:5  warning  'ExternalLink' is defined but never used   @typescript-eslint/no-unused-vars
+
+A:\SigilOS\src\components\chat\ChatWidget.tsx
+    8:12  warning  'Plus' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   64:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  227:81  warning  'avatarUrl' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  420:8   warning  React Hook useEffect has a missing dependency: 'userId'. Either include it or remove the dependency array                                                                                                                                                                                react-hooks/exhaustive-deps
+  605:23  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+A:\SigilOS\src\components\chat\RunChatPanel.tsx
+   50:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  365:8   warning  React Hook useEffect has missing dependencies: 'userId', 'userPseudo', 'userRoleName', and 'userRoleNames'. Either include them or remove the dependency array                                                                                                                           react-hooks/exhaustive-deps
+
+A:\SigilOS\src\server\actions\chat-actions.ts
+    62:20  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   305:15  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   308:28  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   318:51  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   320:64  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   342:39  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   344:58  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   346:41  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   351:76  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   354:45  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   416:25  error    'searchKey' is never reassigned. Use 'const' instead    prefer-const
+   434:54  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   465:78  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   492:26  warning  'e' is defined but never used                           @typescript-eslint/no-unused-vars
+   690:51  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   692:64  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   696:28  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   707:15  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   725:39  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   728:58  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   731:41  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   735:76  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   738:45  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   801:25  error    'searchKey' is never reassigned. Use 'const' instead    prefer-const
+   819:54  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   862:26  warning  'e' is defined but never used                           @typescript-eslint/no-unused-vars
+  1126:40  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1176:9   error    'updatedData' is never reassigned. Use 'const' instead  prefer-const
+  1176:22  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1269:39  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1272:45  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1288:50  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1330:47  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1333:29  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1356:51  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1372:77  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1376:29  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1377:36  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1400:41  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1402:11  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1405:23  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  1410:61  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+Ô£û 59 problems (4 errors, 55 warnings)
+  4 errors and 0 warnings potentially fixable with the `--fix` option.
+

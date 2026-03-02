@@ -105,30 +105,11 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
     };
 
     const selectedDungeon = payload.dungeonId ? dungeons.find(d => d.id === payload.dungeonId) : null;
-    const levelPaliers = [200, 190, 180, 170, 160, 150, 100, 50];
+
 
     return (
         <div className="space-y-4">
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Paliers de niveau</Label>
-                <div className="flex flex-wrap gap-1.5">
-                    {levelPaliers.map(lvl => (
-                        <button
-                            key={lvl}
-                            type="button"
-                            onClick={() => handleLevelSelect(lvl)}
-                            className={cn(
-                                "h-7 px-2.5 rounded-md text-[10px] font-black border transition-all",
-                                selectedLevel === lvl
-                                    ? "bg-rose-500/20 border-rose-500/50 text-rose-300"
-                                    : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
-                            )}
-                        >
-                            {lvl}
-                        </button>
-                    ))}
-                </div>
-            </div>
+
 
             <div className="space-y-2">
                 <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
@@ -260,37 +241,11 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
     };
 
     const selectedZone = payload.zoneId ? zones.find(z => z.id === payload.zoneId) : null;
-    const levelPaliers = [200, 190, 180, 170, 160, 150, 100, 50];
+
 
     return (
         <div className="space-y-4">
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Paliers de niveau</Label>
-                <div className="flex flex-wrap gap-1.5">
-                    {levelPaliers.map(lvl => (
-                        <button
-                            key={lvl}
-                            type="button"
-                            onClick={() => {
-                                // For regulation, we use paliers as quick search
-                                zoneFetcher(String(lvl)).then(results => {
-                                    if (results.length > 0) {
-                                        handleZoneChange(results[0].value);
-                                    }
-                                });
-                            }}
-                            className={cn(
-                                "h-7 px-2.5 rounded-md text-[10px] font-black border transition-all hover:bg-emerald-500/10 hover:border-emerald-500/30",
-                                selectedZone?.level === lvl
-                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                                    : "bg-zinc-950 border-zinc-800 text-zinc-500"
-                            )}
-                        >
-                            {lvl}
-                        </button>
-                    ))}
-                </div>
-            </div>
+
 
             {/* Zone Selector */}
             <div className="space-y-2">

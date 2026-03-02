@@ -27,6 +27,7 @@ import {
     Sparkles,
     Check,
     User,
+    CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -40,7 +41,7 @@ import { OcreExchangeModal } from "./ocre-exchange-modal";
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
-    findOcreExchangePartners,
+    findMonsterOwnersAction,
     getAvailableOcreQuests,
     switchOcreQuest,
     type OcreProgressData,
@@ -54,9 +55,10 @@ const ITEMS_PER_PAGE = 48;
 interface OcreDashboardProps {
     data: OcreProgressData;
     guildId: string;
+    hasOcreChannel?: boolean;
 }
 
-export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
+export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardProps) {
     // Filter state
     const [filters, setFilters] = useState<OcreFilters>({
         searchQuery: "",
@@ -68,7 +70,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
     });
 
     // Other state
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [exchangeMap, setExchangeMap] = useState<Record<number, number>>({});
     const [exchangeMapLoading, setExchangeMapLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -109,7 +110,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
     }, [data.monsters]);
 
     // Sort function
-    const sortMonsters = (monsters: OcreMonster[]): OcreMonster[] => {
+    const sortMonsters = useCallback((monsters: OcreMonster[]): OcreMonster[] => {
         return [...monsters].sort((a, b) => {
             switch (filters.sortBy) {
                 case "name-asc":
@@ -124,10 +125,10 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                     return 0;
             }
         });
-    };
+    }, [filters.sortBy]);
 
     // Filter function
-    const filterMonsters = (monsters: OcreMonster[]) => {
+    const filterMonsters = useCallback((monsters: OcreMonster[]) => {
         let filtered = monsters;
 
         // Filter by type
@@ -164,7 +165,14 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
         filtered = sortMonsters(filtered);
 
         return filtered;
-    };
+    }, [filters, sortMonsters]);
+
+    // Filtered and sorted lists
+    // Note: filterMonsters is already a useCallback — no extra useMemo needed.
+    // The React Compiler handles memoization automatically.
+    const filteredManquants = filterMonsters(manquants);
+    const filteredPossedes = filterMonsters(possedes);
+    const filteredDoublons = filterMonsters(doublons);
 
     // Reset page when filters change
     useEffect(() => {
@@ -178,22 +186,6 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
     const [questsLoading, setQuestsLoading] = useState(false);
 
     // Handlers
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        const result = await forceRefreshOcre(guildId);
-        if (result.success) {
-            if (result.data?.questUpdated) {
-                toast.success("🎉 Nouvelle quête détectée et mise à jour !");
-            } else {
-                toast.success("Synchronisation forcée réussie !");
-            }
-            setTimeout(() => window.location.reload(), 500);
-        } else {
-            toast.error(result.error || "Erreur lors du rafraîchissement");
-            setIsRefreshing(false);
-        }
-    };
-
     const handleOpenSwitch = async () => {
         setQuestsLoading(true);
         setShowSwitchDialog(true);
@@ -222,7 +214,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
     // Find exchange partners for a specific monster
     const handleFindExchanges = async (_monsterId: number): Promise<ExchangePartner[]> => {
-        const result = await findOcreExchangePartners({ guildId, direction: "they_have" });
+        const result = await findMonsterOwnersAction({ guildId, monsterId: _monsterId });
         if (result.success && result.data) {
             return result.data;
         }
@@ -334,7 +326,15 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                                 Quête de l&apos;Éternelle Moisson
                             </h2>
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                <span className="font-semibold text-foreground">{data.questInfo.characterName}</span>
+                                <a
+                                    href={`https://www.metamob.fr/profile/${data.questInfo.characterName}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-foreground hover:text-amber-500 transition-colors flex items-center gap-1 group/link"
+                                >
+                                    {data.questInfo.characterName}
+                                    <ArrowRightLeft className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-all -rotate-45" />
+                                </a>
                                 <span className="opacity-40">•</span>
                                 <span>{data.questInfo.serverName}</span>
                                 <Badge variant="outline" className="ml-2 border-amber-500/30 text-amber-500 text-[10px] h-5 px-1.5">
@@ -430,21 +430,21 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                                 delay={0}
                             />
                             <OcreStatCard
-                                label="Manquants"
-                                value={data.stats.manquants}
-                                icon={AlertTriangle}
-                                color="red"
+                                label="Acquis / Validés"
+                                value={data.stats.acquired}
+                                icon={CheckCircle2}
+                                color="green"
                                 delay={0.1}
                             />
                             <OcreStatCard
-                                label="Possédés (Min 1)"
-                                value={data.stats.possedes}
-                                icon={Package}
-                                color="green"
+                                label="Reste à trouver"
+                                value={data.stats.remaining}
+                                icon={AlertTriangle}
+                                color="red"
                                 delay={0.2}
                             />
                             <OcreStatCard
-                                label="Doublons (Min 2)"
+                                label="Doublons"
                                 value={data.stats.doublons}
                                 icon={Gift}
                                 color="amber"
@@ -474,9 +474,9 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                         onFiltersChange={setFilters}
                         steps={steps}
                         zones={zones}
-                        isRefreshing={isRefreshing}
-                        onRefresh={handleRefresh}
                         guildId={guildId}
+                        showMarketplace={false}
+                        hasOcreChannel={hasOcreChannel}
                     />
 
                     {/* Secondary Tabs (Grid) */}
@@ -485,26 +485,26 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                             <TabsTrigger value="manquants" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                 <span className="hidden sm:inline">Manquants</span>
                                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none">
-                                    {filterMonsters(manquants).length}
+                                    {filteredManquants.length}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger value="possedes" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                 <span className="hidden sm:inline">Possédés</span>
                                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none">
-                                    {filterMonsters(possedes).length}
+                                    {filteredPossedes.length}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger value="doublons" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                 <span className="hidden sm:inline">Doublons</span>
                                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none">
-                                    {filterMonsters(doublons).length}
+                                    {filteredDoublons.length}
                                 </Badge>
                             </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="manquants" className="mt-6 outline-none">
                             <MonsterGrid
-                                monsters={filterMonsters(manquants)}
+                                monsters={filteredManquants}
                                 guildId={guildId}
                                 exchangeMap={exchangeMap}
                                 emptyMessage={
@@ -520,7 +520,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
                         <TabsContent value="possedes" className="mt-6 outline-none">
                             <MonsterGrid
-                                monsters={filterMonsters(possedes)}
+                                monsters={filteredPossedes}
                                 guildId={guildId}
                                 exchangeMap={{}}
                                 emptyMessage={
@@ -536,7 +536,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
 
                         <TabsContent value="doublons" className="mt-6 outline-none">
                             <MonsterGrid
-                                monsters={filterMonsters(doublons)}
+                                monsters={filteredDoublons}
                                 guildId={guildId}
                                 exchangeMap={{}}
                                 emptyMessage={
@@ -566,6 +566,7 @@ export function OcreDashboard({ data, guildId }: OcreDashboardProps) {
                         </div>
                         <OcreExchangeModal
                             guildId={guildId}
+                            hasOcreChannel={hasOcreChannel}
                             trigger={
                                 <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-12 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.05]">
                                     Ouvrir la liste des échanges

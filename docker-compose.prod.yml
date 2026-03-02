@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://sigilos.fr
     restart: always
     env_file: .env.prod
@@ -37,6 +37,33 @@ services:
           memory: 2G
     volumes:
       - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
+    logging: *default-logging
+
+  worker-prod:
+    container_name: sigilos-worker-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
+        - NEXT_PUBLIC_APP_URL=https://sigilos.fr
+    restart: always
+    env_file: .env.prod
+    environment:
+      - NODE_ENV=production
+      - AUTH_TRUST_HOST=true
+    command: [ "node", "./worker.js" ]
+    depends_on:
+      - db-prod
+      - redis
+    networks:
+      - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     logging: *default-logging
 
   db-prod:
@@ -85,7 +112,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_BETA_PASSWORD=${NEXT_PUBLIC_BETA_PASSWORD:-}
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
     restart: always
     env_file: .env.beta
@@ -105,6 +132,33 @@ services:
           memory: 2G
     volumes:
       - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
+    logging: *default-logging
+
+  worker-beta:
+    container_name: sigilos-worker-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BETA_PASSWORD=${BETA_PASSWORD:-}
+        - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
+    restart: always
+    env_file: .env.beta
+    environment:
+      - NODE_ENV=production
+      - AUTH_TRUST_HOST=true
+    command: [ "node", "./worker.js" ]
+    depends_on:
+      - db-beta
+      - redis
+    networks:
+      - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     logging: *default-logging
 
   db-beta:
@@ -163,6 +217,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+      - ./public/maintenance.html:/srv/static/maintenance.html:ro        # 🔴 Prod maintenance page
+      - ./public/maintenance-beta.html:/srv/static/maintenance-beta.html:ro  # 🟡 Beta maintenance page
       # Uploads are served by Next.js API route — no Caddy volume needed
     env_file: .env.prod
     networks:
@@ -192,6 +248,18 @@ services:
     image: prom/prometheus:latest
     container_name: sigilos-prometheus
     restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d' # 👈 Limite l'utilisation du disque
+      - '--storage.tsdb.retention.size=5GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M # 👈 Évite qu'il ne sature la RAM du VPS
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -204,6 +272,11 @@ services:
     image: grafana/grafana:latest
     container_name: sigilos-grafana
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
@@ -231,6 +304,11 @@ services:
     image: prom/node-exporter:v1.7.0
     container_name: sigilos-node-exporter
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'

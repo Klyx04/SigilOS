@@ -1,7 +1,9 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-02-18)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-01)
 
-**Branche Active** : `feat/guild-modules` (PR ouverte → `dev`)  
-**Status** : 🟢 Beta active. P0 **100% complet** ✅. P1 sécurité largement fait. En attente de merge + déploiement VPS.
+**Branche Active** : `bug-fixes-modif` (En cours de merge vers `dev`)  
+**Status** : Refonte UI SuperAdmin (God Panel), Correction Game Data (Dungeons/Songes UI), Module Guilde (Barre Bonus Actifs & Notifs Discord). Prêt pour déploiement VPS Beta.
+
+> ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
 ---
 
@@ -12,40 +14,60 @@ SigilOS/
 ├── src/
 │   ├── app/                    # Pages & API routes (Next.js App Router)
 │   │   ├── api/                # Routes API (uploads, discord, health...)
+│   │   │   └── discord/interactions/route.ts  # Boutons Discord (dj:join, dj:leave, poll:vote...)
 │   │   ├── dashboard/          # Dashboard guildes (auth required)
 │   │   │   └── [guildId]/admin/modules/  # Toggle modules par guilde
 │   │   ├── god/                # Super-admin panel (isSuperAdmin only)
-│   │   ├── docs/               # Documentation publique
+│   │   ├── docs/               # Documentation publique (Membre whitelisté requis)
 │   │   ├── changelog/          # Changelog public
 │   │   ├── guilds/             # Annuaire public des guildes
-│   │   └── (public)/           # Landing, legal, gate...
+│   │   ├── auth/               # Custom Auth pages (signout, error)
+│   │   └── legal/              # Documents Légaux (CGU, Privacy, Mentions)
 │   ├── components/             # Composants UI réutilisables
+│   │   ├── dungeon-finder/     # Module DJ/Quêtes complet
+│   │   │   ├── DungeonFinderClient.tsx   # Onglets (Posts/Succès/Répertoire) + framer-motion
+│   │   │   ├── DjFiltersBar.tsx          # Filtres + pilule glissante layoutId
+│   │   │   ├── DjPostCard.tsx            # Carte post (bouton Terminer)
+│   │   │   ├── DjPostDetailModal.tsx     # Modale détail (Modifier + Supprimer)
+│   │   │   ├── DjPostCreateModal.tsx     # Création post (date obligatoire)
+│   │   │   ├── DjEditModal.tsx           # NEW — modification post (créateur uniquement)
+│   │   │   ├── DjCloseModal.tsx          # Clôture + distribution points contribution
+│   │   │   ├── AchievementTracker.tsx    # Tracker succès (icônes claires)
+│   │   │   └── DungeonDirectory.tsx      # Répertoire donjons
+│   │   ├── changelog/          # NEW — Modale Changelog persistante
+│   │   ├── profile/            # Profil utilisateur & sélection classes
+│   │   │   └── class-display.tsx  # FIXED — Layout flexbox + Native Scroll (Mobile ready)
 │   │   ├── editor/             # TipTap editor + extensions
-│   │   └── layout/             # Header, Sidebar, Footer...
+│   │   ├── landing/            # Hero, BetaGate, Features...
+│   │   ├── songes/             # Module Songes Infinis
+│   │   │   ├── CreateRunButton.tsx     # Bouton création run
+│   │   │   ├── RunCard.tsx             # Carte de run (liste)
+│   │   │   ├── RunDetailHeader.tsx     # Header détail run + badges épreuve + bouton Guide Boss
+│   │   │   ├── RunTree.tsx             # Arbre des étages (5 paliers + Combat Final)
+│   │   │   ├── RunStatsPanel.tsx       # Stats latérales
+│   │   │   ├── BonusInventory.tsx      # Inventaire Fontaine Onirique
+│   │   │   ├── JoinRequestsPanel.tsx   # Candidatures
+│   │   │   ├── RunLeaderActions.tsx    # Actions meneur
+│   │   │   └── BossGuide.tsx           # NEW — Modale Guide Boss (144 boss, data Volcasaurus)
+│   │   └── layout/             # PublicHeader, GalacticFooter, AppSidebar...
 │   ├── lib/
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
+│   │   ├── queue/              # BullMQ queue (metamob-queue.ts)
+│   │   ├── security.ts         # Central Sanitization & Security Utils
 │   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
+│   ├── workers/
+│   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
+│       │   ├── dungeon-finder-actions.ts  # DJ complet : CRUD, internalJoin/Leave, updateDiscordEmbed
 │       │   ├── module-actions.ts  # Toggle modules par guilde
+│       │   ├── ocre-actions.ts    # Ocre exchange + trade requests
 │       │   ├── songes/         # Gestion des runs Songes
-│       │   ├── profile-actions.ts # Sync succès OCR
+│       │   ├── changelog-actions.ts  # NEW — CRUD Changelog + Visibility Check
+│       │   ├── user-actions.ts       # RBAC, Guards & Context Management
 │       │   └── ...
 │       ├── songes-service.ts   # Service embeds Discord Songes
 │       └── discord.ts          # Discord API integration
-├── services/
-│   └── discord-bot/            # Bot Discord standalone (TypeScript)
-├── prisma/
-│   ├── schema.prisma           # Schéma DB
-│   └── migrations/             # Historique migrations
-├── scripts/
-│   ├── deploy.sh               # Déploiement Beta/Prod
-│   ├── backup_db.sh            # Backup DB → Cloudflare R2
-│   ├── maintenance.sh          # Cleanup Docker quotidien
-│   └── check-hardening.sh      # Audit sécurité VPS
-├── Dockerfile                  # Build Next.js standalone
-├── docker-compose.prod.yml     # Stack complète (prod + beta + monitoring)
-└── Caddyfile                   # Reverse proxy + SSL
 ```
 
 ---
@@ -57,15 +79,15 @@ SigilOS/
 | **Framework** | Next.js 15 (App Router, Server Actions) |
 | **Auth** | NextAuth v5 (Discord OAuth) |
 | **DB** | PostgreSQL 15 + Prisma ORM |
-| **Cache/Queue** | Redis 7 |
+| **Cache/Queue** | Redis 7 + BullMQ (workers asynchrones) |
 | **Bot Discord** | discord.js v14 |
 | **Editor** | TipTap (rich text, slash commands, images) |
-| **UI** | Tailwind CSS + shadcn/ui + Recharts |
+| **UI** | Tailwind CSS + shadcn/ui + Recharts + framer-motion |
 | **Monitoring** | Grafana + Prometheus + cAdvisor |
 | **Deploy** | Docker Compose + Caddy (SSL auto) |
-| **CI/CD** | GitHub Actions (verify.yml) |
+| **CI/CD** | GitHub Actions (verify.yml) + Husky (Prisma guard) |
 | **Backups** | Cloudflare R2 (GPG encrypted, daily 3h UTC) |
-| **OCR** | OCR.space API (Engine 2, succès ladder) |
+| **OCR** | OCR.space API (Ladder) / LLM-OCR for complex proofs |
 
 ---
 
@@ -73,207 +95,188 @@ SigilOS/
 
 | Branche | Rôle |
 |---------|------|
-| `main` | 🔴 Production (`sigilos.fr`) |
-| `dev` | 🟠 Beta (`beta.sigilos.fr`) |
-| `feat/*` / `fix/*` | Branches de travail → PR vers `dev` |
-
-**Branche courante** : `feat/guild-modules`
+| `main` | 🔴 Production (`sigilos.fr`) — **SYNC** |
+| `dev` | 🟠 Beta (`beta.sigilos.fr`) — **SYNC** |
+| `bug-fixes-modif` | 👨‍💻 Branche courante — Préparation RELEASE |
 
 ---
 
 ## ✅ Historique des Sessions (Complètes)
 
 ### Phase 9 — GOD Dashboard & Core (2026-02-12 à 2026-02-16)
+... (Sessions previous unchanged) ...
 
-#### GOD Dashboard & Guild Engine
-- ✅ **Unified Management**: Fusion Whitelist + Guildes Actives dans un "Guild Engine" unique
-- ✅ **Contextual Actions**: Dropdown intelligent selon statut guilde (Whitelisted vs Onboarded)
-- ✅ **Whitelist Modal**: Action maître pour autoriser nouvelles guildes via ID Discord
-- ✅ **LifecyclePanel Actions**: Réactiver/Hard delete guildes & profils (RGPD compliant)
-  - `reactivateGuild`, `hardDeleteGuild`, `reactivateProfile`, `hardDeleteProfile`
-  - Toutes vérifiées par `isSuperAdmin()`
-- ✅ **Bug Fixes**: Countdown négatif (scheduledDeletion null), NaN stats, bulk actions retirées
+### Session — Harmonisation Calendrier & Inscriptions (2026-02-18)
 
-#### Discord Platform Integration
-- ✅ **Interactions API**: Refonte complète `api/discord/interactions/route.ts`
-- ✅ **Dev Portal**: Support Type 1 (PONG) pour validation URL portail développeur
-- ✅ **Songes Modals**: Bouton "Postuler" → Modal Discord pour saisie classe/message
-- ✅ **Rate Limiting**: Protection in-memory (10/min boutons, 5/5min modals)
-
-#### Infrastructure & CI/CD
-- ✅ **Docker Volumes Isolation**: `uploads-prod-data` et `uploads-beta-data` séparés
-- ✅ **Maintenance Script**: Cleanup Docker agressif (image prune -a, builder prune -a)
-- ✅ **check-hardening.sh**: Script audit VPS one-liner
-- ✅ **CI Optimization**: Merge verify + build → -65% CI minutes
-- ✅ **Seeding Infrastructure**: esbuild bundling, Prisma Driver Adapter, ID Mapping dynamique
+- ✅ **UI Harmonization**: Refonte complète des modales (Calendrier, Inscriptions, Discord) pour un look "Premium" aligné sur le module Missions.
+- ✅ **Draggable Modals**: Implémentation du drag-and-drop sur toutes les modales via `framer-motion` (DialogContent modifié).
+- ✅ **`CalendarDiscordDialog`**: Nouveau composant unifié pour les rappels et partages Discord (Ping @everyone, @role, @none).
+- ✅ **Bug Fixes**: Correction du z-index des boutons de fermeture et visibilité des icônes de type d'événement.
+- ✅ **TypeScript**: Correction de types dans `EventDetailModal` (`creator.id` vs `creatorId`).
 
 ---
 
-### Session — Security Audit & Hardening (2026-02-15)
+### Session — Audit Complet & Corrections Critiques (2026-02-20)
 
-- ✅ **Guild Isolation Fix** (`super-admin-actions.ts`): `isGuildAllowed()` vérifie maintenant `isActive` dans `GuildConfig`. Les guildes soft-deleted bloquent l'accès dashboard.
-- ✅ **GOD UI Clarification**: Distinction claire Whitelist (Permission) vs Active Guilds (Status)
-- ✅ **Tooltips Status**: Badges avec explications dans GuildTable (Active/Inactive/Supprimée)
-- ✅ **Score Sécurité VPS**: 9.6/10
-- ✅ **RBAC complet routes API**: audit-logs, migrate-krala, seed-grolandais, server-config, active-bonus, sync
-- ✅ **Logs d'audit Admin**: visible dans `/admin/logs`, rétention 30j (missions, bonus, isolation guilde)
-- ✅ **Validation Zod**: changelog-actions, presentation-actions, toutes actions critiques
+- ✅ **Audit Sécurité** : SEC-02 (port Redis fermé), SEC-03 (`unsafe-eval` retiré CSP), SEC-04 (cookie beta signé HMAC + httpOnly + `BETA_PASSWORD` server-only)
+- ✅ **Performance** : PERF-01 — N+1 éliminé dans `getActivityLadder` (raw SQL aggregation au lieu de submissions inline)
+- ✅ **Bugs Fix** : FUNC-01 (`isAdmin` boolean coercion x6), FUNC-07 (`@@unique` Submission + P2002 guard + migration Prisma)
+- ✅ **Résilience** : FAIL-02 (MetaMob API timeout 10s + erreur `API_UNAVAILABLE`), FAIL-03 (OCR non-issue, déjà désactivé)
+- ✅ **Maintenance Auto** : FUNC-02 (purge notifications >30j) + FUNC-03 (expiration OcreTradeRequest >7j) via BullMQ repeatable job quotidien (4h AM)
 
 ---
 
-### Session — Fixing Documentation Access (2026-02-15 à 2026-02-16)
+### Session — Correctifs Beta, Game Data & VPS (2026-02-21)
 
-- ✅ **RBAC Docs Fix**: Synchronisation IDs Discord (Snowflake) pour accès documentation
-- ✅ **Infinite Loading Fix**: Résolution boucle infinie dans DocViewer/TopNav
-
----
-
-### Session — Fixing Image Uploads (2026-02-16)
-
-**Root cause**: Tous les points d'entrée images utilisaient `FileReader.readAsDataURL()` → base64 dans HTML → DB gonflée, images cassées à la publication.
-
-- ✅ **`uploadImageFile()` helper** (`src/components/editor/utils/image-upload.ts`): POST vers `/api/upload` → URL persistante (`/uploads/docs/uuid.webp`)
-- ✅ **Toolbar 🖼️** (`advanced-editor.tsx`): Migré vers helper
-- ✅ **Slash `/image`** (`slash-command.tsx`): Migré vers helper
-- ✅ **Copy-paste / Drag** (`handlePaste` + `handleDrop`): Nouveaux handlers ajoutés
-- ✅ **Caddyfile Fix**: Suppression bloc interceptant `/uploads/*` → Next.js sert les fichiers directement
-- ✅ **Standardisation dossiers**: `uploads/proofs` unifié dans `mission-actions.ts` et `profile-actions.ts`
+- ✅ **Bug Fixes (Dungeon Finder)** : Ajout des champs requis `expiresAt` et `userId` manquants pour la création et la jonction de posts DJ.
+- ✅ **Bug Fixes (Game Data Import)** : Remplacement de l'upsert par `slug` au lieu de `name` sur les challenges, résolvant un conflit de contrainte d'unicité.
+- ✅ **Bug Fixes (CI Action)** : Ajout d'un bypass TypeScript pour la CI GitHub sur le type généré unique `name_bossName` des donjons.
+- ✅ **Infrastructure (VPS)** : Configuration des limites de ressources Docker (Memory/Disk) et auto-updates.
+- ✅ **Infra** : Migration env var `NEXT_PUBLIC_BETA_PASSWORD` → `BETA_PASSWORD` (Dockerfile + docker-compose.prod.yml)
 
 ---
 
-### Session — Fixing VPS Deployment (2026-02-16)
+### Session — BullMQ Worker MetaMob Ocre (2026-02-19)
 
-- ✅ **Git Stash Conflict**: Résolution conflit `git pull` sur VPS bloquant le déploiement
-- ✅ **Date Serialization**: Standardisation sérialisation dates (fix crash Dashboard Beta)
-- ✅ **Deploy Script**: `./scripts/deploy.sh beta` fonctionnel
-
----
-
-### Session — Fixing Changelog Bugs (2026-02-17 à 2026-02-18)
-
-#### Bugs Corrigés
-| Bug | Fix |
-|-----|-----|
-| Scroll bloqué | Suppression `overflow-hidden` sur `html`/`body` dans `globals.css` |
-| Non-membres voient tout | Champ `isInternal` en DB + filtre auth dans la page publique |
-| Contenu technique visible | Log technique caché pour utilisateurs non-authentifiés |
-| Summary non HTML | `dangerouslySetInnerHTML` (output TipTap) |
-| Images pas sauvegardées | Migration vers `uploadImageFile()` helper (base64 → URL persistante) |
-
-#### Nouvelles Fonctionnalités Changelog
-- ✅ **`isInternal` flag**: Entrées internes masquées pour non-membres
-- ✅ **Toggle admin**: Switch dans l'UI d'édition pour marquer une entrée comme interne
-- ✅ **Summary optionnel**: Champ `summary` rendu nullable en DB (migration appliquée)
-- ✅ **Sidebar scroll**: `overflow-y-auto` sur la sidebar documentation
+- ✅ **Infrastructure BullMQ** : Queue `metamob-queue.ts` dans `src/lib/queue/`. Worker dédié `src/workers/metamob-worker.ts` — processus entièrement indépendant du runtime Next.js.
+- ✅ **`npm run worker`** : Nouveau script dans `package.json`. En dev, lancer en parallèle de `npm run dev`. Worker inclus dans le build Docker via `esbuild`.
+- ✅ **Async Ocre Exchange** : `findOcreExchangePartners` transformé en action asynchrone (dispatch job → retourne `jobId`). `getOcreExchangeJobStatus` pour le polling frontend toutes les 1.5s with progress bar.
+- ✅ **VPS Production** : Deux nouveaux containers indépendants `worker-beta` et `worker-prod` dans `docker-compose.prod.yml`. `deploy.sh` mis à jour pour redémarrer les workers automatiquement.
 
 ---
 
-### Session — Fix URLs Embeds Discord (2026-02-18)
+### Session — Fix Redis Auth & Prisma P2022 + Validator Inbox (2026-02-20)
 
-**Root cause**: `NEXT_PUBLIC_*` dans Next.js sont "baked in" au build, pas au runtime. La variable n'était pas passée comme `ARG` Docker → toujours `sigilos.fr` même sur Beta.
-
-- ✅ **`getAppBaseUrl()` helper** (`src/lib/utils.ts`): Centralise la logique URL (priorité: `NEXT_PUBLIC_APP_URL` → `NEXTAUTH_URL` → fallback prod)
-- ✅ **Dockerfile**: `ARG NEXT_PUBLIC_APP_URL` + `ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL`
-- ✅ **docker-compose.prod.yml**:
-  - `app-prod`: `NEXT_PUBLIC_APP_URL=https://sigilos.fr`
-  - `app-beta`: `NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr`
-- ✅ **Metadata Next.js** (`layout.tsx`): `metadataBase` utilise `NEXT_PUBLIC_APP_URL`
-- ✅ **Songes embeds**: `dashboardUrl` utilise `getAppBaseUrl()` (songes-service.ts + dream-run-actions.ts)
+- ✅ **Fix Redis Auth** : `NOAUTH Authentication required` — instruction de supprimer les guillemets autour de `REDIS_PASSWORD` dans `.env`.
+- ✅ **Fix Prisma P2022** : Drift entre client Prisma du conteneur et la DB réelle — fix via rebuild complet `./scripts/deploy.sh beta`.
+- ✅ **Fix Dashboard Crash** : `TypeError` sur `pseudoDofus` d'un profil non chargé — garde `if (!profile) return null` dans `page.tsx`.
+- ✅ **Validator Inbox Flottant** : Widget persistant dans le layout (header top-right) affichant les missions et achievements en attente de validation.
 
 ---
 
-### Session — Toggle Modules par Guilde + UX Admin (2026-02-18)
+### Session — Sondages PIM & Discord Embed Overhaul (2026-02-19)
 
-- ✅ **`GuildModule` model** (Prisma): Table `guild_modules` avec `moduleId`, `guildId`, `isEnabled`
-- ✅ **`module-types.ts`**: Config centralisée des modules (MISSIONS, SONGES, LADDER, OCRE, CALENDAR, DOCS)
-- ✅ **`module-actions.ts`**: `toggleModule()` server action (admin only, guild isolation)
-- ✅ **Page `/admin/modules`**: UI toggle par module avec descriptions et statuts
-- ✅ **Sidebar masquée**: Les liens sidebar se masquent selon les modules actifs (`getActiveModules()`)
-- ✅ **Migrations**: `20260218083127_add_guild_modules` + `20260218085315_*` appliquées
+- ✅ **Système Micro (PIM)** : Exclusivité 1h par membre. Micro Status Bar avec compte à rebours live. Cooldown catégorie 7 jours.
+- ✅ **Admin Settings Sondages** : Onglet dédié dans `/admin/settings` pour configurer canal Discord + rôle de mention.
+- ✅ **Discord Embed Overhaul** : Bannières grand format, boutons de vote directs (jusqu'à 5), Gouvernance & Édition dynamique.
 
 ---
 
-### Session — Simplification Feedback OCR + Fix Auto-Validation Succès (2026-02-18)
+### Session — Dungeon Finder — Refonte UI & Embed Live (2026-02-25)
 
-#### Feedback UI simplifié
-- ✅ **`proof-upload-dialog.tsx`**: Suppression % confiance OCR, status pills, image debug, variables mortes (`ocrResult`, `isAutoValidated`, `safetyDebug`)
-- ✅ **`success-sync.tsx`**: Suppression badge "Confiance X%", bloc "VUE IA (DEBUG)", tip seuil 40%, toast verbeux → message simple "Votre capture est en cours de vérification par le staff."
-- ✅ **`achievement-validation-queue.tsx`**: Ajout `SubmissionCountdown`, boutons Valider/Rejeter compacts et alignés à droite
-
-#### Fix auto-validation OCR succès
-- ✅ **Bug root cause**: `shouldAutoValidate()` exigeait `isVictory = true` (keywords missions : "terminé", "validé"...) même pour les achievements → 100% confiance mais toujours envoyé en validation manuelle
-- ✅ **Fix `llm-ocr.ts`**: `shouldAutoValidate(result, context?)` — pour `context === 'achievement'`, bypass du check `isVictory`
-- ✅ **Fix `profile-actions.ts`**: Appel `shouldAutoValidate(ocrResult, 'achievement')`
-- ✅ **Seuil abaissé**: `OCR_AUTO_VALIDATE_THRESHOLD=40` (`.env` + `.env.example`) — score de base quand un nombre est détecté
+- ✅ **UI Gamifiée** : Onglets principaux avec pilule glissante fluide (`framer-motion layoutId`). Filtres Tous/Donjon/Quête avec même animation.
+- ✅ **Anti-layout-shift** : Conteneur fixe pour le bouton Reset (ne fait plus sauter les filtres à l'apparition).
+- ✅ **Date obligatoire** : Validation client + serveur à la création d'un post. Input `datetime-local` avec `min` à now et astérisque rouge.
+- ✅ **DjEditModal** (nouveau composant) : Modale de modification accessible uniquement au créateur du post. Champs : date, taille groupe, succès visés, classes requises, message. Donjon/Quête non modifiables.
+- ✅ **`updateDjPost`** : Server action sécurisée (propriétaire uniquement, post non fermé).
+- ✅ **Permissions claires** :
+  - Clôturer : bouton "Terminer" sur la carte (créateur uniquement → `DjCloseModal`)
+  - Modifier : bouton "Modifier" dans la modale de détail (créateur uniquement → `DjEditModal`)
+  - Supprimer : bouton "Supprimer" dans la modale (créateur + admin)
+- ✅ **Points contribution par niveau** : 1–99 → 1pt, 100–149 → 2pts, 150–199 → 3pts, 200+ → 4pts. Affiché dynamiquement dans `DjCloseModal`.
+- ✅ **Embed Discord — participants live** : Champ `👤 Membres (N/M)` mis à jour dynamiquement avec les noms des participants acceptés.
+- ✅ **`discordMessageId` sauvegardé** : Après envoi de l'embed initial, l'ID du message Discord est stocké en DB.
+- ✅ **PATCH embed auto** : `updateDiscordEmbed()` appelée (fire-and-forget) à chaque `internalJoinDjPost` / `internalLeaveDjPost` → l'embed Discord se met à jour en temps réel.
+- ✅ **Thumbnail donjon** : Guard `https://` — l'image n'est incluse que si l'URL est publiquement accessible (pas localhost).
+- ✅ **Pseudo display** : Priorité `discordNickname > pseudoDofus > dofusPseudo` dans toutes les vues.
 
 ---
 
-## 🔒 Sécurité
+### Session — Songes MAJ 3.5 + Guide Boss + Fix DJ (2026-02-26)
 
-### Patterns Obligatoires (Server Actions)
+- ✅ **Songes MAJ 3.5 — Fontaine Onirique** : Suppression de 5 anciens sorts, ajout de 8 nouveaux bonus, refonte UI inventaire avec catégories (Offensif/Défensif/Utilitaire/Spécial).
+- ✅ **Épreuves de Songe** : 4 épreuves avec difficulté, icône et description. Badge épreuve affiché dans RunCard, RunDetailHeader et embeds Discord. Masquage du badge objectif standard pour les runs épreuve.
+- ✅ **Guide des Boss** (nouveau composant `BossGuide.tsx`) : Modale centrée avec recherche parmi 144 boss. Fiche détaillée (difficulté étoiles, barres Focus/Esquive/Tank, panneaux Info/Mécaniques/Conseils colorés). Version courte, boss aléatoire, lien Dofensive. Data importée depuis Volcasaurus (YAML → JSON).
+- ✅ **Assets Boss** : 158 images + 9 icônes copiées dans `public/images/songes-bosses/`.
+- ✅ **Bypass Rate-Limit** : Variable `RATE_LIMIT_BYPASS_DISCORD_IDS` dans `.env` pour les devs/admins.
+- ✅ **Embeds Discord Songes** : Affichage de l'épreuve dans le titre + field dédié pour les runs épreuve.
+- ✅ **Dépurplisation UI** : Nettoyage massif du violet dans RunTree, RunDetailHeader, BossGuide. Palier IV rouge (#ef4444), accents ambre/doré pour le Guide Boss.
+- ✅ **Fix Palier IV** : Couleur violet → rouge. RunTree : labels paliers agrandis (text-sm), floor numbers plus lisibles.
+- ✅ **Fix DJ Discord Interactions** : Correction du lookup Discord snowflake → profil via `post.guildId`.
+- ✅ **Nettoyage branches** : `fix/dj-discord-interactions`, `fix/dj-discord-join`, `feat/songes-3.5` mergées dans dev et supprimées.
+- ✅ **Repo GitHub passé en public** : Minutes GitHub Actions illimitées.
+
+---
+
+### Session — Passages, Sondages V2 & Probation Badge (2026-02-27)
+
+- ✅ **UI Passages / Services** : Refonte de la page Passages avec onglets (Services, Prêts, Coffre de Guilde). Affichage de la disponibilité en direct (heatmap) sur les cartes de service.
+- ✅ **Formulaire Donjons / Combos** : Sélection multiple de succès sous forme d'icônes cliquables pour configurer des prix de packages.
+- ✅ **Module Prêts (Loans)** : Création de prêts avec date limite et captures d'écran. Système de retour et d'annulation automatique avec rétention sécurisée des preuves.
+- ✅ **Archivage et Hard Deletion** : Les prêts rendus/annulés passent dans un onglet "Archives". Tâche cron (`POST /api/cron/cleanup-proofs`) effectuant le hard delete passé 30 jours.
+- ✅ **Coffre de Guilde (Vault)** : Suivi des dépôts et retraits. Historique complet filtrable et triable. Item Icons via DofusDB.
+- ✅ **Statistiques Guilde — Passages & Coffre** : KPIs complets sur `/stats`.
+- ✅ **Refonte Welcome Embed (Premium)** : Embed Discord riche avec séparation des pings, thumbnail avatar, bannière de guilde.
+- ✅ **Gestion Manuelle des Membres** : Modification du `pseudoDofus` par les admins avec Audit Log. Tri par date d'arrivée (`asc`/`desc`).
+- ✅ **Badge "Nouveau" Profil** : Badge émeraude pulsant lié dynamiquement au rôle `probation` défini par l'admin (PIM-ready).
+- ✅ **Refonte Sondages Discord (Premium)** : Progress bars `🟩`/`⬜`, % et décompte de votes en temps réel. Patch auto de l'embed.
+- ✅ **UI Poll Creator** : Remplacement du sélecteur d'expiration par une grille compacte (fin de la scrollbar native).
+- ✅ **Gestion Membres V2** : Affichage discret et premium de l'expiration probation sur le profil.
+
+---
+
+### Session — Restauration Beta, Drift PRISMA & RBAC Strict (2026-02-27)
+
+- ✅ **Drift Prisma & Hook Git** : Correction du décalage (Drift) entre le schéma Prisma local et la DB sur Beta. Ajout d'un script `.husky/pre-commit` pour empêcher un commit si `schema.prisma` est modifié sans fichier de migration associé.
+- ✅ **Scripts & PRA** : Création de `scripts/reset-beta.sh` (purge totale des données user + backup auto DB, tout en gardant intacts l'infra de jeu comme les donjons). Création de workflows documentés (`/disaster-recovery` sur R2 et `/prisma-schema-change`).
+- ✅ **Sécurité RBAC Stricte** : Suppression des passes-droits par défaut sur le Dashboard, page Bienvenue, et Docs. Redirection sur `AccessDenied` si le rôle Discord mappé n'a pas explicitement le droit. Ajout des guards server-side (`canViewDashboard`, `canViewWelcome`).
+- ✅ **Permissions Manager** : Ajout d'une barre de recherche intelligente multi-critères temps-réel (recherche par nom de droit, description ou rôle assigné) dans l'admin.
+- ✅ **Nav Admin** : Refonte visuelle de la sidebar Admin (hiérarchie `Centre Admin` suivie d'une liste unifiée `[ADM] ...` avec marqueur coloré `rose`).
+- ✅ **Clean Repository** : Suppression des branches obsolètes (`docs/audit-roadmap`, `feat/module-services`).
+
+---
+
+### Session — Changelog V2, UI Profil & Audit Sécurité (2026-02-28)
+
+- ✅ **Changelog V2 (Premium)** : Implémentation du modèle `ChangelogEntry` avec flag `isInternal`. Système de popup automatique sur le Dashboard via `lastSeenChangelogId` (User model).
+- ✅ **Profile Modal UI Fix** : Refonte du composant `ClassDisplay`. Remplacement de `ScrollArea` par `overflow-y-auto` + `flex-1 min-h-0` pour garantir un défilement parfait même sur petits écrans (iPhone SE/Android).
+- ✅ **Audit Sécurité Applicative** : Revue complète des Server Actions. Validation des guards `auth()`, `guildId` isolation et protection du dashboard GOD via super-admin check Discord ID.
+- ✅ **Prisma Hygiene** : Nettoyage des modèles Changelog redondants. Migration `20260228012544_cleanup` validée localement.
+- ✅ **Persistence Pseudos** : Merge branche `fix/profile-persistence-pseudos` — les Alts Dofus sont désormais persistants après refresh.
+
+---
+
+### Session — Game Data UI, God Panel & Bonus Guilde (2026-03-01)
+
+- ✅ **God Dashboard Refactor (Premium)** : Transition du tableau de bord Super Admin vers un Layout avec Navigation Verticale (Sidebar), organisé en catégories logiques (Vue Générale, Guildes & Onboarding, Infrastructure & Ops, Sécurité & Logs).
+- ✅ **Nettoyage Actions God** : Suppression des vieux boutons de dropdown (Roster/Audit Log) non fonctionnels.
+- ✅ **Module Guilde (Bonus Actifs)** : Développement de la `ActiveBonusBar` pour alerter les joueurs des buffs lancés sur Dofus (2h). Ajout de la double notification Discord 🟢 "Bonus de Guilde Activé". Clarification de la règle "activation en jeu sous 24h par un membre".
+- ✅ **UI Game Data (Donjons)** : Refonte majeure de l'ajout/édition des donjons. Suppression du composant `MultiSelect` bloquant, remplacé par une somptueuse **grille visuelle interactive** pour la sélection des challenges (icônes).
+- ✅ **UI Game Data (Songes)** : Amélioration du formulaire d'édition des Bonus de Rêve pour inclure `<ImageDownloader type="item" />` (permet le télécargement depuis Doflex + gestion de la galerie locale), remplaçant l'ancien champ texte. Fix du z-index des menus Popover.
+
+---
+
+## 🔒 Sécurité & Standards
+
+### patterns Applicatifs (Server Actions)
 ```typescript
 const ctx = await getUserContext(guildId);
 if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 if (!ctx.isMember) return { success: false, error: "Not a member" };
-if (!ctx.isAdmin) return { success: false, error: "Admin required" }; // mutations admin
+if (!ctx.isAdmin) return { success: false, error: "Admin required" };
 ```
 
-### Isolation Multi-tenant
-```typescript
-// TOUJOURS filtrer par guildId
-await db.entity.findMany({ where: { guildId: guildConfig.id, ...otherFilters } });
-```
-
-### Patterns Interdits
-```typescript
-// ❌ JAMAIS
-dangerouslySetInnerHTML  // (sauf contenu sanitizé TipTap)
-eval()
-$queryRaw()
-process.env.SECRET  // dans un composant client
-fetch without try/catch
-```
+### Protection Multi-Tenant
+Toute requête DB **doit** inclure un filtre par `guildId` ou `profileId` vérifié en amont.
 
 ---
 
 ## 🏗️ Infrastructure VPS
 
-### Environnements
 | Env | URL | Branche | Container |
 |-----|-----|---------|-----------|
-| **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` |
-| **Prod** | `sigilos.fr` | `main` | `sigilos-prod` |
+| **Beta** | `beta.sigilos.fr` | `dev` | `sigilos-beta` + `worker-beta` |
+| **Prod** | `sigilos.fr` | `main` | `sigilos-prod` + `worker-prod` |
 | **Monitoring** | `monitor.sigilos.fr` | — | Grafana |
 
-### Commandes Clés VPS
+**Démarrage local** :
 ```bash
-# Déploiement
-./scripts/deploy.sh beta    # Deploy branche dev → beta
-./scripts/deploy.sh prod    # Deploy branche main → prod
-
-# Logs
-docker logs sigilos-beta --tail 100
-docker logs sigilos-beta --tail 100 | grep uploads  # Debug images
-
-# Migrations manuelles (si nécessaire)
-sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx prisma migrate deploy
+docker compose up -d db redis
+npm run dev       # Terminal 1 — Next.js
+npm run worker    # Terminal 2 — BullMQ Worker
 ```
 
-### Cron Jobs
-```bash
-0 3 * * *  backup_db.sh     # Backup DB → R2 (4h Paris)
-0 4 * * *  maintenance.sh   # Docker cleanup (5h Paris)
-```
-
-### Sécurité VPS (Score: 9.6/10)
-| Composant | Status |
-|-----------|--------|
-| SSH | ✅ Port 2222, Root disabled, Keys only |
-| Firewall | ✅ UFW (2222, 80, 443) |
-| Fail2Ban | ✅ Anti-bruteforce actif |
-| Auto-Updates | ✅ unattended-upgrades |
-| Backups | ✅ R2 + GPG, daily 3h UTC |
-| Monitoring | ✅ Grafana + Prometheus + cAdvisor |
+**Assets jeu** : Les images de donjons sont dans `public/game-data/dungeons/*.webp`. Pour les synchro sur beta : `./scripts/sync-assets.sh`. Nécessaire pour que les thumbnails Discord fonctionnent en beta/prod.
 
 ---
 
@@ -282,70 +285,42 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 ### ✅ Fonctionnels (Production-Ready)
 - Auth Discord (OAuth, sessions, NextAuth v5)
 - Dashboard guildes (missions, membres, profils)
-- Songes (runs, candidatures, embeds Discord)
-- Calendrier événements
+- Songes (runs, candidatures, embeds Discord, historique par membre)
+- Calendrier événements (Modales Premium, Draggable)
 - Documentation (viewer + éditeur TipTap)
-- Changelog (public + admin, isInternal flag)
-- GOD Dashboard (whitelist, lifecycle, stats)
+- GOD Dashboard (whitelist, lifecycle, stats, game data ultra-wide)
 - Upload images (docs, preuves missions, bannières)
-- Notifications in-app
-- Ocre / Metamob integration
+- Notifications in-app (Glassmorphism, Couverture missions, filtres par catégorie)
+- Ocre / MetaMob integration (BullMQ async, progress bar)
 - Toggle modules par guilde (`/admin/modules`)
 - Logs d'audit Admin (`/admin/logs`)
 - OCR Succès Ladder (OCR.space, auto-validation corrigée)
-
-### 🟡 Partiellement Fonctionnel
-- Sidebar masquage modules → **pushé, en attente de merge**
-
-### ❌ Manquant (Non-bloquant Beta)
-- Discord webhooks auto-sync (guildCreate/Delete/MemberRemove)
-- Historique runs Songes par membre
-- Upload MIME validation complète + strip EXIF
+- Stats Guilde (40+ métriques, Recharts, dashboard complet)
+- **Changelog V2** : Popup automatique pour informer les users des updates.
+- **Profil Utilisateur** : Sélection de classe fixe, pseudos persistants.
+- **Dungeon Finder / Finder Quêtes** : Multi-membres, embeds Discord live.
+- **Songes MAJ 3.5** : Guide Boss complet, Fontaine Onirique, Épreuves.
+- **Sondages Premium** : PIM compatible, Progress bars Discord.
+- **Passages & Prêts** : Gestion des preuves par capture d'écran, archivage auto.
+- **Onboarding Premium** : Embeds de bienvenue stylisés guilde-par-guilde.
 
 ---
 
 ## 📋 TODO Prioritaire (Backlog)
 
-### 🔴 P0 — Bloquants Beta
-- [x] ~~Fix Changelog : images chargent pas pour l'externe~~ ✅ Confirmé OK
-- [x] Merger `feat/guild-modules` → `dev` → déployer VPS
+### 🔴 P0 — Critiques
+- [ ] Merge `bug-fixes-modif` -> `dev` et deploy VPS Beta.
+- [ ] Vérifier les pings Discord sur le nouveau module Prêts (Loans).
 
-### ⚡ P1 — Stabilité & Sécurité
-- [ ] RBAC futurs modules (guard à chaque nouvelle route)
-- [ ] Upload: validation MIME complète + strip EXIF
+### 🎯 P2 — Features Core
+- [ ] Système d'échange Ocre interne (Trade Request Link).
 
-### 🎯 P2 — UX & Features Core
-- [ ] Notif rappel Discord pour inscrits d'une run Songes
-- [ ] Raccourcir embed candidature Songes (trop verbeux)
-- [ ] Vérifier auto-suppression runs inactives
-- [ ] Supprimer embed Discord si run close
-- [ ] Historique runs par membre
-- [ ] Refonte UI documentation
+### 🎨 P3 — Polish UI/UX
+- [ ] Dark Mode Harmonization (certains fonds God Dashboard encore trop clairs).
+- [ ] Micro-interactions Recharts sur les stats guilde.
 
----
-
-## 🔑 Variables d'Environnement Critiques
-
-| Variable | Rôle | Note |
-|----------|------|------|
-| `NEXT_PUBLIC_APP_URL` | URL de base app | **DOIT être passée comme build ARG Docker** |
-| `NEXTAUTH_URL` | URL callback auth | Doit matcher l'env (beta vs prod) |
-| `NEXTAUTH_SECRET` | Secret sessions | Différent beta/prod |
-| `DISCORD_CLIENT_ID/SECRET` | OAuth Discord | |
-| `DISCORD_BOT_TOKEN` | Bot Discord | |
-| `DATABASE_URL` | PostgreSQL | |
-| `REDIS_URL` | Redis | |
-| `NEXT_PUBLIC_BETA_PASSWORD` | Gate beta | Build ARG Docker |
-| `OCR_SPACE_API_KEY` | OCR succès ladder | Clé OCR.space |
-| `OCR_AUTO_VALIDATE_THRESHOLD` | Seuil auto-validation OCR | **40** (défaut 70 trop haut) |
-
-> ⚠️ **`NEXT_PUBLIC_*` sont baked-in au build Docker.** Ils DOIVENT être passés comme `args:` dans `docker-compose.prod.yml` et déclarés comme `ARG` dans le `Dockerfile`.
-
----
-
-## 📚 Références
-
-- [RULES.md](./RULES.md) — Standards de code
-- [SECURITY.md](./SECURITY.md) — Politique sécurité
-- [src/todo.md](./src/todo.md) — Backlog priorisé complet
-- [README.md](./README.md) — Vue d'ensemble projet
+### 🚀 P4 — Scripts, Worker & Nouveaux Modules
+- [ ] Plan B Discord API down (retry + queue)
+- [ ] Calcul Ladder CRON (quand > 5000 membres)
+- [ ] Pagination membres/missions (quand > 500 entrées)
+- [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)

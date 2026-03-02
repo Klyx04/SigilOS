@@ -113,6 +113,30 @@ async function main() {
             }
         }
 
+        // 4. Poll Cleanup (Storage Management)
+        const pollCutoff = new Date();
+        pollCutoff.setFullYear(pollCutoff.getFullYear() - 1); // 1 year retention
+
+        const oldPolls = await db.poll.findMany({
+            where: {
+                status: { in: ["CLOSED", "CANCELLED"] },
+                closedAt: { lt: pollCutoff }
+            },
+            select: { id: true, title: true }
+        });
+
+        console.log(`[Polls] Found ${oldPolls.length} legacy polls (closed/cancelled > 1 year).`);
+        if (oldPolls.length > 0) {
+            if (isDryRun) {
+                oldPolls.forEach(p => console.log(`  [DRY] Would delete legacy poll: ${p.title} (${p.id})`));
+            } else {
+                const result = await db.poll.deleteMany({
+                    where: { id: { in: oldPolls.map(p => p.id) } }
+                });
+                console.log(`  [DEL] Successfully archived/deleted ${result.count} legacy polls.`);
+            }
+        }
+
         console.log('--------------------------------------------------');
         console.log(`✨ Janitor finished! ${isDryRun ? 'Dry run complete.' : 'Maintenance executed successfully.'}`);
     } catch (error) {

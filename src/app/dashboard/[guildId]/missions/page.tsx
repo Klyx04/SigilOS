@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
+import { MissionsErrorState } from "@/components/missions/missions-error-state";
 import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 
@@ -47,12 +48,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
             return <AccessDenied />;
         }
 
-        return (
-            <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-xl border border-red-500/20">
-                <p className="font-semibold">Erreur de chargement des missions</p>
-                <p className="text-sm opacity-80">{response.error}</p>
-            </div>
-        );
+        return <MissionsErrorState error={response.error || "Une erreur inconnue est survenue."} />;
     }
 
     const missions = response.data || [];

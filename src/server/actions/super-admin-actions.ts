@@ -191,27 +191,23 @@ export async function getPlatformStats() {
  * This replaces the ALLOWED_GUILD_IDS env check
  */
 export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
+    // Parallel fetch for better performance
+    const [ban, allowed, config] = await Promise.all([
+        db.platformBan.findUnique({ where: { discordId: discordGuildId } }),
+        db.allowedGuild.findUnique({ where: { discordGuildId } }),
+        db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { isActive: true }
+        })
+    ]);
+
     // 1. Check Platform Bans (Highest Priority)
-    const ban = await db.platformBan.findUnique({
-        where: { discordId: discordGuildId }
-    });
     if (ban && ban.entityType === "GUILD") return false;
 
-    // 2. Check if guild is in the AllowedGuild whitelist (managed via GOD dashboard)
-    const allowed = await db.allowedGuild.findUnique({
-        where: { discordGuildId }
-    });
-
-    // If not whitelisted or whitelist is inactive, block
+    // 2. Check if guild is in the AllowedGuild whitelist
     if (!allowed || !allowed.isActive) return false;
 
-    // 3. Check if guild config exists and is active (onboarding status)
-    const config = await db.guildConfig.findUnique({
-        where: { discordGuildId },
-        select: { isActive: true }
-    });
-
-    // If config exists, it MUST be active to allow access
+    // 3. If config exists, it MUST be active
     if (config && !config.isActive) return false;
 
     return true;

@@ -12,6 +12,7 @@ import { AltPseudos } from "./alt-pseudos";
 import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
+import { IntroductionCard } from "./introduction-card";
 import { DreamRunHistory } from "./dream-run-history";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
@@ -47,6 +48,8 @@ interface ProfileBentoGridProps {
             songes?: boolean;
             events?: boolean;
             ladder?: boolean;
+            polls?: boolean;
+            admin_validations?: boolean;
         } | null;
         pendingSubmission?: {
             id: string;
@@ -54,6 +57,9 @@ interface ProfileBentoGridProps {
             ocrScore: number;
             createdAt: Date;
         } | null;
+        roleGrants?: any[];
+        introduction?: string | null;
+        showPresence?: boolean;
     };
     user: {
         name?: string | null;
@@ -72,11 +78,20 @@ interface ProfileBentoGridProps {
     };
     guildId: string;
     discordNickname?: string | null;
-    roleColor?: number;
     readOnly?: boolean;
     isAdmin?: boolean;
+    permissions?: {
+        canViewArchis?: boolean;
+        canViewSonges?: boolean;
+        canViewLadder?: boolean;
+        canViewMissions?: boolean;
+    };
     guildName?: string;
     dofusServerId?: string | null;
+    roleName?: string;
+    roleColor?: number;
+    welcomeBadgeName?: string | null;
+    isSuperAdmin?: boolean;
 }
 
 export function ProfileBentoGrid({
@@ -85,16 +100,23 @@ export function ProfileBentoGrid({
     stats,
     guildId,
     discordNickname,
-    roleColor = 0,
     readOnly = false,
     isAdmin = false,
+    permissions = {},
     guildName,
     dofusServerId,
+    roleName = "Membre",
+    roleColor = 0,
+    welcomeBadgeName,
+    isSuperAdmin = false,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
     const initialTab = searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Default permissions to true if not provided (internal consistency)
+    const { canViewArchis = true, canViewSonges = true, canViewLadder = true, canViewMissions = true } = permissions;
 
     // Sync state if URL param changes (optional but good for UX)
     useEffect(() => {
@@ -111,6 +133,11 @@ export function ProfileBentoGrid({
     const isUpcoming = Boolean(startDate && startDate > now);
     const isOnVacation = Boolean(startDate && startDate <= now && (!endDate || endDate >= now));
 
+    // canEdit logic: Normal users can only edit if NOT readOnly. 
+    // SuperAdmins can ALWAYS edit (God Mode).
+    const canEdit = !readOnly || isSuperAdmin;
+    const targetUserId = isSuperAdmin ? profile.userId : undefined;
+
     // Handlers
     const handleClassSave = async (mainClass: string, secondaryClasses: string[], pseudo: string) => {
         setLocalProfile(prev => ({
@@ -124,7 +151,8 @@ export function ProfileBentoGrid({
             guildId,
             classe: mainClass,
             classeSecondaires: secondaryClasses,
-            pseudoDofus: pseudo
+            pseudoDofus: pseudo,
+            targetUserId
         });
 
         if (res.success) {
@@ -139,6 +167,7 @@ export function ProfileBentoGrid({
         const res = await updateUserProfile({
             guildId,
             metiers: jobs,
+            targetUserId
         });
         if (res.success) {
             toast.success("Métiers mis à jour");
@@ -149,7 +178,7 @@ export function ProfileBentoGrid({
 
     const handleForgemagieStatusSave = async (status: ForgemagieStatusId) => {
         setLocalProfile(prev => ({ ...prev, forgemagieStatus: status }));
-        const res = await updateForgemagieStatus({ guildId, status });
+        const res = await updateForgemagieStatus({ guildId, status, targetUserId });
         if (res.success) {
             toast.success("Statut Forgemagie mis à jour");
         } else {
@@ -169,7 +198,8 @@ export function ProfileBentoGrid({
             guildId,
             fmPriceClassic: prices.classic,
             fmPriceTrans: prices.trans,
-            fmPriceExo: prices.exo
+            fmPriceExo: prices.exo,
+            targetUserId
         });
 
         if (res.success) {
@@ -181,7 +211,7 @@ export function ProfileBentoGrid({
 
     const handleAvailabilitySave = async (availability: GlobalAvailability) => {
         setLocalProfile(prev => ({ ...prev, availability: availability as any }));
-        const res = await updateAvailability({ guildId, availability });
+        const res = await updateAvailability({ guildId, availability, targetUserId });
         if (res.success) {
             toast.success("Disponibilités mises à jour");
         } else {
@@ -201,6 +231,7 @@ export function ProfileBentoGrid({
             vacationStart: data.start?.toISOString() ?? null,
             vacationEnd: data.noEndDate ? null : (data.end?.toISOString() ?? null),
             vacationNotify: data.notify,
+            targetUserId
         });
         if (res.success) {
             toast.success("Mode vacances mis à jour");
@@ -210,9 +241,21 @@ export function ProfileBentoGrid({
     };
 
     const handleAltPseudosSave = async (altPseudos: string[]) => {
-        setLocalProfile(prev => ({ ...prev, altPseudos }));
-        const res = await updateAltPseudos({ guildId, altPseudos });
-        if (!res.success) {
+        const res = await updateAltPseudos({ guildId, altPseudos, targetUserId });
+        if (res.success) {
+            setLocalProfile(prev => ({ ...prev, altPseudos }));
+        } else {
+            toast.error(res.error || "Erreur lors de la sauvegarde");
+            throw new Error(res.error); // Allow component to handle error
+        }
+    };
+
+    const handlePresenceToggle = async (enabled: boolean) => {
+        setLocalProfile(prev => ({ ...prev, showPresence: enabled }));
+        const res = await updateUserProfile({ guildId, showPresence: enabled, targetUserId });
+        if (res.success) {
+            toast.success(enabled ? "Visibilité de l'activité activée" : "Visibilité de l'activité désactivée");
+        } else {
             toast.error(res.error || "Erreur");
         }
     };
@@ -246,15 +289,20 @@ export function ProfileBentoGrid({
                     weeklyXp={stats.weeklyXp}
                     missionsValidated={stats.missionsValidated}
                     weeklyMissions={stats.weeklyMissions}
-                    isAdmin={isAdmin}
+                    canViewMissions={permissions.canViewMissions}
+                    canViewLadder={canViewLadder}
                     guildName={guildName}
+                    sigilRoles={localProfile.roleGrants || []}
+                    discordRoleName={roleName}
+                    discordRoleColor={roleColor}
+                    welcomeBadgeName={welcomeBadgeName}
                 />
             </div>
 
             {/* Tabs Navigation */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
+                    <TabsList className="bg-zinc-900/60 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full text-zinc-400">
                         <TabsTrigger
                             value="overview"
                             className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
@@ -262,10 +310,16 @@ export function ProfileBentoGrid({
                             Général
                         </TabsTrigger>
                         <TabsTrigger
+                            value="intro"
+                            className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
+                        >
+                            Ma Présentation
+                        </TabsTrigger>
+                        <TabsTrigger
                             value="combat"
                             className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
                         >
-                            Stuffs et Autres Pseudos
+                            Stuffs et Autres Personnages
                         </TabsTrigger>
                         <TabsTrigger
                             value="planning"
@@ -273,25 +327,31 @@ export function ProfileBentoGrid({
                         >
                             Planning
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="achievements"
-                            className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
-                        >
-                            Succès
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="songes"
-                            className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
-                        >
-                            Songes
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="settings"
-                            className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Paramètres
-                        </TabsTrigger>
+                        {canViewLadder && (
+                            <TabsTrigger
+                                value="achievements"
+                                className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                            >
+                                Succès
+                            </TabsTrigger>
+                        )}
+                        {canViewSonges && (
+                            <TabsTrigger
+                                value="songes"
+                                className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
+                            >
+                                Songes
+                            </TabsTrigger>
+                        )}
+                        {canEdit && (
+                            <TabsTrigger
+                                value="settings"
+                                className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
+                            >
+                                <Settings className="w-4 h-4" />
+                                Paramètres
+                            </TabsTrigger>
+                        )}
                     </TabsList>
                 </div>
 
@@ -305,18 +365,21 @@ export function ProfileBentoGrid({
                                 mainClass={localProfile.classe}
                                 secondaryClasses={localProfile.classeSecondaires || []}
                                 onSave={handleClassSave}
-                                readOnly={readOnly}
+                                readOnly={!canEdit}
                             />
 
                             {/* Metamob */}
-                            <MetamobLink
-                                guildId={guildId}
-                                metamobPseudo={profile.metamobPseudo}
-                                metamobVerified={profile.metamobVerified}
-                                metamobLastSync={profile.metamobLastSync}
-                                readOnly={readOnly}
-                                isAdmin={isAdmin}
-                            />
+                            {canViewArchis && (
+                                <MetamobLink
+                                    guildId={guildId}
+                                    metamobPseudo={profile.metamobPseudo}
+                                    metamobVerified={profile.metamobVerified}
+                                    metamobLastSync={profile.metamobLastSync}
+                                    readOnly={!canEdit}
+                                    isAdmin={isAdmin}
+                                    targetUserId={targetUserId}
+                                />
+                            )}
 
 
                         </div>
@@ -332,9 +395,21 @@ export function ProfileBentoGrid({
                             onSaveJobs={handleJobsSave}
                             onSaveForgemagieStatus={handleForgemagieStatusSave}
                             onSaveForgemagiePrices={handleForgemagiePricesSave}
-                            readOnly={readOnly}
+                            readOnly={!canEdit}
                         />
                     </div>
+                </TabsContent>
+
+                {/* INTRODUCTION TAB */}
+                <TabsContent value="intro" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <IntroductionCard
+                        introduction={localProfile.introduction || ""}
+                        onSave={(text: string) => setLocalProfile(prev => ({ ...prev, introduction: text }))}
+                        readOnly={!canEdit}
+                        guildId={guildId}
+                        displayName={displayName}
+                        targetUserId={targetUserId}
+                    />
                 </TabsContent>
 
                 {/* COMBAT TAB */}
@@ -344,15 +419,16 @@ export function ProfileBentoGrid({
                         <BuildsCard
                             links={localProfile.dofusBookLinks as any || []}
                             onSave={(links) => setLocalProfile(prev => ({ ...prev, dofusBookLinks: links }))}
-                            readOnly={readOnly}
+                            readOnly={!canEdit}
                             guildId={guildId}
+                            targetUserId={targetUserId}
                         />
 
                         {/* Alt Pseudos */}
                         <AltPseudos
                             altPseudos={localProfile.altPseudos || []}
                             onSave={handleAltPseudosSave}
-                            readOnly={readOnly}
+                            readOnly={!canEdit}
                         />
                     </div>
                 </TabsContent>
@@ -364,7 +440,7 @@ export function ProfileBentoGrid({
                             <AvailabilityHeatmap
                                 availability={localProfile.availability || {}}
                                 onSave={handleAvailabilitySave}
-                                readOnly={readOnly}
+                                readOnly={!canEdit}
                                 vacationStart={localProfile.vacationStart}
                                 vacationEnd={localProfile.vacationEnd}
                             />
@@ -375,7 +451,7 @@ export function ProfileBentoGrid({
                                 vacationEnd={localProfile.vacationEnd}
                                 vacationNotify={localProfile.vacationNotify}
                                 onSave={handleVacationSave}
-                                readOnly={readOnly}
+                                readOnly={!canEdit}
                                 guildId={guildId}
                                 pseudo={displayName}
                                 profileId={profile.id}
@@ -391,7 +467,7 @@ export function ProfileBentoGrid({
                         dofusServerId={dofusServerId}
                         successPoints={localProfile.successPoints}
                         lastUpdate={localProfile.lastLadderUpdate}
-                        readOnly={readOnly}
+                        readOnly={!canEdit}
                         onTabChange={setActiveTab}
                         onSuccess={(points) => {
                             setLocalProfile(prev => ({
@@ -408,6 +484,7 @@ export function ProfileBentoGrid({
                                 pendingSubmission: null
                             }));
                         }}
+                        targetUserId={targetUserId}
                     />
                 </TabsContent>
 
@@ -417,15 +494,21 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SETTINGS TAB */}
-                <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <UserSettings
-                        guildId={guildId}
-                        guildName={guildName || "la guilde"}
-                        profileId={profile.id}
-                        notificationPrefs={localProfile.notificationPrefs}
-                        onNotificationPrefsSave={handleNotificationPrefsSave}
-                    />
-                </TabsContent>
+                {canEdit && (
+                    <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <UserSettings
+                            guildId={guildId}
+                            guildName={guildName || "la guilde"}
+                            profileId={profile.id}
+                            notificationPrefs={localProfile.notificationPrefs as any}
+                            onNotificationPrefsSave={handleNotificationPrefsSave}
+                            showPresence={localProfile.showPresence ?? true}
+                            onPresenceToggle={handlePresenceToggle}
+                            isAdmin={isAdmin}
+                            targetUserId={targetUserId}
+                        />
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );

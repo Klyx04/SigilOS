@@ -17,8 +17,16 @@ export type ModuleKey =
     | "donjons"
     | "profile"
     | "docs"
+    | "polls"
     // Admin
-    | "logs";
+    | "logs"
+    | "admin"
+    // Coming Soon
+    | "quests"
+    | "worldmap"
+    | "resources"
+    // Nouveau
+    | "chat";
 
 export type GuildModulesState = {
     // Général
@@ -38,6 +46,14 @@ export type GuildModulesState = {
     docs: boolean;
     // Admin
     logs: boolean;
+    polls: boolean;
+    admin: boolean;
+    // Coming Soon
+    quests: boolean;
+    worldmap: boolean;
+    resources: boolean;
+    // Nouveau
+    chat: boolean;
 };
 
 export const DEFAULT_MODULES: GuildModulesState = {
@@ -53,5 +69,11 @@ export const DEFAULT_MODULES: GuildModulesState = {
     donjons: true,
     profile: true,
     docs: true,
-    logs: true,
+    logs: false,
+    polls: true,
+    admin: true,
+    quests: false,
+    worldmap: false,
+    resources: false,
+    chat: false,
 };

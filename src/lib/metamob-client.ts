@@ -177,6 +177,7 @@ const ZoneSchema = z.object({
     subzones: z.array(z.object({
         id: z.number(),
         name: LocalizedNameSchema,
+        monsters: z.array(z.any()).optional(),
     })).optional(),
 });
 
@@ -318,7 +319,10 @@ async function fetchApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
+            ...fetchOptions,
+            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+        });
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
@@ -367,7 +371,9 @@ async function fetchApi<T>(
             console.error("[Metamob] Schema validation failed:", error.errors);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        throw error;
+        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        console.error("[Metamob] Network error:", error);
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
     }
 }
 
@@ -399,7 +405,10 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
+        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
+            ...fetchOptions,
+            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+        });
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {
@@ -446,7 +455,9 @@ async function fetchPaginatedApi<T>(
         return { data: items, pagination };
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        throw new MetamobApiError("API_ERROR", "Erreur lors de la récupération des données paginées");
+        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        console.error("[Metamob] Network error (paginated):", error);
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
     }
 }
 
@@ -469,22 +480,47 @@ export async function getUserQuests(username: string, options?: FetchOptions): P
     return result.data;
 }
 
-export async function getQuestDetails(
-    username: string,
-    slug: string,
-    options?: FetchOptions & { limit?: number; offset?: number; status?: string; step?: number }
-): Promise<QuestDetails> {
+export async function getQuestDetails(username: string, slug: string, options?: FetchOptions & { status?: string; offset?: number; limit?: number; skipCache?: boolean }): Promise<QuestDetails> {
     const params = new URLSearchParams();
+    if (options?.status) params.set("status", options.status);
     if (options?.limit) params.set("limit", options.limit.toString());
     if (options?.offset) params.set("offset", options.offset.toString());
-    if (options?.status) params.set("status", options.status);
+    const query = params.toString() ? `?${params}` : '';
+
+    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${query}`, QuestDetailsSchema, options);
+}
+
+export async function getQuestZones(slug: string, options?: FetchOptions): Promise<z.infer<typeof ZoneSchema>[]> {
+    const response = await fetchApi(`/v1/quests/${encodeURIComponent(slug)}/zones`, z.array(ZoneSchema), options);
+    return response as any;
+}
+
+export async function getQuestTemplateMonsters(templateId: number, options?: FetchOptions & { step?: number; offset?: number; limit?: number; skipCache?: boolean }): Promise<QuestMonster[]> {
+    const params = new URLSearchParams();
+    params.set("limit", "200");
+    if (options?.offset) params.set("offset", options.offset.toString());
     if (options?.step) params.set("step", options.step.toString());
-    const qs = params.toString();
+    const endpoint = `/v1/quest-templates/${templateId}?${params}`;
+
+    const result = await fetchApi(endpoint, QuestTemplateDetailsSchema, options);
+
+    let allMonsters = [...result.monsters];
+    let offset = allMonsters.length;
+
+    while (allMonsters.length < result.pagination.total) {
+        params.set("offset", offset.toString());
+        const more = await fetchApi(`/v1/quest-templates/${templateId}?${params}`, QuestTemplateDetailsSchema, options);
+        if (more.monsters.length === 0) break;
+        allMonsters = [...allMonsters, ...more.monsters];
+        offset += more.monsters.length;
+    }
+
+    return allMonsters;
+}
+
+export async function getPrivateQuestDetails(username: string, slug: string, options?: FetchOptions & { limit?: number; offset?: number; status?: string; step?: number }): Promise<QuestDetails> {
     try {
-        return await fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`, QuestDetailsSchema, {
-            ...options,
-            tags: [`metamob-user-${username.toLowerCase()}`]
-        });
+        return await getQuestDetails(username, slug, options);
     } catch (error) {
         // If getting user-specific quest fails with INVALID_API_KEY, it might actually be a private profile
         // because we don't know if the key is valid yet.
@@ -495,10 +531,6 @@ export async function getQuestDetails(
         }
         throw error;
     }
-}
-
-export async function getPrivateQuestDetails(username: string, slug: string, options?: FetchOptions & { limit?: number; offset?: number; status?: string; step?: number }): Promise<QuestDetails> {
-    return getQuestDetails(username, slug, options);
 }
 
 export async function getQuestMatches(
@@ -521,28 +553,6 @@ export async function getQuestMatches(
 export async function getQuestTemplates(options?: FetchOptions): Promise<QuestTemplate[]> {
     const result = await fetchPaginatedApi(`/v1/quest-templates`, QuestTemplateSchema, options);
     return result.data;
-}
-
-export async function getQuestTemplateMonsters(templateId: number, options?: FetchOptions): Promise<QuestMonster[]> {
-    const params = new URLSearchParams();
-    params.set("limit", "200");
-    if (options?.offset) params.set("offset", options.offset.toString());
-    const endpoint = `/v1/quest-templates/${templateId}?${params}`;
-
-    const result = await fetchApi(endpoint, QuestTemplateDetailsSchema, options);
-
-    let allMonsters = [...result.monsters];
-    let offset = allMonsters.length;
-
-    while (allMonsters.length < result.pagination.total) {
-        params.set("offset", offset.toString());
-        const more = await fetchApi(`/v1/quest-templates/${templateId}?${params}`, QuestTemplateDetailsSchema, options);
-        if (more.monsters.length === 0) break;
-        allMonsters = [...allMonsters, ...more.monsters];
-        offset += more.monsters.length;
-    }
-
-    return allMonsters;
 }
 
 export async function getMonsters(options?: FetchOptions & { q?: string; type?: number; limit?: number; offset?: number }): Promise<{ monsters: Monster[]; pagination: z.infer<typeof PaginationSchema> }> {
@@ -601,6 +611,62 @@ export async function getKralamoureEventDetails(eventId: number, options?: Fetch
         character_count: result.character_count ?? 0,
         messages_count: result.messages_count ?? 0,
     };
+}
+
+export async function updateMonsterQuantity(
+    username: string,
+    questSlug: string,
+    monsterId: number,
+    quantity: number,
+    options: FetchOptions & { guildApiKey: string }
+): Promise<void> {
+    if (!options.guildApiKey) {
+        throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise pour modifier les quantités.");
+    }
+    // We use the bulk endpoint because the single-monster endpoint throws a 404
+    // if the user doesn't own any of this monster yet. The bulk endpoint handles upserts.
+    const payload = {
+        monsters: [
+            {
+                monster_id: monsterId,
+                quantity: quantity
+            }
+        ]
+    };
+
+    const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${options.guildApiKey}`
+    };
+
+    const endpoint = `/v1/quests/${encodeURIComponent(questSlug)}/monsters`;
+
+    try {
+        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé. Vérifiez votre clé API personnelle.");
+            }
+            if (response.status === 404) {
+                throw new MetamobApiError("NOT_FOUND", "Monstre introuvable dans cette quête.");
+            }
+            if (response.status === 429) {
+                throw new MetamobApiError("RATE_LIMIT", "Trop de requêtes. Veuillez patienter.");
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour du monstre`);
+        }
+
+        // Success: 204 No Content usually, or 200 OK
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour du monstre");
+    }
 }
 
 export async function getServers(options?: FetchOptions): Promise<Server[]> {
@@ -729,6 +795,8 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         ? (monster.image.startsWith('http') ? monster.image : `https://www.metamob.fr/img/monsters/${monster.image}`)
         : "";
 
+    const zoneName = (monster as any).zones?.[0]?.name?.fr || undefined;
+
     return {
         id: monster.monster_id ?? m.monster?.id ?? monster.reference?.id ?? monster.id,
         name: monster.name.fr,
@@ -743,6 +811,7 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         owned,
         status: monster.status ?? 0,
         state: computeMonsterState(owned, pq),
+        zone: zoneName,
     };
 }
 

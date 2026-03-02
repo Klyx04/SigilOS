@@ -1,144 +1,130 @@
 export const PERMISSIONS = {
-    // Admin Core
-    ADMIN_ACCESS: "admin:access", // Access to dashboard/admin
+    // Admin & Core
+    ADMIN_ACCESS: "admin:access",
+    DASHBOARD_VIEW: "dashboard:view",
+    STATS_VIEW: "stats:view",
 
-    // Missions
+    // Members & Profiles
+    PROFILE_VIEW: "profile:view",
+    PROFILE_VIEW_ALL: "profile:view_all", // Full guild roster
+    MEMBER_MANAGE: "admin:member_manage", // Lifecycle (Archive, Ban)
+
+    // Missions & Bonus
     MISSIONS_VIEW: "missions:view",
-    MISSIONS_CREATE: "missions:create", // Gérer les missions (création/édition)
-    MISSIONS_VALIDATE: "missions:validate", // Validate submissions
-    BONUS_MANAGE: "missions:bonus_manage", // Gérer les bonus de guilde
+    MISSIONS_CREATE: "missions:create",
+    MISSIONS_VALIDATE: "missions:validate",
+    BONUS_MANAGE: "missions:bonus_manage",
 
-    // User Profile
-    PROFILE_VIEW_ALL: "profile:view_all", // See full guild roster
-    MEMBER_MANAGE: "admin:member_manage", // Gérer le cycle de vie (Archive, Ban, Purge)
+    // Game Features
+    SONGES_VIEW: "songes:view",
+    SONGES_CREATE: "songes:create",
+    SONGES_JOIN: "songes:join",
+    ARCHIS_VIEW: "archis:view",
+    LADDER_VIEW: "ladder:view",
+    FINDER_VIEW: "donjons:view",
+    SERVICES_VIEW: "services:view",
+    SERVICES_CREATE: "services:create",
+    POLLS_VIEW: "polls:view",
+    POLLS_MANAGE: "polls:manage",
 
-    // Archimonstres / Quête Ocre
-    ARCHIS_VIEW: "archis:view", // Accès à la Bourse aux Archis
+    // Guild Info & Presentation
+    PRESENTATION_VIEW: "presentation:view",
+    PRESENTATION_EDIT: "presentation:edit",
+    WELCOME_VIEW: "welcome:view",
+    DOCS_VIEW: "docs:view",
+    DOCS_VIEW_ADMIN: "docs:view_admin",
 
-    // Ladder / Classements
-    LADDER_VIEW: "ladder:view", // Accès aux classements de guilde
+    // Coming Soon Modules
+    QUESTS_VIEW: "quests:view",
+    QUESTS_MANAGE: "quests:manage",
+    WORLDMAP_VIEW: "worldmap:view",
+    WORLDMAP_MANAGE: "worldmap:manage",
+    RESOURCES_VIEW: "resources:view",
+    RESOURCES_MANAGE: "resources:manage",
 
-    // Songes Infinis
-    SONGES_VIEW: "songes:view", // Accès à la page Songes
-    SONGES_CREATE: "songes:create", // Créer une run
-    SONGES_JOIN: "songes:join", // Envoyer une demande pour rejoindre une run
+    // Calendar
+    CALENDAR_VIEW: "calendar:view",
+    CALENDAR_MANAGE: "calendar:manage",
 
-    // Guild Presentation
-    PRESENTATION_EDIT: "presentation:edit", // Éditer la page de présentation publique
-
-    // Calendrier
-    CALENDAR_VIEW: "calendar:view", // Accès au calendrier
-    CALENDAR_MANAGE: "calendar:manage", // Créer/Editer/Supprimer des events
-
-    // Documentation
-    DOCS_VIEW_ADMIN: "docs:view_admin", // Voir les pages de doc Admin
+    // Chat
+    CHAT_VIEW: "chat:view",         // Lire + écrire dans le chat guilde
+    CHAT_MODERATE: "chat:moderate", // Muter des membres, vider l'historique
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-// Module categories for filtering
-export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "modules" | "calendar";
+export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "features" | "tools" | "info" | "calendar" | "chat";
 
 export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon: string; color: string }> = {
     admin: { label: "Administration", icon: "🛡️", color: "#f59e0b" },
     missions: { label: "Missions", icon: "📜", color: "#3b82f6" },
     profile: { label: "Profils", icon: "👤", color: "#ec4899" },
     songes: { label: "Songes Infinis", icon: "🌙", color: "#8b5cf6" },
+    features: { label: "Activités", icon: "🎮", color: "#10b981" },
+    tools: { label: "Outils", icon: "🧩", color: "#06b6d4" },
+    info: { label: "Information", icon: "📖", color: "#a855f7" },
     calendar: { label: "Calendrier", icon: "📅", color: "#10b981" },
-    modules: { label: "Autres Modules", icon: "🧩", color: "#10b981" },
+    chat: { label: "Chat Live", icon: "💬", color: "#6366f1" },
 };
 
-// Rich metadata for UI with module categories
 export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule }> = {
-    [PERMISSIONS.ADMIN_ACCESS]: {
-        label: "Accès Admin Complet",
-        description: "Accès total au tableau de bord d'administration et à toutes les configurations.",
-        module: "admin",
-    },
-    [PERMISSIONS.MISSIONS_VIEW]: {
-        label: "Voir les Missions",
-        description: "Permet de voir la liste des missions hebdomadaires.",
-        module: "missions",
-    },
-    [PERMISSIONS.MISSIONS_CREATE]: {
-        label: "Gérer les Missions",
-        description: "Créer et modifier les missions hebdomadaires.",
-        module: "missions",
-    },
-    [PERMISSIONS.MISSIONS_VALIDATE]: {
-        label: "Valider Preuves",
-        description: "Accepter ou refuser les screenshots soumis par les membres.",
-        module: "missions",
-    },
-    [PERMISSIONS.BONUS_MANAGE]: {
-        label: "Gérer les Bonus",
-        description: "Acheter et annuler des bonus de guilde (Oracle de Fortune, etc.).",
-        module: "missions",
-    },
-    [PERMISSIONS.PROFILE_VIEW_ALL]: {
-        label: "Voir l'Annuaire",
-        description: "Consulter la liste de tous les membres de la guilde.",
-        module: "profile",
-    },
-    [PERMISSIONS.MEMBER_MANAGE]: {
-        label: "Gérer les Membres",
-        description: "Archiver, bannir ou supprimer définitivement des membres.",
-        module: "admin",
-    },
-    [PERMISSIONS.ARCHIS_VIEW]: {
-        label: "Bourse aux Archis",
-        description: "Accès au module d'échange d'archimonstres (Quête Ocre).",
-        module: "modules",
-    },
-    [PERMISSIONS.LADDER_VIEW]: {
-        label: "Classements",
-        description: "Accès aux ladders de guilde (Activité, Ancienneté).",
-        module: "modules",
-    },
-    [PERMISSIONS.SONGES_VIEW]: {
-        label: "Songes Infinis",
-        description: "Accès à la page Songes Infinis et visualisation des runs.",
-        module: "songes",
-    },
-    [PERMISSIONS.SONGES_CREATE]: {
-        label: "Créer Runs Songes",
-        description: "Créer et gérer ses propres runs Songes Infinis.",
-        module: "songes",
-    },
-    [PERMISSIONS.SONGES_JOIN]: {
-        label: "Rejoindre Runs Songes",
-        description: "Envoyer des demandes pour rejoindre les runs d'autres joueurs.",
-        module: "songes",
-    },
-    [PERMISSIONS.PRESENTATION_EDIT]: {
-        label: "Éditer Présentation",
-        description: "Modifier la page de présentation publique de la guilde.",
-        module: "admin",
-    },
-    [PERMISSIONS.CALENDAR_VIEW]: {
-        label: "Voir le Calendrier",
-        description: "Consulter l'agenda de la guilde et s'inscrire aux événements.",
-        module: "calendar",
-    },
-    [PERMISSIONS.CALENDAR_MANAGE]: {
-        label: "Gérer le Calendrier",
-        description: "Créer, modifier et supprimer des événements dans l'agenda.",
-        module: "calendar",
-    },
-    [PERMISSIONS.DOCS_VIEW_ADMIN]: {
-        label: "Voir Documentation Admin",
-        description: "Permet de consulter les pages de documentation réservées à l'administration.",
-        module: "admin",
-    },
+    // Core & Access (Grouped in Info/Tools depending on use)
+    [PERMISSIONS.ADMIN_ACCESS]: { label: "Accès Admin Complet", description: "Accès total à l'administration.", module: "admin" },
+    [PERMISSIONS.DASHBOARD_VIEW]: { label: "Voir Dashboard", description: "Accès à l'accueil du dashboard.", module: "info" },
+    [PERMISSIONS.STATS_VIEW]: { label: "Voir Stats Guilde", description: "Accès aux statistiques globales.", module: "info" },
+
+    // Profiles
+    [PERMISSIONS.PROFILE_VIEW]: { label: "Voir Mon Profil", description: "S'autoriser à voir son propre profil.", module: "profile" },
+    [PERMISSIONS.PROFILE_VIEW_ALL]: { label: "Voir l'Annuaire", description: "Consulter la liste des membres.", module: "profile" },
+    [PERMISSIONS.MEMBER_MANAGE]: { label: "Gérer les Membres", description: "Archiver ou bannir des membres.", module: "admin" },
+
+    // Missions
+    [PERMISSIONS.MISSIONS_VIEW]: { label: "Voir les Missions", description: "Consulter les missions hebdo.", module: "missions" },
+    [PERMISSIONS.MISSIONS_CREATE]: { label: "Gérer les Missions", description: "Créer et modifier les missions.", module: "missions" },
+    [PERMISSIONS.MISSIONS_VALIDATE]: { label: "Valider Preuves", description: "Valider les screenshots soumis.", module: "missions" },
+    [PERMISSIONS.BONUS_MANAGE]: { label: "Gérer les Bonus", description: "Acheter des bonus de guilde.", module: "missions" },
+
+    // Game Features
+    [PERMISSIONS.SONGES_VIEW]: { label: "Songes Infinis", description: "Accès au module Songes.", module: "songes" },
+    [PERMISSIONS.SONGES_CREATE]: { label: "Créer Runs Songes", description: "Gérer ses propres runs.", module: "songes" },
+    [PERMISSIONS.SONGES_JOIN]: { label: "Rejoindre Runs Songes", description: "Demander à rejoindre une run.", module: "songes" },
+    [PERMISSIONS.ARCHIS_VIEW]: { label: "Bourse aux Archis", description: "Accès à l'échange d'archis.", module: "features" },
+    [PERMISSIONS.LADDER_VIEW]: { label: "Classements", description: "Accès aux ladders de guilde.", module: "features" },
+    [PERMISSIONS.FINDER_VIEW]: { label: "Donjons & Quêtes", description: "Accès au chercheur d'activités.", module: "tools" },
+    [PERMISSIONS.SERVICES_VIEW]: { label: "Services Guilde", description: "Accès à la marketplace.", module: "tools" },
+    [PERMISSIONS.SERVICES_CREATE]: { label: "Créer Services/Prêts/Coffre", description: "Publier des annonces, enregistrer des prêts et dépôts coffre.", module: "tools" },
+    [PERMISSIONS.POLLS_VIEW]: { label: "Voir Sondages", description: "Consulter et voter aux sondages.", module: "tools" },
+    [PERMISSIONS.POLLS_MANAGE]: { label: "Gérer Sondages", description: "Créer et modifier les sondages.", module: "admin" },
+
+    // Guild Info
+    [PERMISSIONS.PRESENTATION_VIEW]: { label: "Voir Présentation", description: "Accès à la page de guilde.", module: "info" },
+    [PERMISSIONS.PRESENTATION_EDIT]: { label: "Éditer Présentation", description: "Modifier la page publique.", module: "admin" },
+    [PERMISSIONS.WELCOME_VIEW]: { label: "Voir Bienvenue", description: "Accès au canal Bienvenue des nouveaux membres.", module: "info" },
+    [PERMISSIONS.DOCS_VIEW]: { label: "Voir Documentation", description: "Accès au Wiki public.", module: "info" },
+    [PERMISSIONS.DOCS_VIEW_ADMIN]: { label: "Voir Documentation Admin", description: "Accès au Wiki réservé.", module: "admin" },
+    [PERMISSIONS.RESOURCES_VIEW]: { label: "Voir Ressources", description: "Accès au hub des ressources Dofus.", module: "info" },
+    [PERMISSIONS.RESOURCES_MANAGE]: { label: "Gérer Ressources", description: "Gérer les ressources communautaires.", module: "admin" },
+
+    // Coming Soon Modules (placed in tools for now)
+    [PERMISSIONS.QUESTS_VIEW]: { label: "Voir Quêtes Dofus", description: "Suivre et trouver des partenaires de quêtes.", module: "tools" },
+    [PERMISSIONS.QUESTS_MANAGE]: { label: "Gérer Quêtes Dofus", description: "Gérer les arbres de progression.", module: "admin" },
+    [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir Carte & Mini-Jeux", description: "Accès à la carte du monde et jeux.", module: "tools" },
+    [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer Carte & Mini-Jeux", description: "Gérer les marqueurs de la carte.", module: "admin" },
+
+    // Calendar
+    [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },
+    [PERMISSIONS.CALENDAR_MANAGE]: { label: "Gérer le Calendrier", description: "Créer des événements.", module: "calendar" },
+
+    // Chat
+    [PERMISSIONS.CHAT_VIEW]: { label: "Accès Chat Live", description: "Lire et envoyer des messages dans le chat guilde.", module: "chat" },
+    [PERMISSIONS.CHAT_MODERATE]: { label: "Modérer le Chat", description: "Muter des membres et vider l'historique.", module: "chat" },
 };
 
-// Deprecated but kept for compatibility if needed (mapped to new structure)
 export const PERMISSION_LABELS: Record<PermissionId, string> =
     Object.fromEntries(
         Object.entries(PERMISSION_DETAILS).map(([k, v]) => [k, v.label])
     ) as Record<PermissionId, string>;
 
-// Helper to get permissions by module
 export function getPermissionsByModule(module: PermissionModule): PermissionId[] {
     return (Object.entries(PERMISSION_DETAILS) as [PermissionId, { module: PermissionModule }][])
         .filter(([, details]) => details.module === module)

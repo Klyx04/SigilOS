@@ -8,12 +8,13 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { motion } from "framer-motion";
 import {
     getDungeonsWithAchievements,
     createDungeon,
@@ -62,7 +63,7 @@ export default function DungeonManager() {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     // Form State
@@ -125,7 +126,7 @@ export default function DungeonManager() {
         if (result.success) {
             toast.success(editing ? "Donjon mis à jour" : "Donjon créé");
             resetForm();
-            setIsSheetOpen(false);
+            setIsDialogOpen(false);
             loadData();
         } else {
             toast.error(result.error || "Erreur");
@@ -172,15 +173,10 @@ export default function DungeonManager() {
             expeditionMechanics: dungeon.expeditionMechanics || "",
             challengeIds: dungeon.achievements.map(a => a.challengeId),
         });
-        setIsSheetOpen(true);
+        setIsDialogOpen(true);
     }
 
-    // Helper options for MultiSelect
-    const challengeOptions = challenges.map(c => ({
-        label: c.name,
-        value: c.id,
-        icon: c.iconUrl
-    }));
+
 
     const filteredDungeons = dungeons.filter(d =>
         d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -201,7 +197,7 @@ export default function DungeonManager() {
                     />
                 </div>
                 <Button
-                    onClick={() => { resetForm(); setIsSheetOpen(true); }}
+                    onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
@@ -320,141 +316,211 @@ export default function DungeonManager() {
                 </div>
             )}
 
-            {/* Form Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-slate-950 border-l-slate-800 p-0">
-                    <div className="p-6">
-                        <SheetHeader className="mb-6">
-                            <SheetTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                                {editing ? "✏️ Modifier le donjon" : "➕ Nouveau donjon"}
-                            </SheetTitle>
-                            <SheetDescription className="text-slate-400">
+            {/* Form Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent draggable className="w-[95vw] max-w-7xl max-h-[95vh] bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col">
+                    {/* Header Draggable Handle */}
+                    <div className="p-8 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
+                                <Plus className="w-8 h-8 text-indigo-500" />
+                                {editing ? "Modifier le donjon" : "Nouveau donjon"}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-lg">
                                 Configurez les détails du donjon, son boss et les succès associés.
-                            </SheetDescription>
-                        </SheetHeader>
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-4">Informations Principales</h4>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2 col-span-2">
-                                        <label className="text-sm font-medium text-slate-300">Nom du Donjon <span className="text-red-400">*</span></label>
-                                        <Input
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            required
-                                            placeholder="Ex: Antre du Kralamoure Géant"
-                                            className="bg-slate-900 border-slate-700"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Nom du Boss <span className="text-red-400">*</span></label>
-                                        <Input
-                                            value={formData.bossName}
-                                            onChange={(e) => setFormData({ ...formData, bossName: e.target.value })}
-                                            required
-                                            placeholder="Ex: Kralamoure Géant"
-                                            className="bg-slate-900 border-slate-700"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Niveau</label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            max="200"
-                                            value={formData.level}
-                                            onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 1 })}
-                                            className="bg-slate-900 border-slate-700"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 pt-4 border-t border-slate-800">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-4">Visuel</h4>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Illustration</label>
-                                    <ImageDownloader
-                                        imageUrl={formData.imageUrl}
-                                        type="dungeon"
-                                        identifier={formData.bossName || formData.name}
-                                        onImageDownloaded={(localPath) => setFormData({ ...formData, imageUrl: localPath })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 pt-4 border-t border-slate-800">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">Mode Expédition</h4>
-                                    <Switch
-                                        checked={formData.isExpedition}
-                                        onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
-                                    />
-                                </div>
-
-                                {formData.isExpedition && (
-                                    <div className="space-y-4 p-4 bg-indigo-950/20 rounded-lg border border-indigo-500/20 animate-in slide-in-from-top-2">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Modes Disponibles</label>
-                                            <MultiSelect
-                                                options={EXPEDITION_MODES}
-                                                selected={formData.expeditionModes}
-                                                onChange={(selected) => setFormData({ ...formData, expeditionModes: selected })}
-                                                placeholder="Choisir les modes..."
-                                                className="bg-slate-900 border-slate-700"
-                                            />
+                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                {/* Left Column: Core Info & Illustration */}
+                                <div className="lg:col-span-7 space-y-10">
+                                    <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
+                                        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-2">
+                                            <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Informations Principales</h3>
+                                            <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                                                <span className="text-sm font-bold text-slate-400 uppercase">Expédition</span>
+                                                <Switch
+                                                    checked={formData.isExpedition}
+                                                    onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
+                                                    className="data-[state=checked]:bg-indigo-600"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Mécaniques</label>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                            <div className="md:col-span-3 space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom du Donjon <span className="text-rose-500 text-lg">*</span></label>
+                                                <Input
+                                                    value={formData.name}
+                                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                    required
+                                                    placeholder="Ex: Antre du Kralamoure"
+                                                    className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Niveau <span className="text-rose-500 text-lg">*</span></label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type="number"
+                                                        value={formData.level}
+                                                        onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 1 })}
+                                                        required
+                                                        min={1}
+                                                        max={1000}
+                                                        className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 pl-14 font-black italic text-indigo-400 text-2xl transition-all rounded-2xl"
+                                                    />
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold select-none text-sm">Lvl</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom du Boss <span className="text-rose-500 text-lg">*</span></label>
                                             <Input
-                                                value={formData.expeditionMechanics}
-                                                onChange={(e) => setFormData({ ...formData, expeditionMechanics: e.target.value })}
-                                                placeholder="Détails spécifiques..."
-                                                className="bg-slate-900 border-slate-700"
+                                                value={formData.bossName}
+                                                onChange={(e) => setFormData({ ...formData, bossName: e.target.value })}
+                                                required
+                                                placeholder="Ex: Kralamoure Géant"
+                                                className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
                                             />
                                         </div>
                                     </div>
-                                )}
-                            </div>
 
-                            <div className="space-y-4 pt-4 border-t border-slate-800">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">Succès & Challenges</h4>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Challenges associés</label>
-                                    <MultiSelect
-                                        options={challengeOptions}
-                                        selected={formData.challengeIds}
-                                        onChange={(selected) => setFormData({ ...formData, challengeIds: selected })}
-                                        placeholder="Sélectionner les succès..."
-                                        className="bg-slate-900 border-slate-700"
-                                    />
-                                    <p className="text-xs text-slate-500">
-                                        Ces challenges seront proposés comme succès à valider pour ce donjon.
-                                    </p>
+                                    {/* Expedition Settings */}
+                                    {formData.isExpedition && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="space-y-8 p-8 bg-indigo-500/5 rounded-3xl border border-indigo-500/20 shadow-inner shadow-indigo-500/5"
+                                        >
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Modes Disponibles</label>
+                                                <MultiSelect
+                                                    options={EXPEDITION_MODES}
+                                                    selected={formData.expeditionModes}
+                                                    onChange={(selected) => setFormData({ ...formData, expeditionModes: selected })}
+                                                    placeholder="Choisir les modes..."
+                                                    className="bg-slate-950 border-slate-800 min-h-[50px] rounded-xl"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mécaniques</label>
+                                                <textarea
+                                                    value={formData.expeditionMechanics || ""}
+                                                    onChange={(e) => setFormData({ ...formData, expeditionMechanics: e.target.value })}
+                                                    placeholder="Détails spécifiques des mécaniques..."
+                                                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 resize-none min-h-[100px]"
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    <div className="bg-slate-950/50 p-8 rounded-3xl border border-slate-800 shadow-inner">
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-6">Illustration</h3>
+                                        <ImageDownloader
+                                            type="dungeon"
+                                            imageUrl={formData.imageUrl}
+                                            identifier={formData.name}
+                                            onImageDownloaded={(path) => setFormData({ ...formData, imageUrl: path })}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Success & Challenges */}
+                                <div className="lg:col-span-5 h-full">
+                                    <div className="h-full space-y-4 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50 flex flex-col">
+                                        <div className="border-b border-slate-800 pb-4">
+                                            <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Succès & Challenges</h3>
+                                            <p className="text-xs text-slate-500 mt-2 font-medium">
+                                                Assurez-vous qu'ils correspondent aux mécaniques du donjon.
+                                            </p>
+                                        </div>
+
+                                        <div className="flex-1 flex flex-col min-h-[500px]">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">
+                                                    Challenges Associés
+                                                </label>
+                                                <Badge variant="outline" className="bg-indigo-500/10 border-indigo-500/20 text-indigo-400">
+                                                    {formData.challengeIds.length} sélectionné(s)
+                                                </Badge>
+                                            </div>
+
+                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[500px]">
+                                                {challenges.map((challenge) => {
+                                                    const isSelected = formData.challengeIds.includes(challenge.id);
+                                                    return (
+                                                        <button
+                                                            key={challenge.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData((prev) => ({
+                                                                    ...prev,
+                                                                    challengeIds: isSelected
+                                                                        ? prev.challengeIds.filter((id) => id !== challenge.id)
+                                                                        : [...prev.challengeIds, challenge.id],
+                                                                }));
+                                                            }}
+                                                            className={`
+                                                                relative aspect-square rounded-xl p-2 border-2 transition-all group flex flex-col items-center justify-center gap-1
+                                                                ${isSelected
+                                                                    ? "border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                                                    : "border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800"
+                                                                }
+                                                            `}
+                                                            title={challenge.name}
+                                                        >
+                                                            {challenge.iconUrl ? (
+                                                                <img
+                                                                    src={challenge.iconUrl}
+                                                                    alt={challenge.name}
+                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-hover:scale-110"}`}
+                                                                />
+                                                            ) : (
+                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-indigo-400" : "text-slate-600"}`} />
+                                                            )}
+                                                            <span className="text-[9px] font-bold text-slate-400 text-center leading-tight line-clamp-2 w-full mt-1">
+                                                                {challenge.name}
+                                                            </span>
+
+                                                            {isSelected && (
+                                                                <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white rounded-full p-0.5 shadow-lg">
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-6 border-t border-slate-800 sticky bottom-0 bg-slate-950 pb-4">
-                                <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-                                    {editing ? "💾 Enregistrer les modifications" : "➕ Créer le donjon"}
+                            <div className="flex gap-4 pt-6 border-t border-slate-800 sticky bottom-0 bg-slate-950 py-4 shrink-0">
+                                <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-500 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer le Donjon"}
                                 </Button>
-                                {editing && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={resetForm}
-                                        className="border-slate-700 hover:bg-slate-800"
-                                    >
-                                        Annuler
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                >
+                                    Fermer
+                                </Button>
                             </div>
                         </form>
                     </div>
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
         </div >
     );
 }

@@ -5,18 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     getAdminZones,
     createZone,
     updateZone,
     deleteZone,
 } from "@/server/actions/game-data-admin-actions";
+import { getMonsterFamilies, getDungeons } from "@/server/actions/game-data-actions";
 import { MapPin, Trash2, Edit2, Plus, Search, MoreHorizontal } from "lucide-react";
 import {
     DropdownMenu,
@@ -24,34 +25,53 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { motion } from "framer-motion";
 
 interface Zone {
     id: string;
     name: string;
     level: number;
+    families?: { id: string; name: string }[];
+    dungeons?: { id: string; name: string }[];
 }
 
 export default function ZoneManager() {
     const [zones, setZones] = useState<Zone[]>([]);
+    const [families, setFamilies] = useState<{ id: string; name: string }[]>([]);
+    const [dungeons, setDungeons] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const [formData, setFormData] = useState({
         name: "",
         level: 200,
+        familyIds: [] as string[],
+        dungeonIds: [] as string[],
     });
 
     useEffect(() => {
-        loadZones();
+        loadData();
     }, []);
 
-    async function loadZones() {
+    async function loadData() {
         setLoading(true);
-        const result = await getAdminZones();
-        if (result.success && result.data) {
-            setZones(result.data);
+        const [zonesRes, familiesRes, dungeonsRes] = await Promise.all([
+            getAdminZones(),
+            getMonsterFamilies(),
+            getDungeons()
+        ]);
+
+        if (zonesRes.success && zonesRes.data) {
+            setZones(zonesRes.data);
+        }
+        if (familiesRes.success && familiesRes.data) {
+            setFamilies(familiesRes.data);
+        }
+        if (dungeonsRes.success && dungeonsRes.data) {
+            setDungeons(dungeonsRes.data);
         }
         setLoading(false);
     }
@@ -65,8 +85,8 @@ export default function ZoneManager() {
         if (result.success) {
             toast.success(editing ? "Zone mise à jour" : "Zone créée");
             resetForm();
-            setIsSheetOpen(false);
-            loadZones();
+            setIsDialogOpen(false);
+            loadData();
         } else {
             toast.error(result.error || "Erreur");
         }
@@ -77,12 +97,12 @@ export default function ZoneManager() {
         const result = await deleteZone(id);
         if (result.success) {
             toast.success("Zone supprimée");
-            loadZones();
+            loadData();
         }
     }
 
     function resetForm() {
-        setFormData({ name: "", level: 200 });
+        setFormData({ name: "", level: 200, familyIds: [], dungeonIds: [] });
         setEditing(null);
     }
 
@@ -91,8 +111,10 @@ export default function ZoneManager() {
         setFormData({
             name: zone.name,
             level: zone.level,
+            familyIds: zone.families?.map(f => f.id) || [],
+            dungeonIds: zone.dungeons?.map(d => d.id) || [],
         });
-        setIsSheetOpen(true);
+        setIsDialogOpen(true);
     }
 
     const filteredZones = zones.filter(z =>
@@ -113,7 +135,7 @@ export default function ZoneManager() {
                     />
                 </div>
                 <Button
-                    onClick={() => { resetForm(); setIsSheetOpen(true); }}
+                    onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
@@ -172,64 +194,102 @@ export default function ZoneManager() {
                 </div>
             )}
 
-            {/* Form Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="w-full sm:max-w-md bg-slate-950 border-l-slate-800 p-0">
-                    <div className="p-6 h-full flex flex-col">
-                        <SheetHeader className="mb-6">
-                            <SheetTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                                {editing ? "✏️ Modifier la zone" : "➕ Nouvelle zone"}
-                            </SheetTitle>
-                            <SheetDescription className="text-slate-400">
-                                Ajoutez ou modifiez une zone géographique.
-                            </SheetDescription>
-                        </SheetHeader>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent draggable className="w-[95vw] max-w-6xl bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col">
+                    {/* Header Draggable */}
+                    <div className="p-8 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
+                                <Plus className="w-8 h-8 text-indigo-500" />
+                                {editing ? "Modifier la zone" : "Nouvelle zone"}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-lg">
+                                Configurez les détails géographiques de la zone et son niveau recommandé.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Nom de la zone <span className="text-red-400">*</span></label>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        required
-                                        placeholder="Ex: Pandala"
-                                        className="bg-slate-900 border-slate-700"
-                                    />
+                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
+                            <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
+                                <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Informations de Zone</h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                    <div className="md:col-span-3 space-y-3">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom de la Zone <span className="text-rose-500 text-lg">*</span></label>
+                                        <Input
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            required
+                                            placeholder="Ex: Pandala, Frigost, Saharach..."
+                                            className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Niveau Max</label>
+                                        <div className="relative">
+                                            <Input
+                                                type="number"
+                                                value={formData.level || ""}
+                                                onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 0 })}
+                                                placeholder="200"
+                                                className="h-16 pl-12 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                            />
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Lvl</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Niveau de zone <span className="text-red-400">*</span></label>
-                                    <Input
-                                        type="number"
-                                        value={formData.level}
-                                        onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
-                                        required
-                                        min={1}
-                                        max={200}
-                                        className="bg-slate-900 border-slate-700"
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-800">
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Familles Associées</label>
+                                        <div className="flex-1 overflow-visible">
+                                            <MultiSelect
+                                                options={families.map(f => ({ label: f.name, value: f.id }))}
+                                                selected={formData.familyIds}
+                                                onChange={(val) => setFormData({ ...formData, familyIds: val })}
+                                                placeholder="Sélectionner les familles..."
+                                            />
+                                            <p className="mt-3 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                                Optionnel: lier des familles de monstres à cette zone.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Donjons Associés</label>
+                                        <div className="flex-1 overflow-visible">
+                                            <MultiSelect
+                                                options={dungeons.map(d => ({ label: d.name, value: d.id }))}
+                                                selected={formData.dungeonIds}
+                                                onChange={(val) => setFormData({ ...formData, dungeonIds: val })}
+                                                placeholder="Sélectionner les donjons..."
+                                            />
+                                            <p className="mt-3 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                                Optionnel: lier des boss de donjon à cette zone.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-6 mt-auto border-t border-slate-800">
-                                <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer"}
+                            <div className="flex gap-4 pt-6 border-t border-slate-800 shrink-0 sticky bottom-0 bg-slate-950 py-4">
+                                <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-700 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer la Zone"}
                                 </Button>
-                                {editing && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={resetForm}
-                                        className="border-slate-700 hover:bg-slate-800"
-                                    >
-                                        Annuler
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                >
+                                    Fermer
+                                </Button>
                             </div>
                         </form>
                     </div>
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
+
+
         </div>
     );
 }

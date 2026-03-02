@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
-import { type PermissionId } from "@/lib/permissions";
+import { type PermissionId, PERMISSIONS } from "@/lib/permissions";
 import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -343,6 +343,15 @@ export async function updateMetamobApiKey(
         // Update API key (trim and validate)
         const cleanKey = apiKey?.trim() || null;
 
+        if (cleanKey) {
+            if (cleanKey.length !== 64) {
+                return { success: false, error: "La clé API V2 doit contenir exactement 64 caractères" };
+            }
+            if (!/^[a-f0-9]+$/.test(cleanKey)) {
+                return { success: false, error: "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)" };
+            }
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { metamobApiKey: cleanKey }
@@ -352,6 +361,93 @@ export async function updateMetamobApiKey(
         return { success: true };
     } catch (error) {
         console.error("Update Metamob API Key Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
+// OCRE NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getOcreConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { ocreChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { ocreNotifyChannelId: true } as any
+        }) as any;
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { ocreChannelId: config.ocreNotifyChannelId } };
+    } catch (error) {
+        console.error("Get Ocre Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateOcreChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (!account) return { success: false, error: "No Discord account linked" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const guildInfo = await fetchGuild(guildId);
+        const member = await fetchGuildMember(guildId, account.providerAccountId);
+
+        if (!member) return { success: false, error: "Not a member of this guild" };
+
+        let isAdmin = guildInfo.owner_id === account.providerAccountId;
+
+        if (!isAdmin) {
+            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
+            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+        }
+
+        if (!isAdmin) {
+            return { success: false, error: "Permission refusée: Admin requis" };
+        }
+
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { ocreNotifyChannelId: channelId } as any
+        });
+
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Ocre Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -692,6 +788,8 @@ export async function getMissionConfig(guildId: string): Promise<{
     data?: {
         missionChannelId: string | null;
         missionNotifyRoleId: string | null;
+        missionValidationChannelId: string | null;
+        missionValidationNotifyRoleId: string | null;
     }
 }> {
     const session = await auth();
@@ -704,7 +802,7 @@ export async function getMissionConfig(guildId: string): Promise<{
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { missionNotifyChannelId: true, missionNotifyRoleId: true }
+            select: { missionNotifyChannelId: true, missionNotifyRoleId: true, missionValidationChannelId: true, missionValidationNotifyRoleId: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -713,7 +811,9 @@ export async function getMissionConfig(guildId: string): Promise<{
             success: true,
             data: {
                 missionChannelId: config.missionNotifyChannelId,
-                missionNotifyRoleId: config.missionNotifyRoleId
+                missionNotifyRoleId: config.missionNotifyRoleId,
+                missionValidationChannelId: config.missionValidationChannelId,
+                missionValidationNotifyRoleId: config.missionValidationNotifyRoleId
             }
         };
     } catch (error) {
@@ -724,7 +824,12 @@ export async function getMissionConfig(guildId: string): Promise<{
 
 export async function updateMissionNotifySettings(
     guildId: string,
-    data: { channelId: string | null; roleId: string | null }
+    data: {
+        channelId: string | null;
+        roleId: string | null;
+        validationChannelId?: string | null;
+        validationRoleId?: string | null;
+    }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -734,12 +839,16 @@ export async function updateMissionNotifySettings(
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
-        // SECURITY: Validate channel (if provided)
-        if (data.channelId) {
+        // SECURITY: Validate channels (if provided)
+        const channelsToValidate = [data.channelId, data.validationChannelId].filter(Boolean) as string[];
+
+        if (channelsToValidate.length > 0) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
-            const isValidChannel = await validateChannelBelongsToGuild(data.channelId, guildId);
-            if (!isValidChannel) {
-                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            for (const cId of channelsToValidate) {
+                const isValidChannel = await validateChannelBelongsToGuild(cId, guildId);
+                if (!isValidChannel) {
+                    return { success: false, error: `Le salon ${cId} n'appartient pas à votre serveur Discord` };
+                }
             }
         }
 
@@ -747,7 +856,9 @@ export async function updateMissionNotifySettings(
             where: { discordGuildId: guildId },
             data: {
                 missionNotifyChannelId: data.channelId,
-                missionNotifyRoleId: data.roleId
+                missionNotifyRoleId: data.roleId,
+                missionValidationChannelId: data.validationChannelId,
+                missionValidationNotifyRoleId: data.validationRoleId
             }
         });
 
@@ -756,5 +867,170 @@ export async function updateMissionNotifySettings(
     } catch (error) {
         console.error("Update Mission Settings Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
+// PERMISSION HELPERS
+// ============================================================================
+
+/**
+ * Find all users in a guild that have a specific permission based on their Discord roles
+ * and the guild's rolesMapping.
+ */
+export async function getGuildAdminsWithPermission(
+    discordGuildId: string,
+    permission: PermissionId
+): Promise<{ userId: string; discordId: string }[]> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true, rolesMapping: true, ownerId: true }
+        });
+
+        if (!guildConfig) return [];
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const rolesWithPermissionIds = Object.entries(rolesMapping)
+            .filter(([_, perms]) => perms.includes(permission))
+            .map(([roleId, _]) => roleId);
+
+        // We only have Role Names in UserProfile, so we need to map IDs to Names
+        const { fetchGuildRoles } = await import("@/server/discord");
+        const allDiscordRoles = await fetchGuildRoles(discordGuildId);
+        const rolesWithPermissionNames = allDiscordRoles
+            .filter(r => rolesWithPermissionIds.includes(r.id))
+            .map(r => r.name);
+
+        const ownerId = guildConfig.ownerId;
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                OR: [
+                    { discordRoleName: { in: rolesWithPermissionNames } },
+                    ...(ownerId ? [{ user: { accounts: { some: { providerAccountId: ownerId } } } }] : [])
+                ]
+            },
+            include: {
+                user: {
+                    include: {
+                        accounts: {
+                            where: { provider: "discord" }
+                        }
+                    }
+                }
+            }
+        });
+
+        return profiles.map(p => ({
+            userId: p.userId,
+            discordId: p.user.accounts[0]?.providerAccountId || "unknown"
+        }));
+    } catch (error) {
+        console.error("[Permissions] getGuildAdminsWithPermission error:", error);
+        return [];
+    }
+}
+
+// ============================================================================
+// LOANS & VAULT NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getLoansConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { loansNotifyChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { loansNotifyChannelId: true } as Record<string, true>
+        }) as { loansNotifyChannelId?: string | null } | null;
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return { success: true, data: { loansNotifyChannelId: config.loansNotifyChannelId ?? null } };
+    } catch (error) {
+        console.error("Get Loans Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateLoansChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { loansNotifyChannelId: channelId } as Record<string, string | null>
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Loans Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getPendingValidationsCount(guildId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { checkGuildPermission } = await import("./user-actions");
+    const [missionGuard, adminGuard] = await Promise.all([
+        checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE),
+        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS),
+    ]);
+
+    if (!missionGuard.allowed && !adminGuard.allowed) {
+        return { success: false, error: "Forbidden" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+
+        if (!guild) return { success: false, error: "Guild not found" };
+
+        const [pendingMissions, pendingAchievements] = await Promise.all([
+            missionGuard.allowed
+                ? db.submission.count({ where: { mission: { guildId: guild.id }, status: "PENDING" } })
+                : 0,
+            adminGuard.allowed
+                ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } })
+                : 0,
+        ]);
+
+        return {
+            success: true,
+            data: {
+                pendingMissions,
+                pendingAchievements,
+                total: pendingMissions + pendingAchievements
+            }
+        };
+    } catch (error) {
+        return { success: false, error: "Server error" };
     }
 }

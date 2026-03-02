@@ -10,10 +10,16 @@ export default async function LegalLayout({
     children: React.ReactNode;
 }) {
     const session = await auth();
+    const { getUserContext } = await import("@/server/actions/user-actions");
+    const userContext = await getUserContext();
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-400 font-sans selection:bg-purple-500/30 flex flex-col">
-            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" />
+        <div className="min-h-screen bg-zinc-950 text-zinc-400 font-sans selection:bg-accent-teal/30 flex flex-col landing-theme overflow-hidden relative">
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+            </div>
+            <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" isMember={userContext.isMember} />
 
             <div className="flex-1 max-w-4xl mx-auto w-full p-6 pt-32 pb-32 space-y-12">
                 <UnifiedModuleHeader
@@ -27,7 +33,7 @@ export default async function LegalLayout({
                 </div>
             </div>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={userContext.isMember} />
         </div>
     );
 }

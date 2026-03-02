@@ -8,10 +8,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before optimization
 const IMAGE_SIZES = {
     monster: 512,      // Monsters: 512px max
     achievement: 256,  // Achievements: 256px max (icons)
-    dungeon: 512       // Dungeons: 512px max
+    dungeon: 512,      // Dungeons: 512px max
+    item: 256          // Items/Bonuses: 256px max
 };
 
-type ImageType = "monster" | "achievement" | "dungeon";
+type ImageType = "monster" | "achievement" | "dungeon" | "item";
 
 export async function downloadExternalImage(
     url: string,

@@ -21,44 +21,17 @@ export function GuildDirectorySection({ guilds }: { guilds: GuildTeaser[] }) {
     const featuredGuilds = guilds.slice(0, 3);
 
     return (
-        <section className="py-24 px-6 relative overflow-hidden">
+        <div className="w-full relative">
             {/* Background Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="max-w-7xl mx-auto flex flex-col items-center">
-                <div className="text-center mb-16 space-y-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400"
-                    >
-                        Réseau SigilOS
-                    </motion.div>
-                    <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.1 }}
-                        className="text-3xl md:text-5xl font-black text-white"
-                    >
-                        Plus qu&apos;un outil, un <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">Écosystème</span>
-                    </motion.h2>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.2 }}
-                        className="text-zinc-400 max-w-2xl mx-auto"
-                    >
-                        Découvrez les guildes qui propulsent leur organisation au niveau supérieur. Rejoignez le réseau des communautés d&apos;élite.
-                    </motion.p>
-                </div>
+            <div className="flex flex-col items-center">
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+                <div className="flex flex-wrap justify-center gap-8 w-full">
                     {featuredGuilds.map((guild, idx) => (
                         <motion.div
                             key={guild.id}
+                            className="w-full md:w-[calc(33.333%-1.5rem)] max-w-sm"
                             initial={{ opacity: 0, scale: 0.9, y: 30 }}
                             whileInView={{ opacity: 1, scale: 1, y: 0 }}
                             viewport={{ once: true }}
@@ -117,6 +90,6 @@ export function GuildDirectorySection({ guilds }: { guilds: GuildTeaser[] }) {
                     </Button>
                 </motion.div>
             </div>
-        </section>
+        </div>
     );
 }

@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import 'dotenv/config';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -12,7 +13,8 @@ const cleanEnv = (val: string | undefined) => {
 
 // URL construction logic
 const getConnectionString = () => {
-    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+    // If DATABASE_URL is provided, use it directly as the primary source of truth
+    if (process.env.DATABASE_URL) {
         return cleanEnv(process.env.DATABASE_URL);
     }
 
@@ -21,7 +23,8 @@ const getConnectionString = () => {
     const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
 
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    const protocol = 'postgresql';
+    return `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
 };
 
 const connectionString = getConnectionString();
@@ -91,6 +94,84 @@ async function seed() {
     console.error('  - Exported:', seedData.exportedAt);
     console.error('  - Version:', seedData.version);
     console.error('');
+
+    // 0. Seed Dev Allowed Guilds & Configs (Prevent lockouts after reset)
+    console.error('🛡️  Seeding Dev environment...');
+    const testGuildId = '1290442961380835451'; // From .env DISCORD_GUILD_ID
+    const superAdminDiscordId = '403000342167420929'; // From .env SUPER_ADMIN_IDS
+
+    // 0.1 Seed Whitelist
+    await prisma.allowedGuild.upsert({
+        where: { discordGuildId: testGuildId },
+        update: { isActive: true },
+        create: {
+            discordGuildId: testGuildId,
+            name: 'SigilOS Test Guild',
+            isActive: true,
+            tier: 'LEGACY_PREMIUM',
+            addedBy: 'SYSTEM_SEED'
+        }
+    });
+
+    // 0.2 Seed Guild Config (Mark as onboarded)
+    const guildConfig = await prisma.guildConfig.upsert({
+        where: { discordGuildId: testGuildId },
+        update: { isActive: true },
+        create: {
+            discordGuildId: testGuildId,
+            name: 'SigilOS Test Guild',
+            isActive: true,
+        }
+    });
+
+    // 0.3 Ensure Super Admin account exists in DB (User + Account)
+    // This allows the session to link correctly even after a hard reset
+    const account = await prisma.account.findFirst({
+        where: { provider: 'discord', providerAccountId: superAdminDiscordId }
+    });
+
+    let userId: string;
+
+    if (!account) {
+        console.error('🛠️ Seeding Super Admin user/account...');
+        const newUser = await prisma.user.create({
+            data: {
+                name: 'Wylan (Dev)',
+                image: 'https://cdn.discordapp.com/embed/avatars/0.png',
+                accounts: {
+                    create: {
+                        provider: 'discord',
+                        type: 'oauth',
+                        providerAccountId: superAdminDiscordId,
+                    }
+                }
+            }
+        });
+        userId = newUser.id;
+    } else {
+        userId = account.userId;
+    }
+
+    // 0.4 Link profile for immediate dashboard access
+    await prisma.userProfile.upsert({
+        where: {
+            userId_guildId: {
+                userId: userId,
+                guildId: guildConfig.id
+            }
+        },
+        update: { status: 'ACTIVE' },
+        create: {
+            userId: userId,
+            guildId: guildConfig.id,
+            status: 'ACTIVE',
+            discordNickname: 'Wylan (Dev)',
+            discordRoleName: 'Boss / Dev',
+            discordRoleColor: 0xF59E0B
+        }
+    });
+
+    console.error(`✅ Dev environment authorized and configured`);
 
     // Maps for ID resolution
     const zoneIdMap = new Map<string, string>();
@@ -172,7 +253,12 @@ async function seed() {
     console.error('🏰 Seeding Dungeons...');
     for (const dungeon of seedData.data.dungeons) {
         const upsertedDungeon = await prisma.dungeon.upsert({
-            where: { name: dungeon.name },
+            where: {
+                name_bossName: {
+                    name: dungeon.name,
+                    bossName: dungeon.bossName
+                }
+            },
             update: {
                 bossName: dungeon.bossName,
                 level: dungeon.level,

@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
     },
   },
   // @ts-ignore
-  serverExternalPackages: ['tesseract.js'], // Prevent Webpack from bundling Tesseract
+  serverExternalPackages: ['tesseract.js', 'ioredis', 'bullmq'], // Prevent Webpack from bundling Tesseract and BullMQ
   // Security Headers
   async headers() {
     return [
@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
+              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' blob: data: https:",
               "font-src 'self' https://fonts.gstatic.com",
@@ -110,8 +110,5 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,
   },
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
 });
 

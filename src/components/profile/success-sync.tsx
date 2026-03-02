@@ -26,6 +26,7 @@ interface SuccessSyncProps {
         createdAt: Date;
     } | null;
     onCancel?: () => void;
+    targetUserId?: string;
 }
 
 import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
@@ -41,7 +42,8 @@ export function SuccessSync({
     onTabChange,
     onSuccess,
     pendingSubmission,
-    onCancel
+    onCancel,
+    targetUserId
 }: SuccessSyncProps) {
     const [isUploading, setIsUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
@@ -57,7 +59,7 @@ export function SuccessSync({
 
     const handleCancel = async () => {
         setIsUploading(true);
-        const res = await cancelAchievementSubmission(guildId);
+        const res = await cancelAchievementSubmission(guildId, targetUserId);
         setIsUploading(false);
         if (res.success) {
             toast.success("Demande annulée");
@@ -96,6 +98,7 @@ export function SuccessSync({
                 const res = await syncMemberSuccessPoints({
                     guildId,
                     imageData: compressedBase64,
+                    targetUserId,
                 });
 
                 if (res.success) {
@@ -247,41 +250,29 @@ export function SuccessSync({
                         </div>
 
                         {/* Instructional Tip with Full Examples */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
-                                <div className="flex items-center gap-2 text-amber-400">
-                                    <div className="p-2 rounded-lg bg-amber-500/10">
-                                        <MousePointer2 className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-sm font-bold uppercase tracking-wider">Étape 1 : Le Détourage</span>
+                        <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
+                            <div className="flex items-center gap-2 text-amber-400">
+                                <div className="p-2 rounded-lg bg-amber-500/10">
+                                    <MousePointer2 className="w-5 h-5" />
                                 </div>
-                                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                                    Ne prenez pas tout l'écran ! Utilisez l'outil de capture pour détourer uniquement la zone avec vos points.
-                                </p>
-                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                                <span className="text-sm font-bold uppercase tracking-wider">Bien cadrer la capture</span>
+                            </div>
+                            <p className="text-sm text-zinc-300 leading-relaxed font-medium">
+                                Ne prenez pas tout l'écran ! Utilisez un outil de capture d'écran (Snipping Tool, Greenshot, etc) pour détourer uniquement la zone avec vos points. Si vous incluez la barre de progression à droite de vos points, l'IA sera encore plus précise.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto">
+                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
                                     <img
-                                        src="/uploads/ladder/exemple2.png"
-                                        alt="Exemple Détourage"
-                                        className="w-full h-auto"
+                                        src="/assets/ladder/exemple-succes.png"
+                                        alt="Exemple valide 1"
+                                        className="w-full h-auto rounded-lg"
                                     />
                                 </div>
-                            </div>
-
-                            <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
-                                <div className="flex items-center gap-2 text-blue-400">
-                                    <div className="p-2 rounded-lg bg-blue-500/10">
-                                        <Info className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-sm font-bold uppercase tracking-wider">Étape 2 : La Qualité</span>
-                                </div>
-                                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                                    Si vous incluez la barre de progression, l'IA sera encore plus précise dans sa détection.
-                                </p>
-                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
                                     <img
-                                        src="/uploads/ladder/exemple2.png"
-                                        alt="Exemple Qualité"
-                                        className="w-full h-auto"
+                                        src="/assets/ladder/exemple4.png"
+                                        alt="Exemple valide 2"
+                                        className="w-full h-auto rounded-lg"
                                     />
                                 </div>
                             </div>

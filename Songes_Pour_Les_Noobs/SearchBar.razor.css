@@ -1,0 +1,33 @@
+﻿.search-bar {
+    padding: 0.5rem;
+    width: 300px;
+    font-size: 1rem;
+}
+
+.search-dropdown {
+    margin: 0;
+    padding: 0;
+    width: 300px;
+    border: 1px solid #ccc;
+    overflow-y: auto;
+    position: absolute;
+    top: 100%;
+    z-index: 100;
+    background-color: black;
+    color: white;
+}
+
+    .search-dropdown li {
+        padding: 0.5rem;
+        cursor: pointer;
+    }
+
+        .search-dropdown li:hover {
+            background-color: #eee;
+            color: #222;
+        }
+
+.highlighted {
+    background-color: #eee;
+    color: #222;
+}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -17,36 +17,50 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
   alternates: {
-    canonical: "/",
+    canonical: getAppBaseUrl(),
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
-    default: "SigilOS - Le système d'exploitation pour guildes Dofus",
+    default: "SigilOS — Le système d'exploitation pour guildes Dofus",
     template: "%s | SigilOS",
   },
-  description: "Gérez vos missions, suivez votre progression (Ocre, Almanax) et coordonnez votre guilde Dofus avec SigilOS.",
+  description: "SigilOS est la plateforme de gestion de guilde Dofus la plus complète en 2026. Bot Discord, suivi de quêtes (Ocre, Almanax, Songes Infinis), annuaire de guildes, ladder XP, Dungeon Finder et outils communautaires. Gratuit et open-source.",
+  keywords: ["dofus", "guilde", "gestion guilde dofus", "bot discord dofus", "sigilos", "quête ocre", "songes infinis", "almanax", "dungeon finder", "dofus 2026", "guilde dofus 3"],
   openGraph: {
     type: "website",
     locale: "fr_FR",
     url: getAppBaseUrl(),
     siteName: "SigilOS",
+    title: "SigilOS — Gestion de Guilde Dofus",
+    description: "La plateforme tout-en-un pour les guildes Dofus : quêtes, Songes Infinis, Dungeon Finder, ladder XP et outils communautaires.",
     images: [
       {
-        url: "/assets/ui/logo-v2.png", // Fallback, better to have a specific OG image
+        url: new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString(),
         width: 1200,
         height: 630,
-        alt: "SigilOS Preview",
+        alt: "SigilOS — Le système d'exploitation pour guildes Dofus",
+        type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SigilOS - Gestion de Guilde Dofus",
-    description: "L'outil ultime pour les guildes Dofus.",
-    images: ["/assets/ui/logo-v2.png"],
+    title: "SigilOS — Gestion de Guilde Dofus",
+    description: "La plateforme tout-en-un pour les guildes Dofus. Quêtes, Songes, Dungeon Finder, Ladder XP.",
+    images: [new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString()],
   },
   robots: {
     index: true,
@@ -67,24 +81,28 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#9333ea",
+  themeColor: "#14b8a6", // Teal — matches actual design
 };
 
-export default function RootLayout({
+import { auth } from "@/auth";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="fr" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
+          <AuthProvider session={session}>
             <TooltipProvider>
               {children}
               <Toaster

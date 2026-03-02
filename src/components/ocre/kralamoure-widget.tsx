@@ -77,13 +77,13 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
     }, [loadEvents]);
 
     return (
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-card/50 to-card/30 backdrop-blur-xl border-purple-500/20">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-pink-500/10 via-card/50 to-card/30 backdrop-blur-xl border-pink-500/20">
             {/* Glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent pointer-events-none" />
 
             <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Skull className="h-5 w-5 text-purple-400" />
+                    <Skull className="h-5 w-5 text-pink-400" />
                     Kralamoure
                 </CardTitle>
                 <Button
@@ -194,7 +194,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                     ? "border-red-500/50 bg-red-500/10 animate-pulse"
                     : isUpcoming
                         ? "border-amber-500/40 bg-amber-500/5"
-                        : "border-white/10 hover:border-purple-500/30"
+                        : "border-white/10 hover:border-pink-500/30"
             )}
         >
             {/* Imminent indicator */}
@@ -272,7 +272,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                                     ? "text-red-400"
                                     : isUpcoming
                                         ? "text-amber-400"
-                                        : "text-purple-400"
+                                        : "text-pink-400"
                             )}
                         >
                             {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
@@ -291,7 +291,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                                 "h-6 w-6 mt-1 border-white/10",
                                 isImported
                                     ? "bg-green-500/20 text-green-400 cursor-not-allowed"
-                                    : "hover:bg-purple-500/20 hover:text-purple-400"
+                                    : "hover:bg-pink-500/20 hover:text-pink-400"
                             )}
                             onClick={handleImport}
                             disabled={isImporting || isImported}

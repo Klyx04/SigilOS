@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,8 +43,14 @@ const EMOJIS = [
 
 export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: WelcomeFeedClientProps) {
     const [posts, setPosts] = useState(initialPosts);
+    // FIX BUG-2: Prevent concurrent calls for the same emoji (spam → DB error)
+    const pendingReactions = useRef<Set<string>>(new Set());
 
     const handleReaction = async (welcomeId: string, emoji: string) => {
+        const key = `${welcomeId}:${emoji}`;
+        if (pendingReactions.current.has(key)) return; // Already in-flight, ignore
+        pendingReactions.current.add(key);
+
         // Optimistic update
         setPosts(current => current.map(post => {
             if (post.id === welcomeId) {
@@ -68,8 +74,8 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
         const res = await toggleWelcomeReaction(welcomeId, emoji);
         if (!res.success) {
             toast.error(res.error || "Erreur lors de la réaction");
-            // Revert on error? (Skipping for brevity in this complex flow)
         }
+        pendingReactions.current.delete(key);
     };
 
     return (
@@ -101,9 +107,14 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
                                         {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: fr })}
                                     </span>
                                 </div>
-                                <div className="text-zinc-400 text-sm leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: post.content.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>') }}
-                                />
+                                {/* BUG-4 FIX: Replace dangerouslySetInnerHTML with safe React rendering */}
+                                <p className="text-zinc-400 text-sm leading-relaxed">
+                                    {post.content.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+                                        i % 2 === 1
+                                            ? <strong key={i} className="text-white">{part}</strong>
+                                            : part
+                                    )}
+                                </p>
                             </div>
 
                             {/* Presentation Preview if exists */}
@@ -136,8 +147,9 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => handleReaction(post.id, emoji.char)}
+                                            disabled={pendingReactions.current.has(`${post.id}:${emoji.char}`)}
                                             className={cn(
-                                                "h-8 px-2 rounded-lg transition-all gap-2 border",
+                                                "h-8 px-2 rounded-lg transition-all gap-2 border disabled:opacity-50 disabled:cursor-not-allowed",
                                                 hasReacted
                                                     ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
                                                     : "bg-white/5 border-transparent text-zinc-500 hover:border-white/10 hover:text-zinc-300"

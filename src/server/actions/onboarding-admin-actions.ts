@@ -383,7 +383,12 @@ export async function getWelcomePosts(guildId: string) {
 
 export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
     const session = await auth();
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Input validation
+    if (!welcomeId || typeof emoji !== "string" || emoji.length > 10) {
+        return { success: false, error: "Paramètres invalides" };
+    }
 
     try {
         const welcome = await db.memberWelcome.findUnique({
@@ -392,11 +397,24 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
         });
         if (!welcome) return { success: false, error: "Post non trouvé" };
 
-        const userContext = await getUserContext(welcome.guild.discordGuildId);
-        if (!userContext.isMember) return { success: false, error: "Non membre" };
+        // FIX: Use direct DB lookup instead of getUserContext (avoids Discord API calls on every emoji click
+        // which caused race conditions / "Non membre" errors under spam)
+        const profile = await db.userProfile.findUnique({
+            where: {
+                userId_guildId: {
+                    userId: session.user.id,
+                    guildId: welcome.guild.id
+                }
+            },
+            select: { id: true, status: true }
+        });
 
-        const reactions = (welcome.reactions as any) || {};
-        const profileId = userContext.profileId!;
+        if (!profile || profile.status !== "ACTIVE") {
+            return { success: false, error: "Non membre" };
+        }
+
+        const profileId = profile.id;
+        const reactions = (welcome.reactions as Record<string, string[]>) ?? {};
 
         if (!reactions[emoji]) {
             reactions[emoji] = [profileId];
@@ -418,7 +436,7 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
         revalidatePath(`/dashboard/${welcome.guild.discordGuildId}/welcome`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to toggle reaction", e);
-        return { success: false, error: "Database error" };
+        console.error("[toggleWelcomeReaction] Failed", e);
+        return { success: false, error: "Erreur serveur, réessaie dans un instant." };
     }
 }

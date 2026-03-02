@@ -18,6 +18,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: PrismaAdapter(prisma),
     callbacks: {
         ...authConfig.callbacks,
+        // SECURITY FIX: Validate callbackUrl to prevent Open Redirect (Google Safe Browsing flag)
+        async redirect({ url, baseUrl }) {
+            // Allow relative URLs (e.g. /dashboard/...)
+            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            // Allow same-origin
+            try {
+                if (new URL(url).origin === new URL(baseUrl).origin) return url;
+            } catch {
+                // Malformed URL — fallback to baseUrl
+            }
+            // Reject all external redirects
+            return baseUrl;
+        },
         async signIn({ user, account }) {
             void user;
             void account;

@@ -17,7 +17,8 @@ sigilos.fr {
 
     @google path /google*.html
     handle @google {
-        reverse_proxy sigilos-prod:3000
+        header Content-Type text/html
+        respond "google-site-verification: google77dc76da1868d7bd.html" 200
     }
 
     handle {

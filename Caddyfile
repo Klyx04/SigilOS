@@ -14,9 +14,17 @@
 # =============================================================================
 sigilos.fr {
     import security_headers
-    root * /srv/static
-    rewrite * /maintenance.html
-    file_server
+
+    @google path /google*.html
+    handle @google {
+        reverse_proxy sigilos-prod:3000
+    }
+
+    handle {
+        root * /srv/static
+        rewrite * /maintenance.html
+        file_server
+    }
 }
 
 # =============================================================================

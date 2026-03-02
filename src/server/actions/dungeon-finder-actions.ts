@@ -449,6 +449,20 @@ export async function createDjPost(
             await sendDiscordNotification(guildId, post.id, embed);
         }
 
+        try {
+            const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
+            const authorName = user.name || "Membre";
+            const typeLabel = data.mode === "DONJON" ? "un donjon" : "une quête";
+            const postTitle = data.mode === "DONJON" && post.dungeon ? post.dungeon.name : (data.questName || "inconnue");
+            await pushSystemChatMessage(
+                guildId,
+                `⚔️ **${authorName}** cherche un groupe pour ${typeLabel} : **${postTitle}**`,
+                { type: "dj_post_created", postId: post.id }
+            );
+        } catch (chatErr) {
+            console.error("Failed to push system chat message for dj post", chatErr);
+        }
+
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true, data: { id: post.id } };
     } catch (error) {

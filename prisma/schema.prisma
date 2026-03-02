@@ -150,6 +150,9 @@ model GuildConfig {
   missionValidationNotifyRoleId String?
   welcomeBadgeName              String                  @default("Nouveau")
   welcomeDiscordMessageTemplate String?
+  chatBlocklist                 Json                    @default("[]")
+  chatMotd                      String?
+  chatMentionRules              Json                    @default("{}")
   achievementSubmissions        AchievementSubmission[]
   auditLogs                     AuditLog[]
   djSearchPosts                 DjSearchPost[]
@@ -192,6 +195,7 @@ model GuildModules {
   quests       Boolean     @default(false)
   resources    Boolean     @default(false)
   worldmap     Boolean     @default(false)
+  chat         Boolean     @default(false)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -297,6 +301,9 @@ model UserProfile {
   submissions             Submission[]
   userDungeonAchievements UserDungeonAchievement[]
   dungeonProgress         UserDungeonProgress[]
+  lastSeen                DateTime?                @default(now())
+  isInGame                Boolean                  @default(false)
+  showPresence            Boolean                  @default(true)
   guild                   GuildConfig              @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   vaultEntries            VaultEntry[]
@@ -1361,4 +1368,12 @@ enum LoanStatus {
 enum VaultAction {
   DEPOSIT
   WITHDRAW
+}
+
+model GlobalBlocklist {
+  id             String   @id @default("GLOBAL")
+  words          Json     @default("[]") // Custom global words
+  baseWords      Json     @default("[]") // "Hardcoded" words override/supplement
+  allowedDomains Json     @default("[]") // URL Whitelist (default: sigilos.fr, beta.sigilos.fr)
+  updatedAt      DateTime @updatedAt
 }

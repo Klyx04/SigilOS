@@ -22,7 +22,7 @@ type Props = {
     currentMapping: Record<string, PermissionId[]>;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info"];
+const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info", "chat"];
 
 export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)

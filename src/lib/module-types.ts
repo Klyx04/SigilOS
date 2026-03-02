@@ -24,7 +24,9 @@ export type ModuleKey =
     // Coming Soon
     | "quests"
     | "worldmap"
-    | "resources";
+    | "resources"
+    // Nouveau
+    | "chat";
 
 export type GuildModulesState = {
     // Général
@@ -50,6 +52,8 @@ export type GuildModulesState = {
     quests: boolean;
     worldmap: boolean;
     resources: boolean;
+    // Nouveau
+    chat: boolean;
 };
 
 export const DEFAULT_MODULES: GuildModulesState = {
@@ -71,4 +75,5 @@ export const DEFAULT_MODULES: GuildModulesState = {
     quests: false,
     worldmap: false,
     resources: false,
+    chat: false,
 };

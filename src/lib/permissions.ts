@@ -45,11 +45,15 @@ export const PERMISSIONS = {
     // Calendar
     CALENDAR_VIEW: "calendar:view",
     CALENDAR_MANAGE: "calendar:manage",
+
+    // Chat
+    CHAT_VIEW: "chat:view",         // Lire + écrire dans le chat guilde
+    CHAT_MODERATE: "chat:moderate", // Muter des membres, vider l'historique
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "features" | "tools" | "info" | "calendar";
+export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "features" | "tools" | "info" | "calendar" | "chat";
 
 export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon: string; color: string }> = {
     admin: { label: "Administration", icon: "🛡️", color: "#f59e0b" },
@@ -60,6 +64,7 @@ export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon:
     tools: { label: "Outils", icon: "🧩", color: "#06b6d4" },
     info: { label: "Information", icon: "📖", color: "#a855f7" },
     calendar: { label: "Calendrier", icon: "📅", color: "#10b981" },
+    chat: { label: "Chat Live", icon: "💬", color: "#6366f1" },
 };
 
 export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule }> = {
@@ -109,6 +114,10 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     // Calendar
     [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },
     [PERMISSIONS.CALENDAR_MANAGE]: { label: "Gérer le Calendrier", description: "Créer des événements.", module: "calendar" },
+
+    // Chat
+    [PERMISSIONS.CHAT_VIEW]: { label: "Accès Chat Live", description: "Lire et envoyer des messages dans le chat guilde.", module: "chat" },
+    [PERMISSIONS.CHAT_MODERATE]: { label: "Modérer le Chat", description: "Muter des membres et vider l'historique.", module: "chat" },
 };
 
 export const PERMISSION_LABELS: Record<PermissionId, string> =

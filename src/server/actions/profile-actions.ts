@@ -35,6 +35,7 @@ const UpdateProfileSchema = z.object({
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceExo: z.number().min(0, "Prix invalide").nullable().optional(),
+    showPresence: z.boolean().optional(),
     targetUserId: z.string().optional(),
 });
 
@@ -146,6 +147,7 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
                 hasSeenWelcome: profile.hasSeenWelcome,
                 introduction: profile.introduction,
+                showPresence: profile.showPresence,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
                     slug: rg.role.slug,
@@ -323,7 +325,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, targetUserId } = validation.data;
+    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -374,6 +376,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
                 fmPriceTrans: fmPriceTrans !== undefined ? fmPriceTrans : undefined,
                 fmPriceExo: fmPriceExo !== undefined ? fmPriceExo : undefined,
+                showPresence: showPresence !== undefined ? showPresence : undefined,
             },
             create: {
                 userId: effectiveUserId,
@@ -386,6 +389,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 fmPriceClassic: fmPriceClassic || null,
                 fmPriceTrans: fmPriceTrans || null,
                 fmPriceExo: fmPriceExo || null,
+                showPresence: showPresence ?? true,
                 status: "ACTIVE"
             }
         });

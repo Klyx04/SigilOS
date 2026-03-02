@@ -57,6 +57,8 @@ interface UserSettingsProps {
     onNotificationPrefsSave?: (prefs: any) => void;
     isAdmin: boolean;
     targetUserId?: string;
+    showPresence: boolean;
+    onPresenceToggle: (enabled: boolean) => void;
 }
 
 export function UserSettings({
@@ -66,7 +68,9 @@ export function UserSettings({
     notificationPrefs,
     onNotificationPrefsSave,
     isAdmin,
-    targetUserId
+    targetUserId,
+    showPresence,
+    onPresenceToggle
 }: UserSettingsProps) {
     const [performanceMode, setPerformanceMode] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -376,6 +380,23 @@ export function UserSettings({
                     </div>
 
                     <div className="space-y-4 pt-4 border-t border-white/5">
+                        {/* DISCORD RICH PRESENCE */}
+                        <div className="flex items-center justify-between p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 group hover:border-indigo-500/30 transition-all">
+                            <div className="space-y-1">
+                                <Label htmlFor="show-presence" className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
+                                    Discord Rich Presence
+                                </Label>
+                                <p className="text-[10px] text-zinc-500 leading-tight">
+                                    Affiche si vous jouez à Dofus dans le chat (🟢/⚫).
+                                </p>
+                            </div>
+                            <Switch
+                                id="show-presence"
+                                checked={showPresence}
+                                onCheckedChange={onPresenceToggle}
+                            />
+                        </div>
+
                         {/* LEAVE GUILD */}
                         <div className="p-3 bg-zinc-900/40 rounded-2xl border border-white/5 space-y-3">
                             <div className="space-y-1">

@@ -43,13 +43,16 @@ const EMOJIS = [
 
 export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: WelcomeFeedClientProps) {
     const [posts, setPosts] = useState(initialPosts);
-    // FIX BUG-2: Prevent concurrent calls for the same emoji (spam → DB error)
+    // FIX BUG-2: Lock logic (Ref) + Visual status (State)
     const pendingReactions = useRef<Set<string>>(new Set());
+    const [processingKeys, setProcessingKeys] = useState<Record<string, boolean>>({});
 
     const handleReaction = async (welcomeId: string, emoji: string) => {
         const key = `${welcomeId}:${emoji}`;
         if (pendingReactions.current.has(key)) return; // Already in-flight, ignore
+
         pendingReactions.current.add(key);
+        setProcessingKeys(prev => ({ ...prev, [key]: true }));
 
         // Optimistic update
         setPosts(current => current.map(post => {
@@ -75,7 +78,9 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
         if (!res.success) {
             toast.error(res.error || "Erreur lors de la réaction");
         }
+
         pendingReactions.current.delete(key);
+        setProcessingKeys(prev => ({ ...prev, [key]: false }));
     };
 
     return (
@@ -147,7 +152,7 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => handleReaction(post.id, emoji.char)}
-                                            disabled={pendingReactions.current.has(`${post.id}:${emoji.char}`)}
+                                            disabled={processingKeys[`${post.id}:${emoji.char}`]}
                                             className={cn(
                                                 "h-8 px-2 rounded-lg transition-all gap-2 border disabled:opacity-50 disabled:cursor-not-allowed",
                                                 hasReacted

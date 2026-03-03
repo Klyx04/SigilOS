@@ -19,6 +19,7 @@ import {
     Target,
     Wheat,
     Eye,
+    Filter,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -125,6 +126,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
+    const [showFilters, setShowFilters] = useState(false);
 
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
@@ -418,6 +420,26 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
 
                                 <div className="flex items-center gap-3">
+                                    {/* Action Options */}
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowFilters(!showFilters)}
+                                        className={cn(
+                                            "h-10 rounded-full px-5 text-sm font-bold transition-all border-2",
+                                            (showFilters || selectedFilter !== "ALL")
+                                                ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md"
+                                                : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                        )}
+                                    >
+                                        <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500 animate-pulse")} />
+                                        Filtres
+                                        {selectedFilter !== "ALL" && (
+                                            <span className="ml-2 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-500/20 text-amber-700">
+                                                1
+                                            </span>
+                                        )}
+                                    </Button>
+
                                     {canManage && (
                                         <Button
                                             onClick={() => setIsCreateOpen(true)}
@@ -431,56 +453,58 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                             </div>
                         </div>
 
-                        {/* Filters Bar */}
-                        <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                            <button
-                                onClick={() => setSelectedFilter("ALL")}
-                                className={cn(
-                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
-                                    selectedFilter === "ALL"
-                                        ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md shadow-zinc-900/10"
-                                        : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
-                                )}
-                            >
-                                Tous
-                                <span className={cn(
-                                    "px-2 py-0.5 rounded-md text-xs font-bold",
-                                    selectedFilter === "ALL" ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
-                                )}>
-                                    {events.length}
-                                </span>
-                            </button>
+                        {/* Filters Bar (Collapsible) */}
+                        {showFilters && (
+                            <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300">
+                                <button
+                                    onClick={() => setSelectedFilter("ALL")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
+                                        selectedFilter === "ALL"
+                                            ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md shadow-zinc-900/10"
+                                            : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                    )}
+                                >
+                                    Tous
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded-md text-xs font-bold",
+                                        selectedFilter === "ALL" ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
+                                    )}>
+                                        {events.length}
+                                    </span>
+                                </button>
 
-                            <div className="h-6 w-px bg-zinc-800/50 mx-1 shrink-0" />
+                                <div className="h-6 w-px bg-zinc-800/50 mx-1 shrink-0" />
 
-                            {Object.entries(FILTER_TYPES).map(([type, config]) => {
-                                const count = typeCounts[type] || 0;
-                                const Icon = config.icon;
-                                const isActive = selectedFilter === type;
+                                {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                                    const count = typeCounts[type] || 0;
+                                    const Icon = config.icon;
+                                    const isActive = selectedFilter === type;
 
-                                return (
-                                    <button
-                                        key={type}
-                                        onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
-                                        className={cn(
-                                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
-                                            isActive
-                                                ? cn(config.bg, config.color, config.border, "shadow-md")
-                                                : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700"
-                                        )}
-                                    >
-                                        <Icon className="h-4 w-4" />
-                                        {config.label}
-                                        <span className={cn(
-                                            "px-2 py-0.5 rounded-md text-xs font-bold",
-                                            isActive ? "bg-white/10" : "bg-zinc-800"
-                                        )}>
-                                            {count}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                    return (
+                                        <button
+                                            key={type}
+                                            onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
+                                            className={cn(
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
+                                                isActive
+                                                    ? cn(config.bg, config.color, config.border, "shadow-md")
+                                                    : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                            )}
+                                        >
+                                            <Icon className="h-4 w-4" />
+                                            {config.label}
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded-md text-xs font-bold",
+                                                isActive ? "bg-white/10" : "bg-zinc-800"
+                                            )}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Events List Grouped */}

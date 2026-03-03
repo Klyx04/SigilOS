@@ -63,8 +63,13 @@ export function AppSidebar({
 }: AppSidebarProps) {
     const pathname = usePathname();
 
-    const isActive = (href: string, exact = false) => {
-        return exact ? pathname === href : pathname.startsWith(href);
+    const checkIsActive = (href: string, exact = false, aliases?: string[]) => {
+        if (exact) return pathname === href;
+        if (pathname.startsWith(href)) return true;
+        if (aliases) {
+            return aliases.some(alias => pathname.startsWith(alias));
+        }
+        return false;
     };
 
     // --- NAVIGATION GROUPS ---
@@ -80,10 +85,14 @@ export function AppSidebar({
 
     const NAV_ACTIVITIES = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
+        {
+            name: "Progression",
+            href: `/dashboard/${guildId}/missions`,
+            aliases: [`/dashboard/${guildId}/songes`, `/dashboard/${guildId}/quete-ocre`, `/dashboard/${guildId}/ladder`],
+            icon: Swords,
+            color: "text-emerald-400",
+            visible: (user.canViewMissions && modules.missions) || (user.canViewSonges && modules.songes) || (user.canViewArchis && modules.ocre) || (user.canViewLadder && modules.ladder)
+        },
     ];
 
     const NAV_TOOLS = [
@@ -91,7 +100,6 @@ export function AppSidebar({
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewProfile && modules.profile },
     ];
 
     const NAV_COMING_SOON = [
@@ -222,7 +230,7 @@ export function AppSidebar({
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
                             </div>
                             {NAV_INFO.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
+                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href, item.exact)} />
                             ))}
                         </div>
                     )}
@@ -236,7 +244,7 @@ export function AppSidebar({
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                             </div>
                             {NAV_ACTIVITIES.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href, false, item.aliases)} />
                             ))}
                         </div>
                     )}
@@ -250,7 +258,7 @@ export function AppSidebar({
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
                             </div>
                             {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
                             ))}
                         </div>
                     )}
@@ -267,7 +275,7 @@ export function AppSidebar({
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
                             </div>
                             {NAV_COMING_SOON.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
                             ))}
                         </div>
                     )}
@@ -286,17 +294,17 @@ export function AppSidebar({
 
                             {/* Centre Admin — item principal */}
                             {NAV_ADMIN_TOP.visible && (
-                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={isActive(NAV_ADMIN_TOP.href, true)} />
+                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={checkIsActive(NAV_ADMIN_TOP.href, true)} />
                             )}
 
                             {/* Sous-items ADM */}
                             {NAV_ADMIN_SUB.some(i => i.visible) && (
-                                <div className="ml-2 mt-1 pl-3 border-l border-rose-500/20 space-y-0.5">
+                                <div className="ml-2 mt-1 pl-3 border-l-2 border-rose-500/40 shadow-[inset_2px_0_8px_rgba(239,68,68,0.1)] space-y-0.5">
                                     {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
                                         <AdminSubItem
                                             key={item.href}
                                             item={item}
-                                            isActive={isActive(item.href)}
+                                            isActive={checkIsActive(item.href)}
                                         />
                                     ))}
                                 </div>
@@ -430,7 +438,7 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
                 "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group relative overflow-hidden",
                 isActive
                     ? "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/20"
-                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
+                    : "text-zinc-300 hover:text-white hover:bg-rose-500/5"
             )}
         >
             {/* Active dot */}
@@ -440,21 +448,21 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
 
             <item.icon className={cn(
                 "h-3 w-3 shrink-0 transition-all duration-200",
-                isActive ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400"
+                isActive ? "text-rose-400" : "text-rose-500/50 group-hover:text-rose-400"
             )} />
 
             <span className={cn(
                 "font-mono text-[10px] font-black tracking-widest px-1 py-0.5 rounded shrink-0",
                 isActive
                     ? "text-rose-400 bg-rose-500/15"
-                    : "text-zinc-600 bg-zinc-800/60 group-hover:text-rose-400/70"
+                    : "text-rose-500/60 bg-rose-500/10 group-hover:text-rose-400 group-hover:bg-rose-500/15"
             )}>
                 {prefix}
             </span>
 
             <span className={cn(
                 "text-xs transition-all duration-200 truncate",
-                isActive ? "font-black text-rose-200" : "font-medium group-hover:text-zinc-200"
+                isActive ? "font-black text-rose-200" : "font-medium group-hover:font-bold"
             )}>
                 {label}
             </span>

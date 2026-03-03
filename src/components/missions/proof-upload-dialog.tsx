@@ -258,63 +258,78 @@ export function ProofUploadDialog({
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    {/* Drop Zone */}
-                    {!preview && state === "idle" && (
-                        <div className="space-y-4">
-                            {/* HELPER SELECTION (Only visible before upload) */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-indigo-400" />
-                                    Contributeurs (Optionnel)
-                                </label>
-                                <MemberSelector
-                                    guildId={guildId}
-                                    selectedIds={helperIds}
-                                    onSelect={setHelperIds}
-                                    maxSelection={7}
-                                />
-                                <p className="text-[10px] text-slate-500">
-                                    Sélectionnez les membres qui vous ont aidé. Ils recevront des points de contribution à la validation.
-                                </p>
+                    {/* ═══════════════════════════════════════ */}
+                    {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
+                    {/* ═══════════════════════════════════════ */}
+                    {(state === "idle") && (
+                        <div className="relative rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-amber-900/20 to-zinc-900/60 p-4 space-y-3 shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)]">
+                            {/* Glow accent */}
+                            <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
+                                    <Users className="w-5 h-5 text-amber-400" />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-sm font-black text-amber-300 uppercase tracking-wider">Contributeurs</h3>
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">OPTIONNEL</span>
+                                    </div>
+                                    <p className="text-xs text-amber-200/80 leading-relaxed">
+                                        Ils vous ont aidé ? Sélectionnez-les — ils recevront{" "}
+                                        <span className="font-black text-amber-300">des points de contribution</span>{" "}
+                                        dès validation de votre preuve !
+                                    </p>
+                                </div>
                             </div>
 
-                            <div
-                                className={cn(
-                                    "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors",
-                                    isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
-                                )}
-                                onDrop={handleDrop}
-                                onDragOver={(e) => e.preventDefault()}
-                            >
-                                <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                <p className="text-sm text-slate-400 mb-2">
-                                    Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
-                                    <button
-                                        type="button"
-                                        onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
-                                        className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline focus:outline-none"
-                                    >
-                                        cliquez pour sélectionner
-                                    </button>
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    PNG, JPEG, WebP ou GIF • Max 10MB
-                                </p>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                    disabled={isCheckingSafety}
-                                />
-                                {isCheckingSafety && (
-                                    <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-                                        <p className="text-sm text-slate-300">Vérification de sécurité...</p>
-                                    </div>
-                                )}
-                            </div>
+                            <MemberSelector
+                                guildId={guildId}
+                                selectedIds={helperIds}
+                                onSelect={setHelperIds}
+                                maxSelection={7}
+                            />
+                        </div>
+                    )}
+
+                    {/* Drop Zone */}
+                    {!preview && state === "idle" && (
+                        <div
+                            className={cn(
+                                "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors",
+                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                            )}
+                            onDrop={handleDrop}
+                            onDragOver={(e) => e.preventDefault()}
+                        >
+                            <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
+                            <p className="text-sm text-slate-400 mb-2">
+                                Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
+                                    className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline focus:outline-none"
+                                >
+                                    cliquez pour sélectionner
+                                </button>
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                PNG, JPEG, WebP ou GIF • Max 10MB
+                            </p>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                className="hidden"
+                                onChange={handleFileSelect}
+                                disabled={isCheckingSafety}
+                            />
+                            {isCheckingSafety && (
+                                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
+                                    <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                                    <p className="text-sm text-slate-300">Vérification de sécurité...</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -15,6 +15,7 @@ import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isModuleEnabled } from "@/server/actions/module-actions";
+import { ActivitiesNav } from "@/components/layout/activities-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function QueteOcrePage({
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
             <div className="relative z-10 max-w-7xl mx-auto space-y-8">
+                <ActivitiesNav guildId={guildId} />
                 <UnifiedModuleHeader
                     title="Quête Ocre"
                     description="Suivez votre progression sur la Quête de l'Éternelle Moisson et trouvez des partenaires d'échange."

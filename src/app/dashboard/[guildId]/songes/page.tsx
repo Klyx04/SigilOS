@@ -10,6 +10,7 @@ import { Sparkles } from "lucide-react";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
 import { BossGuideLauncher } from "@/components/songes/BossGuideLauncher";
+import { ActivitiesNav } from "@/components/layout/activities-nav";
 
 export default async function SongesPage({
     params,
@@ -44,6 +45,7 @@ export default async function SongesPage({
 
     return (
         <div className="space-y-6 pb-12">
+            <ActivitiesNav guildId={guildId} />
             <UnifiedModuleHeader
                 title="Songes Infinis"
                 description="Suivez la progression des runs et rejoignez vos compagnons d'armes."

@@ -1332,6 +1332,27 @@ export async function getDjSettings(guildId: string): Promise<ActionResponse<DjS
 }
 
 /**
+ * Public check: returns true if the DJ notify channel is configured for this guild.
+ * Accessible to all authenticated guild members (not admin-only).
+ */
+export async function getDjChannelConfigured(guildId: string): Promise<boolean> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.isMember) return false;
+
+        const guildConfig = await (db as any).guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { djNotifyChannelId: true },
+        });
+
+        return !!guildConfig?.djNotifyChannelId;
+    } catch {
+        return false;
+    }
+}
+
+
+/**
  * Update the DJ settings for the guild.
  * RBAC: admin only.
  */

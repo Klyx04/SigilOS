@@ -194,7 +194,29 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             welcomeDiscordEnabled: true,
             welcomeNotifyChannelId: true,
             welcomeMentionRoleId: true,
-            welcomeMessageTemplate: true
+            welcomeMessageTemplate: true,
+            modules: {
+                select: {
+                    missions: true,
+                    songes: true,
+                    ocre: true,
+                    ladder: true,
+                    calendar: true,
+                    services: true,
+                    donjons: true,
+                    docs: true,
+                    profile: true,
+                    roster: true,
+                    stats: true,
+                    presentation: true,
+                    polls: true,
+                    logs: true,
+                    quests: true,
+                    worldmap: true,
+                    resources: true,
+                    chat: true,
+                }
+            }
         }
     }) as any;
 
@@ -534,6 +556,16 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     const isAdminFinal = isAdmin || isGod;
 
+    // Apply module toggles as a final mask on canView* permissions.
+    // If a module is disabled by admin, the corresponding canView* is false
+    // regardless of Discord role permissions.
+    // Super-admins (isGod) and guild admins bypass module restrictions.
+    const mod = (guildConfig as any)?.modules;
+    const bypassModules = isGod || isAdmin;
+
+    const applyModule = (moduleEnabled: boolean | undefined, perm: boolean) =>
+        bypassModules ? perm : (moduleEnabled !== false) && perm;
+
     return {
         isAuthenticated: true,
         id: session.user.id,
@@ -545,40 +577,40 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 : session.user.image || undefined,
         roleName: isGod && roleName === "Membre" ? "Administrateur" : roleName,
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,
-        canViewMissions: canViewMissions || isGod,
-        canManageMissions: canManageMissions || isGod,
-        canValidateMissions: canValidateMissions || isGod,
+        canViewMissions: applyModule(mod?.missions, canViewMissions || isGod),
+        canManageMissions: applyModule(mod?.missions, canManageMissions || isGod),
+        canValidateMissions: applyModule(mod?.missions, canValidateMissions || isGod),
         canManageBonus: canManageBonus || isGod,
-        canViewRoster: canViewRoster || isGod,
-        canViewSonges: canViewSonges || isGod,
-        canCreateSonges: canCreateSonges || isGod,
-        canJoinSonges: canJoinSonges || isGod,
-        canViewArchis: canViewArchis || isGod,
-        canViewPolls: canViewPolls || isGod,
-        canManagePolls: canManagePolls || isGod,
-        canViewLadder: canViewLadder || isGod,
-        canEditPresentation: canEditPresentation || isGod,
-        canViewCalendar: canViewCalendar || isGod,
-        canManageCalendar: canManageCalendar || isGod,
+        canViewRoster: applyModule(mod?.roster, canViewRoster || isGod),
+        canViewSonges: applyModule(mod?.songes, canViewSonges || isGod),
+        canCreateSonges: applyModule(mod?.songes, canCreateSonges || isGod),
+        canJoinSonges: applyModule(mod?.songes, canJoinSonges || isGod),
+        canViewArchis: applyModule(mod?.ocre, canViewArchis || isGod),
+        canViewPolls: applyModule(mod?.polls, canViewPolls || isGod),
+        canManagePolls: applyModule(mod?.polls, canManagePolls || isGod),
+        canViewLadder: applyModule(mod?.ladder, canViewLadder || isGod),
+        canEditPresentation: applyModule(mod?.presentation, canEditPresentation || isGod),
+        canViewCalendar: applyModule(mod?.calendar, canViewCalendar || isGod),
+        canManageCalendar: applyModule(mod?.calendar, canManageCalendar || isGod),
         canViewAdminDocs: canViewAdminDocs || isGod,
         canManageMembers: canManageMembers || isGod,
         canViewDashboard: canViewDashboard || isGod,
-        canViewPresentation: canViewPresentation || isGod,
-        canViewStats: canViewStats || isGod,
-        canViewServices: canViewServices || isGod,
-        canCreateServices: canCreateServices || isGod,
-        canViewFinder: canViewFinder || isGod,
-        canViewDocs: myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin || isGod,
+        canViewPresentation: applyModule(mod?.presentation, canViewPresentation || isGod),
+        canViewStats: applyModule(mod?.stats, canViewStats || isGod),
+        canViewServices: applyModule(mod?.services, canViewServices || isGod),
+        canCreateServices: applyModule(mod?.services, canCreateServices || isGod),
+        canViewFinder: applyModule(mod?.donjons, canViewFinder || isGod),
+        canViewDocs: applyModule(mod?.docs, myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin || isGod),
         canViewWelcome: canViewWelcome || isGod,
-        canViewProfile: canViewProfile || isGod,
-        canViewQuests: canViewQuests || isGod,
-        canManageQuests: canManageQuests || isGod,
-        canViewWorldmap: canViewWorldmap || isGod,
-        canManageWorldmap: canManageWorldmap || isGod,
-        canViewResources: canViewResources || isGod,
-        canManageResources: canManageResources || isGod,
-        canViewChat: canViewChat || isGod,
-        canModerateChat: canModerateChat || isGod,
+        canViewProfile: applyModule(mod?.profile, canViewProfile || isGod),
+        canViewQuests: applyModule(mod?.quests, canViewQuests || isGod),
+        canManageQuests: applyModule(mod?.quests, canManageQuests || isGod),
+        canViewWorldmap: applyModule(mod?.worldmap, canViewWorldmap || isGod),
+        canManageWorldmap: applyModule(mod?.worldmap, canManageWorldmap || isGod),
+        canViewResources: applyModule(mod?.resources, canViewResources || isGod),
+        canManageResources: applyModule(mod?.resources, canManageResources || isGod),
+        canViewChat: applyModule(mod?.chat, canViewChat || isGod),
+        canModerateChat: applyModule(mod?.chat, canModerateChat || isGod),
         isAdmin: isAdminFinal,
         isSuperAdmin: isGod,
         isMember: true,

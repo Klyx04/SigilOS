@@ -23,7 +23,8 @@ import {
     getChatMentionOptions,
     voteInChatPoll,
     getUserChatBanStatus,
-    setTypingIndicator
+    setTypingIndicator,
+    pushSystemChatMessage
 } from "@/server/actions/chat-actions";
 import {
     CHAT_MAX_LENGTH,
@@ -76,10 +77,10 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
 }) => {
     if (msg.type === "system") {
         return (
-            <div className="flex justify-center my-4">
-                <div className="bg-white/[0.03] border border-white/5 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm backdrop-blur-sm">
-                    <Activity className="w-3 h-3 text-indigo-400/70" />
-                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest italic">{msg.text}</span>
+            <div className="flex justify-center my-2 animate-in fade-in duration-300">
+                <div className="flex items-center gap-1.5 opacity-60">
+                    <Activity className="w-3 h-3 text-white" />
+                    <span className="text-[11px] font-light text-white tracking-wide">{msg.text}</span>
                 </div>
             </div>
         );
@@ -88,12 +89,11 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
     if (msg.type === "presence") {
         const isJoin = msg.text?.includes("rejoint");
         return (
-            <div className="flex justify-center my-3 animate-in fade-in zoom-in duration-500">
-                <div className="bg-white/[0.03] border border-white/5 px-4 py-1.5 rounded-2xl flex items-center gap-2.5 backdrop-blur-md shadow-lg ring-1 ring-white/5">
-                    <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]", isJoin ? "bg-emerald-400 animate-pulse" : "bg-zinc-500")} />
-                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em] italic drop-shadow-sm">{msg.text}</span>
-                    <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]", isJoin ? "bg-emerald-400 animate-pulse" : "bg-zinc-500")} />
-                </div>
+            <div className="flex justify-center my-1 animate-in fade-in duration-300">
+                <span className={cn(
+                    "text-[10px] font-light tracking-wide",
+                    isJoin ? "text-white/30" : "text-zinc-600/70"
+                )}>{msg.text}</span>
             </div>
         );
     }
@@ -210,7 +210,7 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
                     </span>
                 </div>
                 <div className={cn(
-                    "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-lg backdrop-blur-sm transition-all duration-300",
+                    "px-3 py-2 rounded-2xl text-xs leading-relaxed shadow-lg backdrop-blur-sm transition-all duration-300",
                     isOwn
                         ? "bg-indigo-600 text-white rounded-br-sm shadow-indigo-600/10"
                         : isMentioned
@@ -503,7 +503,11 @@ function ChatInner({
     const handleMute = async (targetId: string, name: string) => {
         if (!canModerate) return;
         const res = await muteChatUser(guildId, targetId);
-        if (res.success) toast.success(`${name} est muté pour 5 minutes`);
+        if (res.success) {
+            toast.success(`${name} est muté pour 5 minutes`);
+            // Notify everyone in the chat via system message
+            await pushSystemChatMessage(guildId, `🔇 ${name} a été rendu muet par un modérateur.`);
+        }
         else toast.error("Impossible de muter");
     };
 

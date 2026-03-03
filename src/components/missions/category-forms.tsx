@@ -19,7 +19,7 @@ import {
     type ExpeditionPayload,
     type EventPayload
 } from "@/lib/mission-payloads";
-import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2 } from "lucide-react";
+import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -299,26 +299,52 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
+    const fragmentLevel: 1 | 2 | 3 = payload.fragmentLevel || 1;
 
-    const handleTypeChange = (type: 'ZONE' | 'BOSS') => {
-        const newPayload: AnomaliePayload = { type, levelRange };
+    const handleTypeChange = (type: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE') => {
+        const newPayload: AnomaliePayload = {
+            type,
+            levelRange,
+            ...(type === 'COLLECTE' ? { fragmentLevel: fragmentLevel } : {})
+        };
         onPayloadChange(newPayload);
-        updateTitle(type, levelRange);
+        updateTitle(type, levelRange, type === 'COLLECTE' ? fragmentLevel : undefined);
     };
 
     const handleLevelChange = (range: string) => {
-        const newPayload: AnomaliePayload = { type: anomalieType, levelRange: range as AnomaliePayload['levelRange'] };
+        const newPayload: AnomaliePayload = {
+            type: anomalieType,
+            levelRange: range as AnomaliePayload['levelRange'],
+            ...(anomalieType === 'COLLECTE' ? { fragmentLevel } : {})
+        };
         onPayloadChange(newPayload);
-        updateTitle(anomalieType, range);
+        updateTitle(anomalieType, range, anomalieType === 'COLLECTE' ? fragmentLevel : undefined);
     };
 
-    const updateTitle = (type: string, range: string) => {
+    const handleFragmentChange = (level: number) => {
+        const fl = level as 1 | 2 | 3;
+        onPayloadChange({ type: 'COLLECTE', levelRange, fragmentLevel: fl });
+        updateTitle('COLLECTE', levelRange, fl);
+    };
+
+    const updateTitle = (type: string, range: string, frag?: number) => {
         if (type === 'ZONE') {
             onTitleChange(`Zone Anomalie ${range}`);
-        } else {
+        } else if (type === 'BOSS') {
             onTitleChange(`Gardien Anomalie ${range}`);
+        } else if (type === 'GARDIENS') {
+            onTitleChange(`3 Gardiens Anomalie ${range}`);
+        } else {
+            onTitleChange(`Collecte Fragments Anomalie ${frag ?? 1} (Niv. ${range})`);
         }
     };
+
+    const TYPES: { value: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE'; label: string; desc: string }[] = [
+        { value: 'ZONE', label: 'Zone', desc: '50 monstres' },
+        { value: 'BOSS', label: 'Gardien', desc: 'Gardien d\'anomalie' },
+        { value: 'GARDIENS', label: '3 Gardiens', desc: 'Vaincre 3 gardiens' },
+        { value: 'COLLECTE', label: 'Collecte', desc: 'Fragments d\'anomalie' },
+    ];
 
     return (
         <div className="space-y-4">
@@ -326,55 +352,82 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             <div className="space-y-2">
                 <Label className="text-xs text-zinc-400">Type d'anomalie</Label>
                 <RadioGroup value={anomalieType} onValueChange={handleTypeChange} className="grid grid-cols-2 gap-2">
-                    <div className={cn(
-                        "flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all",
-                        anomalieType === 'ZONE' ? "bg-fuchsia-500/20 border-fuchsia-500/50" : "bg-zinc-900 border-zinc-800"
-                    )}>
-                        <RadioGroupItem value="ZONE" id="zone" />
-                        <Label htmlFor="zone" className="cursor-pointer text-sm">
-                            <div className="font-medium">Zone</div>
-                            <div className="text-xs text-zinc-500">50 monstres</div>
-                        </Label>
-                    </div>
-                    <div className={cn(
-                        "flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all",
-                        anomalieType === 'BOSS' ? "bg-fuchsia-500/20 border-fuchsia-500/50" : "bg-zinc-900 border-zinc-800"
-                    )}>
-                        <RadioGroupItem value="BOSS" id="boss" />
-                        <Label htmlFor="boss" className="cursor-pointer text-sm">
-                            <div className="font-medium">Gardien</div>
-                            <div className="text-xs text-zinc-500">Gardien d'anomalie</div>
-                        </Label>
-                    </div>
+                    {TYPES.map(t => (
+                        <div key={t.value} className={cn(
+                            "flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all",
+                            anomalieType === t.value ? "bg-fuchsia-500/20 border-fuchsia-500/50" : "bg-zinc-900 border-zinc-800"
+                        )}>
+                            <RadioGroupItem value={t.value} id={t.value} />
+                            <Label htmlFor={t.value} className="cursor-pointer text-sm">
+                                <div className="font-medium">{t.label}</div>
+                                <div className="text-xs text-zinc-500">{t.desc}</div>
+                            </Label>
+                        </div>
+                    ))}
                 </RadioGroup>
             </div>
 
-            {/* Level Range Selector */}
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
-                <Select value={levelRange} onValueChange={handleLevelChange}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ANOMALIE_LEVEL_RANGES.map(range => (
-                            <SelectItem key={range} value={range}>{range}</SelectItem>
+            {/* Fragment Level Sub-selector (COLLECTE only) */}
+            {anomalieType === 'COLLECTE' && (
+                <div className="space-y-2">
+                    <Label className="text-xs text-zinc-400">Niveau de collecte (Fragments Ankama 3.5)</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {([1, 2, 3] as const).map(lvl => (
+                            <button
+                                key={lvl}
+                                type="button"
+                                onClick={() => handleFragmentChange(lvl)}
+                                className={cn(
+                                    "p-3 rounded-lg border text-sm font-bold transition-all",
+                                    fragmentLevel === lvl
+                                        ? "bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300"
+                                        : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                                )}
+                            >
+                                Fragment {lvl}
+                            </button>
                         ))}
-                    </SelectContent>
-                </Select>
-            </div>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 italic">Détails à compléter quand Ankama publiera les infos officielles.</p>
+                </div>
+            )}
+
+            {/* Level Range Selector (hidden for COLLECTE since level isn't relevant yet) */}
+            {anomalieType !== 'COLLECTE' && (
+                <div className="space-y-2">
+                    <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
+                    <Select value={levelRange} onValueChange={handleLevelChange}>
+                        <SelectTrigger className="bg-zinc-950 border-zinc-800">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ANOMALIE_LEVEL_RANGES.map(range => (
+                                <SelectItem key={range} value={range}>{range}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             {/* Preview */}
             <div className="p-3 bg-zinc-900/50 rounded-lg border border-fuchsia-500/20 text-xs text-zinc-400">
-                {anomalieType === 'ZONE' ? (
+                {anomalieType === 'ZONE' && (
                     <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
-                ) : (
-                    <>Vaincre un gardien d'anomalie de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
+                )}
+                {anomalieType === 'BOSS' && (
+                    <>Vaincre un <span className="text-fuchsia-400 font-medium">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
+                )}
+                {anomalieType === 'GARDIENS' && (
+                    <>Vaincre <span className="text-fuchsia-400 font-medium">3 gardiens d'anomalie</span> de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
+                )}
+                {anomalieType === 'COLLECTE' && (
+                    <>Collecter des <span className="text-fuchsia-400 font-medium">Fragments d'anomalie</span> — niveau <span className="text-fuchsia-400 font-medium">{fragmentLevel}</span> <span className="text-zinc-600">(Maj 3.5)</span></>
                 )}
             </div>
         </div>
     );
 }
+
 
 // --- SONGES FORM ---
 
@@ -600,42 +653,314 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 }
 
 // --- EVENT FORM ---
+// Flow: 1) Event context  2) Sub-type  3) Detail form
+
+type EventSubType = 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL';
+
+const EVENT_SUBTYPES: { value: EventSubType; label: string; emoji: string; desc: string; color: string; border: string }[] = [
+    { value: 'REGULATION', label: 'Régulation', emoji: '⚔️', desc: '50 monstres de l\'événement', color: 'text-amber-300', border: 'border-amber-500/50 bg-amber-500/10' },
+    { value: 'DONJON', label: 'Donjon', emoji: '🏰', desc: 'Vaincre le boss du donjon événement', color: 'text-rose-300', border: 'border-rose-500/50 bg-rose-500/10' },
+    { value: 'MONSTRE_SPECIAL', label: 'Monstre Spécial', emoji: '💀', desc: 'Monstre unique / boss temporaire', color: 'text-purple-300', border: 'border-purple-500/50 bg-purple-500/10' },
+];
+
+type EventContextPreset = 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
+
+const EVENT_CONTEXTS: { value: EventContextPreset; label: string; emoji: string; period: string }[] = [
+    { value: 'VULKANIA', label: 'Vulkania', emoji: '🦕', period: 'Été' },
+    { value: 'PWAK', label: 'Île de Pwâk', emoji: '🐣', period: 'Pâques' },
+    { value: 'HALOUINE', label: 'Halouine', emoji: '🎃', period: 'Halloween' },
+    { value: 'NOWEL', label: 'Île de Nowel', emoji: '🎄', period: 'Noël' },
+    { value: 'AUTRE', label: 'Autre...', emoji: '✏️', period: 'Manuel' },
+];
+
+const CONTEXT_LABELS: Record<string, string> = {
+    VULKANIA: 'Vulkania',
+    NOWEL: 'Île de Nowel',
+    PWAK: 'Île de Pwâk',
+    HALOUINE: 'Halouine',
+};
 
 export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps) {
-    const title = payload.title || '';
-    const description = payload.description || '';
+    const eventType: EventSubType = payload.eventType || 'REGULATION';
+    const contextPreset: EventContextPreset = payload.contextPreset || 'AUTRE';
+    const contextLabel: string = contextPreset !== 'AUTRE'
+        ? (CONTEXT_LABELS[contextPreset] || '')
+        : (payload.contextManual || '');
 
-    const handleTitleChange = (value: string) => {
-        onPayloadChange({ ...payload, title: value, description });
-        onTitleChange(value);
+    // Local state for searches
+    const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [families, setFamilies] = useState<MonsterFamily[]>([]);
+
+    const handleContextPreset = (ctx: EventContextPreset) => {
+        onPayloadChange({ ...payload, contextPreset: ctx, contextManual: ctx !== 'AUTRE' ? '' : payload.contextManual });
+        // Rebuild title if a mission name was already set
+        rebuildTitle(payload.eventType || 'REGULATION', ctx, ctx !== 'AUTRE' ? (CONTEXT_LABELS[ctx] || '') : (payload.contextManual || ''), payload);
     };
 
-    const handleDescriptionChange = (value: string) => {
-        const newPayload: EventPayload = { description: value };
-        onPayloadChange({ ...payload, description: value });
+    const handleContextManual = (name: string) => {
+        onPayloadChange({ ...payload, contextPreset: 'AUTRE', contextManual: name });
+        rebuildTitle(payload.eventType || 'REGULATION', 'AUTRE', name, payload);
+    };
+
+    const handleSubTypeChange = (newType: EventSubType) => {
+        onPayloadChange({ eventType: newType, contextPreset, contextManual: payload.contextManual });
+        onTitleChange('');
+    };
+
+    const rebuildTitle = (type: EventSubType, ctx: EventContextPreset, ctxName: string, p: Record<string, any>) => {
+        const suffix = ctxName ? ` — ${ctxName}` : '';
+        if (type === 'DONJON' && p.dungeonName) onTitleChange(`${p.dungeonName}${suffix}`);
+        else if (type === 'REGULATION' && p.familyName) onTitleChange(`Régulation des ${p.familyName}${suffix}`);
+        else if (type === 'MONSTRE_SPECIAL' && p.monsterName) onTitleChange(`Vaincre ${p.monsterName}${suffix}`);
+    };
+
+    // --- Dungeon fetcher: filtered by event zone if preset active ---
+    const dungeonFetcher = useCallback(async (query: string) => {
+        // If a preset is selected, try to filter to event dungeons for that zone
+        const filters: any = { query };
+        if (contextPreset !== 'AUTRE') {
+            filters.isEventDungeon = true;
+            // Also filter by zone if we can look it up via the event zone key
+            const zoneRes = await searchZones(contextLabel, true);
+            const matchingZone = zoneRes.data?.find((z: any) => z.eventZoneKey === contextPreset);
+            if (matchingZone) filters.zoneId = matchingZone.id;
+        }
+        const res = await searchDungeonsAdvanced(filters);
+        if (res.success && res.data) {
+            setDungeons(res.data);
+            const items = res.data.map((d: any) => ({ value: d.id, label: d.name, subLabel: `Niv. ${d.level} · Boss: ${d.bossName}` }));
+            // If event-filtered returned nothing, fallback to full search
+            if (items.length === 0 && contextPreset !== 'AUTRE') {
+                const fallback = await searchDungeonsAdvanced({ query });
+                if (fallback.success && fallback.data) {
+                    setDungeons(fallback.data);
+                    return fallback.data.map((d: any) => ({ value: d.id, label: d.name, subLabel: `Niv. ${d.level} · Boss: ${d.bossName} (toute zone)` }));
+                }
+            }
+            return items;
+        }
+        return [];
+    }, [contextPreset, contextLabel]);
+
+    const handleDungeonSelect = (dungeonId: string) => {
+        const dungeon = dungeons.find(d => d.id === dungeonId);
+        if (dungeon) {
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onPayloadChange({ ...payload, eventType: 'DONJON', dungeonId: dungeon.id, dungeonName: dungeon.name, bossName: dungeon.bossName, level: dungeon.level, imageUrl: dungeon.imageUrl });
+            onTitleChange(`${dungeon.name}${suffix}`);
+        }
+    };
+
+    // --- Zone fetcher: event-only when preset active ---
+    const zoneFetcher = useCallback(async (query: string) => {
+        const eventOnly = contextPreset !== 'AUTRE';
+        const res = await searchZones(query, eventOnly);
+        if (res.success && res.data) {
+            setZones(prev => { const m = new Map(prev.map(z => [z.id, z])); res.data?.forEach(z => m.set(z.id, z)); return Array.from(m.values()); });
+            return res.data.map(z => ({ value: z.id, label: z.name, subLabel: eventOnly ? `🗺 Zone événement · Niv. ${z.level}` : `Niv. ${z.level}` }));
+        }
+        return [];
+    }, [contextPreset]);
+
+    const familyFetcher = useCallback(async (query: string) => {
+        const res = await getMonsterFamilies({ zoneId: payload.zoneId, search: query });
+        if (res.success && res.data) {
+            setFamilies(prev => { const m = new Map(prev.map(f => [f.id, f])); res.data?.forEach(f => m.set(f.id, f)); return Array.from(m.values()); });
+            return res.data.map(f => ({ value: f.id, label: f.name }));
+        }
+        return [];
+    }, [payload.zoneId]);
+
+    const handleRegZone = (zoneId: string) => {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            onPayloadChange({ ...payload, eventType: 'REGULATION', zoneId: zone.id, zoneName: zone.name, familyId: '', familyName: '', targetCount: 50 });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Régulation en ${zone.name}${suffix}`);
+        }
+    };
+
+    const handleRegFamily = (familyId: string) => {
+        const family = families.find(f => f.id === familyId);
+        if (family) {
+            onPayloadChange({ ...payload, eventType: 'REGULATION', familyId: family.id, familyName: family.name, imageUrl: family.imageUrl });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Régulation des ${family.name}${suffix}`);
+        }
+    };
+
+    // --- Monstre Spécial ---
+    const handleMonsterName = (name: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', monsterName: name });
+        const suffix = contextLabel ? ` — ${contextLabel}` : '';
+        onTitleChange(name ? `Vaincre ${name}${suffix}` : '');
+    };
+
+    const handleTargetCount = (count: number) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', targetCount: count });
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-5">
+            {/* ── STEP 1: Event Context ────────────────── */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Titre de l'événement</Label>
-                <Input
-                    className="bg-zinc-950 border-zinc-800"
-                    placeholder="Ex: Tournoi PvP inter-guilde"
-                    value={title}
-                    onChange={e => handleTitleChange(e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400/80">Étape 1</span>
+                    <span className="text-xs text-zinc-400 font-medium">Contexte de l'événement</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                    {EVENT_CONTEXTS.map(ctx => (
+                        <button
+                            key={ctx.value}
+                            type="button"
+                            onClick={() => handleContextPreset(ctx.value)}
+                            title={ctx.period}
+                            className={cn(
+                                "flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all duration-200",
+                                contextPreset === ctx.value
+                                    ? ctx.value === 'AUTRE'
+                                        ? "border-zinc-500/50 bg-zinc-700/40 text-zinc-200"
+                                        : "border-yellow-500/50 bg-yellow-500/10 text-yellow-200"
+                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-500"
+                            )}
+                        >
+                            <span className="text-lg">{ctx.emoji}</span>
+                            <span className="text-[10px] font-black leading-tight">{ctx.label}</span>
+                            <span className="text-[8px] text-zinc-500">{ctx.period}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Free text for "Autre" */}
+                {contextPreset === 'AUTRE' && (
+                    <Input
+                        className="bg-zinc-950 border-zinc-700 placeholder:text-zinc-600 text-sm mt-2"
+                        placeholder="Nom de l'événement... (ex: Nouvel An Lunaire)"
+                        value={payload.contextManual || ''}
+                        onChange={e => handleContextManual(e.target.value)}
+                        autoFocus
+                    />
+                )}
+
+                {/* Context badge */}
+                {contextLabel && (
+                    <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-[11px] font-bold">
+                        <Sparkles className="w-3 h-3 shrink-0" />
+                        Contexte actif : <span className="font-black">{contextLabel}</span>
+                    </div>
+                )}
             </div>
 
+            <div className="h-px bg-zinc-800" />
+
+            {/* ── STEP 2: Sub-type ─────────────────────── */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Description</Label>
-                <Textarea
-                    className="bg-zinc-950 border-zinc-800 min-h-[80px]"
-                    placeholder="Décrivez l'événement..."
-                    value={description}
-                    onChange={e => handleDescriptionChange(e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400/80">Étape 2</span>
+                    <span className="text-xs text-zinc-400 font-medium">Type de mission</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                    {EVENT_SUBTYPES.map(st => (
+                        <button
+                            key={st.value}
+                            type="button"
+                            onClick={() => handleSubTypeChange(st.value)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-all duration-200",
+                                eventType === st.value ? st.border : "bg-zinc-900 border-zinc-800 hover:border-zinc-600"
+                            )}
+                        >
+                            <span className="text-xl">{st.emoji}</span>
+                            <span className={cn("text-xs font-black", eventType === st.value ? st.color : "text-zinc-400")}>{st.label}</span>
+                            <span className="text-[9px] text-zinc-500 leading-tight">{st.desc}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="h-px bg-zinc-800" />
+
+            {/* ── STEP 3: Detail form ──────────────────── */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/80">Étape 3</span>
+                    <span className="text-xs text-zinc-400 font-medium">
+                        {eventType === 'DONJON' ? 'Sélectionner le donjon' : eventType === 'REGULATION' ? 'Sélectionner les monstres' : 'Définir le monstre spécial'}
+                    </span>
+                </div>
+
+                {/* DONJON */}
+                {eventType === 'DONJON' && (
+                    <div className="space-y-2">
+                        <AsyncCombobox
+                            value={payload.dungeonId}
+                            onSelect={handleDungeonSelect}
+                            fetcher={dungeonFetcher}
+                            placeholder="Rechercher un donjon..."
+                            searchPlaceholder="Nom du donjon ou du boss..."
+                            emptyText="Aucun donjon trouvé."
+                        />
+                        {payload.bossName && (
+                            <div className="p-3 bg-rose-500/10 rounded-lg border border-rose-500/20 text-xs text-zinc-400">
+                                Vaincre <span className="text-rose-400 font-bold">{payload.bossName}</span>
+                                {contextLabel && <> · <span className="text-yellow-400">{contextLabel}</span></>}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* REGULATION */}
+                {eventType === 'REGULATION' && (
+                    <div className="space-y-2">
+                        <AsyncCombobox value={payload.zoneId} onSelect={handleRegZone} fetcher={zoneFetcher} placeholder="Zone (optionnel)..." searchPlaceholder="Rechercher une zone..." />
+                        <AsyncCombobox key={payload.zoneId} value={payload.familyId} onSelect={handleRegFamily} fetcher={familyFetcher} placeholder="Famille de monstres..." searchPlaceholder="Rechercher une famille..." />
+                        {payload.familyName && (
+                            <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 text-xs text-zinc-400">
+                                Vaincre <span className="text-amber-400 font-bold">50</span> <span className="text-amber-400 font-bold">{payload.familyName}</span>
+                                {contextLabel && <> · <span className="text-yellow-400">{contextLabel}</span></>}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* MONSTRE SPÉCIAL */}
+                {eventType === 'MONSTRE_SPECIAL' && (
+                    <div className="space-y-3">
+                        <Input
+                            className="bg-zinc-950 border-zinc-800"
+                            placeholder="Ex: Malice, Damadrya, Tofus d'Halouine..."
+                            value={payload.monsterName || ''}
+                            onChange={e => handleMonsterName(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                            {[1, 10, 25, 50, 100].map(count => (
+                                <button
+                                    key={count}
+                                    type="button"
+                                    onClick={() => handleTargetCount(count)}
+                                    className={cn(
+                                        "flex-1 py-2 rounded-lg border text-xs font-bold transition-all",
+                                        (payload.targetCount || 50) === count
+                                            ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                                            : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                                    )}
+                                >
+                                    {count}
+                                </button>
+                            ))}
+                        </div>
+                        {payload.monsterName && (
+                            <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20 text-xs text-zinc-400">
+                                Vaincre <span className="text-purple-400 font-bold">{payload.targetCount || 50}</span>{' '}
+                                <span className="text-purple-400 font-bold">{payload.monsterName}</span>
+                                {contextLabel && <> · <span className="text-yellow-400">{contextLabel}</span></>}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+

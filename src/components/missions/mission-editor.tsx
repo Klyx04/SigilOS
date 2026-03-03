@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions } from "@/server/actions/mission-actions";
+import { getDofusConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
-import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send } from "lucide-react";
+import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getWeekNumber } from "@/lib/date-utils";
@@ -37,13 +38,15 @@ type DraftMission = {
 
 const DEFAULT_mission_TEMPLATE = (index: number): DraftMission => ({
     slotIndex: index,
-    category: "DONJON",
+    category: index >= 12 ? "EVENT" : "DONJON", // Slots 12-17 are for SPECIALES (EVENT)
     rank: 1,
     title: "",
     xpReward: 300,
     guildatonsReward: 50,
-    payload: { boss: "" }
+    payload: index >= 12 ? { eventType: 'REGULATION' } : { boss: "" }
 });
+
+type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 // --- Component ---
 
@@ -51,10 +54,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
     const { week: weekNumber, year } = getWeekNumber();
 
     const [missions, setMissions] = useState<DraftMission[]>(
-        Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
+        Array.from({ length: 18 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
     );
 
+    const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
     const [globalTier, setGlobalTier] = useState<number>(3);
+    const [guildDefaultTier, setGuildDefaultTier] = useState<number>(3);
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -62,14 +67,25 @@ export function MissionEditor({ guildId }: { guildId: string }) {
     const [isDiscordDialogOpen, setIsDiscordDialogOpen] = useState(false);
     const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
 
+    // Slots for current pool
+    const poolMissions = missionPool === 'CLASSIQUES'
+        ? missions.slice(0, 12)  // slots 0-11
+        : missions.slice(12, 18); // slots 12-17
+
     // Fetch Data on Week Change
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
+            // Load guild default tier (for fallback when no missions exist yet)
+            const configRes = await getDofusConfig(guildId);
+            const guildTier = configRes.success && configRes.data?.missionTier ? configRes.data.missionTier : 3;
+            setGuildDefaultTier(guildTier);
+
             const res = await getWeekMissions(guildId, weekNumber, year);
             if (res.success && res.data) {
                 const fetched = res.data;
-                const newMissions = Array.from({ length: 12 }).map((_, i) => {
+                // Build 18 slots: 0-11 classic, 12-17 special
+                const newMissions = Array.from({ length: 18 }).map((_, i) => {
                     const existing = fetched.find((m: any) => m.slotIndex === i);
                     if (existing) {
                         return {
@@ -86,8 +102,12 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 });
                 setMissions(newMissions);
 
+                // Use the tier from existing missions if available, else fall back to guild default
                 const foundTier = (fetched as any[]).find((m: any) => m.tier)?.tier;
-                if (foundTier) setGlobalTier(foundTier);
+                setGlobalTier(foundTier || guildTier);
+            } else {
+                // No missions yet this week — use guild default
+                setGlobalTier(guildTier);
             }
         } catch (e: unknown) {
             toast.error("Erreur de chargement");
@@ -136,19 +156,23 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
     const handleGlobalPublish = async () => {
         setIsSaving(true);
+        // Only publish missions from the current pool
+        const poolMissionsToPublish = missionPool === 'CLASSIQUES'
+            ? missions.slice(0, 12)
+            : missions.slice(12, 18);
         const res = await createWeekMissions({
             guildId,
             weekNumber,
             year,
-            missions: missions.map(m => ({ ...m, tier: globalTier })),
-            updateGuildTier: globalTier,
+            missions: poolMissionsToPublish.map(m => ({ ...m, tier: globalTier })),
+            updateGuildTier: missionPool === 'CLASSIQUES' ? globalTier : undefined,
             notifyMembers: true
         });
         setIsSaving(false);
         setConfirmPublishOpen(false);
 
         if (res.success) {
-            toast.success("Tout est publié !");
+            toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques publiées !" : "Missions spéciales publiées !");
             fetchData();
         } else {
             toast.error(res.error || "Erreur globale");
@@ -162,7 +186,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
         try {
             const res = await resetWeek(guildId, weekNumber, year);
             if (res.success) {
-                setMissions(Array.from({ length: 12 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
+                setMissions(Array.from({ length: 18 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
                 toast.success("Semaine réinitialisée avec succès");
             } else {
                 toast.error(res.error || "Erreur lors de la réinitialisation");
@@ -176,6 +200,40 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
     const updateMission = (slot: number, updates: Partial<DraftMission>) => {
         setMissions(prev => prev.map(m => m.slotIndex === slot ? { ...m, ...updates } : m));
+    };
+
+    /** Returns an error string if the mission is incomplete, null if valid */
+    const validateMission = (m: DraftMission): string | null => {
+        if (!m.title?.trim()) {
+            switch (m.category) {
+                case 'DONJON': return "Sélectionnez un donjon.";
+                case 'EXPEDITION': return "Sélectionnez un donjon pour l’expédition.";
+                case 'REGULATION': return "Sélectionnez une zone ou une famille de monstres.";
+                case 'ANOMALIE': return "Configurez l’anomalie (zone requise).";
+                case 'SONGES': return "Configurez les songes.";
+                case 'EVENT': return "Configurez le type d’événement (donjon, régulation ou monstre spécial).";
+                default: return "Champs requis manquants.";
+            }
+        }
+        // Extra field checks per category
+        if (m.category === 'DONJON' && !m.payload?.dungeonId)
+            return "Sélectionnez un donjon dans la liste.";
+        if (m.category === 'EXPEDITION' && !m.payload?.dungeonId)
+            return "Sélectionnez un donjon pour l’expédition.";
+        if (m.category === 'REGULATION' && !m.payload?.familyId && !m.payload?.zoneId)
+            return "Sélectionnez au moins une zone ou une famille.";
+        return null;
+    };
+
+    const handleSaveFromDialog = (slot: number) => {
+        const mission = missions[slot];
+        const error = validateMission(mission);
+        if (error) {
+            toast.error(error, { description: "Complétez tous les champs avant d’enregistrer." });
+            return;
+        }
+        handleSaveSingle(slot);
+        setEditingSlot(null);
     };
 
     const currentMission = editingSlot !== null ? missions[editingSlot] : null;
@@ -201,7 +259,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     <div className="w-px h-8 bg-zinc-800 mx-2 hidden sm:block"></div>
 
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-zinc-400 font-medium">Objectif Palier</label>
+                        <label className="text-sm text-zinc-400 font-medium">Palier semaine</label>
                         <select
                             className="h-9 w-32 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
                             value={globalTier}
@@ -211,6 +269,9 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 <option key={t} value={t}>Palier {t}</option>
                             ))}
                         </select>
+                        {globalTier !== guildDefaultTier && (
+                            <span className="text-[10px] text-zinc-600 italic">Défaut guilde : {guildDefaultTier}</span>
+                        )}
                         <GuidePulse description="Définit le nombre total de points requis par la guilde cette semaine pour débloquer les récompenses." />
                     </div>
 
@@ -258,9 +319,51 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                 </div>
             </div>
 
+            {/* Pool Toggle — Dofus 3.5 Classiques / Spéciales */}
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-full shadow-lg">
+                    {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
+                        const isActive = missionPool === pool;
+                        const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 18).filter(m => m.title).length;
+                        const total = pool === 'CLASSIQUES' ? 12 : 6;
+                        return (
+                            <button
+                                key={pool}
+                                onClick={() => setMissionPool(pool)}
+                                className={cn(
+                                    "relative flex items-center gap-2 px-5 py-2 text-xs font-black rounded-full transition-all duration-300 uppercase tracking-widest",
+                                    isActive
+                                        ? pool === 'CLASSIQUES'
+                                            ? "bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]"
+                                            : "bg-yellow-500 text-black shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+                                        : "text-zinc-400 hover:text-white hover:bg-white/10"
+                                )}
+                            >
+                                {pool === 'CLASSIQUES' ? <Swords className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                {pool}
+                                <span className={cn(
+                                    "text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
+                                    isActive
+                                        ? pool === 'CLASSIQUES' ? "bg-white/20 text-white" : "bg-black/20 text-black"
+                                        : "bg-zinc-700 text-zinc-300"
+                                )}>
+                                    {count}/{total}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+                {missionPool === 'SPECIALES' && (
+                    <span className="text-[10px] text-yellow-400/70 font-medium hidden sm:flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Missions spéciales — jusqu'à 6 missions (Dofus 3.5)
+                    </span>
+                )}
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
+            </div>
+
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {missions.map((mission) => {
+                {poolMissions.map((mission) => {
                     const isEmpty = !mission.title;
                     const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
                     const borderColor = isEmpty ? "border-zinc-800" : config.borderColor;
@@ -336,7 +439,20 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                     </Badge>
                                 </div>
                                 <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-white/10" onClick={() => handleSaveSingle(mission.slotIndex)} title="Sauvegarder">
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6 hover:bg-white/10"
+                                        title={validateMission(mission) ?? "Sauvegarder"}
+                                        onClick={() => {
+                                            const err = validateMission(mission);
+                                            if (err) {
+                                                toast.error(err, { description: "Ouvrez le slot pour compléter les champs requis." });
+                                                return;
+                                            }
+                                            handleSaveSingle(mission.slotIndex);
+                                        }}
+                                    >
                                         <Save className="w-3.5 h-3.5 text-indigo-400" />
                                     </Button>
                                     <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-white/10" onClick={() => handleResetSingle(mission.slotIndex)} title="Effacer">
@@ -385,7 +501,11 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
                 <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black">Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</DialogTitle>
+                        <DialogTitle className="text-xl font-black flex items-center gap-2">
+                            {editingSlot !== null && editingSlot >= 12
+                                ? <><Sparkles className="w-4 h-4 text-yellow-400" /> Éditer Slot Spécial #{editingSlot - 11}</>
+                                : <>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</>}
+                        </DialogTitle>
                     </DialogHeader>
 
                     {currentMission && (
@@ -393,19 +513,27 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Catégorie</label>
-                                    <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                        value={currentMission.category}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, {
-                                            category: e.target.value as MissionCategoryType,
-                                            title: "",
-                                            payload: {}
-                                        })}
-                                    >
-                                        {MISSION_CATEGORIES.map(c => (
-                                            <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
-                                        ))}
-                                    </select>
+                                    {missionPool === 'SPECIALES' ? (
+                                        // Special pool: locked to EVENT
+                                        <div className="h-9 w-full rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 flex items-center gap-2 text-sm text-yellow-300 font-bold">
+                                            <Sparkles className="w-3.5 h-3.5" /> Événement
+                                        </div>
+                                    ) : (
+                                        // Classic pool: all categories except EVENT
+                                        <select
+                                            className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                            value={currentMission.category}
+                                            onChange={(e) => updateMission(currentMission.slotIndex, {
+                                                category: e.target.value as MissionCategoryType,
+                                                title: "",
+                                                payload: {}
+                                            })}
+                                        >
+                                            {MISSION_CATEGORIES.filter(c => c !== 'EVENT').map(c => (
+                                                <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -494,30 +622,48 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                             </div>
                         </div>
                     )}
-                    <DialogFooter className="gap-2">
+                    <DialogFooter className="gap-2 flex-col sm:flex-row items-center">
+                        {currentMission && (() => {
+                            const err = validateMission(currentMission);
+                            return err ? (
+                                <p className="flex-1 text-xs text-rose-400 font-medium flex items-center gap-1.5 mr-auto">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                    {err}
+                                </p>
+                            ) : null;
+                        })()}
                         <Button variant="ghost" onClick={() => setEditingSlot(null)} className="text-zinc-400 hover:text-white">Annuler</Button>
-                        <Button onClick={() => { handleSaveSingle(currentMission!.slotIndex); setEditingSlot(null); }} className="bg-indigo-600 hover:bg-indigo-500 font-bold">Enregistrer</Button>
+                        <Button
+                            onClick={() => currentMission && handleSaveFromDialog(currentMission.slotIndex)}
+                            disabled={!!currentMission && !!validateMission(currentMission)}
+                            className="bg-indigo-600 hover:bg-indigo-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Enregistrer
+                        </Button>
                     </DialogFooter>
+
                 </DialogContent>
             </Dialog>
 
             <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>
-                <DialogContent className="bg-zinc-900 border-zinc-800 text-white shadow-2xl">
+                <DialogContent className="max-w-sm bg-zinc-900 border-zinc-800 text-white shadow-2xl rounded-2xl">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-amber-500 font-black">
-                            <AlertTriangle className="w-5 h-5" />
-                            CONFIRMER LA PUBLICATION
+                        <DialogTitle className="flex items-center gap-2 text-amber-500 font-black text-base">
+                            <AlertTriangle className="w-4 h-4" />
+                            Confirmer la publication
                         </DialogTitle>
-                        <DialogDescription className="text-zinc-400">
-                            Vous allez mettre à jour les {missions.filter(m => m.title).length} missions configurées pour la Semaine {weekNumber}.
+                        <DialogDescription className="text-zinc-400 text-sm">
+                            Vous allez publier les {missionPool === 'CLASSIQUES' ? 'missions classiques' : 'missions spéciales'} ({poolMissions.filter(m => m.title).length} configurées sur {missionPool === 'CLASSIQUES' ? 12 : 6}) pour la Semaine {weekNumber}.
                             <br /><br />
-                            Cela ne supprimera pas les missions existantes des autres slots, mais écrasera celles-ci.
+                            {missionPool === 'CLASSIQUES'
+                                ? "Cela mettra à jour les 12 slots classiques (indices 0-11)."
+                                : "Cela mettra à jour les 6 slots spéciaux (indices 12-17), dans le pool Événements."}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setConfirmPublishOpen(false)}>Annuler</Button>
                         <Button onClick={handleGlobalPublish} className="bg-amber-600 hover:bg-amber-500 text-white font-bold">
-                            PUBLIER MAINTENANT
+                            Publier maintenant
                         </Button>
                     </DialogFooter>
                 </DialogContent>

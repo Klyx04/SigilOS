@@ -9,6 +9,7 @@ import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, Scro
 import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 interface DjEditModalProps {
     isOpen: boolean;
@@ -104,14 +105,13 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5 text-indigo-400" />
                             Date prévue <span className="text-rose-500">*</span>
+                            <span className="text-slate-600 font-normal text-[10px] normal-case ml-1">(heure optionnelle)</span>
                         </label>
-                        <input
-                            type="datetime-local"
-                            required
+                        <DateTimePicker
                             value={targetDate}
-                            min={new Date().toISOString().slice(0, 16)}
-                            onChange={(e) => setTargetDate(e.target.value)}
-                            className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all [color-scheme:dark] shadow-inner"
+                            onChange={setTargetDate}
+                            minDate={new Date()}
+                            timeOptional={true}
                         />
                     </div>
 

@@ -273,9 +273,9 @@
         "nom": "Marchand de Sable",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Réduit tous les temps de relance de 10 tours. Le coût en PA du sort est remboursé. Utilisable une seule fois par combat.",
-        "effets": "??? : -10 tours de relance (1 tour) | Rembourse 1 PA",
-        "infos": "Portée infinie, sans ligne de vue.",
+        "description": "Applique -100 Esquive PA et -100 Esquive PM sur les ennemis en cercle de taille 2. Réduit la durée des effets sur tout le monde de 3 tours.",
+        "effets": "-100 Esquive PA (ennemis zone 2) | -100 Esquive PM (ennemis zone 2) | Réduit la durée des effets de 3 tours | Rembourse 1 PA",
+        "infos": "Refonte MAJ 3.5. Coût en PA remboursé.",
         "cout": 15
     },
     {

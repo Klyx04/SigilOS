@@ -176,10 +176,10 @@ export default async function GuildSelectorPage() {
     const { active, pending, rateLimited } = await getGuildsSeparated(session.user.id);
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
 
-    // Smart Redirect disabled to show the portal
-    // if (active.length === 1 && pending.length === 0) {
-    //     redirect(`/dashboard/${active[0].id}`);
-    // }
+    // Smart Redirect: if only one guild, go directly without showing the portal
+    if (active.length === 1 && pending.length === 0) {
+        redirect(`/dashboard/${active[0].id}`);
+    }
 
     // Check if empty
     const isEmpty = active.length === 0 && pending.length === 0;

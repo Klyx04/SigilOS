@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import GameDataInterface from "@/components/admin/GameDataInterface";
-import { Database, Layers, MapPin, Trophy } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EventZoneManager } from "@/components/admin/EventZoneManager";
+import { Database, Layers, MapPin, Trophy, Sparkles } from "lucide-react";
 
 export const metadata = {
     title: "GOD | Game Data Management",
@@ -12,20 +12,14 @@ export const metadata = {
 
 export default async function GameDataPage() {
     const session = await auth();
-    if (!session?.user?.id) {
-        redirect("/");
-    }
+    if (!session?.user?.id) redirect("/");
 
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
-        redirect("/");
-    }
-
-    // Removed production block to allow import via GUI in prod/beta
+    if (!isAdmin) redirect("/");
 
     return (
         <div className="p-8 md:p-12 md:pt-16 space-y-16">
-            {/* Page Header - Scaled */}
+            {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-12">
                 <div className="space-y-4">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-black text-indigo-400 uppercase tracking-widest">
@@ -42,7 +36,7 @@ export default async function GameDataPage() {
                 </div>
             </div>
 
-            {/* Quick Stats - Scaled */}
+            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { label: "Familles", icon: Layers, color: "text-blue-400", bg: "bg-blue-500/5", border: "border-blue-500/20", glow: "shadow-blue-500/10" },
@@ -65,8 +59,24 @@ export default async function GameDataPage() {
                 ))}
             </div>
 
-            {/* Main Interface */}
+            {/* Main Sync Interface */}
             <GameDataInterface />
+
+            {/* ── Zones Événements ─────────────────────────── */}
+            <div className="border-t border-white/5 pt-12 space-y-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs font-black text-yellow-400 uppercase tracking-widest">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Zones Saisonnières</span>
+                </div>
+                <h2 className="text-3xl font-black text-white tracking-tighter">
+                    Zones Événements <span className="text-yellow-500/70 text-xl font-bold">· Dofus 3.5</span>
+                </h2>
+                <p className="text-zinc-500 text-sm max-w-xl">
+                    Associez familles de monstres et donjons aux zones événements saisonnières.
+                    Ces données alimentent directement le sélecteur de missions spéciales côté admin.
+                </p>
+                <EventZoneManager />
+            </div>
         </div>
     );
 }

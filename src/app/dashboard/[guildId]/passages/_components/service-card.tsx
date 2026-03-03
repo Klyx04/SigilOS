@@ -115,8 +115,8 @@ function PriceLine({ tier }: { tier: { label: string; price: string } }) {
             <span className={`text-xs font-semibold truncate ${isSimple ? "text-zinc-400" : "text-cyan-300"}`}>
                 {isSimple ? "⚪" : "✨"} {tier.label}
             </span>
-            <span className="font-black text-amber-400 whitespace-nowrap flex items-center gap-1">
-                <Coins className="h-3.5 w-3.5" />
+            <span className="font-black text-amber-400 whitespace-nowrap flex items-center gap-1.5">
+                <Image src="/assets/icons/kama.png" alt="kamas" width={16} height={16} className="object-contain" />
                 {tier.price}
             </span>
         </div>
@@ -253,10 +253,10 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
                 </div>
             ) : listing.price ? (
                 <div className="flex items-center gap-2 text-base text-zinc-200">
-                    <Coins className="h-4 w-4 text-amber-400 shrink-0" />
+                    <Image src="/assets/icons/kama.png" alt="kamas" width={18} height={18} className="object-contain shrink-0" />
                     <span className="font-black">
                         {/^\d+$/.test(listing.price.replace(/\s/g, ""))
-                            ? `${Number(listing.price).toLocaleString("fr-FR")} kamas`
+                            ? `${Number(listing.price).toLocaleString("fr-FR")}`
                             : listing.price}
                     </span>
                 </div>

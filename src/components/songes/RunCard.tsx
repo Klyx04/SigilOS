@@ -224,7 +224,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     };
 
     return (
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4 hover:border-purple-400/50 transition-all">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 to-zinc-950 border border-purple-500/20 p-4 hover:border-purple-400/30 transition-all">
             {/* Glow effect based on difficulty */}
             <div
                 className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20"
@@ -474,9 +474,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <span className="text-purple-200">Progression</span>
                     <span className="text-amber-400 font-medium">Étage {run.currentFloor}/26</span>
                 </div>
-                <div className="h-2 bg-purple-900/50 rounded-full overflow-hidden">
+                <div className="h-2 bg-zinc-800/80 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-purple-500 to-amber-500 transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -501,8 +501,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             <div key={slot} className="flex flex-col items-center gap-1 min-w-[50px]">
                                 <div
                                     className={`w-10 h-10 rounded-full border-2 flex items-center justify-center overflow-hidden transition-all ${member
-                                        ? "bg-purple-600/50 border-purple-400 text-white"
-                                        : "bg-purple-900/30 border-purple-700/50 border-dashed"
+                                        ? "bg-indigo-600/30 border-indigo-400/60 text-white"
+                                        : "bg-zinc-800/50 border-zinc-600/40 border-dashed"
                                         }`}
                                     title={member ? displayName : "Libre"}
                                 >

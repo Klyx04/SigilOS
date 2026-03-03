@@ -260,12 +260,33 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     {/* Active Bonus Tracker */}
                     <ActiveBonusBar guildId={guildId} />
 
-                    {currentAchievedTier < 5 && (
-                        <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
-                            <Target className="w-3.5 h-3.5 text-zinc-400" />
-                            <span className="text-zinc-400">Prochain palier : <span className="text-white font-mono text-sm ml-1">{(GUILD_TIERS[(currentAchievedTier + 1) as keyof typeof GUILD_TIERS]?.xpMax - currentXP).toLocaleString()}</span> XP</span>
-                        </div>
-                    )}
+                    {/* Next milestone within current target tier */}
+                    {(() => {
+                        const steps = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS]?.steps || [];
+                        const nextStep = steps.find(s => currentXP < s.xp);
+                        if (!nextStep) {
+                            return (
+                                <div className="bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2 w-full md:w-auto justify-center">
+                                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span className="text-emerald-400 font-black">Palier {targetTier} atteint !</span>
+                                </div>
+                            );
+                        }
+                        const xpLeft = nextStep.xp - currentXP;
+                        const xpDisplay = nextStep.xp >= 1000 ? `${nextStep.xp / 1000}k` : nextStep.xp;
+                        return (
+                            <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
+                                <Target className="w-3.5 h-3.5 text-zinc-400" />
+                                <span className="text-zinc-400">
+                                    Prochain jalon
+                                    <span className="text-zinc-200 font-bold ml-1">{nextStep.label}</span>
+                                    <span className="text-[9px] text-zinc-600 ml-1">({xpDisplay} XP)</span>
+                                    {" · "}
+                                    <span className="text-white font-mono text-sm">{xpLeft.toLocaleString()}</span> XP restants
+                                </span>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
         </div>

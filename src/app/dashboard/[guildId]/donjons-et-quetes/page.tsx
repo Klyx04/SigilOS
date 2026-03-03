@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Swords } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { getDjPosts, getDjSettings } from "@/server/actions/dungeon-finder-actions";
+import { getDjPosts, getDjChannelConfigured } from "@/server/actions/dungeon-finder-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { DungeonFinderClient } from "@/components/dungeon-finder/DungeonFinderClient";
@@ -32,12 +32,11 @@ export default async function FinderPage({
     }
 
     // Fetch initial posts + DJ settings (SSR)
-    const [postsResult, settingsResult] = await Promise.all([
+    const [postsResult, isDiscordConfigured] = await Promise.all([
         getDjPosts(guildId, {}),
-        getDjSettings(guildId),
+        getDjChannelConfigured(guildId),
     ]);
     const initialPosts: DjPostWithDetails[] = postsResult.success ? (postsResult.data ?? []) : [];
-    const isDiscordConfigured = !!(settingsResult.success && settingsResult.data?.djNotifyChannelId);
 
     // Server Action bound to this guild (passed to client for refresh)
     async function refreshPosts(): Promise<DjPostWithDetails[]> {

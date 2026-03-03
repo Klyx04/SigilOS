@@ -7,6 +7,7 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
+import { ActivitiesNav } from "@/components/layout/activities-nav";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -31,6 +32,7 @@ export default async function LadderPage({ params }: Props) {
             <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
 
             <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+                <ActivitiesNav guildId={guildId} />
                 <UnifiedModuleHeader
                     title="Classement de Guilde"
                     description="Découvrez les membres les plus actifs et leur progression en jeu."

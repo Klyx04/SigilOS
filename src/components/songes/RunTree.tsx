@@ -377,7 +377,14 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                     >
                         <div className="absolute inset-0 rounded-full border border-dashed border-cyan-400/20 animate-[spin_20s_linear_infinite]" />
                         <div className="absolute inset-0 bg-cyan-500/10 blur-xl rounded-full animate-pulse" />
-                        <span className="text-2xl font-bold text-cyan-300 z-10">0</span>
+                        <div className="relative z-10 w-12 h-12">
+                            <Image
+                                src="/assets/songes/départ.png"
+                                alt="Départ"
+                                fill
+                                className="object-contain"
+                            />
+                        </div>
                         {currentFloor > 0 && (
                             <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-cyan-500/50">
                                 <CheckCircle2 className="w-4 h-4 text-cyan-400" />

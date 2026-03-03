@@ -404,6 +404,7 @@ model Dungeon {
   expeditionMechanics String?
   expeditionModes     Json?
   isExpedition        Boolean               @default(false)
+  isEventDungeon      Boolean               @default(false)
   updatedAt           DateTime              @updatedAt
   djSearchPosts       DjSearchPost[]
   achievements        DungeonAchievement[]
@@ -413,19 +414,23 @@ model Dungeon {
   @@unique([name, bossName])
   @@index([level])
   @@index([isExpedition])
+  @@index([isEventDungeon])
 }
 
 model Zone {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  level     Int
-  dpnlUrl   String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  dungeons  Dungeon[]       @relation("DungeonToZone")
-  families  MonsterFamily[] @relation("MonsterFamilyToZone")
+  id            String          @id @default(cuid())
+  name          String          @unique
+  level         Int
+  dpnlUrl       String?
+  isEventZone   Boolean         @default(false)
+  eventZoneKey  String?         // VULKANIA | NOWEL | PWAK | HALOUINE
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  dungeons      Dungeon[]       @relation("DungeonToZone")
+  families      MonsterFamily[] @relation("MonsterFamilyToZone")
 
   @@index([name])
+  @@index([isEventZone])
 }
 
 model Monster {

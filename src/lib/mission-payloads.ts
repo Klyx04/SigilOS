@@ -27,8 +27,9 @@ export type RegulationPayload = {
 
 // === ANOMALIE ===
 export type AnomaliePayload = {
-    type: 'ZONE' | 'BOSS';
+    type: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE';
     levelRange: AnomalieLevelRange;
+    fragmentLevel?: 1 | 2 | 3; // Only for COLLECTE type (maj 3.5)
 }
 
 // === SONGES ===

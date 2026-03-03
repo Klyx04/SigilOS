@@ -4,8 +4,8 @@
         "nom": "Abjuration",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Chaque PA non utilisé à la fin du tour donne 1 PM au tour suivant (jusqu'à 12 PA).",
-        "effets": "Abjuration (infini) | x PM (1 tour dans 1 tour)",
+        "description": "Chaque PA non utilisé à la fin du tour donne 1 PM au tour suivant (jusqu'à 6 PA).",
+        "effets": "Abjuration (infini) | x PM (1 tour dans 1 tour) [Max 6]",
         "cout": 25
     },
     {
@@ -22,7 +22,7 @@
         "nom": "Acuité de Crâ",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Augmente les dommages finaux pour chaque ennemi en ligne de vue au début du tour d'un allié. Augmente également la Portée pour chaque ennemi ne l'étant pas.",
+        "description": "Augmente les dommages finaux pour chaque ennemi en ligne de vue au début du tour d'un allié (hors invocations). Augmente également la Portée pour chaque ennemi ne l'étant pas.",
         "effets": "5% Dommages finaux (1 tour) | 2 Portée (1 tour)",
         "cout": 25
     },
@@ -54,25 +54,6 @@
         "cout": 10
     },
     {
-        "rarete": "Épique",
-        "nom": "Asthénopie",
-        "type": "actif",
-        "type_label": "Actif",
-        "description": "Retire de la Portée. Le coût en PA du sort est remboursé.",
-        "effets": "-6 Portée (1 tour) | Rembourse 1 PA",
-        "infos": "Portée infinie, sans ligne de vue. Relance de 2 tours.",
-        "cout": 15
-    },
-    {
-        "rarete": "Commun",
-        "nom": "Autorité",
-        "type": "bonus",
-        "type_label": "Bonus",
-        "description": "",
-        "effets": "2 Invocations | 20% Vitalité | 50 niveaux de songeur",
-        "cout": 15
-    },
-    {
         "rarete": "Légendaire",
         "nom": "Balance de l'Huppermage",
         "type": "passif",
@@ -87,15 +68,15 @@
         "type": "bonus",
         "type_label": "Bonus",
         "description": "",
-        "effets": "30% Dommages mêlée | 30% Tacle",
+        "effets": "25% Dommages mêlée (Unique) | 30% Tacle",
         "cout": 10
     },
     {
         "rarete": "Légendaire",
-        "nom": "Bras de Morphée x3",
+        "nom": "Bras de Morphée",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Passe le prochain tour de la cible. Le coût en PA du sort est remboursé. Consomme une ressource du sort.",
+        "description": "Passe le prochain tour de la cible. Le coût en PA du sort est remboursé.",
         "effets": "Tour annulé (1 tour) | Rembourse 1 PA",
         "infos": "Portée infinie, sans ligne de vue.",
         "cout": 20
@@ -115,7 +96,7 @@
         "type": "bonus",
         "type_label": "Bonus",
         "description": "",
-        "effets": "80% Dommages Poussée",
+        "effets": "80% Dommages Poussée (Unique)",
         "cout": 15
     },
     {
@@ -139,8 +120,8 @@
         "nom": "Déphasage",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Rend la cible Invulnérable et invisible. Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat.",
-        "effets": "État Invulnérable (1 tour) | Rend la cible invisible (1 tour) | Rembourse 1 PA",
+        "description": "Rend la cible Invulnérable et invisible. Applique l'état Pesanteur sur la cible (ennemie). Le coût en PA du sort est remboursé.",
+        "effets": "État Invulnérable (1 tour) | Rend la cible invisible (1 tour) | État Pesanteur (ennemi) | Rembourse 1 PA",
         "infos": "Portée infinie, sans ligne de vue.",
         "cout": 20
     },
@@ -168,7 +149,7 @@
         "nom": "Égide Féca",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Applique un bouclier sur un allié et ceux alignés avec lui à la fin du tour d'un allié. (MAJ 3.5 : déclenché à la fin du tour de l'allié concerné, et non plus à la fin du tour du porteur.)",
+        "description": "Applique un bouclier sur un allié et ceux alignés avec lui à la fin du tour de l'allié concerné. Seulement les joueurs et compagnons peuvent appliquer le bouclier aux autres. (Bouclier Max : 2000% du niveau du lanceur).",
         "effets": "Bouclier : 200% du niveau (1 tour)",
         "cout": 25
     },
@@ -195,8 +176,8 @@
         "nom": "Épargne d'Enutrof",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Utiliser des PM augmente les dommages finaux. Ne pas en dépenser les transfère au tour suivant (jusqu'à 6 PM).",
-        "effets": "1% Dommages finaux (2 tours) | x PM (1 tour dans 1 tour)",
+        "description": "Utiliser des PM augmente les dommages finaux. Ne pas en dépenser les transfère au tour suivant (jusqu'à 3 PM).",
+        "effets": "1% Dommages finaux (2 tours) | x PM (1 tour dans 1 tour) [Max 3]",
         "cout": 25
     },
     {
@@ -238,24 +219,24 @@
         "nouveau": true
     },
     {
-        "rarete": "Épique",
-        "nom": "Psst Psst",
-        "type": "actif",
-        "type_label": "Actif",
-        "description": "Force la cible à se déplacer pour rejoindre le lanceur.",
-        "effets": "Déplacement forcé vers le lanceur | Rembourse 1 PA",
-        "infos": "Nouveau sort — MAJ 3.5. Portée infinie, sans ligne de vue.",
-        "cout": 15,
-        "nouveau": true
-    },
-    {
         "rarete": "Légendaire",
         "nom": "Frénésie d'Ouginak",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Augmente autant les PM d'un allié que de cases d'éloignement entre l'ennemi le plus proche de lui et lui-même (jusqu'à 6 PM) à chaque début de tour. Occasionner des dommages en mêlée augmente également les résistances.",
-        "effets": "x PM (1 tour) zone infinie | 1% Résistance mêlée (2 tours) | 1% Résistance distance (2 tours)",
+        "description": "Augmente autant les PM d'un allié que de cases d'éloignement entre l'ennemi le plus proche de lui et lui-même (jusqu'à 6 PM) à chaque début de tour. Il gagne également 5% dommages mêlée par case.",
+        "effets": "x PM (1 tour) | +5% Dommages mêlée par case d'éloignement",
         "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Galvanisation",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Finir à côté d'un allié augmente les résistances des deux de 5% pour 1 tour (cumulable 1 fois). Finir à côté d'un ennemi retire 5% de résistance à l'ennemi pour 1 tour (cumulable 1 fois).",
+        "effets": "+5% Résistances alliés (1 tour) | -5% Résistance ennemi (1 tour)",
+        "cout": 25,
+        "infos": "Nouveau passif — MAJ 3.5.",
+        "nouveau": true
     },
     {
         "rarete": "Légendaire",
@@ -278,13 +259,23 @@
         "nouveau": true
     },
     {
+        "rarete": "Légendaire",
+        "nom": "Longévité",
+        "type": "passif",
+        "type_label": "Passif",
+        "description": "Réduit de 10% l'érosion subie.",
+        "effets": "-10% Érosion",
+        "cout": 25,
+        "nouveau": true
+    },
+    {
         "rarete": "Épique",
         "nom": "Marchand de Sable",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Réduit tous les temps de relance de 10 tours. Le coût en PA du sort est remboursé. Utilisable une seule fois par combat.",
-        "effets": "??? : -10 tours de relance (1 tour) | Rembourse 1 PA",
-        "infos": "Portée infinie, sans ligne de vue.",
+        "description": "Applique -100 Esquive PA et -100 Esquive PM sur les ennemis en cercle de taille 2. Réduit la durée des effets sur tout le monde de 3 tours.",
+        "effets": "-100 Esquive PA (ennemis zone 2) | -100 Esquive PM (ennemis zone 2) | Réduit la durée des effets de 3 tours | Rembourse 1 PA",
+        "infos": "Refonte MAJ 3.5. Coût en PA remboursé.",
         "cout": 15
     },
     {
@@ -292,8 +283,8 @@
         "nom": "Marteau de Xélor",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Augmente les dommages finaux pour chaque tentative de retrait de PA réussie. Chaque PA non utilisé est transféré pour le tour suivant en augmentant le Retrait PA (jusqu'à 12PA).",
-        "effets": "1% Dommages finaux (2 tours) | x PA (1 tour, dans 1 tour) | x % Retrait PA (1 tour, dans 1 tour)",
+        "description": "Augmente les dommages finaux pour chaque tentative de retrait de PA réussie. Chaque PA non utilisé est transféré pour le tour suivant en augmentant le Retrait PA (jusqu'à 6 PA).",
+        "effets": "1% Dommages finaux (2 tours) | x PA (1 tour, dans 1 tour) [Max 6] | x % Retrait PA (1 tour, dans 1 tour)",
         "cout": 25
     },
     {
@@ -307,12 +298,12 @@
     },
     {
         "rarete": "Épique",
-        "nom": "Narcotique x3",
+        "nom": "Narcotique",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Applique l'état Pacifiste. Le coût en PA du sort est remboursé. Consomme une ressource du sort.",
+        "description": "Applique l'état Pacifiste. Le coût en PA du sort est remboursé.",
         "effets": "État Pacifiste (1 tour) | Rembourse 1 PA",
-        "infos": "Portée infinie, sans ligne de vue. Relance de 3 tours.",
+        "infos": "Portée infinie, sans ligne de vue.",
         "cout": 15
     },
     {
@@ -333,6 +324,17 @@
         "description": "Invoquer une entité augmente les dommages reçus par les ennemis autour d'elle. Augmente également les dommages finaux de son invocateur à sa mort.",
         "effets": "Dommages subis x110% (1 tour) (cercle de taille 2) | 3% Dommages finaux (2 tours)",
         "cout": 25
+    },
+    {
+        "rarete": "Épique",
+        "nom": "Paume Ancestrale",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Ajoute un seuil de PV à la cible. Lorsque le seuil est atteint, la cible meurt.",
+        "effets": "Applique un seuil de PV mortel sur la cible | Rembourse le coût en PA",
+        "cout": 15,
+        "infos": "Nouveau sort — MAJ 3.5.",
+        "nouveau": true
     },
     {
         "rarete": "Épique",
@@ -368,7 +370,7 @@
         "type": "bonus",
         "type_label": "Bonus",
         "description": "",
-        "effets": "3 Portée",
+        "effets": "3 Portée (Unique)",
         "cout": 20
     },
     {
@@ -382,14 +384,14 @@
         "cout": 15
     },
     {
-        "rarete": "Légendaire",
-        "nom": "Réveil brutal",
+        "rarete": "Épique",
+        "nom": "Psst Psst",
         "type": "actif",
         "type_label": "Actif",
-        "description": "Sur soi ou sur une invocation alliée : provoque une explosion en cercle de taille 3 infligeant 50% des PV max des monstres en dégâts, et tue la cible. Les dommages passent à 10% des PV max sur invocation.",
-        "effets": "Explosion cercle de taille 3 : 50% PV max monstres (ou 10% sur invoc) | Tue la cible | Rembourse 1 PA",
+        "description": "Force la cible à se déplacer pour rejoindre le lanceur.",
+        "effets": "Déplacement forcé vers le lanceur | Rembourse 1 PA",
         "infos": "Nouveau sort — MAJ 3.5. Portée infinie, sans ligne de vue.",
-        "cout": 25,
+        "cout": 15,
         "nouveau": true
     },
     {
@@ -407,17 +409,28 @@
         "nom": "Résilience de Sacrieur",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Applique un seuil d'un point de vie sur les alliés, les empêchant d'être achevés par la première attaque mortelle subie. Lorsque ce seuil est atteint, il se retire pour soigner et augmente les dommages finaux.",
+        "description": "Applique un seuil d'un point de vie sur les alliés (hors invocations), les empêchant d'être achevés par la première attaque mortelle subie. Lorsque ce seuil est atteint, il se retire pour soigner et augmente les dommages finaux.",
         "effets": "Seuil : 1 PV (infini) | Soin : 25% des PV max | 25% Dommages finaux",
         "cout": 25
+    },
+    {
+        "rarete": "Légendaire",
+        "nom": "Réveil brutal",
+        "type": "actif",
+        "type_label": "Actif",
+        "description": "Sur soi ou sur une invocation alliée : provoque une explosion en cercle de taille 3 infligeant 30% des PV max des monstres en dégâts, et tue la cible. Les dommages passent à 5% des PV max sur invocation.",
+        "effets": "Explosion cercle de taille 3 : 30% PV max monstres (ou 5% sur invoc) | Tue la cible | Rembourse 1 PA",
+        "infos": "Nouveau sort — MAJ 3.5. Portée infinie, sans ligne de vue.",
+        "cout": 25,
+        "nouveau": true
     },
     {
         "rarete": "Légendaire",
         "nom": "Révolution",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Chaque PM non utilisé à la fin du tour donne 1 PA au tour suivant (jusqu'à 6PM).",
-        "effets": "x PA (1 tour dans 1 tour)",
+        "description": "Chaque PM non utilisé à la fin du tour donne 1 PA au tour suivant (jusqu'à 3 PM).",
+        "effets": "x PA (1 tour dans 1 tour) [Max 3]",
         "cout": 25
     },
     {
@@ -435,17 +448,7 @@
         "type": "bonus",
         "type_label": "Bonus",
         "description": "",
-        "effets": "15% Dommages distance | 30% Fuite",
-        "cout": 15
-    },
-    {
-        "rarete": "Légendaire",
-        "nom": "Sommeil Réparateur",
-        "type": "actif",
-        "type_label": "Actif",
-        "description": "Soigne totalement la cible. Le coût en PA du sort est remboursé. Utilisable qu'une seule fois par combat.",
-        "effets": "Soin : 777% des PV max | Rembourse 1 PA",
-        "infos": "Portée infinie, sans ligne de vue.",
+        "effets": "20% Dommages distance (Unique) | 30% Fuite",
         "cout": 15
     },
     {
@@ -453,7 +456,7 @@
         "nom": "Sournoiserie de Sram",
         "type": "passif",
         "type_label": "Passif",
-        "description": "Augmente les dommages finaux de tous les alliés lorsqu'un ennemi est achevé. Rend également un allié invisible s'il achève un ennemi. (MAJ 3.5 : la durée du bonus est désormais limitée à 5 tours.)",
+        "description": "Augmente les dommages finaux de tous les alliés (hors invocations) lorsqu'un ennemi est achevé. Rend également un allié invisible s'il achève un ennemi. (MAJ 3.5 : la durée du bonus est désormais limitée à 5 tours.)",
         "effets": "5% Dommages finaux (5 tours) | Rend la cible invisible (1 tour)",
         "cout": 25
     },
@@ -501,7 +504,7 @@
         "type": "bonus",
         "type_label": "Bonus",
         "description": "",
-        "effets": "80% Retrait PA | 50% Retrait PM",
+        "effets": "80% Retrait PA | 50% Retrait PM | 5% Dégâts",
         "cout": 10
     }
 ]

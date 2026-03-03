@@ -147,47 +147,53 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </div>
 
                 {/* 4. User Profile (High Visibility) */}
-                <div className="relative z-10">
+                <div className="relative z-10 flex border-l border-white/5 bg-zinc-950/20">
                     {sidebarProps.user.canViewProfile ? (
                         <Link
                             href={`/dashboard/${sidebarProps.guildId}/profile`}
-                            className="flex items-center gap-3 pr-5 pl-3 py-1.5 hover:bg-white/[0.05] transition-all group/profile active:scale-95"
+                            className="flex items-center gap-3 pr-5 pl-4 py-1.5 hover:bg-white/[0.05] transition-all group/profile"
                         >
-                            <div className="relative">
-                                <Avatar className="h-8 w-8 border border-white/10 group-hover/profile:border-indigo-500/50 transition-all duration-300">
-                                    <AvatarImage src={sidebarProps.user.image} />
-                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold">
-                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            </div>
-                            <div className="flex flex-col items-start leading-none hidden xl:flex">
-                                <span className="text-[12px] font-black text-zinc-200 group-hover/profile:text-white transition-colors tracking-tight">
+                            <div className="flex flex-col items-end leading-none hidden xl:flex">
+                                <span className="text-[12px] font-black text-zinc-300 group-hover/profile:text-white transition-colors tracking-tight">
                                     {sidebarProps.user.name}
                                 </span>
+                                <span className="text-[9px] uppercase tracking-widest text-emerald-500 font-bold">
+                                    {sidebarProps.user.roleName || "Membre"}
+                                </span>
                             </div>
-                        </Link>
-                    ) : (
-                        <div className="flex items-center gap-3 pr-5 pl-3 py-1.5">
-                            <div className="relative">
-                                <Avatar className="h-8 w-8 border border-white/10 opacity-80">
-                                    <AvatarImage src={sidebarProps.user.image} />
+                            <div className="relative group-hover/profile:scale-105 transition-transform duration-300">
+                                <Avatar className="h-9 w-9 border border-white/10 ring-2 ring-transparent group-hover/profile:ring-emerald-500/30 transition-all shadow-xl">
+                                    <AvatarImage src={sidebarProps.user.image || ""} />
                                     <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
                                         {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-700 border-2 border-[#09090b] rounded-full" />
+                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#09090b] shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                             </div>
-                            <div className="flex flex-col items-start leading-none hidden xl:flex">
+                        </Link>
+                    ) : (
+                        <div className="flex items-center gap-3 pr-5 pl-4 py-1.5 opacity-50 cursor-not-allowed">
+                            <div className="flex flex-col items-end leading-none hidden xl:flex">
                                 <span className="text-[12px] font-black text-zinc-500 tracking-tight">
                                     {sidebarProps.user.name}
                                 </span>
+                                <span className="text-[9px] uppercase tracking-widest text-zinc-600 font-bold">
+                                    {sidebarProps.user.roleName || "Membre"}
+                                </span>
+                            </div>
+                            <div className="relative">
+                                <Avatar className="h-9 w-9 border border-white/10 opacity-80">
+                                    <AvatarImage src={sidebarProps.user.image || ""} />
+                                    <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
+                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-[#09090b]" />
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-        </header >
+        </header>
     );
 }

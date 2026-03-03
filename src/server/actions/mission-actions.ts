@@ -29,7 +29,7 @@ export type ActionResponse<T = any> = {
 
 
 const MissionSchema = z.object({
-    slotIndex: z.number().min(0).max(11),
+    slotIndex: z.number().min(0).max(17), // 0-11 classiques, 12-17 spéciales (Dofus 3.5)
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
     tier: z.number().min(1).max(5),
     rank: z.number().min(1).max(4).default(1),
@@ -37,13 +37,13 @@ const MissionSchema = z.object({
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
     payload: z.record(z.any()),
-}).strict(); // Enforce NO extra fields (2026 Security)
+}).strict();
 
 const CreateWeekSchema = z.object({
     guildId: z.string(),
     weekNumber: z.number().min(1).max(53),
     year: z.number().min(2025),
-    missions: z.array(MissionSchema).min(1).max(12),
+    missions: z.array(MissionSchema).min(1).max(18), // up to 12 classiques + 6 spéciales
     updateGuildTier: z.number().min(1).max(5).optional(),
     notifyMembers: z.boolean().optional(),
 }).strict();
@@ -80,7 +80,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
                     embedDescription: message,
                     embedColor: 0x9333ea, // Purple
                     embedUrl: absoluteLink,
-                    embedFooter: "Système de Validation SigilOS",
+                    embedFooter: "SigilOS • Pas encore sur le Dashboard ? → sigilos.fr",
                 });
 
                 if (messageId) {
@@ -1232,19 +1232,23 @@ export async function publishMissionsToDiscord(
 
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mention, {
             embedTitle: "🎯 Nouvel objectif hebdomadaire",
-            embedColor: 0x9333ea, // Purple
+            embedColor: 0x7c3aed, // Violet SigilOS
             embedUrl: dashboardUrl,
-            embedFooter: "SigilOS • Système de Missions",
-            embedThumbnail: "https://i.imgur.com/8N4pWvW.png", // Typical mission icon
+            embedFooter: "SigilOS • Pas encore sur le Dashboard ? Rejoins-nous → sigilos.fr",
             fields: [
                 {
-                    name: "Statut",
-                    value: "✅ Les **12 missions** de la semaine sont disponibles !",
+                    name: "📋 Missions disponibles",
+                    value: "✅ Les missions de la semaine sont disponibles ! Classiques & Événements.",
                     inline: false
                 },
                 {
-                    name: "Action",
-                    value: `[Consulter les missions sur le Dashboard](${dashboardUrl})`,
+                    name: "🖥️ Dashboard de Guilde",
+                    value: `[Voir les missions, soumettre une preuve et suivre ta progression](${dashboardUrl})`,
+                    inline: false
+                },
+                {
+                    name: "\u200b",
+                    value: "*Tu n'as pas encore de compte ? Rejoins le Dashboard de guilde sur **sigilos.fr** !*",
                     inline: false
                 }
             ]

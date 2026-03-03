@@ -109,7 +109,7 @@ const MINOR_BONUSES = [
     { name: "5 Points de Rêve", type: "MINEUR", effet: "+5 Points de Rêve immédiats", icon: "✨" },
     { name: "15 Points de Rêve", type: "MINEUR", effet: "+15 Points de Rêve immédiats", icon: "✨" },
     { name: "Armes : +1 Lancer/Tour", type: "MINEUR", effet: "Nombre de lancers d'arme par tour +1", icon: "🗡️" },
-    { name: "Armes : +1 Portée", type: "MINEUR", effet: "Portée de l'arme +1", icon: "📏" },
+    { name: "Armes : +2 Portée", type: "MINEUR", effet: "Portée de l'arme +2", icon: "📏" },
 ];
 
 export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUpdate }: BonusInventoryProps) {

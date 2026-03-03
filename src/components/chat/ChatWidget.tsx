@@ -184,7 +184,7 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
             isMentioned && !isOwn ? "bg-indigo-500/5 -mx-4 px-4 py-3 border-l-2 border-indigo-500" : ""
         )}>
             {!isOwn && (
-                <div className="shrink-0 mb-1 relative">
+                <div className="shrink-0 mb-1 relative group/avatar">
                     <Avatar className="h-6 w-6 border border-white/10">
                         <AvatarImage src={msg.authorImage || ""} />
                         <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400">{msg.authorName[0]}</AvatarFallback>

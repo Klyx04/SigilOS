@@ -65,16 +65,26 @@ export async function getActivityLadder(
         });
 
         if (view === "weekly" || view === "monthly") {
-            const now = new Date();
             let startDate: Date;
 
             if (view === "weekly") {
-                const day = now.getDay();
-                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-                startDate = new Date(now.setDate(diff));
-                startDate.setHours(0, 0, 0, 0);
+                // Reset every Monday at 08:00 (Paris time is UTC+1/+2, but we work in server time)
+                // Find last Monday at 08:00
+                const now = new Date();
+                const day = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+                const daysSinceMonday = day === 0 ? 6 : day - 1;
+                const monday = new Date(now);
+                monday.setDate(now.getDate() - daysSinceMonday);
+                monday.setHours(8, 0, 0, 0);
+                // If we're Monday but before 8am, use previous Monday
+                if (now < monday) {
+                    monday.setDate(monday.getDate() - 7);
+                }
+                startDate = monday;
             } else {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                // Monthly: first day of current month at 00:00
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
             }
 
             const cacheKey = `ladder:activity:${guildId}:${view}:${startDate.getTime()}`;
@@ -124,6 +134,11 @@ export async function getActivityLadder(
                     });
 
                 const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                // Build a set of role NAMES that have admin:access
+                const adminRoleNames = new Set<string>();
+                for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                    if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+                }
                 return rankedProfiles.map((p, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
@@ -133,8 +148,7 @@ export async function getActivityLadder(
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.periodXp,
-                    isAdmin: p.discordRoleName === "Administrateur" ||
-                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
                 }));
             });
 
@@ -166,6 +180,10 @@ export async function getActivityLadder(
                 });
 
                 const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                const adminRoleNames = new Set<string>();
+                for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                    if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+                }
                 return profiles.map((p, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
@@ -175,8 +193,7 @@ export async function getActivityLadder(
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.xp,
-                    isAdmin: p.discordRoleName === "Administrateur" ||
-                        !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName)
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
                 }));
             });
 
@@ -240,14 +257,15 @@ export async function getSeniorityLadder(
         });
 
         const now = new Date();
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
+
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
-            // Calculate days since joining
             const joinedAt = p.discordJoinedAt!;
             const daysInGuild = Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60 * 24));
-
-            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-            const isAdmin = p.discordRoleName === "Administrateur" ||
-                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
 
             return {
                 rank: idx + 1,
@@ -259,7 +277,7 @@ export async function getSeniorityLadder(
                 classe: p.classe,
                 value: daysInGuild,
                 isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: !!isAdmin
+                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
             };
         });
 
@@ -321,11 +339,12 @@ export async function getSuccessLadder(
         });
 
         const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
-            const isAdmin = p.discordRoleName === "Administrateur" ||
-                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
-
             return {
                 rank: idx + 1,
                 profileId: p.id,
@@ -336,7 +355,7 @@ export async function getSuccessLadder(
                 classe: p.classe,
                 value: p.successPoints || 0,
                 isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: !!isAdmin
+                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
             };
         });
 
@@ -398,11 +417,12 @@ export async function getContributionLadder(
         });
 
         const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
 
         const ladder: LadderEntry[] = profiles.map((p, idx) => {
-            const isAdmin = p.discordRoleName === "Administrateur" ||
-                !!(Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && p.discordRoleName);
-
             return {
                 rank: idx + 1,
                 profileId: p.id,
@@ -413,7 +433,7 @@ export async function getContributionLadder(
                 classe: p.classe,
                 value: p.contributionPoints || 0,
                 isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: !!isAdmin
+                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
             };
         });
 

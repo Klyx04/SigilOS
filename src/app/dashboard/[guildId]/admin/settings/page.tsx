@@ -131,14 +131,14 @@ export default async function FeatureSettingsPage({
                                     : "border border-transparent hover:bg-white/[0.03] hover:border-white/8"
                                     }`}
                             >
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? ac.bg : "bg-white/5 group-hover:bg-white/8"}`}>
-                                    <Icon className={`w-3.5 h-3.5 ${isActive ? ac.text : "text-zinc-500 group-hover:text-zinc-300"}`} />
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? ac.bg : "bg-white/5 group-hover:bg-white/8"}`}>
+                                    <Icon className={`w-4 h-4 ${isActive ? ac.text : "text-zinc-400 group-hover:text-zinc-200"}`} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className={`text-sm font-semibold truncate ${isActive ? ac.text : "text-zinc-300"}`}>{item.label}</p>
-                                    <p className="text-[10px] text-zinc-600 truncate">{item.description}</p>
+                                    <p className={`text-sm font-semibold truncate ${isActive ? ac.text : "text-zinc-200 group-hover:text-white"}`}>{item.label}</p>
+                                    <p className="text-xs text-zinc-400 truncate">{item.description}</p>
                                 </div>
-                                {isActive && <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${ac.text}`} />}
+                                {isActive && <ChevronRight className={`w-4 h-4 shrink-0 ${ac.text}`} />}
                             </Link>
                         );
                     })}

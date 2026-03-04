@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target, BookOpen } from "lucide-react";
@@ -99,6 +100,16 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
         });
     };
 
+    const getDiffImage = (key: string | undefined) => {
+        if (!key) return "reve1";
+        const map: Record<string, string> = {
+            REVE_I: "reve1", REVE_II: "reve2", REVE_III: "reve3",
+            PARADOXE_I: "paradoxe1", PARADOXE_II: "paradoxe2", PARADOXE_III: "paradoxe3", PARADOXE_IV: "paradoxe4",
+            CAUCHEMAR_I: "cauchemar1", CAUCHEMAR_II: "cauchemar2", CAUCHEMAR_III: "cauchemar3"
+        };
+        return map[key] || "reve1";
+    };
+
     return (
         <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0a0415] shadow-2xl transition-all duration-500">
             {/* Background Effects */}
@@ -141,6 +152,13 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     optimisticStatus === "RECRUITING" ? "bg-blue-400 text-blue-400" :
                                         optimisticStatus === "COMPLETED" ? "bg-amber-500 text-amber-500" : "bg-red-500 text-red-500"
                             )} />
+                            <Image
+                                src={`/assets/missions/${getDiffImage(run.difficulty)}.png`}
+                                alt={difficulty?.label || "Difficulté"}
+                                width={56}
+                                height={56}
+                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                            />
                             <h1 className={cn(
                                 "text-3xl md:text-5xl font-black tracking-tighter transition-colors duration-500 uppercase",
                                 isCompleted ? "text-amber-500/80" : "text-white"

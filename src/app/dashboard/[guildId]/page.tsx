@@ -112,19 +112,24 @@ export default async function DashboardPage({
 
                 {/* --- ONBOARDING LAYER (Admin & Member) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
-                    {user.isAdmin && (
-                        <div className="md:col-span-12">
-                            <OnboardingBanner
-                                guildId={guildId}
-                                guideHref={`/dashboard/${guildId}/admin/getting-started`}
-                                steps={[
-                                    { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
-                                    { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.totalMissionsValidated ?? 0) > 0, icon: "scroll-text" },
-                                    { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.totalXp ?? 0) > 100, icon: "book-open" }
-                                ]}
-                            />
-                        </div>
-                    )}
+                    {user.isAdmin && (() => {
+                        const adminSteps = [
+                            { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
+                            { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.totalMissionsValidated ?? 0) > 0, icon: "scroll-text" },
+                            { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.totalXp ?? 0) > 100, icon: "book-open" }
+                        ];
+                        const allDone = adminSteps.every(s => s.completed);
+                        if (allDone) return null; // Banner disappears once everything is configured
+                        return (
+                            <div className="md:col-span-12">
+                                <OnboardingBanner
+                                    guildId={guildId}
+                                    guideHref={`/dashboard/${guildId}/admin/getting-started`}
+                                    steps={adminSteps}
+                                />
+                            </div>
+                        );
+                    })()}
 
                     {/* Member Profile Completion (For EVERYONE if incomplete) */}
                     {(() => {

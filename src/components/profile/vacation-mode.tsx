@@ -220,7 +220,7 @@ export function VacationMode({
 
                     {/* Actions */}
                     <div className="flex gap-2 border-t border-white/5 pt-2">
-                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs">
+                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
                             Enregistrer
                         </Button>
                         {(startDate || endDate) && (

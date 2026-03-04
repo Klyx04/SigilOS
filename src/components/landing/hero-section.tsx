@@ -5,6 +5,7 @@ import { siteConfig } from "@/config/site-config";
 import { BetaGate } from "./beta-gate";
 import Link from "next/link";
 import { Users } from "lucide-react";
+import Image from "next/image";
 
 export function HeroSection() {
     return (
@@ -66,6 +67,22 @@ export function HeroSection() {
                     className="pt-8 w-full space-y-4"
                 >
                     <BetaGate />
+                </motion.div>
+
+                {/* Dofus Landing Image */}
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.8 }}
+                    className="pt-16 pb-4 w-full flex justify-center"
+                >
+                    <Image
+                        src="/assets/icons/dofus_landing.png"
+                        alt="Dofus"
+                        width={280}
+                        height={120}
+                        className="object-contain opacity-50 hover:opacity-100 transition-opacity duration-700 drop-shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                    />
                 </motion.div>
 
             </div>

@@ -10,6 +10,7 @@ import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
 import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
+import { ActivitiesNav } from "@/components/layout/activities-nav";
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     return (
         <div className="space-y-6 pb-12">
+            <ActivitiesNav guildId={guildId} />
             <UnifiedModuleHeader
                 title="Missions de Guilde"
                 description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}

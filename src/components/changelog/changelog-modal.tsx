@@ -50,10 +50,10 @@ export function ChangelogModal() {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="max-w-xl bg-[#09090b] border-white/10 p-0 overflow-hidden shadow-2xl focus:outline-none focus:ring-0 rounded-3xl max-h-[85vh] flex flex-col">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+            <DialogContent className="max-w-xl bg-[#09090b] border-white/10 p-0 shadow-2xl focus:outline-none focus:ring-0 rounded-3xl max-h-[85vh] flex flex-col [&>button:first-of-type]:hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none rounded-3xl" />
 
-                {/* Close Button */}
+                {/* Single Close Button */}
                 <button
                     onClick={handleClose}
                     className="absolute top-4 right-4 z-50 p-1.5 bg-black/40 hover:bg-black/60 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-all backdrop-blur-md"

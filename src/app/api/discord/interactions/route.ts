@@ -298,6 +298,83 @@ export async function POST(request: NextRequest) {
                         });
                     }
                 }
+            } else if (prefix === "validate") {
+                // =========================================================
+                // VALIDATE / REJECT — Mission, Achievement, KamaDonation
+                // custom_id: validate:{type}:{entityId}:{discordGuildId}
+                //         or validate:{type}_reject:{entityId}:{discordGuildId}
+                // =========================================================
+                const isReject = action.endsWith("_reject");
+                const entityType = isReject ? action.replace("_reject", "") : action; // "mission" | "achievement" | "kama"
+                // custom_id format: validate:{type}[:_reject]:{entityId}:{discordGuildId}
+                const parts = custom_id.split(":");
+                const entityId = parts[2];
+                const targetGuildId = parts[3];
+
+                // Permission check (MISSIONS_VALIDATE required)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_VALIDATE);
+                if (!isValidator) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🚫 Tu n'as pas la permission de valider des preuves.", flags: 64 },
+                    });
+                }
+
+                // ACK immediately (defer update) — gives us 15 min to respond
+                // We'll use type 7 (update message) after processing
+
+                const { internalValidateMissionSubmission, internalValidateAchievementSubmission, internalReviewKamaDonation } =
+                    await import("@/server/actions/discord-validation-actions");
+
+                let resultMsg = "";
+                const adminTag = `${member.user.username}`;
+
+                if (entityType === "mission") {
+                    const status = isReject ? "REJECTED" : "VALIDATED";
+                    const res = await internalValidateMissionSubmission(entityId, status, targetGuildId, member.user.id);
+                    if (res.success) {
+                        resultMsg = isReject
+                            ? `❌ Mission **refusée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`
+                            : `✅ Mission **validée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else if (entityType === "achievement") {
+                    const status = isReject ? "REJECTED" : "VALIDATED";
+                    const res = await internalValidateAchievementSubmission(entityId, status, targetGuildId, member.user.id);
+                    if (res.success) {
+                        resultMsg = isReject
+                            ? `❌ Succès **refusé** par ${adminTag} — Membre: **${res.memberName}**`
+                            : `✅ **${res.points} pts succès** validés par ${adminTag} — Membre: **${res.memberName}**`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else if (entityType === "kama") {
+                    const action_kama = isReject ? "REJECT" : "VALIDATE";
+                    const res = await internalReviewKamaDonation(entityId, action_kama, targetGuildId, member.user.id);
+                    if (res.success) {
+                        const amountStr = res.amount?.toLocaleString("fr-FR") ?? "?";
+                        resultMsg = isReject
+                            ? `❌ Don **refusé** par ${adminTag} — Membre: **${res.memberName}** — ${amountStr} kamas`
+                            : `✅ Don **validé** par ${adminTag} — Membre: **${res.memberName}** — ${amountStr} kamas`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else {
+                    return NextResponse.json({ type: 4, data: { content: "Type de validation inconnu.", flags: 64 } });
+                }
+
+                // Update the original embed: remove buttons, add result line
+                return NextResponse.json({
+                    type: 7, // UPDATE_MESSAGE
+                    data: {
+                        content: resultMsg,
+                        components: [], // Remove all buttons
+                    },
+                });
+
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }

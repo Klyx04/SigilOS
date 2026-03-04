@@ -149,6 +149,10 @@ model GuildConfig {
   welcomeMentionRoleId          String?
   missionValidationChannelId    String?
   missionValidationNotifyRoleId String?
+  kamaNotifyChannelId           String?
+  kamaNotifyRoleId              String?              // Rôle mentionné dans les notifs kamas
+  achievementNotifyChannelId    String?
+  achievementNotifyRoleId       String?              // Rôle mentionné dans les notifs succès
   welcomeBadgeName              String                  @default("Nouveau")
   welcomeDiscordMessageTemplate String?
   chatBlocklist                 Json                    @default("[]")
@@ -171,6 +175,7 @@ model GuildConfig {
   sigilRoles                    SigilRole[]
   profiles                      UserProfile[]
   vaultEntries                  VaultEntry[]
+  kamaDonations                 KamaDonation[]
 }
 
 model GuildModules {
@@ -308,6 +313,7 @@ model UserProfile {
   guild                   GuildConfig              @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   vaultEntries            VaultEntry[]
+  kamaDonations           KamaDonation[]
   helpedSubmissions       Submission[]             @relation("SubmissionHelpers")
 
   @@unique([userId, guildId])
@@ -375,20 +381,21 @@ model Submission {
 }
 
 model AchievementSubmission {
-  id          String           @id @default(cuid())
-  profileId   String
-  guildId     String
-  status      SubmissionStatus @default(PENDING)
-  points      Int
-  proofUrl    String
-  ocrScore    Float?
-  ocrRawText  String?
-  validatorId String?
-  validatedAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  guild       GuildConfig      @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id               String           @id @default(cuid())
+  profileId        String
+  guildId          String
+  status           SubmissionStatus @default(PENDING)
+  points           Int
+  proofUrl         String
+  ocrScore         Float?
+  ocrRawText       String?
+  validatorId      String?
+  validatedAt      DateTime?
+  discordMessageId String?          // "channelId:messageId" pour supprimer l'embed Discord
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  guild            GuildConfig      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile          UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([profileId])
@@ -1374,6 +1381,36 @@ enum LoanStatus {
 enum VaultAction {
   DEPOSIT
   WITHDRAW
+}
+
+enum KamaDonationStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+}
+
+model KamaDonation {
+  id               String               @id @default(cuid())
+  guildId          String
+  profileId        String
+  amount           Int                  // Montant en kamas
+  proofUrl         String?              // Screenshot preuve
+  status           KamaDonationStatus   @default(PENDING)
+  validatedById    String?              // profileId de l'admin validateur
+  validatedAt      DateTime?
+  rejectedReason   String?
+  note             String?              @db.Text
+  weekNumber       Int?                 // Semaine de contribution
+  yearNumber       Int?                 // Année
+  discordMessageId String?              // "channelId:messageId" pour supprimer l'embed Discord
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  guild            GuildConfig          @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile          UserProfile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+  @@index([guildId, createdAt])
+  @@index([profileId])
 }
 
 model GlobalBlocklist {

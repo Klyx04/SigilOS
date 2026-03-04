@@ -318,7 +318,6 @@ function ChatInner({
     const inputRef = useRef<HTMLTextAreaElement>(null);
     // Timestamp de connexion : on filtre les messages "presence" antÃ©rieurs (historique)
     // joinedAt: initialized in mount effect (Date.now() is impure for inline useRef init)
-    const joinedAt = useRef<number>(0);
 
     // -- Drag & Resize Logic --
     const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -387,15 +386,20 @@ function ChatInner({
     useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
     useEffect(() => { isMinRef.current = isMinimized; }, [isMinimized]);
 
-    // Initialize joinedAt on mount - tracks when this client connected to filter historical presence msgs
+    // joinedAt: timestamp de connexion — filtre les messages presence historiques (CHAT-1)
+    const joinedAt = useRef<number>(0);
     useEffect(() => { joinedAt.current = Date.now(); }, []);
 
     const [showTransparency, setShowTransparency] = useState(false);
 
-    // Initial Fetch
+    // Initial Fetch — exclut les messages "presence" de l'historique (CHAT-1)
     useEffect(() => {
         if (!isOpen) return;
-        getChatHistory(guildId).then(res => { if (res.success && res.data) setMessages(res.data); });
+        getChatHistory(guildId).then(res => {
+            if (res.success && res.data) {
+                setMessages(res.data.filter(m => m.type !== "presence"));
+            }
+        });
         getChatMentionOptions(guildId).then(res => { if (res.success && res.data) setMentionOptions(res.data); });
         getUserChatBanStatus(userId).then(setBanStatus);
     }, [isOpen, guildId, userId]);
@@ -406,6 +410,7 @@ function ChatInner({
         const t = setInterval(() => setBanStatus(p => ({ ...p, remainingSeconds: Math.max(0, p.remainingSeconds - 1) })), 1000);
         return () => clearInterval(t);
     }, [banStatus.remainingSeconds]);
+
 
     // Global Message Handler (via PresenceProvider)
     useEffect(() => {

@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 
 import { getKralamoureEvents, getKralamoureEventDetails, MetamobApiError } from "@/lib/metamob-client";
+import { decrypt } from "@/lib/encryption";
 
 export type UpcomingEvent = {
     id: string;
@@ -61,7 +62,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     let kralaPromise: Promise<any[]> = Promise.resolve([]);
     if (userProfile?.metamobServerId) {
         // Use User's key first, then Guild's key
-        const apiKey = userProfile.metamobApiKey || guildConfig.metamobApiKey;
+        const apiKey = decrypt(userProfile.metamobApiKey) || decrypt(guildConfig.metamobApiKey);
 
         kralaPromise = getKralamoureEvents({
             serverId: userProfile.metamobServerId,
@@ -111,19 +112,26 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) return null;
 
-    // We need an API key. Try to find one from the user's profile first, or any guild config they are part of.
-    // Since this is a specific event ID, we don't strictly need the server ID, just a valid key.
-
+    // We need an API key. Try user's key first, then guild key, then any member's key.
     const userProfile = await db.userProfile.findFirst({
         where: { userId: session.user.id, guildId: ctx.guildId },
         select: { metamobApiKey: true, guild: { select: { metamobApiKey: true } } }
     });
 
-    const apiKey = userProfile?.metamobApiKey || userProfile?.guild?.metamobApiKey;
+    let apiKey = decrypt(userProfile?.metamobApiKey) || decrypt(userProfile?.guild?.metamobApiKey);
 
-    // If no key, we can try without key or fail? The API says "Authorization: Bearer" is required for some things,
-    // but maybe public events are visible without? Let's try with what we have.
-    // Actually, `getKralamoureEventDetails` in client handles the call.
+    // Fallback: grab any guild member's key if we still have none
+    if (!apiKey) {
+        const anyMemberWithKey = await db.userProfile.findFirst({
+            where: { guildId: ctx.guildId, metamobApiKey: { not: null }, status: "ACTIVE" },
+            select: { metamobApiKey: true },
+        });
+        apiKey = decrypt(anyMemberWithKey?.metamobApiKey);
+    }
+
+    if (!apiKey) return null; // No key anywhere — can't fetch
+
+
 
     try {
         const details = await getKralamoureEventDetails(kralaId, { guildApiKey: apiKey });

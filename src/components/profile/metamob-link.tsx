@@ -67,6 +67,7 @@ export function MetamobLink({
 
         setIsLinking(true);
         setLinkError(null);
+        setForceLink(false);
 
         const result = await linkOcreAccount({
             guildId,

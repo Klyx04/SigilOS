@@ -5,7 +5,8 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
+import { MissionXpOverrideControl } from "@/components/missions/mission-xp-override-control";
+import { getDofusConfig } from "@/server/actions/admin-actions";
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,9 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
         return <AccessDenied />;
     }
 
+    const configRes = await getDofusConfig(guildId);
+    const targetTier = configRes.data?.missionTier || 3;
+
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
@@ -29,6 +33,9 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
                 imageSrc="/assets/ui/icons/missions.png"
                 backHref={`/dashboard/${guildId}/missions`}
             />
+
+            {/* [MIS-1] Contrôle de la barre XP manuelle */}
+            <MissionXpOverrideControl guildId={guildId} targetTier={targetTier} />
 
             <MissionEditor guildId={guildId} />
         </div>

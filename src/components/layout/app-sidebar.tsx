@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
@@ -21,11 +22,13 @@ import {
     Swords,
     FileText,
     ChevronDown,
+    ChevronRight,
     LogOut,
     ChevronsUpDown,
     Plus,
     Hammer,
-    Activity
+    Activity,
+    TrendingUp
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -67,6 +70,17 @@ export function AppSidebar({
         return exact ? pathname === href : pathname.startsWith(href);
     };
 
+    // Auto-expand "Progression" if any sub-route is active
+    const progressionRoutes = [
+        `/dashboard/${guildId}/missions`,
+        `/dashboard/${guildId}/songes`,
+        `/dashboard/${guildId}/quete-ocre`,
+        `/dashboard/${guildId}/ladder`,
+    ];
+    const [progressionOpen, setProgressionOpen] = useState(
+        () => progressionRoutes.some(r => pathname.startsWith(r))
+    );
+
     // --- NAVIGATION GROUPS ---
 
     // --- NAVIGATION GROUPS ---
@@ -78,13 +92,19 @@ export function AppSidebar({
         { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
-    const NAV_ACTIVITIES = [
+    const NAV_ACTIVITIES_TOP = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
+    ];
+
+    // Sub-items grouped under the collapsible "Progression" parent
+    const NAV_PROGRESSION = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
         { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
     ];
+
+    const showProgressionGroup = NAV_PROGRESSION.some(i => i.visible !== false);
 
     const NAV_TOOLS = [
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewFinder && modules.donjons },
@@ -228,16 +248,64 @@ export function AppSidebar({
                     )}
 
                     {/* ACTIVITES */}
-                    {NAV_ACTIVITIES.some(i => i.visible !== false) && (
+                    {(NAV_ACTIVITIES_TOP.some(i => i.visible !== false) || showProgressionGroup) && (
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-2 px-2 mb-3">
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Activités</h4>
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                             </div>
-                            {NAV_ACTIVITIES.filter(i => i.visible !== false).map((item) => (
+
+                            {/* Calendrier (standalone) */}
+                            {NAV_ACTIVITIES_TOP.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
                             ))}
+
+                            {/* Progression group — collapsible */}
+                            {showProgressionGroup && (
+                                <div>
+                                    {/* Parent trigger */}
+                                    <button
+                                        onClick={() => setProgressionOpen(o => !o)}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
+                                            progressionOpen
+                                                ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
+                                                : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
+                                        )}
+                                    >
+                                        {progressionOpen && (
+                                            <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full animate-pulse bg-emerald-400 shadow-[0_0_12px_currentColor]" />
+                                        )}
+                                        <TrendingUp className={cn(
+                                            "h-4 w-4 shrink-0 transition-all duration-300",
+                                            progressionOpen
+                                                ? "text-emerald-400 scale-110 drop-shadow-[0_0_8px_currentColor]"
+                                                : "text-emerald-400 opacity-70 group-hover:opacity-100 group-hover:scale-110"
+                                        )} />
+                                        <span className={cn(
+                                            "text-sm flex-1 text-left transition-all duration-300",
+                                            progressionOpen ? "font-black tracking-tight" : "font-bold"
+                                        )}>Progression</span>
+                                        {progressionOpen
+                                            ? <ChevronDown className="h-3.5 w-3.5 text-emerald-400/70 transition-transform duration-300" />
+                                            : <ChevronRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 transition-transform duration-300" />
+                                        }
+                                    </button>
+
+                                    {/* Sub-items with smooth collapse */}
+                                    <div
+                                        className="overflow-hidden transition-all duration-300 ease-in-out"
+                                        style={{ maxHeight: progressionOpen ? `${NAV_PROGRESSION.filter(i => i.visible !== false).length * 56}px` : "0px" }}
+                                    >
+                                        <div className="ml-3 mt-1 pl-3 border-l border-emerald-500/20 space-y-0.5 pb-1">
+                                            {NAV_PROGRESSION.filter(i => i.visible !== false).map((item) => (
+                                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -380,23 +380,6 @@ export function UserSettings({
                     </div>
 
                     <div className="space-y-4 pt-4 border-t border-white/5">
-                        {/* DISCORD RICH PRESENCE */}
-                        <div className="flex items-center justify-between p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 group hover:border-indigo-500/30 transition-all">
-                            <div className="space-y-1">
-                                <Label htmlFor="show-presence" className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
-                                    Discord Rich Presence
-                                </Label>
-                                <p className="text-[10px] text-zinc-500 leading-tight">
-                                    Affiche si vous jouez à Dofus dans le chat (🟢/⚫).
-                                </p>
-                            </div>
-                            <Switch
-                                id="show-presence"
-                                checked={showPresence}
-                                onCheckedChange={onPresenceToggle}
-                            />
-                        </div>
-
                         {/* LEAVE GUILD */}
                         <div className="p-3 bg-zinc-900/40 rounded-2xl border border-white/5 space-y-3">
                             <div className="space-y-1">
@@ -415,9 +398,10 @@ export function UserSettings({
                                 </AlertDialogTrigger>
                                 <AlertDialogContent className="bg-zinc-900 border-white/10 text-white">
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Quitter la guilde ?</AlertDialogTitle>
+                                        <AlertDialogTitle>Quitter {guildName} ?</AlertDialogTitle>
                                         <AlertDialogDescription className="text-zinc-400">
-                                            Cette action mettra vote profil en sommeil. Vous ne pourrez plus accéder au tableau de bord de {guildName} à moins de rejoindre à nouveau via Discord.
+                                            Votre profil de guilde sera <b className="text-zinc-200">archivé</b> (non supprimé). Vous perdrez l'accès au tableau de bord.<br /><br />
+                                            <span className="text-emerald-400/80 text-xs">✅ Vous pouvez rejoindre à nouveau à tout moment via Discord.</span>
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -438,8 +422,11 @@ export function UserSettings({
                         <div className="p-3 bg-red-500/5 rounded-2xl border border-red-500/10 space-y-3">
                             <div className="flex items-center gap-2 text-red-400">
                                 <AlertTriangle className="w-3 h-3" />
-                                <h4 className="text-[10px] font-bold uppercase tracking-wider">Zone de danger</h4>
+                                <h4 className="text-[10px] font-bold uppercase tracking-wider">Zone de danger — Irréversible</h4>
                             </div>
+                            <p className="text-[10px] text-zinc-500 leading-relaxed">
+                                Supprime <b>définitivement</b> votre compte SigilOS sur <b>toutes</b> les guildes. Conforme RGPD. Aucun retour arrière possible.
+                            </p>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" size="sm" className="w-full h-8 text-xs gap-2 bg-red-600/80 hover:bg-red-600">
@@ -454,8 +441,8 @@ export function UserSettings({
                                         </div>
                                         <AlertDialogTitle className="text-center text-xl">Suppression irréversible</AlertDialogTitle>
                                         <AlertDialogDescription className="text-zinc-400 text-center">
-                                            Êtes-vous certain de vouloir supprimer totalement votre compte ? <br />
-                                            <span className="text-red-400 font-bold mt-2 block">Toutes vos réussites seront effacées définitivement.</span>
+                                            Vous êtes sur le point de <b className="text-red-300">supprimer définitivement</b> votre compte SigilOS sur <b>toutes</b> vos guildes.<br /><br />
+                                            <span className="text-red-300 font-semibold">Toutes vos réussites, missions et données seront effacées. Cette action est irréversible et conforme au RGPD.</span>
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter className="sm:justify-center gap-3">

@@ -260,10 +260,30 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
                         }
                     }));
                     (eventData as any)._count = { participants: details.participants_count };
+
+                    // Also update metadata cache for next time
+                    db.guildEvent.update({
+                        where: { id: eventId },
+                        data: { metadata: { ...meta, metamobParticipants: details.participants } }
+                    }).catch(() => { }); // Fire-and-forget
                 }
             } catch (err) {
                 console.error("Failed to refresh Kralamoure participants", err);
-                // Fallback to DB participants (likely empty/just creator)
+            }
+
+            // Fallback: if live fetch failed or returned null, use cached metadata participants
+            if ((eventData as any).participants.length === 0 && meta.metamobParticipants?.length > 0) {
+                (eventData as any).participants = meta.metamobParticipants.map((p: any, i: number) => ({
+                    id: `krala-cache-${i}`,
+                    status: "REGISTERED",
+                    position: i + 1,
+                    user: {
+                        id: `cached-${i}`,
+                        name: typeof p === "string" ? p : `${p.username}${p.character_count ? ` (${p.character_count})` : ""}`,
+                        image: null,
+                        profiles: []
+                    }
+                }));
             }
         }
 
@@ -426,6 +446,8 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
     server: { name: string };
     creator: string;
     description: string;
+    participants_count?: number;
+    character_count?: number;
 }) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -483,6 +505,8 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
                     metamobId: kralaEvent.id,
                     serverName: kralaEvent.server.name,
                     metamobCreator: kralaEvent.creator,
+                    metamobParticipantsCount: kralaEvent.participants_count || 0,
+                    metamobCharacterCount: kralaEvent.character_count || 0,
                     metamobParticipants: [] // Will be populated below if possible
                 }
             }

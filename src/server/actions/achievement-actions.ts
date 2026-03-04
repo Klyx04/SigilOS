@@ -47,7 +47,6 @@ export async function validateAchievementSubmission(
                 }
             });
 
-
             // Notify user
             await createNotification(
                 submission.profile.userId,
@@ -69,10 +68,28 @@ export async function validateAchievementSubmission(
             );
         }
 
-        // Cleanup: Delete file
+        // Delete Discord embed (dashboard validation path)
+        if (submission.discordMessageId?.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    console.error("[Achievement] Failed to delete Discord embed:", e);
+                }
+            }
+        }
+
+        // Cleanup: Delete file and image hash
         if (submission.proofUrl) {
             await deleteProofFile(submission.proofUrl);
         }
+
+        // Delete image hash to allow retry
+        await (db as any).imageHash.deleteMany({
+            where: { guildId: submission.guildId, sourceType: "ACHIEVEMENT", sourceId: submissionId },
+        });
 
         // Update submission status
         await (db as any).achievementSubmission.update({

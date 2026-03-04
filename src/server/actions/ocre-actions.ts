@@ -336,20 +336,19 @@ export async function linkOcreAccount(
             }
         }
 
-        // 3. Verify character name matches pseudo Dofus
+        // 3. Verify character name matches pseudo Dofus (or auto-fill it)
 
         if (metamobCharName) {
             const normalizedMetamobChar = metamobCharName.toLowerCase().trim();
             const userPseudoDofus = profile.pseudoDofus?.toLowerCase().trim();
 
             if (!userPseudoDofus) {
-                return {
-                    success: false,
-                    error: "MISSING_PSEUDO_DOFUS" // Special code for UI handling
-                };
-            }
-
-            if (normalizedMetamobChar !== userPseudoDofus) {
+                // Auto-fill pseudoDofus from Metamob character name
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { pseudoDofus: metamobCharName.trim() },
+                });
+            } else if (normalizedMetamobChar !== userPseudoDofus) {
                 return {
                     success: false,
                     error: `Le personnage Metamob "${metamobCharName}" ne correspond pas à votre pseudo Dofus "${profile.pseudoDofus}".`

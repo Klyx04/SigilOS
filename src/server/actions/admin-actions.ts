@@ -654,6 +654,7 @@ export async function getDofusConfig(guildId: string): Promise<{
         dofusServerId: string | null;
         missionRanks: number[];
         missionTier: number;
+        missionWeekXpOverride: number | null;
     }
 }> {
     const session = await auth();
@@ -670,9 +671,15 @@ export async function getDofusConfig(guildId: string): Promise<{
             select: {
                 dofusServerId: true,
                 missionRanks: true,
-                missionTier: true
-            }
-        });
+                missionTier: true,
+                missionWeekXpOverride: true
+            } as Record<string, true>
+        }) as unknown as {
+            dofusServerId: string | null;
+            missionRanks: unknown;
+            missionTier: number | null;
+            missionWeekXpOverride: number | null;
+        } | null;
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -692,7 +699,8 @@ export async function getDofusConfig(guildId: string): Promise<{
             data: {
                 dofusServerId: guildConfig.dofusServerId,
                 missionRanks: parsedRanks,
-                missionTier: guildConfig.missionTier || 3
+                missionTier: guildConfig.missionTier || 3,
+                missionWeekXpOverride: guildConfig.missionWeekXpOverride ?? null
             }
         };
     } catch (error) {
@@ -790,6 +798,10 @@ export async function getMissionConfig(guildId: string): Promise<{
         missionNotifyRoleId: string | null;
         missionValidationChannelId: string | null;
         missionValidationNotifyRoleId: string | null;
+        kamaNotifyChannelId: string | null;
+        kamaNotifyRoleId: string | null;
+        achievementNotifyChannelId: string | null;
+        achievementNotifyRoleId: string | null;
     }
 }> {
     const session = await auth();
@@ -802,8 +814,24 @@ export async function getMissionConfig(guildId: string): Promise<{
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { missionNotifyChannelId: true, missionNotifyRoleId: true, missionValidationChannelId: true, missionValidationNotifyRoleId: true }
-        });
+            select: {
+                missionNotifyChannelId: true,
+                missionNotifyRoleId: true,
+                missionValidationChannelId: true,
+                missionValidationNotifyRoleId: true,
+                kamaNotifyChannelId: true,
+                achievementNotifyChannelId: true,
+            } as Record<string, true>
+        }) as {
+            missionNotifyChannelId: string | null;
+            missionNotifyRoleId: string | null;
+            missionValidationChannelId: string | null;
+            missionValidationNotifyRoleId: string | null;
+            kamaNotifyChannelId: string | null;
+            kamaNotifyRoleId: string | null;
+            achievementNotifyChannelId: string | null;
+            achievementNotifyRoleId: string | null;
+        } | null;
 
         if (!config) return { success: false, error: "Guilde introuvable" };
 
@@ -813,7 +841,11 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionChannelId: config.missionNotifyChannelId,
                 missionNotifyRoleId: config.missionNotifyRoleId,
                 missionValidationChannelId: config.missionValidationChannelId,
-                missionValidationNotifyRoleId: config.missionValidationNotifyRoleId
+                missionValidationNotifyRoleId: config.missionValidationNotifyRoleId,
+                kamaNotifyChannelId: config.kamaNotifyChannelId,
+                kamaNotifyRoleId: config.kamaNotifyRoleId ?? null,
+                achievementNotifyChannelId: config.achievementNotifyChannelId,
+                achievementNotifyRoleId: config.achievementNotifyRoleId ?? null,
             }
         };
     } catch (error) {
@@ -829,6 +861,10 @@ export async function updateMissionNotifySettings(
         roleId: string | null;
         validationChannelId?: string | null;
         validationRoleId?: string | null;
+        kamaNotifyChannelId?: string | null;
+        kamaNotifyRoleId?: string | null;
+        achievementNotifyChannelId?: string | null;
+        achievementNotifyRoleId?: string | null;
     }
 ): Promise<ActionResponse> {
     const session = await auth();
@@ -840,7 +876,7 @@ export async function updateMissionNotifySettings(
 
     try {
         // SECURITY: Validate channels (if provided)
-        const channelsToValidate = [data.channelId, data.validationChannelId].filter(Boolean) as string[];
+        const channelsToValidate = [data.channelId, data.validationChannelId, data.kamaNotifyChannelId, data.achievementNotifyChannelId].filter(Boolean) as string[];
 
         if (channelsToValidate.length > 0) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -858,8 +894,12 @@ export async function updateMissionNotifySettings(
                 missionNotifyChannelId: data.channelId,
                 missionNotifyRoleId: data.roleId,
                 missionValidationChannelId: data.validationChannelId,
-                missionValidationNotifyRoleId: data.validationRoleId
-            }
+                missionValidationNotifyRoleId: data.validationRoleId,
+                kamaNotifyChannelId: data.kamaNotifyChannelId,
+                kamaNotifyRoleId: data.kamaNotifyRoleId,
+                achievementNotifyChannelId: data.achievementNotifyChannelId,
+                achievementNotifyRoleId: data.achievementNotifyRoleId,
+            } as Record<string, string | null | undefined>
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);

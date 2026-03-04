@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
@@ -48,7 +48,7 @@ interface ChatWidgetProps {
     userPseudo?: string;
 }
 
-// ── Components ───────────────────────────────────────────────────────────────
+// â”€â”€ Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TypingIndicator({ names }: { names: string[] }) {
     if (names.length === 0) return null;
@@ -60,7 +60,7 @@ function TypingIndicator({ names }: { names: string[] }) {
                         style={{ animationDelay: `${i * 150}ms` }} />
                 ))}
             </span>
-            {names.length === 1 ? `${names[0]} écrit` : `${names.length} personnes écrivent`}...
+            {names.length === 1 ? `${names[0]} Ã©crit` : `${names.length} personnes Ã©crivent`}...
         </div>
     );
 }
@@ -111,7 +111,7 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
                     </Avatar>
                 )}
                 <div className={cn("flex flex-col gap-1 w-full max-w-[85%]", isOwn ? "items-end" : "items-start")}>
-                    <span className="text-[10px] font-black uppercase text-zinc-500 px-1">{msg.authorName} a lancé un sondage</span>
+                    <span className="text-[10px] font-black uppercase text-zinc-500 px-1">{msg.authorName} a lancÃ© un sondage</span>
                     <div className={cn(
                         "p-4 rounded-2xl text-[13px] border w-full backdrop-blur-sm",
                         isOwn ? "bg-indigo-900/40 border-indigo-500/30 rounded-br-sm" : "bg-zinc-800/80 border-white/10 rounded-bl-sm"
@@ -144,7 +144,7 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
                                         />
                                         <span className="relative z-10 font-bold flex items-center gap-2 pointer-events-none">
                                             {opt.text}
-                                            {isMyVote && <span className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white animate-in zoom-in">✓</span>}
+                                            {isMyVote && <span className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white animate-in zoom-in">âœ“</span>}
                                         </span>
                                         <span className={cn(
                                             "relative z-10 text-[10px] font-black tracking-tighter transition-all pointer-events-none",
@@ -225,11 +225,11 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
 });
 MessageItem.displayName = "MessageItem";
 
-// ── Emoji Picker ──────────────────────────────────────────────────────────────
+// â”€â”€ Emoji Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EMOJI_GROUPS = [
-    { label: "Pop", emojis: ["😂", "🔥", "👍", "❤️", "😮", "🙌", "💀", "🎉", "🙄", "🤔"] },
-    { label: "Gestes", emojis: ["👋", "✌️", "👌", "💪", "🙏", "👀", "🧠", "✨", "💯", "✅"] },
-    { label: "Jeu", emojis: ["🐉", "⚔️", "🛡️", "🧙", "💰", "🗺️", "🧪", "🥚", "🏰", "🔨"] },
+    { label: "Pop", emojis: ["ðŸ˜‚", "ðŸ”¥", "ðŸ‘", "â¤ï¸", "ðŸ˜®", "ðŸ™Œ", "ðŸ’€", "ðŸŽ‰", "ðŸ™„", "ðŸ¤”"] },
+    { label: "Gestes", emojis: ["ðŸ‘‹", "âœŒï¸", "ðŸ‘Œ", "ðŸ’ª", "ðŸ™", "ðŸ‘€", "ðŸ§ ", "âœ¨", "ðŸ’¯", "âœ…"] },
+    { label: "Jeu", emojis: ["ðŸ‰", "âš”ï¸", "ðŸ›¡ï¸", "ðŸ§™", "ðŸ’°", "ðŸ—ºï¸", "ðŸ§ª", "ðŸ¥š", "ðŸ°", "ðŸ”¨"] },
 ];
 
 function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onClose: () => void }) {
@@ -257,7 +257,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onC
     );
 }
 
-// ── Main ChatWidget ───────────────────────────────────────────────────────────
+// â”€â”€ Main ChatWidget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function ChatWidget(props: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
@@ -316,6 +316,8 @@ function ChatInner({
     const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    // Timestamp de connexion : on filtre les messages "presence" antÃ©rieurs (historique)
+    // joinedAt: initialized in mount effect (Date.now() is impure for inline useRef init)
 
     // -- Drag & Resize Logic --
     const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -384,12 +386,20 @@ function ChatInner({
     useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
     useEffect(() => { isMinRef.current = isMinimized; }, [isMinimized]);
 
+    // joinedAt: timestamp de connexion — filtre les messages presence historiques (CHAT-1)
+    const joinedAt = useRef<number>(0);
+    useEffect(() => { joinedAt.current = Date.now(); }, []);
+
     const [showTransparency, setShowTransparency] = useState(false);
 
-    // Initial Fetch
+    // Initial Fetch — exclut les messages "presence" de l'historique (CHAT-1)
     useEffect(() => {
         if (!isOpen) return;
-        getChatHistory(guildId).then(res => { if (res.success && res.data) setMessages(res.data); });
+        getChatHistory(guildId).then(res => {
+            if (res.success && res.data) {
+                setMessages(res.data.filter(m => m.type !== "presence"));
+            }
+        });
         getChatMentionOptions(guildId).then(res => { if (res.success && res.data) setMentionOptions(res.data); });
         getUserChatBanStatus(userId).then(setBanStatus);
     }, [isOpen, guildId, userId]);
@@ -400,6 +410,7 @@ function ChatInner({
         const t = setInterval(() => setBanStatus(p => ({ ...p, remainingSeconds: Math.max(0, p.remainingSeconds - 1) })), 1000);
         return () => clearInterval(t);
     }, [banStatus.remainingSeconds]);
+
 
     // Global Message Handler (via PresenceProvider)
     useEffect(() => {
@@ -419,6 +430,13 @@ function ChatInner({
 
         // 2. State Sync (Messages & Poll Updates)
         if (msg.id === "presence-init") return; // Ignore initial sync in UI list
+
+        // CHAT-1 FIX: Ne pas afficher les messages "presence" historiques
+        // (antÃ©rieurs au moment de connexion du client -- Ã©vite le pavÃ© de notifs)
+        if (msg.type === "presence") {
+            const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
+            if (msgTime < joinedAt.current) return; // PrÃ©sence historique â†’ skip
+        }
 
         setMessages(prev => {
             if (!msg.id) return prev;
@@ -514,7 +532,7 @@ function ChatInner({
     const handleClear = async () => {
         if (!canModerate || !confirm("Nettoyer tout le chat ?")) return;
         const res = await clearGuildChat(guildId);
-        if (res.success) toast.success("Chat nettoyé");
+        if (res.success) toast.success("Chat nettoyÃ©");
     };
 
     const typingNames = Object.values(typingUsers).map(u => u.name);
@@ -559,7 +577,7 @@ function ChatInner({
                                 <div
                                     onMouseDown={handleDragStart}
                                     className="p-1 -ml-2 hover:bg-white/5 rounded-lg cursor-move text-zinc-600 hover:text-white transition-all"
-                                    title="Déplacer"
+                                    title="DÃ©placer"
                                 >
                                     <GripVertical className="w-4 h-4" />
                                 </div>
@@ -579,19 +597,19 @@ function ChatInner({
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button onClick={() => setShowTransparency(true)} title="Transparence & Règles" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 hover:text-indigo-400 transition-all">
+                            <button onClick={() => setShowTransparency(true)} title="Transparence & RÃ¨gles" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 hover:text-indigo-400 transition-all">
                                 <HelpCircle className="w-4 h-4" />
                             </button>
                             <button onClick={() => setSoundEnabled(!soundEnabled)} title={soundEnabled ? "Couper le son" : "Activer le son"} className={cn("p-2 rounded-xl transition-all", soundEnabled ? "text-indigo-400 hover:bg-indigo-400/10" : "text-zinc-600 hover:text-zinc-400")}>
                                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                             </button>
-                            <button onClick={() => setNotifEnabled(!notifEnabled)} title={notifEnabled ? "Désactiver les pop-ups" : "Activer les pop-ups"} className={cn("p-2 rounded-xl transition-all", notifEnabled ? "text-indigo-400 hover:bg-indigo-400/10" : "text-zinc-600 hover:text-zinc-400")}>
+                            <button onClick={() => setNotifEnabled(!notifEnabled)} title={notifEnabled ? "DÃ©sactiver les pop-ups" : "Activer les pop-ups"} className={cn("p-2 rounded-xl transition-all", notifEnabled ? "text-indigo-400 hover:bg-indigo-400/10" : "text-zinc-600 hover:text-zinc-400")}>
                                 {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                             </button>
 
                             <div className="w-[1px] h-4 bg-white/5 mx-1" />
 
-                            <button onClick={() => setIsMinimized(true)} title="Réduire" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 transition-all"><ChevronDown className="w-4 h-4" /></button>
+                            <button onClick={() => setIsMinimized(true)} title="RÃ©duire" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 transition-all"><ChevronDown className="w-4 h-4" /></button>
                             <button onClick={() => setIsMaximized(!isMaximized)} className="hidden md:block p-2 hover:bg-white/5 rounded-xl text-zinc-500 transition-all">{isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
                             <button onClick={() => setIsOpen(false)} title="Fermer" className="p-2 hover:bg-rose-500/10 rounded-xl text-zinc-500 hover:text-rose-400 transition-all"><X className="w-4 h-4" /></button>
                         </div>
@@ -631,7 +649,7 @@ function ChatInner({
                         {banStatus.isBanned && (
                             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center animate-in fade-in">
                                 <Lock className="w-6 h-6 text-rose-500 mb-2 animate-pulse" />
-                                <span className="text-[11px] font-black text-rose-400 uppercase tracking-widest leading-none">Accès Interdit</span>
+                                <span className="text-[11px] font-black text-rose-400 uppercase tracking-widest leading-none">AccÃ¨s Interdit</span>
                                 <div className="mt-2 text-xs font-mono text-zinc-500">{Math.floor(banStatus.remainingSeconds / 60)}:{(banStatus.remainingSeconds % 60).toString().padStart(2, "0")}</div>
                             </div>
                         )}
@@ -661,7 +679,7 @@ function ChatInner({
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/donjon</span> Chercher un donjon</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/monstre</span> Chercher un mob</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/classe</span> Sorts & Spells</li>
-                                            <li className="flex items-center gap-2 px-1 text-yellow-400/90"><Dices className="w-3 h-3 text-yellow-400" /><span className="text-yellow-400 font-mono w-[60px] text-right bg-yellow-400/10 px-1 py-0.5 rounded">/roll</span> Lancer un dé</li>
+                                            <li className="flex items-center gap-2 px-1 text-yellow-400/90"><Dices className="w-3 h-3 text-yellow-400" /><span className="text-yellow-400 font-mono w-[60px] text-right bg-yellow-400/10 px-1 py-0.5 rounded">/roll</span> Lancer un dÃ©</li>
                                         </ul>
                                     </div>
                                 </div>

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
-import { getWeekMissions } from "@/server/actions/mission-actions";
+import { getWeekMissions, getGuildMissionXpOverride } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
+import { getMyWeeklyKamaStatus } from "@/server/actions/kama-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
@@ -13,7 +14,6 @@ import { ActivitiesNav } from "@/components/layout/activities-nav";
 
 export const dynamic = 'force-dynamic';
 
-// Local Helper if not in utils
 function getCurrentWeek() {
     const now = new Date();
     const onejan = new Date(now.getFullYear(), 0, 1);
@@ -27,45 +27,47 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const { guildId } = await params;
 
-    // Module guard
     if (!await isModuleEnabled(guildId, "missions")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    // RBAC: Check permission to view Missions
     const user = await getUserContext(guildId);
     if (!user.canViewMissions) {
         return <AccessDenied />;
     }
 
-
     const { week, year } = getCurrentWeek();
 
-    const response = await getWeekMissions(guildId, week, year);
+    // Fetch all data in parallel
+    const [response, overrideRes, kamaRes] = await Promise.all([
+        getWeekMissions(guildId, week, year),
+        getGuildMissionXpOverride(guildId),
+        getMyWeeklyKamaStatus(guildId),
+    ]);
 
     if (!response.success) {
-        // Check for specific permission errors
         if (response.error?.includes("Member not found") || response.error?.includes("Insufficient Permissions")) {
             return <AccessDenied />;
         }
-
         return <MissionsErrorState error={response.error || "Une erreur inconnue est survenue."} />;
     }
 
     const missions = response.data || [];
 
-    // Guild Config for Target Tier
-    const { getDofusConfig } = await import("@/server/actions/admin-actions"); // Dynamic import to avoid cycles if any
-    const configRes = await getDofusConfig(guildId);
-    const targetTier = configRes.data?.missionTier || 3;
-
-    // Calculate Total Weekly XP (Activity Points)
-    // Formula: Sum of (Mission XP * Count of Validated Submissions)
-    const currentXP = missions.reduce((acc: number, mission: any) => {
-        // @ts-ignore - _count is added in the query but locally typed maybe not
-        const validatedCount = mission._count?.submissions || 0;
-        return acc + (mission.xpReward || 0) * validatedCount;
+    // [MIS-1] XP Override
+    const xpOverride = (overrideRes.success && overrideRes.data) ? overrideRes.data.xpOverride : null;
+    const dynamicXP = missions.reduce((acc: number, mission: any) => {
+        const validatedCount = (mission as any)._count?.submissions || 0;
+        return acc + ((mission as any).xpReward || 0) * validatedCount;
     }, 0);
+    const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
+
+    // [MIS-1 FIX] targetTier from published missions, fallback 3
+    const missionTierFromPublished = missions.length > 0 ? (missions[0] as any)?.tier ?? null : null;
+    const targetTier = missionTierFromPublished !== null ? missionTierFromPublished : 3;
+
+    // Kama status for the widget
+    const kamaStatus = (kamaRes.success && kamaRes.data) ? kamaRes.data : null;
 
     return (
         <div className="space-y-6 pb-12">
@@ -78,9 +80,14 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 backHref={`/dashboard/${guildId}`}
             />
 
-            {/* Guild Progress Bar */}
+            {/* Guild Progress Bar with kama widget integrated */}
             <div className="px-1">
-                <GuildProgressBar currentXP={currentXP} targetTier={targetTier} guildId={guildId} />
+                <GuildProgressBar
+                    currentXP={currentXP}
+                    targetTier={targetTier}
+                    guildId={guildId}
+                    kamaStatus={kamaStatus}
+                />
             </div>
 
             <MissionBoard

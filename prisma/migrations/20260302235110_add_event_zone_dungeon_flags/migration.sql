@@ -1,12 +1,12 @@
 -- AlterTable
-ALTER TABLE "Dungeon" ADD COLUMN     "isEventDungeon" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Dungeon" ADD COLUMN IF NOT EXISTS "isEventDungeon" BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
-ALTER TABLE "Zone" ADD COLUMN     "eventZoneKey" TEXT,
-ADD COLUMN     "isEventZone" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Zone" ADD COLUMN IF NOT EXISTS "eventZoneKey" TEXT,
+ADD COLUMN IF NOT EXISTS "isEventZone" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateIndex
-CREATE INDEX "Dungeon_isEventDungeon_idx" ON "Dungeon"("isEventDungeon");
+CREATE INDEX IF NOT EXISTS "Dungeon_isEventDungeon_idx" ON "Dungeon"("isEventDungeon");
 
 -- CreateIndex
-CREATE INDEX "Zone_isEventZone_idx" ON "Zone"("isEventZone");
+CREATE INDEX IF NOT EXISTS "Zone_isEventZone_idx" ON "Zone"("isEventZone");

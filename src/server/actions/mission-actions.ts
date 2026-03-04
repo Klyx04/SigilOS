@@ -1224,7 +1224,8 @@ export async function publishMissionsToDiscord(
             if (idToMention) mention = `<@&${idToMention}>`;
         }
 
-        const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/${guildId}/missions`;
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions`;
 
         // We use lazy import to avoid circular dependencies if any, 
         // though server-to-server usually is fine.

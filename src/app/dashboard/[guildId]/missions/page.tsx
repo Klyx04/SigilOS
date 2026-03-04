@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getWeekMissions } from "@/server/actions/mission-actions";
+import { getGuildMissionXpOverride } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
@@ -59,12 +60,17 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     const targetTier = configRes.data?.missionTier || 3;
 
     // Calculate Total Weekly XP (Activity Points)
-    // Formula: Sum of (Mission XP * Count of Validated Submissions)
-    const currentXP = missions.reduce((acc: number, mission: any) => {
+    // [MIS-1] If admin override is set, use it instead of dynamic calculation
+    const overrideRes = await getGuildMissionXpOverride(guildId);
+    const xpOverride = overrideRes.success ? overrideRes.data?.xpOverride ?? null : null;
+
+    const dynamicXP = missions.reduce((acc: number, mission: any) => {
         // @ts-ignore - _count is added in the query but locally typed maybe not
         const validatedCount = mission._count?.submissions || 0;
         return acc + (mission.xpReward || 0) * validatedCount;
     }, 0);
+
+    const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
 
     return (
         <div className="space-y-6 pb-12">

@@ -1271,3 +1271,81 @@ export async function publishMissionsToDiscord(
         return { success: false, error: "Erreur serveur lors de la publication." };
     }
 }
+
+// =============================================================================
+// [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
+// =============================================================================
+
+const XpOverrideSchema = z.object({
+    guildId: z.string().min(1),
+    xpOverride: z.number().int().min(0).max(1_000_000).nullable(),
+}).strict();
+
+export async function setGuildMissionXpOverride(
+    rawData: z.infer<typeof XpOverrideSchema>
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifie" };
+
+    const parsed = XpOverrideSchema.safeParse(rawData);
+    if (!parsed.success) return { success: false, error: "Donnees invalides" };
+    const { guildId, xpOverride } = parsed.data;
+
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    const limiter = await rateLimit(`xp_override:${session.user.id}:${guildId}`, 10, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d actions. Veuillez patienter." };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        await (db.guildConfig as any).update({
+            where: { id: guild.id },
+            data: { missionWeekXpOverride: xpOverride }
+        });
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: "MISSION_XP_OVERRIDE" as any,
+            targetType: "GUILD_CONFIG" as any,
+            metadata: { xpOverride, cleared: xpOverride === null }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/missions`);
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        return {
+            success: true,
+            data: { message: xpOverride === null ? "Override supprime" : `XP fixe a ${xpOverride.toLocaleString()}` }
+        };
+    } catch (error) {
+        logger.error("setGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getGuildMissionXpOverride(
+    guildId: string
+): Promise<ActionResponse<{ xpOverride: number | null }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await (db.guildConfig as any).findUnique({
+            where: { discordGuildId: guildId },
+            select: { missionWeekXpOverride: true }
+        });
+        return { success: true, data: { xpOverride: guild?.missionWeekXpOverride ?? null } };
+    } catch (error) {
+        logger.error("getGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}

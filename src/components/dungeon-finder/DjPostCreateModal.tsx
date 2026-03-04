@@ -13,6 +13,7 @@ import { createDjPost } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { Switch } from "@/components/ui/switch";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 interface Dungeon {
     id: string;
@@ -72,7 +73,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
 
     const [isPending, startTransition] = useTransition();
 
-    // Reset all state on open
+    // Reset all state on open, and re-check isDiscordConfigured when it changes
     useEffect(() => {
         if (isOpen) {
             setStep(1);
@@ -92,9 +93,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             setMessage("");
             setTargetDate("");
             setRequiredClasses([]);
-            setIsDiscordPublished(!!isDiscordConfigured);
+            setIsDiscordPublished(isDiscordConfigured === true);
         }
-    }, [isOpen]);
+    }, [isOpen, isDiscordConfigured]);
 
     // Handle initialDungeonId when dungeons are loaded
     useEffect(() => {
@@ -514,14 +515,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                     <div className="space-y-2 flex flex-col justify-end">
                                         <p className="text-sm font-bold text-slate-300">
                                             Date prévue <span className="text-rose-500">*</span>
+                                            <span className="text-slate-500 font-normal text-xs ml-1">(heure optionnelle)</span>
                                         </p>
-                                        <input
-                                            type="datetime-local"
-                                            required
+                                        <DateTimePicker
                                             value={targetDate}
-                                            min={new Date().toISOString().slice(0, 16)}
-                                            onChange={(e) => setTargetDate(e.target.value)}
-                                            className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all [color-scheme:dark] shadow-inner"
+                                            onChange={setTargetDate}
+                                            minDate={new Date()}
+                                            placeholder="Choisir date & heure"
+                                            timeOptional={true}
                                         />
                                     </div>
                                     {/* Membres */}

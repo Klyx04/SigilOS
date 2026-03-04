@@ -30,38 +30,44 @@ const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; i
     { label: "Validé", value: "VALIDATED", icon: CheckCircle2 },
 ];
 
+// Classic categories only (non-EVENT)
 const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Donjon", value: "DONJON", icon: Swords },
     { label: "Régulation", value: "REGULATION", icon: Skull },
     { label: "Anomalie", value: "ANOMALIE", icon: Zap },
     { label: "Songes", value: "SONGES", icon: InfinityIcon },
     { label: "Expédition", value: "EXPEDITION", icon: Clock },
-    { label: "Événement", value: "EVENT", icon: Sparkles },
 ];
+
+// Pool type for Dofus 3.5 split
+type MissionPool = 'CLASSIQUES' | 'SPECIALES';
+
 
 export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
+    const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
+    const [showFilters, setShowFilters] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     // Interest Modal State
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
-    // Filter Logic
-    const filteredMissions = missions.filter(m => {
+    // Split missions between classic and event pools
+    const classicMissions = missions.filter(m => m.category !== 'EVENT');
+    const specialMissions = missions.filter(m => m.category === 'EVENT');
+    const activeMissions = missionPool === 'CLASSIQUES' ? classicMissions : specialMissions;
+
+    // Filter Logic within active pool
+    const filteredMissions = activeMissions.filter(m => {
         if (selectedCategory === 'ALL') return true;
-
-        // Status Filters
-        if (selectedCategory === 'PENDING') {
-            return m.submissions?.[0]?.status === 'PENDING';
-        }
-        if (selectedCategory === 'VALIDATED') {
-            return m.submissions?.[0]?.status === 'VALIDATED';
-        }
-
-        // Category Filters
+        if (selectedCategory === 'PENDING') return m.submissions?.[0]?.status === 'PENDING';
+        if (selectedCategory === 'VALIDATED') return m.submissions?.[0]?.status === 'VALIDATED';
         return m.category === selectedCategory;
     });
+
+    // Count active category filters (ignoring ALL/PENDING/VALIDATED)
+    const activeCategoryCount = CATEGORY_FILTERS.some(f => f.value === selectedCategory) ? 1 : 0;
 
     // Find selected mission for modal
     const selectedMission = selectedMissionId
@@ -76,6 +82,11 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
         setSelectedMissionId(null);
     };
 
+    const handlePoolChange = (pool: MissionPool) => {
+        setMissionPool(pool);
+        setSelectedCategory('ALL'); // Reset category filter when switching pools
+    };
+
     // Category Styling Map
     const CATEGORY_STYLES: Record<MissionCategory, { bg: string; border: string; text: string; icon: string; shadow: string }> = {
         DONJON: { bg: "bg-indigo-500/10", border: "border-indigo-500/20", text: "text-indigo-400", icon: "text-indigo-400", shadow: "shadow-indigo-500/10" },
@@ -88,90 +99,123 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
 
     return (
         <div className="space-y-6">
-            {/* Toolbar */}
-            <div className="flex flex-col gap-6">
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+            {/* 🛠️ Simplified Toolbar */}
+            <div className="flex flex-col gap-4 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-sm">
 
-                    {/* LEFT: Quick Search / Status (Pill Design) */}
-                    <div className="flex items-center gap-2 p-1 bg-black/40 backdrop-blur-md border border-white/5 rounded-full shadow-lg">
-                        {STATUS_FILTERS.map(f => {
-                            const IconComponent = f.icon;
-                            const isActive = selectedCategory === f.value;
-                            return (
-                                <button
-                                    key={f.value}
-                                    onClick={() => setSelectedCategory(f.value)}
-                                    className={cn(
-                                        "relative flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all duration-300",
-                                        isActive
-                                            ? "bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-                                            : "text-zinc-400 hover:text-white hover:bg-white/10"
-                                    )}
-                                >
-                                    {IconComponent && <IconComponent className={cn("w-3.5 h-3.5", isActive ? "text-zinc-950" : "text-zinc-500")} />}
-                                    {f.label}
-                                    {isActive && (
-                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
-                                    )}
-                                </button>
-                            )
-                        })}
+                {/* PRIMARY ACTIONS ROW */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+
+                    {/* Left: Pool & Status Logic Combined */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+                        {/* Pool Toggle */}
+                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
+                            {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
+                                const isActive = missionPool === pool;
+                                return (
+                                    <button
+                                        key={pool}
+                                        onClick={() => handlePoolChange(pool)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-1.5 text-[10px] font-black rounded-full transition-all uppercase tracking-widest",
+                                            isActive
+                                                ? pool === 'CLASSIQUES'
+                                                    ? "bg-indigo-500 text-white shadow-lg"
+                                                    : "bg-yellow-500 text-black shadow-lg"
+                                                : "text-zinc-500 hover:text-white"
+                                        )}
+                                    >
+                                        {pool === 'CLASSIQUES' ? '⚔️' : '✨'} {pool}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="h-4 w-px bg-white/10 mx-1" />
+
+                        {/* Status Toggle */}
+                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
+                            {STATUS_FILTERS.map(f => {
+                                const isActive = selectedCategory === f.value;
+                                return (
+                                    <button
+                                        key={f.value}
+                                        onClick={() => setSelectedCategory(f.value)}
+                                        className={cn(
+                                            "px-3 py-1.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-wider",
+                                            isActive ? "bg-zinc-100 text-zinc-950 shadow-md" : "text-zinc-500 hover:text-white"
+                                        )}
+                                    >
+                                        {f.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
 
-                    {/* RIGHT: Refresh */}
-                    <div className="flex items-center gap-2">
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent sm:hidden" />
+                    {/* Right: Filters & Tools */}
+                    <div className="flex items-center gap-2 ml-auto">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={cn(
+                                "h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-widest transition-all",
+                                (showFilters || activeCategoryCount > 0)
+                                    ? "bg-white/10 text-white border-white/20"
+                                    : "bg-transparent text-zinc-400 border-white/5"
+                            )}
+                        >
+                            <Filter className={cn("w-3.5 h-3.5 mr-2", activeCategoryCount > 0 && "text-emerald-400 animate-pulse")} />
+                            Catégories
+                            {activeCategoryCount > 0 && (
+                                <span className="ml-2 w-4 h-4 rounded-full bg-emerald-500 text-black text-[9px] flex items-center justify-center">
+                                    {activeCategoryCount}
+                                </span>
+                            )}
+                        </Button>
+
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-full border border-white/5 hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                            className="h-9 w-9 text-zinc-500 hover:text-white hover:bg-white/5 rounded-full"
                             onClick={() => startTransition(() => router.refresh())}
                             disabled={isPending}
-                            title="Actualiser les données"
                         >
-                            <RefreshCcw className={cn("w-4 h-4", isPending && "animate-spin")} />
+                            <RefreshCcw className={cn("w-3.5 h-3.5", isPending && "animate-spin")} />
                         </Button>
                     </div>
                 </div>
 
-                {/* BOTTOM: Category Filters (Colored Tags) */}
-                <div className="flex flex-wrap gap-3">
-                    {CATEGORY_FILTERS.map(f => {
-                        const IconComponent = f.icon;
-                        const isActive = selectedCategory === f.value;
-                        // Cast to ensure type safety if value is strictly typed
-                        const style = CATEGORY_STYLES[f.value as MissionCategory];
+                {/* SECONDARY: Category Filters (Collapsible) */}
+                {showFilters && missionPool === 'CLASSIQUES' && (
+                    <div className="pt-2 border-t border-white/5 animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex flex-wrap gap-2">
+                            {CATEGORY_FILTERS.map(f => {
+                                const IconComponent = f.icon;
+                                const isActive = selectedCategory === f.value;
+                                const style = CATEGORY_STYLES[f.value as MissionCategory];
 
-                        return (
-                            <button
-                                key={f.value}
-                                onClick={() => setSelectedCategory(f.value)}
-                                className={cn(
-                                    "group relative flex items-center gap-2.5 px-4 py-2 text-xs font-black rounded-xl border transition-all duration-300",
-                                    isActive
-                                        ? cn(style.bg, style.border, style.text, style.shadow, "ring-2 ring-white/20 scale-105")
-                                        : "bg-zinc-900 border-white/10 text-zinc-400 hover:border-white/30 hover:text-white hover:bg-zinc-800"
-                                )}
-                            >
-                                <div className={cn(
-                                    "p-1 rounded-md transition-colors",
-                                    isActive ? "bg-black/20" : "bg-black/40 group-hover:bg-black/60"
-                                )}>
-                                    {IconComponent && <IconComponent className={cn(
-                                        "w-3.5 h-3.5 transition-colors",
-                                        isActive ? style.icon : "text-zinc-400 group-hover:text-white"
-                                    )} />}
-                                </div>
-                                <span>{f.label}</span>
-
-                                {isActive && (
-                                    <div className={cn("absolute inset-0 rounded-xl opacity-20 bg-gradient-to-b from-white/20 to-transparent pointer-events-none")} />
-                                )}
-                            </button>
-                        )
-                    })}
-                </div>
+                                return (
+                                    <button
+                                        key={f.value}
+                                        onClick={() => setSelectedCategory(isActive ? 'ALL' : f.value)}
+                                        className={cn(
+                                            "group flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all",
+                                            isActive
+                                                ? cn(style.bg, style.border, style.text, "ring-1 ring-white/10")
+                                                : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white"
+                                        )}
+                                    >
+                                        {IconComponent && <IconComponent className="w-3 h-3" />}
+                                        {f.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
+
 
             {/* Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

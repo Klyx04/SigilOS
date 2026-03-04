@@ -424,3 +424,48 @@
   background: rgba(255, 255, 255, 0.1) !important;
   scale: 1.1 !important;
 }
+
+/* ── Mission Card — Animated border ring ── */
+@property --mission-ring-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes mission-ring-spin {
+  from { --mission-ring-angle: 0deg; }
+  to   { --mission-ring-angle: 360deg; }
+}
+
+.mission-card-ring {
+  position: relative;
+  border-radius: 12px;
+  padding: 1px;
+  animation: mission-ring-spin 6s linear infinite;
+}
+
+.mission-card-ring::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  background: conic-gradient(
+    from var(--mission-ring-angle),
+    transparent 20%,
+    var(--ring-color, #10b981) 50%,
+    transparent 80%
+  );
+  opacity: 0.55;
+  transition: opacity 0.5s;
+  z-index: 0;
+}
+
+.mission-card-ring:hover::before {
+  opacity: 0.9;
+}
+
+.mission-card-ring > * {
+  position: relative;
+  z-index: 1;
+  border-radius: 11px;
+}

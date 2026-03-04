@@ -73,23 +73,33 @@ for dir in "$LOCAL_ASSETS"*/; do
 done
 echo ""
 
-# ── Rsync ─────────────────────────────────────────────────────────────────────
-# --archive  : préserve permissions, timestamps, liens symboliques
-# --compress : compresse pendant le transfert (webp compresse peu, mais utile pour jsons)
-# --checksum : compare par checksum (pas par date) → idempotent, ne re-transfert pas les fichiers identiques
-# --delete   : supprime les fichiers sur le VPS qui n'existent plus en local (optionnel, commenté par sécurité)
-# --progress : affiche la progression fichier par fichier
-# --human-readable : tailles lisibles
-rsync \
-    --archive \
-    --compress \
-    --checksum \
-    --progress \
-    --human-readable \
-    --stats \
-    $DRY_RUN \
-    "$LOCAL_ASSETS" \
-    "$VPS_HOST:$VPS_PATH/public/game-data/"
+# ── Transfert (rsync si dispo, scp sinon) ─────────────────────────────────────
+if command -v rsync &> /dev/null; then
+    echo "🔄 Utilisation de rsync..."
+    # --archive  : préserve permissions, timestamps, liens symboliques
+    # --compress : compresse pendant le transfert
+    # --checksum : compare par checksum → idempotent
+    # --progress : affiche la progression fichier par fichier
+    rsync \
+        --archive \
+        --compress \
+        --checksum \
+        --progress \
+        --human-readable \
+        --stats \
+        $DRY_RUN \
+        "$LOCAL_ASSETS" \
+        "$VPS_HOST:$VPS_PATH/public/game-data/"
+else
+    echo "⚠️  rsync non trouvé — utilisation de scp (moins optimisé mais fonctionnel)."
+    if [ -n "$DRY_RUN" ]; then
+        echo "🔍 Dry-run : scp ne supporte pas le dry-run, aperçu des fichiers locaux :"
+        find "$LOCAL_ASSETS" -type f | head -20
+        echo "   ... (et plus)"
+    else
+        scp -r "$LOCAL_ASSETS" "$VPS_HOST:$VPS_PATH/public/game-data/"
+    fi
+fi
 
 # ── Résultat ──────────────────────────────────────────────────────────────────
 echo ""

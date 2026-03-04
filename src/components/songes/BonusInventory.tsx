@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { Package, Plus, Loader2, Search, Sparkles, X, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,7 +109,7 @@ const MINOR_BONUSES = [
     { name: "5 Points de Rêve", type: "MINEUR", effet: "+5 Points de Rêve immédiats", icon: "✨" },
     { name: "15 Points de Rêve", type: "MINEUR", effet: "+15 Points de Rêve immédiats", icon: "✨" },
     { name: "Armes : +1 Lancer/Tour", type: "MINEUR", effet: "Nombre de lancers d'arme par tour +1", icon: "🗡️" },
-    { name: "Armes : +1 Portée", type: "MINEUR", effet: "Portée de l'arme +1", icon: "📏" },
+    { name: "Armes : +2 Portée", type: "MINEUR", effet: "Portée de l'arme +2", icon: "📏" },
 ];
 
 export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUpdate }: BonusInventoryProps) {
@@ -328,7 +329,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                                 size="sm"
                                 className="bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/30 shadow-[0_0_20px_rgba(99,102,241,0.35)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] transition-all text-xs font-bold gap-1.5"
                             >
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <Image src="/assets/songes/boutique.png" alt="Fontaine" width={16} height={16} className="object-contain" />
                                 Fontaine Onirique
                             </Button>
                         </DialogTrigger>
@@ -340,8 +341,8 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                             {/* Titre */}
                             <div className="px-6 py-5 border-b border-white/6 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center">
-                                        <Sparkles className="w-5 h-5 text-indigo-300" />
+                                    <div className="w-12 h-12 flex items-center justify-center shrink-0 drop-shadow-[0_0_10px_rgba(99,102,241,0.3)]">
+                                        <Image src="/assets/songes/boutique.png" alt="Fontaine" width={48} height={48} className="object-contain" />
                                     </div>
                                     <div>
                                         <DialogTitle className="text-lg font-black text-white tracking-wide">

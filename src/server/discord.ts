@@ -363,10 +363,10 @@ export async function sendChannelMessage(
             embed.url = options.embedUrl;
         }
 
-        // Footer
-        if (options.embedFooter) {
-            embed.footer = { text: options.embedFooter, icon_url: "https://i.imgur.com/AfFp7pu.png" };
-        }
+        // Footer — default universal CTA if none provided
+        const footerText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
+        embed.footer = { text: footerText, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+
 
         // Author section
         if (options.embedAuthor) {
@@ -486,7 +486,10 @@ export async function updateChannelMessage(
         }
 
         if (options.embedUrl) embed.url = options.embedUrl;
-        if (options.embedFooter) embed.footer = { text: options.embedFooter, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+        // Universal footer fallback
+        const updateFooterText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
+        embed.footer = { text: updateFooterText, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+
         if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
         if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
         if (options.embedImage) embed.image = { url: options.embedImage };

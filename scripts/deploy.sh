@@ -30,8 +30,6 @@ cd "$(dirname "$0")/.."
 
 # 2. Mise à jour du code
 echo "📦 Récupération du code..."
-# Supprime les fichiers non-trackés qui seraient écrasés par le pull (ex: assets copiés manuellement)
-git clean -f public/game-data/
 git pull origin $(git rev-parse --abbrev-ref HEAD)
 
 # 3. Mise à jour de l'infrastructure de monitoring (Prometheus, Grafana, etc)

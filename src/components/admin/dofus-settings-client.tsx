@@ -3,13 +3,10 @@
 import { useState, useEffect } from "react";
 import { getDofusConfig, updateGuildGameConfig } from "@/server/actions/admin-actions";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
-import { GUILD_TIERS, MISSION_RANKS } from "@/lib/game-data/guild-tiers";
 import { Button } from "@/components/ui/button";
-import { Globe, Save, Loader2, CheckCircle2, Server, Filter, Target } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Globe, Save, Loader2, CheckCircle2, Server, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Toggle } from "@/components/ui/toggle";
 
 interface DofusSettingsClientProps {
     guildId: string;
@@ -17,8 +14,6 @@ interface DofusSettingsClientProps {
 
 export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
     const [serverId, setServerId] = useState<string | null>(null);
-    const [missionTier, setMissionTier] = useState<number>(3);
-    const [missionRanks, setMissionRanks] = useState<number[]>([]);
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -28,8 +23,6 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
             const result = await getDofusConfig(guildId);
             if (result.success && result.data) {
                 setServerId(result.data.dofusServerId);
-                setMissionTier(result.data.missionTier || 3);
-                setMissionRanks(result.data.missionRanks || []);
             }
             setIsLoading(false);
         }
@@ -39,11 +32,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const result = await updateGuildGameConfig(guildId, {
-                serverId,
-                missionRanks,
-                missionTier
-            });
+            const result = await updateGuildGameConfig(guildId, { serverId });
             if (result.success) {
                 toast.success("Configuration enregistrée");
             } else {
@@ -54,14 +43,6 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const toggleRank = (rankId: number) => {
-        setMissionRanks(prev =>
-            prev.includes(rankId)
-                ? prev.filter(r => r !== rankId)
-                : [...prev, rankId].sort()
-        );
     };
 
     if (isLoading) {
@@ -104,7 +85,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* --- MISSION CONFIGURATION --- */}
+                {/* --- MISSION INFO --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
@@ -112,85 +93,21 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-white">Objectifs de Guilde</h3>
-                            <p className="text-xs text-zinc-500">Définit les missions prioritaires pour vos membres.</p>
+                            <p className="text-sm text-zinc-400">Configuration du palier hebdomadaire.</p>
                         </div>
                     </div>
 
-                    {/* Palier Selector */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-4">
-                        <label className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                            Palier Visé (Tier)
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-white/5">Hebdomadaire</span>
-                        </label>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                            {[1, 2, 3, 4, 5].map((tier) => {
-                                const info = GUILD_TIERS[tier as keyof typeof GUILD_TIERS];
-                                const isSelected = missionTier === tier;
-                                return (
-                                    <button
-                                        key={tier}
-                                        onClick={() => setMissionTier(tier)}
-                                        className={cn(
-                                            "flex flex-col items-center justify-center p-3 rounded-xl border transition-all h-24",
-                                            isSelected
-                                                ? "bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.15)]"
-                                                : "bg-zinc-900/60 border-white/5 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
-                                        )}
-                                    >
-                                        <span className="text-2xl font-black">{tier}</span>
-                                        <span className="text-[10px] font-medium mt-1">
-                                            {(info?.xpMax / 1000)}k Pts
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                    {/* Info banner: tier managed in editor */}
+                    <div className="flex items-start gap-3 p-5 rounded-xl bg-indigo-500/5 border border-indigo-500/15">
+                        <Target className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                            <p className="text-sm text-zinc-200 font-semibold">Palier géré dans l’éditeur de missions</p>
+                            <p className="text-sm text-zinc-400 leading-relaxed">
+                                Le <strong className="text-white">palier hebdomadaire</strong> se configure directement dans
+                                {" "}<strong className="text-indigo-400">Conf-Missions → toolbar</strong>.{" "}
+                                Il est automatiquement sauvegardé en base à chaque publication.
+                            </p>
                         </div>
-                        <p className="text-xs text-zinc-500 italic mt-2">
-                            Le palier détermine les récompenses (XP, Kamas) et la difficulté globale.
-                        </p>
-                    </div>
-
-                    {/* Ranks Selector */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-4">
-                        <label className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                            Rangs Autorisés
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-white/5">Filtrage</span>
-                        </label>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {[1, 2, 3, 4].map((rankId) => {
-                                const rank = MISSION_RANKS[rankId as keyof typeof MISSION_RANKS];
-                                const isSelected = missionRanks.includes(rankId);
-                                return (
-                                    <button
-                                        key={rankId}
-                                        onClick={() => toggleRank(rankId)}
-                                        className={cn(
-                                            "relative flex items-center gap-3 p-3 rounded-xl border transition-all text-left group",
-                                            isSelected
-                                                ? "bg-emerald-500/10 border-emerald-500/30 text-white"
-                                                : "bg-zinc-900/60 border-white/5 hover:bg-zinc-800 text-zinc-500"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                                            isSelected ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-zinc-600 group-hover:text-zinc-400"
-                                        )}>
-                                            <Filter className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-sm tracking-tight">{rank.label}</div>
-                                            <div className="text-[10px] opacity-70">Niv. {rank.levels}</div>
-                                        </div>
-                                        {isSelected && <CheckCircle2 className="absolute top-2 right-2 w-3 h-3 text-emerald-500" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <p className="text-xs text-zinc-500 italic mt-2">
-                            Sélectionnez les tranches de niveaux que votre guilde souhaite cibler.
-                        </p>
                     </div>
                 </div>
 

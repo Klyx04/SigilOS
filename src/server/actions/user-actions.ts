@@ -1014,6 +1014,84 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
     return { success: true, data: updated };
 }
 
+/**
+ * [ADM-8] Get guild members who have requested account deletion or have a scheduled deletion.
+ * This covers users who self-deleted their account via the profile settings.
+ * Scoped to the guild: only shows users who have/had a profile in this guild.
+ * Auth: Admin only.
+ */
+export async function getDeletionPendingMembers(guildId: string): Promise<ActionResponse<any[]>> {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAdmin) return { success: false, error: "Forbidden: Admin access required" };
+
+    try {
+        const guildConfig = await db.guildConfig.findFirst({
+            where: {
+                OR: [
+                    { id: guildId },
+                    { discordGuildId: guildId }
+                ]
+            },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guild not found" };
+
+        // Find all UserProfile entries for this guild, then join to User to find deletion markers
+        const profilesWithDeletion = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                user: {
+                    OR: [
+                        { deletionRequestedAt: { not: null } },
+                        { scheduledDeletion: { not: null } },
+                    ]
+                }
+            },
+            select: {
+                id: true,
+                status: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                archivedAt: true,
+                archiveReason: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                        email: true,
+                        deletionRequestedAt: true,
+                        scheduledDeletion: true,
+                        createdAt: true,
+                    }
+                }
+            },
+            orderBy: { user: { deletionRequestedAt: "desc" } }
+        });
+
+        const data = profilesWithDeletion.map(p => ({
+            profileId: p.id,
+            profileStatus: p.status,
+            displayName: p.pseudoDofus || p.discordNickname || p.user.name || "Utilisateur inconnu",
+            image: p.user.image,
+            email: p.user.email,
+            deletionRequestedAt: p.user.deletionRequestedAt?.toISOString() || null,
+            scheduledDeletion: p.user.scheduledDeletion?.toISOString() || null,
+            profileCreatedAt: p.createdAt.toISOString(),
+            archiveReason: p.archiveReason,
+        }));
+
+        return { success: true, data };
+    } catch (error) {
+        logger.error("[getDeletionPendingMembers] Error", { error });
+        return { success: false, error: "Erreur lors de la récupération des suppressions" };
+    }
+}
+
 export async function getDiscordRolesAction(guildId: string) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };

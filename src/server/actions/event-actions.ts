@@ -119,6 +119,7 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
     });
 
     let apiKey = decrypt(userProfile?.metamobApiKey) || decrypt(userProfile?.guild?.metamobApiKey);
+    let keySource = userProfile?.metamobApiKey ? "user" : userProfile?.guild?.metamobApiKey ? "guild" : "none";
 
     // Fallback: grab any guild member's key if we still have none
     if (!apiKey) {
@@ -127,17 +128,29 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
             select: { metamobApiKey: true },
         });
         apiKey = decrypt(anyMemberWithKey?.metamobApiKey);
+        keySource = anyMemberWithKey ? "fallback-member" : "none";
     }
+
+    logger.error("[getExternalKralamoureDetails] Key resolution:", {
+        kralaId,
+        guildId,
+        keySource,
+        hasKey: !!apiKey,
+        keyPreview: apiKey ? `${apiKey.substring(0, 8)}...` : "null",
+    });
 
     if (!apiKey) return null; // No key anywhere — can't fetch
 
-
-
     try {
         const details = await getKralamoureEventDetails(kralaId, { guildApiKey: apiKey });
+        logger.error("[getExternalKralamoureDetails] SUCCESS:", {
+            kralaId,
+            participantsCount: details.participants_count,
+            participantsList: details.participants?.length,
+        });
         return details;
     } catch (error) {
-        logger.error("[getExternalKralamoureDetails] Failed:", { error, kralaId, guildId });
+        logger.error("[getExternalKralamoureDetails] Failed:", { error, kralaId, guildId, keySource });
         return null;
     }
 }

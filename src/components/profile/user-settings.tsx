@@ -374,34 +374,72 @@ export function UserSettings({
                             <ShieldAlert className="w-5 h-5 text-red-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Sécurité & Vie Privée</h3>
-                            <p className="text-sm text-zinc-400">Gérez votre présence</p>
+                            <h3 className="text-lg font-bold text-white">Gestion du Compte</h3>
+                            <p className="text-sm text-zinc-400">Départ et suppression</p>
+                        </div>
+                    </div>
+
+                    {/* Comparison info box */}
+                    <div className="p-3 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 space-y-2">
+                        <div className="flex items-center gap-2 text-indigo-300">
+                            <Info className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Quelle est la différence ?</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div className="p-2 bg-zinc-800/60 rounded-xl border border-white/5">
+                                <p className="font-bold text-zinc-200 mb-1">🚪 Quitter la guilde</p>
+                                <ul className="space-y-0.5 text-zinc-500 leading-relaxed">
+                                    <li>• Affecte <b className="text-zinc-300">cette guilde</b> uniquement</li>
+                                    <li>• Profil <b className="text-emerald-400">archivé</b> (pas supprimé)</li>
+                                    <li>• <b className="text-emerald-400">Réversible</b> via Discord</li>
+                                </ul>
+                            </div>
+                            <div className="p-2 bg-red-950/30 rounded-xl border border-red-500/10">
+                                <p className="font-bold text-zinc-200 mb-1">💀 Supprimer le compte</p>
+                                <ul className="space-y-0.5 text-zinc-500 leading-relaxed">
+                                    <li>• Affecte <b className="text-red-300">toutes</b> les guildes</li>
+                                    <li>• Données <b className="text-red-300">effacées</b> (RGPD)</li>
+                                    <li>• <b className="text-red-400">Irréversible</b></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
                     <div className="space-y-4 pt-4 border-t border-white/5">
-                        {/* LEAVE GUILD */}
-                        <div className="p-3 bg-zinc-900/40 rounded-2xl border border-white/5 space-y-3">
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-semibold text-zinc-200">Quitter la guilde</h4>
-                                <p className="text-[10px] text-zinc-500">
-                                    Archive votre profil pour <b>{guildName}</b>.
-                                </p>
+                        {/* LEAVE GUILD — Safe, Reversible */}
+                        <div className="p-3 bg-zinc-900/40 rounded-2xl border border-emerald-500/10 space-y-3 group hover:border-emerald-500/20 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-semibold text-zinc-200">Quitter la guilde</h4>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">Réversible</span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500">
+                                        Archive votre profil pour <b className="text-zinc-300">{guildName}</b>. Vous pourrez revenir.
+                                    </p>
+                                </div>
                             </div>
 
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="outline" size="sm" className="w-full h-8 text-xs border-zinc-700 hover:bg-zinc-800 gap-2">
+                                    <Button variant="outline" size="sm" className="w-full h-8 text-xs border-zinc-700 hover:bg-zinc-800 hover:border-emerald-500/30 gap-2 transition-colors">
                                         <UserMinus className="w-3 h-3" />
-                                        Quitter la guilde
+                                        Quitter {guildName}
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent className="bg-zinc-900 border-white/10 text-white">
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Quitter {guildName} ?</AlertDialogTitle>
-                                        <AlertDialogDescription className="text-zinc-400">
-                                            Votre profil de guilde sera <b className="text-zinc-200">archivé</b> (non supprimé). Vous perdrez l'accès au tableau de bord.<br /><br />
-                                            <span className="text-emerald-400/80 text-xs">✅ Vous pouvez rejoindre à nouveau à tout moment via Discord.</span>
+                                        <AlertDialogDescription asChild>
+                                            <div className="text-zinc-400 space-y-3">
+                                                <p>Votre profil de guilde sera <b className="text-zinc-200">archivé</b>, pas supprimé.</p>
+                                                <div className="bg-zinc-800/50 rounded-xl p-3 space-y-1.5 text-xs">
+                                                    <p className="flex items-center gap-2"><span className="text-emerald-400">✅</span> Vos XP et données sont conservées</p>
+                                                    <p className="flex items-center gap-2"><span className="text-emerald-400">✅</span> Vous pouvez rejoindre à tout moment via Discord</p>
+                                                    <p className="flex items-center gap-2"><span className="text-amber-400">⚠️</span> Vous perdez l&apos;accès au tableau de bord de cette guilde</p>
+                                                    <p className="flex items-center gap-2"><span className="text-blue-400">ℹ️</span> Vos autres guildes ne sont pas affectées</p>
+                                                </div>
+                                            </div>
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -418,15 +456,20 @@ export function UserSettings({
                             </AlertDialog>
                         </div>
 
-                        {/* DELETE ACCOUNT */}
+                        {/* DELETE ACCOUNT — Dangerous, Permanent */}
                         <div className="p-3 bg-red-500/5 rounded-2xl border border-red-500/10 space-y-3">
-                            <div className="flex items-center gap-2 text-red-400">
-                                <AlertTriangle className="w-3 h-3" />
-                                <h4 className="text-[10px] font-bold uppercase tracking-wider">Zone de danger — Irréversible</h4>
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-red-400">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider">Zone de danger</h4>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full border border-red-500/20">Irréversible</span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                                        Supprime <b className="text-red-300">définitivement</b> votre compte SigilOS et toutes vos données sur <b className="text-red-300">toutes</b> les guildes.
+                                    </p>
+                                </div>
                             </div>
-                            <p className="text-[10px] text-zinc-500 leading-relaxed">
-                                Supprime <b>définitivement</b> votre compte SigilOS sur <b>toutes</b> les guildes. Conforme RGPD. Aucun retour arrière possible.
-                            </p>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" size="sm" className="w-full h-8 text-xs gap-2 bg-red-600/80 hover:bg-red-600">
@@ -439,10 +482,21 @@ export function UserSettings({
                                         <div className="p-3 bg-red-500/10 rounded-full w-fit mx-auto mb-4">
                                             <AlertTriangle className="w-8 h-8 text-red-500 animate-pulse" />
                                         </div>
-                                        <AlertDialogTitle className="text-center text-xl">Suppression irréversible</AlertDialogTitle>
-                                        <AlertDialogDescription className="text-zinc-400 text-center">
-                                            Vous êtes sur le point de <b className="text-red-300">supprimer définitivement</b> votre compte SigilOS sur <b>toutes</b> vos guildes.<br /><br />
-                                            <span className="text-red-300 font-semibold">Toutes vos réussites, missions et données seront effacées. Cette action est irréversible et conforme au RGPD.</span>
+                                        <AlertDialogTitle className="text-center text-xl">Suppression définitive du compte</AlertDialogTitle>
+                                        <AlertDialogDescription asChild>
+                                            <div className="text-zinc-400 text-center space-y-3">
+                                                <p>
+                                                    Vous êtes sur le point de <b className="text-red-300">supprimer définitivement</b> votre compte SigilOS.
+                                                </p>
+                                                <div className="bg-red-950/30 rounded-xl p-3 space-y-1.5 text-xs text-left border border-red-500/10">
+                                                    <p className="flex items-center gap-2"><span className="text-red-400">❌</span> Profils supprimés sur <b className="text-red-300">toutes</b> vos guildes</p>
+                                                    <p className="flex items-center gap-2"><span className="text-red-400">❌</span> XP, missions, succès, et données effacés</p>
+                                                    <p className="flex items-center gap-2"><span className="text-red-400">❌</span> Aucun retour possible (conforme RGPD)</p>
+                                                </div>
+                                                <p className="text-[10px] text-zinc-600">
+                                                    Si vous souhaitez simplement quitter une guilde, utilisez &quot;Quitter la guilde&quot; à la place.
+                                                </p>
+                                            </div>
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter className="sm:justify-center gap-3">

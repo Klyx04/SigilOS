@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
-import { getWeekMissions } from "@/server/actions/mission-actions";
-import { getGuildMissionXpOverride } from "@/server/actions/mission-actions";
+import { getWeekMissions, getGuildMissionXpOverride } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
@@ -38,39 +37,36 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
         return <AccessDenied />;
     }
 
-
     const { week, year } = getCurrentWeek();
 
     const response = await getWeekMissions(guildId, week, year);
 
     if (!response.success) {
-        // Check for specific permission errors
         if (response.error?.includes("Member not found") || response.error?.includes("Insufficient Permissions")) {
             return <AccessDenied />;
         }
-
         return <MissionsErrorState error={response.error || "Une erreur inconnue est survenue."} />;
     }
 
     const missions = response.data || [];
 
-    // Guild Config for Target Tier
-    const { getDofusConfig } = await import("@/server/actions/admin-actions"); // Dynamic import to avoid cycles if any
-    const configRes = await getDofusConfig(guildId);
-    const targetTier = configRes.data?.missionTier || 3;
-
-    // Calculate Total Weekly XP (Activity Points)
-    // [MIS-1] If admin override is set, use it instead of dynamic calculation
+    // [MIS-1] XP Override - reads missionWeekXpOverride from DB
+    // Falls back to dynamic XP (sum of validated submissions) if no override set
     const overrideRes = await getGuildMissionXpOverride(guildId);
-    const xpOverride = overrideRes.success ? overrideRes.data?.xpOverride ?? null : null;
+    const xpOverride = (overrideRes.success && overrideRes.data) ? overrideRes.data.xpOverride : null;
 
     const dynamicXP = missions.reduce((acc: number, mission: any) => {
-        // @ts-ignore - _count is added in the query but locally typed maybe not
-        const validatedCount = mission._count?.submissions || 0;
-        return acc + (mission.xpReward || 0) * validatedCount;
+        const validatedCount = (mission as any)._count?.submissions || 0;
+        return acc + ((mission as any).xpReward || 0) * validatedCount;
     }, 0);
 
     const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
+
+    // [MIS-1 FIX] Use the tier of published missions if available (source of truth),
+    // fallback on the config tier.
+    const missionTierFromPublished = missions.length > 0 ? (missions[0] as any)?.tier ?? null : null;
+    // Default tier 3 if no missions published yet and no config available
+    const targetTier = missionTierFromPublished !== null ? missionTierFromPublished : 3;
 
     return (
         <div className="space-y-6 pb-12">

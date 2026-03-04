@@ -654,6 +654,7 @@ export async function getDofusConfig(guildId: string): Promise<{
         dofusServerId: string | null;
         missionRanks: number[];
         missionTier: number;
+        missionWeekXpOverride: number | null;
     }
 }> {
     const session = await auth();
@@ -670,9 +671,15 @@ export async function getDofusConfig(guildId: string): Promise<{
             select: {
                 dofusServerId: true,
                 missionRanks: true,
-                missionTier: true
-            }
-        });
+                missionTier: true,
+                missionWeekXpOverride: true
+            } as Record<string, true>
+        }) as unknown as {
+            dofusServerId: string | null;
+            missionRanks: unknown;
+            missionTier: number | null;
+            missionWeekXpOverride: number | null;
+        } | null;
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -692,7 +699,8 @@ export async function getDofusConfig(guildId: string): Promise<{
             data: {
                 dofusServerId: guildConfig.dofusServerId,
                 missionRanks: parsedRanks,
-                missionTier: guildConfig.missionTier || 3
+                missionTier: guildConfig.missionTier || 3,
+                missionWeekXpOverride: guildConfig.missionWeekXpOverride ?? null
             }
         };
     } catch (error) {

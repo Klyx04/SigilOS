@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -48,7 +48,7 @@ const CreateWeekSchema = z.object({
     notifyMembers: z.boolean().optional(),
 }).strict();
 
-async function notifyValidators(guildId: string, title: string, message: string, link?: string): Promise<string | undefined> {
+async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string): Promise<string | undefined> {
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -73,14 +73,35 @@ async function notifyValidators(guildId: string, title: string, message: string,
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
                 const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+                const absoluteImageUrl = proofUrl
+                    ? (proofUrl.startsWith("http") ? proofUrl : `${process.env.NEXT_PUBLIC_APP_URL}${proofUrl}`)
+                    : undefined;
 
-                // Compact validation alert
+                // Compact validation alert with proof screenshot + action buttons
                 const messageId = await sendChannelMessage(discordChannelId, content, {
                     embedTitle: "🎯 Nouvelle Mission à Valider",
                     embedDescription: message,
                     embedColor: 0x9333ea, // Purple
                     embedUrl: absoluteLink,
-                    embedFooter: "SigilOS • Pas encore sur le Dashboard ? → sigilos.fr",
+                    embedImage: absoluteImageUrl,
+                    embedFooter: "SigilOS • Système de Validation",
+                    components: submissionId ? [
+                        {
+                            type: 1, // Action Row
+                            components: [
+                                {
+                                    type: 2, style: 3,
+                                    label: "✅ Valider",
+                                    custom_id: `validate:mission:${submissionId}:${guildId}`,
+                                },
+                                {
+                                    type: 2, style: 4,
+                                    label: "❌ Rejeter",
+                                    custom_id: `validate:mission_reject:${submissionId}:${guildId}`,
+                                },
+                            ],
+                        },
+                    ] : undefined,
                 });
 
                 if (messageId) {
@@ -556,7 +577,7 @@ export async function submitMissionProof(
         const existing = await db.submission.findFirst({
             where: { missionId, profileId: profile.id, status: { in: ["PENDING", "VALIDATED"] } }
         });
-        if (existing) return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+        if (existing) return { success: false, error: "Vous avez déjÃ  une soumission pour cette mission." };
 
         // 1.5 Validate Helpers
         if (helperIds.length > 7) return { success: false, error: "Maximum 7 aidants autorisés." };
@@ -606,7 +627,7 @@ export async function submitMissionProof(
         });
 
         if (existingHash) {
-            return { success: false, error: "Cette image a déjà été utilisée pour une validation dans cette guilde." };
+            return { success: false, error: "Cette image a déjÃ  été utilisée pour une validation dans cette guilde." };
         }
 
         // NO OCR - All submissions go to admin validation
@@ -628,7 +649,8 @@ export async function submitMissionProof(
         const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
         await mkdir(uploadDir, { recursive: true });
 
-        const fileName = `${session.user.id}-${Date.now()}.webp`;
+        const { randomUUID } = await import("crypto");
+        const fileName = `${randomUUID()}.webp`;
         const filePath = join(uploadDir, fileName);
 
         await writeFile(filePath, optimizedBuffer);
@@ -666,8 +688,10 @@ export async function submitMissionProof(
         const discordMessageId = await notifyValidators(
             mission.guild.discordGuildId,
             `[Validation] ${userName} - ${missionTitle}`,
-            `${userName} a posté une preuve pour : ${missionTitle}`,
-            `/dashboard/${mission.guild.discordGuildId}/admin/validation`
+            `**${userName}** a posté une preuve pour : **${missionTitle}**`,
+            `/dashboard/${mission.guild.discordGuildId}/admin/validation`,
+            proofUrl,
+            submission.id  // ← pour les custom_id des boutons Discord
         );
 
         if (discordMessageId) {
@@ -687,7 +711,7 @@ export async function submitMissionProof(
     } catch (error: any) {
         // AUDIT-FUNC-07: Handle race-condition duplicate submission gracefully
         if (error?.code === "P2002") {
-            return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+            return { success: false, error: "Vous avez déjÃ  une soumission pour cette mission." };
         }
         logger.error("Submit Mission Proof Error", { error, missionId });
         return { success: false, error: "Erreur serveur lors de la soumission" };
@@ -891,7 +915,7 @@ export async function cancelMySubmission(
 
         // 2. Can only cancel PENDING submissions
         if (submission.status !== "PENDING") {
-            return { success: false, error: "Seules les soumissions en attente peuvent être annulées" };
+            return { success: false, error: "Seules les soumissions en attente peuvent Ãªtre annulées" };
         }
 
         // 3. Delete the proof file
@@ -1274,5 +1298,87 @@ export async function publishMissionsToDiscord(
     } catch (error) {
         console.error("Publish to Discord error:", error);
         return { success: false, error: "Erreur serveur lors de la publication." };
+    }
+}
+
+// =============================================================================
+// [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
+// =============================================================================
+
+const XpOverrideSchema = z.object({
+    guildId: z.string().min(1),
+    xpOverride: z.number().int().min(0).max(1_000_000).nullable(),
+}).strict();
+
+export async function setGuildMissionXpOverride(
+    rawData: z.infer<typeof XpOverrideSchema>
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifie" };
+
+    const parsed = XpOverrideSchema.safeParse(rawData);
+    if (!parsed.success) return { success: false, error: "Donnees invalides" };
+    const { guildId, xpOverride } = parsed.data;
+
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    const limiter = await rateLimit(`xp_override:${session.user.id}:${guildId}`, 10, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d actions. Veuillez patienter." };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // Note: missionWeekXpOverride est un champ nouveau "”
+        // le type $extends de Prisma ne le reconnaît pas toujours correctement;
+        // on passe via un cast partiel du payload uniquement.
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { missionWeekXpOverride: xpOverride } as any
+        });
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: "MISSION_XP_OVERRIDE" as any,
+            targetType: "GUILD_CONFIG" as any,
+            metadata: { xpOverride, cleared: xpOverride === null }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/missions`);
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        return {
+            success: true,
+            data: { message: xpOverride === null ? "Override supprime" : `XP fixe a ${xpOverride.toLocaleString()}` }
+        };
+    } catch (error) {
+        logger.error("setGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getGuildMissionXpOverride(
+    guildId: string
+): Promise<ActionResponse<{ xpOverride: number | null }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        // Cast: $extends type loses new fields - use Record<string,true> pattern
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { missionWeekXpOverride: true } as Record<string, true>
+        }) as unknown as { missionWeekXpOverride: number | null } | null;
+        return { success: true, data: { xpOverride: guild?.missionWeekXpOverride ?? null } };
+    } catch (error) {
+        logger.error("getGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
     }
 }

@@ -38,6 +38,8 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]",
     // Chat
     CHAT_BLOCKED_ATTEMPT: "bg-red-500/20 text-red-400 border-red-500/30",
+    // GDPR
+    USER_GDPR_DELETE: "bg-red-600/20 text-red-300 border-red-600/30",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -69,6 +71,8 @@ const ACTION_LABELS: Record<string, string> = {
     POLL_CREATOR_ROLE_ACQUIRED: "🎤 Micro acquis",
     // Chat
     CHAT_BLOCKED_ATTEMPT: "🚫 Message Chat Bloqué",
+    // GDPR
+    USER_GDPR_DELETE: "🗑️ Suppression RGPD",
 };
 
 const ACTION_OPTIONS = [
@@ -82,6 +86,7 @@ const ACTION_OPTIONS = [
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
     { value: "ADMIN_ACCESS_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },
     { value: "CHAT_BLOCKED_ATTEMPT", label: "💬 Modération Chat" },
+    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
 ];
 
 type PermissionChange = {
@@ -104,6 +109,9 @@ type AuditMetadata = {
     message?: string;
     strikes?: number;
     threshold?: number;
+    // GDPR
+    discordId?: string;
+    guildName?: string;
 };
 
 // ... (inside component render)
@@ -384,6 +392,16 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     <span>
                                                         Action sur le profil de <span className="font-medium text-foreground">{metadata.description || log.targetId}</span>
                                                         {metadata.reason && <span className="text-xs ml-2 opacity-70">({metadata.reason})</span>}
+                                                    </span>
+                                                )}
+                                                {log.targetType === "USER" && log.action === "USER_GDPR_DELETE" && (
+                                                    <span className="text-red-300">
+                                                        Compte supprimé (RGPD)
+                                                        {metadata.discordId && (
+                                                            <code className="ml-1.5 bg-red-900/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                                                Discord #{metadata.discordId}
+                                                            </code>
+                                                        )}
                                                     </span>
                                                 )}
                                                 {log.targetType === "CONTENT_SAFETY" && (

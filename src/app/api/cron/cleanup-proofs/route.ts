@@ -6,7 +6,9 @@ import path from "path";
 import { sendChannelMessage } from "@/server/discord";
 
 // ---------------------------------------------------------------------------
-// CLEANUP: supprime les screenshots de preuve après 7 jours
+// CLEANUP: supprime les screenshots de preuve
+//  - Prêts/Coffre : après 7 jours
+//  - Missions / Succès / Kamas PENDING : après 24h (auto-suppression si non validé)
 // Route sécurisée par CRON_SECRET (appelée par le cron nightly du serveur)
 //
 // Appel depuis maintenance.sh (crontab 4h00):
@@ -16,6 +18,7 @@ import { sendChannelMessage } from "@/server/discord";
 
 const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
 const PROOF_EXPIRY_DAYS = 7;
+const PENDING_EXPIRY_HOURS = 24;
 
 // Safely delete a local file from /uploads/guilds/{guildId}/proofs/{filename}
 async function deleteLocalProof(proofUrl: string, internalGuildId: string): Promise<boolean> {
@@ -35,6 +38,28 @@ async function deleteLocalProof(proofUrl: string, internalGuildId: string): Prom
         if (existsSync(filePath)) {
             await unlink(filePath);
         }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Safely delete a mission/achievement proof from /uploads/proofs/{discordGuildId}/{filename}
+async function deleteMissionProof(proofUrl: string): Promise<boolean> {
+    try {
+        if (!proofUrl.startsWith("/uploads/proofs/")) return false;
+        const parts = proofUrl.replace("/uploads/proofs/", "").split("/");
+        if (parts.length !== 2) return false;
+        const [discordGuildId, filename] = parts;
+        // Security: only safe filename chars
+        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return false;
+        if (!/^\d{17,20}$/.test(discordGuildId)) return false;
+
+        const filePath = path.join(process.cwd(), "public", "uploads", "proofs", discordGuildId, filename);
+        const safeBase = path.join(process.cwd(), "public", "uploads", "proofs", discordGuildId);
+        if (!path.normalize(filePath).startsWith(path.normalize(safeBase))) return false;
+
+        if (existsSync(filePath)) await unlink(filePath);
         return true;
     } catch {
         return false;
@@ -348,6 +373,82 @@ export async function POST(request: NextRequest) {
         stats.errors.push(`Archive loans batch error: ${err}`);
     }
 
-    console.log("[cleanup-proofs] Done:", { ...stats, ...extraStats });
-    return NextResponse.json({ success: true, ...stats, ...extraStats });
+    // ---------------------------------------------------------------------------
+    // 4. KAMA DONATIONS — auto-suppress PENDING donations after 24h
+    // ---------------------------------------------------------------------------
+    const kamaCutoff = new Date();
+    kamaCutoff.setHours(kamaCutoff.getHours() - PENDING_EXPIRY_HOURS);
+
+    const kamaStats = { kamaExpired: 0 };
+
+    try {
+        const kamaDb = db as any;
+
+        const expiredKamaDonations = await kamaDb.kamaDonation.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: {
+                id: true, proofUrl: true, guildId: true,
+                profile: { select: { userId: true, pseudoDofus: true, discordNickname: true, user: { select: { name: true } } } },
+            },
+        });
+
+        for (const donation of expiredKamaDonations) {
+            try {
+                if (donation.proofUrl) { await deleteLocalProof(donation.proofUrl, donation.guildId); stats.filesDeleted++; }
+                await (db as any).imageHash.deleteMany({ where: { guildId: donation.guildId, sourceType: "KAMA_DONATION", sourceId: donation.id } });
+                await kamaDb.kamaDonation.delete({ where: { id: donation.id } });
+                kamaStats.kamaExpired++;
+            } catch (err) { stats.errors.push(`KamaDonation ${donation.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Kama donations batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 5. MISSION SUBMISSIONS — auto-suppress PENDING after 24h
+    // ---------------------------------------------------------------------------
+    const missionStats = { missionsExpired: 0 };
+
+    try {
+        const expiredSubmissions = await db.submission.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: { id: true, proofUrl: true },
+        });
+
+        for (const sub of expiredSubmissions) {
+            try {
+                if (sub.proofUrl) { await deleteMissionProof(sub.proofUrl); stats.filesDeleted++; }
+                await (db as any).imageHash.deleteMany({ where: { sourceType: "MISSION", sourceId: sub.id } });
+                await db.submission.delete({ where: { id: sub.id } });
+                missionStats.missionsExpired++;
+            } catch (err) { stats.errors.push(`Submission ${sub.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Mission submissions batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 6. ACHIEVEMENT SUBMISSIONS — auto-suppress PENDING after 24h
+    // ---------------------------------------------------------------------------
+    const achievementStats = { achievementsExpired: 0 };
+
+    try {
+        const expiredAchievements = await (db as any).achievementSubmission.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: { id: true, proofUrl: true, guildId: true },
+        });
+
+        for (const sub of expiredAchievements) {
+            try {
+                if (sub.proofUrl) {
+                    // achievementSubmission proofs use /uploads/proofs/{discordGuildId}/ path
+                    // or /uploads/guilds/{internalId}/proofs/ — try both
+                    const deleted = await deleteMissionProof(sub.proofUrl) || await deleteLocalProof(sub.proofUrl, sub.guildId);
+                    if (deleted) stats.filesDeleted++;
+                }
+                await (db as any).imageHash.deleteMany({ where: { sourceType: "ACHIEVEMENT", sourceId: sub.id } });
+                await (db as any).achievementSubmission.delete({ where: { id: sub.id } });
+                achievementStats.achievementsExpired++;
+            } catch (err) { stats.errors.push(`Achievement ${sub.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Achievement submissions batch error: ${err}`); }
+
+    console.log("[cleanup-proofs] Done:", { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
+    return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
 }

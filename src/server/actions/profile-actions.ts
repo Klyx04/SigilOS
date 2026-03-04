@@ -1199,7 +1199,8 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
 
-            const fileName = `${session.user.id}-${Date.now()}.webp`;
+            const { randomUUID: genProofUUID } = await import("crypto");
+            const fileName = `${genProofUUID()}.webp`;
             const filePath = join(uploadDir, fileName);
 
             const buffer = Buffer.from(base64Data, 'base64');
@@ -1238,19 +1239,42 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 }
             });
 
-            // Notify validators via Discord (Using the same channel as missions for now)
+            // Notify validators via Discord
             try {
-                if (guildConfig.missionNotifyChannelId) {
+                const achievementChannel = (guildConfig as any).achievementNotifyChannelId || guildConfig.missionNotifyChannelId;
+                if (achievementChannel) {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
                     const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+                    const absoluteImageUrl = `${process.env.NEXT_PUBLIC_APP_URL}${proofUrl}`;
+                    const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;
+                    const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
 
-                    await sendChannelMessage(guildConfig.missionNotifyChannelId, "", {
-                        embedTitle: `[Validation] ${userName} - Succès`,
-                        embedDescription: `${userName} a posté une preuve pour confirmation manuelle de ${points} points de succès.`,
-                        embedColor: 0x0ea5e9, // Sky blue for achievements
+                    const discordMsgId = await sendChannelMessage(achievementChannel, content, {
+                        embedTitle: `🏆 [Validation] ${userName} - Succès`,
+                        embedDescription: `**${userName}** a posté une preuve pour confirmation manuelle de **${points} points** de succès.`,
+                        embedColor: 0x0ea5e9,
                         embedUrl: absoluteLink,
+                        embedImage: absoluteImageUrl,
+                        embedFooter: "SigilOS \u2022 Points de Succès",
+                        components: submission?.id ? [
+                            {
+                                type: 1,
+                                components: [
+                                    { type: 2, style: 3, label: "\u2705 Valider", custom_id: `validate:achievement:${submission.id}:${guildConfig.discordGuildId}` },
+                                    { type: 2, style: 4, label: "\u274c Rejeter", custom_id: `validate:achievement_reject:${submission.id}:${guildConfig.discordGuildId}` },
+                                ],
+                            },
+                        ] : undefined,
                     });
+
+                    // Save discordMessageId for later embed deletion
+                    if (discordMsgId && submission?.id) {
+                        await (db as any).achievementSubmission.update({
+                            where: { id: submission.id },
+                            data: { discordMessageId: `${achievementChannel}:${discordMsgId}` },
+                        });
+                    }
                 }
             } catch (discordError) {
                 logger.error("[SyncSuccess] Discord Notification Error", { error: discordError });

@@ -367,9 +367,7 @@ export function EventDetailModal({
                                 label="Participants"
                                 value={
                                     <span>
-                                        {(isDirectKralamoure || isImportedKralamoure)
-                                            ? (eventMetadata?.metamobParticipants?.length || 0)
-                                            : registeredCount}
+                                        {registeredCount}
                                         {event.maxParticipants && <span className="text-zinc-500"> / {event.maxParticipants}</span>}
                                         {reserveCount > 0 && <span className="text-amber-400 ml-2">+{reserveCount}</span>}
                                     </span>
@@ -417,93 +415,57 @@ export function EventDetailModal({
 
                         {/* Roster */}
                         <div>
-                            {(isDirectKralamoure || isImportedKralamoure) ? (() => {
-                                const metamobParticipants = eventMetadata?.metamobParticipants || [];
-                                return (
-                                    <>
-                                        <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
-                                            <Users className="h-4 w-4" />
-                                            Participants Metamob ({metamobParticipants.length})
-                                        </h3>
-                                        <ScrollArea className="h-48">
-                                            <div className="space-y-2">
-                                                {metamobParticipants.length > 0 ? metamobParticipants.map((p: any, idx: number) => {
-                                                    const name = typeof p === "string" ? p : (p.username || p.name || "Inconnu");
-                                                    return (
-                                                        <div key={`${idx}-${name}`} className="flex items-center gap-3 p-2.5 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors">
-                                                            <Avatar className="h-8 w-8 border-2 border-zinc-700/50">
-                                                                <AvatarFallback className="bg-pink-500/10 text-pink-400 text-xs font-bold">
-                                                                    {name.charAt(0).toUpperCase()}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <span className="text-sm font-medium text-zinc-200">{name}</span>
-                                                        </div>
-                                                    );
-                                                }) : (
-                                                    <div className="text-center py-8 text-zinc-500 text-sm">
-                                                        <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                        Aucun participant sur Metamob
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </ScrollArea>
-                                    </>
-                                );
-                            })() : (
-                                <>
-                                    <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
-                                        <Users className="h-4 w-4" />
-                                        Participants ({registeredCount})
-                                    </h3>
+                            <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                Participants{(isDirectKralamoure || isImportedKralamoure) ? " Metamob" : ""} ({registeredCount})
+                            </h3>
 
-                                    <ScrollArea className="h-48">
-                                        <div className="space-y-2">
+                            <ScrollArea className="h-48">
+                                <div className="space-y-2">
+                                    {event.participants
+                                        .filter(p => p.status === "REGISTERED")
+                                        .sort((a, b) => a.position - b.position)
+                                        .map((participant) => (
+                                            <ParticipantRow
+                                                key={participant.id}
+                                                participant={participant}
+                                                isCreator={participant.user.id === event.creator.id}
+                                                isCurrentUser={participant.user.id === currentUserId}
+                                                onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
+                                            />
+                                        ))}
+
+                                    {reserveCount > 0 && (
+                                        <>
+                                            <div className="text-xs text-amber-400 font-medium mt-4 mb-2 flex items-center gap-2">
+                                                <div className="h-px bg-zinc-800/50 flex-1" />
+                                                <Clock className="h-3 w-3" />
+                                                File d&apos;attente ({reserveCount})
+                                                <div className="h-px bg-zinc-800/50 flex-1" />
+                                            </div>
                                             {event.participants
-                                                .filter(p => p.status === "REGISTERED")
+                                                .filter(p => p.status === "RESERVE")
                                                 .sort((a, b) => a.position - b.position)
                                                 .map((participant) => (
                                                     <ParticipantRow
                                                         key={participant.id}
                                                         participant={participant}
-                                                        isCreator={participant.user.id === event.creator.id}
+                                                        isReserve
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
                                                     />
                                                 ))}
+                                        </>
+                                    )}
 
-                                            {reserveCount > 0 && (
-                                                <>
-                                                    <div className="text-xs text-amber-400 font-medium mt-4 mb-2 flex items-center gap-2">
-                                                        <div className="h-px bg-zinc-800/50 flex-1" />
-                                                        <Clock className="h-3 w-3" />
-                                                        File d&apos;attente ({reserveCount})
-                                                        <div className="h-px bg-zinc-800/50 flex-1" />
-                                                    </div>
-                                                    {event.participants
-                                                        .filter(p => p.status === "RESERVE")
-                                                        .sort((a, b) => a.position - b.position)
-                                                        .map((participant) => (
-                                                            <ParticipantRow
-                                                                key={participant.id}
-                                                                participant={participant}
-                                                                isReserve
-                                                                isCurrentUser={participant.user.id === currentUserId}
-                                                                onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                            />
-                                                        ))}
-                                                </>
-                                            )}
-
-                                            {event.participants.length === 0 && (
-                                                <div className="text-center py-8 text-zinc-500 text-sm">
-                                                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                    Aucun participant
-                                                </div>
-                                            )}
+                                    {event.participants.length === 0 && (
+                                        <div className="text-center py-8 text-zinc-500 text-sm">
+                                            <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            Aucun participant
                                         </div>
-                                    </ScrollArea>
-                                </>
-                            )}
+                                    )}
+                                </div>
+                            </ScrollArea>
                         </div>
                     </div>
 

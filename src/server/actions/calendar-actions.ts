@@ -446,6 +446,8 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
     server: { name: string };
     creator: string;
     description: string;
+    participants_count?: number;
+    character_count?: number;
 }) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -503,6 +505,8 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
                     metamobId: kralaEvent.id,
                     serverName: kralaEvent.server.name,
                     metamobCreator: kralaEvent.creator,
+                    metamobParticipantsCount: kralaEvent.participants_count || 0,
+                    metamobCharacterCount: kralaEvent.character_count || 0,
                     metamobParticipants: [] // Will be populated below if possible
                 }
             }

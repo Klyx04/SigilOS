@@ -40,6 +40,11 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
         }
     }
 
+    // Find the next milestone (step) not yet reached within the target tier
+    const targetSteps = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS]?.steps || [];
+    const nextStep = targetSteps.find(step => currentXP < step.xp);
+    const xpToNextStep = nextStep ? nextStep.xp - currentXP : 0;
+
     // Helper for Milestone styling (Medal Progression)
     const getMilestoneStyle = (index: number) => {
         switch (index) {
@@ -260,10 +265,14 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     {/* Active Bonus Tracker */}
                     <ActiveBonusBar guildId={guildId} />
 
-                    {currentAchievedTier < 5 && (
+                    {nextStep && xpToNextStep > 0 && (
                         <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
                             <Target className="w-3.5 h-3.5 text-zinc-400" />
-                            <span className="text-zinc-400">Prochain palier : <span className="text-white font-mono text-sm ml-1">{(GUILD_TIERS[(currentAchievedTier + 1) as keyof typeof GUILD_TIERS]?.xpMax - currentXP).toLocaleString()}</span> XP</span>
+                            <span className="text-zinc-400">
+                                Prochain jalon <span className="text-zinc-500 text-[9px] normal-case tracking-normal">({nextStep.label})</span>
+                                {" : "}
+                                <span className="text-white font-mono text-sm ml-1">{xpToNextStep.toLocaleString()}</span> XP
+                            </span>
                         </div>
                     )}
                 </div>

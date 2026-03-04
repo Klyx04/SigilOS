@@ -352,7 +352,7 @@ export function MetamobLink({
                                         <DialogDescription>
                                             {linkStep === 1
                                                 ? "Entrez votre pseudo Metamob pour synchroniser votre quête Ocre."
-                                                : "Optionnel : ajoutez votre clé API si votre profil est privé."}
+                                                : "Votre clé API personnelle est nécessaire pour accéder à vos données."}
                                         </DialogDescription>
                                     </DialogHeader>
 
@@ -407,7 +407,7 @@ export function MetamobLink({
                                                 </p>
                                             </div>
                                         ) : (
-                                            /* STEP 2: API Key (Optional) */
+                                            /* STEP 2: API Key (Required) */
                                             <div className="space-y-3">
                                                 <div className="p-2.5 bg-emerald-500/5 rounded-lg border border-emerald-500/10 text-xs text-emerald-400 flex items-center gap-2">
                                                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -421,7 +421,7 @@ export function MetamobLink({
                                                     <div className="flex items-center justify-between">
                                                         <label htmlFor="metamob-key" className="text-sm font-medium flex items-center gap-1.5">
                                                             Clé API
-                                                            <span className="text-[9px] font-normal text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">Optionnel</span>
+                                                            <span className="text-[9px] font-normal text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full border border-red-500/20">Requis</span>
                                                         </label>
                                                         <a
                                                             href="https://www.metamob.fr/settings#api"
@@ -434,16 +434,18 @@ export function MetamobLink({
                                                     <Input
                                                         id="metamob-key"
                                                         type="password"
-                                                        placeholder="Laissez vide si profil public"
+                                                        placeholder="Collez votre clé API ici..."
                                                         value={inputApiKey}
                                                         onChange={(e) => setInputApiKey(e.target.value)}
                                                         className="bg-zinc-950 border-zinc-800"
                                                     />
                                                 </div>
 
-                                                <div className="p-2.5 bg-zinc-900/40 rounded-lg border border-white/5 text-[10px] text-zinc-500 space-y-1">
-                                                    <p><b className="text-zinc-400">Profil public ?</b> Laissez ce champ vide, ça marchera directement.</p>
-                                                    <p><b className="text-zinc-400">Profil privé ?</b> Collez votre clé API depuis les Paramètres Metamob.</p>
+                                                <div className="p-2.5 bg-amber-500/5 rounded-lg border border-amber-500/10 text-[10px] text-zinc-500 space-y-1">
+                                                    <p><b className="text-amber-400">Comment l&apos;obtenir ?</b></p>
+                                                    <p>1. Allez sur <a href="https://www.metamob.fr/settings#api" target="_blank" className="text-amber-500 hover:underline">Metamob.fr → Paramètres → API</a></p>
+                                                    <p>2. Cliquez sur &quot;Créer une clé API&quot; (ou copiez celle existante)</p>
+                                                    <p>3. Collez-la ci-dessus</p>
                                                 </div>
                                             </div>
                                         )}
@@ -519,7 +521,7 @@ export function MetamobLink({
                                                     Retour
                                                 </Button>
                                                 {!forceLink && (
-                                                    <Button onClick={() => handleLink(false)} disabled={isLinking || !inputPseudo.trim()} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white">
+                                                    <Button onClick={() => handleLink(false)} disabled={isLinking || !inputPseudo.trim() || !inputApiKey.trim()} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white">
                                                         {isLinking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                                                         Vérifier & Lier
                                                     </Button>

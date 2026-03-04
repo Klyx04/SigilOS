@@ -12,14 +12,17 @@ import {
 } from "@/components/ui/tooltip";
 import { ResetCountdown } from "./reset-countdown";
 import { ActiveBonusBar } from "@/components/admin/ActiveBonusBar";
+import { KamaContributionWidget } from "@/components/kamas/kama-contribution-widget";
+import type { KamaWeeklyStatus } from "@/server/actions/kama-actions";
 
 interface GuildProgressBarProps {
     currentXP: number;
     targetTier?: number;
     guildId: string;
+    kamaStatus?: KamaWeeklyStatus | null;
 }
 
-export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildProgressBarProps) {
+export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatus }: GuildProgressBarProps) {
     const [progress, setProgress] = useState(0);
 
     const targetInfo = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS] || GUILD_TIERS[5];
@@ -249,32 +252,42 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     </div>
                 </div>
 
-                {/* 3. FOOTER LEGEND */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-2 border-t border-white/5 relative z-10 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 ring-2 ring-zinc-800/50" />
-                            <span> À faire</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                            <span className="text-zinc-300">Complété</span>
+                {/* 3. FOOTER */}
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-3 border-t border-white/5 relative z-10">
+                    {/* LEFT: Kama widget + legend */}
+                    <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[280px] md:max-w-[340px]">
+                        {/* Kama contribution widget */}
+                        <KamaContributionWidget guildId={guildId} initialStatus={kamaStatus ?? null} />
+
+                        {/* Legend */}
+                        <div className="flex items-center gap-6 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 ring-2 ring-zinc-800/50" />
+                                <span> À faire</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+                                <span className="text-zinc-300">Complété</span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Active Bonus Tracker */}
-                    <ActiveBonusBar guildId={guildId} />
+                    {/* RIGHT: Bonus + Prochain jalon */}
+                    <div className="flex flex-col items-end gap-2 ml-auto">
+                        {/* Active Bonus Tracker */}
+                        <ActiveBonusBar guildId={guildId} />
 
-                    {nextStep && xpToNextStep > 0 && (
-                        <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
-                            <Target className="w-3.5 h-3.5 text-zinc-400" />
-                            <span className="text-zinc-400">
-                                Prochain jalon <span className="text-zinc-500 text-[9px] normal-case tracking-normal">({nextStep.label})</span>
-                                {" : "}
-                                <span className="text-white font-mono text-sm ml-1">{xpToNextStep.toLocaleString()}</span> XP
-                            </span>
-                        </div>
-                    )}
+                        {nextStep && xpToNextStep > 0 && (
+                            <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2">
+                                <Target className="w-3.5 h-3.5 text-zinc-400" />
+                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                    Prochain jalon <span className="text-zinc-500 text-[9px] normal-case tracking-normal">({nextStep.label})</span>
+                                    {" : "}
+                                    <span className="text-white font-mono text-sm ml-1">{xpToNextStep.toLocaleString()}</span> XP
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

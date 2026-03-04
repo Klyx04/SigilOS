@@ -49,7 +49,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "songes", label: "Songes", icon: Moon, description: "Runs Songes Infinis", accent: "purple" },
         { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "green" },
         { id: "donjons", label: "Donjons & Quêtes", icon: Sword, description: "DJ Finder & succès", accent: "blue" },
-        { id: "missions", label: "Missions", icon: Target, description: "Annonces hebdomadaires", accent: "amber" },
+        { id: "missions", label: "Missions", icon: Target, description: "Notifications & uploads", accent: "amber" },
         { id: "bonus", label: "Bonus de Guilde", icon: Gem, description: "Oracles & notifications", accent: "purple" },
         { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald" },
         { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },

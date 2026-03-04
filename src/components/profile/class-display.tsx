@@ -177,12 +177,6 @@ export function ClassDisplay({
                             <p className="text-sm text-zinc-500 pl-1">
                                 Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Caractères autorisés : lettres, espaces et tirets (-).
                             </p>
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                                <p className="text-sm text-amber-200 flex gap-2 items-start">
-                                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                    Si vous utilisez Metamob, mettez le même pseudo ici pour faciliter la liaison automatique dans le module Quête Ocre.
-                                </p>
-                            </div>
                         </div>
                     </div>
 

@@ -171,7 +171,7 @@ export default function RunDetailPage() {
                         <RunLeaderActions guildId={guildId} runId={run.id} />
                     )}
 
-                    {/* Candidacy Box pour rejoindre la run (gère si le membre peut postuler ou a postulé) */}
+                    {/* Candidacy Box */}
                     <RunCandidacyBox
                         guildId={guildId}
                         runId={run.id}
@@ -182,7 +182,7 @@ export default function RunDetailPage() {
                         canJoinSonges={canJoinSonges}
                     />
 
-                    {/* Join Requests Panel - Visible to all for RECRUITING and IN_PROGRESS */}
+                    {/* Join Requests Panel */}
                     {(optimisticStatus === "RECRUITING" || optimisticStatus === "IN_PROGRESS") && (
                         <JoinRequestsPanel guildId={guildId} runId={run.id} isLeader={isLeader} />
                     )}
@@ -192,20 +192,23 @@ export default function RunDetailPage() {
 
                     {/* Bonus Inventory */}
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
-
-                    {currentUserId && (run.members.some((m: DreamRunMember) => m.userId === currentUserId) || isLeader) &&
-                        (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
-                            <RunChatPanel
-                                runId={run.id}
-                                guildId={guildId}
-                                userId={currentUserId}
-                                userRoleName={currentUserContext?.roleName}
-                                userRoleNames={currentUserContext?.roleNames}
-                                userPseudo={currentUserContext?.pseudo}
-                            />
-                        )}
                 </div>
             </div>
+            {/* Chat Run — pleine largeur, visible uniquement pour les membres actifs */}
+            {currentUserId && (run.members.some((m: DreamRunMember) => m.userId === currentUserId) || isLeader) &&
+                (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                    <div className="w-full">
+                        <RunChatPanel
+                            runId={run.id}
+                            guildId={guildId}
+                            userId={currentUserId}
+                            userRoleName={currentUserContext?.roleName}
+                            userRoleNames={currentUserContext?.roleNames}
+                            userPseudo={currentUserContext?.pseudo}
+                        />
+                    </div>
+                )}
+
             {/* Boss Guide Drawer */}
             <BossGuide isOpen={bossGuideOpen} onClose={() => setBossGuideOpen(false)} />
         </div>

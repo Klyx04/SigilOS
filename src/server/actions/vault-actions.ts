@@ -181,6 +181,10 @@ export async function createVaultEntry(
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        // Discord needs an absolute URL for embedImage
+                        const publicProofUrl = proofUrl
+                            ? (proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`)
+                            : undefined;
 
                         // Get actor profile + Discord mention
                         const actorProfile = await db.userProfile.findUnique({
@@ -212,7 +216,7 @@ export async function createVaultEntry(
                                 embedColor: color,
                                 embedFooter: "SigilOS • Coffre de Guilde",
                                 embedThumbnail: parsed.data.linkedItemIconUrl || undefined,
-                                embedImage: proofUrl || undefined,
+                                embedImage: publicProofUrl,
                                 fields,
                             }
                         );

@@ -229,7 +229,8 @@ export async function fetchChannel(channelId: string) {
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 60 }
+        // No cache — we need fresh data for security checks
+        cache: "no-store",
     });
 
     if (!res.ok) {

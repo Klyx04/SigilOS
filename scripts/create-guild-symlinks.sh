@@ -1,120 +1,81 @@
 #!/bin/bash
 # =============================================================================
 # create-guild-symlinks.sh
-# Crée des symlinks lisibles dans /uploads/guilds/ pour chaque guilde
-# Usage: ./scripts/create-guild-symlinks.sh [env]
-#   env: prod (default) | beta
+# Crée des symlinks LISIBLES dans /uploads/guilds/ à partir de la DB
+# via Docker (pas besoin de psql sur le host)
 #
-# Exemple de résultat:
-#   /uploads/guilds/STELLIUM -> cmm9esa260001d0oguribc37r
-#   /uploads/guilds/SIGILOS_TEST -> cmk3uwrpn0002xwogzk66oz3m
+# Usage:
+#   ./scripts/create-guild-symlinks.sh          → beta (defaut)
+#   ./scripts/create-guild-symlinks.sh prod     → production
+#
+# Résultat:
+#   /uploads/guilds/STELLIUM     → cmm9esa260001d0oguribc37r/
+#   /uploads/guilds/MON_SERVEUR  → cmk3uwrpn0002xwogzk66oz3m/
 # =============================================================================
 
 set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-
-ENV="${1:-prod}"
 UPLOADS_DIR="$PROJECT_ROOT/public/uploads/guilds"
 
-if [ ! -d "$UPLOADS_DIR" ]; then
-    echo "❌ Dossier introuvable: $UPLOADS_DIR"
-    exit 1
+ENV="${1:-beta}"
+
+if [ "$ENV" = "prod" ]; then
+    DB_CONTAINER="sigilos-db-prod"
+    ENV_FILE="$PROJECT_ROOT/.env.prod"
+else
+    DB_CONTAINER="sigilos-db-beta"
+    ENV_FILE="$PROJECT_ROOT/.env.beta"
 fi
 
-echo "🔗 Création des symlinks lisibles dans: $UPLOADS_DIR"
-echo "   (Environnement: $ENV)"
+echo "🔗 SigilOS — Symlinks lisibles ($ENV)"
+echo "   Dossier : $UPLOADS_DIR"
 echo ""
 
-# --- Connexion à la DB pour récupérer la mapping CUID → nom --------------------
-# Nécessite psql et les variables DB dans l'env
-if [ "$ENV" = "beta" ]; then
-    ENV_FILE="$PROJECT_ROOT/.env.beta"
-else
-    ENV_FILE="$PROJECT_ROOT/.env.prod"
-fi
+# Charger les variables DB depuis le .env
+source <(grep -E '^POSTGRES_(USER|PASSWORD|DB)=' "$ENV_FILE" | sed 's/^/export /')
 
-if [ ! -f "$ENV_FILE" ]; then
-    echo "⚠️  Fichier $ENV_FILE introuvable. Utilisation de la méthode manuelle."
-    echo ""
-    echo "   Liste des dossiers CUID existants:"
-    for dir in "$UPLOADS_DIR"/*/; do
-        # Ignore les symlinks existants
-        if [ ! -L "$dir" ]; then
-            echo "   → $(basename "$dir")"
-        fi
-    done
-    echo ""
-    echo "   Pour créer un symlink manuellement:"
-    echo "   ln -sfn /chemin/vers/CUID /chemin/vers/guilds/NOM_GUILDE"
-    exit 0
-fi
-
-# Charger DATABASE_URL depuis le fichier .env
-source <(grep -E '^DATABASE_URL=' "$ENV_FILE" | sed 's/^/export /')
-
-if [ -z "$DATABASE_URL" ]; then
-    echo "❌ DATABASE_URL introuvable dans $ENV_FILE"
+if [ -z "$POSTGRES_USER" ]; then
+    echo "❌ Impossible de lire POSTGRES_USER dans $ENV_FILE"
     exit 1
 fi
 
-# Requête: récupère id → name (sanitisé pour les noms de dossier)
-echo "📡 Connexion à la base de données..."
-MAPPING=$(psql "$DATABASE_URL" -t -c \
-    "SELECT id, REGEXP_REPLACE(UPPER(name), '[^A-Z0-9_]', '_', 'g') FROM \"GuildConfig\" WHERE name IS NOT NULL;" \
-    2>/dev/null)
+# Requête via docker exec (pas besoin de psql sur le host)
+echo "📡 Lecture de la base via Docker ($DB_CONTAINER)..."
+MAPPING=$(docker exec "$DB_CONTAINER" psql \
+    -U "$POSTGRES_USER" \
+    -d "$POSTGRES_DB" \
+    -t -c "SELECT id, REGEXP_REPLACE(UPPER(name), '[^A-Z0-9]', '_', 'g') FROM \"GuildConfig\" WHERE name IS NOT NULL;" \
+    2>/dev/null | grep '|')
 
 if [ -z "$MAPPING" ]; then
-    echo "❌ Impossible de récupérer les guildes depuis la DB."
-    echo "   Vérifiez que DATABASE_URL est correct et que psql est installé."
+    echo "❌ Aucune guilde trouvée (le container DB est-il démarré ?)"
     exit 1
 fi
 
 echo ""
 CREATED=0
-SKIPPED=0
 
 while IFS='|' read -r cuid name; do
-    cuid=$(echo "$cuid" | xargs)   # trim whitespace
+    cuid=$(echo "$cuid" | xargs)
     name=$(echo "$name" | xargs)
+    [ -z "$cuid" ] || [ -z "$name" ] && continue
 
-    if [ -z "$cuid" ] || [ -z "$name" ]; then
-        continue
-    fi
+    TARGET="$UPLOADS_DIR/$cuid"
+    LINK="$UPLOADS_DIR/$name"
 
-    TARGET_DIR="$UPLOADS_DIR/$cuid"
-    LINK_PATH="$UPLOADS_DIR/$name"
+    [ ! -d "$TARGET" ] && echo "   ⚠️  Dossier manquant (skip) : $cuid" && continue
+    [ -L "$LINK" ] && rm "$LINK"
+    [ -d "$LINK" ] && ! [ -L "$LINK" ] && echo "   ✋ Dossier réel déjà là (skip) : $name" && continue
 
-    # Le dossier CUID doit exister sur le disque
-    if [ ! -d "$TARGET_DIR" ]; then
-        echo "   ⚠️  Dossier CUID introuvable (skip): $cuid → $name"
-        ((SKIPPED++)) || true
-        continue
-    fi
-
-    # Supprimer l'ancien symlink s'il existe (pour le mettre à jour)
-    if [ -L "$LINK_PATH" ]; then
-        rm "$LINK_PATH"
-    fi
-
-    # Ne pas écraser un vrai dossier
-    if [ -d "$LINK_PATH" ] && [ ! -L "$LINK_PATH" ]; then
-        echo "   ✋ Dossier réel déjà présent (skip): $name"
-        ((SKIPPED++)) || true
-        continue
-    fi
-
-    # Créer le symlink
-    ln -sfn "$cuid" "$LINK_PATH"
-    echo "   ✅ $name → $cuid"
+    ln -sfn "$cuid" "$LINK"
+    echo "   ✅  $name  →  $cuid"
     ((CREATED++)) || true
-
 done <<< "$MAPPING"
 
 echo ""
-echo "🎉 Terminé ! $CREATED symlinks créés, $SKIPPED ignorés."
+echo "🎉 $CREATED symlink(s) créé(s)."
 echo ""
-echo "   Navigation rapide:"
+echo "Tu peux maintenant naviguer par nom :"
 echo "   ls $UPLOADS_DIR/"
-echo "   cd $UPLOADS_DIR/NOM_GUILDE/proofs/"
+echo "   cd $UPLOADS_DIR/STELLIUM/proofs/"

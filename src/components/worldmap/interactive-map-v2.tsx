@@ -4,6 +4,17 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { TransformWrapper, TransformComponent, useTransformContext } from 'react-zoom-pan-pinch';
 import { Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Castle, ChevronDown } from 'lucide-react';
 
+// DofusDB parfois fournit des métadonnées avec une largeur légèrement inférieure à la grille réelle des tuiles.
+// Ces valeurs forcées permettent d'aligner parfaitement les lignes pour les mondes problématiques.
+const WORLD_COLS_OVERRIDES: Record<number, number> = {
+    10: 15, // Village de la Canopée
+    18: 15, // Pyramide Maudite
+    22: 9,  // Crocuzko
+    12: 14, // Château de Harebourg
+    16: 21, // Ecaflipus
+    21: 15, // Île de Pwâk
+};
+
 interface World {
     id: number;
     name: { fr: string };
@@ -111,51 +122,55 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
         return worldMap.maps.filter(m => m.worldMap === selectedWorldId);
     }, [worldMap, selectedWorldId, activeWorld]);
 
-    // True bounding box of actual tile content (not the vast canvas)
-    const mapsBBox = useMemo(() => {
-        if (!activeWorld || activeMaps.length === 0) return null;
-        const xs = activeMaps.map(m => m.x);
-        const ys = activeMaps.map(m => m.y);
-        const minX = Math.min(...xs), maxX = Math.max(...xs);
-        const minY = Math.min(...ys), maxY = Math.max(...ys);
-        const pixL = activeWorld.origineX + minX * activeWorld.mapWidth;
-        const pixR = activeWorld.origineX + (maxX + 1) * activeWorld.mapWidth;
-        const pixT = activeWorld.origineY + minY * activeWorld.mapHeight;
-        const pixB = activeWorld.origineY + (maxY + 1) * activeWorld.mapHeight;
-        return {
-            left: pixL, top: pixT,
-            width: pixR - pixL, height: pixB - pixT,
-            centerX: (pixL + pixR) / 2, centerY: (pixT + pixB) / 2,
-        };
-    }, [activeWorld, activeMaps]);
-
     // DofusDB generates overview tiles ONLY for worlds where visibleOnMap is true!
-    // For small/indoor maps, visibleOnMap is false, so we MUST always display HD tiles.
-    // Also consider regions with < 500 maps as small to ensure HD tiles load at default zoom.
-    const isSmallWorld = !activeWorld?.visibleOnMap || activeMaps.length < 500;
+    // We only disable them if totalWidth is 0 (missing data).
+    const isSmallWorld = !activeWorld?.totalWidth;
+
+    // Calculate the bounding box based on actual maps to fix the unreliable JSON data (like in Village de la Canopée).
+    const mapsBBox = useMemo(() => {
+        if (!activeMaps || !activeWorld) return null;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        activeMaps.forEach(m => {
+            const px = activeWorld.origineX + m.x * activeWorld.mapWidth;
+            const py = activeWorld.origineY + m.y * activeWorld.mapHeight;
+            if (px < minX) minX = px;
+            if (px + activeWorld.mapWidth > maxX) maxX = px + activeWorld.mapWidth;
+            if (py < minY) minY = py;
+            if (py + activeWorld.mapHeight > maxY) maxY = py + activeWorld.mapHeight;
+        });
+        const width = maxX - minX;
+        const height = maxY - minY;
+        return {
+            minX, maxX, minY, maxY,
+            width, height,
+            centerX: minX + width / 2,
+            centerY: minY + height / 2
+        };
+    }, [activeMaps, activeWorld]);
 
     const initialScale = useMemo(() => {
         if (!activeWorld || !mapsBBox) return 0.15;
         const w = containerSize.w || (typeof window !== 'undefined' ? window.innerWidth * 0.82 : 900);
         const h = containerSize.h || (typeof window !== 'undefined' ? window.innerHeight * 0.62 : 600);
 
-        // Remplir complètement le composant : Math.max (au lieu de Math.min qui laisse des bordures)
+        // Fill the component (cover)
         let s = Math.max(w / mapsBBox.width, h / mapsBBox.height);
 
-        // Limitation pour les très petites zones pour ne pas surzoomer à l'extrême
-        if (s > 2.5) s = 2.5;
+        // Prevent excessive zoom
+        if (s > 1.2) s = 1.0;
         return s;
     }, [activeWorld, containerSize, mapsBBox]);
 
     const initialPositionX = useMemo(() => {
         if (!mapsBBox) return 0;
-        const w = containerSize.w || (typeof window !== 'undefined' ? window.innerWidth * 0.82 : 900);
+        const w = containerSize.w || 900;
+        // On centre la zone de maps réelle dans le conteneur
         return w / 2 - mapsBBox.centerX * initialScale;
     }, [containerSize, mapsBBox, initialScale]);
 
     const initialPositionY = useMemo(() => {
         if (!mapsBBox) return 0;
-        const h = containerSize.h || (typeof window !== 'undefined' ? window.innerHeight * 0.62 : 600);
+        const h = containerSize.h || 600;
         return h / 2 - mapsBBox.centerY * initialScale;
     }, [containerSize, mapsBBox, initialScale]);
 
@@ -172,19 +187,27 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
         [worlds, worldMapCounts]);
 
     const tilesData = useMemo(() => {
-        if (!activeWorld || isSmallWorld) return { urls: [] as string[], cols: 0, rows: 0 };
-        const cols = Math.ceil(activeWorld.totalWidth / 256);
-        const rows = Math.ceil(activeWorld.totalHeight / 256);
-        const total = cols * rows;
-        const urls: string[] = [];
-        for (let i = 1; i <= total; i++) {
-            urls.push(`https://api.dofusdb.fr/img/worlds/${selectedWorldId}/1/${i}.jpg`);
+        if (!activeWorld || isSmallWorld) return { tiles: [], cols: 0, rows: 0 };
+
+        const cols = WORLD_COLS_OVERRIDES[selectedWorldId] || Math.ceil((activeWorld.totalWidth || 0) / 256);
+        const rows = Math.ceil((activeWorld.totalHeight || 0) / 256);
+
+        const tiles: { url: string; x: number; y: number }[] = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const i = r * cols + c + 1;
+                tiles.push({
+                    url: `https://api.dofusdb.fr/img/worlds/${selectedWorldId}/1/${i}.jpg`,
+                    x: c * 256,
+                    y: r * 256
+                });
+            }
         }
-        return { urls, cols, rows };
+        return { tiles, cols, rows };
     }, [activeWorld, selectedWorldId, isSmallWorld]);
 
-    // La limite minimale de zoom est calculée finement pour s'adapter à l'écran
-    const minScale = useMemo(() => initialScale, [initialScale]);
+    // Autorise un dezoom pour voir toute la zone (demande utilisateur sur Pwak)
+    const minScale = useMemo(() => initialScale * 0.4, [initialScale]);
 
     const searchResults = useMemo(() => {
         if (!search || !worldMap) return [];
@@ -340,7 +363,13 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
     const mapKey = `${selectedWorldId}-${containerSize.w}-${containerSize.h}`;
 
     return (
-        <div className="relative flex flex-col w-full h-[75vh] min-h-[500px] overflow-hidden rounded-2xl border border-white/10 bg-[#080b12] shadow-2xl">
+        <div
+            className="relative flex flex-col w-full h-[75vh] min-h-[500px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+            style={{
+                backgroundImage: `url('https://api.dofusdb.fr/img/map_background.jpg')`,
+                backgroundRepeat: 'repeat'
+            }}
+        >
             {/* HUD Toolbar */}
             <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none">
                 <div className="flex items-center gap-3 pointer-events-auto">
@@ -402,7 +431,10 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
             {/* Map Viewport — mouse tracking is here (outer div, outside transform) */}
             <div
                 ref={containerRef}
-                className="flex-1 w-full bg-[#080b12] overflow-hidden cursor-crosshair"
+                className="flex-1 w-full overflow-hidden cursor-crosshair bg-repeat"
+                style={{
+                    backgroundImage: `url('https://api.dofusdb.fr/img/map_background.jpg')`,
+                }}
                 onMouseMove={handleViewportMouseMove}
                 onMouseLeave={handleViewportMouseLeave}
                 onContextMenu={(e) => e.preventDefault()}
@@ -423,7 +455,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                         minScale={minScale}
                         maxScale={8}
                         centerOnInit={true}
-                        limitToBounds={true}
+                        limitToBounds={false}
                         panning={{ velocityDisabled: false, allowLeftClickPan: true, allowRightClickPan: false }}
                         wheel={{ step: 0.1, smoothStep: 0.01 }}
                         pinch={{ step: 5 }}
@@ -464,20 +496,19 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                     }}
                                 />
 
-                                {/* Overview parchment tiles (only when available, i.e. NOT small world) */}
+                                {/* Overview parchment tiles — absolute positioning to prevent desync shifts */}
                                 {!isSmallWorld && (
-                                    <div className="grid absolute inset-0 pointer-events-none"
+                                    <div className="absolute inset-0 pointer-events-none"
                                         style={{
-                                            gridTemplateColumns: `repeat(${tilesData.cols}, 256px)`,
-                                            gridTemplateRows: `repeat(${tilesData.rows}, 256px)`,
                                             width: activeWorld.totalWidth,
                                             height: activeWorld.totalHeight,
                                             zIndex: 2,
                                         }}
                                     >
-                                        {tilesData.urls.map((url, i) => (
-                                            <img key={`tile-${i}`} src={url} alt=""
-                                                className="w-[256px] h-[256px] block pointer-events-none select-none"
+                                        {tilesData.tiles.map((tile, i) => (
+                                            <img key={`tile-${i}`} src={tile.url} alt=""
+                                                className="w-[256px] h-[256px] absolute pointer-events-none select-none"
+                                                style={{ left: tile.x, top: tile.y }}
                                                 loading="lazy" />
                                         ))}
                                     </div>

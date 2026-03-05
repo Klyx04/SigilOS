@@ -20,7 +20,7 @@ export function SaasHero({ user }: { user?: User }) {
                 <div className="max-w-4xl mx-auto text-center mb-20 fade-in-up">
                     {/* Badge */}
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-gold/10 border border-accent-gold/20 mb-8">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent-gold">Beta Privée Ouverte</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent-gold">Beta Ouverte ! </span>
                     </div>
 
                     {/* Headline */}

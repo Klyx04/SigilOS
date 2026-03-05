@@ -560,7 +560,94 @@ export async function deleteChannelMessage(channelId: string, messageId: string)
     }
 }
 
-// Export signature verification for use in interactions route
+// =============================================================================
+// THREAD MANAGEMENT (for Ticket System)
+// =============================================================================
+
+/**
+ * Create a private thread in a channel.
+ * Type 12 = GUILD_PRIVATE_THREAD
+ */
+export async function createPrivateThread(
+    channelId: string,
+    name: string,
+    options?: { autoArchiveDuration?: 60 | 1440 | 4320 | 10080 }
+): Promise<{ id: string; name: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) {
+        console.error("[Discord] Missing DISCORD_BOT_TOKEN");
+        return null;
+    }
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name: name.substring(0, 100), // Discord thread name limit
+                type: 12, // GUILD_PRIVATE_THREAD
+                auto_archive_duration: options?.autoArchiveDuration ?? 10080, // 7 days default
+            }),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            console.error(`[Discord] Failed to create private thread: ${res.status} ${errBody}`);
+            return null;
+        }
+
+        return (await res.json()) as { id: string; name: string };
+    } catch (error) {
+        console.error("[Discord] Error creating private thread:", error);
+        return null;
+    }
+}
+
+/**
+ * Add a user to a thread (makes it visible to them)
+ */
+export async function addUserToThread(threadId: string, userId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}/thread-members/${userId}`, {
+            method: "PUT",
+            headers: { Authorization: `Bot ${token}` },
+        });
+        return res.ok || res.status === 204;
+    } catch (error) {
+        console.error("[Discord] Error adding user to thread:", error);
+        return false;
+    }
+}
+
+/**
+ * Archive and lock a thread (used when closing a ticket)
+ */
+export async function archiveThread(threadId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ archived: true, locked: true }),
+        });
+        return res.ok;
+    } catch (error) {
+        console.error("[Discord] Error archiving thread:", error);
+        return false;
+    }
+}
+
 export async function verifyDiscordSignature(
     request: Request,
     body: string

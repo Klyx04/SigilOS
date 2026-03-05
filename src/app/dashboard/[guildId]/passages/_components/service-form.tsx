@@ -98,6 +98,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
     // OCRE
     const [ocrePack, setOcrePack] = useState<OcrePack>("boss");
+    const [ocrePrice, setOcrePrice] = useState("");
 
     // METIER
     const [metierMode, setMetierMode] = useState<"craft" | "pack">("craft");
@@ -110,7 +111,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
         setDungeonSelection(null); setPriceTiers([]);
         setQuestSelection(null);
         setSelectedJobs([]); setFmItem(""); setPassTrans(""); setCommandeExo(false); setFmLinkedItem(null);
-        setOcrePack("boss");
+        setOcrePack("boss"); setOcrePrice("");
         setMetierMode("craft"); setSelectedMetierJob("");
     };
 
@@ -170,7 +171,9 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                 dofusItemAnkamaId: fmLinkedItem?.ankamaId || null,
                 dofusItemName: fmLinkedItem?.name || null,
                 dofusItemIconUrl: fmLinkedItem?.iconUrl || null,
-                priceTiers: validTiers.length ? toJson(validTiers) as unknown as PriceTier[] : null,
+                priceTiers: category === "OCRE" && ocrePrice.trim()
+                    ? toJson([{ label: OCRE_PACKS.find(p => p.value === ocrePack)?.label ?? ocrePack, price: ocrePrice.trim() }]) as unknown as PriceTier[]
+                    : validTiers.length ? toJson(validTiers) as unknown as PriceTier[] : null,
                 craftMeta: category === "FORGEMAGIE"
                     ? toJson({ fmItems: fmItem || undefined, passTrans: passTrans || undefined, commandeExo: commandeExo ? "oui" : undefined }) as unknown as { fmItems?: string; passTrans?: string; commandeExo?: string }
                     : null,
@@ -239,22 +242,41 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
                     {/* === OCRE specific === */}
                     {category === "OCRE" && (
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Pack proposé</Label>
-                            <div className="flex gap-2">
-                                {OCRE_PACKS.map((p) => (
-                                    <button
-                                        key={p.value}
-                                        type="button"
-                                        onClick={() => setOcrePack(p.value)}
-                                        className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold border transition-all ${ocrePack === p.value
-                                            ? "border-yellow-500/60 bg-yellow-500/15 text-yellow-300"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
-                                            }`}
-                                    >
-                                        {p.label}
-                                    </button>
-                                ))}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Pack proposé</Label>
+                                <div className="flex gap-2">
+                                    {OCRE_PACKS.map((p) => (
+                                        <button
+                                            key={p.value}
+                                            type="button"
+                                            onClick={() => setOcrePack(p.value)}
+                                            className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold border transition-all ${ocrePack === p.value
+                                                ? "border-yellow-500/60 bg-yellow-500/15 text-yellow-300"
+                                                : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                                                }`}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Tarif kamas */}
+                            <div className="space-y-2">
+                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(kamas — optionnel)</span></Label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                        <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                                    </div>
+                                    <Input
+                                        value={ocrePrice}
+                                        onChange={(e) => setOcrePrice(e.target.value)}
+                                        placeholder="Ex: 50M ou 50 000 000"
+                                        className="bg-white/5 border-white/10 pl-9 font-semibold"
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-zinc-600">Affiché sur ta carte de service.</p>
                             </div>
                         </div>
                     )}
@@ -676,13 +698,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                         </div>
                     )}
 
-                    {/* Ocre price (after pack radio) */}
-                    {category === "OCRE" && (
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif</Label>
-                            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 50M kamas" className="bg-white/5 border-white/10" maxLength={100} />
-                        </div>
-                    )}
+
 
                     {/* Dispo — depuis le profil */}
                     <div className="space-y-2">

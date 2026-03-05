@@ -9,7 +9,8 @@ import {
     Terminal,
     Activity,
     Settings2,
-    HardDrive
+    HardDrive,
+    Ticket
 } from "lucide-react";
 
 interface GodDashboardClientProps {
@@ -18,6 +19,7 @@ interface GodDashboardClientProps {
     infrastructure: React.ReactNode;
     security: React.ReactNode;
     storage: React.ReactNode;
+    tickets: React.ReactNode;
 }
 
 export function GodDashboardClient({
@@ -25,7 +27,8 @@ export function GodDashboardClient({
     guilds,
     infrastructure,
     security,
-    storage
+    storage,
+    tickets
 }: GodDashboardClientProps) {
     const [activeTab, setActiveTab] = useState("overview");
 
@@ -73,6 +76,13 @@ export function GodDashboardClient({
                             Stockage VPS
                         </TabsTrigger>
                         <TabsTrigger
+                            value="tickets"
+                            className="justify-start rounded-2xl px-5 py-4 h-14 data-[state=active]:bg-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-xl data-[state=active]:shadow-indigo-500/20 gap-4 font-black uppercase tracking-widest text-[11px] hover:bg-white/5 transition-all text-zinc-400"
+                        >
+                            <Ticket className="w-5 h-5" />
+                            Tickets Support
+                        </TabsTrigger>
+                        <TabsTrigger
                             value="security"
                             className="justify-start rounded-2xl px-5 py-4 h-14 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-xl data-[state=active]:shadow-red-500/20 gap-4 font-black uppercase tracking-widest text-[11px] hover:bg-white/5 transition-all text-zinc-400"
                         >
@@ -99,6 +109,10 @@ export function GodDashboardClient({
 
                 <TabsContent value="storage" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {storage}
+                </TabsContent>
+
+                <TabsContent value="tickets" className="mt-0 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {tickets}
                 </TabsContent>
 
                 <TabsContent value="security" className="mt-0 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">

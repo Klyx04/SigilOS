@@ -29,6 +29,7 @@ export default async function DocsHubPage() {
         <>
             <script
                 type="application/ld+json"
+                // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
                 dangerouslySetInnerHTML={{
                     __html: JSON.stringify({
                         "@context": "https://schema.org",

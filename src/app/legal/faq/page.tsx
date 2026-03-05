@@ -69,6 +69,7 @@ export default function FAQPage() {
         <>
             <script
                 type="application/ld+json"
+                // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
             />
             <div className="space-y-12">

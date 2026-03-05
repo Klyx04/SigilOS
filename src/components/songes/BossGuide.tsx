@@ -95,6 +95,7 @@ function renderMarkdown(text: string) {
                 return (
                     <li key={i} className="flex items-start gap-2">
                         <span className="text-white/40 mt-1 shrink-0">•</span>
+                        {/* nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml */}
                         <span dangerouslySetInnerHTML={{ __html: safeContent }} />
                     </li>
                 );

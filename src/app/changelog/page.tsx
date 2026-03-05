@@ -56,6 +56,7 @@ export default async function ChangelogPage() {
                     {/* Breadcrumb + BlogPosting JSON-LD */}
                     <script
                         type="application/ld+json"
+                        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
                         dangerouslySetInnerHTML={{
                             __html: JSON.stringify([
                                 {

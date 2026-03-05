@@ -56,6 +56,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - uploads-data:/app/public/uploads  # ✅ PARTAGÉ avec Caddy — le même volume pour lire/écrire les uploads
 
   # -----------------------------------------------------------------------------
   # DISCORD BOT (Gateway Event Handler)

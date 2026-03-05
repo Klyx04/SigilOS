@@ -6,10 +6,15 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Shield, LogIn } from "lucide-react";
+import { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
     title: "Connexion — SigilOS",
     description: "Connectez-vous à SigilOS via Discord pour accéder à votre tableau de bord de guilde.",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 // SECURITY: This page is the custom signIn page for NextAuth.

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import {
     Zap,
     Shield,
@@ -21,195 +20,148 @@ const FEATURES = [
         title: "Quête Ocre",
         description: "Synchronisation Metamob et matching de doublons automatisé.",
         icon: Target,
-        className: "md:col-span-2 md:row-span-1 bg-gradient-to-br from-[#13171A] to-[#0E1110] border-accent-teal/20",
-        color: "text-accent-teal"
+        color: "text-accent-teal",
+        tags: ["Metamob API", "Anti-doublons"]
     },
     {
         title: "Missions de Guilde",
-        description: "Gestion des missions hebdomadaires et validation par capture d'écran.",
+        description: "Gestion des missions hebdomadaires et validation par capture d’écran.",
         icon: Zap,
-        className: "md:col-span-2",
-        color: "text-amber-400"
+        color: "text-amber-400",
+        tags: ["OCR Auto", "Discord notifs"]
     },
     {
         title: "Songes Infinis",
         description: "Organisation de parcours avec guides stratégiques intégrés.",
         icon: Sparkles,
-        className: "md:col-span-2",
-        color: "text-purple-400"
+        color: "text-purple-400",
+        tags: ["LFG intégré", "Suivi de runs"]
     },
     {
         title: "Profil & Annuaire",
         description: "Fiches membres dynamiques et annuaire de guilde.",
         icon: Globe,
-        className: "md:col-span-1",
-        color: "text-blue-400"
+        color: "text-blue-400",
+        tags: ["Profil public", "Recherche"]
     },
     {
         title: "Administration",
         description: "RBAC granulaire et logs de sécurité.",
         icon: Shield,
-        className: "md:col-span-1",
-        color: "text-rose-400"
+        color: "text-rose-400",
+        tags: ["Rôles personnalisés", "Audit log"]
     },
     {
         title: "Calendrier",
         description: "Planning des événements communautaires.",
         icon: Calendar,
-        className: "md:col-span-1",
-        color: "text-emerald-400"
+        color: "text-emerald-400",
+        tags: ["Récurrence", "Rappels Discord"]
     },
     {
         title: "Ladder Dofus",
         description: "Classement par succès synchronisé au site officiel.",
         icon: Trophy,
-        className: "md:col-span-1",
-        color: "text-yellow-500"
+        color: "text-yellow-500",
+        tags: ["Sync officielle", "Classement"]
     },
     {
         title: "Services Guilde",
-        description: "Demandes de crafts, passages et emprunts d'équipements.",
+        description: "Demandes de crafts, passages et emprunts d’équipements.",
         icon: Handshake,
-        className: "md:col-span-1",
-        color: "text-cyan-400"
+        color: "text-cyan-400",
+        tags: ["Crafts", "Emprunts"]
     },
     {
         title: "Donjons & Quêtes",
         description: "Plateforme de recherche de groupe intra-guilde.",
         icon: Sword,
-        className: "md:col-span-1",
-        color: "text-red-400"
+        color: "text-red-400",
+        tags: ["Groupes", "DJ Finder"]
     },
     {
         title: "Sondages",
         description: "Prises de décisions et votes démocratiques.",
         icon: Activity,
-        className: "md:col-span-1",
-        color: "text-pink-400"
-    },
-    {
-        title: "Documentation",
-        description: "Wiki collaboratif hébergé dans l'écosystème.",
-        icon: BookOpen,
-        className: "md:col-span-1",
-        color: "text-violet-400"
+        color: "text-pink-400",
+        tags: ["Votes", "Résultats Discord"]
     },
     {
         title: "Vitrine Publique",
         description: "Site de présentation dynamique pour le recrutement.",
         icon: Layout,
-        className: "md:col-span-1",
-        color: "text-indigo-400"
-    },
-    {
-        title: "Quêtes Dofus",
-        description: "Suivi coordonné de la progression neuronale des quêtes.",
-        icon: BookOpen,
-        className: "md:col-span-1",
-        color: "text-amber-400",
-        isDevelopment: true
-    },
-    {
-        title: "Carte & Mini-Jeux",
-        description: "Map du monde interactive et animations de guilde.",
-        icon: Globe,
-        className: "md:col-span-1",
-        color: "text-cyan-400",
-        isDevelopment: true
-    },
-    {
-        title: "Hub Ressources",
-        description: "Agrégation de guides, builds et actualités Dofus.",
-        icon: BookOpen,
-        className: "md:col-span-1",
-        color: "text-violet-400",
-        isDevelopment: true
+        color: "text-indigo-400",
+        tags: ["Recrutement", "SEO"]
     },
     {
         title: "Statistiques",
-        description: "Analyses de l'évolution de la guilde.",
+        description: "Analyses de l’évolution de la guilde.",
         icon: BarChart,
-        className: "md:col-span-1",
         color: "text-accent-gold",
-        isDevelopment: true
+        isDevelopment: true,
+        tags: ["En développement"]
     }
 ];
 
 export function SaasFeatures() {
     return (
-        <section className="py-24 bg-background relative overflow-hidden border-t border-white/5">
+        <section id="features" className="py-24 bg-background relative overflow-hidden border-t border-white/5">
             <div className="container px-6 mx-auto">
-                <div className="max-w-2xl mb-16 px-4">
-                    <h2 className="text-4xl font-heading text-white mb-4">L'écosystème pour <br /><span className="text-accent-gold italic">les guildes sérieuses.</span></h2>
-                    <p className="text-zinc-500 font-medium font-sans">Tout ce dont vous avez besoin pour dominer votre serveur, rationalisé dans un seul OS.</p>
+
+                {/* Section header */}
+                <div className="max-w-2xl mb-14">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-5 font-mono text-[10px] text-emerald-400 uppercase tracking-widest">
+                        Fonctionnalités
+                    </div>
+                    <h2 className="text-3xl font-heading text-white mb-3 leading-snug">
+                        L’écosystème pour{" "}
+                        <span className="text-accent-gold italic">les guildes sérieuses.</span>
+                    </h2>
+                    <p className="text-zinc-500 text-sm font-medium font-sans">
+                        Tout ce dont vous avez besoin pour dominer votre serveur, rationalisé dans un seul OS.
+                    </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Uniform 3-column grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {FEATURES.map((feature, idx) => (
                         <div
                             key={idx}
-                            className={cn(
-                                "group relative overflow-hidden rounded-[2rem] p-8 glass-premium border border-white/5 transition-all duration-500 hover:-translate-y-1 flex flex-col justify-between",
-                                feature.className
-                            )}
+                            className="group relative overflow-hidden rounded-2xl p-6 bg-zinc-900/40 border border-white/5 hover:border-white/10 transition-all duration-300 hover:-translate-y-0.5 hover:bg-zinc-900/60 flex flex-col gap-4"
                         >
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/5 w-fit transition-all group-hover:scale-110", feature.color)}>
-                                        <feature.icon className="w-8 h-8" />
-                                    </div>
-                                    {feature.isDevelopment && (
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                            En développement
-                                        </span>
-                                    )}
+                            {/* Top row: icon + dev badge */}
+                            <div className="flex items-start justify-between">
+                                <div className={cn("p-2.5 rounded-xl bg-white/5 border border-white/5 w-fit group-hover:border-white/10 transition-colors", feature.color)}>
+                                    <feature.icon className="w-5 h-5" />
                                 </div>
-                                <h3 className="text-xl font-heading text-white mb-3 tracking-tight">{feature.title}</h3>
-                                <p className="text-zinc-500 text-sm leading-relaxed font-medium font-sans max-w-[200px] relative z-20">
+                                {feature.isDevelopment && (
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
+                                        En développement
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Content */}
+                            <div className="space-y-1.5">
+                                <h3 className="text-sm font-bold text-white tracking-tight">{feature.title}</h3>
+                                <p className="text-zinc-500 text-xs leading-relaxed font-medium font-sans">
                                     {feature.description}
                                 </p>
                             </div>
 
-                            {/* Ocre Dofus Image for the specific card */}
-                            {feature.title === "Quête Ocre" && (
-                                <div className="absolute top-1/2 right-4 -translate-y-1/2 w-44 h-44 opacity-40 group-hover:opacity-80 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                                    <Image
-                                        src="/assets/icons/ocre.png"
-                                        alt="Dofus Ocre"
-                                        fill
-                                        className="object-contain"
-                                    />
+                            {/* Tags */}
+                            {feature.tags && feature.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-auto pt-2">
+                                    {feature.tags.map((tag) => (
+                                        <span key={tag} className="text-[10px] font-medium text-zinc-600 bg-white/[0.03] border border-white/5 px-2 py-0.5 rounded-full">
+                                            {tag}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
 
-                            {/* Mission Preview Image */}
-                            {feature.title === "Missions de Guilde" && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-48 opacity-20 group-hover:opacity-60 group-hover:-translate-x-4 transition-all duration-700 pointer-events-none rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 rotate-3">
-                                    <Image
-                                        src="/assets/landing/mission-preview.png"
-                                        alt="Missions Preview"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#0a0a0b]/90" />
-                                </div>
-                            )}
-
-                            {/* Songes Preview Image */}
-                            {feature.title === "Songes Infinis" && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-48 opacity-20 group-hover:opacity-60 group-hover:-translate-x-4 transition-all duration-700 pointer-events-none rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 -rotate-2">
-                                    <Image
-                                        src="/assets/landing/songes-preview.png"
-                                        alt="Songes Preview"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#0a0a0b]/90" />
-                                </div>
-                            )}
-
-                            {/* Decorative background glow */}
-                            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 blur-[50px] rounded-full group-hover:bg-white/10 transition-colors pointer-events-none" />
+                            {/* Hover glow */}
+                            <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/[0.02] blur-[40px] rounded-full group-hover:bg-white/[0.04] transition-colors pointer-events-none" />
                         </div>
                     ))}
                 </div>

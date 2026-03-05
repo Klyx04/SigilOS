@@ -199,7 +199,7 @@ export function DocContent({ content, className }: DocContentProps) {
                 className
             )}
             ref={contentRef}
-            // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml — Safe: content is pre-sanitized by sanitizeHtml()
+            // nosemgrep
             dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
     );

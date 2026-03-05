@@ -7,12 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ChangelogCategory } from '@prisma/client';
-import { Plus, Trash2, Edit, Eye, Save, X, Terminal, Rocket, Layout, FileText, Settings2, Sparkles, ChevronRight, Activity } from 'lucide-react';
+import { Plus, Trash2, Edit, Eye, Save, X, Terminal, Rocket, Layout, FileText, Settings2, Sparkles, ChevronRight, Activity, Send } from 'lucide-react';
 import {
     createChangelogEntry,
     getChangelogEntries,
     deleteChangelogEntry,
-    updateChangelogEntry
+    updateChangelogEntry,
+    sendChangelogToDiscord,
 } from '@/server/actions/changelog-actions';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,6 +46,7 @@ export default function GODChangelogPage() {
     const [previewMode, setPreviewMode] = useState(false);
     const [loading, setLoading] = useState(false);
     const [filterCategory, setFilterCategory] = useState<ChangelogCategory | undefined>(undefined);
+    const [publishingId, setPublishingId] = useState<string | null>(null);
 
     const filteredEntries = filterCategory
         ? entries.filter(e => e.category === filterCategory)
@@ -111,6 +113,20 @@ export default function GODChangelogPage() {
             loadEntries();
         } else {
             toast.error(result.error || 'Erreur');
+        }
+    }
+
+    async function handlePublishDiscord(id: string) {
+        setPublishingId(id);
+        try {
+            const result = await sendChangelogToDiscord(id);
+            if (result.success) {
+                toast.success('📢 Publié sur Discord !');
+            } else {
+                toast.error(result.error || 'Erreur Discord');
+            }
+        } finally {
+            setPublishingId(null);
         }
     }
 
@@ -294,6 +310,9 @@ export default function GODChangelogPage() {
 
                                                             {/* Actions */}
                                                             <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
+                                                                <Button size="icon" variant="ghost" onClick={() => handlePublishDiscord(entry.id)} disabled={publishingId === entry.id} title="Publier sur Discord" className="h-8 w-8 rounded-xl bg-white/5 hover:bg-indigo-500/10 text-zinc-400 hover:text-indigo-400">
+                                                                    {publishingId === entry.id ? <Activity className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                                                </Button>
                                                                 <Button size="icon" variant="ghost" onClick={() => handleEdit(entry)} className="h-8 w-8 rounded-xl bg-white/5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400">
                                                                     <Edit className="w-3.5 h-3.5" />
                                                                 </Button>

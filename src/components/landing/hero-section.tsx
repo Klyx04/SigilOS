@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { siteConfig } from "@/config/site-config";
 import { BetaGate } from "./beta-gate";
-import Link from "next/link";
+import { AccessRequestModal } from "./AccessRequestModal";
 import { Users } from "lucide-react";
 
 export function HeroSection() {
+    const [showAccessModal, setShowAccessModal] = useState(false);
+
     return (
         <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6">
 
@@ -18,7 +21,6 @@ export function HeroSection() {
             </div>
 
             <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
-
 
                 {/* Badge Info - Bêta Privée */}
                 <motion.div
@@ -53,12 +55,12 @@ export function HeroSection() {
                     className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
                 >
                     SigilOS est le grimoire numérique ultime pour les chefs de guilde exigeants.
-                    Centralisez vos missions, suivez l'Ocre et gérez vos membres avec la précision d'un Xélor.
+                    Centralisez vos missions, suivez l&apos;Ocre et gérez vos membres avec la précision d&apos;un Xélor.
                     <br className="hidden md:block" />
                     Moins de tableurs, plus de victoires.
                 </motion.p>
 
-                {/* Beta Gate Component & Directory Link */}
+                {/* Beta Gate Component & CTA */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -66,11 +68,26 @@ export function HeroSection() {
                     className="pt-8 w-full space-y-4"
                 >
                     <BetaGate />
+
+                    {/* Access request CTA */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.9 }}
+                    >
+                        <button
+                            onClick={() => setShowAccessModal(true)}
+                            className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors group"
+                        >
+                            <Users className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
+                            <span>Chef de guilde ? <span className="text-zinc-400 group-hover:text-emerald-400 transition-colors underline underline-offset-4 decoration-zinc-700">Demander l&apos;accès →</span></span>
+                        </button>
+                    </motion.div>
                 </motion.div>
-
-
-
             </div>
+
+            {/* Access Modal */}
+            <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </section>
     );
 }

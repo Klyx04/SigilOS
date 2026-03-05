@@ -191,10 +191,10 @@ export default function GODChangelogPage() {
             </div>
 
             {/* 🛠️ MAIN VIEWPORT */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden min-h-0">
                 {!isCreating ? (
                     /* LIST VIEW */
-                    <div className="flex-1 flex overflow-hidden">
+                    <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
                         {/* ── Sidebar filtre catégorie ── */}
                         <div className="w-56 shrink-0 border-r border-white/5 p-6 flex flex-col gap-2 bg-zinc-950/60 overflow-y-auto">
                             <p className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-3">Filtrer par</p>
@@ -221,7 +221,7 @@ export default function GODChangelogPage() {
                         </div>
 
                         {/* ── Timeline ── */}
-                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 p-10">
+                        <div className="flex-1 overflow-y-auto min-h-0 min-w-0 scrollbar-thin scrollbar-thumb-white/10 p-10">
                             <div className="max-w-3xl mx-auto space-y-6">
                                 <div className="space-y-2 mb-10">
                                     <h2 className="text-4xl font-black text-white tracking-tighter">

@@ -20,6 +20,7 @@ import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { CircleHelp } from "lucide-react";
+import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -96,10 +97,15 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </nav>
             </div>
 
-            {/* CENTER: Event Ticker */}
-            <div className="flex-1 flex justify-center px-2 min-w-0 overflow-hidden">
-                <div className="w-full max-w-2xl flex justify-center">
+            {/* CENTER: Event Ticker & Live Badge */}
+            <div className="flex-1 flex justify-center items-center gap-4 px-2 min-w-0 overflow-hidden">
+                <div className="flex-1 max-w-2xl flex justify-center">
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
+                </div>
+
+                {/* LIVE Badge (Conditional) */}
+                <div className="hidden lg:block shrink-0">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
             </div>
 

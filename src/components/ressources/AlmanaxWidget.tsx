@@ -134,9 +134,10 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
 // ─── Day strip (7 days) ───────────────────────────────────────────────────────
 
-function DayStrip({ items, selectedIdx, onSelect }: {
+function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
     items: AlmanaxItem[];
     selectedIdx: number;
+    activeFilter: string;
     onSelect: (i: number) => void;
 }) {
     return (
@@ -144,18 +145,22 @@ function DayStrip({ items, selectedIdx, onSelect }: {
             {items.slice(0, 7).map((item, i) => {
                 const d = parseUTCDate(item.date);
                 const icon = item.tribute.item.image_urls?.icon;
-                const { color } = getBonusStyle(item.bonus.type?.name ?? "");
+                const typeName = item.bonus.type?.name ?? "";
+                const { color } = getBonusStyle(typeName);
                 const selected = i === selectedIdx;
+                const isMuted = activeFilter !== "Tous" && typeName !== activeFilter;
+
                 return (
                     <button key={item.date} onClick={() => onSelect(i)}
                         className={cn(
-                            "group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer hover:-translate-y-0.5",
-                            selected ? "scale-[1.03]" : "opacity-60 hover:opacity-100"
+                            "group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer",
+                            isMuted && !selected ? "opacity-30 grayscale hover:opacity-100 hover:grayscale-0" : "hover:-translate-y-0.5",
+                            selected && "scale-[1.03]"
                         )}
-                        title={`${item.tribute.quantity}× ${item.tribute.item.name} — ${item.bonus.type?.name ?? ""}`}
+                        title={`${item.tribute.quantity}× ${item.tribute.item.name} — ${typeName}`}
                         style={{
                             background: selected ? `linear-gradient(135deg, ${color}15, rgba(13,16,13,0.9))` : "rgba(255,255,255,0.02)",
-                            border: `1px solid ${selected ? color + "40" : "rgba(255,255,255,0.05)"}`,
+                            border: `1px solid ${selected ? color + "40" : isMuted ? "transparent" : "rgba(255,255,255,0.05)"}`,
                             boxShadow: selected ? `0 0 20px -6px ${color}40` : "none",
                         }}>
                         {selected && <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />}
@@ -302,12 +307,16 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
     const handleFilterClick = (type: string) => {
         setActiveFilter(type);
         if (type !== "Tous") {
+            // Force 90 days calendar view so users can spot the bonuses over time
+            setViewMode("calendar");
             const firstIdx = items.findIndex(i => (i.bonus.type?.name ?? "") === type);
-            // If in strip mode, jump to it inside the strip? But the strip only shows 7 days.
-            // Actually, if they filter, it's generally best to jump to calendar to see everything!
             if (firstIdx >= 0) {
                 setSelectedIdx(firstIdx);
             }
+        } else {
+            // Reset to default
+            setViewMode("strip");
+            setSelectedIdx(0);
         }
     };
 
@@ -372,7 +381,7 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
             ) : (
                 <>
                     <HeroCard item={selected} dayOffset={selectedIdx} />
-                    <DayStrip items={items} selectedIdx={selectedIdx} onSelect={setSelectedIdx} />
+                    <DayStrip items={items} selectedIdx={selectedIdx} activeFilter={activeFilter} onSelect={setSelectedIdx} />
                 </>
             )}
         </div>

@@ -64,20 +64,47 @@ export default async function GuildPresentationPage({ params }: Props) {
         : new Date(guild.createdAt).getFullYear();
 
     const baseUrl = getAppBaseUrl();
-    const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": guild.name,
-        "url": `${baseUrl}/guilds/${guild.id}`,
-        "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
-        "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : null,
-        "founder": guild.founder ? {
-            "@type": "Person",
-            "name": guild.founder
-        } : undefined,
-        "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''}`,
-        "sameAs": guild.discord ? [guild.discord] : []
-    };
+    const jsonLd = [
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": guild.name,
+            "url": `${baseUrl}/guilds/${guildId}`,
+            "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
+            "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : undefined,
+            "founder": guild.founder ? {
+                "@type": "Person",
+                "name": guild.founder
+            } : undefined,
+            "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''} Gérée via SigilOS.`,
+            "sameAs": guild.discord ? [guild.discord] : [],
+            "areaServed": guild.server || "Dofus",
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Accueil",
+                    "item": baseUrl,
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Guildes",
+                    "item": `${baseUrl}/guilds`,
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": guild.name,
+                    "item": `${baseUrl}/guilds/${guildId}`,
+                },
+            ],
+        },
+    ];
 
     return (
         <>

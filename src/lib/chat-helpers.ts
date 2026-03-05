@@ -21,6 +21,7 @@ export const chatKey = (guildId: string) => `chat:guild:${guildId}:messages`;
 export const chatCounterKey = (guildId: string) => `chat:guild:${guildId}:counter`;
 export const chatTypingKey = (guildId: string) => `chat:guild:${guildId}:typing`;
 export const chatMutedKey = (guildId: string) => `chat:guild:${guildId}:muted`;
+export const chatMuteUserKey = (guildId: string, userId: string) => `chat:guild:${guildId}:mute:${userId}`;
 export const chatPubSubChannel = (guildId: string) => `chat:guild:${guildId}:stream`;
 export const chatLastMsgKey = (userId: string, guildId: string) => `chat:guild:${guildId}:lastmsg:${userId}`;
 export const chatStatsKey = (guildId: string) => `chat:guild:${guildId}:stats:daily`;

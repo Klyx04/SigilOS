@@ -39,6 +39,7 @@ export type AuditAction =
     | "POLL_DELETED"          // Poll deleted
     | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
     | "CHAT_MUTE"                  // Admin muted a user in chat
+    | "CHAT_UNMUTE"                // Admin unmuted a user in chat
     | "CHAT_CLEAR"                 // Admin cleared guild chat history
     | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
     | "CHAT_MOTD_UPDATE";          // Admin updated the MOTD

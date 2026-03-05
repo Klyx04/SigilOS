@@ -20,6 +20,8 @@ import {
     getChatHistory,
     clearGuildChat,
     muteChatUser,
+    unmuteChatUser,
+    getMuteTTL,
     getChatMentionOptions,
     voteInChatPoll,
     getUserChatBanStatus,
@@ -192,10 +194,11 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
                     {canModerate && !isOwn && (
                         <button
                             onClick={() => onMute?.(msg.authorId, msg.authorName)}
-                            className="absolute -top-1 -left-1 hidden group-hover/avatar:flex bg-rose-500 text-white rounded-full p-0.5 shadow-lg active:scale-90"
+                            className="absolute -top-2 -left-2 hidden group-hover/avatar:flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white rounded-xl px-2 py-1 shadow-xl border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap z-20"
                             title={`Muter ${msg.authorName}`}
                         >
-                            <UserX className="w-2.5 h-2.5" />
+                            <UserX className="w-3 h-3" />
+                            <span className="text-[9px] font-black uppercase tracking-wide">Muter</span>
                         </button>
                     )}
                 </div>
@@ -258,6 +261,15 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onC
 }
 
 // â”€â”€ Main ChatWidget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function formatMuteTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h${m > 0 ? ` ${m}min` : ""}`;
+    if (m > 0) return `${m}min${s > 0 ? ` ${s}s` : ""}`;
+    return `${s}s`;
+}
+
 export function ChatWidget(props: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
@@ -309,9 +321,14 @@ function ChatInner({
     useEffect(() => { localStorage.setItem("chat-notif", notifEnabled.toString()); }, [notifEnabled]);
     const [hasMention, setHasMention] = useState(false);
     const [banStatus, setBanStatus] = useState({ isBanned: false, remainingSeconds: 0 });
+    const [muteSeconds, setMuteSeconds] = useState(0); // remaining mute duration for current user
+    const [muteModal, setMuteModal] = useState<{ userId: string; name: string } | null>(null);
+    const [muteDuration, setMuteDuration] = useState(300); // seconds
     const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; expireAt: number }>>({});
     const [mentionOptions, setMentionOptions] = useState<any[]>([]);
     const [showPollModal, setShowPollModal] = useState(false);
+
+    const isMuted = muteSeconds > 0;
 
     const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -402,6 +419,8 @@ function ChatInner({
         });
         getChatMentionOptions(guildId).then(res => { if (res.success && res.data) setMentionOptions(res.data); });
         getUserChatBanStatus(userId).then(setBanStatus);
+        // Check if current user is muted
+        getMuteTTL(guildId, userId).then(ttl => { if (ttl > 0) setMuteSeconds(ttl); });
     }, [isOpen, guildId, userId]);
 
     // Ban Countdown
@@ -410,6 +429,13 @@ function ChatInner({
         const t = setInterval(() => setBanStatus(p => ({ ...p, remainingSeconds: Math.max(0, p.remainingSeconds - 1) })), 1000);
         return () => clearInterval(t);
     }, [banStatus.remainingSeconds]);
+
+    // Mute Countdown
+    useEffect(() => {
+        if (muteSeconds <= 0) return;
+        const t = setInterval(() => setMuteSeconds(p => Math.max(0, p - 1)), 1000);
+        return () => clearInterval(t);
+    }, [muteSeconds]);
 
 
     // Global Message Handler (via PresenceProvider)
@@ -431,8 +457,19 @@ function ChatInner({
         // 2. State Sync (Messages & Poll Updates)
         if (msg.id === "presence-init") return; // Ignore initial sync in UI list
 
-        // CHAT-1 FIX: Ne pas afficher les messages "presence" historiques
-        // (antÃ©rieurs au moment de connexion du client -- Ã©vite le pavÃ© de notifs)
+        // Real-time mute/unmute events for the targeted user
+        if (msg.type === "system" && msg.systemMeta) {
+            const meta = msg.systemMeta as any;
+            if (meta.type === "user_muted" && meta.targetUserId === userId) {
+                setMuteSeconds(meta.durationSeconds || 300);
+                toast.error(`\uD83D\uDD07 Vous avez \u00e9t\u00e9 muet pour ${formatMuteTime(meta.durationSeconds || 300)}`, { duration: 6000 });
+            }
+            if (meta.type === "user_unmuted" && meta.targetUserId === userId) {
+                setMuteSeconds(0);
+                toast.success("\uD83D\uDD0A Vous pouvez \u00e0 nouveau \u00e9crire dans le chat.");
+            }
+        }
+
         if (msg.type === "presence") {
             const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
             if (msgTime < joinedAt.current) return; // PrÃ©sence historique â†’ skip
@@ -520,13 +557,23 @@ function ChatInner({
 
     const handleMute = async (targetId: string, name: string) => {
         if (!canModerate) return;
-        const res = await muteChatUser(guildId, targetId);
-        if (res.success) {
-            toast.success(`${name} est muté pour 5 minutes`);
-            // Notify everyone in the chat via system message
-            await pushSystemChatMessage(guildId, `🔇 ${name} a été rendu muet par un modérateur.`);
-        }
-        else toast.error("Impossible de muter");
+        setMuteModal({ userId: targetId, name });
+    };
+
+    const handleMuteConfirm = async () => {
+        if (!muteModal) return;
+        const res = await muteChatUser(guildId, muteModal.userId, muteDuration);
+        if (res.success && res.data) {
+            toast.success(`${muteModal.name} muté — ${formatMuteTime(res.data.totalSeconds)} cumulés`);
+        } else toast.error("Impossible de muter");
+        setMuteModal(null);
+    };
+
+    const handleUnmute = async (targetId: string, name: string) => {
+        const res = await unmuteChatUser(guildId, targetId);
+        if (res.success) toast.success(`${name} est démuté`);
+        else toast.error("Impossible de démuter");
+        setMuteModal(null);
     };
 
     const handleClear = async () => {
@@ -644,51 +691,76 @@ function ChatInner({
                     {/* Input */}
                     <div className="p-4 bg-zinc-950/60 border-t border-white/5 relative backdrop-blur-2xl">
                         {error && <div className="absolute -top-12 left-4 right-4 bg-rose-500 text-white text-[10px] font-black px-4 py-2 rounded-xl border border-white/20 animate-in fade-in slide-in-from-bottom-2">{error}</div>}
-                        {(input.startsWith("/") || input.includes("@")) && <ChatAutocomplete input={input} onSelect={(v, a) => { if (a) { setInput(""); handleSend(v); } else setInput(v); inputRef.current?.focus(); }} bottomOffset="calc(100% + 12px)" mentions={mentionOptions} userDisplayName={displayName} />}
+                        {(input.startsWith("/") || input.includes("@")) && !isMuted && <ChatAutocomplete input={input} onSelect={(v, a) => { if (a) { setInput(""); handleSend(v); } else setInput(v); inputRef.current?.focus(); }} bottomOffset="calc(100% + 12px)" mentions={mentionOptions} userDisplayName={displayName} />}
 
                         {banStatus.isBanned && (
                             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center animate-in fade-in">
                                 <Lock className="w-6 h-6 text-rose-500 mb-2 animate-pulse" />
-                                <span className="text-[11px] font-black text-rose-400 uppercase tracking-widest leading-none">AccÃ¨s Interdit</span>
+                                <span className="text-[11px] font-black text-rose-400 uppercase tracking-widest">Accès Interdit</span>
                                 <div className="mt-2 text-xs font-mono text-zinc-500">{Math.floor(banStatus.remainingSeconds / 60)}:{(banStatus.remainingSeconds % 60).toString().padStart(2, "0")}</div>
                             </div>
                         )}
 
-                        <div className="relative flex items-end gap-3 bg-white/[0.03] border border-white/10 rounded-2xl px-4 py-3 transition-all focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30">
+                        {/* Mute Banner for current user */}
+                        {isMuted && (
+                            <div className="mb-3 flex items-center gap-3 bg-rose-950/60 border border-rose-500/30 rounded-2xl px-4 py-3 animate-in fade-in">
+                                <div className="p-1.5 bg-rose-500/20 rounded-lg">
+                                    <UserX className="w-4 h-4 text-rose-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-rose-400">Vous êtes muet</div>
+                                    <div className="text-[11px] text-rose-300/70 font-mono mt-0.5">
+                                        Réactivation dans <span className="font-black text-rose-200">{formatMuteTime(muteSeconds)}</span>
+                                    </div>
+                                </div>
+                                <div className="text-2xl font-black text-rose-400 font-mono tabular-nums">
+                                    {Math.floor(muteSeconds / 60)}:{(muteSeconds % 60).toString().padStart(2, "0")}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={cn(
+                            "relative flex items-end gap-3 border rounded-2xl px-4 py-3 transition-all",
+                            isMuted
+                                ? "bg-zinc-900/40 border-zinc-700/30 opacity-50 cursor-not-allowed"
+                                : "bg-white/[0.03] border-white/10 focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30"
+                        )}>
                             <textarea
                                 ref={inputRef}
-                                value={input}
-                                onChange={e => { setInput(e.target.value); setTypingIndicator(guildId); }}
-                                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                placeholder="Message ou /commandes..."
-                                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 resize-none outline-none max-h-24 min-h-[20px]"
+                                value={isMuted ? "" : input}
+                                onChange={e => { if (isMuted) return; setInput(e.target.value); setTypingIndicator(guildId); }}
+                                onKeyDown={e => { if (isMuted) return; if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                placeholder={isMuted ? "🔇 Vous êtes muet..." : "Message ou /commandes..."}
+                                disabled={isMuted}
+                                className={cn(
+                                    "flex-1 bg-transparent text-sm placeholder-zinc-600 resize-none outline-none max-h-24 min-h-[20px]",
+                                    isMuted ? "text-zinc-600 cursor-not-allowed" : "text-zinc-100"
+                                )}
                                 rows={1}
                             />
                             <div className="flex items-center gap-1.5 pb-0.5">
                                 <div className="relative group flex items-center">
-                                    <button type="button" className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all flex items-center justify-center">
+                                    <button type="button" disabled={isMuted} className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all flex items-center justify-center disabled:opacity-30">
                                         <Command className="w-4 h-4" />
                                     </button>
                                     <div className="absolute bottom-full right-0 mb-3 w-56 p-3 bg-zinc-900 border border-white/10 rounded-xl flex flex-col shadow-2xl shadow-black/80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all text-xs text-zinc-300 pointer-events-none z-50">
-                                        <div className="font-bold text-white mb-2 px-1 text-[13px] border-b border-white/10 pb-1.5 flex items-center justify-between">
-                                            Commandes ( / )
-                                        </div>
+                                        <div className="font-bold text-white mb-2 px-1 text-[13px] border-b border-white/10 pb-1.5">Commandes ( / )</div>
                                         <ul className="space-y-1.5 font-medium">
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/objet</span> Chercher un objet</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/pano</span> Chercher une pano</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/donjon</span> Chercher un donjon</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/monstre</span> Chercher un mob</li>
                                             <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/classe</span> Sorts & Spells</li>
-                                            <li className="flex items-center gap-2 px-1 text-yellow-400/90"><Dices className="w-3 h-3 text-yellow-400" /><span className="text-yellow-400 font-mono w-[60px] text-right bg-yellow-400/10 px-1 py-0.5 rounded">/roll</span> Lancer un dÃ©</li>
+                                            <li className="flex items-center gap-2 px-1 text-yellow-400/90"><Dices className="w-3 h-3 text-yellow-400" /><span className="text-yellow-400 font-mono w-[60px] text-right bg-yellow-400/10 px-1 py-0.5 rounded">/roll</span> Lancer un dé</li>
                                         </ul>
                                     </div>
                                 </div>
-                                <button onClick={() => setShowPollModal(true)} className="p-1.5 rounded-lg text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/5 transition-all"><BarChart3 className="w-5 h-5" /></button>
-                                <button onClick={() => setShowEmoji(!showEmoji)} className={cn("p-1.5 rounded-lg transition-all", showEmoji ? "text-yellow-400 bg-yellow-400/10" : "text-zinc-500 hover:text-yellow-400")}><Smile className="w-5 h-5" /></button>
-                                <button onClick={() => handleSend()} disabled={!input.trim() || sending} className="p-1.5 bg-indigo-600 text-white rounded-lg disabled:opacity-20 shadow-lg active:scale-90"><Send className="w-4 h-4" /></button>
+                                <button onClick={() => setShowPollModal(true)} disabled={isMuted} className="p-1.5 rounded-lg text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/5 transition-all disabled:opacity-30"><BarChart3 className="w-5 h-5" /></button>
+                                <button onClick={() => setShowEmoji(!showEmoji)} disabled={isMuted} className={cn("p-1.5 rounded-lg transition-all disabled:opacity-30", showEmoji ? "text-yellow-400 bg-yellow-400/10" : "text-zinc-500 hover:text-yellow-400")}><Smile className="w-5 h-5" /></button>
+                                <button onClick={() => handleSend()} disabled={!input.trim() || sending || isMuted} className="p-1.5 bg-indigo-600 text-white rounded-lg disabled:opacity-20 shadow-lg active:scale-90"><Send className="w-4 h-4" /></button>
                             </div>
                         </div>
-                        {showEmoji && <EmojiPicker onSelect={e => setInput(p => p + e)} onClose={() => setShowEmoji(false)} />}
+                        {showEmoji && !isMuted && <EmojiPicker onSelect={e => setInput(p => p + e)} onClose={() => setShowEmoji(false)} />}
                     </div>
                 </div>
             )}
@@ -755,6 +827,47 @@ function ChatInner({
                 onLaunch={(q, opts) => handleSend(`/vote ${q} | ${opts.join(" | ")}`)}
             />
             <ChatTransparencyModal open={showTransparency} onClose={() => setShowTransparency(false)} />
+
+            {/* Mute Modal - Duration picker + unmute */}
+            {muteModal && canModerate && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in pointer-events-auto" onClick={() => setMuteModal(null)}>
+                    <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-80 shadow-2xl flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-rose-500/20 rounded-xl">
+                                <UserX className="w-5 h-5 text-rose-400" />
+                            </div>
+                            <div>
+                                <div className="font-black text-white">{muteModal.name}</div>
+                                <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Modération chat</div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Durée du mute</span>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[60, 300, 600, 1800, 3600, 7200, 86400].map(s => (
+                                    <button key={s} onClick={() => setMuteDuration(s)} className={cn(
+                                        "py-2 rounded-xl text-[11px] font-black uppercase tracking-wide border transition-all",
+                                        muteDuration === s ? "bg-rose-500 text-white border-rose-400" : "bg-zinc-800 text-zinc-400 border-white/5 hover:bg-zinc-700"
+                                    )}>
+                                        {formatMuteTime(s)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button onClick={() => handleUnmute(muteModal.userId, muteModal.name)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm transition-all">
+                                <Volume2 className="w-4 h-4" /> Démuter
+                            </button>
+                            <button onClick={handleMuteConfirm} className="flex-1 flex items-center justify-center gap-2 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-sm transition-all">
+                                <UserX className="w-4 h-4" /> Muter {formatMuteTime(muteDuration)}
+                            </button>
+                        </div>
+                        <button onClick={() => setMuteModal(null)} className="text-center text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">Annuler</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

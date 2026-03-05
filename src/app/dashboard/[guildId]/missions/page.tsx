@@ -56,11 +56,23 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     // [MIS-1] XP Override
     const xpOverride = (overrideRes.success && overrideRes.data) ? overrideRes.data.xpOverride : null;
-    const dynamicXP = missions.reduce((acc: number, mission: any) => {
+    const missionXP = missions.reduce((acc: number, mission: any) => {
         const validatedCount = (mission as any)._count?.submissions || 0;
         return acc + ((mission as any).xpReward || 0) * validatedCount;
     }, 0);
+
+    // [KAM-XP] Add validated kama donations XP this week
+    let kamaXP = 0;
+    if (kamaRes.success && kamaRes.data) {
+        const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+        const validatedKamas = kamaRes.data.validatedThisWeek;
+        const validatedTranches = Math.floor(validatedKamas / KAMA_TRANCHE);
+        kamaXP = validatedTranches * REWARDS_PER_TRANCHE.xp;
+    }
+
+    const dynamicXP = missionXP + kamaXP;
     const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
+
 
     // [MIS-1 FIX] targetTier from published missions, fallback 3
     const missionTierFromPublished = missions.length > 0 ? (missions[0] as any)?.tier ?? null : null;

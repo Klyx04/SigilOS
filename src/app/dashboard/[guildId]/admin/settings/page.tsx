@@ -202,6 +202,7 @@ export default async function FeatureSettingsPage({
                                     welcomeBadgeName={welcomeBadgeName}
                                 />
                             </div>
+
                             <div className="max-w-4xl">
                                 <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 relative overflow-hidden group">
                                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -225,6 +226,7 @@ export default async function FeatureSettingsPage({
                             </div>
                         </div>
                     )}
+
                 </div>
             </div>
         </div>

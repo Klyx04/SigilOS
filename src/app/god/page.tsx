@@ -31,7 +31,9 @@ import { UserList } from "./user-list";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
 import { GhostRadarPanel } from "./components/ghost-radar-panel";
-import { StoragePanel } from "./components/storage-panel";
+import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
+
+import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 
@@ -155,9 +157,11 @@ export default async function SuperAdminPage() {
 
                         {/* Janitor (Rebranded as Maintenance Service) */}
                         <JanitorButton />
-
-                        {/* Storage Stats Panel */}
-                        <StoragePanel />
+                    </div>
+                }
+                storage={
+                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
+                        <StorageOverviewPanel />
                     </div>
                 }
                 security={
@@ -180,6 +184,11 @@ export default async function SuperAdminPage() {
                             {/* Ghost Discord Guilds Radar */}
                             <GhostRadarPanel />
                         </div>
+
+                        {/* [ADM-8] Suppressions de comptes en attente */}
+                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
+                            <DeletionPendingPanel />
+                        </Suspense>
 
                         {/* Lifecycle Management */}
                         <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl">

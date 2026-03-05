@@ -1,10 +1,15 @@
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { StatusClient } from "./_components/status-client";
+import { getAppBaseUrl } from "@/lib/utils";
+import { Metadata } from "next";
 
-export const metadata = {
-    title: "Status | SigilOS",
-    description: "État des services et performance de la plateforme SigilOS.",
+export const metadata: Metadata = {
+    title: "Status des services | SigilOS",
+    description: "État en temps réel des services SigilOS : API, bot Discord, base de données et performance. Uptime et incidents.",
+    alternates: {
+        canonical: `${getAppBaseUrl()}/status`,
+    },
 };
 
 export default async function StatusPage() {

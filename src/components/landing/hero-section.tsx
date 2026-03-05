@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { BetaGate } from "./beta-gate";
 import { AccessRequestModal } from "./AccessRequestModal";
+import Image from "next/image";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -15,7 +15,7 @@ export function HeroSection() {
     const [showAccessModal, setShowAccessModal] = useState(false);
 
     return (
-        <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6">
+        <section className="relative min-h-[75vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6">
 
             {/* Background Effects */}
             <div className="absolute inset-0 z-0 pointer-events-none">
@@ -24,7 +24,45 @@ export function HeroSection() {
                 <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay" />
             </div>
 
-            <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
+            {/* Floating Dofus Icon — LEFT side */}
+            <motion.div
+                initial={{ opacity: 0, x: -40, rotate: 10 }}
+                animate={{ opacity: 1, x: 0, rotate: 0 }}
+                transition={{ duration: 1, delay: 0.9 }}
+                className="hidden lg:block absolute left-[3%] xl:left-[8%] top-1/2 -translate-y-1/2 z-10"
+            >
+                <div className="relative">
+                    <div className="absolute inset-0 bg-amber-500/15 blur-[60px] rounded-full animate-pulse-slow" />
+                    <Image
+                        src="/assets/landing/icone-dofus.png"
+                        alt="Dofus"
+                        width={140}
+                        height={140}
+                        className="relative drop-shadow-[0_0_40px_rgba(245,158,11,0.3)] hover:scale-110 transition-transform duration-500 lg:w-[100px] lg:h-[100px] xl:w-[130px] xl:h-[130px] -scale-x-100"
+                    />
+                </div>
+            </motion.div>
+
+            {/* Floating Dofus Icon — RIGHT side */}
+            <motion.div
+                initial={{ opacity: 0, x: 40, rotate: -10 }}
+                animate={{ opacity: 1, x: 0, rotate: 0 }}
+                transition={{ duration: 1, delay: 0.8 }}
+                className="hidden lg:block absolute right-[3%] xl:right-[8%] top-1/2 -translate-y-1/2 z-10"
+            >
+                <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-500/15 blur-[60px] rounded-full animate-pulse-slow" />
+                    <Image
+                        src="/assets/landing/icone-dofus.png"
+                        alt="Dofus"
+                        width={140}
+                        height={140}
+                        className="relative drop-shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:scale-110 transition-transform duration-500 lg:w-[100px] lg:h-[100px] xl:w-[130px] xl:h-[130px]"
+                    />
+                </div>
+            </motion.div>
+
+            <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6 w-full">
 
                 {/* Badge Bêta */}
                 <motion.div
@@ -35,7 +73,7 @@ export function HeroSection() {
                 >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs font-mono text-emerald-300 uppercase tracking-wider font-bold">
-                        Bêta Privée Ouverte
+                        Bêta Ouverte !
                     </span>
                 </motion.div>
 
@@ -44,10 +82,10 @@ export function HeroSection() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.4 }}
-                    className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-white font-heading"
+                    className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white font-heading leading-[1.1]"
                 >
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-emerald-400">
-                        Arrêtez les fichiers Excel, <br /> Passez sur un outil <span className="italic">Professionnel</span> et <span className="italic">sécurisé</span>.
+                        Fini les tableurs excel : <br /><span className="italic">Le dashboard de gestion de guilde Dofus Unity.</span>
                     </span>
                 </motion.h1>
 
@@ -56,12 +94,9 @@ export function HeroSection() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.5 }}
-                    className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
+                    className="text-base md:text-lg text-zinc-400 max-w-lg mx-auto leading-relaxed"
                 >
-                    SigilOS est le grimoire numérique ultime pour les chefs de guilde exigeants.
-                    Centralisez vos missions, suivez l&apos;Ocre et gérez vos membres avec la précision d&apos;un Xélor.
-                    <br className="hidden md:block" />
-                    Moins de tableurs, plus de victoires.
+                    Le dashboard tout-en-un pour guildes Dofus Unity. Missions, membres, events, sondages — centralisés.
                 </motion.p>
 
                 {/* CTAs */}
@@ -69,30 +104,19 @@ export function HeroSection() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.6 }}
-                    className="pt-4 w-full flex flex-col items-center gap-4"
+                    className="pt-2 w-full flex flex-col items-center gap-4"
                 >
                     {/* PRIMARY CTA — Demander l'accès */}
                     <button
                         onClick={() => setShowAccessModal(true)}
-                        className="group relative inline-flex items-center gap-3 px-10 py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-sm shadow-[0_20px_50px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-8px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] overflow-hidden"
+                        className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.6)] hover:shadow-[0_28px_70px_-6px_rgba(16,185,129,0.75)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
                     >
                         {/* Shimmer */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                        <DiscordIcon className="w-5 h-5 flex-shrink-0" />
-                        Demander l&apos;accès
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+                        <DiscordIcon className="w-7 h-7 flex-shrink-0" />
+                        <span className="text-lg">Demander l&apos;accès</span>
                     </button>
 
-                    {/* Divider */}
-                    <div className="flex items-center gap-3 text-zinc-700 text-[10px] font-bold uppercase tracking-widest w-full max-w-xs">
-                        <div className="h-px flex-1 bg-white/5" />
-                        <span>Déjà inscrit ?</span>
-                        <div className="h-px flex-1 bg-white/5" />
-                    </div>
-
-                    {/* SECONDARY CTA — BetaGate (login) */}
-                    <div className="w-full max-w-sm">
-                        <BetaGate />
-                    </div>
                 </motion.div>
             </div>
 

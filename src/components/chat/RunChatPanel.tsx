@@ -491,7 +491,7 @@ export function RunChatPanel({ runId, guildId, userId, userRoleName, userRoleNam
     };
 
     return (
-        <div className={`rounded-xl border border-white/10 bg-zinc-900/70 overflow-hidden flex flex-col transition-all duration-300 ${collapsed ? "h-auto" : "h-full max-h-[600px]"}`}>
+        <div className={`rounded-xl border border-white/10 bg-zinc-900/70 overflow-hidden flex flex-col transition-all duration-300 ${collapsed ? "h-auto" : "h-full max-h-[700px]"}`}>
             {/* Header */}
             <div className="w-full flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-zinc-950/40 flex-shrink-0 select-none">
                 <div onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-3 cursor-pointer group flex-1 min-w-0">

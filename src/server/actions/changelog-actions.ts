@@ -1,6 +1,6 @@
 /**
  * 📝 Changelog - Server Actions
- * 
+ *
  * SECURITY: Create/Update/Delete = Super-admin only
  * Viewing = Public access
  */
@@ -245,5 +245,91 @@ export async function markChangelogAsSeen(changelogId: string) {
     } catch (error) {
         console.error('[Changelog] Mark as seen error:', error);
         return { success: false };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Discord
+// ---------------------------------------------------------------------------
+
+const CATEGORY_EMOJI: Record<string, string> = {
+    FEATURE: '✨', BUGFIX: '🐛', SECURITY: '🔒', PERFORMANCE: '⚡', DOCUMENTATION: '📄'
+};
+const CATEGORY_COLOR: Record<string, number> = {
+    FEATURE: 0x22c55e, BUGFIX: 0xf59e0b, SECURITY: 0xef4444, PERFORMANCE: 0x3b82f6, DOCUMENTATION: 0xa855f7
+};
+const CATEGORY_FR: Record<string, string> = {
+    FEATURE: 'Fonctionnalité', BUGFIX: 'Correction', SECURITY: 'Sécurité', PERFORMANCE: 'Performance', DOCUMENTATION: 'Documentation'
+};
+
+/**
+ * DISC-1 — Publish a changelog entry to the SigilOS Discord via webhook.
+ * Requires SIGILOS_CHANGELOG_WEBHOOK_URL in env. Super-admin only.
+ */
+export async function sendChangelogToDiscord(entryId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    const webhookUrl = process.env.SIGILOS_CHANGELOG_WEBHOOK_URL;
+    if (!webhookUrl || !webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+        return { success: false, error: 'Webhook non configuré — ajouter SIGILOS_CHANGELOG_WEBHOOK_URL dans le .env' };
+    }
+
+    if (!entryId || entryId.length > 64) return { success: false, error: 'ID invalide' };
+
+    const entry = await db.changelogEntry.findUnique({ where: { id: entryId } });
+    if (!entry) return { success: false, error: 'Entrée introuvable' };
+
+    // HTML → lisible pour Discord
+    const plainContent = entry.content
+        .replace(/<li>/gi, '• ')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<h[1-6][^>]*>/gi, '**')
+        .replace(/<\/h[1-6]>/gi, '**\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, 1024);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
+    const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
+    const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
+
+    const body = {
+        embeds: [{
+            title: `${emoji} ${entry.version} — ${entry.title}`,
+            url: `${appUrl}/changelog`,
+            description: entry.summary,
+            color,
+            fields: plainContent ? [
+                { name: '📋 Changements', value: plainContent, inline: false }
+            ] : [],
+            footer: {
+                text: `SigilOS Changelog • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+                icon_url: 'https://i.imgur.com/AfFp7pu.png'
+            },
+            timestamp: new Date().toISOString(),
+        }]
+    };
+
+    try {
+        const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            cache: 'no-store',
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error('[Changelog Discord] Webhook error:', res.status, errText);
+            return { success: false, error: `Discord a rejeté le message (${res.status})` };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('[Changelog Discord] Fetch error:', error);
+        return { success: false, error: "Erreur réseau lors de l'envoi" };
     }
 }

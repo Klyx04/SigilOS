@@ -32,6 +32,7 @@ import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
 import { GhostRadarPanel } from "./components/ghost-radar-panel";
 import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
+import { TicketDashboard } from "./components/ticket-dashboard";
 
 import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
@@ -204,6 +205,11 @@ export default async function SuperAdminPage() {
                             </Suspense>
                         </div>
                     </div>
+                }
+                tickets={
+                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-96 rounded-3xl" />}>
+                        <TicketsServer />
+                    </Suspense>
                 }
             />
         </div>
@@ -451,4 +457,20 @@ function TableLoading() {
 async function AnnouncementServer() {
     const currentAnnouncement = await getSystemAnnouncement();
     return <AnnouncementPanel currentAnnouncement={currentAnnouncement} />;
+}
+
+async function TicketsServer() {
+    const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
+    const [ticketData, stats] = await Promise.all([
+        getSupportTickets({ perPage: 50 }),
+        getTicketStats(),
+    ]);
+
+    return (
+        <TicketDashboard
+            initialTickets={JSON.parse(JSON.stringify(ticketData.tickets))}
+            initialTotal={ticketData.total}
+            initialStats={stats}
+        />
+    );
 }

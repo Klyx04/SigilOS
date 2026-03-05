@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
@@ -137,7 +138,15 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                     </Link>
                 </div>
 
-                {/* 3. Notification Bell */}
+                {/* 3. Feed Bell (Creator News) */}
+                <div className="relative z-10 border-r border-white/10">
+                    <FeedBell
+                        guildId={sidebarProps.guildId}
+                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
+                    />
+                </div>
+
+                {/* 4. Notification Bell (System) */}
                 <div className="relative z-10 border-r border-white/10">
                     <NotificationBell
                         userId={userId}

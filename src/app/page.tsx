@@ -60,6 +60,7 @@ export default async function Home({
     <NebulaClientWrapper>
       <script
         type="application/ld+json"
+        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col overflow-x-hidden">

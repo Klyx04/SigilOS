@@ -1420,3 +1420,54 @@ model GlobalBlocklist {
   allowedDomains Json     @default("[]") // URL Whitelist (default: sigilos.fr, beta.sigilos.fr)
   updatedAt      DateTime @updatedAt
 }
+
+// =============================================================================
+// SUPPORT TICKET SYSTEM
+// =============================================================================
+
+model SupportTicket {
+  id                 String         @id @default(cuid())
+  ticketNumber       Int            @unique @default(autoincrement())
+  discordThreadId    String?        @unique
+  discordGuildId     String         // Discord server where ticket was opened (support server)
+  category           TicketCategory
+  status             TicketStatus   @default(OPEN)
+  subject            String
+  description        String         @db.Text
+
+  // Creator info (Discord-based, may not have a SigilOS account)
+  creatorDiscordId   String
+  creatorDiscordName String
+
+  // Assignment
+  assignedToId       String?        // SigilOS User ID (super admin)
+
+  // Lifecycle
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  closedAt           DateTime?
+  closedBy           String?        // Discord ID of closer
+  closedReason       String?
+
+  // Transcript (JSON array of messages for archival)
+  transcript         Json?          @db.Json
+
+  @@index([status])
+  @@index([category])
+  @@index([creatorDiscordId])
+  @@index([discordGuildId])
+}
+
+enum TicketCategory {
+  ACCESS_REQUEST
+  BUG_REPORT
+  FEATURE_REQUEST
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_RESPONSE
+  CLOSED
+}

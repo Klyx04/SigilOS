@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          
+
       - name: Next.js Cache
         uses: actions/cache@v5
         with:
@@ -79,13 +79,6 @@ jobs:
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
@@ -97,6 +90,13 @@ jobs:
 
       - name: 🛡️ Security Audit
         run: npm audit --audit-level=critical
+
+      - name: 🔬 SAST Scan (Semgrep)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/security-audit
+        env:
+          SEMGREP_RULES: p/security-audit
 
       - name: 🧹 Lint Check
         run: npm run lint
@@ -147,3 +147,13 @@ jobs:
 
       - name: 🛡️ Full Security Audit
         run: npm audit --audit-level=high
+
+      - name: 🔬 Deep SAST Scan (Semgrep)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+        env:
+          SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"

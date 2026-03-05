@@ -2,7 +2,7 @@ import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
 import { SaasFeatures } from "@/components/landing/saas-features";
-import { HowItWorks } from "@/components/landing/how-it-works";
+
 import { LandingCarousel } from "@/components/landing/landing-carousel";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -68,8 +68,6 @@ export default async function Home({
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
           <HeroSection />
-
-          <HowItWorks />
 
           <div className="pb-32 relative w-full max-w-[1400px] mx-auto px-6 fade-in-up duration-1000 delay-200">
             <LandingCarousel />

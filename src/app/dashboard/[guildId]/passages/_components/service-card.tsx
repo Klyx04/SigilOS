@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Pause, Play, Coins, Swords, MessageSquare, Gamepad2 } from "lucide-react";
+import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown } from "lucide-react";
 import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
 import { CATEGORY_LABELS, CATEGORY_EMOJIS } from "@/server/actions/services-constants";
 import { deleteServiceListing, toggleServiceStatus } from "@/server/actions/service-actions";
@@ -64,15 +64,15 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
     if (activeDays.length === 0) return null;
 
     return (
-        <div className="space-y-1.5 rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Disponibilités</p>
+        <div className="space-y-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Disponibilités</p>
             <div className="grid grid-cols-7 gap-0.5">
                 {JOURS.map(jour => {
                     const slots = map[jour] || [];
                     const isActive = slots.length > 0;
                     return (
                         <div key={jour} className="flex flex-col items-center gap-0.5">
-                            <span className={`text-[8px] font-bold ${isActive ? "text-zinc-300" : "text-zinc-700"}`}>
+                            <span className={`text-[8px] font-bold ${isActive ? "text-zinc-200" : "text-zinc-600"}`}>
                                 {JOUR_ABBR[jour]?.slice(0, 3)}
                             </span>
                             <div className="flex flex-col gap-0.5 w-full">
@@ -82,7 +82,7 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
                                         title={`${JOUR_ABBR[jour]} ${SLOT_ABBR[slot]}`}
                                         className={`h-1.5 w-full rounded-sm transition-all ${slots.includes(slot)
                                             ? SLOT_COLORS[slot]
-                                            : "bg-zinc-800/60"
+                                            : "bg-zinc-800/50"
                                             }`}
                                     />
                                 ))}
@@ -94,7 +94,7 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
             {/* Légende */}
             <div className="flex gap-2 mt-1">
                 {["matin", "midi", "soir", "nuit"].map(s => (
-                    <span key={s} className="flex items-center gap-0.5 text-[8px] text-zinc-600">
+                    <span key={s} className="flex items-center gap-0.5 text-[8px] text-zinc-500">
                         <span className={`inline-block h-1.5 w-3 rounded-sm ${SLOT_COLORS[s]}`} />
                         {SLOT_ABBR[s]}
                     </span>
@@ -111,14 +111,51 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
 function PriceLine({ tier }: { tier: { label: string; price: string } }) {
     const isSimple = tier.label.toLowerCase().includes("simple") || tier.label.toLowerCase().includes("sans");
     return (
-        <div className="flex items-center justify-between text-sm gap-2">
-            <span className={`text-xs font-semibold truncate ${isSimple ? "text-zinc-400" : "text-cyan-300"}`}>
+        <div className="flex items-center justify-between gap-3 py-0.5">
+            <span className={`text-xs font-semibold truncate ${isSimple ? "text-zinc-300" : "text-cyan-200"}`}>
                 {isSimple ? "⚪" : "✨"} {tier.label}
             </span>
-            <span className="font-black text-amber-400 whitespace-nowrap flex items-center gap-1.5">
-                <Image src="/assets/icons/kama.png" alt="kamas" width={16} height={16} className="object-contain" />
+            <span className="font-black text-amber-300 whitespace-nowrap flex items-center gap-1.5 shrink-0">
+                <Image src="/assets/icons/kama.png" alt="kamas" width={14} height={14} className="object-contain" />
                 {tier.price}
             </span>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// OCRE PACK BADGE — affichage premium pour packs Archi/Boss
+// ---------------------------------------------------------------------------
+
+const PACK_CONFIG: Record<string, { emoji: string; color: string; glow: string; label: string }> = {
+    "pack boss": { emoji: "🐉", color: "from-orange-500/20 to-yellow-500/10 border-orange-500/30", glow: "text-orange-300", label: "Pack Boss" },
+    "pack boss + archi": { emoji: "👑", color: "from-yellow-500/25 to-amber-500/10 border-yellow-500/35", glow: "text-yellow-200", label: "Pack Boss + Archi" },
+    "pack archi": { emoji: "⚜️", color: "from-amber-400/25 to-yellow-500/10 border-amber-400/40", glow: "text-amber-200", label: "Pack Archi" },
+};
+
+function OcrePackBadge({ packLabel, price }: { packLabel: string; price: string | null }) {
+    const key = packLabel.toLowerCase().trim();
+    const config = PACK_CONFIG[key] ?? { emoji: "👑", color: "from-yellow-500/20 to-amber-500/10 border-yellow-500/30", glow: "text-yellow-200", label: packLabel };
+    return (
+        <div className={`relative flex items-center gap-3 rounded-xl border bg-gradient-to-r ${config.color} px-4 py-3 overflow-hidden`}>
+            {/* subtle shimmer */}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent pointer-events-none" />
+            <div className="relative shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <span className="text-2xl leading-none">{config.emoji}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className={`text-xs font-black uppercase tracking-wider ${config.glow}`}>{config.label}</p>
+                <p className="text-[10px] text-zinc-400 font-medium">Quête Ocre complète</p>
+            </div>
+            {price && (
+                <div className="shrink-0 flex items-center gap-1.5">
+                    <Image src="/assets/icons/kama.png" alt="kamas" width={16} height={16} className="object-contain" />
+                    <span className="font-black text-amber-300 text-base tabular-nums">{price}</span>
+                </div>
+            )}
+            {!price && (
+                <Crown className="h-5 w-5 text-yellow-500/60 shrink-0" />
+            )}
         </div>
     );
 }
@@ -198,11 +235,11 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
             )}
 
             {/* ── Titre ── */}
-            <h3 className="text-base font-black text-white leading-snug line-clamp-2 -mt-2">{listing.title}</h3>
+            <h3 className="text-base font-black text-white leading-snug line-clamp-2">{listing.title}</h3>
 
             {/* ── Description ── */}
             {listing.description && (
-                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3 -mt-2">{listing.description}</p>
+                <p className="text-[13px] text-zinc-300 leading-relaxed line-clamp-3">{listing.description}</p>
             )}
 
             {/* ── Achievements avec icônes ── */}
@@ -246,19 +283,32 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
                 </div>
             ) : null}
 
-            {/* ── Tarifs par palier ── */}
-            {listing.priceTiers && listing.priceTiers.length > 0 ? (
-                <div className="space-y-1.5 rounded-lg border border-white/8 bg-white/[0.02] p-3">
+            {/* ── OCRE : affichage pack premium ── */}
+            {listing.category === "OCRE" && listing.price && (() => {
+                // Prix kamas extrait du 1er priceTier si dispo
+                const ocrePriceFromTier = (listing.priceTiers as { label: string; price: string }[] | null)?.[0]?.price ?? null;
+                return (
+                    <OcrePackBadge
+                        packLabel={listing.price}
+                        price={ocrePriceFromTier}
+                    />
+                );
+            })()}
+
+            {/* ── Tarifs par palier (non-OCRE) ── */}
+            {listing.category !== "OCRE" && listing.priceTiers && listing.priceTiers.length > 0 ? (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1">
                     {listing.priceTiers.map((tier, i) => <PriceLine key={i} tier={tier} />)}
                 </div>
-            ) : listing.price ? (
-                <div className="flex items-center gap-2 text-base text-zinc-200">
+            ) : listing.price && listing.category !== "OCRE" ? (
+                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
                     <Image src="/assets/icons/kama.png" alt="kamas" width={18} height={18} className="object-contain shrink-0" />
-                    <span className="font-black">
+                    <span className="font-black text-white text-base">
                         {/^\d+$/.test(listing.price.replace(/\s/g, ""))
                             ? `${Number(listing.price).toLocaleString("fr-FR")}`
                             : listing.price}
                     </span>
+                    <span className="text-xs text-zinc-500 font-medium">kamas</span>
                 </div>
             ) : null}
 

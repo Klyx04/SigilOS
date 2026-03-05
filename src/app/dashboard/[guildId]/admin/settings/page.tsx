@@ -28,9 +28,7 @@ import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
 import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
-import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import Link from "next/link";
-
 
 // ============================================================================
 // NAV ITEMS
@@ -203,11 +201,6 @@ export default async function FeatureSettingsPage({
                                     guildId={guildId}
                                     welcomeBadgeName={welcomeBadgeName}
                                 />
-                            </div>
-
-                            {/* [ADM-8] Comptes en suppression */}
-                            <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-4">
-                                <DeletionPendingPanel guildId={guildId} />
                             </div>
 
                             <div className="max-w-4xl">

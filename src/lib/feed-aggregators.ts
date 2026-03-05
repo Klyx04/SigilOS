@@ -12,7 +12,11 @@ export interface ExtractedContent {
 // ─── DOFUS RSS FEED ──────────────────────────────────────────────
 export async function fetchDofusNews(): Promise<ExtractedContent[]> {
     try {
-        const parser = new Parser();
+        const parser = new Parser({
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
         // Optionnel : l'URL officielle (on vérifie fr)
         const feed = await parser.parseURL('https://www.dofus.com/fr/rss/news.xml');
 

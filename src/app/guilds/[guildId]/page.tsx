@@ -13,14 +13,18 @@ export async function generateMetadata({ params }: Props) {
     const guild = await getGuildPresentation(guildId);
 
     if (guild) {
+        const baseUrl = getAppBaseUrl();
         return {
-            title: `${guild.name} | SigilOS`,
-            description: `Découvrez la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert !' : ''}`,
+            title: `${guild.name} — Guilde Dofus ${guild.server || ''} | SigilOS`,
+            description: `Profil de la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert ! ' : ''}Missions, membres, progression et événements. Plateforme SigilOS 2026.`,
+            alternates: {
+                canonical: `${baseUrl}/guilds/${guildId}`,
+            },
             openGraph: {
-                title: `${guild.name} - Guilde Dofus`,
-                description: `Rejoignez ${guild.name} sur ${guild.server || 'Dofus'}.`,
+                title: `${guild.name} — Guilde Dofus ${guild.server || ''}`,
+                description: `Rejoignez ${guild.name} sur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement en cours.' : 'Guilde vérifiée SigilOS.'}`,
                 images: guild.bannerUrl ? [guild.bannerUrl] : (guild.iconUrl ? [guild.iconUrl] : []),
-            }
+            },
         };
     }
 

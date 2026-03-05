@@ -11,9 +11,19 @@ import { Button } from "@/components/ui/button";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { auth } from "@/auth";
 
-export const metadata = {
-    title: "Annuaire des Guildes | SigilOS",
-    description: "Explorez les guildes d'élite alimentées par SigilOS",
+import { getAppBaseUrl } from "@/lib/utils";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Annuaire des Guildes Dofus 2026 | SigilOS",
+    description: "Trouvez votre guilde Dofus idéale. Annuaire complet des guildes avec profils, serveurs, recrutement ouvert et statistiques. Comparez les guildes Dofus Unity 2026.",
+    alternates: {
+        canonical: `${getAppBaseUrl()}/guilds`,
+    },
+    openGraph: {
+        title: "Annuaire des Guildes Dofus | SigilOS",
+        description: "Explorez les guildes d'élite Dofus. Profils détaillés, serveurs, statut de recrutement.",
+    },
 };
 
 export default async function GuildsDirectoryPage() {

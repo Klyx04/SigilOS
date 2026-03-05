@@ -1,8 +1,12 @@
 import { Metadata } from "next";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
     title: "Mentions Légales",
     description: "Mentions légales de SigilOS : éditeur, hébergement OVH, propriété intellectuelle Ankama Games, cookies et droit applicable.",
+    alternates: {
+        canonical: `${getAppBaseUrl()}/legal/mentions`,
+    },
 };
 
 export default function MentionsPage() {

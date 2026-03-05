@@ -77,7 +77,10 @@ export async function archiveProfile(guildId: string, profileId?: string) {
 }
 
 /**
- * Hard delete a profile from a guild (Admin move)
+ * Hard delete a profile from a guild (Super Admin only)
+ * Purges all guild-scoped data and invalidates active sessions.
+ * If this is the user's only guild profile → full account deletion (email, OAuth, sessions).
+ * For explicit RGPD wipe, use handleGdprDeletionRequest() instead.
  */
 export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     const ctx = await getUserContext(guildId);
@@ -86,14 +89,30 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     try {
         const target = await db.userProfile.findUnique({
             where: { id: profileId },
-            include: { user: true }
+            include: {
+                user: {
+                    include: {
+                        profiles: { select: { id: true } }
+                    }
+                }
+            }
         });
 
         if (!target) return { success: false, error: "Profile not found" };
 
-        await db.userProfile.delete({
-            where: { id: profileId }
-        });
+        const targetUserId = target.userId;
+        const hasOtherProfiles = target.user.profiles.length > 1;
+
+        // 1. Delete the UserProfile — cascades to all guild-scoped data
+        await db.userProfile.delete({ where: { id: profileId } });
+
+        // 2. Invalidate ALL active sessions (force re-auth immediately)
+        await db.session.deleteMany({ where: { userId: targetUserId } });
+
+        // 3. If no other guild profiles → full account wipe (User + Account OAuth + Notifications)
+        if (!hasOtherProfiles) {
+            await db.user.delete({ where: { id: targetUserId } });
+        }
 
         await createAuditLog({
             guildId,
@@ -101,10 +120,12 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             actorUserId: ctx.id as string,
             actorName: ctx.name ?? "Inconnu",
             targetType: "USER_PROFILE" as any,
-            targetId: target.userId,
+            targetId: targetUserId,
             metadata: {
-                description: `Profil supprimé définitivement : ${target.user.name || profileId}`,
-                reason: "Purge administrative"
+                description: `Purge définitive : ${target.user.name || profileId}`,
+                reason: "Purge administrative Super Admin",
+                fullAccountDeleted: !hasOtherProfiles,
+                sessionsInvalidated: true
             }
         });
 

@@ -1,14 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { User } from "next-auth";
 import { Button } from "@/components/ui/button";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
-import { AccessRequestModal } from "@/components/landing/AccessRequestModal";
 
 type NavItem = {
     label: string;
@@ -17,6 +16,7 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
+    { label: "Fonctionnalités", href: "/#features", id: "features" },
     { label: "Annuaire", href: "/guilds", id: "annuaire" },
     { label: "Changelog", href: "/changelog", id: "changelog" },
     { label: "Documentation", href: "/docs", id: "docs" },
@@ -42,7 +42,6 @@ interface PublicHeaderProps {
 
 export function PublicHeader({ activePage, backHref, backLabel, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp }: PublicHeaderProps) {
     const isHero = variant === "hero";
-    const [showAccessModal, setShowAccessModal] = useState(false);
     const [isMember, setIsMember] = useState(isMemberProp ?? false);
 
     useEffect(() => {
@@ -139,18 +138,19 @@ export function PublicHeader({ activePage, backHref, backLabel, user, variant = 
                                 </Link>
                             </div>
                         ) : (
-                            <Button
-                                onClick={() => setShowAccessModal(true)}
-                                className="px-8 py-2.5 rounded-full bg-accent-teal text-bg-primary hover:bg-accent-teal/90 text-[11px] font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95 teal-glow flex items-center gap-2"
-                            >
-                                <DiscordIcon className="w-4 h-4" />
-                                Demander l&apos;accès
-                            </Button>
+                            <form action={loginWithDiscord}>
+                                <Button
+                                    type="submit"
+                                    className="px-8 py-2.5 rounded-full bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95 flex items-center gap-2 shadow-[0_4px_20px_-4px_rgba(88,101,242,0.5)] hover:shadow-[0_4px_24px_-4px_rgba(88,101,242,0.7)]"
+                                >
+                                    <DiscordIcon className="w-4 h-4" />
+                                    Connexion Discord
+                                </Button>
+                            </form>
                         )}
                     </div>
                 </div>
             </div>
-            <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </header>
     );
 }

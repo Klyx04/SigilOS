@@ -156,14 +156,22 @@ export async function syncMembershipStatus(
                 });
                 result.archived++;
             }
-            else if (profile.status === "ARCHIVED" && isInGuild && options.reactivateReturning) {
-                // Member returned - Reactivate their profile
+            else if (
+                profile.status === "ARCHIVED" &&
+                isInGuild &&
+                options.reactivateReturning &&
+                // SECURITY: Only auto-reactivate profiles archived because they LEFT Discord.
+                // Never reactivate manual bans, suspensions or scheduled deletions.
+                (profile.archiveReason === "LEFT" || profile.archiveReason === "LEFT_GUILD")
+            ) {
+                // Member returned to Discord - Reactivate their profile
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
                         status: "ACTIVE",
                         archivedAt: null,
-                        archiveReason: null
+                        archiveReason: null,
+                        scheduledDeletion: null
                     }
                 });
                 result.reactivated++;
@@ -271,13 +279,19 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                     }
                 });
                 result.archived++;
-            } else if (profile.status === "ARCHIVED" && isInGuild) {
+            } else if (
+                profile.status === "ARCHIVED" &&
+                isInGuild &&
+                (profile.archiveReason === "LEFT" || profile.archiveReason === "LEFT_GUILD")
+            ) {
+                // SECURITY: Only reactivate profiles that left voluntarily — not manual bans/suspensions
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
                         status: "ACTIVE",
                         archivedAt: null,
-                        archiveReason: null
+                        archiveReason: null,
+                        scheduledDeletion: null
                     }
                 });
                 result.reactivated++;

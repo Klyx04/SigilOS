@@ -1053,12 +1053,17 @@ export async function getPendingValidationsCount(guildId: string) {
 
         if (!guild) return { success: false, error: "Guild not found" };
 
-        const [pendingMissions, pendingAchievements] = await Promise.all([
+        const [pendingMissions, pendingAchievements, pendingKamas] = await Promise.all([
             missionGuard.allowed
                 ? db.submission.count({ where: { mission: { guildId: guild.id }, status: "PENDING" } })
                 : 0,
             adminGuard.allowed
                 ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } })
+                : 0,
+            adminGuard.allowed || missionGuard.allowed
+                ? (db as any).kamaDonation
+                    ? (db as any).kamaDonation.count({ where: { guildId: guild.id, status: "PENDING" } }).catch(() => 0)
+                    : Promise.resolve(0)
                 : 0,
         ]);
 
@@ -1067,7 +1072,8 @@ export async function getPendingValidationsCount(guildId: string) {
             data: {
                 pendingMissions,
                 pendingAchievements,
-                total: pendingMissions + pendingAchievements
+                pendingKamas,
+                total: pendingMissions + pendingAchievements + pendingKamas
             }
         };
     } catch (error) {

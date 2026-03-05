@@ -579,6 +579,19 @@ export async function submitMissionProof(
         });
         if (existing) return { success: false, error: "Vous avez déjÃ  une soumission pour cette mission." };
 
+        // 1.2 If a REJECTED submission exists, clean it up to allow retry
+        const rejectedSubmission = await db.submission.findFirst({
+            where: { missionId, profileId: profile.id, status: "REJECTED" }
+        });
+        if (rejectedSubmission) {
+            // Delete old image hash if any (normally already deleted at rejection time, but belt-and-suspenders)
+            await (db as any).imageHash.deleteMany({
+                where: { guildId: mission.guildId, sourceType: "MISSION", sourceId: rejectedSubmission.id }
+            });
+            // Delete the stale REJECTED submission row to allow new submission
+            await db.submission.delete({ where: { id: rejectedSubmission.id } });
+        }
+
         // 1.5 Validate Helpers
         if (helperIds.length > 7) return { success: false, error: "Maximum 7 aidants autorisés." };
         if (helperIds.includes(profile.id)) return { success: false, error: "Vous ne pouvez pas vous ajouter comme aidant." };

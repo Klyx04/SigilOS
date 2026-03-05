@@ -406,6 +406,65 @@ export async function cleanupOrphanedProfiles() {
 }
 
 /**
+ * [ADM-8] Platform-wide: Get all users who have requested account deletion
+ * or have a scheduled deletion pending. Includes their guild profile(s) for context.
+ * Super-admin only.
+ */
+export async function getPendingDeletionUsers() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+
+    const users = await db.user.findMany({
+        where: {
+            OR: [
+                { deletionRequestedAt: { not: null } },
+                { scheduledDeletion: { not: null } },
+            ]
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            deletionRequestedAt: true,
+            scheduledDeletion: true,
+            createdAt: true,
+            profiles: {
+                select: {
+                    id: true,
+                    status: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
+                    archiveReason: true,
+                    guild: {
+                        select: { name: true, discordGuildId: true }
+                    }
+                }
+            }
+        },
+        orderBy: { deletionRequestedAt: "desc" },
+        take: 100
+    });
+
+    return users.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        image: u.image,
+        deletionRequestedAt: u.deletionRequestedAt?.toISOString() || null,
+        scheduledDeletion: u.scheduledDeletion?.toISOString() || null,
+        createdAt: u.createdAt.toISOString(),
+        guilds: u.profiles.map(p => ({
+            guildName: p.guild.name,
+            discordGuildId: p.guild.discordGuildId,
+            displayName: p.pseudoDofus || p.discordNickname || u.name || "Inconnu",
+            profileStatus: p.status,
+            archiveReason: p.archiveReason,
+        }))
+    }));
+}
+
+/**
  * Get OCR API Usage Statistics for /god page
  * Returns daily usage for the last 30 days and monthly totals
  */

@@ -13,7 +13,7 @@ import {
     sanitizeMessage,
     checkBlockedContent,
     simpleHash,
-    chatKey, chatCounterKey, chatMutedKey, chatPubSubChannel, chatLastMsgKey, chatStatsKey,
+    chatKey, chatCounterKey, chatMutedKey, chatMuteUserKey, chatPubSubChannel, chatLastMsgKey, chatStatsKey,
     runChatKey, runChatCounterKey, runChatPubSubChannel,
     chatStrikesKey, chatGlobalBanKey, chatGlobalBlocklistKey,
     CHAT_HISTORY_LIMIT, CHAT_TTL_SECONDS, CHAT_RATE_LIMIT, CHAT_RATE_WINDOW_MS,
@@ -1041,7 +1041,7 @@ export async function muteChatUser(
     discordGuildId: string,
     targetUserId: string,
     durationSeconds = 300
-): Promise<ActionResponse> {
+): Promise<ActionResponse<{ totalSeconds: number }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -1049,9 +1049,70 @@ export async function muteChatUser(
     const ctx = await getUserContext(discordGuildId);
     if (!ctx.canModerateChat) return { success: false, error: "Permission chat:moderate requise" };
 
-    const muteKey = chatMutedKey(discordGuildId);
-    await redis.sadd(muteKey, targetUserId);
-    await redis.expire(muteKey, durationSeconds);
+    const muteKey = chatMuteUserKey(discordGuildId, targetUserId);
+
+    // Get current remaining TTL to stack (INCRBY instead of overwrite)
+    const currentTtl = await redis.ttl(muteKey);
+    const remaining = currentTtl > 0 ? currentTtl : 0;
+    const totalSeconds = remaining + durationSeconds;
+
+    // Set individual mute key with stacked duration
+    await redis.set(muteKey, "1", "EX", totalSeconds);
+
+    // Also add to legacy set for backwards compat with sendChatMessage check
+    const legacyKey = chatMutedKey(discordGuildId);
+    await redis.sadd(legacyKey, targetUserId);
+    // Legacy set TTL only if this is the first mute or new TTL is longer
+    const legacyTtl = await redis.ttl(legacyKey);
+    if (legacyTtl < totalSeconds) {
+        await redis.expire(legacyKey, totalSeconds);
+    }
+
+    // Fetch target user name for notification
+    const targetProfile = await db.userProfile.findFirst({
+        where: {
+            userId: targetUserId,
+            guild: { discordGuildId },
+        },
+        select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+    });
+    const targetName = targetProfile?.discordNickname || targetProfile?.pseudoDofus || targetProfile?.user?.name || targetUserId;
+
+    // Format duration for display
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const durationLabel = h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ""}` : m > 0 ? `${m} min${s > 0 ? ` ${s}s` : ""}` : `${s}s`;
+
+    // Broadcast mute notification in the chat (both public + private hint for the user)
+    const muteUnixExpiry = Math.floor(Date.now() / 1000) + totalSeconds;
+    const notifMsg = {
+        id: `mute:${Date.now()}`,
+        text: `🔇 **${targetName}** est muet pour **${durationLabel}**.`,
+        authorId: "system",
+        authorName: "SigilOS — Modération",
+        createdAt: new Date().toISOString(),
+        type: "system",
+        systemMeta: {
+            type: "user_muted",
+            targetUserId,
+            targetName,
+            durationSeconds: totalSeconds,
+            expiresAt: muteUnixExpiry,
+            muteExpiresAt: new Date(Date.now() + totalSeconds * 1000).toISOString(),
+        },
+    };
+
+    const msgId = await redis.incr(chatCounterKey(discordGuildId));
+    notifMsg.id = msgId.toString();
+
+    const serialized = JSON.stringify(notifMsg);
+    await redis.multi()
+        .rpush(chatKey(discordGuildId), serialized)
+        .ltrim(chatKey(discordGuildId), -CHAT_HISTORY_LIMIT, -1)
+        .expire(chatKey(discordGuildId), CHAT_TTL_SECONDS)
+        .exec();
+    await redis.publish(chatPubSubChannel(discordGuildId), serialized);
 
     await createAuditLog({
         guildId: discordGuildId,
@@ -1060,10 +1121,69 @@ export async function muteChatUser(
         action: "CHAT_MUTE",
         targetType: "USER",
         targetId: targetUserId,
-        newValue: { durationSeconds },
+        newValue: { durationSeconds, totalSeconds, stacked: remaining > 0 },
+    });
+
+    return { success: true, data: { totalSeconds } };
+}
+
+export async function unmuteChatUser(
+    discordGuildId: string,
+    targetUserId: string
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const { getUserContext } = await import("./user-actions");
+    const ctx = await getUserContext(discordGuildId);
+    if (!ctx.canModerateChat) return { success: false, error: "Permission chat:moderate requise" };
+
+    // Delete both keys
+    await Promise.all([
+        redis.del(chatMuteUserKey(discordGuildId, targetUserId)),
+        redis.srem(chatMutedKey(discordGuildId), targetUserId),
+    ]);
+
+    // Broadcast unmute notification
+    const targetProfile = await db.userProfile.findFirst({
+        where: { userId: targetUserId, guild: { discordGuildId } },
+        select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
+    });
+    const targetName = targetProfile?.discordNickname || targetProfile?.pseudoDofus || targetProfile?.user?.name || targetUserId;
+
+    const notifMsg = {
+        id: (await redis.incr(chatCounterKey(discordGuildId))).toString(),
+        text: `🔊 **${targetName}** peut à nouveau parler dans le chat.`,
+        authorId: "system",
+        authorName: "SigilOS — Modération",
+        createdAt: new Date().toISOString(),
+        type: "system",
+        systemMeta: { type: "user_unmuted", targetUserId, targetName },
+    };
+
+    const serialized = JSON.stringify(notifMsg);
+    await redis.multi()
+        .rpush(chatKey(discordGuildId), serialized)
+        .ltrim(chatKey(discordGuildId), -CHAT_HISTORY_LIMIT, -1)
+        .expire(chatKey(discordGuildId), CHAT_TTL_SECONDS)
+        .exec();
+    await redis.publish(chatPubSubChannel(discordGuildId), serialized);
+
+    await createAuditLog({
+        guildId: discordGuildId,
+        actorUserId: session.user.id,
+        actorName: session.user.name || "Admin",
+        action: "CHAT_UNMUTE",
+        targetType: "USER",
+        targetId: targetUserId,
     });
 
     return { success: true };
+}
+
+export async function getMuteTTL(discordGuildId: string, userId: string): Promise<number> {
+    const ttl = await redis.ttl(chatMuteUserKey(discordGuildId, userId));
+    return Math.max(0, ttl);
 }
 
 export async function clearGuildChat(discordGuildId: string): Promise<ActionResponse> {

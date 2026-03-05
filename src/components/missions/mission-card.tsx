@@ -316,6 +316,11 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                 <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
                             </div>
                         )}
+                        {isRejected && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 text-white font-black text-[9px] shadow-lg border border-white/10">
+                                <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -467,7 +472,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                             </div>
                         )}
 
-                        {!isValidated && !isRejected && (
+                        {!isValidated && (
                             isPendingValidation ? (
                                 <Button
                                     size="sm"
@@ -480,11 +485,16 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                             ) : (
                                 <Button
                                     size="sm"
-                                    className="h-9 px-5 text-[10px] font-black uppercase tracking-[2px] bg-zinc-800 text-zinc-300 hover:bg-white hover:text-black transition-all border border-white/10"
+                                    className={cn(
+                                        "h-9 px-5 text-[10px] font-black uppercase tracking-[2px] transition-all border",
+                                        isRejected
+                                            ? "bg-red-950/40 text-red-300 hover:bg-white hover:text-black border-red-500/30"
+                                            : "bg-zinc-800 text-zinc-300 hover:bg-white hover:text-black border-white/10"
+                                    )}
                                     onClick={() => setShowUploadDialog(true)}
                                 >
                                     <Upload className="w-3.5 h-3.5 mr-2" />
-                                    PREUVE
+                                    {isRejected ? "RÉESSAYER" : "PREUVE"}
                                 </Button>
                             )
                         )}

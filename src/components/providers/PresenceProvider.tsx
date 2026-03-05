@@ -19,80 +19,98 @@ const PresenceContext = createContext<PresenceContextType>({
 
 export const usePresence = () => useContext(PresenceContext);
 
-export function PresenceProvider({ children, guildId, isActive = false }: { children: React.ReactNode; guildId: string; isActive?: boolean }) {
+export function PresenceProvider({
+    children,
+    guildId,
+    isActive = false,
+}: {
+    children: React.ReactNode;
+    guildId: string;
+    isActive?: boolean;
+}) {
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<ChatMessage | null>(null);
 
     const esRef = useRef<EventSource | null>(null);
-    // Track isActive without reconnecting — only used to report status to the stream
-    const isActiveRef = useRef(isActive);
+    const connectionIdRef = useRef<string>(Math.random().toString(36).slice(2));
     // Track whether we've sent the join message this session
     const hasJoinedRef = useRef(false);
 
-    // Update isActive ref without reconnecting
-    useEffect(() => {
-        isActiveRef.current = isActive;
-    }, [isActive]);
+    // Main SSE connection — reconnects only when guildId changes
+    const connect = useCallback((isReconnect = false) => {
+        if (esRef.current) {
+            esRef.current.close();
+            esRef.current = null;
+        }
 
-    useEffect(() => {
-        if (!guildId) return;
+        if (!isReconnect) {
+            hasJoinedRef.current = false;
+            connectionIdRef.current = Math.random().toString(36).slice(2);
+        }
 
-        // Only connect once per guildId
-        // isActive is NOT in deps — minimize/maximize does NOT reconnect
-        const connect = (isReconnect = false) => {
+        // Pass current isActive at connection time
+        const es = new EventSource(
+            `/api/chat/guild/${guildId}/stream?connectionId=${connectionIdRef.current}&active=${isActive}`
+        );
+        esRef.current = es;
+
+        es.onopen = () => {
+            setIsConnected(true);
+            hasJoinedRef.current = true;
+        };
+
+        es.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data) as ChatMessage;
+                setLastMessage({ ...msg, _ts: Date.now() });
+
+                if (msg.type === "presence" && msg.onlineUsers) {
+                    setOnlineUsers(msg.onlineUsers);
+                }
+            } catch (e) {
+                console.error("[PresenceProvider] SSE parse error", e);
+            }
+        };
+
+        es.onerror = () => {
+            setIsConnected(false);
             if (esRef.current) {
                 esRef.current.close();
                 esRef.current = null;
             }
-
-            // Only reset join flag on initial connect, NOT on auto-reconnect after error
-            // This prevents spam of "X a rejoint" messages on network blips
-            if (!isReconnect) {
-                hasJoinedRef.current = false;
-            }
-            const connectionId = Math.random().toString(36).substring(2, 15);
-            // Pass isActive at connection time only — minimize shouldn't retrigger
-            const es = new EventSource(`/api/chat/guild/${guildId}/stream?connectionId=${connectionId}&active=true`);
-            esRef.current = es;
-
-            es.onopen = () => {
-                setIsConnected(true);
-                hasJoinedRef.current = true;
-            };
-
-            es.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data) as ChatMessage;
-                    setLastMessage({ ...msg, _ts: Date.now() });
-
-                    if (msg.type === "presence" && msg.onlineUsers) {
-                        setOnlineUsers(msg.onlineUsers);
-                    }
-                } catch (e) {
-                    console.error("[PresenceProvider] SSE error", e);
-                }
-            };
-
-            es.onerror = () => {
-                setIsConnected(false);
-                if (esRef.current) {
-                    esRef.current.close();
-                    esRef.current = null;
-                }
-                // isReconnect=true: preserve hasJoinedRef to avoid spam on network blip
-                setTimeout(() => connect(true), 3000);
-            };
+            // Auto-reconnect after error — preserve connectionId to avoid join spam
+            setTimeout(() => connect(true), 3000);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [guildId]); // only reconnect when guildId changes
 
-        connect();
+    // Initial connect + cleanup
+    useEffect(() => {
+        if (!guildId) return;
+        connect(false);
         return () => {
             if (esRef.current) {
                 esRef.current.close();
                 esRef.current = null;
             }
         };
-    }, [guildId]); // Only reconnect when guildId changes — NOT when isActive changes
+    }, [guildId, connect]);
+
+    // When isActive toggles (minimize/maximize/close), PATCH the presence status
+    // This keeps Redis in sync without a full reconnect
+    useEffect(() => {
+        if (!guildId || !hasJoinedRef.current) return;
+        // Fire-and-forget PATCH to update our presence status in Redis
+        fetch(`/api/chat/guild/${guildId}/presence`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                connectionId: connectionIdRef.current,
+                isActive,
+            }),
+        }).catch(() => { /* silent — non-critical */ });
+    }, [isActive, guildId]);
 
     return (
         <PresenceContext.Provider value={{ onlineUsers, isConnected, lastMessage }}>

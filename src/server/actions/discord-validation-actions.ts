@@ -84,10 +84,23 @@ export async function internalValidateMissionSubmission(
             where: { guildId: submission.mission.guild.id, sourceType: "MISSION", sourceId: submissionId },
         });
 
-        // 3. Update DB
+        // 3. Delete Discord embed
+        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    console.error("[internalValidateMissionSubmission] Failed to delete Discord embed", e);
+                }
+            }
+        }
+
+        // 4. Update DB
         const updated = await db.submission.update({
             where: { id: submissionId },
-            data: { status, validatorId: guard.internalUserId, proofUrl: "" },
+            data: { status, validatorId: guard.internalUserId, proofUrl: "", discordMessageId: null },
             include: { profile: { include: { user: true } }, helpers: true },
         });
 
@@ -181,10 +194,23 @@ export async function internalValidateAchievementSubmission(
         // 3. Cleanup file
         if (submission.proofUrl) await deleteProofFile(submission.proofUrl);
 
+        // 3.5. Delete Discord embed (validation ET rejet)
+        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    console.error("[internalValidateAchievementSubmission] Failed to delete Discord embed", e);
+                }
+            }
+        }
+
         // 4. Update submission status
         await (db as any).achievementSubmission.update({
             where: { id: submissionId },
-            data: { status, validatorId: guard.internalUserId, validatedAt: new Date(), proofUrl: "" },
+            data: { status, validatorId: guard.internalUserId, validatedAt: new Date(), proofUrl: "", discordMessageId: null },
         });
 
         // 5. Delete image hash
@@ -245,15 +271,29 @@ export async function internalReviewKamaDonation(
                 validatedById: adminProfile?.id ?? undefined,
                 validatedAt: new Date(),
                 rejectedReason: action === "REJECT" ? "Refusé via Discord" : null,
+                discordMessageId: null,
             },
         });
 
-        // If rejected, delete proof file and hash
-        if (action === "REJECT" && donation.proofUrl) {
+        // Delete proof file + image hash (validation ET rejet)
+        if (donation.proofUrl) {
             await deleteProofFile(donation.proofUrl);
             await (db as any).imageHash.deleteMany({
                 where: { guildId: guildConfig.id, sourceType: "KAMA_DONATION", sourceId: donationId },
             });
+        }
+
+        // Delete Discord embed (validation ET rejet)
+        if (donation.discordMessageId && donation.discordMessageId.includes(":")) {
+            const [channelId, msgId] = donation.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    console.error("[internalReviewKamaDonation] Failed to delete Discord embed", e);
+                }
+            }
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);

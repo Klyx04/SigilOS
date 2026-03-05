@@ -1,41 +1,48 @@
 import { unlink, rmdir } from "fs/promises";
-import { join, dirname } from "path";
+import { join, dirname, normalize } from "path";
 
 /**
  * Deletes a proof file from the filesystem and cleans up empty parent directories.
+ * Supports all upload paths under /uploads/:
+ *   - /uploads/proofs/{discordGuildId}/        (missions)
+ *   - /uploads/guilds/{prismaId}/proofs/       (kamas)
+ *   - /uploads/guilds/{prismaId}/achievements/ (succès)
  */
 export async function deleteProofFile(proofUrl: string) {
     if (!proofUrl) return;
 
-    // Support /uploads/proofs/, /uploads/achievements/, and /uploads/missions/
-    const isLocalUpload = proofUrl.startsWith("/uploads/proofs/") ||
-        proofUrl.startsWith("/uploads/achievements/") ||
-        proofUrl.startsWith("/uploads/missions/");
+    // Accept any file under /uploads/ — reject anything else
+    if (!proofUrl.startsWith("/uploads/")) return;
 
-    if (!isLocalUpload) return;
+    // Normalize to block path traversal (e.g. /../etc/passwd)
+    const relativePath = proofUrl.replace(/^\//, "");
+    const absolutePath = normalize(join(process.cwd(), "public", relativePath));
+    const uploadsRoot = normalize(join(process.cwd(), "public", "uploads"));
+
+    if (!absolutePath.startsWith(uploadsRoot)) {
+        console.warn(`[Storage] Path traversal attempt blocked: ${proofUrl}`);
+        return;
+    }
 
     try {
-        const relativePath = proofUrl.replace(/^\//, "");
-        const absolutePath = join(process.cwd(), "public", relativePath);
-
         // 1. Delete the file
         await unlink(absolutePath);
+        console.log(`[Storage] Deleted proof file: ${proofUrl}`);
 
-        // 2. Safely attempt to delete the parent directory
+        // 2. Safely attempt to delete the parent directory if empty
         try {
             const dirPath = dirname(absolutePath);
             await rmdir(dirPath);
-
             // Optional: Try to remove the grandparent if also empty
             const grandParentDirPath = dirname(dirPath);
             await rmdir(grandParentDirPath);
-        } catch (dirError: any) {
-            // Ignore if directory is not empty
+        } catch {
+            // Ignore — directory not empty, that's fine
         }
-
     } catch (error: any) {
         if (error.code !== "ENOENT") {
             console.warn(`[Storage] Failed to delete file ${proofUrl}:`, error);
         }
+        // ENOENT = already deleted, silently ignore
     }
 }

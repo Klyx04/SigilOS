@@ -8,7 +8,8 @@ import {
     ShieldAlert,
     Terminal,
     Activity,
-    Settings2
+    Settings2,
+    HardDrive
 } from "lucide-react";
 
 interface GodDashboardClientProps {
@@ -16,13 +17,15 @@ interface GodDashboardClientProps {
     guilds: React.ReactNode;
     infrastructure: React.ReactNode;
     security: React.ReactNode;
+    storage: React.ReactNode;
 }
 
 export function GodDashboardClient({
     overview,
     guilds,
     infrastructure,
-    security
+    security,
+    storage
 }: GodDashboardClientProps) {
     const [activeTab, setActiveTab] = useState("overview");
 
@@ -63,6 +66,13 @@ export function GodDashboardClient({
                             Infrastructure & Ops
                         </TabsTrigger>
                         <TabsTrigger
+                            value="storage"
+                            className="justify-start rounded-2xl px-5 py-4 h-14 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-xl data-[state=active]:shadow-emerald-500/20 gap-4 font-black uppercase tracking-widest text-[11px] hover:bg-white/5 transition-all text-zinc-400"
+                        >
+                            <HardDrive className="w-5 h-5" />
+                            Stockage VPS
+                        </TabsTrigger>
+                        <TabsTrigger
                             value="security"
                             className="justify-start rounded-2xl px-5 py-4 h-14 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-xl data-[state=active]:shadow-red-500/20 gap-4 font-black uppercase tracking-widest text-[11px] hover:bg-white/5 transition-all text-zinc-400"
                         >
@@ -85,6 +95,10 @@ export function GodDashboardClient({
 
                 <TabsContent value="infrastructure" className="mt-0 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {infrastructure}
+                </TabsContent>
+
+                <TabsContent value="storage" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {storage}
                 </TabsContent>
 
                 <TabsContent value="security" className="mt-0 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">

@@ -31,7 +31,8 @@ import { UserList } from "./user-list";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
 import { GhostRadarPanel } from "./components/ghost-radar-panel";
-import { StoragePanel } from "./components/storage-panel";
+import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
+
 import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
@@ -156,9 +157,11 @@ export default async function SuperAdminPage() {
 
                         {/* Janitor (Rebranded as Maintenance Service) */}
                         <JanitorButton />
-
-                        {/* Storage Stats Panel */}
-                        <StoragePanel />
+                    </div>
+                }
+                storage={
+                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
+                        <StorageOverviewPanel />
                     </div>
                 }
                 security={

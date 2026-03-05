@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { MapContainer, Rectangle, Tooltip, useMapEvents, ImageOverlay } from "react-leaflet";
+import { MapContainer, Rectangle, Tooltip, useMapEvents, ImageOverlay, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -45,24 +45,104 @@ function MapBoundsTracker({ setBounds, setZoom }: { setBounds: (b: L.LatLngBound
     return null;
 }
 
+// Custom native Leaflet Layer manager to bypass React's virtual DOM lag for 8500 polygons
+function NativeMapRenderer({ data, subareaMap, zoom, bounds }: { data: WorldMapData, subareaMap: Map<number, any>, zoom: number, bounds: L.LatLngBounds | null }) {
+    const map = useMap();
+    const [featureLayer, setFeatureLayer] = useState<L.FeatureGroup | null>(null);
+
+    // 1. Draw ALL rects ONCE in a native Canvas mode FeatureGroup
+    useEffect(() => {
+        if (!data || !data.maps) return;
+
+        console.time("Building Native Canvas Layer");
+        const layerGroup = L.featureGroup();
+
+        data.maps.forEach(m => {
+            if (m.worldMap !== 1 || !m.outdoor) return;
+
+            const lat = -m.y;
+            const lng = m.x;
+            const subarea = subareaMap.get(m.subAreaId);
+            const color = '#14b8a6'; // Teal 500
+
+            const rect = L.rectangle([
+                [lat - 0.5, lng - 0.5],
+                [lat + 0.5, lng + 0.5]
+            ], {
+                color: color,
+                weight: 1,
+                fillColor: color,
+                fillOpacity: 0.1,
+                interactive: false // Very fast, no hover events yet
+            });
+
+            layerGroup.addLayer(rect);
+        });
+
+        // Add to map
+        layerGroup.addTo(map);
+        setFeatureLayer(layerGroup);
+        console.timeEnd("Building Native Canvas Layer");
+
+        return () => {
+            map.removeLayer(layerGroup);
+        };
+    }, [map, data.maps, subareaMap]);
+
+    // 2. We only load ImageOverlays dynamically via React when zoomed in (>2)
+    // We strictly limit them to the visible viewport to stay at ~50 images max.
+    const showImages = zoom >= 3;
+
+    const visibleMaps = useMemo(() => {
+        if (!showImages || !bounds) return [];
+        const minX = bounds.getWest() - 1;
+        const maxX = bounds.getEast() + 1;
+        const minY = -bounds.getNorth() - 1;
+        const maxY = -bounds.getSouth() + 1;
+
+        return data.maps.filter(m =>
+            m.worldMap === 1 && m.outdoor &&
+            m.x >= minX && m.x <= maxX && m.y >= minY && m.y <= maxY
+        );
+    }, [showImages, bounds, data.maps]);
+
+    return (
+        <>
+            {showImages && visibleMaps.map((mapPoint) => {
+                const lat = -mapPoint.y;
+                const lng = mapPoint.x;
+                const mapBounds: [number, number][] = [
+                    [lat - 0.5, lng - 0.5],
+                    [lat + 0.5, lng + 0.5]
+                ];
+                const subarea = subareaMap.get(mapPoint.subAreaId);
+
+                return (
+                    <ImageOverlay
+                        key={mapPoint.id}
+                        bounds={mapBounds}
+                        url={`https://api.dofusdb.fr/img/maps/1/${mapPoint.id}.jpg`}
+                        interactive={true}
+                        opacity={1}
+                        zIndex={100}
+                    >
+                        <Tooltip direction="top" opacity={0.9} sticky={true}>
+                            <div className="text-center font-sans tracking-tight">
+                                <p className="font-bold text-teal-400">{subarea?.name || 'Zone Inconnue'}</p>
+                                <p className="text-[10px] text-gray-500 uppercase">{subarea?.areaName}</p>
+                                <p className="text-xs mt-1 text-white">[{mapPoint.x}, {mapPoint.y}]</p>
+                            </div>
+                        </Tooltip>
+                    </ImageOverlay>
+                );
+            })}
+        </>
+    );
+}
+
 export default function InteractiveMap({ data }: InteractiveMapProps) {
     const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
     const [zoom, setZoom] = useState(0);
-
-    // Filter maps that are currently in the viewport to avoid crashing React/Leaflet with 15k rendered nodes
-    const visibleMaps = useMemo(() => {
-        if (!bounds) return [];
-        // Extract Dofus X/Y from bounds (remember lat = -y, lng = x)
-        const minX = bounds.getWest() - 1;
-        const maxX = bounds.getEast() + 1;
-        const minY = -bounds.getNorth() - 1; // getNorth is max lat -> corresponds to min Y
-        const maxY = -bounds.getSouth() + 1; // getSouth is min lat -> corresponds to max Y
-
-        return data.maps.filter(m =>
-            // Optional: filter out specific maps or dimensions? worldMap === 1 for main world usually
-            m.x >= minX && m.x <= maxX && m.y >= minY && m.y <= maxY
-        );
-    }, [data.maps, bounds]);
 
     // SubArea Map for quick lookup
     const subareaMap = useMemo(() => {
@@ -74,11 +154,8 @@ export default function InteractiveMap({ data }: InteractiveMapProps) {
         return m;
     }, [data.areas, data.subareas]);
 
-    // When zoomed in significantly, try to show the DofusDB map image
-    const showImages = zoom >= 3;
-
     return (
-        <div className="relative w-full h-[70vh] rounded-xl overflow-hidden shadow-2xl border border-white/10">
+        <div className="relative w-full h-[80vh] rounded-xl overflow-hidden shadow-2xl border border-white/10">
             <MapContainer
                 crs={L.CRS.Simple}
                 center={[19, 4]} // Astrub [lat=-(-19)=19, lng=4] or close to it
@@ -87,63 +164,16 @@ export default function InteractiveMap({ data }: InteractiveMapProps) {
                 maxZoom={5}
                 className="w-full h-full bg-[#111111]"
                 preferCanvas={true}
+                wheelPxPerZoomLevel={120} // smoother zoom
+                zoomAnimation={true}
             >
                 <MapBoundsTracker setBounds={setBounds} setZoom={setZoom} />
-
-                {/* Generate Rectangles or Images for visible maps */}
-                {visibleMaps.map((mapPoint) => {
-                    const lat = -mapPoint.y;
-                    const lng = mapPoint.x;
-                    const mapBounds: [number, number][] = [
-                        [lat - 0.5, lng - 0.5], // SouthWest
-                        [lat + 0.5, lng + 0.5]  // NorthEast
-                    ];
-
-                    const subarea = subareaMap.get(mapPoint.subAreaId);
-
-                    // Simple interactive layer
-                    if (!showImages) {
-                        return (
-                            <Rectangle
-                                key={mapPoint.id}
-                                bounds={mapBounds}
-                                pathOptions={{
-                                    color: '#14b8a6', // Teal 500
-                                    weight: 1,
-                                    fillColor: '#14b8a6',
-                                    fillOpacity: 0.1
-                                }}
-                            >
-                                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                    <div className="text-center font-sans">
-                                        <p className="font-bold">{subarea?.name || 'Zone Inconnue'}</p>
-                                        <p className="text-xs text-gray-500">{subarea?.areaName}</p>
-                                        <p className="text-xs mt-1">[{mapPoint.x}, {mapPoint.y}]</p>
-                                        <p className="text-xs text-gray-400">ID: {mapPoint.id}</p>
-                                    </div>
-                                </Tooltip>
-                            </Rectangle>
-                        );
-                    }
-
-                    // Once zoomed in closely, swap to loading individual map images
-                    // The map bounds must correctly cover the cell
-                    return (
-                        <ImageOverlay
-                            key={mapPoint.id}
-                            bounds={mapBounds}
-                            url={`https://api.dofusdb.fr/img/maps/1/${mapPoint.id}.jpg`}
-                            opacity={1}
-                        >
-                            <Tooltip direction="top" opacity={1}>
-                                <div className="text-center font-sans">
-                                    <p className="font-bold">{subarea?.name || 'Zone Inconnue'}</p>
-                                    <p className="text-xs mt-1">[{mapPoint.x}, {mapPoint.y}]</p>
-                                </div>
-                            </Tooltip>
-                        </ImageOverlay>
-                    );
-                })}
+                <NativeMapRenderer
+                    data={data}
+                    subareaMap={subareaMap}
+                    zoom={zoom}
+                    bounds={bounds}
+                />
             </MapContainer>
         </div>
     );

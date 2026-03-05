@@ -52,6 +52,12 @@ export type StorageGuildEntry = {
     achievementCount: number;
     achievementBytes: number;
     achievementFiles: DiskFile[];
+    // preuves prêts & coffre
+    loansProofsDir: string;
+    loansProofsCount: number;
+    loansProofsBytes: number;
+    loansProofsFiles: DiskFile[];
+    activeLoanProofs: number; // nb de prêts/coffre actifs avec proofUrl en DB
     // pending
     pendingMissions: number;
     pendingKamas: number;
@@ -202,10 +208,14 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                 const missionsDir = join(cwd, "public", "uploads", "proofs", g.discordGuildId);
                 const kamaDir = join(cwd, "public", "uploads", "guilds", g.id, "proofs");
                 const achievementDir = join(cwd, "public", "uploads", "guilds", g.id, "achievements");
+                // Prêts & Coffre partagent le même dossier /proofs/ que Kama
+                // On distingue à partir de la DB (les prêts ont des proofUrl dans /proofs/)
+                const loansProofsDir = join(cwd, "public", "uploads", "guilds", g.id, "proofs");
 
                 const missionsUrlBase = `/uploads/proofs/${g.discordGuildId}`;
                 const kamaUrlBase = `/uploads/guilds/${g.id}/proofs`;
                 const achievementUrlBase = `/uploads/guilds/${g.id}/achievements`;
+                const loansUrlBase = `/uploads/guilds/${g.id}/proofs`;
 
                 const [missionsList, kamaList, achievementList, pendingFiles] = await Promise.all([
                     dirList(missionsDir, missionsUrlBase),
@@ -213,6 +223,17 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     dirList(achievementDir, achievementUrlBase),
                     getPendingFilesForGuild(g.id, g.discordGuildId, cwd),
                 ]);
+
+                // Les fichiers du dossier /proofs/ sont partagés entre Kama Donations et Prêts/Coffre
+                // On scanne la DB pour séparer: prêts+coffre avec proofUrl non-null
+                const activeLoanProofs = await Promise.all([
+                    db.guildLoan.count({ where: { guildId: g.id, proofUrl: { not: null } } }),
+                    db.vaultEntry.count({ where: { guildId: g.id, proofUrl: { not: null } } }),
+                ]).then(([loans, vault]) => loans + vault);
+
+                // On réutilise les fichiers disk du dossier proofs pour les deux catégories
+                // Note: même répertoire, le tag est DB-side uniquement
+                const loansProofsList = kamaList; // Same dir as kama proofs
 
                 const [pendingMissions, pendingKamas] = await Promise.all([
                     db.submission.count({ where: { mission: { guildId: g.id }, status: "PENDING" } }),
@@ -257,6 +278,11 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     achievementCount: achievementList.count,
                     achievementBytes: achievementList.bytes,
                     achievementFiles: achievementList.files,
+                    loansProofsDir: `${loansUrlBase}/`,
+                    loansProofsCount: loansProofsList.count,
+                    loansProofsBytes: loansProofsList.bytes,
+                    loansProofsFiles: loansProofsList.files,
+                    activeLoanProofs,
                     pendingMissions,
                     pendingKamas,
                     pendingFiles,

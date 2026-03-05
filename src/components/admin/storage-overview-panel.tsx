@@ -8,7 +8,7 @@ import {
 import {
     HardDrive, FolderOpen, Loader2, AlertTriangle, RefreshCw,
     FileImage, Coins, Trophy, Shield, Search, Clock, Image as ImageIcon,
-    X, Trash2, ExternalLink, Globe, ChevronDown
+    X, Trash2, ExternalLink, Globe, ChevronDown, Handshake
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ const TYPE_CFG = {
     MISSION: { label: "Mission", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", dot: "bg-rose-500", barColor: "bg-rose-500" },
     KAMA: { label: "Kama", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500", barColor: "bg-amber-500" },
     ACHIEVEMENT: { label: "Succès", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", dot: "bg-purple-500", barColor: "bg-purple-500" },
+    LOAN_PROOF: { label: "Prêt/Coffre", color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", dot: "bg-cyan-500", barColor: "bg-cyan-500" },
     ICON: { label: "Icône", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", dot: "bg-sky-500", barColor: "bg-sky-500" },
     BANNER: { label: "Bannière de guilde", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500", barColor: "bg-emerald-500" },
     PHOTO: { label: "Photo de guilde", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", dot: "bg-indigo-500", barColor: "bg-indigo-500" },
@@ -298,17 +299,21 @@ function PendingGallery({ files, onReload }: { files: PendingFile[]; onReload: (
 type CategorySection = "files" | "pending" | null;
 
 function CategoryBlock({
-    type, dir, count, bytes, totalBytes, files, pending, pendingFiles, onReload
+    type, dir, count, bytes, totalBytes, files, pending, pendingFiles, activeLoanProofs, onReload
 }: {
-    type: "MISSION" | "KAMA" | "ACHIEVEMENT";
+    type: "MISSION" | "KAMA" | "ACHIEVEMENT" | "LOAN_PROOF";
     dir: string; count: number; bytes: number; totalBytes: number;
     files: DiskFile[];
     pending: number; pendingFiles: PendingFile[];
+    activeLoanProofs?: number;
     onReload: () => void;
 }) {
     const [section, setSection] = useState<CategorySection>(null);
     const cfg = TYPE_CFG[type];
-    const icon = type === "MISSION" ? <FileImage className="w-3.5 h-3.5" /> : type === "KAMA" ? <Coins className="w-3.5 h-3.5" /> : <Trophy className="w-3.5 h-3.5" />;
+    const icon = type === "MISSION" ? <FileImage className="w-3.5 h-3.5" /> :
+        type === "KAMA" ? <Coins className="w-3.5 h-3.5" /> :
+            type === "LOAN_PROOF" ? <Handshake className="w-3.5 h-3.5" /> :
+                <Trophy className="w-3.5 h-3.5" />;
     const myPending = pendingFiles.filter(f => f.type === type);
     const toggle = (s: CategorySection) => setSection(p => p === s ? null : s);
 
@@ -346,6 +351,9 @@ function CategoryBlock({
                 {pending > 0 && (
                     <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 font-black">{pending} en attente BDD</Badge>
                 )}
+                {type === "LOAN_PROOF" && activeLoanProofs !== undefined && activeLoanProofs > 0 && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black">{activeLoanProofs} prêts/coffre actifs</Badge>
+                )}
                 <PathDisplay path={dir} colorClass={cfg.color} />
             </div>
 
@@ -353,7 +361,7 @@ function CategoryBlock({
             {section === "files" && files.length > 0 && (
                 <div className="border-t border-white/5 p-3 space-y-2">
                     <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Fichiers sur disque</p>
-                    <DiskFilesGallery files={files} type={type} onReload={onReload} />
+                    <DiskFilesGallery files={files} type={type === "LOAN_PROOF" ? "MISSION" : type} onReload={onReload} />
                 </div>
             )}
 
@@ -409,7 +417,7 @@ function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEnt
                 {/* Global bar */}
                 <StorageBar value={totalBytes} max={maxBytes} color="bg-indigo-500" />
 
-                {/* 3 category blocks */}
+                {/* 3 category blocks: missions, kamas, succès */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <CategoryBlock type="MISSION" dir={guild.missionsDir}
                         count={guild.missionsCount} bytes={guild.missionsBytes} totalBytes={totalBytes}
@@ -425,7 +433,14 @@ function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEnt
                         pendingFiles={guild.pendingFiles} onReload={onReload} />
                 </div>
 
-                {/* 4th category: Assets (only if any) */}
+                {/* 4th category: Prêts & Coffre (same /proofs/ dir as Kama) */}
+                <CategoryBlock type="LOAN_PROOF" dir={guild.loansProofsDir}
+                    count={guild.loansProofsCount} bytes={guild.loansProofsBytes} totalBytes={totalBytes}
+                    files={guild.loansProofsFiles} pending={0}
+                    pendingFiles={[]} activeLoanProofs={guild.activeLoanProofs}
+                    onReload={onReload} />
+
+                {/* Assets (only if any) */}
                 {guild.assets.length > 0 && showAssets && (
                     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-3">
                         <div className="flex items-center gap-2">
@@ -503,6 +518,7 @@ export function StorageOverviewPanel() {
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500" />Missions</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" />Kamas</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-purple-500" />Succès</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-500" />Prêts &amp; Coffre</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" />Assets guilde</div>
             </div>
 

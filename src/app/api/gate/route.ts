@@ -7,11 +7,18 @@ import crypto from "crypto";
  * and the cookie is signed with HMAC to prevent forgery.
  */
 
-const BETA_PASSWORD = process.env.BETA_PASSWORD || "SigilOS_2026";
-const SECRET = process.env.AUTH_SECRET || "fallback-secret-do-not-use-in-prod";
+const BETA_PASSWORD = process.env.BETA_PASSWORD;
+const SECRET = process.env.AUTH_SECRET;
+
+if (!BETA_PASSWORD) {
+    throw new Error("[SEC] BETA_PASSWORD env var is required. Cannot start with a default password.");
+}
+if (!SECRET) {
+    throw new Error("[SEC] AUTH_SECRET env var is required. Cannot start with a default HMAC secret.");
+}
 
 function signValue(value: string): string {
-    const hmac = crypto.createHmac("sha256", SECRET);
+    const hmac = crypto.createHmac("sha256", SECRET!);
     hmac.update(value);
     return `${value}.${hmac.digest("hex")}`;
 }

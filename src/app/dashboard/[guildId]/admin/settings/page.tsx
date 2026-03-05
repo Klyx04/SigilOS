@@ -200,6 +200,7 @@ export default async function FeatureSettingsPage({
                                     initialMembers={members as never}
                                     guildId={guildId}
                                     welcomeBadgeName={welcomeBadgeName}
+                                    isSuperAdmin={user.isSuperAdmin}
                                 />
                             </div>
 

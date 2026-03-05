@@ -95,8 +95,9 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                 <div className="p-6">
                     <MemberManagementTable
                         initialMembers={members as any}
-                        guildId={guildId as string}
+                        guildId={guild.discordGuildId}
                         welcomeBadgeName={guild.welcomeBadgeName}
+                        isSuperAdmin={true}
                     />
                 </div>
             </div>

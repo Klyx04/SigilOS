@@ -25,7 +25,7 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
             creatorId: "Ankama",
             title: item.title || "Nouvelle annonce Dofus",
             url: item.link || "https://www.dofus.com/fr",
-            thumbnail: "https://api.dofusdb.fr/img/map_background.jpg", // default theme
+            thumbnail: null, // trigger default Rss icon fallback
             published: item.isoDate ? new Date(item.isoDate) : new Date()
         }));
     } catch (e) {

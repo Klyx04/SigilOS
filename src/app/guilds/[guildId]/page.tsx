@@ -110,7 +110,7 @@ export default async function GuildPresentationPage({ params }: Props) {
         <>
             <script
                 type="application/ld+json"
-                // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml — Safe: JSON.stringify of structured data object
+                // nosemgrep
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
             <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} />

@@ -66,9 +66,10 @@ interface MemberManagementTableProps {
     initialMembers: Member[];
     guildId: string;
     welcomeBadgeName: string;
+    isSuperAdmin?: boolean;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
@@ -336,15 +337,18 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 Souhaiter la bienvenue
                                             </DropdownMenuItem>
 
-                                            <DropdownMenuSeparator className="bg-white/5" />
-
-                                            <DropdownMenuItem
-                                                onClick={() => handleDelete(member.id)}
-                                                className="gap-2 focus:bg-red-600 focus:text-white text-red-400 cursor-pointer"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                Supprimer définitivement
-                                            </DropdownMenuItem>
+                                            {isSuperAdmin && (
+                                                <>
+                                                    <DropdownMenuSeparator className="bg-white/5" />
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleDelete(member.id)}
+                                                        className="gap-2 focus:bg-red-600 focus:text-white text-red-400 cursor-pointer"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        Supprimer définitivement
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>

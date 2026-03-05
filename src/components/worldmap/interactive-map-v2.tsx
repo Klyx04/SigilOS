@@ -172,25 +172,19 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
         [worlds, worldMapCounts]);
 
     const tilesData = useMemo(() => {
-        if (!activeWorld || isSmallWorld) return { tiles: [], cols: 0, rows: 0 };
+        if (!activeWorld || isSmallWorld) return { urls: [] as string[], cols: 0, rows: 0 };
         const cols = Math.ceil(activeWorld.totalWidth / 256);
         const rows = Math.ceil(activeWorld.totalHeight / 256);
-        const tiles: { url: string, left: number, top: number }[] = [];
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const i = r * cols + c + 1; // 1-indexed for DofusDB
-                tiles.push({
-                    url: `https://api.dofusdb.fr/img/worlds/${selectedWorldId}/1/${i}.jpg`,
-                    left: c * 256,
-                    top: r * 256
-                });
-            }
+        const total = cols * rows;
+        const urls: string[] = [];
+        for (let i = 1; i <= total; i++) {
+            urls.push(`https://api.dofusdb.fr/img/worlds/${selectedWorldId}/1/${i}.jpg`);
         }
-        return { tiles, cols, rows };
+        return { urls, cols, rows };
     }, [activeWorld, selectedWorldId, isSmallWorld]);
 
-    // On permet à nouveau de dézoomer (demande utilisateur)
-    const minScale = useMemo(() => initialScale * 0.25, [initialScale]);
+    // La limite minimale de zoom est calculée finement pour s'adapter à l'écran
+    const minScale = useMemo(() => initialScale, [initialScale]);
 
     const searchResults = useMemo(() => {
         if (!search || !worldMap) return [];
@@ -429,7 +423,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                         minScale={minScale}
                         maxScale={8}
                         centerOnInit={true}
-                        limitToBounds={false}
+                        limitToBounds={true}
                         panning={{ velocityDisabled: false, allowLeftClickPan: true, allowRightClickPan: false }}
                         wheel={{ step: 0.1, smoothStep: 0.01 }}
                         pinch={{ step: 5 }}
@@ -472,17 +466,18 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
 
                                 {/* Overview parchment tiles (only when available, i.e. NOT small world) */}
                                 {!isSmallWorld && (
-                                    <div className="absolute inset-0 pointer-events-none overflow-hidden"
+                                    <div className="grid absolute inset-0 pointer-events-none"
                                         style={{
+                                            gridTemplateColumns: `repeat(${tilesData.cols}, 256px)`,
+                                            gridTemplateRows: `repeat(${tilesData.rows}, 256px)`,
                                             width: activeWorld.totalWidth,
                                             height: activeWorld.totalHeight,
                                             zIndex: 2,
                                         }}
                                     >
-                                        {tilesData.tiles.map((tile, i) => (
-                                            <img key={`tile-${i}`} src={tile.url} alt=""
-                                                className="w-[256px] h-[256px] absolute pointer-events-none select-none"
-                                                style={{ left: tile.left, top: tile.top }}
+                                        {tilesData.urls.map((url, i) => (
+                                            <img key={`tile-${i}`} src={url} alt=""
+                                                className="w-[256px] h-[256px] block pointer-events-none select-none"
                                                 loading="lazy" />
                                         ))}
                                     </div>

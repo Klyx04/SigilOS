@@ -125,7 +125,7 @@ export default async function RessourcesPage({ params }: Props) {
                         <UsefulLinksGrid />
                     </div>
                     <div className="lg:col-span-1 h-full">
-                        <CreatorsWidget />
+                        <CreatorsWidget guildId={guildId} />
                     </div>
                 </div>
             </section>

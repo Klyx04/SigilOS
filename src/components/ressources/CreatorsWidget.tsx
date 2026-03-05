@@ -1,6 +1,7 @@
 "use client";
 
-import { Tv, ExternalLink, PlayCircle } from "lucide-react";
+import { Tv, ExternalLink, PlayCircle, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface Creator {
     name: string;
@@ -11,58 +12,89 @@ interface Creator {
     status: "live" | "video" | "offline";
 }
 
-const CREATORS: Creator[] = [
-    {
-        name: "Huz",
-        role: "Forgemagie & Économie",
-        youtube: "https://www.youtube.com/@Huzounet",
-        twitch: "https://www.twitch.tv/huzounet",
-        color: "#fb923c", // Orange
-        status: "video",
-    },
-    {
-        name: "Skyzio",
-        role: "PvM & Astuces",
-        youtube: "https://www.youtube.com/@Skyzio",
-        twitch: "https://www.twitch.tv/skyzio_",
-        color: "#3b82f6", // Blue
-        status: "video",
-    },
-    {
-        name: "Lanyelle",
-        role: "Lore & Quêtes",
-        youtube: "https://www.youtube.com/@Laniyelle",
-        twitch: "https://www.twitch.tv/laniyelle",
-        color: "#a855f7", // Purple
-        status: "offline",
-    },
-    {
-        name: "Barbofus",
-        role: "Guides & Aventure",
-        youtube: "https://www.youtube.com/@BarbeDouce-YT",
-        twitch: "https://www.twitch.tv/barbe___douce",
-        color: "#10b981", // Emerald
-        status: "offline",
-    },
-    {
-        name: "Sapeuh",
-        role: "PvP & E-sport",
-        youtube: "https://www.youtube.com/@SAPEUH1",
-        twitch: "https://www.twitch.tv/sapeuh",
-        color: "#ef4444", // Red
-        status: "offline",
-    },
-    {
-        name: "Liche",
-        role: "Solotage & Succès",
-        youtube: "https://www.youtube.com/@Liche_fr",
-        twitch: "https://www.twitch.tv/lichefr",
-        color: "#facc15", // Yellow
-        status: "offline",
-    }
-];
+export function CreatorsWidget({ guildId }: { guildId?: string }) {
+    const [liveData, setLiveData] = useState<any[]>([]);
 
-export function CreatorsWidget() {
+    useEffect(() => {
+        if (!guildId) return;
+        import("@/server/actions/feed-actions").then(({ getAggregatedFeed }) => {
+            getAggregatedFeed(guildId).then(res => {
+                if (res.success && res.data) {
+                    setLiveData(res.data);
+                }
+            });
+        });
+    }, [guildId]);
+
+    // Calculate dynamic statuses based on the freshest 24h data
+    const getStatus = (creatorHandle: string) => {
+        const creatorItems = liveData.filter(d =>
+            d.creatorId.toLowerCase().includes(creatorHandle.toLowerCase())
+        );
+        if (creatorItems.length === 0) return "offline";
+
+        // Is currently live on Twitch? (Assuming twitch cache is purged if offline)
+        if (creatorItems.some(i => i.type === "TWITCH")) return "live";
+
+        // Latest video < 24h old?
+        const youngest = creatorItems.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime())[0];
+        const ageHours = (new Date().getTime() - new Date(youngest.published).getTime()) / (1000 * 60 * 60);
+
+        if (ageHours < 48) return "video"; // "New Video" within 48h
+        return "offline";
+    };
+
+    const CREATORS: Creator[] = [
+        {
+            name: "Huz",
+            role: "Forgemagie & Économie",
+            youtube: "https://www.youtube.com/@Huzounet",
+            twitch: "https://www.twitch.tv/huzounet",
+            color: "#fb923c", // Orange
+            status: getStatus("huzounet"),
+        },
+        {
+            name: "Skyzio",
+            role: "PvM & Astuces",
+            youtube: "https://www.youtube.com/@Skyzio",
+            twitch: "https://www.twitch.tv/skyzio_",
+            color: "#3b82f6", // Blue
+            status: getStatus("skyzio"),
+        },
+        {
+            name: "Lanyelle",
+            role: "Lore & Quêtes",
+            youtube: "https://www.youtube.com/@Laniyelle",
+            twitch: "https://www.twitch.tv/laniyelle",
+            color: "#a855f7", // Purple
+            status: getStatus("laniyelle"),
+        },
+        {
+            name: "Barbofus",
+            role: "Guides & Aventure",
+            youtube: "https://www.youtube.com/@BarbeDouce-YT",
+            twitch: "https://www.twitch.tv/barbe___douce",
+            color: "#10b981", // Emerald
+            status: getStatus("barbe"),
+        },
+        {
+            name: "Sapeuh",
+            role: "PvP & E-sport",
+            youtube: "https://www.youtube.com/@SAPEUH1",
+            twitch: "https://www.twitch.tv/sapeuh",
+            color: "#ef4444", // Red
+            status: getStatus("sapeuh"),
+        },
+        {
+            name: "Liche",
+            role: "Solotage & Succès",
+            youtube: "https://www.youtube.com/@Liche_fr",
+            twitch: "https://www.twitch.tv/lichefr",
+            color: "#facc15", // Yellow
+            status: getStatus("liche"),
+        }
+    ];
+
     return (
         <div className="rounded-2xl relative overflow-hidden flex flex-col h-full"
             style={{

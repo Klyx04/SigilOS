@@ -252,6 +252,10 @@ export async function createLoan(
                     if (valid) {
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        // Discord needs an absolute URL for embedImage
+                        const publicProofUrl = proofUrl
+                            ? (proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`)
+                            : undefined;
 
                         // Discord mentions
                         const lenderDiscordId = await getDiscordId(lenderProfile?.userId || "").catch(() => null);
@@ -281,7 +285,7 @@ export async function createLoan(
                                 embedColor: 0xf59e0b,
                                 embedFooter: "SigilOS • Coffre & Prêts",
                                 embedThumbnail: parsed.data.linkedItemIconUrl || undefined,
-                                embedImage: proofUrl || undefined,
+                                embedImage: publicProofUrl,
                                 fields,
                             }
                         );

@@ -366,12 +366,13 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ type: 4, data: { content: "Type de validation inconnu.", flags: 64 } });
                 }
 
-                // Update the original embed: remove buttons, add result line
+                // Réponse éphémère à l'admin (l'embed a été supprimé par internalValidate*)
                 return NextResponse.json({
-                    type: 7, // UPDATE_MESSAGE
+                    type: 4, // CHANNEL_MESSAGE_WITH_SOURCE (éphémère)
                     data: {
                         content: resultMsg,
-                        components: [], // Remove all buttons
+                        flags: 64, // EPHEMERAL — visible uniquement par l'admin qui a cliqué
+                        components: [],
                     },
                 });
 

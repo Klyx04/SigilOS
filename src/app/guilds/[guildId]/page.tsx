@@ -13,14 +13,18 @@ export async function generateMetadata({ params }: Props) {
     const guild = await getGuildPresentation(guildId);
 
     if (guild) {
+        const baseUrl = getAppBaseUrl();
         return {
-            title: `${guild.name} | SigilOS`,
-            description: `Découvrez la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert !' : ''}`,
+            title: `${guild.name} — Guilde Dofus ${guild.server || ''} | SigilOS`,
+            description: `Profil de la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert ! ' : ''}Missions, membres, progression et événements. Plateforme SigilOS 2026.`,
+            alternates: {
+                canonical: `${baseUrl}/guilds/${guildId}`,
+            },
             openGraph: {
-                title: `${guild.name} - Guilde Dofus`,
-                description: `Rejoignez ${guild.name} sur ${guild.server || 'Dofus'}.`,
+                title: `${guild.name} — Guilde Dofus ${guild.server || ''}`,
+                description: `Rejoignez ${guild.name} sur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement en cours.' : 'Guilde vérifiée SigilOS.'}`,
                 images: guild.bannerUrl ? [guild.bannerUrl] : (guild.iconUrl ? [guild.iconUrl] : []),
-            }
+            },
         };
     }
 
@@ -60,25 +64,53 @@ export default async function GuildPresentationPage({ params }: Props) {
         : new Date(guild.createdAt).getFullYear();
 
     const baseUrl = getAppBaseUrl();
-    const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": guild.name,
-        "url": `${baseUrl}/guilds/${guild.id}`,
-        "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
-        "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : null,
-        "founder": guild.founder ? {
-            "@type": "Person",
-            "name": guild.founder
-        } : undefined,
-        "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''}`,
-        "sameAs": guild.discord ? [guild.discord] : []
-    };
+    const jsonLd = [
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": guild.name,
+            "url": `${baseUrl}/guilds/${guildId}`,
+            "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
+            "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : undefined,
+            "founder": guild.founder ? {
+                "@type": "Person",
+                "name": guild.founder
+            } : undefined,
+            "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''} Gérée via SigilOS.`,
+            "sameAs": guild.discord ? [guild.discord] : [],
+            "areaServed": guild.server || "Dofus",
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Accueil",
+                    "item": baseUrl,
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Guildes",
+                    "item": `${baseUrl}/guilds`,
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": guild.name,
+                    "item": `${baseUrl}/guilds/${guildId}`,
+                },
+            ],
+        },
+    ];
 
     return (
         <>
             <script
                 type="application/ld+json"
+                // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml — Safe: JSON.stringify of structured data object
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
             <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} />

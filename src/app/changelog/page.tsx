@@ -53,6 +53,33 @@ export default async function ChangelogPage() {
 
             <main className="flex-1 pt-24 pb-12 relative z-10">
                 <div className="max-w-4xl mx-auto px-6">
+                    {/* Breadcrumb + BlogPosting JSON-LD */}
+                    <script
+                        type="application/ld+json"
+                        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
+                        dangerouslySetInnerHTML={{
+                            __html: JSON.stringify([
+                                {
+                                    "@context": "https://schema.org",
+                                    "@type": "BreadcrumbList",
+                                    "itemListElement": [
+                                        { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
+                                        { "@type": "ListItem", "position": 2, "name": "Changelog", "item": `${getAppBaseUrl()}/changelog` },
+                                    ],
+                                },
+                                ...allEntries.slice(0, 10).map((entry) => ({
+                                    "@context": "https://schema.org",
+                                    "@type": "BlogPosting",
+                                    "headline": entry.title,
+                                    "datePublished": new Date(entry.publishedAt).toISOString(),
+                                    "author": { "@type": "Organization", "name": "SigilOS" },
+                                    "publisher": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
+                                    "description": entry.summary || `${entry.title} — Mise à jour SigilOS ${entry.version}`,
+                                    "articleSection": entry.category,
+                                })),
+                            ]),
+                        }}
+                    />
                     {/* Breadcrumb */}
                     <div className="mb-8">
                         <Link

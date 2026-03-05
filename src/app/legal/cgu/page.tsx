@@ -1,8 +1,12 @@
 import { Metadata } from "next";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
     title: "Conditions Générales d'Utilisation",
     description: "CGU de SigilOS : règles d'utilisation, propriété intellectuelle, obligations et limitation de responsabilité.",
+    alternates: {
+        canonical: `${getAppBaseUrl()}/legal/cgu`,
+    },
 };
 
 export default function CGUPage() {

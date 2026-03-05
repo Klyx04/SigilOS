@@ -5,8 +5,8 @@ import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
 // Dynamically import InteractiveMap to avoid SSR issues with Leaflet interacting with `window`
-const MapWithNoSSR = dynamic(
-    () => import('./interactive-map'),
+const MapWithNoSSR = dynamic<any>(
+    () => import('./interactive-map-v2'),
     {
         ssr: false,
         loading: () => (

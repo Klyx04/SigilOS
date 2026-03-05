@@ -10,15 +10,9 @@ import crypto from "crypto";
 const BETA_PASSWORD = process.env.BETA_PASSWORD;
 const SECRET = process.env.AUTH_SECRET;
 
-if (!BETA_PASSWORD) {
-    throw new Error("[SEC] BETA_PASSWORD env var is required. Cannot start with a default password.");
-}
-if (!SECRET) {
-    throw new Error("[SEC] AUTH_SECRET env var is required. Cannot start with a default HMAC secret.");
-}
-
 function signValue(value: string): string {
-    const hmac = crypto.createHmac("sha256", SECRET!);
+    if (!SECRET) throw new Error("AUTH_SECRET is required.");
+    const hmac = crypto.createHmac("sha256", SECRET);
     hmac.update(value);
     return `${value}.${hmac.digest("hex")}`;
 }
@@ -36,6 +30,11 @@ export function verifySignedValue(signed: string): boolean {
 
 export async function POST(req: NextRequest) {
     try {
+        if (!BETA_PASSWORD || !SECRET) {
+            console.error("Missing BETA_PASSWORD or AUTH_SECRET env vars.");
+            return NextResponse.json({ success: false, error: "Server Configuration Error" }, { status: 500 });
+        }
+
         const { password } = await req.json();
 
         if (password !== BETA_PASSWORD) {

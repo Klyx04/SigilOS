@@ -1,7 +1,6 @@
 "use client";
 
-import { Mic, LayoutDashboard, Crown, MessageSquare, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Mic, LayoutDashboard } from "lucide-react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -31,39 +30,6 @@ export function HowItWorks() {
     return (
         <section className="pb-24 bg-background relative overflow-hidden">
             <div className="container px-6 mx-auto">
-                {/* Chef de Guilde Banner */}
-                <div className="max-w-5xl mx-auto mb-32">
-                    <div className="relative group p-10 md:p-16 rounded-[3rem] bg-accent-teal/5 border border-accent-teal/10 overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-10 transition-all hover:bg-accent-teal/[0.07] hover:border-accent-teal/20 backdrop-blur-sm">
-                        {/* High-end decorative lights */}
-                        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-teal/10 blur-[120px] -z-10 rounded-full" />
-                        <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] bg-accent-gold/5 blur-[100px] -z-10 rounded-full" />
-
-                        <div className="flex flex-col md:flex-row items-center gap-8 text-left relative z-10">
-                            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-accent-teal to-emerald-600 flex items-center justify-center text-bg-primary shadow-2xl shadow-accent-teal/20 group-hover:scale-110 transition-transform duration-700">
-                                <Crown className="w-10 h-10" />
-                            </div>
-                            <div className="space-y-3">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-teal/20 border border-accent-teal/30 text-[10px] font-black uppercase tracking-widest text-accent-teal">
-                                    Protocoles de Gestion
-                                </div>
-                                <h3 className="text-3xl md:text-4xl font-black text-white font-heading italic">Meneur de Guilde ?</h3>
-                                <p className="text-zinc-400 font-medium max-w-md text-lg leading-relaxed">
-                                    Érigez une cité numérique pour vos membres. Automatisez vos quêtes et régnez sur votre communauté avec sagesse.
-                                </p>
-                            </div>
-                        </div>
-
-                        <Link
-                            href="https://discord.gg/uX7G6SUDgN"
-                            target="_blank"
-                            className="shrink-0 px-10 py-5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.3em] flex items-center gap-4 hover:scale-105 transition-all group/link shadow-2xl shadow-white/5 active:scale-95"
-                        >
-                            <MessageSquare className="w-5 h-5 group-hover/link:rotate-12 transition-transform duration-500" />
-                            Accès PRIVÉ
-                            <ChevronRight className="w-4 h-4 group-hover/link:translate-x-2 transition-transform" />
-                        </Link>
-                    </div>
-                </div>
 
                 <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16 relative">
                     {/* Connecting Lines (Desktop) */}

@@ -12,7 +12,6 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { ChangelogWidget } from "@/components/changelog/changelog-widget";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
 import { getAppBaseUrl } from "@/lib/utils";
 
@@ -98,20 +97,6 @@ export default async function Home({
             </div>
           </div>
 
-          {/* Pre-Footer CTA */}
-          <PreFooterCta />
-
-          {/* Changelog Widget Section */}
-          <div className="bg-bg-secondary border-t border-white/5 py-24 pb-32">
-            <div className="container mx-auto px-6 max-w-4xl">
-              <div className="text-center mb-16">
-                <div className="text-accent-gold font-mono text-[10px] uppercase tracking-widest mb-4">Mises à jour</div>
-                <h2 className="text-3xl font-heading text-white mb-4">Journal de Bord</h2>
-                <p className="text-zinc-500 font-medium font-sans">Découvrez les dernières évolutions de l'OS.</p>
-              </div>
-              <ChangelogWidget />
-            </div>
-          </div>
         </main>
 
         <GalacticFooter isMember={userContext.isMember} />

@@ -500,7 +500,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                         initialPositionX={initialPositionX}
                         initialPositionY={initialPositionY}
                         minScale={minScale}
-                        maxScale={8}
+                        maxScale={30}
                         centerOnInit={false}
                         limitToBounds={false}
                         panning={{ velocityDisabled: false, allowLeftClickPan: true, allowRightClickPan: false }}
@@ -546,11 +546,10 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                 {/* Active Cell Highlight (Hover) */}
                                 <div
                                     ref={activeCellRef}
-                                    className="absolute pointer-events-none hidden transition-opacity duration-75"
+                                    className="absolute pointer-events-none transition-opacity duration-75"
                                     style={{
                                         zIndex: 11,
-                                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                                        boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                                        boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.1)',
                                     }}
                                 />
 
@@ -566,7 +565,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                         {tilesData.tiles.map((tile, i) => (
                                             <img key={`tile-${i}`} src={tile.url} alt=""
                                                 className="w-[256px] h-[256px] absolute pointer-events-none select-none"
-                                                style={{ left: tile.x, top: tile.y }}
+                                                style={{ left: tile.x, top: tile.y, imageRendering: 'pixelated' }}
                                                 loading="lazy" />
                                         ))}
                                     </div>
@@ -584,6 +583,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                                 top: activeWorld.origineY + m.y * activeWorld.mapHeight,
                                                 width: activeWorld.mapWidth,
                                                 height: activeWorld.mapHeight,
+                                                imageRendering: 'pixelated'
                                             }}
                                             className="select-none pointer-events-none"
                                             loading="lazy"

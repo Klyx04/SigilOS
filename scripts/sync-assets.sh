@@ -36,11 +36,16 @@ fi
 
 # ── 4. Choix de l'Hôte et du Chemin ──────────────────────────────────────────
 if [[ "$TARGET" == "beta" ]]; then
-    VPS_IP="${VPS_IP_BETA:-213.32.18.129}"
-    VPS_PATH="${VPS_PATH_BETA:-/home/sigiladmin/SigilOS}"
+    VPS_IP="${VPS_IP_BETA:-}"
+    VPS_PATH="${VPS_PATH_BETA:-}"
 elif [[ "$TARGET" == "prod" ]]; then
-    VPS_IP="${VPS_IP_PROD:-213.32.18.129}"
-    VPS_PATH="${VPS_PATH_PROD:-/home/sigiladmin/SigilOS}"
+    VPS_IP="${VPS_IP_PROD:-}"
+    VPS_PATH="${VPS_PATH_PROD:-}"
+fi
+
+if [[ -z "$VPS_IP" ]] || [[ -z "$VPS_PATH" ]]; then
+    echo "❌ Erreur : VPS_IP ou VPS_PATH non défini. Configurez-les dans .env.local"
+    exit 1
 fi
 
 VPS_USER="${VPS_USER:-sigiladmin}"

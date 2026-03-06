@@ -52,13 +52,11 @@ export function GalacticHeader({
     user,
     guildData,
     userGuilds = [],
-    almanaxWidget
 }: {
     guildId: string,
     user: UserContext,
     guildData: GuildHeaderData,
     userGuilds?: { id: string, name: string, iconUrl: string | null }[],
-    almanaxWidget: React.ReactNode
 }) {
     const pathname = usePathname();
     const [scrolled, setScrolled] = useState(false);
@@ -252,10 +250,6 @@ export function GalacticHeader({
                 {/* --- ZONE C: SYSTEM TRAY (Right) --- */}
                 <div className="flex items-center gap-4 shrink-0">
 
-                    {/* ALMANAX WIDGET */}
-                    <div className="hidden 2xl:block opacity-90 hover:opacity-100 transition-opacity scale-95 border-r border-white/10 pr-4 mr-0">
-                        {almanaxWidget}
-                    </div>
 
                     <div className="flex items-center gap-2">
                         {/* Admin - Explicit Button */}

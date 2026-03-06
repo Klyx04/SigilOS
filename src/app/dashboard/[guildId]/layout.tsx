@@ -7,7 +7,6 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
 import { getUserGuilds } from "@/server/actions/user-actions";
 import { isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { AlmanaxWidget } from "@/components/layout/almanax-widget";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { Suspense } from "react";
@@ -146,13 +145,7 @@ export default async function DashboardLayout({
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
                             events={events}
-                        >
-                            <div className="relative">
-                                <Suspense fallback={<div className="h-8 w-8 bg-white/5 rounded-full animate-pulse" />}>
-                                    <AlmanaxWidget />
-                                </Suspense>
-                            </div>
-                        </TopNav>
+                        />
                     </div>
 
                     {/* Scrollable Main Content - THE ONLY SCROLLABLE AREA */}

@@ -40,12 +40,11 @@ const formatSegment = (segment: string) => {
 interface TopNavProps {
     // Props passed down for the mobile sidebar
     sidebarProps: React.ComponentProps<typeof AppSidebar>;
-    children?: React.ReactNode; // For Almanax Widget or other actions
     userId: string;
     events?: UpcomingEvent[];
 }
 
-export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavProps) {
+export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
     // segments: ["dashboard", "guildId", "module", "subpage", ...]
@@ -114,7 +113,6 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 {/* 1. Smart Bar (Time/Members/Almanax) */}
                 <div className="relative z-10 border-r border-white/10 px-1">
                     <SmartBar
-                        almanax={children}
                         memberCount={sidebarProps.guildData?.memberCount}
                         onlineCount={sidebarProps.guildData?.activeCount}
                     />

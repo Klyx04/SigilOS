@@ -9,12 +9,11 @@ import { getActivePresence } from "@/server/actions/presence-actions";
 import { useParams } from "next/navigation";
 
 interface SmartBarProps {
-    almanax?: React.ReactNode;
     memberCount?: number;
     onlineCount?: number;
 }
 
-export function SmartBar({ almanax, memberCount, onlineCount }: SmartBarProps) {
+export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
     const [time, setTime] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
@@ -72,10 +71,6 @@ export function SmartBar({ almanax, memberCount, onlineCount }: SmartBarProps) {
     return (
         <div className="hidden md:flex items-center gap-1.5 p-1">
 
-            {/* 1. Almanax Slot */}
-            <div className="flex items-center pl-1">
-                {almanax}
-            </div>
 
             {/* DIVIDER */}
             {(memberCount !== undefined || onlineCount !== undefined) && (

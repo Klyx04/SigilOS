@@ -82,6 +82,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
     const hudCoordsRef = useRef<HTMLSpanElement>(null);
     const hudRef = useRef<HTMLDivElement>(null);
     const hudDungeonRef = useRef<HTMLDivElement>(null);
+    const activeCellRef = useRef<HTMLDivElement>(null);
     // Synced every frame from TransformWrapper callbacks
     const transformRef = useRef({ x: 0, y: 0, scale: 0.15 });
 
@@ -314,6 +315,19 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
         viewportTooltipRef.current.style.display = 'block';
         viewportTooltipTextRef.current.textContent = coordsText;
 
+        // Position de la case survolée dans le repère de la carte
+        if (activeCellRef.current && showDebugGrid) {
+            const cellLeft = activeWorld.origineX + gameX * activeWorld.mapWidth;
+            const cellTop = activeWorld.origineY + gameY * activeWorld.mapHeight;
+            activeCellRef.current.style.display = 'block';
+            activeCellRef.current.style.left = `${cellLeft}px`;
+            activeCellRef.current.style.top = `${cellTop}px`;
+            activeCellRef.current.style.width = `${activeWorld.mapWidth}px`;
+            activeCellRef.current.style.height = `${activeWorld.mapHeight}px`;
+        } else if (activeCellRef.current) {
+            activeCellRef.current.style.display = 'none';
+        }
+
         hudCoordsRef.current.textContent = `Position : ${coordsText}`;
 
         const foundMap = activeMaps.find(m => m.x === gameX && m.y === gameY);
@@ -343,6 +357,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
 
     const handleViewportMouseLeave = useCallback(() => {
         if (viewportTooltipRef.current) viewportTooltipRef.current.style.display = 'none';
+        if (activeCellRef.current) activeCellRef.current.style.display = 'none';
         hudRef.current?.classList.add('hidden');
         hudRef.current?.classList.remove('flex');
     }, []);
@@ -519,12 +534,23 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                     style={{
                                         left: -80000, top: -80000, width: 160000, height: 160000,
                                         backgroundImage: `
-                                            linear-gradient(to right, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
-                                            linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 1px, transparent 1px)`,
+                                            linear-gradient(to right, rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+                                            linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 1px, transparent 1px)`,
                                         backgroundSize: `${activeWorld.mapWidth}px ${activeWorld.mapHeight}px`,
                                         backgroundPosition: `${activeWorld.origineX}px ${activeWorld.origineY}px`,
                                         zIndex: 10,
                                         opacity: showDebugGrid ? 1 : 0,
+                                    }}
+                                />
+
+                                {/* Active Cell Highlight (Hover) */}
+                                <div
+                                    ref={activeCellRef}
+                                    className="absolute pointer-events-none hidden transition-opacity duration-75"
+                                    style={{
+                                        zIndex: 11,
+                                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                        boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.8)',
                                     }}
                                 />
 

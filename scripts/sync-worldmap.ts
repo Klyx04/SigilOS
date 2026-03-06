@@ -11,14 +11,24 @@ async function syncWorldMap() {
     console.log(`✅ Saved ${worldsData.length} worlds definitions.`);
 
     const subAreasRes = await fetch('https://api.dofusdb.fr/subareas?\$limit=5000&lang=fr');
-    const subAreasJson = await subAreasRes.json();
-    const subAreasData = subAreasJson.data;
-    const subAreas = subAreasData.map((s: any) => ({
-        id: s.id,
-        name: s.name.fr,
-        areaId: s.areaId,
-        level: s.level
-    }));
+    let subAreas: any[] = [];
+    let sSkip = 0;
+    let sTotal = 5000;
+    console.log('📡 Fetching subareas...');
+    while (sSkip < sTotal) {
+        const sr = await fetch(`https://api.dofusdb.fr/subareas?$limit=50&$skip=${sSkip}&lang=fr`);
+        const sj = await sr.json();
+        if (!sj.data || sj.data.length === 0) break;
+        sTotal = sj.total;
+        subAreas = subAreas.concat(sj.data.map((s: any) => ({
+            id: s.id,
+            name: s.name?.fr || "Zone Inconnue",
+            areaId: s.areaId,
+            level: s.level
+        })));
+        sSkip += sj.data.length;
+        await new Promise(r => setTimeout(r, 50));
+    }
     console.log(`✅ Saved ${subAreas.length} subareas.`);
 
     const dungeonsRes = await fetch('https://api.dofusdb.fr/dungeons?$limit=1');

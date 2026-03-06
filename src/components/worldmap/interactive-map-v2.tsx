@@ -519,11 +519,11 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                     style={{
                                         left: -80000, top: -80000, width: 160000, height: 160000,
                                         backgroundImage: `
-                                            linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
-                                            linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+                                            linear-gradient(to right, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+                                            linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 1px, transparent 1px)`,
                                         backgroundSize: `${activeWorld.mapWidth}px ${activeWorld.mapHeight}px`,
                                         backgroundPosition: `${activeWorld.origineX}px ${activeWorld.origineY}px`,
-                                        zIndex: 1,
+                                        zIndex: 10,
                                         opacity: showDebugGrid ? 1 : 0,
                                     }}
                                 />

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
@@ -19,6 +20,7 @@ import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { CircleHelp } from "lucide-react";
+import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -95,10 +97,15 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </nav>
             </div>
 
-            {/* CENTER: Event Ticker */}
-            <div className="flex-1 flex justify-center px-2 min-w-0 overflow-hidden">
-                <div className="w-full max-w-2xl flex justify-center">
+            {/* CENTER: Event Ticker & Live Badge */}
+            <div className="flex-1 flex justify-center items-center gap-4 px-2 min-w-0 overflow-hidden">
+                <div className="flex-1 max-w-2xl flex justify-center">
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
+                </div>
+
+                {/* LIVE Badge (Conditional) */}
+                <div className="hidden lg:block shrink-0">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
             </div>
 
@@ -137,7 +144,15 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                     </Link>
                 </div>
 
-                {/* 3. Notification Bell */}
+                {/* 3. Feed Bell (Creator News) */}
+                <div className="relative z-10 border-r border-white/10">
+                    <FeedBell
+                        guildId={sidebarProps.guildId}
+                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
+                    />
+                </div>
+
+                {/* 4. Notification Bell (System) */}
                 <div className="relative z-10 border-r border-white/10">
                     <NotificationBell
                         userId={userId}

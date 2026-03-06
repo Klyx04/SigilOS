@@ -52,6 +52,7 @@ model User {
   emailBackup         String?
   scheduledDeletion   DateTime?
   lastSeenChangelogId String?
+  lastFeedViewedAt    DateTime?          @default(now())
   accounts            Account[]
   dreamJoinRequests   DreamJoinRequest[]
   dreamRuns           DreamRun[]         @relation("RunLeader")
@@ -176,6 +177,8 @@ model GuildConfig {
   profiles                      UserProfile[]
   vaultEntries                  VaultEntry[]
   kamaDonations                 KamaDonation[]
+  resourceCategories            ResourceCategory[]
+  contentCreators               ContentCreator[]
 }
 
 model GuildModules {
@@ -1470,4 +1473,61 @@ enum TicketStatus {
   IN_PROGRESS
   WAITING_RESPONSE
   CLOSED
+}
+
+model ContentCache {
+  id        String   @id @default(cuid())
+  type      String   // "YOUTUBE", "TWITCH", "NEWS"
+  creatorId String   // e.g., "Skyzio", "Ankama"
+  title     String
+  url       String
+  thumbnail String?
+  description String?
+  published DateTime
+  fetchedAt DateTime @default(now())
+
+  @@unique([type, creatorId, url])
+}
+
+model ResourceCategory {
+  id        String         @id @default(cuid())
+  guildId   String
+  label     String
+  color     String         @default("#10b981")
+  order     Int            @default(0)
+  links     ResourceLink[]
+  guild     GuildConfig    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model ResourceLink {
+  id          String           @id @default(cuid())
+  categoryId  String
+  title       String
+  description String?
+  url         String
+  emoji       String?          @default("🔗")
+  isOfficial  Boolean          @default(false)
+  order       Int              @default(0)
+  category    ResourceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
+
+model ContentCreator {
+  id        String   @id @default(cuid())
+  guildId   String
+  name      String
+  role      String
+  youtube   String?
+  twitch    String?
+  handle    String?  // matching string for status (e.g. "skyzio")
+  color     String   @default("#ef4444")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
 }

@@ -13,6 +13,7 @@ const WORLD_COLS_OVERRIDES: Record<number, number> = {
     12: 14, // Château de Harebourg
     16: 21, // Ecaflipus
     21: 15, // Île de Pwâk
+    34: 26, // Osavora (totalW=6350 -> 25 standard, shift = 26)
 };
 
 interface World {
@@ -139,18 +140,34 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
     // We only disable them if totalWidth is 0 (missing data).
     const isSmallWorld = !activeWorld?.totalWidth;
 
-    // Calculate the bounding box based on actual maps to fix the unreliable JSON data (like in Village de la Canopée).
+    // Calculate the bounding box based on actual maps to fix the unreliable JSON data.
+    // DofusDB data sometimes assign anomalous positions to non-visible map instances.
+    // To prevent wild initial zoom levels, we discard points way outside the parchment bounds.
     const mapsBBox = useMemo(() => {
         if (!activeMaps || !activeWorld) return null;
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        let validCount = 0;
+
         activeMaps.forEach(m => {
             const px = activeWorld.origineX + m.x * activeWorld.mapWidth;
             const py = activeWorld.origineY + m.y * activeWorld.mapHeight;
-            if (px < minX) minX = px;
-            if (px + activeWorld.mapWidth > maxX) maxX = px + activeWorld.mapWidth;
-            if (py < minY) minY = py;
-            if (py + activeWorld.mapHeight > maxY) maxY = py + activeWorld.mapHeight;
+
+            // Rejeter les positions aberrantes (très au-delà des dimensions du parchemin)
+            const padding = 1500;
+            const tW = activeWorld.totalWidth || 5000;
+            const tH = activeWorld.totalHeight || 5000;
+
+            if (px >= -padding && px <= tW + padding && py >= -padding && py <= tH + padding) {
+                if (px < minX) minX = px;
+                if (px + activeWorld.mapWidth > maxX) maxX = px + activeWorld.mapWidth;
+                if (py < minY) minY = py;
+                if (py + activeWorld.mapHeight > maxY) maxY = py + activeWorld.mapHeight;
+                validCount++;
+            }
         });
+
+        if (validCount === 0) return null;
+
         const width = maxX - minX;
         const height = maxY - minY;
         return {

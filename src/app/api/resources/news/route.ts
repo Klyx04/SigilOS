@@ -15,6 +15,10 @@ const FEEDS: Record<string, { url: string; label: string }> = {
         url: "https://www.dofus.com/fr/rss/devblog.xml",
         label: "Devblog",
     },
+    dpln: {
+        url: "https://www.dofuspourlesnoobs.com/news/feed",
+        label: "Dofus pour les Noobs",
+    },
 };
 
 // ─── RSS Parser ───────────────────────────────────────────────────────────────
@@ -98,6 +102,30 @@ const FETCH_HEADERS = {
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const feedKey = searchParams.get("feed") ?? "news";
+
+    // ─── Custom DPLN Scraper ─────────────────────────────────────────────
+    if (feedKey === "dpln") {
+        try {
+            const { fetchDPLNNews } = await import("@/lib/feed-aggregators");
+            const rawItems = await fetchDPLNNews();
+            const items = rawItems.map(item => ({
+                title: item.title,
+                link: item.url,
+                imageUrl: item.thumbnail || undefined,
+                pubDate: item.published.toISOString(),
+                description: item.description || "",
+                category: "Guide"
+            }));
+            return NextResponse.json(
+                { items, feedKey, label: "DPLN" },
+                { headers: { "Cache-Control": "public, s-maxage=1800" } }
+            );
+        } catch (err) {
+            console.error("DPLN Scraper error", err);
+            // fallback if scraper fails
+        }
+    }
+
     const feed = FEEDS[feedKey] ?? FEEDS.news;
 
     try {
@@ -107,7 +135,6 @@ export async function GET(req: NextRequest) {
         const res = await fetch(feed.url, {
             headers: FETCH_HEADERS,
             signal: controller.signal,
-            // NO next.js cache — always fresh, handle caching ourselves
             cache: "no-store",
         });
         clearTimeout(timeout);
@@ -116,20 +143,19 @@ export async function GET(req: NextRequest) {
             return NextResponse.json(
                 { error: `RSS fetch failed: ${res.status}`, items: [] },
                 {
-                    status: 200, // Return 200 so client handles gracefully
+                    status: 200,
                     headers: { "Cache-Control": "no-store" },
                 }
             );
         }
 
         const xml = await res.text();
-        const items = parseRSSItems(xml, 8);
+        const items = parseRSSItems(xml, feedKey === "dpln" ? 6 : 8);
 
         return NextResponse.json(
             { items, feedKey, label: feed.label },
             {
                 headers: {
-                    // Cache 30 min on CDN/browser
                     "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=86400",
                 },
             }

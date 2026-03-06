@@ -240,7 +240,7 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleAltPseudosSave = async (altPseudos: string[]) => {
+    const handleAltPseudosSave = async (altPseudos: any[]) => {
         const res = await updateAltPseudos({ guildId, altPseudos, targetUserId });
         if (res.success) {
             setLocalProfile(prev => ({ ...prev, altPseudos }));
@@ -319,7 +319,13 @@ export function ProfileBentoGrid({
                             value="combat"
                             className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
                         >
-                            Stuffs et Autres Personnages
+                            Stuffs
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="mules"
+                            className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
+                        >
+                            Mules
                         </TabsTrigger>
                         <TabsTrigger
                             value="planning"
@@ -412,10 +418,9 @@ export function ProfileBentoGrid({
                     />
                 </TabsContent>
 
-                {/* COMBAT TAB */}
+                {/* COMBAT TAB (Stuffs) */}
                 <TabsContent value="combat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                        {/* Builds */}
+                    <div className="w-full">
                         <BuildsCard
                             links={localProfile.dofusBookLinks as any || []}
                             onSave={(links) => setLocalProfile(prev => ({ ...prev, dofusBookLinks: links }))}
@@ -423,10 +428,14 @@ export function ProfileBentoGrid({
                             guildId={guildId}
                             targetUserId={targetUserId}
                         />
+                    </div>
+                </TabsContent>
 
-                        {/* Alt Pseudos */}
+                {/* MULES TAB */}
+                <TabsContent value="mules" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="w-full">
                         <AltPseudos
-                            altPseudos={localProfile.altPseudos || []}
+                            altPseudos={localProfile.altPseudos as any || []}
                             onSave={handleAltPseudosSave}
                             readOnly={!canEdit}
                         />

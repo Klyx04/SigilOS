@@ -7,6 +7,7 @@ export interface ExtractedContent {
     url: string;
     thumbnail: string | null;
     published: Date;
+    description?: string;
 }
 
 // ─── DOFUS RSS FEED ──────────────────────────────────────────────
@@ -30,6 +31,93 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
         }));
     } catch (e) {
         console.error("Failed to fetch Dofus RSS", e);
+        return [];
+    }
+}
+
+// ─── DOFUS POUR LES NOOBS HOMEPAGE SCRAPER ────────────────────────
+export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
+    try {
+        const baseUrl = 'https://www.dofuspourlesnoobs.com';
+        const res = await fetch(baseUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            next: { revalidate: 3600 }
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+
+        // More robust approach: Find all news boxes or h3 headings and extract links
+        const items: ExtractedContent[] = [];
+        const now = new Date();
+
+        // 1. First attempt: Look for .h-news-box containers (the main news)
+        const newsBoxRegex = /<div class="h-news-box">([\s\S]*?)<\/div>/g;
+        let boxMatch;
+        let count = 0;
+
+        while ((boxMatch = newsBoxRegex.exec(html)) !== null && count < 8) {
+            const content = boxMatch[1];
+
+            // Extract Title: <h3>Title</h3>
+            const titleMatch = content.match(/<h3>(.*?)<\/h3>/);
+            const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : "";
+            if (!title) continue;
+
+            // Extract Link: search for the first href
+            const linkMatch = content.match(/<a\s+href="([^"]+)"/);
+            let url = linkMatch ? linkMatch[1] : baseUrl;
+            if (url.startsWith('/')) url = baseUrl + url;
+
+            // Extract Image: <img src="...">
+            const imgMatch = content.match(/<img\s+src="([^"]+)"/);
+            let thumbnail = imgMatch ? imgMatch[1] : null;
+            if (thumbnail && thumbnail.startsWith('/')) thumbnail = baseUrl + thumbnail;
+
+            // Extract Description: <p>...</p>
+            const descMatch = content.match(/<p>(.*?)<\/p>/);
+            const description = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim() : "";
+
+            items.push({
+                type: "NEWS",
+                creatorId: "DPLN",
+                title,
+                url,
+                thumbnail,
+                description,
+                published: new Date(now.getTime() - count * 60000)
+            });
+            count++;
+        }
+
+        // 2. Fallback: If no boxes found, look for list links <li><a...>...</a></li>
+        if (items.length === 0) {
+            const listRegex = /<li><a\s+href="([^"]+)"[^>]*>(.*?)<\/a><\/li>/g;
+            let listMatch;
+            while ((listMatch = listRegex.exec(html)) !== null && count < 10) {
+                let url = listMatch[1];
+                if (url.startsWith('/')) url = baseUrl + url;
+                const title = listMatch[2].replace(/<[^>]+>/g, '').trim();
+
+                if (title && !title.includes('Mise à jour')) {
+                    items.push({
+                        type: "NEWS",
+                        creatorId: "DPLN",
+                        title,
+                        url,
+                        thumbnail: null,
+                        published: new Date(now.getTime() - count * 60000)
+                    });
+                    count++;
+                }
+            }
+        }
+
+        return items;
+    } catch (e) {
+        console.error("Failed to scrape DPLN homepage", e);
         return [];
     }
 }

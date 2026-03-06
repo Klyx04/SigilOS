@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-01)
 
-**Branche Active** : `bug-fixes-modif` (En cours de merge vers `dev`)  
-**Status** : Refonte UI SuperAdmin (God Panel), Correction Game Data (Dungeons/Songes UI), Module Guilde (Barre Bonus Actifs & Notifs Discord). Prêt pour déploiement VPS Beta.
+**Branche Active** : `feat/module-carte` (Préparation pour merge vers `dev`)  
+**Status** : Refonte interactive de la Carte du Monde HD (synchronisée DofusDB), nouvelle UI de Ressources en onglets avec Widgets (Almanax, Kralamoure), Fallback Proxy pour les News Ankama.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -259,6 +259,17 @@ SigilOS/
   - Fix du spam affreux `[Join]/[Leave]` lors du alt-tab (`isReconnect` flag bypass).
   - Allègement de UI des messages systèmes/présence (passage à un texte blanc léger font-light, beaucoup plus discret).
 - ✅ **Misc & Onboarding** : Fix Changelog double croix (Admin), redirect auto si Guilde Unique, bandeau onboarding retiré quand terminé proprement.
+
+---
+
+### Session — Module Carte HD, Ressources & Connectivité (2026-03-06)
+
+- ✅ **Moteur Cartographique Leaflet HD** : Refonte totale du module de carte (`interactive-map-v2.tsx`). Fin du rendu clignotant, implémentation d'une modale HD 4/3 avec drag-to-scroll fluide, zoom à la molette, et indicateur de zoom resetable (barres de défilement natives supprimées).
+- ✅ **Précision DofusDB (Correction d'Alignement)** : Correction critique de l'algorithme de positionnement des tuiles. Ratio strict de 250px appliqué pour les mondes instanciés (Enutrosor, Ecaflipus, Crocuzko) et ratio unique de 256px réservé au Monde des Douze. Résolution définitive des bugs visuels de grille.
+- ✅ **Priorité des Calques & Synchronisation** : Correction de la pagination de l'API dans `sync-worldmap.ts` rapatriant les données des 5000+ sous-zones. Fix moteur pour afficher en priorité les surcouches spatiales (ex: les barrières des Cavernes de Givrefoux) par sélection dynamique du max-ID de carte.
+- ✅ **Hub Ressources & Almanax** : Restructuration de la page "Ressources" en onglets thématiques clairs (`NewsGrid`, `QuickToolsPanel`, `UsefulLinksGrid`). Lancement de nouveaux widgets modulaires : Tracker Almanax (avec filtres intégrés), Ouverture du Kralamoure, et Connectivité Créateurs Vidéos Youtube/Twitch.
+- ✅ **Fallback Proxy (News Ankama)** : Implémentation d'un système de Proxy externe de secours dans l'API `/api/resources/news/route.ts`. Permet de contourner dynamiquement le blocage IP du CDN CloudFront d'Ankama frappant le VPS de prod, garantissant la récupération ininterrompue des flux RSS Dofus.
+- ✅ **Hygiène de Build (ESLint)** : Mise en place de `.eslintignore` protégeant l'ensemble du workflow dev en filtrant les rejets d'analyse binaire sur le dossier courant. Compilation Next.js confirmée prête à 100%.
 
 ---
 

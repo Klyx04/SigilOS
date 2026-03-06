@@ -336,7 +336,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 ## 📋 TODO Prioritaire (Backlog)
 
 ### 🔴 P0 — Critiques
-- [ ] Merge `bug-fixes-modif` -> `dev` et deploy VPS Beta.
+- [x] Merge `feat/module-carte` -> `dev` et deploy VPS Beta.
 - [ ] Vérifier les pings Discord sur le nouveau module Prêts (Loans).
 
 ### 🎯 P2 — Features Core

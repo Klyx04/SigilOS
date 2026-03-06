@@ -86,14 +86,27 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
 
     const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
     useEffect(() => {
+        if (!containerRef.current) return;
+        // Mesure initiale
         const measure = () => {
-            if (!containerRef.current) return;
-            const { clientWidth: w, clientHeight: h } = containerRef.current;
+            const el = containerRef.current;
+            if (!el) return;
+            const { clientWidth: w, clientHeight: h } = el;
             if (w > 0 && h > 0) setContainerSize({ w, h });
         };
         measure();
-        const t = setTimeout(measure, 80);
-        return () => clearTimeout(t);
+        // ResizeObserver pour capturer les changements de taille dynamiquement
+        const ro = new ResizeObserver(measure);
+        ro.observe(containerRef.current);
+        return () => ro.disconnect();
+    }, []);
+
+    // Re-mesure quand on change de monde pour forcer le recalcul
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const { clientWidth: w, clientHeight: h } = el;
+        if (w > 0 && h > 0) setContainerSize({ w, h });
     }, [selectedWorldId]);
 
     useEffect(() => {
@@ -149,22 +162,24 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
     }, [activeMaps, activeWorld]);
 
     const initialScale = useMemo(() => {
-        if (!activeWorld || !mapsBBox) return 0.15;
+        if (!activeWorld || !mapsBBox || !mapsBBox.width || !mapsBBox.height) return 0.15;
         const w = containerSize.w || (typeof window !== 'undefined' ? window.innerWidth * 0.82 : 900);
-        const h = containerSize.h || (typeof window !== 'undefined' ? window.innerHeight * 0.62 : 600);
+        const h = containerSize.h || (typeof window !== 'undefined' ? window.innerHeight * 0.7 : 600);
 
-        // Fill the component (cover)
-        let s = Math.max(w / mapsBBox.width, h / mapsBBox.height);
+        // Fit: on cherche l'échelle qui fait TENIR la zone entière dans le composant (letters)
+        // avec une petite marge pour que ce soit agréable
+        const margin = 0.92; // 8% de marge visuelle
+        const scaleW = (w * margin) / mapsBBox.width;
+        const scaleH = (h * margin) / mapsBBox.height;
+        const s = Math.min(scaleW, scaleH);
 
-        // Prevent excessive zoom
-        if (s > 1.2) s = 1.0;
-        return s;
+        // Bornes raisonnables : jamais plus petite que 0.03, jamais plus grande que 2
+        return Math.max(0.03, Math.min(s, 2.0));
     }, [activeWorld, containerSize, mapsBBox]);
 
     const initialPositionX = useMemo(() => {
         if (!mapsBBox) return 0;
         const w = containerSize.w || 900;
-        // On centre la zone de maps réelle dans le conteneur
         return w / 2 - mapsBBox.centerX * initialScale;
     }, [containerSize, mapsBBox, initialScale]);
 
@@ -206,8 +221,8 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
         return { tiles, cols, rows };
     }, [activeWorld, selectedWorldId, isSmallWorld]);
 
-    // Autorise un dezoom pour voir toute la zone (demande utilisateur sur Pwak)
-    const minScale = useMemo(() => initialScale * 0.4, [initialScale]);
+    // Dezoom minimum = voir 2x la zone en entier, zoom max = 8x
+    const minScale = useMemo(() => Math.max(0.01, initialScale * 0.3), [initialScale]);
 
     const searchResults = useMemo(() => {
         if (!search || !worldMap) return [];
@@ -364,7 +379,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
 
     return (
         <div
-            className="relative flex flex-col w-full h-[75vh] min-h-[500px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+            className="relative flex flex-col w-full h-[calc(100vh-12rem)] min-h-[500px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
             style={{
                 backgroundImage: `url('https://api.dofusdb.fr/img/map_background.jpg')`,
                 backgroundRepeat: 'repeat'
@@ -454,10 +469,10 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                         initialPositionY={initialPositionY}
                         minScale={minScale}
                         maxScale={8}
-                        centerOnInit={true}
+                        centerOnInit={false}
                         limitToBounds={false}
                         panning={{ velocityDisabled: false, allowLeftClickPan: true, allowRightClickPan: false }}
-                        wheel={{ step: 0.1, smoothStep: 0.01 }}
+                        wheel={{ step: 0.08 }}
                         pinch={{ step: 5 }}
                         doubleClick={{ disabled: true }}
                         onTransformed={(ref) => syncTransform(ref as Parameters<typeof syncTransform>[0])}

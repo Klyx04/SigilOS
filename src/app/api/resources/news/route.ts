@@ -97,6 +97,29 @@ const FETCH_HEADERS = {
     "Sec-Fetch-Site": "cross-site",
 };
 
+// ─── Proxy fallback (contourne le blocage IP datacenter d'Ankama) ─────────────
+
+async function fetchWithProxy(url: string): Promise<string | null> {
+    // allorigins.win : proxy public qui contourne le blocage CloudFront côté VPS
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+    try {
+        const res = await fetch(proxyUrl, {
+            headers: { "User-Agent": "SigilOS/1.0" },
+            signal: controller.signal,
+            cache: "no-store",
+        });
+        clearTimeout(timeout);
+        if (!res.ok) return null;
+        const json = await res.json() as { contents?: string };
+        return json.contents ?? null;
+    } catch {
+        clearTimeout(timeout);
+        return null;
+    }
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -129,31 +152,50 @@ export async function GET(req: NextRequest) {
     const feed = FEEDS[feedKey] ?? FEEDS.news;
 
     try {
+        // ── 1. Tentative directe ─────────────────────────────────────────
+        let xml: string | null = null;
+        let usedProxy = false;
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10_000);
 
-        const res = await fetch(feed.url, {
-            headers: FETCH_HEADERS,
-            signal: controller.signal,
-            cache: "no-store",
-        });
-        clearTimeout(timeout);
+        let directOk = false;
+        try {
+            const res = await fetch(feed.url, {
+                headers: FETCH_HEADERS,
+                signal: controller.signal,
+                cache: "no-store",
+            });
+            clearTimeout(timeout);
+            if (res.ok) {
+                xml = await res.text();
+                directOk = true;
+            } else {
+                console.error(`[news/route] Direct RSS fetch failed: ${res.status} for ${feed.url}`);
+            }
+        } catch (directErr) {
+            clearTimeout(timeout);
+            console.error(`[news/route] Direct RSS fetch threw: ${directErr instanceof Error ? directErr.message : directErr}`);
+        }
 
-        if (!res.ok) {
+        // ── 2. Fallback proxy si le direct a échoué ──────────────────────
+        if (!directOk) {
+            console.warn(`[news/route] Falling back to proxy for: ${feed.url}`);
+            xml = await fetchWithProxy(feed.url);
+            usedProxy = xml !== null;
+        }
+
+        if (!xml) {
             return NextResponse.json(
-                { error: `RSS fetch failed: ${res.status}`, items: [] },
-                {
-                    status: 200,
-                    headers: { "Cache-Control": "no-store" },
-                }
+                { error: "RSS indisponible (direct + proxy échoués)", items: [] },
+                { status: 200, headers: { "Cache-Control": "no-store" } }
             );
         }
 
-        const xml = await res.text();
         const items = parseRSSItems(xml, feedKey === "dpln" ? 6 : 8);
 
         return NextResponse.json(
-            { items, feedKey, label: feed.label },
+            { items, feedKey, label: feed.label, usedProxy },
             {
                 headers: {
                     "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=86400",
@@ -162,6 +204,7 @@ export async function GET(req: NextRequest) {
         );
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "unknown error";
+        console.error(`[news/route] Unhandled error: ${message}`);
         return NextResponse.json(
             { error: message, items: [] },
             { status: 200, headers: { "Cache-Control": "no-store" } }

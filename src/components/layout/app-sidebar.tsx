@@ -116,12 +116,12 @@ export function AppSidebar({
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-cyan-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
 
     const NAV_COMING_SOON = [
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
         { name: "Carte & Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
-        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
 
     const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };

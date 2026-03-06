@@ -577,14 +577,19 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
     }
 }
 
+const AltPseudoObjectSchema = z.object({
+    id: z.string().optional(),
+    pseudo: z.string()
+        .min(2, "Pseudo trop court")
+        .max(20, "Pseudo trop long")
+        .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)"),
+    classe: z.string().optional(),
+    level: z.number().min(0).max(200).optional()
+});
+
 const UpdateAltPseudosSchema = z.object({
     guildId: z.string(),
-    altPseudos: z.array(
-        z.string()
-            .min(2, "Pseudo trop court")
-            .max(20, "Pseudo trop long")
-            .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)")
-    ).max(5, "Maximum 5 personnages"),
+    altPseudos: z.array(AltPseudoObjectSchema).max(5, "Maximum 5 personnages"),
     targetUserId: z.string().optional(),
 });
 
@@ -594,12 +599,12 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
     if (!validation.success) {
-        console.error("[Dofusbook] Validation error:", validation.error.format());
+        console.error("[Alt Pseudos] Validation error:", validation.error.format());
         return { success: false, error: "Données invalides" };
     }
     const { guildId, altPseudos, targetUserId } = validation.data;
 
-    console.log(`[Dofusbook] Updating alt pseudos for guild ${guildId}:`, altPseudos);
+    console.log(`[Alt Pseudos] Updating alt pseudos for guild ${guildId}:`, altPseudos);
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -608,10 +613,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const cleanedPseudos = altPseudos
-            .map((p: string) => p.trim())
-            .filter((p: string) => p.length > 0)
-            .slice(0, 5);
+        const cleanedPseudos = altPseudos.slice(0, 5);
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -654,9 +656,10 @@ const UpdateDofusBookLinksSchema = z.object({
             .min(1, "Nom requis")
             .max(30, "Nom trop long (max 30)"),
         url: z.string().regex(
-            /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
+            /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/,
             "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
-        )
+        ),
+        tags: z.array(z.string()).optional()
     })).max(10, "Maximum 10 builds"),
     targetUserId: z.string().optional(),
 });

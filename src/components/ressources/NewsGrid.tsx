@@ -22,6 +22,7 @@ const FEEDS = [
     { key: "news", label: "Actualités", icon: Rss, color: "#3b82f6" },
     { key: "changelog", label: "Changelog", icon: Scroll, color: "#10b981" },
     { key: "devblog", label: "Devblog", icon: Zap, color: "#a855f7" },
+    { key: "dpln", label: "Guides & Quêtes (DPLN)", icon: Scroll, color: "#f59e0b" },
 ] as const;
 
 type FeedKey = typeof FEEDS[number]["key"];
@@ -48,7 +49,7 @@ const CARD_PALETTE = [
 
 // ─── Featured card ────────────────────────────────────────────────────────────
 
-function FeaturedCard({ item, feedColor }: { item: NewsItem; feedColor: string }) {
+function FeaturedCard({ item, feedColor, feedLabel }: { item: NewsItem; feedColor: string; feedLabel: string }) {
     const [imgError, setImgError] = useState(false);
     const grad = CARD_PALETTE[0];
 
@@ -101,7 +102,7 @@ function FeaturedCard({ item, feedColor }: { item: NewsItem; feedColor: string }
                                 <Newspaper className="h-8 w-8" style={{ color: feedColor }} />
                             </div>
                             <span className="text-xs font-bold uppercase tracking-widest opacity-60"
-                                style={{ color: feedColor }}>Actualité Ankama</span>
+                                style={{ color: feedColor }}>{feedLabel}</span>
                         </div>
                     </div>
                 )}
@@ -198,8 +199,20 @@ function Skeleton() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function NewsGrid() {
-    const [activeFeed, setActiveFeed] = useState<FeedKey>("news");
+export function NewsGrid({
+    defaultFeed = "news",
+    hideSelector = false,
+    title,
+    maxItems = 8,
+    showKralamoure = false
+}: {
+    defaultFeed?: FeedKey;
+    hideSelector?: boolean;
+    title?: string;
+    maxItems?: number;
+    showKralamoure?: boolean;
+}) {
+    const [activeFeed, setActiveFeed] = useState<FeedKey>(defaultFeed);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [items, setItems] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -235,49 +248,59 @@ export function NewsGrid() {
 
     return (
         <div className="space-y-4">
-            {/* ── Feed selector ─────────────────────────────────────── */}
+            {/* ── Header / Selector ─────────────────────────────────────── */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
-                {/* Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setDropdownOpen(o => !o)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-white/5"
-                        style={{
-                            background: `${currentFeed.color}10`,
-                            border: `1px solid ${currentFeed.color}25`,
-                            color: currentFeed.color,
-                        }}
-                    >
-                        <currentFeed.icon className="h-3.5 w-3.5" />
-                        {currentFeed.label}
-                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", dropdownOpen && "rotate-180")} />
-                    </button>
-
-                    {dropdownOpen && (
-                        <div
-                            className="absolute top-full mt-2 left-0 z-50 min-w-[160px] rounded-xl overflow-hidden shadow-2xl"
-                            style={{ background: "#13171A", border: "1px solid rgba(255,255,255,0.08)" }}
-                        >
-                            {FEEDS.map((feed) => (
-                                <button
-                                    key={feed.key}
-                                    onClick={() => { setActiveFeed(feed.key); setDropdownOpen(false); }}
-                                    className={cn(
-                                        "w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all hover:bg-white/5",
-                                        activeFeed === feed.key ? "font-bold" : "font-medium text-zinc-400"
-                                    )}
-                                    style={activeFeed === feed.key ? { color: feed.color } : {}}
-                                >
-                                    <feed.icon className="h-3.5 w-3.5" />
-                                    {feed.label}
-                                    {activeFeed === feed.key && (
-                                        <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: feed.color }} />
-                                    )}
-                                </button>
-                            ))}
+                {title ? (
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${currentFeed.color}15`, border: `1px solid ${currentFeed.color}30` }}>
+                            <currentFeed.icon className="h-4 w-4" style={{ color: currentFeed.color }} />
                         </div>
-                    )}
-                </div>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-white">{title}</h3>
+                    </div>
+                ) : !hideSelector ? (
+                    <div className="relative">
+                        <button
+                            onClick={() => setDropdownOpen(o => !o)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-white/5"
+                            style={{
+                                background: `${currentFeed.color}10`,
+                                border: `1px solid ${currentFeed.color}25`,
+                                color: currentFeed.color,
+                            }}
+                        >
+                            <currentFeed.icon className="h-3.5 w-3.5" />
+                            {currentFeed.label}
+                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", dropdownOpen && "rotate-180")} />
+                        </button>
+
+                        {dropdownOpen && (
+                            <div
+                                className="absolute top-full mt-2 left-0 z-50 min-w-[160px] rounded-xl overflow-hidden shadow-2xl"
+                                style={{ background: "#13171A", border: "1px solid rgba(255,255,255,0.08)" }}
+                            >
+                                {FEEDS.map((feed) => (
+                                    <button
+                                        key={feed.key}
+                                        onClick={() => { setActiveFeed(feed.key); setDropdownOpen(false); }}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all hover:bg-white/5",
+                                            activeFeed === feed.key ? "font-bold" : "font-medium text-zinc-400"
+                                        )}
+                                        style={activeFeed === feed.key ? { color: feed.color } : {}}
+                                    >
+                                        <feed.icon className="h-3.5 w-3.5" />
+                                        {feed.label}
+                                        {activeFeed === feed.key && (
+                                            <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: feed.color }} />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div />
+                )}
 
                 {/* Refresh */}
                 <button
@@ -324,15 +347,15 @@ export function NewsGrid() {
                     </button>
                 </div>
             ) : (
-                <div className={cn("grid gap-3 grid-cols-1 lg:grid-cols-5 items-start")}>
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-5 items-stretch">
                     {featured && (
-                        <div className="lg:col-span-3 flex flex-col gap-3">
-                            <FeaturedCard item={featured} feedColor={currentFeed.color} />
-                            <KralamoureWidget />
+                        <div className="lg:col-span-3">
+                            <FeaturedCard item={featured} feedColor={currentFeed.color} feedLabel={currentFeed.label} />
+                            {showKralamoure && <div className="mt-3"><KralamoureWidget /></div>}
                         </div>
                     )}
-                    <div className="lg:col-span-2 flex flex-col gap-1">
-                        {rest.slice(0, 6).map((item, i) => (
+                    <div className="lg:col-span-2 flex flex-col gap-1 max-h-[500px] lg:max-h-none overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
+                        {rest.slice(0, maxItems - 1).map((item, i) => (
                             <SideCard key={i} item={item} idx={i} feedColor={currentFeed.color} />
                         ))}
                     </div>

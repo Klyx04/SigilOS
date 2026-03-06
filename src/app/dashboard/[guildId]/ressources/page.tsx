@@ -9,10 +9,10 @@ import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { AlmanaxWidget } from "@/components/ressources/AlmanaxWidget";
 import { NewsGrid } from "@/components/ressources/NewsGrid";
 import { UsefulLinksGrid } from "@/components/ressources/UsefulLinksGrid";
-import { ServerTimersPanel } from "@/components/ressources/ServerTimersPanel";
 import { ItemSearchPanel } from "@/components/ressources/ItemSearchPanel";
 import { CreatorsWidget } from "@/components/ressources/CreatorsWidget";
-import { Library, Flame, BookOpen, Link2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Library, Flame, BookOpen, Link2, Tv } from "lucide-react";
 
 export const metadata = {
     title: "Ressources Communautaires | SigilOS",
@@ -28,7 +28,7 @@ function SectionHeader({
     color,
     label,
 }: {
-    icon: typeof Flame;
+    icon: any;
     color: string;
     label: string;
 }) {
@@ -50,16 +50,12 @@ function SectionHeader({
 
 // ─── Skeleton fallback ────────────────────────────────────────────────────────
 
-function AlmanaxSkeleton() {
+function GenericSkeleton({ height = "200px" }: { height?: string }) {
     return (
-        <div className="space-y-4">
-            <div className="rounded-2xl border border-white/5 bg-[#13171A] p-6 h-72 animate-pulse" />
-            <div className="grid grid-cols-6 gap-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-24 rounded-xl bg-white/3 animate-pulse" />
-                ))}
-            </div>
-        </div>
+        <div
+            className="w-full rounded-2xl border border-white/5 bg-[#13171A] p-6 animate-pulse"
+            style={{ height }}
+        />
     );
 }
 
@@ -85,7 +81,7 @@ export default async function RessourcesPage({ params }: Props) {
     if (!enabled) return <AccessDenied />;
 
     return (
-        <div className="space-y-10 pb-16">
+        <div className="space-y-12 pb-24">
             {/* ── Header ──────────────────────────────────────────────── */}
             <UnifiedModuleHeader
                 title="Ressources"
@@ -95,40 +91,94 @@ export default async function RessourcesPage({ params }: Props) {
                 backHref={`/dashboard/${guildId}`}
             />
 
-            {/* ── Almanax ─────────────────────────────────────────────── */}
-            <section>
-                <SectionHeader icon={Flame} color="#f59e0b" label="Almanax — 7 jours & filtres 3 mois" />
-                <Suspense fallback={<AlmanaxSkeleton />}>
-                    <AlmanaxSection />
-                </Suspense>
-            </section>
+            <Tabs defaultValue="almanax" className="w-full">
+                <div className="overflow-x-auto pb-4 custom-scrollbar">
+                    <TabsList className="inline-flex h-auto w-max min-w-full justify-start md:justify-center p-1 bg-zinc-950/40 border border-white/5 rounded-2xl gap-2 font-mono">
+                        <TabsTrigger
+                            value="almanax"
+                            className="px-6 py-3 rounded-xl data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500 data-[state=active]:border-amber-500/20 border border-transparent shadow-none"
+                        >
+                            <Flame className="w-4 h-4 mr-2" />
+                            Almanax
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="news"
+                            className="px-6 py-3 rounded-xl data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-500 data-[state=active]:border-blue-500/20 border border-transparent shadow-none"
+                        >
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Actualités
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="encyclopedia"
+                            className="px-6 py-3 rounded-xl data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:border-purple-500/20 border border-transparent shadow-none"
+                        >
+                            <Library className="w-4 h-4 mr-2" />
+                            Encyclopédie
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="creators"
+                            className="px-6 py-3 rounded-xl data-[state=active]:bg-red-500/10 data-[state=active]:text-red-400 data-[state=active]:border-red-500/20 border border-transparent shadow-none"
+                        >
+                            <Tv className="w-4 h-4 mr-2" />
+                            Créateurs
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="links"
+                            className="px-6 py-3 rounded-xl data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20 border border-transparent shadow-none"
+                        >
+                            <Link2 className="w-4 h-4 mr-2" />
+                            Liens & Outils
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-            {/* ── Actualités ──────────────────────────────────────────── */}
-            <section>
-                <SectionHeader icon={BookOpen} color="#3b82f6" label="Actualités & Outils" />
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-                    <div className="lg:col-span-3">
-                        <NewsGrid />
-                    </div>
-                    <div className="lg:col-span-2 flex flex-col gap-4">
-                        <ServerTimersPanel />
+                {/* ── Almanax ─────────────────────────────────────────────── */}
+                <TabsContent value="almanax" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                    <section>
+                        <SectionHeader icon={Flame} color="#f59e0b" label="Almanax — Hub Temporel" />
+                        <Suspense fallback={<GenericSkeleton height="350px" />}>
+                            <AlmanaxSection />
+                        </Suspense>
+                    </section>
+                </TabsContent>
+
+                {/* ── Actualités News ────────────────────────────────────── */}
+                <TabsContent value="news" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                    <section>
+                        <SectionHeader icon={BookOpen} color="#3b82f6" label="Actualités des Mondes — Ankama & DPLN" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                            {/* Left: Ankama News */}
+                            <NewsGrid defaultFeed="news" title="Official Ankama News" maxItems={6} showKralamoure={false} />
+                            {/* Right: DPLN */}
+                            <NewsGrid defaultFeed="dpln" title="Dofuspourlesnoobs (DPLN)" maxItems={6} showKralamoure={false} />
+                        </div>
+                    </section>
+                </TabsContent>
+
+                {/* ── Encyclopédie Full Width ────────────────────────────── */}
+                <TabsContent value="encyclopedia" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                    <section>
+                        <SectionHeader icon={Library} color="#a855f7" label="Nexus Encyclopédique — Recherche DofusDB" />
                         <ItemSearchPanel />
-                    </div>
-                </div>
-            </section>
+                    </section>
+                </TabsContent>
 
-            {/* ── Sites communautaires ──────────────────────────────────────── */}
-            <section>
-                <SectionHeader icon={Link2} color="#10b981" label="Sites Communautaires & Créateurs" />
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-                    <div className="lg:col-span-2">
-                        <UsefulLinksGrid />
-                    </div>
-                    <div className="lg:col-span-1 h-full">
-                        <CreatorsWidget guildId={guildId} />
-                    </div>
-                </div>
-            </section>
+                {/* ── Créateurs de Contenu ────────────────────────────────── */}
+                <TabsContent value="creators" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                    <section>
+                        <SectionHeader icon={Tv} color="#ef4444" label="Elite Creators Hub — Live & Replay" />
+                        <CreatorsWidget guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
+                    </section>
+                </TabsContent>
+
+                {/* ── Liens Rapides ────────────────────────────────────────── */}
+                <TabsContent value="links" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                    <section>
+                        <SectionHeader icon={Link2} color="#10b981" label="Bibliothèque de Liens & Outils" />
+                        <UsefulLinksGrid guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
+                    </section>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

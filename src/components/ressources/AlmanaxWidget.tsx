@@ -28,13 +28,37 @@ function formatKamas(k: number): string {
 // ─── Bonus type style ─────────────────────────────────────────────────────────
 
 const BONUS_STYLES: Record<string, { color: string; emoji: string }> = {
+    // Spécifiques en premier (priorité)
+    "Avis de recherche": { color: "#b91c1c", emoji: "🚨" },
+    "Kolizétons": { color: "#dc2626", emoji: "🛡️" },
+    "Concassage": { color: "#ec4899", emoji: "💥" },
+    "Percepteur": { color: "#3b82f6", emoji: "🐴" },
+    "Anomalie": { color: "#f97316", emoji: "🌀" },
+    "Trésor": { color: "#fbbf24", emoji: "🗝️" },
+    "Élevage": { color: "#d946ef", emoji: "🐾" },
+
+    // Mots clés fonctionnels
+    "Qualité": { color: "#f59e0b", emoji: "✨" },
+    "Challenge": { color: "#ef4444", emoji: "🎯" },
+    "Butin": { color: "#a855f7", emoji: "💎" },
+    "Économie": { color: "#06b6d4", emoji: "⚖️" },
+
+    // Récolte
+    "Récolte": { color: "#84cc16", emoji: "🌿" },
+    "Cueillette": { color: "#ec4899", emoji: "🌸" },
+    "Bois": { color: "#d97706", emoji: "🌲" },
+    "Pêche": { color: "#0ea5e9", emoji: "🎣" },
+
+    // Craft
+    "Fabrication": { color: "#6366f1", emoji: "🔨" },
+    "Fabrique": { color: "#6366f1", emoji: "🏭" },
+    "Métier": { color: "#3b82f6", emoji: "⚒️" },
+
+    // Généralités
+    "Quête": { color: "#facc15", emoji: "📜" },
+    "Donjon": { color: "#7c3aed", emoji: "🏰" },
     "Combat": { color: "#ef4444", emoji: "⚔️" },
     "Expérience": { color: "#10b981", emoji: "⭐" },
-    "Butin": { color: "#a855f7", emoji: "💎" },
-    "Récolte": { color: "#f59e0b", emoji: "🌿" },
-    "Métiers": { color: "#3b82f6", emoji: "🔨" },
-    "Anomalies": { color: "#f97316", emoji: "🌀" },
-    "Donjon": { color: "#ec4899", emoji: "🏰" },
 };
 
 function getBonusStyle(typeName: string): { color: string; emoji: string } {
@@ -141,8 +165,8 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
     onSelect: (i: number) => void;
 }) {
     return (
-        <div className="grid grid-cols-7 gap-2">
-            {items.slice(0, 7).map((item, i) => {
+        <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-4 pt-2 snap-x">
+            {items.slice(0, 30).map((item, i) => {
                 const d = parseUTCDate(item.date);
                 const icon = item.tribute.item.image_urls?.icon;
                 const typeName = item.bonus.type?.name ?? "";
@@ -153,14 +177,14 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
                 return (
                     <button key={item.date} onClick={() => onSelect(i)}
                         className={cn(
-                            "group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer",
+                            "shrink-0 w-24 snap-start group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer",
                             isMuted && !selected ? "opacity-30 grayscale hover:opacity-100 hover:grayscale-0" : "hover:-translate-y-0.5",
-                            selected && "scale-[1.03]"
+                            selected && "scale-[1.05]"
                         )}
                         title={`${item.tribute.quantity}× ${item.tribute.item.name} — ${typeName}`}
                         style={{
-                            background: selected ? `linear-gradient(135deg, ${color}15, rgba(13,16,13,0.9))` : "rgba(255,255,255,0.02)",
-                            border: `1px solid ${selected ? color + "40" : isMuted ? "transparent" : "rgba(255,255,255,0.05)"}`,
+                            background: selected ? `linear-gradient(135deg, ${color}20, rgba(13,16,13,0.9))` : "rgba(255,255,255,0.02)",
+                            border: `1px solid ${selected ? color + "50" : isMuted ? "transparent" : "rgba(255,255,255,0.05)"}`,
                             boxShadow: selected ? `0 0 20px -6px ${color}40` : "none",
                         }}>
                         {selected && <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />}
@@ -172,7 +196,7 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
                                 ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain group-hover:scale-110 transition-transform" unoptimized />
                                 : <span className="text-base">🎁</span>}
                         </div>
-                        <div className="text-[8px] text-zinc-500 leading-tight line-clamp-2 w-full">{item.tribute.item.name}</div>
+                        <div className="text-[8px] text-zinc-400 leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none"
                             style={{ background: `radial-gradient(circle at center, ${color}10, transparent)` }} />
                     </button>
@@ -184,103 +208,7 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
 
 // ─── 3-Month Full Calendar ────────────────────────────────────────────────────
 
-function FullCalendarGrid({ items, activeFilter, onSelectDay }: {
-    items: AlmanaxItem[];
-    activeFilter: string;
-    onSelectDay: (globalIdx: number) => void;
-}) {
-    // Group all 90 days by month
-    const months = useMemo(() => {
-        const map = new Map<string, { label: string; entries: { item: AlmanaxItem; idx: number }[] }>();
-        items.forEach((item, idx) => {
-            const d = parseUTCDate(item.date);
-            const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2, "0")}`;
-            if (!map.has(key)) {
-                map.set(key, {
-                    label: `${MONTHS_FULL[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
-                    entries: [],
-                });
-            }
-            map.get(key)!.entries.push({ item, idx });
-        });
-        return Array.from(map.values());
-    }, [items]);
 
-    const [visibleMonth, setVisibleMonth] = useState(0);
-    const totalMonths = months.length;
-    const current = months[visibleMonth];
-
-    if (!current) return null;
-
-    return (
-        <div className="rounded-2xl p-5 space-y-4" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <CalendarIcon className="h-4 w-4 text-violet-400" />
-                    <div>
-                        <span className="text-sm font-black text-white">{current.label}</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setVisibleMonth(v => Math.max(0, v - 1))}
-                        disabled={visibleMonth === 0}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all">
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <span className="text-xs text-zinc-600">{visibleMonth + 1}/{totalMonths}</span>
-                    <button onClick={() => setVisibleMonth(v => Math.min(totalMonths - 1, v + 1))}
-                        disabled={visibleMonth === totalMonths - 1}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all">
-                        <ChevronRight className="h-4 w-4" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Grid */}
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2">
-                {current.entries.map(({ item, idx }) => {
-                    const d = parseUTCDate(item.date);
-                    const icon = item.tribute.item.image_urls?.icon;
-                    const typeName = item.bonus.type?.name ?? "";
-                    const { color } = getBonusStyle(typeName);
-
-                    // Différences visuelles selon le filtre
-                    const isMuted = activeFilter !== "Tous" && typeName !== activeFilter;
-
-                    return (
-                        <button key={item.date}
-                            onClick={() => onSelectDay(idx)}
-                            className={cn(
-                                "group relative overflow-hidden rounded-xl p-2.5 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer",
-                                isMuted ? "opacity-30 hover:opacity-100 grayscale hover:grayscale-0" : "hover:-translate-y-0.5 hover:scale-[1.03]"
-                            )}
-                            style={{
-                                background: isMuted ? "rgba(255,255,255,0.02)" : `${color}10`,
-                                border: isMuted ? "1px solid transparent" : `1px solid ${color}25`
-                            }}
-                            title={`${item.tribute.quantity}× ${item.tribute.item.name} (${typeName})`}>
-                            <div className="text-[8px] font-black uppercase tracking-widest text-zinc-500">{DAYS_FR[d.getUTCDay()]}</div>
-                            <div className={cn("text-lg font-black", isMuted ? "text-zinc-500" : "text-white")}>{d.getUTCDate()}</div>
-                            {icon && (
-                                <Image src={icon} alt={item.tribute.item.name} width={28} height={28}
-                                    className="object-contain group-hover:scale-110 transition-transform duration-300" unoptimized />
-                            )}
-                            <div className="text-[8px] text-zinc-500 leading-tight line-clamp-2 w-full">
-                                {item.tribute.item.name}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-            {activeFilter !== "Tous" && (
-                <div className="text-[10px] text-zinc-500 text-center font-medium pt-2">
-                    Les jours qui ne sont pas de type <span className="text-white font-bold">{activeFilter}</span> sont grisés.
-                </div>
-            )}
-        </div>
-    );
-}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -289,16 +217,15 @@ interface AlmanaxWidgetProps { items: AlmanaxItem[] }
 export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
     const [selectedIdx, setSelectedIdx] = useState(0);
     const [activeFilter, setActiveFilter] = useState<string>("Tous");
-    const [viewMode, setViewMode] = useState<"strip" | "calendar">("strip");
 
-    // Top filter categories
+    // Top filter categories in the next 30 days
     const filterTypes = useMemo(() => {
         const map = new Map<string, number>();
-        items.forEach((item) => {
+        items.slice(0, 30).forEach((item) => {
             const name = item.bonus.type?.name ?? "";
             if (name) map.set(name, (map.get(name) ?? 0) + 1);
         });
-        return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6); // Keep top 6 to avoid clutter
+        return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5); // Keep top 5 to avoid clutter
     }, [items]);
 
     const selected = items[selectedIdx] ?? items[0];
@@ -307,83 +234,55 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
     const handleFilterClick = (type: string) => {
         setActiveFilter(type);
         if (type !== "Tous") {
-            // Force 90 days calendar view so users can spot the bonuses over time
-            setViewMode("calendar");
-            const firstIdx = items.findIndex(i => (i.bonus.type?.name ?? "") === type);
+            const firstIdx = items.slice(0, 30).findIndex(i => (i.bonus.type?.name ?? "") === type);
             if (firstIdx >= 0) {
                 setSelectedIdx(firstIdx);
             }
         } else {
             // Reset to default
-            setViewMode("strip");
             setSelectedIdx(0);
         }
     };
 
     return (
         <div className="space-y-4">
-            {/* ── Action bar (Filters + View Toggle) ─────────────────── */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap flex-1">
-                    <Filter className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
-
-                    <button
-                        onClick={() => handleFilterClick("Tous")}
-                        className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all duration-200"
-                        style={activeFilter === "Tous"
-                            ? { background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "white" }
-                            : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#71717a" }}>
-                        Tous
-                    </button>
-
-                    {filterTypes.map(([type, count]) => {
-                        const { color, emoji } = getBonusStyle(type);
-                        const isActive = activeFilter === type;
-                        return (
-                            <button key={type}
-                                onClick={() => handleFilterClick(type)}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all duration-200"
-                                style={isActive
-                                    ? { background: `${color}20`, border: `1px solid ${color}40`, color }
-                                    : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#71717a" }}>
-                                {emoji} {type} <span className="text-[8px] opacity-50">({count})</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Switch view mode */}
+            {/* ── Action bar (Filters) ───────────────────────────── */}
+            <div className="flex items-center gap-2 pb-2 overflow-x-auto custom-scrollbar">
+                <span className="text-xs text-zinc-500 font-medium mr-1 whitespace-nowrap">Filtrer (30 jours) :</span>
                 <button
-                    onClick={() => setViewMode(v => v === "strip" ? "calendar" : "strip")}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all bg-[#13171A] hover:bg-[#1C2126] border border-white/5"
-                >
-                    {viewMode === "strip" ? (
-                        <><LayoutGrid className="w-3.5 h-3.5" /> Voir 90 Jours</>
-                    ) : (
-                        <><View className="w-3.5 h-3.5" /> Voir Résumé 7 Jours</>
+                    onClick={() => handleFilterClick("Tous")}
+                    className={cn(
+                        "px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap",
+                        activeFilter === "Tous"
+                            ? "bg-white/10 text-white border-white/20"
+                            : "bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
                     )}
+                >
+                    Tous
                 </button>
+
+                {filterTypes.map(([type]) => {
+                    const { color, emoji } = getBonusStyle(type);
+                    const isActive = activeFilter === type;
+                    return (
+                        <button key={type}
+                            onClick={() => handleFilterClick(type)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap opacity-90 hover:opacity-100"
+                            )}
+                            style={isActive
+                                ? { background: `${color}20`, border: `1px solid ${color}40`, color }
+                                : { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", color: "#9ca3af" }}
+                        >
+                            <span>{emoji}</span> {type}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* ── Content Area ────────────────────────────────────────── */}
-            {viewMode === "calendar" ? (
-                <>
-                    <HeroCard item={selected} dayOffset={selectedIdx} />
-                    <FullCalendarGrid
-                        items={items}
-                        activeFilter={activeFilter}
-                        onSelectDay={(i) => {
-                            setSelectedIdx(i);
-                            window.scrollTo({ top: 300, behavior: "smooth" }); // gently snap up
-                        }}
-                    />
-                </>
-            ) : (
-                <>
-                    <HeroCard item={selected} dayOffset={selectedIdx} />
-                    <DayStrip items={items} selectedIdx={selectedIdx} activeFilter={activeFilter} onSelect={setSelectedIdx} />
-                </>
-            )}
+            <HeroCard item={selected} dayOffset={selectedIdx} />
+            <DayStrip items={items} selectedIdx={selectedIdx} activeFilter={activeFilter} onSelect={setSelectedIdx} />
         </div>
     );
 }

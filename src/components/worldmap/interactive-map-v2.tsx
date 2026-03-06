@@ -565,7 +565,7 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                         {tilesData.tiles.map((tile, i) => (
                                             <img key={`tile-${i}`} src={tile.url} alt=""
                                                 className="w-[256px] h-[256px] absolute pointer-events-none select-none"
-                                                style={{ left: tile.x, top: tile.y, imageRendering: 'pixelated' }}
+                                                style={{ left: tile.x, top: tile.y }}
                                                 loading="lazy" />
                                         ))}
                                     </div>
@@ -583,14 +583,12 @@ export default function InteractiveMapV2({ data: initialData }: InteractiveMapPr
                                                 top: activeWorld.origineY + m.y * activeWorld.mapHeight,
                                                 width: activeWorld.mapWidth,
                                                 height: activeWorld.mapHeight,
-                                                imageRendering: 'pixelated'
                                             }}
                                             className="select-none pointer-events-none"
                                             loading="lazy"
                                         />
                                     ))}
                                 </div>
-
                                 {/* Debug canvas */}
                                 <canvas
                                     ref={canvasRef}

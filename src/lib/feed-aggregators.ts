@@ -10,17 +10,12 @@ export interface ExtractedContent {
     description?: string;
 }
 
-// ─── UTILS: PROXY FETCH ───────────────────────────────────────────
-const PROXY_LIST = [
-    (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-];
 
 async function fetchWithProxyFallback(url: string): Promise<string | null> {
     // 1. Direct fetch attempt
     try {
         const res = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36', 'Accept': 'application/rss+xml, text/xml' },
             next: { revalidate: 900 }
         });
         if (res.ok) {
@@ -28,21 +23,39 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
             if (text.length > 500) return text;
         }
     } catch (e) {
-        console.warn(`[feed-aggregator] Direct fetch failed for ${url}, trying proxies...`);
+        console.warn(`[feed-aggregator] Direct fetch failed for ${url}, trying Curl...`);
     }
 
-    // 2. Proxy attempts
-    for (const proxyFn of PROXY_LIST) {
+    // 2. Curl attempt (Linux/Docker fallback)
+    try {
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execAsync = promisify(exec);
+        const { stdout } = await execAsync(`curl -L "${url}" -A "Mozilla/5.0" --max-time 15 --compressed`);
+        if (stdout && stdout.length > 500) return stdout;
+    } catch (e) {
+        console.warn(`[feed-aggregator] Curl failed for ${url}, trying proxies...`);
+    }
+
+    // 3. Proxy attempts
+    const proxies = [
+        (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+        (u: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+        (u: string) => `https://api.cors.lol/?url=${encodeURIComponent(u)}`
+    ];
+
+    for (const proxyFn of proxies) {
         try {
             const proxyUrl = proxyFn(url);
-            const res = await fetch(proxyUrl, { cache: 'no-store' });
+            const res = await fetch(proxyUrl, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
             if (!res.ok) continue;
 
             if (proxyUrl.includes('allorigins')) {
                 const json = await res.json();
                 if (json.contents) return json.contents;
             } else {
-                return await res.text();
+                const text = await res.text();
+                if (text.length > 500) return text;
             }
         } catch (e) {
             continue;

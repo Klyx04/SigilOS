@@ -77,7 +77,7 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 
         const items: any[] = await res.json();
 
-        const feedItems = items.slice(0, 5).map((item, idx) => {
+        const feedItems = items.slice(0, 6).map((item, idx) => {
             const descriptionHtml = item.baseline || "";
             const plainDescription = descriptionHtml.replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/gi, " ").trim();
 

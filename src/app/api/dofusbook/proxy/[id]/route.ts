@@ -47,8 +47,14 @@ export async function GET(
         );
 
         if (!stdout) {
-            console.error(`[Dofusbook Proxy] Empty response for ${id}:`, stderr);
+            console.error(`[Dofusbook Proxy] Empty response for ${id}. Stderr: ${stderr}`);
             return NextResponse.json({ error: "Empty response" }, { status: 502 });
+        }
+
+        // Handle potential non-JSON responses (like WAF challenges)
+        if (stdout.trim().startsWith("<!DOCTYPE html>") || stdout.includes("<html")) {
+            console.error(`[Dofusbook Proxy] WAF/HTML detected instead of JSON for ${id}. Content start: ${stdout.substring(0, 200)}`);
+            return NextResponse.json({ error: "Blocked by CloudFront or invalid response" }, { status: 403 });
         }
 
         try {

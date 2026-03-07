@@ -77,6 +77,7 @@ function FeaturedCard({ item, feedColor, feedLabel }: { item: NewsItem; feedColo
                     <img
                         src={item.imageUrl}
                         alt={item.title}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                         onError={() => setImgError(true)}
                     />
@@ -158,6 +159,7 @@ function SideCard({ item, idx, feedColor }: { item: NewsItem; idx: number; feedC
                     <img
                         src={item.imageUrl}
                         alt={item.title}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onError={() => setImgError(true)}
                     />

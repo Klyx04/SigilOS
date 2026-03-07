@@ -10,23 +10,64 @@ export interface ExtractedContent {
     description?: string;
 }
 
+// ─── UTILS: PROXY FETCH ───────────────────────────────────────────
+const PROXY_LIST = [
+    (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxyFallback(url: string): Promise<string | null> {
+    // 1. Direct fetch attempt
+    try {
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+            next: { revalidate: 900 }
+        });
+        if (res.ok) {
+            const text = await res.text();
+            if (text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn(`[feed-aggregator] Direct fetch failed for ${url}, trying proxies...`);
+    }
+
+    // 2. Proxy attempts
+    for (const proxyFn of PROXY_LIST) {
+        try {
+            const proxyUrl = proxyFn(url);
+            const res = await fetch(proxyUrl, { cache: 'no-store' });
+            if (!res.ok) continue;
+
+            if (proxyUrl.includes('allorigins')) {
+                const json = await res.json();
+                if (json.contents) return json.contents;
+            } else {
+                return await res.text();
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+    return null;
+}
+
 // ─── DOFUS RSS FEED ──────────────────────────────────────────────
 export async function fetchDofusNews(): Promise<ExtractedContent[]> {
     try {
-        const parser = new Parser({
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-        // Optionnel : l'URL officielle (on vérifie fr)
-        const feed = await parser.parseURL('https://www.dofus.com/fr/rss/news.xml');
+        const url = 'https://www.dofus.com/fr/rss/news.xml';
+        const xml = await fetchWithProxyFallback(url);
+
+        if (!xml) throw new Error("Could not fetch RSS feed (Direct & Proxy failed)");
+
+        const parser = new Parser();
+        const feed = await parser.parseString(xml);
 
         return feed.items.slice(0, 5).map(item => ({
             type: "NEWS",
             creatorId: "Ankama",
             title: item.title || "Nouvelle annonce Dofus",
             url: item.link || "https://www.dofus.com/fr",
-            thumbnail: null, // trigger default Rss icon fallback
+            thumbnail: null,
             published: item.isoDate ? new Date(item.isoDate) : new Date()
         }));
     } catch (e) {
@@ -39,15 +80,10 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
     try {
         const baseUrl = 'https://www.dofuspourlesnoobs.com';
-        const res = await fetch(baseUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            next: { revalidate: 3600 }
-        });
+        const html = await fetchWithProxyFallback(baseUrl);
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const html = await res.text();
+        if (!html) throw new Error(`Could not fetch DPLN (Direct & Proxy failed)`);
+
 
         // More robust approach: Find all news boxes or h3 headings and extract links
         const items: ExtractedContent[] = [];

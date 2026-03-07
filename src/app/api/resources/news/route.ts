@@ -106,13 +106,39 @@ async function fetchDirect(url: string, signal: AbortSignal): Promise<string | n
             signal,
             cache: "no-store",
         });
-        if (res.ok) return await res.text();
+        if (res.ok) {
+            const text = await res.text();
+            if (text.length > 500) return text;
+        }
         console.warn(`[news/route] Direct fetch failed: ${res.status} for ${url}`);
         return null;
     } catch (err) {
         console.error(`[news/route] Direct fetch error: ${err instanceof Error ? err.message : err}`);
         return null;
     }
+}
+
+// ─── Curl Fallback (Sometimes better fingerprint than Node fetch) ─────────────
+
+async function fetchWithCurl(url: string): Promise<string | null> {
+    try {
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execAsync = promisify(exec);
+
+        const userAgent = FETCH_HEADERS["User-Agent"];
+        const { stdout } = await execAsync(
+            `curl -L "${url}" -A "${userAgent}" -H "Accept: application/rss+xml" --max-time 15 --compressed`
+        );
+
+        if (stdout && stdout.length > 500) {
+            console.log(`[news/route] Curl fallback succeeded for ${url}`);
+            return stdout;
+        }
+    } catch (err) {
+        console.warn(`[news/route] Curl fallback failed: ${err instanceof Error ? err.message : 'timeout'}`);
+    }
+    return null;
 }
 
 // ─── Multi-Proxy System (bypass datacenter IP blocking) ──────────────────────
@@ -124,13 +150,15 @@ const PROXIES = [
     (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     // 3. Keep-alive proxy (another fallback)
     (url: string) => `https://api.cors.lol/?url=${encodeURIComponent(url)}`,
+    // 4. Cors proxy (desperate fallback)
+    (url: string) => `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
 ];
 
 async function fetchWithProxy(url: string): Promise<string | null> {
     for (let i = 0; i < PROXIES.length; i++) {
         const proxyUrl = PROXIES[i](url);
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8_000);
+        const timeout = setTimeout(() => controller.abort(), 12_000);
 
         try {
             console.log(`[news/route] Attempting proxy #${i + 1} for: ${url}`);
@@ -143,13 +171,17 @@ async function fetchWithProxy(url: string): Promise<string | null> {
 
             if (!res.ok) continue;
 
+            const text = await res.text();
+
             // Handle AllOrigins structure vs others
             if (proxyUrl.includes('allorigins.win')) {
-                const json = await res.json() as { contents?: string };
+                const json = JSON.parse(text) as { contents?: string };
                 if (json.contents) return json.contents;
+            } else if (proxyUrl.includes('htmldriven')) {
+                const json = JSON.parse(text);
+                if (json.body) return json.body;
             } else {
-                const text = await res.text();
-                if (text && text.length > 100) return text;
+                if (text && text.length > 500) return text;
             }
         } catch (err) {
             clearTimeout(timeout);
@@ -199,9 +231,15 @@ export async function GET(req: NextRequest) {
         xml = await fetchDirect(feed.url, controller.signal);
         clearTimeout(timeout);
 
-        // ── 2. Fallback proxy si le direct a échoué ──────────────────────
-        if (!xml || xml.length < 500) { // Si trop court, c'est sûrement une erreur ou challenge HTML
-            console.warn(`[news/route] Direct fetch failed or returned garbage, trying proxies for: ${feed.url}`);
+        // ── 2. Fallback Curl (souvent plus probant que fetch sur VPS) ───
+        if (!xml || xml.length < 500) {
+            console.warn(`[news/route] Direct fetch failed (WAF), trying Curl fallback: ${feed.url}`);
+            xml = await fetchWithCurl(feed.url);
+        }
+
+        // ── 3. Fallback proxy si tout le reste a échoué ─────────────────
+        if (!xml || xml.length < 500) {
+            console.warn(`[news/route] Direct & Curl failed, trying proxies for: ${feed.url}`);
             xml = await fetchWithProxy(feed.url);
         }
 

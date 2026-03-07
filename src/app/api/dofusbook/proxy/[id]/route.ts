@@ -20,7 +20,7 @@ export async function GET(
         // Si l'ID contient autre chose que des chiffres (ex: "1R9xf" format url courte d-bk.net)
         if (!/^\d+$/.test(id)) {
             const shortUrl = `https://d-bk.net/fr/d/${id}`;
-            const { stdout: headers } = await execAsync(`curl.exe -sI "${shortUrl}"`);
+            const { stdout: headers } = await execAsync(`curl -sI "${shortUrl}"`);
             const locationMatch = headers.match(/Location:\s*([^\r\n]+)/i);
 
             if (locationMatch) {
@@ -42,7 +42,7 @@ export async function GET(
 
         // Execute curl command
         const { stdout, stderr } = await execAsync(
-            `curl.exe -L "${url}" -A "${userAgent}" -H "Referer: ${referer}" --max-time 10`
+            `curl -L "${url}" -A "${userAgent}" -H "Referer: ${referer}" --max-time 10`
 
         );
 

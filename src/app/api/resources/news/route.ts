@@ -169,17 +169,28 @@ async function fetchWithProxy(url: string): Promise<string | null> {
             });
             clearTimeout(timeout);
 
-            if (!res.ok) continue;
+            if (!res.ok) {
+                console.warn(`[news/route] Proxy #${i + 1} returned status ${res.status} for ${url}`);
+                continue;
+            }
 
             const text = await res.text();
 
             // Handle AllOrigins structure vs others
             if (proxyUrl.includes('allorigins.win')) {
-                const json = JSON.parse(text) as { contents?: string };
-                if (json.contents) return json.contents;
+                try {
+                    const json = JSON.parse(text) as { contents?: string };
+                    if (json.contents) return json.contents;
+                } catch (parseErr) {
+                    console.error(`[news/route] AllOrigins parse error. Text snippet: ${text.substring(0, 100)}`);
+                }
             } else if (proxyUrl.includes('htmldriven')) {
-                const json = JSON.parse(text);
-                if (json.body) return json.body;
+                try {
+                    const json = JSON.parse(text);
+                    if (json.body) return json.body;
+                } catch (parseErr) {
+                    console.error(`[news/route] HTMLDriven parse error. Text snippet: ${text.substring(0, 100)}`);
+                }
             } else {
                 if (text && text.length > 500) return text;
             }

@@ -97,27 +97,66 @@ const FETCH_HEADERS = {
     "Sec-Fetch-Site": "cross-site",
 };
 
-// ─── Proxy fallback (contourne le blocage IP datacenter d'Ankama) ─────────────
+// ─── Direct fetch with browser-like headers ───────────────────────────────
 
-async function fetchWithProxy(url: string): Promise<string | null> {
-    // allorigins.win : proxy public qui contourne le blocage CloudFront côté VPS
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
+async function fetchDirect(url: string, signal: AbortSignal): Promise<string | null> {
     try {
-        const res = await fetch(proxyUrl, {
-            headers: { "User-Agent": "SigilOS/1.0" },
-            signal: controller.signal,
+        const res = await fetch(url, {
+            headers: FETCH_HEADERS,
+            signal,
             cache: "no-store",
         });
-        clearTimeout(timeout);
-        if (!res.ok) return null;
-        const json = await res.json() as { contents?: string };
-        return json.contents ?? null;
-    } catch {
-        clearTimeout(timeout);
+        if (res.ok) return await res.text();
+        console.warn(`[news/route] Direct fetch failed: ${res.status} for ${url}`);
+        return null;
+    } catch (err) {
+        console.error(`[news/route] Direct fetch error: ${err instanceof Error ? err.message : err}`);
         return null;
     }
+}
+
+// ─── Multi-Proxy System (bypass datacenter IP blocking) ──────────────────────
+
+const PROXIES = [
+    // 1. AllOrigins (usually very reliable)
+    (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    // 2. Codetabs (good alternative)
+    (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    // 3. Keep-alive proxy (another fallback)
+    (url: string) => `https://api.cors.lol/?url=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(url: string): Promise<string | null> {
+    for (let i = 0; i < PROXIES.length; i++) {
+        const proxyUrl = PROXIES[i](url);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8_000);
+
+        try {
+            console.log(`[news/route] Attempting proxy #${i + 1} for: ${url}`);
+            const res = await fetch(proxyUrl, {
+                headers: { "User-Agent": "SigilOS/1.0 (Research Bot)" },
+                signal: controller.signal,
+                cache: "no-store",
+            });
+            clearTimeout(timeout);
+
+            if (!res.ok) continue;
+
+            // Handle AllOrigins structure vs others
+            if (proxyUrl.includes('allorigins.win')) {
+                const json = await res.json() as { contents?: string };
+                if (json.contents) return json.contents;
+            } else {
+                const text = await res.text();
+                if (text && text.length > 100) return text;
+            }
+        } catch (err) {
+            clearTimeout(timeout);
+            console.warn(`[news/route] Proxy #${i + 1} failed: ${err instanceof Error ? err.message : 'timeout'}`);
+        }
+    }
+    return null;
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -154,35 +193,16 @@ export async function GET(req: NextRequest) {
     try {
         // ── 1. Tentative directe ─────────────────────────────────────────
         let xml: string | null = null;
-        let usedProxy = false;
-
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10_000);
 
-        let directOk = false;
-        try {
-            const res = await fetch(feed.url, {
-                headers: FETCH_HEADERS,
-                signal: controller.signal,
-                cache: "no-store",
-            });
-            clearTimeout(timeout);
-            if (res.ok) {
-                xml = await res.text();
-                directOk = true;
-            } else {
-                console.error(`[news/route] Direct RSS fetch failed: ${res.status} for ${feed.url}`);
-            }
-        } catch (directErr) {
-            clearTimeout(timeout);
-            console.error(`[news/route] Direct RSS fetch threw: ${directErr instanceof Error ? directErr.message : directErr}`);
-        }
+        xml = await fetchDirect(feed.url, controller.signal);
+        clearTimeout(timeout);
 
         // ── 2. Fallback proxy si le direct a échoué ──────────────────────
-        if (!directOk) {
-            console.warn(`[news/route] Falling back to proxy for: ${feed.url}`);
+        if (!xml || xml.length < 500) { // Si trop court, c'est sûrement une erreur ou challenge HTML
+            console.warn(`[news/route] Direct fetch failed or returned garbage, trying proxies for: ${feed.url}`);
             xml = await fetchWithProxy(feed.url);
-            usedProxy = xml !== null;
         }
 
         if (!xml) {
@@ -195,7 +215,7 @@ export async function GET(req: NextRequest) {
         const items = parseRSSItems(xml, feedKey === "dpln" ? 6 : 8);
 
         return NextResponse.json(
-            { items, feedKey, label: feed.label, usedProxy },
+            { items, feedKey, label: feed.label },
             {
                 headers: {
                     "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=86400",

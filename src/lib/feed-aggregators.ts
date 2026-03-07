@@ -67,24 +67,34 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
 // ─── DOFUS RSS FEED ──────────────────────────────────────────────
 export async function fetchDofusNews(): Promise<ExtractedContent[]> {
     try {
-        const url = 'https://www.dofus.com/fr/rss/news.xml';
-        const xml = await fetchWithProxyFallback(url);
+        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=NEWS';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            next: { revalidate: 900 }
+        });
 
-        if (!xml) throw new Error("Could not fetch RSS feed (Direct & Proxy failed)");
+        if (!res.ok) throw new Error("Could not fetch Dofus Haapi API: " + res.status);
 
-        const parser = new Parser();
-        const feed = await parser.parseString(xml);
+        const items: any[] = await res.json();
 
-        return feed.items.slice(0, 5).map(item => ({
-            type: "NEWS",
-            creatorId: "Ankama",
-            title: item.title || "Nouvelle annonce Dofus",
-            url: item.link || "https://www.dofus.com/fr",
-            thumbnail: null,
-            published: item.isoDate ? new Date(item.isoDate) : new Date()
-        }));
+        const feedItems = items.slice(0, 5).map((item, idx) => {
+            const descriptionHtml = item.baseline || "";
+            const plainDescription = descriptionHtml.replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/gi, " ").trim();
+
+            return {
+                type: "NEWS" as const,
+                creatorId: "Ankama",
+                title: item.name || "Nouvelle annonce Dofus",
+                url: item.url || "https://www.dofus.com/fr",
+                thumbnail: item.image_url || null,
+                description: plainDescription || undefined,
+                published: new Date(Date.now() - idx * 60000) // pseudo-chronological
+            };
+        });
+
+        return feedItems;
     } catch (e) {
-        console.error("Failed to fetch Dofus RSS", e);
+        console.error("Failed to fetch Dofus Haapi API", e);
         return [];
     }
 }

@@ -1,0 +1,25 @@
+# Dependency directories
+node_modules
+.next
+.pnpm-store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Game Assets (Served via Volume or directly on host, DO NOT include in image)
+public/game-data/tiles/
+public/game-data/hd_maps/
+
+# Logs and temp files
+*.log
+*.debug.json
+temp_map.jpg
+utf8_map.tsx
+potable_map.tsx
+old_map*.tsx

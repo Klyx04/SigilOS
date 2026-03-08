@@ -67,24 +67,34 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
 // ─── DOFUS RSS FEED ──────────────────────────────────────────────
 export async function fetchDofusNews(): Promise<ExtractedContent[]> {
     try {
-        const url = 'https://www.dofus.com/fr/rss/news.xml';
-        const xml = await fetchWithProxyFallback(url);
+        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=NEWS';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            next: { revalidate: 900 }
+        });
 
-        if (!xml) throw new Error("Could not fetch RSS feed (Direct & Proxy failed)");
+        if (!res.ok) throw new Error("Could not fetch Dofus Haapi API: " + res.status);
 
-        const parser = new Parser();
-        const feed = await parser.parseString(xml);
+        const items: any[] = await res.json();
 
-        return feed.items.slice(0, 5).map(item => ({
-            type: "NEWS",
-            creatorId: "Ankama",
-            title: item.title || "Nouvelle annonce Dofus",
-            url: item.link || "https://www.dofus.com/fr",
-            thumbnail: null,
-            published: item.isoDate ? new Date(item.isoDate) : new Date()
-        }));
+        const feedItems = items.slice(0, 6).map((item, idx) => {
+            const descriptionHtml = item.baseline || "";
+            const plainDescription = descriptionHtml.replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/gi, " ").trim();
+
+            return {
+                type: "NEWS" as const,
+                creatorId: "Ankama",
+                title: item.name || "Nouvelle annonce Dofus",
+                url: item.url || "https://www.dofus.com/fr",
+                thumbnail: item.image_url || null,
+                description: plainDescription || undefined,
+                published: new Date(Date.now() - idx * 60000) // pseudo-chronological
+            };
+        });
+
+        return feedItems;
     } catch (e) {
-        console.error("Failed to fetch Dofus RSS", e);
+        console.error("Failed to fetch Dofus Haapi API", e);
         return [];
     }
 }
@@ -98,50 +108,66 @@ export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
         if (!html) throw new Error(`Could not fetch DPLN (Direct & Proxy failed)`);
 
 
-        // More robust approach: Find all news boxes or h3 headings and extract links
         const items: ExtractedContent[] = [];
         const now = new Date();
 
-        // 1. First attempt: Look for .h-news-box containers (the main news)
-        const newsBoxRegex = /<div class="h-news-box">([\s\S]*?)<\/div>/g;
-        let boxMatch;
+        // 1. New Approach: Find article sliders/images which wrap image + text in a single <a> tag
+        const aRegex = /<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        let aMatch;
         let count = 0;
 
-        while ((boxMatch = newsBoxRegex.exec(html)) !== null && count < 8) {
-            const content = boxMatch[1];
+        while ((aMatch = aRegex.exec(html)) !== null && count < 8) {
+            const path = aMatch[1];
+            const innerHtml = aMatch[2];
 
-            // Extract Title: <h3>Title</h3>
-            const titleMatch = content.match(/<h3>(.*?)<\/h3>/);
-            const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : "";
-            if (!title) continue;
+            // Ignore standard navigation/social
+            if (path.startsWith('http') && !path.includes('dofuspourlesnoobs')) continue;
+            if (path === '/' || path.includes('#') || path.includes('mailto')) continue;
 
-            // Extract Link: search for the first href
-            const linkMatch = content.match(/<a\s+href="([^"]+)"/);
-            let url = linkMatch ? linkMatch[1] : baseUrl;
-            if (url.startsWith('/')) url = baseUrl + url;
+            // Check for image inside the link
+            const imgMatch = innerHtml.match(/<img[^>]+src="([^"]+)"/i);
+            if (!imgMatch) continue;
 
-            // Extract Image: <img src="...">
-            const imgMatch = content.match(/<img\s+src="([^"]+)"/);
-            let thumbnail = imgMatch ? imgMatch[1] : null;
-            if (thumbnail && thumbnail.startsWith('/')) thumbnail = baseUrl + thumbnail;
+            const imgUrl = imgMatch[1];
+            // Ignore generic UI icons
+            if (imgUrl.includes('logo') || imgUrl.includes('spacer') || imgUrl.includes('icon')) continue;
 
-            // Extract Description: <p>...</p>
-            const descMatch = content.match(/<p>(.*?)<\/p>/);
-            const description = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim() : "";
+            // Extract text from HTML, removing all tags
+            let fullText = innerHtml.replace(/<[^>]+>/g, '').trim();
+            if (!fullText) {
+                const altMatch = innerHtml.match(/<img[^>]+alt="([^"]+)"/i);
+                if (altMatch) fullText = altMatch[1];
+            }
 
-            items.push({
-                type: "NEWS",
-                creatorId: "DPLN",
-                title,
-                url,
-                thumbnail,
-                description,
-                published: new Date(now.getTime() - count * 60000)
-            });
-            count++;
+            if (fullText && fullText.length > 5 && imgUrl) {
+                let url = path;
+                if (url.startsWith('/')) url = baseUrl + url;
+
+                let thumbnail = imgUrl;
+                if (thumbnail.startsWith('/')) thumbnail = baseUrl + thumbnail;
+
+                // Avoid duplicates
+                if (!items.find(i => i.url === url)) {
+                    // Split title from potential description block
+                    const textParts = fullText.split('\n').map(p => p.trim()).filter(Boolean);
+                    const title = textParts[0];
+                    const description = textParts.slice(1).join(' ') || undefined;
+
+                    items.push({
+                        type: "NEWS" as const,
+                        creatorId: "DPLN",
+                        title,
+                        url,
+                        thumbnail,
+                        description,
+                        published: new Date(now.getTime() - count * 60000)
+                    });
+                    count++;
+                }
+            }
         }
 
-        // 2. Fallback: If no boxes found, look for list links <li><a...>...</a></li>
+        // 2. Fallback: Standard Weebly lists (for when sliders break entirely)
         if (items.length === 0) {
             const listRegex = /<li><a\s+href="([^"]+)"[^>]*>(.*?)<\/a><\/li>/g;
             let listMatch;
@@ -152,7 +178,7 @@ export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
 
                 if (title && !title.includes('Mise à jour')) {
                     items.push({
-                        type: "NEWS",
+                        type: "NEWS" as const,
                         creatorId: "DPLN",
                         title,
                         url,

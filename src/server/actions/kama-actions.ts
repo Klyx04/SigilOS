@@ -14,6 +14,7 @@ import {
     KAMA_MAX_PER_WEEK,
     REWARDS_PER_TRANCHE
 } from "@/lib/kama-constants";
+import { getDofusWeek } from "@/lib/date-utils";
 
 // Le client etendu ($extends) masque les types TS des modeles, on caste vers PrismaClient
 // pour acceder a kamaDonation avec les bons types. En runtime, tout fonctionne correctement.
@@ -98,14 +99,6 @@ const reviewDonationSchema = z.object({
 // ============================================================================
 // HELPER
 // ============================================================================
-
-function getCurrentWeek() {
-    const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    return { week, year: now.getFullYear() };
-}
-
 const profileSelect = {
     id: true,
     pseudoDofus: true,
@@ -135,7 +128,7 @@ export async function getMyWeeklyKamaStatus(
         const user = await getUserContext(guildId);
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
-        const { week, year } = getCurrentWeek();
+        const { week, year } = getDofusWeek();
 
         const weekDonations: Array<{ id: string; amount: number; status: string }> = await kamaDb.kamaDonation.findMany({
             where: {
@@ -201,7 +194,7 @@ export async function submitKamaDonation(
         const user = await getUserContext(input.guildId);
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
-        const { week, year } = getCurrentWeek();
+        const { week, year } = getDofusWeek();
 
         // Server-side weekly limit check
         const existingWeek = await kamaDb.kamaDonation.aggregate({
@@ -490,7 +483,7 @@ export async function getKamaLadder(
         const where: Record<string, unknown> = { guildId: guildConfig.id, status: "VALIDATED" };
 
         if (period === "week") {
-            const { week, year } = getCurrentWeek();
+            const { week, year } = getDofusWeek();
             where.weekNumber = week;
             where.yearNumber = year;
         } else if (period === "month") {
@@ -546,7 +539,7 @@ export async function getKamaStats(guildId: string): Promise<ActionResponse<Kama
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const { week, year } = getCurrentWeek();
+        const { week, year } = getDofusWeek();
 
         const [validated, pending, weeklyVal, weeklyPend] = await Promise.all([
             kamaDb.kamaDonation.aggregate({ where: { guildId: guildConfig.id, status: "VALIDATED" }, _sum: { amount: true } }),

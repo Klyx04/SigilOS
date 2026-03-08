@@ -411,13 +411,23 @@ export async function resetWeek(
             return { success: false, error: "Guilde non configurée" };
         }
 
-        await db.mission.deleteMany({
-            where: {
-                guildId: guildConfig.id,
-                weekNumber,
-                year
-            }
-        });
+        await db.$transaction([
+            db.mission.deleteMany({
+                where: {
+                    guildId: guildConfig.id,
+                    weekNumber,
+                    year
+                }
+            }),
+            // Use PrismaClient casting since kamaDonation expects dynamically added type in this module
+            (db as any).kamaDonation.deleteMany({
+                where: {
+                    guildId: guildConfig.id,
+                    weekNumber,
+                    yearNumber: year
+                }
+            })
+        ]);
 
         revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);

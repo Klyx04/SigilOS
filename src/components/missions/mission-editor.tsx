@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
-import { getWeekNumber } from "@/lib/date-utils";
+import { getDofusWeek } from "@/lib/date-utils";
 import { useRouter } from "next/navigation";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import { MissionDiscordPublishDialog } from "./mission-discord-publish-dialog";
@@ -53,7 +53,7 @@ type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 export function MissionEditor({ guildId }: { guildId: string }) {
     const router = useRouter();
-    const { week: weekNumber, year } = getWeekNumber();
+    const { week: weekNumber, year } = getDofusWeek();
 
     const [missions, setMissions] = useState<DraftMission[]>(
         Array.from({ length: 18 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))

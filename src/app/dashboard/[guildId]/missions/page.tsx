@@ -11,15 +11,10 @@ import { MissionsErrorState } from "@/components/missions/missions-error-state";
 import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
+import { getDofusWeek } from "@/lib/date-utils";
 
 export const dynamic = 'force-dynamic';
 
-function getCurrentWeek() {
-    const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    return { week, year: now.getFullYear() };
-}
 
 export default async function MissionsPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -36,7 +31,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
         return <AccessDenied />;
     }
 
-    const { week, year } = getCurrentWeek();
+    const { week, year } = getDofusWeek();
 
     // Fetch all data in parallel
     const [response, overrideRes, kamaRes] = await Promise.all([

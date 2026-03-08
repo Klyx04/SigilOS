@@ -253,7 +253,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                 </div>
 
                 {/* 3. FOOTER */}
-                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-3 border-t border-white/5 relative z-10">
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-3 border-t border-white/5 relative z-40">
                     {/* LEFT: Kama widget + legend */}
                     <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[280px] md:max-w-[340px]">
                         {/* Kama contribution widget */}

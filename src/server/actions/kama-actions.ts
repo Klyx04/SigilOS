@@ -12,6 +12,7 @@ import {
     KAMA_TRANCHE,
     KAMA_MAX_TRANCHES,
     KAMA_MAX_PER_WEEK,
+    REWARDS_PER_TRANCHE
 } from "@/lib/kama-constants";
 
 // Le client etendu ($extends) masque les types TS des modeles, on caste vers PrismaClient
@@ -398,7 +399,7 @@ export async function reviewKamaDonation(
 
         const donation = await kamaDb.kamaDonation.findFirst({
             where: { id: input.donationId, guildId: guildConfig.id },
-            select: { id: true, status: true, discordMessageId: true, proofUrl: true },
+            select: { id: true, status: true, discordMessageId: true, proofUrl: true, amount: true, profileId: true },
         });
         if (!donation) return { success: false, error: "Donation introuvable" };
         if (donation.status !== "PENDING") return { success: false, error: "Cette donation a deja ete traitee" };
@@ -416,6 +417,20 @@ export async function reviewKamaDonation(
                     : null,
             },
         });
+
+        if (newStatus === "VALIDATED") {
+            const tranches = Math.floor(donation.amount / KAMA_TRANCHE);
+            const addedXp = tranches * REWARDS_PER_TRANCHE.xp;
+            const addedGuildatons = tranches * REWARDS_PER_TRANCHE.guildatons;
+
+            await db.userProfile.update({
+                where: { id: donation.profileId },
+                data: {
+                    xp: { increment: addedXp },
+                    guildatons: { increment: addedGuildatons }
+                }
+            });
+        }
 
         // Delete Discord embed (dashboard validation path)
         if (donation.discordMessageId?.includes(":")) {

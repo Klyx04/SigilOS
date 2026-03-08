@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { createWeekMissions, resetMission, resetWeek, getWeekMissions } from "@/server/actions/mission-actions";
+import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier } from "@/server/actions/mission-actions";
 import { getDofusConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
 import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getWeekNumber } from "@/lib/date-utils";
+import { useRouter } from "next/navigation";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import { MissionDiscordPublishDialog } from "./mission-discord-publish-dialog";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -51,6 +52,7 @@ type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 // --- Component ---
 
 export function MissionEditor({ guildId }: { guildId: string }) {
+    const router = useRouter();
     const { week: weekNumber, year } = getWeekNumber();
 
     const [missions, setMissions] = useState<DraftMission[]>(
@@ -238,6 +240,22 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
     const currentMission = editingSlot !== null ? missions[editingSlot] : null;
 
+    const handleGlobalTierChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newTier = parseInt(e.target.value);
+        setGlobalTier(newTier);
+
+        setIsLoading(true);
+        const res = await updateWeekTier(guildId, weekNumber, year, newTier);
+        setIsLoading(false);
+
+        if (res.success) {
+            toast.success(`Palier hebdomadaire mis à jour : Palier ${newTier}`);
+            router.refresh();
+        } else {
+            toast.error(res.error || "Erreur lors de la mise à jour du palier.");
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Toolbar */}
@@ -261,9 +279,10 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     <div className="flex items-center gap-2">
                         <label className="text-sm text-zinc-400 font-medium">Palier semaine</label>
                         <select
-                            className="h-9 w-32 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                            className="h-9 w-32 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none disabled:opacity-50"
                             value={globalTier}
-                            onChange={(e) => setGlobalTier(parseInt(e.target.value))}
+                            onChange={handleGlobalTierChange}
+                            disabled={isLoading}
                         >
                             {[1, 2, 3, 4, 5].map(t => (
                                 <option key={t} value={t}>Palier {t}</option>

@@ -285,6 +285,63 @@ export async function createWeekMissions(
     }
 }
 
+export async function updateWeekTier(
+    guildId: string,
+    weekNumber: number,
+    year: number,
+    tier: number
+): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+            where: { discordGuildId: guildId }
+        });
+
+        await db.$transaction(async (tx) => {
+            // Update guild default if requested
+            await tx.guildConfig.update({
+                where: { id: guildConfig.id },
+                data: { missionTier: tier } as any // Use as any to bypass Prisma type lags
+            });
+
+            // Update all existing missions for that week
+            await tx.mission.updateMany({
+                where: {
+                    guildId: guildConfig.id,
+                    weekNumber,
+                    year
+                },
+                data: { tier }
+            });
+        });
+
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
+        revalidatePath(`/dashboard/${guildId}/missions`);
+
+        await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: "MISSION_UPDATED" as any,
+            targetType: "GUILD" as any,
+            metadata: { weekNumber, year, newTier: tier }
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Week Tier Error", { error, guildId, weekNumber, year, tier });
+        return { success: false, error: "Database transaction failed" };
+    }
+}
+
+
 export async function resetMission(
     guildId: string,
     weekNumber: number,

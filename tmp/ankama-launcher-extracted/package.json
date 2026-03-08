@@ -1,0 +1,172 @@
+{
+  "version": "3.14.2",
+  "copyright": "Ankama",
+  "description": "Ankama portal and game launcher",
+  "main": "main.js",
+  "private": true,
+  "author": "Ankama <info@ankama.com>",
+  "homepage": "https://www.ankama.com",
+  "defaultLanguage": "en",
+  "supportedLanguages": [
+    "en",
+    "fr",
+    "pt",
+    "es",
+    "de"
+  ],
+  "dependencies": {
+    "@Zaap/cytrus-client": "0.1.6",
+    "@Zaap/shop-sdk": "^1.1.2",
+    "@Zaap/tower-sdk": "^1.4.10",
+    "@Zaap/vod-sdk": "^1.0.3",
+    "@panter/vue-i18next": "^0.15.2",
+    "@sentry/electron": "^4.2.0",
+    "@yeger/vue2-masonry-wall": "^4.2.2",
+    "active-win": "^7.7.2",
+    "all-windows": "^2.0.0",
+    "auto-launch": "5.0.5",
+    "axios": "^0.27.2",
+    "check-disk-space": "^3.3.0",
+    "debounce": "^1.2.1",
+    "deep-copy": "1.4.2",
+    "deep-equal": "^2.0.5",
+    "dialog": "~0.3.1",
+    "electron-devtools-installer": "^3.2.0",
+    "electron-fetch": "1.4.0",
+    "electron-settings": "3.2.0",
+    "electron-updater": "^4.6.2",
+    "find-process": "yibn2008/find-process#61/head",
+    "fkill": "^7.1.0",
+    "fs-extra": "^10.0.0",
+    "gsap": "^3.8.0",
+    "i18next": "^20.3.2",
+    "i18next-fs-backend": "^1.1.1",
+    "iconv": "^3.0.1",
+    "instill": "0.0.5",
+    "is-online": "^9.0.1",
+    "jose": "^4.15.4",
+    "js-yaml": "^4.0.0",
+    "json-bigint": "^1.0.0",
+    "long": "4.0.0",
+    "moment": "2.24.0",
+    "munchausen": "0.0.1",
+    "node-cache": "^5.1.2",
+    "node-machine-id": "^1.1.12",
+    "nunjucks": "^3.2.3",
+    "parse-function": "5.6.10",
+    "promise-retry": "^2.0.1",
+    "protocol-generated-nodejs": "https://sslnexus.ankama.lan/nexus/content/groups/public/com/ankama/zaap/protocol-generated-nodejs/46.0.0/protocol-generated-nodejs-46.0.0.tar.gz",
+    "qrcode.vue": "^1.7.0",
+    "recursive-readdir": "2.2.2",
+    "rimraf": "^3.0.2",
+    "rootpath": "0.1.2",
+    "sanitize-html": "^2.6.0",
+    "serialize-error": "^8.1.0",
+    "source-map-support": "0.5.13",
+    "tar-fs": "^2.1.1",
+    "thrift": "0.14.1",
+    "throttle-debounce": "^5.0.0",
+    "tmp": "0.0.33",
+    "use-strict": "1.0.1",
+    "uuid": "^8.3.2",
+    "video.js": "^7.19.2",
+    "videojs-contrib-quality-levels": "^2.1.0",
+    "videojs-errors": "^4.5.0",
+    "videojs-hls-quality-selector": "^1.1.4",
+    "vue": "^2.7.0",
+    "vue-electron": "1.0.6",
+    "vue-grid-layout": "2.1.13",
+    "vue-lottie": "^0.2.1",
+    "vue-router": "^3.4.9",
+    "vue-slider-component": "^3.2.15",
+    "vue2-datepicker": "^3.11.1",
+    "vuedraggable": "^2.24.0",
+    "vuescroll": "^4.16.1",
+    "vuex": "3.0.1",
+    "wallpaper": "^5",
+    "winreg": "^1.2.4",
+    "winston": "2.4.2"
+  },
+  "resolutions": {
+    "follow-redirects": "^1.14.4"
+  },
+  "electronWebpack": {
+    "main": {
+      "extraEntries": [
+        "./src/preload.js",
+        "./src/notification-preload.js",
+        "./src/overlay-preload.js",
+        "./src/webview-preload.js"
+      ],
+      "webpackConfig": "webpack.config.js"
+    },
+    "renderer": {
+      "webpackConfig": "webpack-renderer.config.js"
+    }
+  },
+  "name": "zaap",
+  "productName": "Ankama Launcher",
+  "appId": "com.ankama.zaap",
+  "environment": "production",
+  "allowInsecureHttps": false,
+  "domain": "com",
+  "internal": false,
+  "app": {
+    "ankamaGoUrl": "https://go.ankama.com/",
+    "autoupdaterUrl": "https://launcher.cdn.ankama.com/installers",
+    "haapiUrl": "https://haapi.ankama.com/",
+    "themes": [
+      "default",
+      "dark",
+      "krosmoz",
+      "allskreen"
+    ],
+    "distantUrl": "https://launcher.cdn.ankama.com/desktop",
+    "defaultUniverse": "Krosmoz",
+    "authUrl": "https://auth.ankama.com/",
+    "shopUrl": "https://shop-api.ankama.com",
+    "shopOverlayUrl": "https://store.ankama.com/{lang}/overlay/auth"
+  },
+  "allskreen": {
+    "baseURL": "https://www.allskreen.com"
+  },
+  "chat": {
+    "enabled": true,
+    "url": "zaap-chat.ankama.com",
+    "port": 6337,
+    "useractivitiesUrl": "https://launcher.cdn.ankama.com/configs/useractivities.json"
+  },
+  "games": {
+    "cloudSaveUrl": "https://game-service.ankama.com/",
+    "autoUpgradeEnabled": true
+  },
+  "home": {
+    "enabled": false
+  },
+  "news": {
+    "changelogSite": "LAUNCHER"
+  },
+  "sentry": {
+    "dsn": "https://cfd88e06dc924b60bc4decd26e45bd96@o89945.ingest.sentry.io/196019"
+  },
+  "shop": {
+    "enabled": true
+  },
+  "video": {
+    "enabled": true,
+    "url": "https://vod-api.ankama.com",
+    "analyticsUrl": "https://bradmax.com/static/bradmax-analytics-for-players/latest/bradmax.analytics.js",
+    "analyticsToken": "6Pk6vcxOmjsD44CcOOZ4hsum58BMmcWO_4-smm"
+  },
+  "tower": {
+    "baseURL": "https://tower-api.ankama.com"
+  },
+  "twitch": {
+    "enabled": true,
+    "baseURL": "https://launcher.cdn.ankama.com/twitch"
+  },
+  "buildInfo": {
+    "buildDate": "2026-03-02T15:48:26.240Z",
+    "buildCommit": "057269e51254feb173ea9bbce44c2907d53dc00a"
+  }
+}

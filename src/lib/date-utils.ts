@@ -1,13 +1,21 @@
-/**
- * Date Utilities for SigilOS
- */
+import { getISOWeek, getISOWeekYear, subHours } from "date-fns";
 
 /**
- * Get the current ISO week number and year.
+ * Get the current Dofus ISO week number and year.
+ * The week changes on Tuesday at 07:00 Paris time.
  */
-export function getWeekNumber(): { week: number; year: number } {
-    const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    return { week, year: now.getFullYear() };
+export function getDofusWeek(): { week: number; year: number } {
+    const nowStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" });
+    const parisDate = new Date(nowStr);
+
+    // ISO week resets on Monday at 00:00.
+    // By subtracting 31 hours (24h + 7h) from Paris time,
+    // anything before Tue 07:00 falls into Sunday (previous ISO week)
+    // and anything after falls into Monday (current ISO week).
+    const shifted = subHours(parisDate, 31);
+
+    return {
+        week: getISOWeek(shifted),
+        year: getISOWeekYear(shifted)
+    };
 }

@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
+import { getDofusWeek } from "@/lib/date-utils";
 
 export type OnboardingProgress = {
     steps: {
@@ -33,8 +34,8 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
                     profiles: true,
                     missions: {
                         where: {
-                            weekNumber: getWeekNumber(new Date()),
-                            year: new Date().getFullYear(),
+                            weekNumber: getDofusWeek().week,
+                            year: getDofusWeek().year,
                         }
                     }
                 }
@@ -141,13 +142,6 @@ function countEnabledModules(modules: any): number {
     return count;
 }
 
-function getWeekNumber(d: Date) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return weekNo;
-}
 
 export async function sendWelcomeNotifications(guildConfig: any, profileId: string, displayName: string) {
     if (!guildConfig) return;

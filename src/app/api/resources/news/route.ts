@@ -231,6 +231,29 @@ export async function GET(req: NextRequest) {
         }
     }
 
+    // ─── Custom Dofus News Fetcher (Haapi API) ───────────────────────────
+    if (feedKey === "news") {
+        try {
+            const { fetchDofusNews } = await import("@/lib/feed-aggregators");
+            const rawItems = await fetchDofusNews();
+            const items = rawItems.map(item => ({
+                title: item.title,
+                link: item.url,
+                imageUrl: item.thumbnail || undefined,
+                pubDate: item.published.toISOString(),
+                description: item.description || "",
+                category: "Actualité"
+            }));
+            return NextResponse.json(
+                { items, feedKey, label: "Actualités" },
+                { headers: { "Cache-Control": "public, s-maxage=1800" } }
+            );
+        } catch (err) {
+            console.error("Dofus News format error", err);
+            // fallback if it fails
+        }
+    }
+
     const feed = FEEDS[feedKey] ?? FEEDS.news;
 
     try {

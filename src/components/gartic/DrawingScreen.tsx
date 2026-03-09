@@ -18,7 +18,7 @@ interface DrawingScreenProps {
 }
 
 export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, roomId, timeLeft, totalTime }: DrawingScreenProps) => {
-    const canvas = useGarticCanvas({ isDrawer, socket, roomId });
+    const { canvasRef, overlayRef, tool, setTool, color, setColor, brushSize, setBrushSize, canUndo, canRedo, undo, redo, clear, handlers } = useGarticCanvas({ isDrawer, socket, roomId });
 
     const DOFUS_COLORS = [
         "#1a1a1a", "#6c6c6c", "#4169e1",
@@ -39,24 +39,24 @@ export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, ro
                     {DOFUS_COLORS.map((c) => (
                         <button
                             key={c}
-                            onClick={() => canvas.setColor(c)}
+                            onClick={() => setColor(c)}
                             className={cn(
                                 "w-8 h-8 rounded-full border-2 transition-all hover:scale-110",
-                                canvas.color === c ? "border-white scale-110" : "border-transparent"
+                                color === c ? "border-white scale-110" : "border-transparent"
                             )}
                             style={{ backgroundColor: c }}
                         />
                     ))}
                 </div>
                 <button
-                    onClick={() => canvas.setColor("#000000")}
+                    onClick={() => setColor("#000000")}
                     className={cn(
                         "w-full h-10 rounded-lg border-2 transition-all mt-2 hover:opacity-80",
-                        canvas.color === "#000000" ? "border-white" : "border-transparent"
+                        color === "#000000" ? "border-white" : "border-transparent"
                     )}
                     style={{ backgroundColor: "#000000" }}
                 />
-                <div className="w-full h-10 rounded-lg border-2 border-white/50 mt-4 shadow-inner" style={{ backgroundColor: canvas.color }} />
+                <div className="w-full h-10 rounded-lg border-2 border-white/50 mt-4 shadow-inner" style={{ backgroundColor: color }} />
             </div>
 
             {/* Zone centrale : Canvas + Header */}
@@ -80,15 +80,15 @@ export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, ro
                 {/* Canvas principal */}
                 <div className="relative bg-white w-full h-[500px]" style={{ touchAction: "none" }}>
                     <canvas
-                        ref={canvas.canvasRef}
+                        ref={canvasRef}
                         width={800}
                         height={600}
                         className="w-full h-full object-contain"
                         style={{ cursor: isDrawer ? "crosshair" : "default", touchAction: "none" }}
-                        {...(isDrawer ? canvas.handlers : {})}
+                        {...(isDrawer ? handlers : {})}
                     />
                     <canvas
-                        ref={canvas.overlayRef}
+                        ref={overlayRef}
                         width={800}
                         height={600}
                         className="absolute inset-0 w-full h-full pointer-events-none object-contain"
@@ -106,10 +106,10 @@ export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, ro
                     {BRUSH_SIZES.map((size) => (
                         <button
                             key={size}
-                            onClick={() => canvas.setBrushSize(size)}
+                            onClick={() => setBrushSize(size)}
                             className={cn(
                                 "rounded-full bg-white transition-all shadow-inner",
-                                canvas.brushSize === size ? "ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#3d2080]" : "opacity-70 hover:opacity-100"
+                                brushSize === size ? "ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#3d2080]" : "opacity-70 hover:opacity-100"
                             )}
                             style={{ width: size + 10, height: size + 10 }}
                         />
@@ -130,10 +130,10 @@ export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, ro
                 ].map(t => (
                     <button
                         key={t.id}
-                        onClick={() => canvas.setTool(t.id as any)}
+                        onClick={() => setTool(t.id as any)}
                         className={cn(
                             "p-4 rounded-xl font-bold transition-all text-xl hover:bg-white/20",
-                            canvas.tool === t.id ? "bg-white/30 text-yellow-400 shadow-inner" : "bg-white/5 text-white"
+                            tool === t.id ? "bg-white/30 text-yellow-400 shadow-inner" : "bg-white/5 text-white"
                         )}
                     >
                         {t.icon}
@@ -144,9 +144,9 @@ export const DrawingScreen = ({ isDrawer, word, wordHint, drawerName, socket, ro
 
                 {isDrawer && (
                     <>
-                        <button onClick={canvas.undo} disabled={!canvas.canUndo} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-all">↩️</button>
-                        <button onClick={canvas.redo} disabled={!canvas.canRedo} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-all">↪️</button>
-                        <button onClick={canvas.clear} className="p-3 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 rounded-xl transition-all">🗑️</button>
+                        <button onClick={undo} disabled={!canUndo} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-all">↩️</button>
+                        <button onClick={redo} disabled={!canRedo} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-all">↪️</button>
+                        <button onClick={clear} className="p-3 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 rounded-xl transition-all">🗑️</button>
                     </>
                 )}
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { Socket } from "socket.io-client";
 import { DrawTool, StrokeData } from "../types/socket-events";
 
@@ -247,7 +247,7 @@ export const useGarticCanvas = ({ isDrawer, socket, roomId }: UseGarticCanvasOpt
         }
     }, [isDrawer, tool, color, brushSize, drawStroke, saveToHistory, getRelativePos, socket]);
 
-    const handlePointerMove = useCallback(throttle((e: React.PointerEvent) => {
+    const handlePointerMove = useMemo(() => throttle((e: React.PointerEvent) => {
         if (!isDrawer || !isDrawingRef.current) return;
         if (tool === "bucket" || tool === "paint-bucket") return;
 

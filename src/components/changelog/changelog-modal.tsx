@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronRight, X } from "lucide-react";
 import { checkChangelogVisibility, markChangelogAsSeen } from "@/server/actions/changelog-actions";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DocContent } from "@/components/doc/doc-content";
 import { cn } from "@/lib/utils";
@@ -102,8 +101,8 @@ export function ChangelogModal() {
                 </div>
 
                 {/* Content — uses DocContent to render TipTap HTML correctly */}
-                <div className="px-6 pb-6 sm:px-8 sm:pb-8 flex flex-col flex-1 overflow-hidden relative z-10 -mt-2">
-                    <ScrollArea className="flex-1 pr-2">
+                <div className="px-6 pb-6 sm:px-8 sm:pb-8 flex flex-col flex-1 min-h-0 overflow-hidden relative z-10 -mt-2">
+                    <div className="flex-1 overflow-y-auto pr-2 min-h-0 w-full overflow-x-hidden">
                         <DocContent
                             content={changelog.content}
                             className="
@@ -118,9 +117,9 @@ export function ChangelogModal() {
                                 [&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-start
                             "
                         />
-                    </ScrollArea>
+                    </div>
 
-                    <div className="pt-4 flex items-center justify-end gap-3 mt-auto border-t border-white/5">
+                    <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-white/5">
                         <div className="mr-auto hidden sm:flex flex-col">
                             <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">
                                 SigilOS Platform

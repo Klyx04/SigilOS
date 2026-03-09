@@ -15,8 +15,10 @@ import {
     startGeoguesserSession,
     leaveGeoguesserSession,
     getSessionStatus,
-    advanceSessionRound
+    advanceSessionRound,
+    submitSessionGuess
 } from '@/server/actions/geoguesser-multi-actions';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 
@@ -32,6 +34,9 @@ const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
     )
 });
 
+const GeoguesserHUD = dynamic<any>(() => import('./GeoguesserHUD'), { ssr: false });
+const MapDetailsPanel = dynamic<any>(() => import('./MapDetailsPanel'), { ssr: false });
+
 interface InteractiveMapProps {
     worldMap: WorldData;
     initialLadder?: any[];
@@ -45,7 +50,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
 
     // UI States
     const [search, setSearch] = useState('');
-    const [showDebugGrid, setShowDebugGrid] = useState(false);
+    const [showDebugGrid, setShowDebugGrid] = useState(true);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
     const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(null);
@@ -55,8 +60,57 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
     const [activeSession, setActiveSession] = useState<any>(null);
     const [availableSessions, setAvailableSessions] = useState<any[]>([]);
     const [guessResult, setGuessResult] = useState<any>(null);
+    const [timeLeft, setTimeLeft] = useState(30);
+    const [score, setScore] = useState(0);
 
     const guildId = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '';
+
+    // POLLING: Update Session Status
+    useEffect(() => {
+        if (!activeSession) return;
+
+        const pollSession = async () => {
+            try {
+                const status = await getSessionStatus(activeSession.id);
+                if (!status) return;
+
+                setActiveSession(status);
+
+                // Transition to PLAYING if session is in progress
+                if (status.status === 'IN_PROGRESS' && gamePhase === 'idle') {
+                    setGamePhase('playing');
+                    setTimeLeft(status.timePerRound || 30);
+                }
+
+                // Handle round transition
+                if (status.status === 'IN_PROGRESS' && status.currentRound !== activeSession.currentRound) {
+                    setGamePhase('playing');
+                    setGuessResult(null);
+                    setTimeLeft(status.timePerRound || 30);
+                }
+            } catch (e) { }
+        };
+
+        const interval = setInterval(pollSession, 2000);
+        return () => clearInterval(interval);
+    }, [activeSession, gamePhase]);
+
+    // Timer Logic for Round
+    useEffect(() => {
+        if (gamePhase !== 'playing' || timeLeft <= 0) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    setGamePhase('result');
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [gamePhase, timeLeft]);
 
     const fetchLobbies = useCallback(async () => {
         if (!guildId) return;
@@ -89,9 +143,13 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
         worldMap.worlds?.find(w => w.id === selectedWorldId) || worldMap.worlds?.[0],
         [worldMap, selectedWorldId]);
 
-    const activeMaps = useMemo(() =>
-        worldMap.maps?.filter(m => m.worldMap === selectedWorldId) || [],
-        [worldMap.maps, selectedWorldId]);
+    const activeMaps = useMemo(() => {
+        const dungeonMapIds = new Set(worldMap.dungeons?.map(d => d.mapId || d.entranceMapId) || []);
+        return worldMap.maps?.filter(m =>
+            m.worldMap === selectedWorldId ||
+            (selectedWorldId === 1 && m.worldMap === -1 && dungeonMapIds.has(m.id))
+        ) || [];
+    }, [worldMap.maps, selectedWorldId, worldMap.dungeons]);
 
     const visibleWorlds = useMemo(() =>
         worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [],
@@ -118,8 +176,10 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
     const dungeonsByMapId = useMemo(() => {
         const index = new Map<number, any[]>();
         worldMap.dungeons?.forEach(d => {
-            if (!index.has(d.mapId)) index.set(d.mapId, []);
-            index.get(d.mapId)!.push(d);
+            const mapId = d.mapId || d.entranceMapId; // Handle both old and new formats
+            if (!mapId) return;
+            if (!index.has(mapId)) index.set(mapId, []);
+            index.get(mapId)!.push(d);
         });
         return index;
     }, [worldMap.dungeons]);
@@ -177,74 +237,153 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
     const handleLeaveSession = async () => {
         if (!activeSession) return;
         setActiveSession(null);
+        setGamePhase('idle');
         await leaveGeoguesserSession(activeSession.id);
         fetchLobbies();
     };
 
+    const handleMapClick = async (pos: any) => {
+        if (activeTab === 'games' && gamePhase === 'playing' && targetMapId) {
+            // GUESS LOGIC
+            const targetMap = mapsById.get(targetMapId);
+            if (!targetMap) return;
+
+            const dx = pos.x - targetMap.x;
+            const dy = pos.y - targetMap.y;
+            const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+
+            // Simple score: 1000 - (dist * 20), min 0
+            const roundScore = Math.max(0, 1000 - (dist * 10));
+            setScore(prev => prev + roundScore);
+
+            setGuessResult({
+                target: { x: targetMap.x, y: targetMap.y },
+                guess: { x: pos.x, y: pos.y },
+                distance: dist,
+                score: roundScore
+            });
+
+            setGamePhase('result');
+
+            // Send to server
+            if (activeSession) {
+                await submitSessionGuess(activeSession.id, activeSession.currentRound || 1, pos.x, pos.y, roundScore, dist);
+            }
+        } else if (activeTab === 'map') {
+            setSelectedPosition(pos);
+        }
+    };
+
     const handleStartRoomGame = async () => {
         if (!activeSession || activeSession.hostId !== currentUserId) return;
-        const res = await startGeoguesserSession(activeSession.id, [1, 2, 3]); // Example IDs
+
+        // Pick 5 random map IDs for now
+        const allMapIds = Array.from(mapsById.keys());
+        const shuffled = [...allMapIds].sort(() => 0.5 - Math.random());
+        const selectedIds = shuffled.slice(0, 5);
+
+        const res = await startGeoguesserSession(activeSession.id, selectedIds);
         if (res.success) toast.success("C'est parti !");
+    };
+
+    const targetMapId = useMemo(() => {
+        if (!activeSession || !activeSession.targetMapIds || activeSession.currentRound === undefined) return null;
+        return activeSession.targetMapIds[activeSession.currentRound - 1];
+    }, [activeSession]);
+
+    const handleAdvanceRound = async () => {
+        if (!activeSession) return;
+        const nextRound = (activeSession.currentRound || 1) + 1;
+        if (nextRound > activeSession.maxRounds) {
+            // End of game logic? For now just reset
+            setActiveSession(null);
+            setGamePhase('idle');
+            return;
+        }
+        await advanceSessionRound(activeSession.id, nextRound);
     };
 
     if (!activeWorld) return <div className="p-20 text-center text-white/20">Initialisation de la carte...</div>;
 
     return (
         <div className="w-full h-full flex flex-col bg-[#080b12] relative overflow-hidden">
-            {/* Tabs Header */}
-            <div className="flex-shrink-0 bg-slate-950/80 border-b border-white/5 px-8 pt-4 z-[400] flex items-center justify-between">
-                <div className="flex items-center gap-8">
-                    <button onClick={() => setActiveTab('map')} className={`pb-4 px-2 text-[11px] font-black uppercase tracking-[0.2em] italic transition-all relative ${activeTab === 'map' ? 'text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
+            {/* Header & Controls Consolidated */}
+            <div className="flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between h-[64px] z-[600]">
+                {/* Left: Navigation Tabs */}
+                <div className="flex items-center gap-8 h-full">
+                    <button onClick={() => setActiveTab('map')} className={`h-full px-2 text-[11px] font-black uppercase tracking-[0.2em] italic transition-all relative flex items-center ${activeTab === 'map' ? 'text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
                         Carte & Exploration
-                        {activeTab === 'map' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />}
+                        {activeTab === 'map' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />}
                     </button>
-                    <button onClick={() => setActiveTab('games')} className={`pb-4 px-2 text-[11px] font-black uppercase tracking-[0.2em] italic transition-all relative ${activeTab === 'games' ? 'text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
+                    <button onClick={() => setActiveTab('games')} className={`h-full px-2 text-[11px] font-black uppercase tracking-[0.2em] italic transition-all relative flex items-center ${activeTab === 'games' ? 'text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
                         Mini-Jeux
-                        {activeTab === 'games' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />}
+                        {activeTab === 'games' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />}
                     </button>
                 </div>
-            </div>
 
-            {/* Map Interaction Toolbar (Visible in Map Tab) */}
-            {activeTab === 'map' && (
-                <div className="absolute top-20 left-4 right-4 z-[300] flex items-center justify-between pointer-events-none">
-                    <div className="flex items-center gap-3 pointer-events-auto">
-                        <div className="relative group">
-                            <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white shadow-xl backdrop-blur-md">
-                                <MapIcon size={14} className="text-emerald-500" />
-                                <span className="text-xs font-black uppercase italic tracking-tighter">{activeWorld.name.fr}</span>
-                                <ChevronDown size={14} className="text-white/20" />
-                            </button>
-                            <div className="absolute top-full left-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all">
-                                <div className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-2 max-h-[50vh] overflow-y-auto">
-                                    {visibleWorlds.map(w => (
-                                        <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
-                                    ))}
+                {/* Right: Map Contextual Tools (Visible ONLY on Map Tab) */}
+                <AnimatePresence mode="wait">
+                    {activeTab === 'map' && (
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="flex items-center gap-4"
+                        >
+                            {/* World Selection */}
+                            <div className="relative group">
+                                <button className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors">
+                                    <MapIcon size={12} className="text-emerald-500" />
+                                    <span className="text-[10px] font-black uppercase italic tracking-tighter">{activeWorld.name.fr}</span>
+                                    <ChevronDown size={12} className="text-white/20" />
+                                </button>
+                                <div className="absolute top-full right-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
+                                    <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
+                                        {visibleWorlds.map(w => (
+                                            <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 pointer-events-auto">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={14} />
-                            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Zone..." className="w-48 rounded-xl bg-slate-900/80 py-2.5 pl-9 pr-4 text-white text-xs border border-white/10 focus:border-emerald-500/50 outline-none" />
-                            {searchResults.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-auto">
-                                    {searchResults.map(s => (
-                                        <button key={s.id} onClick={() => { setSelectedWorldId(1); setSearch(''); /* Logic to center on zone */ }} className="w-full text-left px-4 py-2 hover:bg-white/5 border-b border-white/5 last:border-0 font-bold">
-                                            <span className="text-white text-[10px] block">{s.name.fr}</span>
-                                            <span className="text-emerald-500/50 text-[8px] uppercase font-black">Lvl {s.level}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+                            {/* Grid Toggle */}
+                            <button
+                                onClick={() => setShowDebugGrid(!showDebugGrid)}
+                                className={`p-2 rounded-xl border transition-all ${showDebugGrid ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/5 text-white/40 hover:text-white/60'}`}
+                                title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
+                            >
+                                {showDebugGrid ? <Eye size={14} /> : <EyeOff size={14} />}
+                            </button>
 
-            {/* Leaflet Core */}
+                            {/* Zone Search */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Chercher une zone..."
+                                    className="w-48 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
+                                />
+                                {searchResults.length > 0 && (
+                                    <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[700]">
+                                        {searchResults.map(s => (
+                                            <button key={s.id} onClick={() => { setSelectedWorldId(1); setSearch(''); }} className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-white text-[10px] font-black uppercase italic">{s.name.fr}</span>
+                                                    <span className="text-emerald-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Main Interactive Area */}
             <div className={`flex-1 relative z-[1] transition-opacity ${(activeTab === 'games' && !activeSession) ? 'opacity-0' : 'opacity-100'}`}>
                 <LeafletMapCore
                     activeWorld={activeWorld}
@@ -256,13 +395,79 @@ export default function InteractiveMapV2({ worldMap, initialLadder }: Interactiv
                     groupedDungeons={groupedDungeons}
                     showDebugGrid={showDebugGrid}
                     selectedPosition={selectedPosition}
-                    setSelectedPosition={setSelectedPosition}
+                    setSelectedPosition={handleMapClick}
                     setSelectedDungeon={setSelectedDungeon}
                     triggerCenterPosition={triggerCenterPosition}
                     mapsBySubAreaId={mapsBySubAreaId}
                     guessResult={guessResult}
                 />
+
+                {/* Game Overlay HUD */}
+                {activeTab === 'games' && gamePhase !== 'idle' && activeSession && (
+                    <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[700] pointer-events-none">
+                        <GeoguesserHUD
+                            round={activeSession.currentRound || 1}
+                            maxRounds={activeSession.maxRounds || 5}
+                            timeLeft={timeLeft}
+                            score={score}
+                            gamePhase={gamePhase}
+                        />
+                    </div>
+                )}
+
+                {/* Target Map Preview (SigilGuesser) */}
+                {activeTab === 'games' && gamePhase === 'playing' && targetMapId && (
+                    <div className="absolute bottom-8 left-8 z-[700] w-[300px] h-[200px] bg-slate-950 border border-white/10 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto transition-all animate-in slide-in-from-left-8 duration-500">
+                        <div className="absolute inset-x-0 top-0 p-3 bg-black/60 backdrop-blur-md flex items-center justify-between z-10">
+                            <span className="text-white text-[9px] font-black uppercase italic tracking-widest flex items-center gap-2">
+                                <Compass size={10} className="text-emerald-500" /> Cible à trouver
+                            </span>
+                        </div>
+                        <img
+                            src={`/game-data/hd_maps/${targetMapId}.webp`}
+                            className="w-full h-full object-cover"
+                            alt="Target Preview"
+                        />
+                    </div>
+                )}
+
+                {/* Result Screen Overlay (GeoGuesser) */}
+                {gamePhase === 'result' && guessResult && (
+                    <div className="absolute inset-0 z-[800] bg-black/40 backdrop-blur-sm pointer-events-none flex items-center justify-center">
+                        <div className="w-[400px] bg-slate-900 border border-white/10 rounded-[2.5rem] p-10 shadow-2xl pointer-events-auto flex flex-col items-center gap-6 animate-in zoom-in-95 duration-300">
+                            <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                                <Trophy size={40} />
+                            </div>
+                            <div className="text-center">
+                                <h3 className="text-white font-black text-3xl uppercase italic leading-none">C'est validé !</h3>
+                                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mt-2">{guessResult.distance} maps de distance</p>
+                            </div>
+                            <div className="w-full h-px bg-white/5" />
+                            <div className="text-center">
+                                <span className="text-emerald-500 font-black text-5xl italic tracking-tighter">+{guessResult.score}</span>
+                                <span className="text-emerald-500/20 text-xs font-black uppercase ml-2 italic">points</span>
+                            </div>
+                            {activeSession?.hostId === currentUserId && (
+                                <button
+                                    onClick={handleAdvanceRound}
+                                    className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs italic shadow-lg shadow-emerald-500/20 hover:scale-[1.02] transition-transform"
+                                >
+                                    Round Suivant
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Map Details Panel (HD View on Click) - Relative to main container for exact alignment */}
+            {selectedPosition && activeTab === 'map' && (
+                <MapDetailsPanel
+                    position={selectedPosition}
+                    subAreaName={subAreasById.get(mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`)?.subAreaId)?.name?.fr}
+                    onClose={() => setSelectedPosition(null)}
+                />
+            )}
 
             {/* Games Tab Content */}
             {activeTab === 'games' && !activeSession && (

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { redis } from "@/lib/redis";
 
 const execAsync = promisify(exec);
+
+// Cache TTL: 24 hours for builds
+const BUILD_CACHE_TTL = 86400;
 
 export async function GET(
     request: Request,
@@ -14,7 +18,17 @@ export async function GET(
         return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
 
+    const cacheKey = `dofusbook:build:${id}`;
+
     try {
+        // 1. Check Redis Cache
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+            return NextResponse.json(JSON.parse(cachedData), {
+                headers: { "X-Cache": "HIT" }
+            });
+        }
+
         let finalId = id;
 
         // Si l'ID contient autre chose que des chiffres (ex: "1R9xf" format url courte d-bk.net)
@@ -37,13 +51,12 @@ export async function GET(
         }
 
         const url = `https://www.dofusbook.net/api/stuffs/dofus/public/${finalId}`;
-        const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+        const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
         const referer = "https://www.dofusbook.net/";
 
         // Execute curl command
         const { stdout, stderr } = await execAsync(
-            `curl -L "${url}" -A "${userAgent}" -H "Referer: ${referer}" --max-time 10`
-
+            `curl -L "${url}" -A "${userAgent}" -H "Referer: ${referer}" -H "Accept: application/json" --max-time 15`
         );
 
         if (!stdout) {
@@ -51,32 +64,22 @@ export async function GET(
             return NextResponse.json({ error: "Empty response" }, { status: 502 });
         }
 
-        // Handle potential non-JSON responses (like WAF challenges)
         if (stdout.trim().startsWith("<!DOCTYPE html>") || stdout.includes("<html")) {
-            console.error(`[Dofusbook Proxy] WAF/HTML detected instead of JSON for ${id}. Content start: ${stdout.substring(0, 200)}`);
-            return NextResponse.json({ error: "Blocked by CloudFront or invalid response" }, { status: 403 });
+            console.error(`[Dofusbook Proxy] WAF/HTML detected instead of JSON for ${id}.`);
+            return NextResponse.json({ error: "Blocked by provider protection" }, { status: 403 });
         }
 
-        try {
-            const data = JSON.parse(stdout);
+        const data = JSON.parse(stdout);
 
-            // DEBUG: See what Dofusbook is actually sending us
-            console.log(`[Dofusbook Proxy] Build ${id} keys:`, Object.keys(data));
-            if (data.stuff) {
-                console.log(`[Dofusbook Proxy] Build ${id} Class:`, data.stuff.character_class, "Level:", data.stuff.character_level);
-            }
+        // 3. Save to Redis
+        await redis.setex(cacheKey, BUILD_CACHE_TTL, JSON.stringify(data));
 
-            return NextResponse.json(data, {
-                headers: {
-                    "Cache-Control": "no-store" // Force fresh data for debugging
-                }
-            });
-        } catch (parseError) {
-            console.error(`[Dofusbook Proxy] Parse error for ${id}. Stdout snippet: ${stdout.substring(0, 100)}`);
-            return NextResponse.json({ error: "Invalid JSON" }, { status: 502 });
-        }
+        return NextResponse.json(data, {
+            headers: { "X-Cache": "MISS" }
+        });
+
     } catch (error: any) {
-        console.error(`[Dofusbook Proxy] Execution error for build ${id}:`, error.message);
+        console.error(`[Dofusbook Proxy] Error for build ${id}:`, error.message);
         return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
     }
 }

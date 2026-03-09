@@ -6,6 +6,7 @@ import { Loader2, ExternalLink, Users } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/components/profile/builds-card";
+import { getClassColor } from "@/components/shared/class-icon";
 
 interface DofusbookPreviewProps {
     url: string;
@@ -118,16 +119,24 @@ export function DofusbookPreview({ url, title, className, tags = [] }: Dofusbook
                 {/* Equipment Grid - Fixed Dimensions for Uniformity */}
                 <div className="flex justify-center flex-1">
                     <div className="grid grid-cols-6 grid-rows-5 gap-2 bg-black/40 p-3 rounded-[2.5rem] border border-white/5 relative w-fit shadow-2xl">
-                        {/* Background Avatar */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                        {/* Central Class Miniature (Local Asset) */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                             {data.classId > 0 && (
-                                <NextImage
-                                    src={`/assets/dofus/classes/${getIconId(data.classId)}.png`}
-                                    alt="Character"
-                                    width={140}
-                                    height={140}
-                                    className="object-contain grayscale brightness-200"
-                                />
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                    {/* Color Glow */}
+                                    <div
+                                        className="absolute w-28 h-28 rounded-full blur-[50px] opacity-20"
+                                        style={{ backgroundColor: getClassColor(data.className.normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                                    />
+
+                                    <NextImage
+                                        src={`/assets/dofus/classes/${getIconId(data.classId)}.png`}
+                                        alt="Class Icon"
+                                        width={130}
+                                        height={130}
+                                        className="object-contain opacity-20 group-hover:opacity-40 transition-all duration-500 saturate-[1.2] brightness-125 select-none scale-95 group-hover:scale-105"
+                                    />
+                                </div>
                             )}
                         </div>
 

@@ -3,11 +3,11 @@
 import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { updateRoleMapping } from "@/server/actions/admin-actions";
+import { updateRBACMapping } from "@/server/actions/admin-actions";
 import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
 import { cn } from "@/lib/utils";
-import { Save, Filter, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 type Role = {
@@ -19,12 +19,14 @@ type Role = {
 type Props = {
     guildId: string;
     roles: Role[];
+    members: any[];
     currentMapping: Record<string, PermissionId[]>;
+    currentUsersMapping: Record<string, PermissionId[]>;
 };
 
 const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info", "chat"];
 
-export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
+export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
     const initialPermState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
         acc[perm] = [];
@@ -38,7 +40,21 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
         });
     });
 
+    // Transform: DB (User -> Perms) ==> UI (Perm -> Users)
+    const initialUserState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
+        acc[perm] = [];
+        return acc;
+    }, {} as Record<PermissionId, string[]>);
+
+    Object.entries(currentUsersMapping).forEach(([discordUserId, perms]) => {
+        perms.forEach(perm => {
+            if (!initialUserState[perm]) initialUserState[perm] = [];
+            initialUserState[perm].push(discordUserId);
+        });
+    });
+
     const [permState, setPermState] = useState(initialPermState);
+    const [userState, setUserState] = useState(initialUserState);
     const [isPending, startTransition] = useTransition();
     const [activeModule, setActiveModule] = useState<PermissionModule | "all">("all");
     const [searchQuery, setSearchQuery] = useState("");
@@ -49,18 +65,36 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
         setPermState(prev => ({ ...prev, [permId]: newRoleIds }));
     };
 
+    const handleUserChange = (permId: PermissionId, newUserIds: string[]) => {
+        setUserState(prev => ({ ...prev, [permId]: newUserIds }));
+    };
+
     const handleSave = () => {
         startTransition(async () => {
-            const dbMapping: Record<string, PermissionId[]> = {};
+            // Reconstruct rolesMapping
+            const rolesMapping: Record<string, PermissionId[]> = {};
             Object.entries(permState).forEach(([permId, roleIds]) => {
                 roleIds.forEach(roleId => {
-                    if (!dbMapping[roleId]) dbMapping[roleId] = [];
-                    if (!dbMapping[roleId].includes(permId as PermissionId)) {
-                        dbMapping[roleId].push(permId as PermissionId);
+                    if (!rolesMapping[roleId]) rolesMapping[roleId] = [];
+                    if (!rolesMapping[roleId].includes(permId as PermissionId)) {
+                        rolesMapping[roleId].push(permId as PermissionId);
                     }
                 });
             });
-            const res = await updateRoleMapping(guildId, dbMapping);
+
+            // Reconstruct usersMapping
+            const usersMapping: Record<string, PermissionId[]> = {};
+            Object.entries(userState).forEach(([permId, userIds]) => {
+                userIds.forEach(userId => {
+                    const discordUserId = userId; // The ID passed should be the discord provider account ID
+                    if (!usersMapping[discordUserId]) usersMapping[discordUserId] = [];
+                    if (!usersMapping[discordUserId].includes(permId as PermissionId)) {
+                        usersMapping[discordUserId].push(permId as PermissionId);
+                    }
+                });
+            });
+
+            const res = await updateRBACMapping(guildId, rolesMapping, usersMapping);
             if (res.success) {
                 toast.success("Permissions sauvegardées");
             } else {
@@ -74,6 +108,15 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     };
 
     const roleOptions = roles.map(r => ({ label: r.name, value: r.id, color: r.color }));
+    const memberOptions = members.map(m => {
+        // Find discord account ID
+        const discordAccount = m.user.accounts.find((a: any) => a.provider === "discord");
+        return {
+            label: m.pseudoDofus || m.discordNickname || m.user.name || "Inconnu",
+            value: discordAccount?.providerAccountId || m.userId,
+            image: m.user.image
+        };
+    });
 
     const permissionsByModule = useMemo(() => {
         const grouped = {} as Record<PermissionModule, PermissionId[]>;
@@ -239,8 +282,11 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
                                         key={permId}
                                         permissionId={permId}
                                         allRoles={roleOptions}
+                                        allUsers={memberOptions}
                                         selectedRoleIds={permState[permId] || []}
+                                        selectedUserIds={userState[permId] || []}
                                         onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                        onUsersChange={(ids) => handleUserChange(permId, ids)}
                                         onSave={handleSave}
                                         moduleColor={moduleColor}
                                     />
@@ -289,8 +335,11 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
                                                 key={permId}
                                                 permissionId={permId}
                                                 allRoles={roleOptions}
+                                                allUsers={memberOptions}
                                                 selectedRoleIds={permState[permId] || []}
-                                                onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                                selectedUserIds={userState[permId] || []}
+                                                onRolesChange={(ids: string[]) => handlePermChange(permId, ids)}
+                                                onUsersChange={(ids: string[]) => handleUserChange(permId, ids)}
                                                 onSave={handleSave}
                                                 moduleColor={module.color}
                                             />
@@ -310,8 +359,11 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
                                 key={permId}
                                 permissionId={permId}
                                 allRoles={roleOptions}
+                                allUsers={memberOptions}
                                 selectedRoleIds={permState[permId] || []}
-                                onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                selectedUserIds={userState[permId] || []}
+                                onRolesChange={(ids: string[]) => handlePermChange(permId, ids)}
+                                onUsersChange={(ids: string[]) => handleUserChange(permId, ids)}
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                             />

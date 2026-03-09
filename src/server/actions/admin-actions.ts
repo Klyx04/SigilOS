@@ -62,9 +62,10 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     }
 }
 
-export async function updateRoleMapping(
+export async function updateRBACMapping(
     guildId: string,
-    mapping: Record<string, PermissionId[]>
+    rolesMapping: Record<string, PermissionId[]>,
+    usersMapping: Record<string, PermissionId[]>
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
@@ -85,12 +86,13 @@ export async function updateRoleMapping(
 
     try {
         // Get current mapping for audit log
-        const currentConfig = await db.guildConfig.findUnique({
+        const currentConfig = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
-            select: { rolesMapping: true }
+            select: { rolesMapping: true, usersMapping: true }
         });
 
-        const oldMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
+        const oldRolesMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
+        const oldUsersMapping = (currentConfig?.usersMapping || {}) as Record<string, PermissionId[]>;
 
         // Calculate permission changes
         const changes: Array<{
@@ -100,11 +102,11 @@ export async function updateRoleMapping(
         }> = [];
 
         // All role IDs from both old and new mapping
-        const allRoleIds = new Set([...Object.keys(oldMapping), ...Object.keys(mapping)]);
+        const allRoleIds = new Set([...Object.keys(oldRolesMapping), ...Object.keys(rolesMapping)]);
 
         for (const roleId of allRoleIds) {
-            const oldPerms = new Set(oldMapping[roleId] || []);
-            const newPerms = new Set(mapping[roleId] || []);
+            const oldPerms = new Set(oldRolesMapping[roleId] || []);
+            const newPerms = new Set(rolesMapping[roleId] || []);
 
             const added = [...newPerms].filter(p => !oldPerms.has(p)) as PermissionId[];
             const removed = [...oldPerms].filter(p => !newPerms.has(p)) as PermissionId[];
@@ -114,30 +116,17 @@ export async function updateRoleMapping(
             }
         }
 
-        // Update the mapping
-        await db.guildConfig.update({
+        // Update the mappings
+        await (db.guildConfig as any).update({
             where: { discordGuildId: guildId },
-            data: { rolesMapping: mapping }
+            data: {
+                rolesMapping: rolesMapping,
+                usersMapping: usersMapping
+            }
         });
 
-        // Create audit log entry with detailed changes
+        // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");
-        const { PERMISSION_DETAILS, PERMISSION_MODULES } = await import("@/lib/permissions");
-
-        // Format changes for human-readable display
-        const formattedChanges = changes.map(change => ({
-            roleId: change.roleId,
-            added: change.added.map(p => ({
-                permission: p,
-                label: PERMISSION_DETAILS[p]?.label || p,
-                module: PERMISSION_DETAILS[p]?.module || "unknown"
-            })),
-            removed: change.removed.map(p => ({
-                permission: p,
-                label: PERMISSION_DETAILS[p]?.label || p,
-                module: PERMISSION_DETAILS[p]?.module || "unknown"
-            }))
-        }));
 
         await createAuditLog({
             guildId,
@@ -145,11 +134,9 @@ export async function updateRoleMapping(
             actorName: session.user.name || "Unknown",
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
-            oldValue: oldMapping,
-            newValue: mapping,
+            oldValue: { roles: oldRolesMapping, users: oldUsersMapping },
+            newValue: { roles: rolesMapping, users: usersMapping },
             metadata: {
-                rolesAffected: changes.length,
-                changes: formattedChanges,
                 timestamp: new Date().toISOString()
             }
         });

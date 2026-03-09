@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ProfileStatus } from "@prisma/client";
+import { PresenceManager } from "@/lib/presence";
 
 /**
  * Returns a list of users who have been active in the last X minutes.
@@ -19,18 +20,18 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
 
         if (!guildConfig) return { success: false, data: [], totalActive: 0 };
 
-        const [totalActive, activeUsers] = await Promise.all([
-            db.userProfile.count({
+        // --- NEW REDIS-FIRST LOGIC ---
+        const activeIds = await PresenceManager.getActiveUserIds(guildConfig.id);
+
+        let activeUsers: any[] = [];
+        let totalActive = activeIds.length;
+
+        if (activeIds.length > 0) {
+            // Find active profiles based on the IDs from Redis
+            activeUsers = await db.userProfile.findMany({
                 where: {
+                    userId: { in: activeIds },
                     guildId: guildConfig.id,
-                    lastActivityAt: { gte: threshold },
-                    status: ProfileStatus.ACTIVE
-                }
-            }),
-            db.userProfile.findMany({
-                where: {
-                    guildId: guildConfig.id,
-                    lastActivityAt: { gte: threshold },
                     status: ProfileStatus.ACTIVE
                 },
                 select: {
@@ -42,8 +43,25 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
                 },
                 orderBy: { lastActivityAt: "desc" },
                 take: limit
-            })
-        ]);
+            });
+        }
+
+        // Falls back to Prisma only if Redis returned absolutely nothing but thresholds say otherwise?
+        // Actually, Redis is now the source of truth for "active right now".
+        if (totalActive === 0) {
+            // Check Prisma as safety/fallback
+            const threshold = new Date(Date.now() - 2 * 60 * 1000);
+            totalActive = await db.userProfile.count({
+                where: { guildId: guildConfig.id, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE }
+            });
+            if (totalActive > 0) {
+                activeUsers = await db.userProfile.findMany({
+                    where: { guildId: guildConfig.id, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE },
+                    select: { id: true, discordNickname: true, pseudoDofus: true, lastActivityAt: true, user: { select: { name: true, image: true } } },
+                    take: limit
+                });
+            }
+        }
 
         return {
             success: true,

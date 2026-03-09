@@ -847,7 +847,10 @@ export async function getGuildMembers(
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await (db.guildConfig as any).findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true, usersMapping: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const whereClause: any = {
@@ -891,7 +894,8 @@ export async function getGuildMembers(
 
         // Identify roles that grant admin rights (Discord bit 0x8 or SigilOS mapping)
         const adminRoleIds = new Set<string>();
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+        const usersMapping = (guildConfig?.usersMapping as Record<string, string[]>) || {};
 
         for (const role of allRoles) {
             const hasDiscordAdmin = (BigInt(role.permissions) & 0x8n) === 0x8n;
@@ -916,9 +920,9 @@ export async function getGuildMembers(
             const discordMember = discordId ? discordMemberMap.get(discordId as string) : null;
 
             // Real-time admin check if we found the member
-            const isAdmin = discordMember
+            const isAdmin = (discordMember
                 ? (discordMember as any).roles.some((rid: string) => adminRoleIds.has(rid))
-                : false;
+                : false) || (discordId && usersMapping[discordId]?.includes("admin:access"));
 
             return {
                 ...p,

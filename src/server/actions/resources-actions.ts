@@ -26,21 +26,50 @@ export interface AlmanaxItem {
 // ─── Almanax (7 prochains jours) ─────────────────────────────────────────────
 
 export async function getUpcomingAlmanax(): Promise<AlmanaxItem[]> {
+    const url = "https://api.dofusdu.de/dofus3/v1/fr/almanax?timezone=Europe/Paris&range%5Bsize%5D=30";
+
+    // 1. Direct fetch
     try {
-        const url = "https://api.dofusdu.de/dofus3/v1/fr/almanax?timezone=Europe/Paris&range[size]=30";
         const res = await fetch(url, {
-            headers: { Accept: "application/json" },
+            headers: {
+                "Accept": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            },
             next: { revalidate: 3600 * 6 }, // Cache 6h
         });
-        if (!res.ok) {
-            logger.error("Failed to fetch Almanax", { status: res.status });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) return data as AlmanaxItem[];
+            logger.warn("Direct fetch for Almanax returned non-array data");
             return [];
         }
-        return (await res.json()) as AlmanaxItem[];
+        logger.warn("Direct fetch for Almanax failed", { status: res.status });
     } catch (e: unknown) {
-        logger.error("Error fetching Almanax", { error: (e as Error).message });
-        return [];
+        logger.warn("Direct fetch for Almanax error", { error: (e as Error).message });
     }
+
+    // 2. Proxy Fallback (AllOrigins)
+    try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl, {
+            headers: { "User-Agent": "SigilOS/1.0" },
+            next: { revalidate: 3600 * 6 },
+        });
+
+        if (res.ok) {
+            const json = await res.json();
+            if (json.contents) {
+                const parsed = JSON.parse(json.contents);
+                if (Array.isArray(parsed)) return parsed as AlmanaxItem[];
+                logger.warn("Proxy fetch for Almanax returned non-array data");
+                return [];
+            }
+        }
+    } catch (e: unknown) {
+        logger.error("Proxy fetch for Almanax error", { error: (e as Error).message });
+    }
+
+    return [];
 }
 
 // ─── Resources Management ───────────────────────────────────────────────────
@@ -169,19 +198,34 @@ export async function getContentCreators(guildId: string) {
             orderBy: { order: "asc" }
         });
 
+        const defaultCreators = [
+            { name: "Huz", role: "Forgemagie & Économie", youtube: "https://www.youtube.com/@Huzounet", twitch: "https://www.twitch.tv/huzounet", handle: "huzounet", color: "#fb923c", order: 0 },
+            { name: "Skyzio", role: "PvM & Astuces", youtube: "https://www.youtube.com/@Skyzio", twitch: "https://www.twitch.tv/skyzio_", handle: "skyzio", color: "#3b82f6", order: 1 },
+            { name: "Lanyelle", role: "Lore & Quêtes", youtube: "https://www.youtube.com/@Laniyelle", twitch: "https://www.twitch.tv/laniyelle", handle: "laniyelle", color: "#a855f7", order: 2 },
+            { name: "Barbofus", role: "Guides & Aventure", youtube: "https://www.youtube.com/@BarbeDouce-YT", twitch: "https://www.twitch.tv/barbe___douce", handle: "barbe", color: "#10b981", order: 3 },
+            { name: "Sapeuh", role: "PvP & E-sport", youtube: "https://www.youtube.com/@SAPEUH1", twitch: "https://www.twitch.tv/sapeuh", handle: "sapeuh", color: "#ef4444", order: 4 },
+            { name: "Liche", role: "Solotage & Succès", youtube: "https://www.youtube.com/@Liche_fr", twitch: "https://www.twitch.tv/lichefr", handle: "liche", color: "#facc15", order: 5 },
+            { name: "Volcasaurus", role: "Défis & Solotages", youtube: "https://www.youtube.com/@volcasaurus4500", twitch: "https://www.twitch.tv/volcatwitch", handle: "volcatwitch", color: "#22d3ee", order: 6 },
+            { name: "Humility", role: "Guides & Actualités", youtube: "https://www.youtube.com/@humilityfr", twitch: "https://www.twitch.tv/humility", handle: "humility", color: "#f59e0b", order: 7 },
+        ];
+
+        // 1. If empty, full population
         if (creators.length === 0) {
-            const defaultCreators = [
-                { name: "Huz", role: "Forgemagie & Économie", youtube: "https://www.youtube.com/@Huzounet", twitch: "https://www.twitch.tv/huzounet", handle: "huzounet", color: "#fb923c", order: 0 },
-                { name: "Skyzio", role: "PvM & Astuces", youtube: "https://www.youtube.com/@Skyzio", twitch: "https://www.twitch.tv/skyzio_", handle: "skyzio", color: "#3b82f6", order: 1 },
-                { name: "Lanyelle", role: "Lore & Quêtes", youtube: "https://www.youtube.com/@Laniyelle", twitch: "https://www.twitch.tv/laniyelle", handle: "laniyelle", color: "#a855f7", order: 2 },
-                { name: "Barbofus", role: "Guides & Aventure", youtube: "https://www.youtube.com/@BarbeDouce-YT", twitch: "https://www.twitch.tv/barbe___douce", handle: "barbe", color: "#10b981", order: 3 },
-                { name: "Sapeuh", role: "PvP & E-sport", youtube: "https://www.youtube.com/@SAPEUH1", twitch: "https://www.twitch.tv/sapeuh", handle: "sapeuh", color: "#ef4444", order: 4 },
-                { name: "Liche", role: "Solotage & Succès", youtube: "https://www.youtube.com/@Liche_fr", twitch: "https://www.twitch.tv/lichefr", handle: "liche", color: "#facc15", order: 5 },
-            ];
             for (const c of defaultCreators) {
                 await db.contentCreator.create({ data: { ...c, guildId: targetId } });
             }
             creators = await db.contentCreator.findMany({ where: { guildId: targetId }, orderBy: { order: "asc" } });
+        } else {
+            // 2. If already exists, check if new ones (Volca/Humility) are missing
+            const currentNames = creators.map(c => c.name);
+            const missing = defaultCreators.filter(dc => !currentNames.includes(dc.name));
+
+            if (missing.length > 0) {
+                for (const m of missing) {
+                    await db.contentCreator.create({ data: { ...m, guildId: targetId } });
+                }
+                creators = await db.contentCreator.findMany({ where: { guildId: targetId }, orderBy: { order: "asc" } });
+            }
         }
         return creators;
     } catch (e) {

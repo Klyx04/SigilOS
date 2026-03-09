@@ -172,7 +172,7 @@ export default async function DashboardLayout({
                 </div>
 
                 {/* Validator Inbox - Fixed floating reminder for validators (all pages) */}
-                <div className="fixed top-[68px] right-8 z-40 hidden md:block">
+                <div className="fixed top-[76px] right-8 z-40 hidden md:block">
                     <Suspense fallback={null}>
                         <ValidatorInbox guildId={guildId} />
                     </Suspense>

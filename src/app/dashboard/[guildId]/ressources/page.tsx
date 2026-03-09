@@ -158,7 +158,7 @@ export default async function RessourcesPage({ params }: Props) {
                 {/* ── Encyclopédie Full Width ────────────────────────────── */}
                 <TabsContent value="encyclopedia" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
                     <section>
-                        <SectionHeader icon={Library} color="#a855f7" label="Nexus Encyclopédique — Recherche DofusDB" />
+                        <SectionHeader icon={Library} color="#a855f7" label="Nexus Encyclopédique — Multi-Sources" />
                         <ItemSearchPanel />
                     </section>
                 </TabsContent>

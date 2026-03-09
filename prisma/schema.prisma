@@ -63,6 +63,8 @@ model User {
   notifications       Notification[]
   sessions            Session[]
   profiles            UserProfile[]
+  garticSessions      GarticSession[]
+  garticStats         GarticPlayerStats?
 }
 
 model AllowedGuild {
@@ -99,6 +101,7 @@ model GuildConfig {
   iconUrl                       String?
   isActive                      Boolean                 @default(true)
   rolesMapping                  Json                    @default("{}")
+  usersMapping                  Json                    @default("{}")
   createdAt                     DateTime                @default(now())
   updatedAt                     DateTime                @updatedAt
   absenceChannelId              String?
@@ -179,6 +182,7 @@ model GuildConfig {
   kamaDonations                 KamaDonation[]
   resourceCategories            ResourceCategory[]
   contentCreators               ContentCreator[]
+  garticRooms                   GarticRoom[]
 }
 
 model GuildModules {
@@ -1530,4 +1534,117 @@ model ContentCreator {
   guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@index([guildId])
+}
+model GeoguesserRank {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  userName    String
+  userAvatar  String?
+  bestScore   Int      @default(0)
+  totalPoints Int      @default(0)
+  gamesPlayed Int      @default(0)
+  avgDistance Float    @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, bestScore(desc)])
+}
+
+enum GeoguesserSessionStatus {
+  LOBBY
+  IN_PROGRESS
+  FINISHED
+}
+
+model GeoguesserSession {
+  id            String                 @id @default(cuid())
+  guildId       String
+  hostId        String
+  hostName      String
+  status        GeoguesserSessionStatus @default(LOBBY)
+  currentRound  Int                    @default(1)
+  maxRounds     Int                    @default(5)
+  timePerRound  Int                    @default(30)
+  targetMapIds  Int[]                  // Liste des IDs de maps choisis pour la partie
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  participants  GeoguesserSessionPlayer[]
+
+  @@index([guildId, status])
+}
+
+model GeoguesserSessionPlayer {
+  id         String            @id @default(cuid())
+  sessionId  String
+  userId     String
+  userName   String
+  userAvatar String?
+  guesses    Json?             // Array de { round: 1, x, y, score, distance }
+  totalScore Int               @default(0)
+  hasGuessed Boolean           @default(false) // Pour le round en cours
+  lastActive DateTime          @default(now()) @updatedAt
+  session    GeoguesserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
+model GarticRoom {
+  id          String   @id @default(cuid())
+  guildId     String
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  hostId      String
+  mode        String   @default("NORMAL")
+  maxPlayers  Int      @default(8)
+  maxRounds   Int      @default(3)
+  drawTime    Int      @default(60)
+  status      String   @default("WAITING") // WAITING | PLAYING | FINISHED
+  createdAt   DateTime @default(now())
+  finishedAt  DateTime?
+
+  sessions    GarticSession[]
+  albums      GarticAlbum[]
+}
+
+model GarticSession {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      @default(0)
+  rank      Int?
+  joinedAt  DateTime @default(now())
+
+  @@unique([roomId, userId])
+}
+
+model GarticAlbum {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  ownerId   String   // joueur propriétaire de cet album
+  entries   GarticAlbumEntry[]
+}
+
+model GarticAlbumEntry {
+  id        String   @id @default(cuid())
+  albumId   String
+  album     GarticAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  authorId  String
+  type      String   // "drawing" | "text"
+  content   String   @db.Text // base64 pour drawing, texte pour text
+  round     Int
+  createdAt DateTime @default(now())
+}
+
+model GarticPlayerStats {
+  id              String @id @default(cuid())
+  userId          String @unique
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalGames      Int    @default(0)
+  totalWins       Int    @default(0)
+  totalPoints     Int    @default(0)
+  correctGuesses  Int    @default(0)
+  drawingsCreated Int    @default(0)
 }

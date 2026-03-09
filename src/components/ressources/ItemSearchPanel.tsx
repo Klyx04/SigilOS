@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Search, ExternalLink, Loader2, X, PackageOpen, BookMarked, Sword, Shield, Sparkles, Scroll, Coins, Zap, Heart, Brain, Droplet, Wind, Target, Eye, Footprints, Flame, Star, ShieldCheck, Plus } from "lucide-react";
+import {
+    Search, ExternalLink, Loader2, X, PackageOpen, BookMarked, Sword, Shield, Sparkles, Scroll, Coins,
+    Zap, Heart, Brain, Droplet, Wind, Target, Eye, Footprints, Flame, Star, ShieldCheck, Plus,
+    Crown, Circle, Layers, Award, Library
+} from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +54,19 @@ interface DofusItem {
 }
 
 // ─── Constants & Helpers ───────────────────────────────────────────────────
+
+const DOFUSBOOK_CATEGORIES = [
+    { id: 16, name: "Chapeau", icon: Crown },
+    { id: 17, name: "Cape", icon: Wind },
+    { id: 12, name: "Amulette", icon: Heart },
+    { id: 13, name: "Anneau", icon: Circle },
+    { id: 15, name: "Ceinture", icon: Layers },
+    { id: 14, name: "Bottes", icon: Footprints },
+    { id: 82, name: "Bouclier", icon: Shield },
+    { id: 151, name: "Dofus", icon: Sparkles },
+    { id: 152, name: "Trophée", icon: Award },
+    { id: 18, name: "Arme", icon: Sword },
+];
 
 const CHAR_NAMES: Record<number, string> = {
     11: "Vitalité",
@@ -108,13 +125,8 @@ function getTypeColor(typeName: string): string {
     return "#818cf8";
 }
 
-function getStatLabel(fx: DofusItemEffect): string {
-    if (fx.int_name) return fx.int_name;
-    const cid = fx.characteristic || fx.effectId || fx.int_id;
-    return cid && CHAR_NAMES[cid] ? CHAR_NAMES[cid] : "Effet";
-}
-
-const STAT_ICONS: Record<number, any> = {
+const STAT_ICONS: Record<string | number, any> = {
+    // Numbers for DofusDB
     11: { icon: Heart, color: "text-rose-500" },      // Vitalité
     125: { icon: Heart, color: "text-rose-500" },     // Vitalité (variant)
     12: { icon: Brain, color: "text-violet-400" },    // Sagesse
@@ -133,60 +145,205 @@ const STAT_ICONS: Record<number, any> = {
     83: { icon: Shield, color: "text-zinc-400" },     // Retrait PM
     412: { icon: Shield, color: "text-zinc-400" },    // Retrait PM
     87: { icon: ShieldCheck, color: "text-rose-400" }, // Résistance Critiques
+
+    // Strings for Dofusbook (Strict mapping)
+    "vi": { icon: Heart, color: "text-rose-500" },    // Vitalité
+    "fo": { icon: Sword, color: "text-amber-600" },     // Force
+    "sa": { icon: Brain, color: "text-violet-400" },    // Sagesse
+    "ag": { icon: Wind, color: "text-emerald-400" },   // Agilité
+    "in": { icon: Flame, color: "text-orange-500" },    // Intelligence
+    "ch": { icon: Droplet, color: "text-blue-400" },    // Chance
+    "pu": { icon: Star, color: "text-fuchsia-400" },    // Puissance
+    "cc": { icon: Target, color: "text-blue-500" },     // Critique
+    "dmg": { icon: Plus, color: "text-red-500" },       // Dommages
+    "ii": { icon: Zap, color: "text-yellow-400" },      // Initiative
+    "pi": { icon: Sparkles, color: "text-indigo-400" }, // Prospection (Solomonk case)
+    "pp": { icon: Eye, color: "text-blue-400" },        // Prospection
+    "po": { icon: Eye, color: "text-indigo-400" },      // Portée
+    "ic": { icon: Target, color: "text-emerald-400" },  // Invocations
+    "pa": { icon: Zap, color: "text-amber-400" },
+    "pm": { icon: Footprints, color: "text-emerald-500" },
+    "ta": { icon: Plus, color: "text-green-500" },      // Tacle
+    "fu": { icon: Star, color: "text-orange-400" },     // Fuite
+    "so": { icon: Heart, color: "text-rose-400" },      // Soins
+
+    // Dommages Elémentaires
+    "dnf": { icon: Sword, color: "text-zinc-400" },     // Dmg Neutre
+    "dtf": { icon: Sword, color: "text-amber-700" },    // Dmg Terre
+    "dff": { icon: Flame, color: "text-orange-600" },   // Dmg Feu
+    "def": { icon: Droplet, color: "text-blue-600" },   // Dmg Eau
+    "daf": { icon: Wind, color: "text-emerald-600" },   // Dmg Air
+
+    // Résistances %
+    "rnp": { icon: Shield, color: "text-zinc-400" },    // % Neutre
+    "rtp": { icon: Shield, color: "text-amber-700" },   // % Terre
+    "rfp": { icon: Shield, color: "text-orange-600" },  // % Feu
+    "rep": { icon: Shield, color: "text-blue-600" },    // % Eau
+    "rap": { icon: Shield, color: "text-emerald-600" }, // % Air
+
+    // Résistances Fixes
+    "rn": { icon: ShieldCheck, color: "text-zinc-500" },
+    "rt": { icon: ShieldCheck, color: "text-amber-800" },
+    "rf": { icon: ShieldCheck, color: "text-orange-700" },
+    "re": { icon: ShieldCheck, color: "text-blue-700" },
+    "ra": { icon: ShieldCheck, color: "text-emerald-700" },
+
+    // Annexes
+    "rfc": { icon: Shield, color: "text-rose-500" },    // Rés. Crit
+    "rp": { icon: Shield, color: "text-amber-600" },    // Rés. Poussée
+    "pod": { icon: PackageOpen, color: "text-amber-800" }, // Pods
+    "rpa": { icon: Shield, color: "text-zinc-400" },    // Retrait PA
+    "rpm": { icon: Shield, color: "text-zinc-400" },    // Retrait PM
+    "epa": { icon: ShieldCheck, color: "text-blue-400" }, // Esquive PA
+    "epm": { icon: ShieldCheck, color: "text-emerald-400" }, // Esquive PM
 };
 
-function StatIcon({ characteristicId }: { characteristicId?: number }) {
-    if (!characteristicId || !STAT_ICONS[characteristicId]) {
+const BOOK_STAT_NAMES: Record<string, string> = {
+    "vi": "Vitalité",
+    "fo": "Force",
+    "sa": "Sagesse",
+    "ag": "Agilité",
+    "in": "Intelligence",
+    "ch": "Chance",
+    "pu": "Puissance",
+    "cc": "Coup Critique",
+    "dmg": "Dommages",
+    "ii": "Initiative",
+    "pi": "Dommages Piège",
+    "pp": "Prospection",
+    "po": "Portée",
+    "pod": "Pods",
+    "ic": "Invocations",
+    "pa": "PA",
+    "pm": "PM",
+    "ta": "Tacle",
+    "fu": "Fuite",
+    "so": "Soins",
+    "rpa": "Retrait PA",
+    "epa": "Esquive PA",
+    "rpm": "Retrait PM",
+    "epm": "Esquive PM",
+    "dnf": "Dommages Neutre",
+    "dtf": "Dommages Terre",
+    "dff": "Dommages Feu",
+    "def": "Dommages Eau",
+    "daf": "Dommages Air",
+    "rnp": "Résistance Neutre (%)",
+    "rtp": "Résistance Terre (%)",
+    "rfp": "Résistance Feu (%)",
+    "rep": "Résistance Eau (%)",
+    "rap": "Résistance Air (%)",
+    "rn": "Résistance Neutre",
+    "rt": "Résistance Terre",
+    "rf": "Résistance Feu",
+    "re": "Résistance Eau",
+    "ra": "Résistance Air",
+    "dc": "Dommages Critiques",
+    "dp": "Résistance Poussée",
+    "rfc": "Résistance Critiques",
+    "rp": "Résistance Poussée",
+};
+
+function getStatLabel(fx: DofusItemEffect): string {
+    if (fx.int_name && BOOK_STAT_NAMES[fx.int_name]) return BOOK_STAT_NAMES[fx.int_name];
+    if (fx.int_name) return fx.int_name;
+    const cid = fx.characteristic || fx.effectId || fx.int_id;
+    return cid && CHAR_NAMES[cid] ? CHAR_NAMES[cid] : "Effet";
+}
+
+function StatIcon({ characteristicId, charCode }: { characteristicId?: number, charCode?: string }) {
+    const key = charCode || characteristicId;
+    if (!key || !STAT_ICONS[key]) {
         return <div className="w-1.5 h-1.5 rounded-full bg-violet-500/40" />;
     }
-    const { icon: Icon, color } = STAT_ICONS[characteristicId];
+    const { icon: Icon, color } = STAT_ICONS[key];
     return <Icon className={cn("h-3.5 w-3.5", color)} />;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ItemSearchPanel() {
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState<DofusItem[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingDetail, setLoadingDetail] = useState(false);
-    const [searched, setSearched] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<DofusItem | null>(null);
-    const [recipe, setRecipe] = useState<DofusRecipe | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    // DofusDB States
+    const [dbQuery, setDbQuery] = useState("");
+    const [dbResults, setDbResults] = useState<DofusItem[]>([]);
+    const [dbLoading, setDbLoading] = useState(false);
 
-    const search = useCallback(async (q: string) => {
+    // Dofusbook States
+    const [bookQuery, setBookQuery] = useState("");
+    const [bookResults, setBookResults] = useState<any[]>([]);
+    const [bookLoading, setBookLoading] = useState(false);
+    const [bookCategory, setBookCategory] = useState<number | null>(null);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Common States
+    const [loadingDetail, setLoadingDetail] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [recipe, setRecipe] = useState<DofusRecipe | null>(null);
+    const [source, setSource] = useState<"dofusdb" | "dofusbook">("dofusdb");
+
+    // Search DofusDB
+    const searchDB = useCallback(async (q: string) => {
         if (!q.trim() || q.trim().length < 2) {
-            setResults([]);
-            setSearched(false);
+            setDbResults([]);
             return;
         }
-        setLoading(true);
-        setSearched(true);
+        setDbLoading(true);
         try {
             const url = `https://api.dofusdb.fr/items?slug.fr[$search]=${encodeURIComponent(q)}&$limit=8&$skip=0`;
             const res = await fetch(url, { headers: { Accept: "application/json" } });
             const data = await res.json();
-            setResults(data.data ?? []);
+            setDbResults(data.data ?? []);
         } catch {
-            setResults([]);
+            setDbResults([]);
         } finally {
-            setLoading(false);
+            setDbLoading(false);
         }
     }, []);
 
+    // Search Dofusbook
+    const searchBook = useCallback(async (q: string) => {
+        if (!q.trim() || q.trim().length < 2) {
+            setBookResults([]);
+            return;
+        }
+        setBookLoading(true);
+        try {
+            const catParam = bookCategory ? `&category=${bookCategory}` : "";
+            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}${catParam}`);
+            const data = await res.json();
+
+            // Dofusbook returns either { results: [] }, { data: [] } or [] directly
+            const results = Array.isArray(data) ? data : (data.data || data.results || []);
+            if (data.error) throw new Error(data.error);
+            setBookResults(results);
+        } catch (err: any) {
+            console.error("[Dofusbook Search] Error:", err);
+            setBookResults([]);
+            // Optional: You could show a specialized error toast or inline message here
+        } finally {
+            setBookLoading(false);
+        }
+    }, [bookCategory]);
+
+    // Timers
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (query.trim().length >= 2) search(query);
-            else if (query.trim().length === 0) {
-                setResults([]);
-                setSearched(false);
-            }
+            if (dbQuery.trim().length >= 2) searchDB(dbQuery);
+            else if (dbQuery.trim().length === 0) setDbResults([]);
         }, 350);
         return () => clearTimeout(timer);
-    }, [query, search]);
+    }, [dbQuery, searchDB]);
 
-    const handleSelect = async (item: DofusItem) => {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (bookQuery.trim().length >= 2) searchBook(bookQuery);
+            else if (bookQuery.trim().length === 0) setBookResults([]);
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [bookQuery, searchBook]);
+
+    const handleSelectDB = async (item: DofusItem) => {
+        setSource("dofusdb");
         setLoadingDetail(true);
         setRecipe(null);
         try {
@@ -194,13 +351,9 @@ export function ItemSearchPanel() {
             if (res.ok) {
                 const detailed = await res.json();
                 setSelectedItem(detailed);
-
-                // Fetch recipe if item has one
                 if (detailed.hasRecipe) {
                     const recRes = await fetch(`https://api.dofusdb.fr/recipes/${item.id}`);
-                    if (recRes.ok) {
-                        setRecipe(await recRes.json());
-                    }
+                    if (recRes.ok) setRecipe(await recRes.json());
                 }
             } else {
                 setSelectedItem(item);
@@ -212,49 +365,195 @@ export function ItemSearchPanel() {
         }
     };
 
+    const handleSelectBook = (item: any) => {
+        setSource("dofusbook");
+        // Normalize Dofusbook data to match our UI expected format
+        const pic = item.picture || item.picture_id || item.id;
+        const normalized: DofusItem = {
+            id: item.id,
+            name: { fr: item.name },
+            level: item.level,
+            type: { name: { fr: item.category_name || "Équipement" } },
+            img: `https://www.dofusbook.net/static/dist/items/${pic}-200.webp`,
+            effects: (item.effects || []).map((e: any) => ({
+                characteristic: undefined,
+                from: e.min,
+                to: e.max,
+                int_name: e.name
+            })),
+            description: { fr: item.description || "" },
+            hasRecipe: !!(item.ingredients && item.ingredients.length > 0)
+        };
+
+        setSelectedItem(normalized);
+        if (normalized.hasRecipe) {
+            setRecipe({
+                ingredients: item.ingredients.map((ing: any) => {
+                    const ingPic = ing.picture || ing.picture_id || ing.item_id || ing.id;
+                    return {
+                        id: ing.id || ing.item_id,
+                        name: { fr: ing.name || ing.item_name },
+                        img: `https://www.dofusbook.net/static/dist/items/${ingPic}-70.webp`
+                    };
+                }),
+                quantities: item.ingredients.map((ing: any) => ing.count || ing.quantity)
+            });
+        } else {
+            setRecipe(null);
+        }
+    };
+
     return (
-        <div className="w-full flex flex-col min-h-[500px] relative">
+        <div className="w-full flex flex-col min-h-[600px] relative">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
 
                 {/* Sidebar Search */}
-                <div className="lg:col-span-4 flex flex-col gap-4">
-                    <div className="rounded-[2.5rem] p-6 border border-white/5 backdrop-blur-xl bg-black/40 h-full flex flex-col min-h-[400px]">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                <div className="lg:col-span-4 flex flex-col gap-8">
+
+                    {/* DofusDB Block */}
+                    <div className="rounded-[2.5rem] p-8 border border-white/10 shadow-2xl bg-zinc-900/40 backdrop-blur-2xl flex flex-col transition-all hover:border-violet-500/20">
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20 shadow-[0_0_20px_rgba(139,92,246,0.1)]">
                                 <Search className="h-6 w-6 text-violet-400" />
                             </div>
                             <div>
-                                <h2 className="text-sm font-black uppercase tracking-widest text-white">Encyclopédie</h2>
-                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-1">DofusDB Nexus</p>
+                                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">DofusDB Nexus</h2>
+                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-1">Global Quick Search</p>
                             </div>
                         </div>
 
                         <div className="relative mb-6">
                             <input
-                                ref={inputRef}
                                 type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
+                                value={dbQuery}
+                                onChange={(e) => setDbQuery(e.target.value)}
                                 placeholder="Rechercher un objet..."
-                                className="w-full bg-white/[0.03] border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-sm text-white outline-none focus:border-violet-500/50 transition-all"
+                                className="w-full bg-zinc-950/60 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm text-white outline-none focus:border-violet-500/50 focus:bg-zinc-950/80 transition-all placeholder:text-zinc-600 shadow-inner"
                             />
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-600" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                         </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                            {loading && <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin text-violet-500 mx-auto" /></div>}
-                            {results.map((item) => (
+                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                            {dbLoading && <div className="py-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-violet-500 mx-auto" /></div>}
+                            {dbResults.map((item) => (
                                 <button
                                     key={item.id}
-                                    onClick={() => handleSelect(item)}
-                                    className={`w-full flex items-center gap-4 p-3 rounded-2xl border transition-all ${selectedItem?.id === item.id ? "bg-violet-500/10 border-violet-500/30" : "bg-white/[0.02] border-transparent hover:bg-white/5"}`}
+                                    onClick={() => handleSelectDB(item)}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-all group",
+                                        selectedItem?.id === item.id && source === "dofusdb"
+                                            ? "bg-violet-500/10 border-violet-500/40 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+                                            : "bg-white/[0.03] border-white/5 hover:bg-white/5 hover:border-white/10"
+                                    )}
                                 >
-                                    <div className="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center border border-white/5 shrink-0">
-                                        <Image src={item.imgset?.[0]?.icon || item.img || ""} alt={item.name.fr} width={36} height={36} className="object-contain" unoptimized />
+                                    <div className="w-11 h-11 rounded-xl bg-black/40 flex items-center justify-center border border-white/10 shrink-0 group-hover:scale-105 transition-transform">
+                                        <Image src={item.imgset?.[0]?.icon || item.img || ""} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
-                                        <div className="text-[13px] font-bold text-white truncate">{item.name.fr}</div>
-                                        <div className="text-[10px] font-black text-zinc-500 uppercase">Niveau {item.level}</div>
+                                        <div className="text-[13px] font-bold text-zinc-100 group-hover:text-white truncate">{item.name.fr}</div>
+                                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter">Niv. {item.level}</div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Dofusbook Block */}
+                    <div className="rounded-[2.5rem] p-8 border border-emerald-500/20 shadow-2xl bg-zinc-900/40 backdrop-blur-2xl flex flex-col flex-1 transition-all hover:border-emerald-500/30">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                                    <BookMarked className="h-6 w-6 text-emerald-400" />
+                                </div>
+                                <div>
+                                    <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-emerald-400">Dofusbook</h2>
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-1">Expert Precision</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn(
+                                    "p-2.5 rounded-xl border transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
+                                    showFilters ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" : "bg-white/5 border-white/10 text-zinc-500 hover:text-white"
+                                )}
+                            >
+                                <Zap className="w-4 h-4" /> Filters
+                            </button>
+                        </div>
+
+                        {showFilters && (
+                            <div className="mb-8 p-6 rounded-[2rem] bg-black/60 border border-emerald-500/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Filtrer par type</p>
+                                    <button
+                                        onClick={() => setBookCategory(null)}
+                                        className="text-[9px] font-bold text-zinc-500 hover:text-white transition-colors"
+                                    >
+                                        Réinitialiser
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                    {DOFUSBOOK_CATEGORIES.map((c) => {
+                                        const Icon = c.icon;
+                                        return (
+                                            <button
+                                                key={c.id}
+                                                onClick={() => setBookCategory(bookCategory === c.id ? null : c.id)}
+                                                className={cn(
+                                                    "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all group",
+                                                    bookCategory === c.id
+                                                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)] scale-105"
+                                                        : "bg-white/[0.03] border-white/5 text-zinc-500 hover:bg-white/5 hover:border-emerald-500/20 hover:text-zinc-300"
+                                                )}
+                                            >
+                                                <Icon className={cn(
+                                                    "h-5 w-5 transition-transform group-hover:scale-110",
+                                                    bookCategory === c.id ? "text-emerald-400" : "text-zinc-600 group-hover:text-emerald-500/50"
+                                                )} />
+                                                <span className="text-[8px] font-black uppercase tracking-widest">{c.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="relative mb-6">
+                            <input
+                                type="text"
+                                value={bookQuery}
+                                onChange={(e) => setBookQuery(e.target.value)}
+                                placeholder="Chercher sur Dofusbook..."
+                                className="w-full bg-zinc-950/80 border border-emerald-500/20 rounded-2xl pl-12 pr-4 py-4 text-sm text-white outline-none focus:border-emerald-500/50 transition-all placeholder:text-emerald-500/30 shadow-2xl"
+                            />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500/40" />
+                        </div>
+
+                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                            {bookLoading && <div className="py-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" /></div>}
+                            {!bookLoading && bookQuery.length >= 2 && bookResults.length === 0 && (
+                                <div className="py-12 text-center">
+                                    <PackageOpen className="h-10 w-10 text-zinc-700 mx-auto mb-3 opacity-20" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Aucun résultat sur Dofusbook</p>
+                                </div>
+                            )}
+                            {bookResults.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleSelectBook(item)}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-all group",
+                                        selectedItem?.id === item.id && source === "dofusbook"
+                                            ? "bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                            : "bg-white/[0.03] border-white/5 hover:bg-white/5 hover:border-white/10"
+                                    )}
+                                >
+                                    <div className="w-11 h-11 rounded-xl bg-black/40 flex items-center justify-center border border-white/10 shrink-0 group-hover:scale-105 transition-transform">
+                                        <Image src={`https://www.dofusbook.net/static/dist/items/${item.picture || item.picture_id || item.id}-70.webp`} alt={item.name} width={32} height={32} className="object-contain" unoptimized />
+                                    </div>
+                                    <div className="min-w-0 text-left">
+                                        <div className="text-[13px] font-bold text-zinc-100 group-hover:text-white truncate">{item.name}</div>
+                                        <div className="text-[10px] font-black text-emerald-500/60 uppercase tracking-tighter">Niv. {item.level}</div>
                                     </div>
                                 </button>
                             ))}
@@ -264,142 +563,144 @@ export function ItemSearchPanel() {
 
                 {/* Detail Panel */}
                 <div className="lg:col-span-8">
-                    <div className="h-full min-h-[400px] rounded-[2.5rem] border border-white/5 bg-black/40 backdrop-blur-xl p-6 flex flex-col relative overflow-hidden">
+                    <div className={cn(
+                        "h-full min-h-[600px] rounded-[3rem] border backdrop-blur-3xl p-10 flex flex-col relative overflow-hidden transition-all duration-700 shadow-2xl",
+                        source === "dofusbook" ? "bg-emerald-950/10 border-emerald-500/20" : "bg-zinc-900/40 border-white/10"
+                    )}>
                         {!selectedItem ? (
-                            <div className="text-center opacity-30">
-                                <Sparkles className="h-20 w-20 mx-auto mb-6 text-violet-500" />
-                                <h3 className="text-xl font-black uppercase tracking-widest text-white">Sélectionnez un item</h3>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
+                                <Sparkles className="h-20 w-20 mb-6 text-zinc-500" />
+                                <h3 className="text-xl font-black uppercase tracking-widest text-zinc-500">Sélectionnez un item</h3>
                             </div>
                         ) : (
-                            <div className="w-full h-full flex flex-col animate-in fade-in duration-500">
+                            <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-500">
                                 {loadingDetail && (
                                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center rounded-[2.5rem]">
                                         <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
                                     </div>
                                 )}
 
-                                <div className="flex flex-col md:flex-row gap-6 mb-6">
+                                <div className="flex flex-col md:flex-row gap-8 mb-8">
                                     <div className="relative group shrink-0">
-                                        <div className="absolute inset-0 bg-violet-600/20 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="w-32 h-32 rounded-[2.5rem] bg-black/40 border border-white/10 flex items-center justify-center relative z-10 shadow-2xl">
+                                        <div className={cn(
+                                            "absolute inset-0 blur-3xl opacity-0 group-hover:opacity-40 transition-opacity",
+                                            source === "dofusbook" ? "bg-emerald-500/20" : "bg-violet-600/20"
+                                        )} />
+                                        <div className="w-40 h-40 rounded-[2.5rem] bg-black/40 border border-white/10 flex items-center justify-center relative z-10 shadow-2xl">
                                             <Image
                                                 src={selectedItem.imgset?.[0]?.sd || selectedItem.img || ""}
                                                 alt={selectedItem.name.fr}
                                                 width={120}
                                                 height={120}
-                                                className="object-contain scale-110 group-hover:scale-125 transition-transform duration-500"
+                                                className="object-contain scale-110 group-hover:scale-125 transition-transform duration-700"
                                                 unoptimized
                                             />
                                         </div>
                                     </div>
 
                                     <div className="flex-1 pt-4">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <span className={cn(
+                                                "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors",
+                                                source === "dofusbook"
+                                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                    : "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                            )}>
                                                 {selectedItem.type.name.fr}
                                             </span>
                                             <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-zinc-500">
                                                 Niveau {selectedItem.level}
                                             </span>
+                                            <span className="ml-auto text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full", source === "dofusbook" ? "bg-emerald-500" : "bg-violet-500")} />
+                                                Source: {source}
+                                            </span>
                                         </div>
-                                        <h1 className="text-2xl font-black text-white tracking-tight mb-2">{selectedItem.name.fr}</h1>
+                                        <h1 className="text-3xl font-black text-white tracking-tight mb-3">{selectedItem.name.fr}</h1>
                                         {selectedItem.description?.fr && (
-                                            <p className="text-zinc-400 text-sm leading-relaxed italic border-l-2 border-violet-500/30 pl-4">{selectedItem.description.fr}</p>
+                                            <p className="text-zinc-400 text-[13px] leading-relaxed italic border-l-2 border-zinc-700 pl-4">{selectedItem.description.fr}</p>
                                         )}
 
                                         <div className="flex items-center gap-4 mt-8">
-                                            <a href={`https://www.dofusdb.fr/fr/database/item/${selectedItem.id}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
-                                                Wiki Complet <ExternalLink className="h-3 w-3" />
+                                            <a
+                                                href={source === "dofusbook" ? `https://www.dofusbook.net/fr/encyclopedie/objet/${selectedItem.id}` : `https://www.dofusdb.fr/fr/database/item/${selectedItem.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={cn(
+                                                    "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg",
+                                                    source === "dofusbook" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-violet-600 hover:bg-violet-500 text-white"
+                                                )}
+                                            >
+                                                Wiki Officiel <ExternalLink className="h-3 w-3" />
                                             </a>
-                                            {selectedItem.itemSet && (
-                                                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-black uppercase tracking-widest">
-                                                    <BookMarked className="h-3 w-3" /> {selectedItem.itemSet.name.fr}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto custom-scrollbar pr-4 pb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto custom-scrollbar pr-4 pb-6">
                                     {/* Stats Card */}
                                     <div className="space-y-6">
-                                        <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 h-fit">
-                                            <div className="flex items-center gap-3 mb-6">
-                                                <Sword className="h-5 w-5 text-violet-400" />
+                                        <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 h-fit shadow-inner">
+                                            <div className="flex items-center gap-3 mb-8">
+                                                <Sword className={cn("h-5 w-5", source === "dofusbook" ? "text-emerald-400" : "text-violet-400")} />
                                                 <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500">Effets & Bonus</h4>
                                             </div>
-                                            <div className="space-y-4">
-                                                {(selectedItem.effects || selectedItem.possibleEffects || []).map((fx, i) => (
-                                                    <div key={i} className="flex items-center justify-between group/fx py-0.5">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center shrink-0">
-                                                                <StatIcon characteristicId={fx.characteristic || fx.effectId} />
+                                            <div className="space-y-5">
+                                                {(selectedItem.effects || selectedItem.possibleEffects || []).length > 0 ? (
+                                                    (selectedItem.effects || selectedItem.possibleEffects || []).map((fx: any, i: number) => (
+                                                        <div key={i} className="flex items-center justify-between group/fx">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center shrink-0 border border-white/5">
+                                                                    <StatIcon characteristicId={fx.characteristic || fx.effectId} />
+                                                                </div>
+                                                                <span className="text-[13px] font-bold text-zinc-300 group-hover/fx:text-white transition-colors">{getStatLabel(fx)}</span>
                                                             </div>
-                                                            <span className="text-xs font-bold text-white/80 group-hover/fx:text-white line-clamp-1">{getStatLabel(fx)}</span>
+                                                            <span className={cn("text-[13px] font-black", source === "dofusbook" ? "text-emerald-400" : "text-violet-400")}>
+                                                                {fx.from === fx.to || fx.to === 0 ? fx.from : `${fx.from} à ${fx.to}`}
+                                                            </span>
                                                         </div>
-                                                        <span className="text-xs font-black text-violet-400 shrink-0">
-                                                            {fx.from === fx.to || fx.to === 0 ? fx.from : `${fx.from} à ${fx.to}`}
-                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <div className="py-10 text-center opacity-20">
+                                                        <Zap className="h-8 w-8 mx-auto mb-2" />
+                                                        <p className="text-[10px] font-black uppercase">Aucun effet</p>
                                                     </div>
-                                                ))}
+                                                )}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Recipe & Obtention Card */}
+                                    {/* Recipe Card */}
                                     <div className="space-y-6">
-                                        <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5">
-                                            <div className="flex items-center gap-3 mb-6">
-                                                <Scroll className="h-5 w-5 text-emerald-400" />
-                                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500">Obtention & Disponibilité</h4>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3 mb-6">
-                                                <div className={`p-4 rounded-2xl border ${selectedItem.isSaleable ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/5 text-zinc-600'}`}>
-                                                    <div className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-60">Hôtel de Vente</div>
-                                                    <div className="text-xs font-black uppercase">{selectedItem.isSaleable ? 'Oui' : 'Non'}</div>
-                                                </div>
-                                                <div className={`p-4 rounded-2xl border ${selectedItem.hasRecipe ? 'bg-violet-500/5 border-violet-500/20 text-violet-400' : 'bg-white/5 border-white/5 text-zinc-600'}`}>
-                                                    <div className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-60">Fabrication</div>
-                                                    <div className="text-xs font-black uppercase">{selectedItem.hasRecipe ? 'Recette' : 'Néant'}</div>
-                                                </div>
+                                        <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 shadow-inner">
+                                            <div className="flex items-center gap-3 mb-8">
+                                                <Scroll className="h-5 w-5 text-zinc-500" />
+                                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500">Fabrication</h4>
                                             </div>
 
                                             {recipe ? (
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between px-2 mb-2">
-                                                        <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Ingrédients Requis</span>
-                                                        <span className="text-[9px] font-black text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded-md">
-                                                            {recipe.job?.name.fr} Niv. {recipe.resultLevel}
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-1 gap-3">
                                                         {recipe.ingredients.map((ing, i) => (
-                                                            <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-black/40 border border-white/5 group/ing">
-                                                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                                                    <Image src={ing.img || `https://api.dofusdb.fr/img/items/${ing.id}.png`} alt="Ingredient" width={28} height={28} unoptimized />
+                                                            <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-black/50 border border-white/5 group/ing hover:border-white/10 transition-all">
+                                                                <div className="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center shrink-0">
+                                                                    <Image src={ing.img || `https://api.dofusdb.fr/img/items/${ing.id}.png`} alt="Ingredient" width={32} height={32} unoptimized />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <div className="text-[11px] font-bold text-white/70 truncate group-hover/ing:text-white">{ing.name.fr}</div>
-                                                                    <div className="text-[10px] font-black text-emerald-400/80">x {recipe.quantities[i]}</div>
+                                                                    <div className="text-[12px] font-bold text-zinc-200 truncate group-hover/ing:text-white transition-colors">{ing.name.fr}</div>
+                                                                    <div className="text-[11px] font-black text-emerald-400">x {recipe.quantities[i]}</div>
                                                                 </div>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
-                                            ) : selectedItem.hasRecipe ? (
-                                                <div className="flex items-center justify-center py-10 opacity-30">
-                                                    <Loader2 className="h-5 w-5 animate-spin mr-3" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Chargement recette...</span>
-                                                </div>
                                             ) : (
-                                                <div className="py-12 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center opacity-30">
-                                                    <PackageOpen className="h-8 w-8 mb-2" />
-                                                    <p className="text-[10px] font-black uppercase tracking-widest">Pas de recette de craft</p>
+                                                <div className="py-20 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center opacity-20 capitalize">
+                                                    <PackageOpen className="h-10 w-10 mb-3" />
+                                                    <p className="text-[11px] font-black tracking-widest">Pas de recette disponible</p>
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Pro-tip removed for space */}
                                     </div>
                                 </div>
                             </div>

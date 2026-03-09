@@ -1203,9 +1203,9 @@ export async function getMyJoinRequestStatus(guildId: string, runId: string) {
 
 export async function getMemberProfiles(guildId: string, userIds: string[]) {
     // Determine internal guildId for profile lookup
-    const guildConfig = await db.guildConfig.findUnique({
+    const guildConfig = await (db.guildConfig as any).findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true, rolesMapping: true },
+        select: { id: true, rolesMapping: true, usersMapping: true },
     });
     const internalGuildId = guildConfig?.id;
 
@@ -1226,6 +1226,10 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
                 select: {
                     name: true,
                     image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true }
+                    }
                 },
             },
         },
@@ -1233,20 +1237,18 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
 
     // Transform to include discordNickname with fallbacks + Admin check
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+    const usersMapping = (guildConfig?.usersMapping as Record<string, string[]>) || {};
 
     // identify role names that grant admin access
-    // This is a bit of a proxy since we don't have role IDs here, 
-    // but better than nothing for the songes list view performance.
     const enrichedProfiles = profiles.map((p) => {
         const discordNickname = p.discordNickname || p.user?.name || null;
+        const discordAccountId = p.user?.accounts?.[0]?.providerAccountId;
 
-        // Check for admin role name in mapping
-        // We look if any roles mapped to 'admin:access' match this user's current role name
-        // (Note: This is an approximation since we match on NAME in this specific list view)
         const isAdmin = p.discordRoleName === "Administrateur" ||
             Object.entries(rolesMapping).some(([_, perms]) =>
                 perms.includes("admin:access") && p.discordRoleName
-            );
+            ) ||
+            (discordAccountId && usersMapping[discordAccountId]?.includes("admin:access"));
 
         return {
             userId: p.userId,

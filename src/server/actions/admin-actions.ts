@@ -86,7 +86,7 @@ export async function updateRBACMapping(
 
     try {
         // Get current mapping for audit log
-        const currentConfig = await db.guildConfig.findUnique({
+        const currentConfig = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
             select: { rolesMapping: true, usersMapping: true }
         });
@@ -102,11 +102,11 @@ export async function updateRBACMapping(
         }> = [];
 
         // All role IDs from both old and new mapping
-        const allRoleIds = new Set([...Object.keys(oldMapping), ...Object.keys(mapping)]);
+        const allRoleIds = new Set([...Object.keys(oldRolesMapping), ...Object.keys(rolesMapping)]);
 
         for (const roleId of allRoleIds) {
-            const oldPerms = new Set(oldMapping[roleId] || []);
-            const newPerms = new Set(mapping[roleId] || []);
+            const oldPerms = new Set(oldRolesMapping[roleId] || []);
+            const newPerms = new Set(rolesMapping[roleId] || []);
 
             const added = [...newPerms].filter(p => !oldPerms.has(p)) as PermissionId[];
             const removed = [...oldPerms].filter(p => !newPerms.has(p)) as PermissionId[];
@@ -117,7 +117,7 @@ export async function updateRBACMapping(
         }
 
         // Update the mappings
-        await db.guildConfig.update({
+        await (db.guildConfig as any).update({
             where: { discordGuildId: guildId },
             data: {
                 rolesMapping: rolesMapping,

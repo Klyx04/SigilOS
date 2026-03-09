@@ -5,7 +5,7 @@ import { PermissionsManager } from "../_components/permissions-manager";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
-import { getUserContext } from "@/server/actions/user-actions";
+import { getUserContext, getGuildMembers } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -47,8 +47,10 @@ export default async function PermissionsPage({
     if (!config) return <div>Fatal: Configuration not found after onboarding.</div>;
 
     let roles;
+    let members;
     try {
         roles = await fetchGuildRoles(guildId);
+        members = await getGuildMembers(guildId);
     } catch (e) {
         return (
             <div className="p-6 flex flex-col gap-4">
@@ -66,19 +68,22 @@ export default async function PermissionsPage({
     }
 
     const currentMapping = (config.rolesMapping || {}) as Record<string, PermissionId[]>;
+    const currentUsersMapping = ((config as any).usersMapping || {}) as Record<string, PermissionId[]>;
 
     return (
         <div className="space-y-8 pb-12">
             <UnifiedModuleHeader
                 title="Permissions"
-                description={`Attribuez les droits aux rôles Discord de ${config.name}`}
+                description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
                 icon={Shield}
                 backHref={`/dashboard/${guildId}/admin`}
             />
             <PermissionsManager
                 guildId={guildId}
                 roles={roles}
+                members={members || []}
                 currentMapping={currentMapping}
+                currentUsersMapping={currentUsersMapping}
             />
         </div>
     );

@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { encrypt, decrypt } from './encryption'
 
-// Récupération et nettoyage strict
+// Récupération et nettoyage strict - v3.0.1 (Force Rebuild)
 const getEnv = (key: string, fallback: string) => {
     const val = process.env[key];
     if (!val) return fallback;
@@ -119,8 +119,9 @@ const createPrismaClient = () => {
 
 const globalForPrisma = globalThis as unknown as { prisma: ReturnType<typeof createPrismaClient> }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+const clientInstance = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+export const db = clientInstance;
+export const prisma = clientInstance;
 
-export { prisma as db };
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = clientInstance as any;

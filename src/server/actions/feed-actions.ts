@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { fetchDofusNews, fetchTwitchLiveStreams, fetchYouTubeLatestVideos, fetchDPLNNews, ExtractedContent } from "@/lib/feed-aggregators";
 import { logger } from "@/lib/logger";
+import { revalidatePath } from "next/cache";
 
 const CACHE_MINUTES = 15;
 
@@ -16,7 +17,7 @@ const YOUTUBE_HANDLES = ["@Huzounet", "@Skyzio", "@Laniyelle", "@BarbeDouce-YT",
  * Gets the aggregated feed of Dofus Content (News, YouTube, Twitch).
  * Uses a "Lazy Pull" strategy: only fetches external APIs if the cache is older than 15 mins.
  */
-export async function getAggregatedFeed(guildId: string) {
+export async function getAggregatedFeed(guildId: string, forceRefresh = false) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 
@@ -46,12 +47,13 @@ export async function getAggregatedFeed(guildId: string) {
 
         // @ts-ignore
         const newestCacheEntry = await db.contentCache.findFirst({
+            where: { creatorId: { in: ["Ankama", "DPLN"] } },
             orderBy: { fetchedAt: 'desc' }
         });
 
         const now = new Date();
         const cacheLimit = CACHE_MINUTES * 60 * 1000;
-        const needsRefresh = !newestCacheEntry ||
+        const needsRefresh = forceRefresh || !newestCacheEntry ||
             (now.getTime() - newestCacheEntry.fetchedAt.getTime() > cacheLimit);
 
         if (needsRefresh) {
@@ -74,7 +76,8 @@ export async function getAggregatedFeed(guildId: string) {
                     where: {
                         OR: [
                             { type: "TWITCH" },
-                            { creatorId: "DPLN" }
+                            { creatorId: "DPLN" },
+                            { creatorId: "Ankama" }
                         ]
                     }
                 });
@@ -178,6 +181,8 @@ export async function markFeedAsRead(guildId: string) {
             // @ts-ignore
             data: { lastFeedViewedAt: new Date() }
         });
+
+        revalidatePath(`/dashboard/${guildId}`);
 
         return { success: true };
     } catch (error) {

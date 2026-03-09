@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "dofusdb.fr",
       },
+      {
+        protocol: "https",
+        hostname: "static.ankama.com",
+      },
     ],
   },
   experimental: {

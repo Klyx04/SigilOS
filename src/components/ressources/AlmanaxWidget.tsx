@@ -4,7 +4,7 @@ import { AlmanaxItem } from "@/server/actions/resources-actions";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useState, useMemo } from "react";
-import { Filter, Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, LayoutGrid, View } from "lucide-react";
+import { Filter, Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, LayoutGrid, View, Flame } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -220,6 +220,7 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
 
     // Top filter categories in the next 30 days
     const filterTypes = useMemo(() => {
+        if (!Array.isArray(items)) return [];
         const map = new Map<string, number>();
         items.slice(0, 30).forEach((item) => {
             const name = item.bonus.type?.name ?? "";
@@ -227,6 +228,18 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
         });
         return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5); // Keep top 5 to avoid clutter
     }, [items]);
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-white/5 border border-white/10 rounded-2xl h-[300px]">
+                <Flame className="w-10 h-10 text-amber-500/50 mb-4 animate-pulse" />
+                <h3 className="text-lg font-bold text-white mb-2">Almanax momentanément indisponible</h3>
+                <p className="text-zinc-400 text-sm max-w-sm">
+                    L'Oracle Temporel (API Dofusdu) semble en maintenance temporelle. Les données ne sont pas accessibles pour le moment.
+                </p>
+            </div>
+        );
+    }
 
     const selected = items[selectedIdx] ?? items[0];
     if (!selected) return null;

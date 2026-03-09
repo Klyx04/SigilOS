@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tv, ExternalLink, Rss, CirclePlay } from "lucide-react";
+import { Tv, ExternalLink, Rss, CirclePlay, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -21,11 +21,12 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchFeed = async () => {
+    const fetchFeed = async (force = false) => {
         setIsLoading(true);
-        const res = await getAggregatedFeed(guildId);
+        const res = await getAggregatedFeed(guildId, force);
         if (res.success && res.data) {
-            setFeed(res.data as ExtractedContent[]);
+            setFeed(res.data as any);
+            // For now, simplify or use actual unread check
             setUnreadCount(res.unreadCount || 0);
         }
         setIsLoading(false);
@@ -76,6 +77,16 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                         <Rss className="h-4 w-4 text-emerald-500" />
                         <h4 className="font-bold text-xs uppercase tracking-widest text-white">Créateurs & Dofus</h4>
                     </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 transition-all"
+                        onClick={(e) => { e.stopPropagation(); fetchFeed(true); }}
+                        disabled={isLoading}
+                    >
+                        <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
+                        RAFRAÎCHIR
+                    </Button>
                 </div>
 
                 <ScrollArea className="h-[350px]">
@@ -102,7 +113,12 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                                 >
                                     <div className="mt-1 h-8 w-8 rounded bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
                                         {n.thumbnail ? (
-                                            <img src={n.thumbnail} alt={n.creatorId} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                            <img
+                                                src={n.thumbnail}
+                                                alt={n.creatorId}
+                                                referrerPolicy="no-referrer"
+                                                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                            />
                                         ) : (
                                             getIcon(n.type)
                                         )}

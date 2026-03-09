@@ -62,9 +62,10 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     }
 }
 
-export async function updateRoleMapping(
+export async function updateRBACMapping(
     guildId: string,
-    mapping: Record<string, PermissionId[]>
+    rolesMapping: Record<string, PermissionId[]>,
+    usersMapping: Record<string, PermissionId[]>
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
@@ -87,10 +88,11 @@ export async function updateRoleMapping(
         // Get current mapping for audit log
         const currentConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { rolesMapping: true }
+            select: { rolesMapping: true, usersMapping: true }
         });
 
-        const oldMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
+        const oldRolesMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
+        const oldUsersMapping = (currentConfig?.usersMapping || {}) as Record<string, PermissionId[]>;
 
         // Calculate permission changes
         const changes: Array<{
@@ -114,30 +116,17 @@ export async function updateRoleMapping(
             }
         }
 
-        // Update the mapping
+        // Update the mappings
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
-            data: { rolesMapping: mapping }
+            data: {
+                rolesMapping: rolesMapping,
+                usersMapping: usersMapping
+            }
         });
 
-        // Create audit log entry with detailed changes
+        // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");
-        const { PERMISSION_DETAILS, PERMISSION_MODULES } = await import("@/lib/permissions");
-
-        // Format changes for human-readable display
-        const formattedChanges = changes.map(change => ({
-            roleId: change.roleId,
-            added: change.added.map(p => ({
-                permission: p,
-                label: PERMISSION_DETAILS[p]?.label || p,
-                module: PERMISSION_DETAILS[p]?.module || "unknown"
-            })),
-            removed: change.removed.map(p => ({
-                permission: p,
-                label: PERMISSION_DETAILS[p]?.label || p,
-                module: PERMISSION_DETAILS[p]?.module || "unknown"
-            }))
-        }));
 
         await createAuditLog({
             guildId,
@@ -145,11 +134,9 @@ export async function updateRoleMapping(
             actorName: session.user.name || "Unknown",
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
-            oldValue: oldMapping,
-            newValue: mapping,
+            oldValue: { roles: oldRolesMapping, users: oldUsersMapping },
+            newValue: { roles: rolesMapping, users: usersMapping },
             metadata: {
-                rolesAffected: changes.length,
-                changes: formattedChanges,
                 timestamp: new Date().toISOString()
             }
         });

@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { emitGuildActivity } from "./activity-actions";
+import { PresenceManager } from "@/lib/presence";
 
 export type UserContext = {
     isAuthenticated: boolean;
@@ -176,7 +177,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const isGod = await isSuperAdmin();
 
     // 1. Get Guild Config for Mappings (Try Internal ID first, then Discord ID)
-    const guildConfig = await db.guildConfig.findFirst({
+    const guildConfig = await (db.guildConfig as any).findFirst({
         where: {
             OR: [
                 { id: effectiveGuildId },
@@ -187,6 +188,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             id: true,
             discordGuildId: true,
             rolesMapping: true,
+            usersMapping: true,
             name: true,
             dofusServerId: true,
             welcomeEnabled: true,
@@ -492,29 +494,43 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         } else {
-            // EXISTING ACTIVE member — just refresh Discord cache + heartbeat
+            // EXISTING ACTIVE member — Performance Optim: Update presence in Redis ALWAYS (fast)
+            // But only update Prisma Discord Cache if it's older than 1 hour or randomly (throttle).
             try {
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        lastActivityAt: now,
-                        discordNickname: displayName,
-                        discordRoleName: roleName,
-                        discordRoleColor: roleColor,
-                        discordCacheUpdatedAt: now,
-                    }
-                });
+                // REDIS HEARTBEAT (New Best Practice)
+                await PresenceManager.updatePresence(guildConfig.id, session.user.id);
+
+                // PRISMA THROTTLED UPDATE (Only if cache is older than 1h to save VPS resources)
+                const cacheAge = now.getTime() - (profile.discordCacheUpdatedAt?.getTime() || 0);
+                if (cacheAge > 3600000) {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            discordNickname: displayName,
+                            discordRoleName: roleName,
+                            discordRoleColor: roleColor,
+                            discordCacheUpdatedAt: now,
+                        }
+                    });
+                }
             } catch { }
         }
     }
 
     // 3. Permissions
     const mapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
+    const userMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
     const myPerms = new Set<PermissionId>();
+
+    // Roles-based permissions
     memberRoles.forEach(rId => {
         const perms = mapping[rId];
         if (perms) perms.forEach(p => myPerms.add(p));
     });
+
+    // Individual user permissions (using Discord User ID as key)
+    const personalPerms = userMapping[discordUserId];
+    if (personalPerms) personalPerms.forEach(p => myPerms.add(p));
 
     const hasDiscordAdmin = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
     const isAdmin = myPerms.has(PERMISSIONS.ADMIN_ACCESS) || hasDiscordAdmin;
@@ -735,7 +751,7 @@ export async function internalCheckPermission(
     permission: PermissionId
 ): Promise<boolean> {
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await (db.guildConfig as any).findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return false;
 
         const { fetchGuildMember, fetchGuildRoles, fetchGuild } = await import("@/server/discord");
@@ -751,13 +767,20 @@ export async function internalCheckPermission(
         if (isDiscordAdmin) return true;
 
         const mapping = (guildConfig.rolesMapping || {}) as Record<string, PermissionId[]>;
+        const userMapping = (guildConfig.usersMapping || {}) as Record<string, PermissionId[]>;
 
-        // Collect all permissions from all roles  
+        // Collect all permissions  
         const allPerms = new Set<PermissionId>();
+
+        // From roles
         member.roles.forEach((roleId: string) => {
             const perms = mapping[roleId];
             if (perms) perms.forEach((p: PermissionId) => allPerms.add(p));
         });
+
+        // From user
+        const userPerms = userMapping[discordUserId];
+        if (userPerms) userPerms.forEach((p: PermissionId) => allPerms.add(p));
 
         // ADMIN_ACCESS grants all permissions (fallback)
         if (allPerms.has(PERMISSIONS.ADMIN_ACCESS)) return true;

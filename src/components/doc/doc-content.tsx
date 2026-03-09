@@ -194,7 +194,7 @@ export function DocContent({ content, className }: DocContentProps) {
                 // Custom Style Overrides (Ensure colors and floats stick)
                 "[&_span[style]]:!opacity-100",
                 "[&_span[style*='color']]:![color:inherit]", // Preserve TipTap color styles
-                "[&_img[style]]:!max-w-none",
+                "[&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain", // Fix image overflow
 
                 className
             )}

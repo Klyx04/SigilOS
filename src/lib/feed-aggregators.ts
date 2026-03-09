@@ -81,12 +81,36 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
             const descriptionHtml = item.baseline || "";
             const plainDescription = descriptionHtml.replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/gi, " ").trim();
 
+            let thumbnail = item.image_url || item.image || item.picture || null;
+            if (thumbnail && typeof thumbnail === 'string') {
+                if (thumbnail.startsWith('http')) {
+                    // Nothing to do, already absolute
+                } else if (thumbnail.startsWith('//')) {
+                    thumbnail = 'https:' + thumbnail;
+                } else if (thumbnail.startsWith('/')) {
+                    thumbnail = 'https://static.ankama.com' + thumbnail;
+                } else {
+                    // Maybe just a path?
+                    thumbnail = 'https://static.ankama.com/' + thumbnail;
+                }
+            }
+
+            // Cleanup potential double slashes (except after protocol)
+            if (thumbnail && typeof thumbnail === 'string') {
+                const parts = thumbnail.split('://');
+                if (parts.length > 1) {
+                    thumbnail = parts[0] + '://' + parts[1].replace(/\/+/g, '/');
+                } else {
+                    thumbnail = thumbnail.replace(/\/+/g, '/');
+                }
+            }
+
             return {
                 type: "NEWS" as const,
                 creatorId: "Ankama",
                 title: item.name || "Nouvelle annonce Dofus",
                 url: item.url || "https://www.dofus.com/fr",
-                thumbnail: item.image_url || null,
+                thumbnail: thumbnail as string | null,
                 description: plainDescription || undefined,
                 published: new Date(Date.now() - idx * 60000) // pseudo-chronological
             };

@@ -165,10 +165,24 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         }}
                                     >
                                         <div
-                                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg transition-transform duration-200 group-hover/link:scale-110"
+                                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg transition-transform duration-200 group-hover/link:scale-110 overflow-hidden relative"
                                             style={{ background: `${cat.color}10`, border: `1px solid ${cat.color}20` }}
                                         >
-                                            {link.emoji || "🔗"}
+                                            {(() => {
+                                                try {
+                                                    const hostname = new URL(link.url).hostname;
+                                                    return (
+                                                        <img
+                                                            src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=128`}
+                                                            alt={link.title}
+                                                            className="w-5 h-5 object-contain"
+                                                            loading="lazy"
+                                                        />
+                                                    );
+                                                } catch {
+                                                    return <span>{link.emoji || "🔗"}</span>;
+                                                }
+                                            })()}
                                         </div>
 
                                         <div className="flex-1 min-w-0">
@@ -358,8 +372,8 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="grid grid-cols-4 gap-3">
                         <div className="col-span-1">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Emoji</label>
-                            <input value={emoji} onChange={e => setEmoji(e.target.value)} type="text" className="text-center w-full bg-white/5 border border-white/10 rounded-xl px-2 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Emoji (Optionnel)</label>
+                            <input value={emoji} onChange={e => setEmoji(e.target.value)} type="text" placeholder="🔗" className="text-center w-full bg-white/5 border border-white/10 rounded-xl px-2 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                         </div>
                         <div className="col-span-3">
                             <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Titre</label>

@@ -3,7 +3,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useState, useTransition } from "react";
-import { updateRoleMapping } from "@/server/actions/admin-actions";
+import { updateRBACMapping } from "@/server/actions/admin-actions";
 import { PERMISSIONS, PERMISSION_LABELS, type PermissionId } from "@/lib/permissions";
 import { toast } from "sonner";
 
@@ -37,7 +37,7 @@ export function RoleMatrix({ guildId, roles, currentMapping }: Props) {
 
     const handleSave = () => {
         startTransition(async () => {
-            const res = await updateRoleMapping(guildId, mapping);
+            const res = await updateRBACMapping(guildId, mapping, {});
             if (res.success) {
                 toast.success("Permissions mises à jour");
             } else {

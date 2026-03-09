@@ -51,7 +51,7 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
     const breadcrumbSegments = segments.slice(2);
 
     return (
-        <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+        <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-[72px] px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_30px_rgba(0,0,0,0.6)]">
 
             {/* LEFT: Mobile Trigger & Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
@@ -109,7 +109,7 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
             </div>
 
             {/* RIGHT: Super Island (Integrated Command Center) */}
-            <div className="flex items-center border border-white/10 rounded-xl bg-zinc-950/20 backdrop-blur-md relative overflow-hidden group/island shrink-0 shadow-lg">
+            <div className="flex items-center border border-white/10 rounded-xl bg-zinc-950/20 backdrop-blur-md relative group/island shrink-0 shadow-lg">
                 {/* 1. Smart Bar (Time/Members/Almanax) */}
                 <div className="relative z-10 border-r border-white/10 px-1">
                     <SmartBar
@@ -123,22 +123,9 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                     <Link
                         href="/changelog"
                         className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/changelog active:scale-95"
-                        title="Notes de Mise à Jour"
+                        title="Changelog SigilOS"
                     >
                         <ScrollText className="w-4 h-4 text-zinc-400 group-hover/changelog:text-amber-400 transition-colors" />
-                    </Link>
-                </div>
-
-                {/* 2. Context-Aware Help (Docs) */}
-                <div className="relative z-10 border-r border-white/10 flex">
-                    <Link
-                        href="/docs"
-                        target="_blank"
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/docs active:scale-95"
-                        title="Documentation Utilisateur"
-                    >
-                        <CircleHelp className="w-4 h-4 text-zinc-400 group-hover/docs:text-indigo-400 transition-colors" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline-block text-zinc-300">Docs</span>
                     </Link>
                 </div>
 
@@ -150,21 +137,12 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                     />
                 </div>
 
-                {/* 4. Notification Bell (System) */}
-                <div className="relative z-10 border-r border-white/10">
-                    <NotificationBell
-                        userId={userId}
-                        guildId={sidebarProps.guildId}
-                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
-                    />
-                </div>
-
-                {/* 4. User Profile (High Visibility) */}
-                <div className="relative z-10 flex border-l border-white/5 bg-zinc-950/20">
+                {/* 4. User Profile & System Notifications */}
+                <div className="relative z-10 flex border-l border-white/5 bg-zinc-950/20 items-center">
                     {sidebarProps.user.canViewProfile ? (
                         <Link
                             href={`/dashboard/${sidebarProps.guildId}/profile`}
-                            className="flex items-center gap-3 pr-5 pl-4 py-1.5 hover:bg-white/[0.05] transition-all group/profile"
+                            className="flex items-center gap-3 pr-5 pl-4 py-2 hover:bg-white/[0.05] transition-all group/profile"
                         >
                             <div className="flex flex-col items-end leading-none hidden xl:flex">
                                 <span className="text-[12px] font-black text-zinc-300 group-hover/profile:text-white transition-colors tracking-tight">
@@ -175,12 +153,21 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                                 </span>
                             </div>
                             <div className="relative group-hover/profile:scale-105 transition-transform duration-300">
-                                <Avatar className="h-9 w-9 border border-white/10 ring-2 ring-transparent group-hover/profile:ring-emerald-500/30 transition-all shadow-xl">
+                                <Avatar className="h-10 w-10 border border-white/10 ring-2 ring-transparent group-hover/profile:ring-emerald-500/30 transition-all shadow-xl">
                                     <AvatarImage src={sidebarProps.user.image || ""} />
                                     <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
                                         {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
                                     </AvatarFallback>
                                 </Avatar>
+
+                                {/* Notification Bell integrated into the Avatar corner */}
+                                <div className="absolute -top-1 -right-1 z-30 scale-[0.85] origin-top-right translate-x-1/3 -translate-y-1/3">
+                                    <NotificationBell
+                                        userId={userId}
+                                        guildId={sidebarProps.guildId}
+                                        className="h-10 w-10 bg-zinc-900 border-2 border-white/20 text-white rounded-full hover:bg-zinc-800 transition-all shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:scale-110 active:scale-95"
+                                    />
+                                </div>
                                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#09090b] shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                             </div>
                         </Link>

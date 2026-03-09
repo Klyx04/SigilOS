@@ -142,6 +142,74 @@
       transform: translateY(-4px);
     }
   }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(16, 185, 129, 0.2);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.4);
+  }
+
+  @keyframes scan {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(1000%);
+      opacity: 0;
+    }
+  }
+
+  .animate-scan {
+    animation: scan 3s linear infinite;
+  }
+
+  @keyframes timer-shrink {
+    from {
+      width: 100%;
+    }
+
+    to {
+      width: 0%;
+    }
+  }
+
+  .animate-timer {
+    animation: timer-shrink 5s linear forwards;
+  }
+
+  .scale-animate {
+    animation: scale-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes scale-up {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 }
 
 @layer base {
@@ -433,8 +501,13 @@
 }
 
 @keyframes mission-ring-spin {
-  from { --mission-ring-angle: 0deg; }
-  to   { --mission-ring-angle: 360deg; }
+  from {
+    --mission-ring-angle: 0deg;
+  }
+
+  to {
+    --mission-ring-angle: 360deg;
+  }
 }
 
 .mission-card-ring {
@@ -449,12 +522,10 @@
   position: absolute;
   inset: -1px;
   border-radius: 13px;
-  background: conic-gradient(
-    from var(--mission-ring-angle),
-    transparent 20%,
-    var(--ring-color, #10b981) 50%,
-    transparent 80%
-  );
+  background: conic-gradient(from var(--mission-ring-angle),
+      transparent 20%,
+      var(--ring-color, #10b981) 50%,
+      transparent 80%);
   opacity: 0.55;
   transition: opacity 0.5s;
   z-index: 0;
@@ -464,7 +535,7 @@
   opacity: 0.9;
 }
 
-.mission-card-ring > * {
+.mission-card-ring>* {
   position: relative;
   z-index: 1;
   border-radius: 11px;

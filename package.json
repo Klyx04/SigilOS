@@ -22,7 +22,7 @@
     "build:maintenance": "esbuild scripts/database-janitor.ts --bundle --platform=node --outfile=scripts/database-janitor.js --external:@prisma/client",
     "build:worker": "esbuild src/workers/metamob-worker.ts --bundle --platform=node --outfile=dist/worker.js --external:@prisma/client --external:ioredis --external:bullmq",
     "build:presence": "esbuild src/workers/presence-worker.ts --bundle --platform=node --outfile=dist/presence-worker.js --external:@prisma/client --external:ioredis --external:discord.js",
-    "build:ws": "esbuild src/server/websocket/server.ts --bundle --platform=node --outfile=dist/ws-server.js --external:@prisma/client --external:ioredis --external:socket.io",
+    "build:ws": "esbuild src/server/websocket/server.ts --bundle --platform=node --outfile=dist/ws-server.js --external:@prisma/client",
     "seed:docs": "npx -y tsx prisma/seed-docs.ts",
     "export-seeds": "bash scripts/export-seeds.sh local"
   },

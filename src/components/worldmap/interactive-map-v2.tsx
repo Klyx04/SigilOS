@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { cn } from "@/lib/utils";
 import { playSoundEffect } from "@/lib/sounds";
 
@@ -370,16 +371,10 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
             return;
         }
 
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        let envUrl = process.env.NEXT_PUBLIC_WS_URL;
-        if (envUrl === "undefined" || !envUrl) envUrl = "";
-
-        const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
-        const wsUrl = envUrl || (isLocal ? `${protocol}//127.0.0.1:3001` : `${protocol}//${hostname}:3001`);
+        const wsUrl = buildWsUrl();
 
         const newSocket = io(wsUrl, {
-            path: "/api/socket/",
+            path: "/socket.io/",
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
             query: { guildId }

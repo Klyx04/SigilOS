@@ -51,7 +51,7 @@ const io = new Server(httpServer, {
     },
     // On n'active l'adapter Redis que si on a les clients prêts (utile pour le VPS)
     adapter: isProd ? createAdapter(pubClient, subClient) : undefined,
-    path: "/api/socket/"
+    path: "/socket.io/"
 });
 
 const garticManager = new GarticGameManager(io);

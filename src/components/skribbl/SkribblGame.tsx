@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SkribblLobby from "./SkribblLobby";
@@ -73,20 +74,15 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
 
     const lastHostId = useRef<string | null>(null);
 
-    const buildWsUrl = useCallback((): string => {
-        const proto = window.location.protocol;
-        const host = window.location.hostname;
-        let env = process.env.NEXT_PUBLIC_WS_URL;
-        if (!env || env === "undefined") env = "";
-        const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.");
-        return env || (isLocal ? `${proto}//127.0.0.1:3001` : `${proto}//${host}:3001`);
+    const getWsUrl = useCallback((): string => {
+        return buildWsUrl();
     }, []);
 
     useEffect(() => {
         if (!session?.user?.id) return;
 
-        const s = io(buildWsUrl(), {
-            path: "/api/socket/",
+        const s = io(getWsUrl(), {
+            path: "/socket.io/",
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
             query: { guildId }

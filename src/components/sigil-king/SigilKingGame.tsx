@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Crown, LogOut, Play, Plus, Trophy, Clock, Swords, ChevronLeft, HelpCircle, X } from "lucide-react";
 import { toast } from "sonner";
@@ -942,8 +943,8 @@ export function SigilKingGame({ guildId, userId, userName, userAvatar, initialRo
     const [bonus, setBonus] = useState<BonusType>(null);
 
     useEffect(() => {
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
-        const s = io(wsUrl, { query: { guildId }, transports: ["websocket"], path: "/api/socket/" });
+        const wsUrl = buildWsUrl();
+        const s = io(wsUrl, { query: { guildId }, transports: ["websocket"], path: "/socket.io/" });
         socketRef.current = s;
         setSocket(s);
 

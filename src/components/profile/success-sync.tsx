@@ -358,27 +358,27 @@ export function SuccessSync({
                 {/* Ladder Link Option */}
                 {!readOnly && (
                     <div className="pt-2 border-t border-white/5 space-y-3">
-                        <div className="flex flex-col gap-3 bg-white/5 p-3 rounded-xl border border-white/10 hover:border-amber-500/30 transition-colors">
+                        <div className="flex flex-col gap-4 bg-white/5 p-4 rounded-xl border border-white/10 hover:border-amber-500/30 transition-colors">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
-                                        <ExternalLink className="w-4 h-4" />
+                                    <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/10 shadow-lg shadow-blue-500/5">
+                                        <ExternalLink className="w-5 h-5" />
                                     </div>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-white/90 tracking-tight">Lien Ladder Officiel</span>
-                                            <span className="px-1.5 py-0.5 rounded-md bg-zinc-800 text-[10px] font-bold text-zinc-400 border border-white/5 uppercase">
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="text-base font-bold text-white tracking-tight">Lien Ladder Officiel</span>
+                                            <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-[11px] font-black text-zinc-300 border border-white/10 uppercase tracking-wider">
                                                 {serverName}
                                             </span>
                                         </div>
-                                        <span className="text-xs text-white/40 font-medium">Consulter vos points en temps réel sur Ankama</span>
+                                        <span className="text-sm text-zinc-400 font-medium">Consulter vos points en temps réel sur Ankama</span>
                                     </div>
                                 </div>
                                 {pseudoDofus ? (
                                     <Button
                                         variant="outline"
-                                        size="sm"
-                                        className="h-8 border-white/10 hover:bg-white/10 text-xs"
+                                        size="default"
+                                        className="h-10 border-white/10 hover:bg-white/10 text-sm font-bold min-w-[100px]"
                                         asChild
                                     >
                                         <a href={ladderUrl!} target="_blank" rel="noopener noreferrer">
@@ -391,8 +391,8 @@ export function SuccessSync({
                             </div>
 
                             {pseudoDofus && (
-                                <div className="px-2 py-1.5 bg-black/40 rounded border border-white/5 overflow-hidden">
-                                    <p className="text-[9px] text-zinc-500 truncate font-mono">
+                                <div className="px-3 py-2 bg-black/60 rounded-lg border border-white/10 overflow-hidden transition-all hover:border-white/20">
+                                    <p className="text-[11px] text-zinc-400 truncate font-mono select-all leading-none">
                                         {ladderUrl}
                                     </p>
                                 </div>

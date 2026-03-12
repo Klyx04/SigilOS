@@ -1,122 +1,207 @@
 "use client";
 
-import React, { useState } from "react";
-import { Album, AlbumEntry, PublicPlayer } from "../../types/socket-events";
+import React from "react";
+import { Album } from "../../types/socket-events";
 import { cn } from "@/lib/utils";
+import { Download, ArrowRight, Home, Maximize2, Volume2, User } from "lucide-react";
 
 interface RevealScreenProps {
     albums: Album[];
-    currentPlayerIndex: number;
-    onNext: () => void;
+    revealIndex: number;
+    isHost: boolean;
+    onNextAlbum: () => void;
+    onExit: () => void;
+    players?: any[];
 }
 
-export const RevealScreen = ({ albums, currentPlayerIndex, onNext }: RevealScreenProps) => {
-    const album = albums[currentPlayerIndex];
-    const [currentEntryIndex, setCurrentEntryIndex] = useState(0);
-
+export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit, players = [] }: RevealScreenProps) => {
+    const album = albums[revealIndex];
     if (!album) return null;
 
-    const handleCopyAlbum = () => {
-        const summary = album.entries.map(e => `${e.author.username}: ${e.type === 'text' ? `"${e.content}"` : '[DESSIN]'}`).join('\n');
-        navigator.clipboard.writeText(`--- ALBUM DE ${album.owner.username} ---\n${summary}`);
-        // toast is available via parent normally, or use alert for now if toast not imported
-        alert("Album copié !");
+    const ownerName = typeof album.owner === "string" ? album.owner : album.owner?.username || "?";
+    
+    // In Gartic Phone, all entries are revealed one by one. 
+    // For simplicity and matching the "Album" feel, we'll show all entries in the current album.
+    const entries = album.entries || [];
+
+    const handleDownload = () => {
+        // Simple download logic (could be improved to download as image)
+        const content = JSON.stringify(album, null, 2);
+        const blob = new Blob([content], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `album-${ownerName}.json`;
+        a.click();
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4 h-full">
-            {/* Liste joueurs gauche */}
-            <div className="col-span-1 border border-white/20 bg-black/20 rounded-2xl p-4 backdrop-blur-sm self-start hidden md:block">
-                <h2 className="text-green-400 text-xl font-black mb-6 text-center tracking-widest drop-shadow-md">
-                    ALBUMS
-                </h2>
-                <div className="space-y-3">
-                    {albums.map((a, i) => (
-                        <div
-                            key={a.ownerId}
-                            className={cn(
-                                "px-4 py-3 rounded-xl font-bold transition-all border",
-                                i === currentPlayerIndex ? "bg-white/30 border-white text-white shadow-[0_0_10px_rgba(255,255,255,0.3)] scale-105" :
-                                    i < currentPlayerIndex ? "bg-green-500/20 border-green-500/30 text-green-200" :
-                                        "bg-white/5 border-white/10 text-white/50"
-                            )}
-                        >
-                            {a.owner.username}
-                        </div>
-                    ))}
-                </div>
-            </div>
+        <div className="w-full h-full max-w-[95vw] flex flex-col gap-8 animate-in fade-in duration-1000 py-12 relative">
+            {/* Top Bar / Navigation */}
+            <div className="flex items-center justify-between w-full px-2">
+                <button 
+                    onClick={onExit}
+                    className="group flex items-center gap-4 bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-[2rem] font-black uppercase text-sm border-b-[6px] border-black/20 transition-all active:translate-y-1 active:border-b-0 backdrop-blur-md"
+                >
+                    <Home size={20} className="group-hover:scale-125 transition-transform" />
+                    <span>QUITTER LA GALERIE</span>
+                </button>
 
-            {/* Album central */}
-            <div className="col-span-1 md:col-span-3 flex flex-col bg-black/20 rounded-3xl border border-white/20 backdrop-blur-md shadow-2xl p-8 relative min-h-[600px]">
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-yellow-400 text-4xl font-black drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">
-                        L'ALBUM DE {album.owner.username.toUpperCase()}
-                    </h2>
-                    <button
-                        onClick={handleCopyAlbum}
-                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all font-black text-[10px] tracking-widest border border-white/10 uppercase"
-                    >
-                        📋 Copier l'album
+                <div className="flex items-center gap-4">
+                    <button className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">
+                        <Maximize2 size={20} />
+                    </button>
+                    <button className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">
+                        <Volume2 size={20} />
                     </button>
                 </div>
-
-                <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pb-24">
-                    {album.entries.map((entry, i) => (
-                        <AlbumEntryCard
-                            key={i}
-                            entry={entry}
-                            visible={i <= currentEntryIndex}
-                            onVisible={() => setCurrentEntryIndex(Math.max(currentEntryIndex, i + 1))}
-                        />
-                    ))}
-                </div>
-
-                {/* Bouton Next fixe en bas */}
-                {currentEntryIndex >= album.entries.length - 1 && (
-                    <div className="absolute bottom-6 left-0 right-0 text-center animate-slide-up bg-black/50 p-6 backdrop-blur-md rounded-b-3xl border-t border-white/20">
-                        <button
-                            onClick={onNext}
-                            className="px-8 py-4 bg-white hover:bg-gray-100 text-black rounded-3xl font-black text-xl shadow-[0_4px_0_#9ca3af] active:shadow-[0_0px_0_#9ca3af] active:translate-y-1 transition-all"
-                        >
-                            {currentPlayerIndex < albums.length - 1 ? "👉 ALBUM SUIVANT" : "🏆 SCORES FINAUX"}
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const AlbumEntryCard = ({ entry, visible, onVisible }: { entry: AlbumEntry; visible: boolean, onVisible?: () => void }) => {
-    if (!visible) return null;
-
-    return (
-        <div className={cn(
-            "bg-white/10 border-2 border-white/20 rounded-2xl p-6",
-            "flex flex-col gap-4 animate-bounce-in shadow-xl",
-        )}>
-            <div className="flex items-center gap-4 border-b border-white/10 pb-4">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
-                    👤
-                </div>
-                <div className="text-white/80 font-black tracking-widest text-lg">
-                    {entry.author.username.toUpperCase()}
-                </div>
             </div>
 
-            <div className="flex justify-center bg-black/30 rounded-xl p-4 min-h-[100px] border border-black/50">
-                {entry.type === "drawing" ? (
-                    <img
-                        src={entry.content}
-                        alt="dessin"
-                        className="rounded-xl border-4 border-white object-contain max-h-[400px] bg-white shadow-2xl"
-                    />
-                ) : (
-                    <div className="bg-white text-black px-8 py-6 rounded-2xl text-4xl font-black text-center shadow-lg transform rotate-1 border-4 border-dashed border-gray-300">
-                        "{entry.content.toUpperCase()}"
+            {/* Main Content Area */}
+            <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+                {/* Left Column: Players List */}
+                <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
+                    <div className="text-center">
+                        <h2 className="text-white text-3xl font-black uppercase italic tracking-tighter drop-shadow-lg">JOUEURS</h2>
+                        <div className="h-1.5 w-16 bg-[#2ed573] mx-auto rounded-full mt-1" />
                     </div>
-                )}
+
+                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar shadow-2xl">
+                        {albums.map((a, idx) => {
+                            const name = typeof a.owner === "string" ? a.owner : a.owner?.username || "?";
+                            const isActive = idx === revealIndex;
+                            return (
+                                <div 
+                                    key={idx}
+                                    className={cn(
+                                        "flex items-center gap-4 p-4 rounded-3xl border-b-[6px] transition-all",
+                                        isActive 
+                                            ? "bg-[#2ed573] border-[#1e9b53] translate-x-1" 
+                                            : "bg-white/90 border-[#c5b58e] opacity-80"
+                                    )}
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-white border-4 border-black/10 overflow-hidden shrink-0">
+                                        <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${name}`} alt={name} className="w-full h-full object-cover" />
+                                    </div>
+                                    <span className={cn(
+                                        "font-black text-xl uppercase italic tracking-tight truncate",
+                                        isActive ? "text-white" : "text-[#3d2080]"
+                                    )}>
+                                        {name}
+                                    </span>
+                                    {isActive && (
+                                        <div className="ml-auto bg-white/30 rounded-full p-1">
+                                            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                                                <span className="text-[10px]">👑</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Right Column: Album Scroll */}
+                <div className="col-span-12 md:col-span-8 flex flex-col gap-4">
+                    <div className="text-center">
+                        <h2 className="text-white text-3xl font-black uppercase italic tracking-tighter drop-shadow-lg">
+                            ALBUM DE {ownerName.toUpperCase()}
+                        </h2>
+                        <div className="h-1.5 w-16 bg-[#2ed573] mx-auto rounded-full mt-1" />
+                    </div>
+
+                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar shadow-2xl relative">
+                        {entries.map((entry, idx) => {
+                            const author = typeof entry.author === "string" ? entry.author : (entry.author as any)?.username || "?";
+                            const isOdd = idx % 2 !== 0; // Drawing is usually odd indices if we start with text
+                            const isText = entry.type === "text";
+
+                            return (
+                                <div 
+                                    key={idx}
+                                    className={cn(
+                                        "flex gap-4 w-full animate-in slide-in-from-bottom-5 duration-500",
+                                        isOdd ? "flex-row-reverse" : "flex-row"
+                                    )}
+                                    style={{ animationDelay: `${idx * 150}ms` }}
+                                >
+                                    {/* Author Avatar */}
+                                    <div className="flex flex-col items-center gap-1 shrink-0">
+                                        <div className="w-14 h-14 rounded-full bg-white border-4 border-[#3d2080]/20 overflow-hidden shadow-lg">
+                                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${author}`} alt={author} className="w-full h-full object-cover" />
+                                        </div>
+                                        <span className="text-[10px] font-black text-white bg-black/40 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                                            {author}
+                                        </span>
+                                    </div>
+
+                                    {/* Content Bubble - Notebook Style */}
+                                    <div className={cn(
+                                        "flex-1 max-w-[85%] bg-white rounded-[2rem] p-6 shadow-xl border-b-[8px] border-black/10 flex flex-col items-center justify-center relative overflow-hidden",
+                                        isText ? "min-h-[120px]" : "min-h-[350px]"
+                                    )}>
+                                        {/* Spiral decorations at the top of the "paper" */}
+                                        <div className="absolute top-0 left-0 w-full flex justify-around px-12 opacity-[0.05] pointer-events-none">
+                                            {Array.from({length: 8}).map((_, i) => (
+                                                <div key={i} className="w-2.5 h-8 bg-black rounded-full -mt-4 shadow-inner" />
+                                            ))}
+                                        </div>
+
+                                        {isText ? (
+                                            <p className="text-[#3d2080] font-black text-2xl md:text-4xl text-center uppercase tracking-tight leading-tight p-4 relative z-10">
+                                                {entry.content}
+                                            </p>
+                                        ) : (
+                                            <img src={entry.content} alt="Drawing" className="max-w-full max-h-[450px] object-contain rounded-xl relative z-10" />
+                                        )}
+
+                                        {/* Subtle line pattern for text */}
+                                        {isText && (
+                                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px)', backgroundSize: '100% 40px' }} />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* End Indicator */}
+                        <div className="mt-8 flex flex-col items-center gap-4">
+                            <div className="w-full h-px bg-white/20" />
+                            <span className="text-white/40 font-black uppercase tracking-[0.5em] text-xs">
+                                FIN DE L'ALBUM DE {ownerName.toUpperCase()}
+                            </span>
+                            
+                            <div className="flex gap-4 mt-4 w-full max-w-md">
+                                <button 
+                                    onClick={handleDownload}
+                                    className="flex-1 bg-white/10 hover:bg-white/20 text-white p-6 rounded-3xl border-b-[8px] border-black/20 transition-all active:translate-y-2 active:border-b-0 flex items-center justify-center"
+                                >
+                                    <Download size={32} strokeWidth={3} />
+                                </button>
+                                <button 
+                                    onClick={onNextAlbum}
+                                    disabled={!isHost && revealIndex < albums.length - 1}
+                                    className={cn(
+                                        "flex-[3] p-6 rounded-3xl font-black text-white text-3xl uppercase italic tracking-tighter border-b-[12px] flex items-center justify-center gap-4 transition-all shadow-2xl",
+                                        (!isHost && revealIndex < albums.length - 1)
+                                            ? "bg-gray-500 border-gray-700 opacity-50 cursor-not-allowed"
+                                            : "bg-[#2ed573] hover:bg-[#26af5f] border-[#1e9b53] active:translate-y-3 active:border-b-0"
+                                    )}
+                                >
+                                    {!isHost && revealIndex < albums.length - 1 ? (
+                                        "EN ATTENTE..."
+                                    ) : (
+                                        <>
+                                            <span>SUIVANT</span>
+                                            <ArrowRight size={32} strokeWidth={4} />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

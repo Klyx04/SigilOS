@@ -252,3 +252,102 @@ export async function toggleEventDungeon(dungeonId: string, isEvent: boolean): P
         return { success: false, error: 'Erreur mise à jour donjon' };
     }
 }
+
+/** Get monsters and bounties for a specific zone */
+export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<{
+    zoneName: string;
+    normalMonsters: any[];
+    avisDeRecherche: any[];
+}>> {
+    try {
+        const zone = await db.zone.findFirst({
+            where: { name: { contains: zoneName, mode: 'insensitive' } },
+            include: {
+                families: {
+                    include: {
+                        monsters: true
+                    }
+                }
+            }
+        });
+        
+        if (!zone) return { success: false, error: 'Zone introuvable' };
+        
+        const normalMonsters: any[] = [];
+        const avisDeRecherche: any[] = [];
+        
+        zone.families.forEach(family => {
+            const isAvis = family.name.toLowerCase().includes('avis de recherche');
+            family.monsters.forEach(monster => {
+                if (isAvis) avisDeRecherche.push(monster);
+                else normalMonsters.push({ ...monster, familyName: family.name });
+            });
+        });
+        
+        return { 
+            success: true, 
+            data: { 
+                zoneName: zone.name, 
+                normalMonsters, 
+                avisDeRecherche 
+            } 
+        };
+    } catch (error) {
+        console.error('[getZoneMonsters] Error:', error);
+        return { success: false, error: 'Erreur chargement monstres' };
+    }
+}
+
+/** Fetch bounties (Avis de recherche) for a specific zone from DofusDB */
+export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
+    try {
+        // Broad regions mapping for elusive bounties
+        const regionMapping: Record<string, string[]> = {
+            'saharach': ['ali grothor', 'ka\'youloud', 'le khepricorne', 'simbadas'],
+            'frigost': ['monsieur pingouin', 'mekamouth', 'bouflouth'],
+            'pandala': ['le flib', 'marzwel le gobelin', 'musha l\'oni']
+        };
+
+        const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`);
+        if (!response.ok) throw new Error("Failed to fetch DofusDB");
+        
+        const data = await response.json();
+        const monsters = data.data || [];
+        
+        const normalizedZone = zoneName.toLowerCase().trim();
+        
+        // Find if our zone belongs to a known region
+        const regionKey = Object.keys(regionMapping).find(k => normalizedZone.includes(k));
+        const regionalBounties = regionKey ? regionMapping[regionKey] : [];
+
+        const filtered = monsters.filter((m: any) => {
+             // 1. Direct subarea match
+             const subAreaMatch = m.subareas && m.subareas.some((sa: any) => 
+                sa.name.fr.toLowerCase().includes(normalizedZone) || 
+                normalizedZone.includes(sa.name.fr.toLowerCase())
+             );
+             if (subAreaMatch) return true;
+
+             // 2. Region keyword match (for Saharach, Frigost, etc)
+             if (regionalBounties.length > 0) {
+                 return regionalBounties.includes(m.name.fr.toLowerCase());
+             }
+
+             return false;
+        });
+
+        return { 
+            success: true, 
+            data: filtered.map((m: any) => ({
+                id: m.id,
+                name: m.name.fr,
+                imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
+                level: m.grades?.[0]?.level || 0,
+                subarea: m.subareas?.[0]?.name?.fr || "Région"
+            })) 
+        };
+    } catch (error) {
+        console.error('[getBountiesForZone] Error:', error);
+        return { success: false, error: 'Erreur lors de la récupération des avis' };
+    }
+}

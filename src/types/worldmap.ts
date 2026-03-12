@@ -37,6 +37,8 @@ export interface Dungeon {
     id: number;
     name: LocalizedString;
     mapId: number;
+    entranceMapId?: number;
+    optimalPlayerLevel?: number;
 }
 
 export interface MapNode {

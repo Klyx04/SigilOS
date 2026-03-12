@@ -59,12 +59,12 @@ model User {
   dreamRunMembers     DreamRunMember[]
   dreamWaitlists      DreamWaitlist[]
   eventParticipations EventParticipant[]
+  garticStats         GarticPlayerStats?
+  garticSessions      GarticSession[]
   guildEvents         GuildEvent[]
   notifications       Notification[]
   sessions            Session[]
   profiles            UserProfile[]
-  garticSessions      GarticSession[]
-  garticStats         GarticPlayerStats?
 }
 
 model AllowedGuild {
@@ -94,6 +94,21 @@ model PlatformBan {
   @@index([entityType])
 }
 
+model PlatformConfig {
+  id                     String   @id @default("singleton")
+  hubChannelId           String?
+  updatedAt              DateTime @updatedAt
+  serviceStatusChannelId String?
+}
+
+model MiniGameStatus {
+  id             String   @id @default(cuid())
+  gameId         String   @unique // guesser, draw, phone, king
+  isEnabled      Boolean  @default(true)
+  maintenanceMsg String?  @default("🔧 Ce jeu est temporairement indisponible pour maintenance.")
+  updatedAt      DateTime @updatedAt
+}
+
 model GuildConfig {
   id                            String                  @id @default(cuid())
   discordGuildId                String                  @unique
@@ -101,14 +116,12 @@ model GuildConfig {
   iconUrl                       String?
   isActive                      Boolean                 @default(true)
   rolesMapping                  Json                    @default("{}")
-  usersMapping                  Json                    @default("{}")
   createdAt                     DateTime                @default(now())
   updatedAt                     DateTime                @updatedAt
   absenceChannelId              String?
   calendarNotifyChannelId       String?
   dofusServerId                 String?
   dofusServerName               String?
-  metamobApiKey                 String?
   presentationActivities        Json?
   presentationBannerType        String?                 @default("discord")
   presentationBannerUrl         String?
@@ -129,7 +142,6 @@ model GuildConfig {
   songesNotifyChannelId         String?
   missionRanks                  Json?
   missionTier                   Int?                    @default(3)
-  missionWeekXpOverride         Int?
   bonusNotifyChannelId          String?
   deletedAt                     DateTime?
   deletionReason                String?
@@ -153,36 +165,44 @@ model GuildConfig {
   welcomeMentionRoleId          String?
   missionValidationChannelId    String?
   missionValidationNotifyRoleId String?
-  kamaNotifyChannelId           String?
-  kamaNotifyRoleId              String?              // Rôle mentionné dans les notifs kamas
-  achievementNotifyChannelId    String?
-  achievementNotifyRoleId       String?              // Rôle mentionné dans les notifs succès
   welcomeBadgeName              String                  @default("Nouveau")
   welcomeDiscordMessageTemplate String?
   chatBlocklist                 Json                    @default("[]")
   chatMotd                      String?
   chatMentionRules              Json                    @default("{}")
+  missionWeekXpOverride         Int?
+  kamaNotifyChannelId           String?
+  achievementNotifyChannelId    String?
+  achievementNotifyRoleId       String?
+  kamaNotifyRoleId              String?
+  usersMapping                  Json                    @default("{}")
+  serviceLoansEnabled           Boolean                 @default(true)
+  serviceLoansMessage           String?
+  serviceMarketplaceEnabled     Boolean                 @default(true)
+  serviceMarketplaceMessage     String?
+  serviceVaultEnabled           Boolean                 @default(true)
+  serviceVaultMessage           String?
   achievementSubmissions        AchievementSubmission[]
   auditLogs                     AuditLog[]
+  contentCreators               ContentCreator[]
   djSearchPosts                 DjSearchPost[]
+  garticRooms                   GarticRoom[]
   guildActivities               GuildActivity[]
   guildBonuses                  GuildBonus[]
   guildEvents                   GuildEvent[]
   guildLoans                    GuildLoan[]
   modules                       GuildModules?
+  kamaDonations                 KamaDonation[]
   welcomePosts                  MemberWelcome[]
   missions                      Mission[]
   ocreTradeRequests             OcreTradeRequest[]
   polls                         Poll[]
+  resourceCategories            ResourceCategory[]
   serviceActivityLogs           ServiceActivityLog[]
   serviceListings               ServiceListing[]
   sigilRoles                    SigilRole[]
   profiles                      UserProfile[]
   vaultEntries                  VaultEntry[]
-  kamaDonations                 KamaDonation[]
-  resourceCategories            ResourceCategory[]
-  contentCreators               ContentCreator[]
-  garticRooms                   GarticRoom[]
 }
 
 model GuildModules {
@@ -209,6 +229,7 @@ model GuildModules {
   resources    Boolean     @default(false)
   worldmap     Boolean     @default(false)
   chat         Boolean     @default(false)
+  gartic       Boolean     @default(false)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -294,6 +315,9 @@ model UserProfile {
   notificationPrefs       Json?
   hasSeenWelcome          Boolean                  @default(false)
   introduction            String?
+  isInGame                Boolean                  @default(false)
+  lastSeen                DateTime?                @default(now())
+  showPresence            Boolean                  @default(true)
   achievementSubmissions  AchievementSubmission[]
   djParticipations        DjSearchParticipant[]
   djSearchPosts           DjSearchPost[]
@@ -302,6 +326,7 @@ model UserProfile {
   loansGiven              GuildLoan[]              @relation("LoansGiven")
   givenCredits            HelpCredit[]             @relation("GivenCredits")
   receivedCredits         HelpCredit[]             @relation("ReceivedCredits")
+  kamaDonations           KamaDonation[]
   welcomePosts            MemberWelcome[]
   interests               MissionInterest[]
   sentOcreRequests        OcreTradeRequest[]       @relation("Requester")
@@ -314,13 +339,9 @@ model UserProfile {
   submissions             Submission[]
   userDungeonAchievements UserDungeonAchievement[]
   dungeonProgress         UserDungeonProgress[]
-  lastSeen                DateTime?                @default(now())
-  isInGame                Boolean                  @default(false)
-  showPresence            Boolean                  @default(true)
   guild                   GuildConfig              @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   vaultEntries            VaultEntry[]
-  kamaDonations           KamaDonation[]
   helpedSubmissions       Submission[]             @relation("SubmissionHelpers")
 
   @@unique([userId, guildId])
@@ -371,15 +392,15 @@ model Submission {
   status           SubmissionStatus @default(PENDING)
   proofUrl         String
   validatorId      String?
-  discordMessageId String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   ocrResult        Json?
   ocrScore         Float?
   ocrStatus        OcrStatus        @default(PENDING)
-  mission     Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  helpers     UserProfile[]    @relation("SubmissionHelpers")
+  discordMessageId String?
+  mission          Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  profile          UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  helpers          UserProfile[]    @relation("SubmissionHelpers")
 
   @@unique([missionId, profileId])
   @@index([missionId])
@@ -398,9 +419,9 @@ model AchievementSubmission {
   ocrRawText       String?
   validatorId      String?
   validatedAt      DateTime?
-  discordMessageId String?          // "channelId:messageId" pour supprimer l'embed Discord
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+  discordMessageId String?
   guild            GuildConfig      @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile          UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -419,8 +440,8 @@ model Dungeon {
   expeditionMechanics String?
   expeditionModes     Json?
   isExpedition        Boolean               @default(false)
-  isEventDungeon      Boolean               @default(false)
   updatedAt           DateTime              @updatedAt
+  isEventDungeon      Boolean               @default(false)
   djSearchPosts       DjSearchPost[]
   achievements        DungeonAchievement[]
   userProgress        UserDungeonProgress[]
@@ -433,19 +454,36 @@ model Dungeon {
 }
 
 model Zone {
-  id            String          @id @default(cuid())
-  name          String          @unique
-  level         Int
-  dpnlUrl       String?
-  isEventZone   Boolean         @default(false)
-  eventZoneKey  String?         // VULKANIA | NOWEL | PWAK | HALOUINE
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  dungeons      Dungeon[]       @relation("DungeonToZone")
-  families      MonsterFamily[] @relation("MonsterFamilyToZone")
+  id           String          @id @default(cuid())
+  name         String          @unique
+  level        Int
+  dpnlUrl      String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  eventZoneKey String?
+  isEventZone  Boolean         @default(false)
+  dungeons     Dungeon[]       @relation("DungeonToZone")
+  families     MonsterFamily[] @relation("MonsterFamilyToZone")
 
   @@index([name])
   @@index([isEventZone])
+}
+
+model Bounty {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  level     Int
+  zoneName  String?
+  imageUrl  String?
+  reward    String?
+  dpnlUrl   String?
+  levelMin  Int?
+  levelMax  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([zoneName])
 }
 
 model Monster {
@@ -558,6 +596,7 @@ model DreamRun {
   updatedAt           DateTime           @default(now()) @updatedAt
   lastReminderAt      DateTime?
   epreuveCode         String?
+  scheduledAt         DateTime?
   floors              DreamFloor[]
   joinRequests        DreamJoinRequest[]
   leader              User               @relation("RunLeader", fields: [leaderId], references: [id], onDelete: Cascade)
@@ -749,18 +788,20 @@ model OcrApiUsage {
 }
 
 model OcreTradeRequest {
-  id          String      @id @default(cuid())
-  guildId     String
-  requesterId String
-  targetId    String
-  monsterId   Int
-  status      TradeStatus @default(PENDING)
-  message     String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  requester   UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
-  target      UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+  id              String      @id @default(cuid())
+  guildId         String
+  requesterId     String
+  targetId        String
+  monsterId       Int
+  status          TradeStatus @default(PENDING)
+  message         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  monsterImageUrl String?
+  monsterName     String?
+  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  requester       UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target          UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([targetId, status])
@@ -1120,6 +1161,336 @@ model MemberWelcome {
   @@index([guildId, createdAt])
 }
 
+model KamaDonation {
+  id               String             @id @default(cuid())
+  guildId          String
+  profileId        String
+  amount           Int
+  proofUrl         String?
+  status           KamaDonationStatus @default(PENDING)
+  validatedById    String?
+  validatedAt      DateTime?
+  rejectedReason   String?
+  note             String?
+  weekNumber       Int?
+  yearNumber       Int?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  discordMessageId String?
+  guild            GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile          UserProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+  @@index([guildId, createdAt])
+  @@index([profileId])
+}
+
+model GlobalBlocklist {
+  id             String   @id @default("GLOBAL")
+  words          Json     @default("[]")
+  updatedAt      DateTime @updatedAt
+  allowedDomains Json     @default("[]")
+  baseWords      Json     @default("[]")
+}
+
+model SupportTicket {
+  id                     String         @id @default(cuid())
+  ticketNumber           Int            @unique @default(autoincrement())
+  discordThreadId        String?        @unique
+  discordGuildId         String
+  category               TicketCategory
+  status                 TicketStatus   @default(OPEN)
+  subject                String
+  description            String
+  creatorDiscordId       String
+  creatorDiscordName     String
+  assignedToId           String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  closedAt               DateTime?
+  closedBy               String?
+  closedReason           String?
+  transcript             Json?          @db.Json
+  targetGuildId          String?
+  targetGuildMemberCount Int?
+  targetGuildName        String?
+
+  @@index([status])
+  @@index([category])
+  @@index([creatorDiscordId])
+  @@index([discordGuildId])
+  @@index([targetGuildId])
+}
+
+model ContentCache {
+  id          String   @id @default(cuid())
+  type        String
+  creatorId   String
+  title       String
+  url         String
+  thumbnail   String?
+  published   DateTime
+  fetchedAt   DateTime @default(now())
+  description String?
+
+  @@unique([type, creatorId, url])
+}
+
+model ResourceCategory {
+  id      String         @id @default(cuid())
+  guildId String
+  label   String
+  color   String         @default("#10b981")
+  order   Int            @default(0)
+  guild   GuildConfig    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  links   ResourceLink[]
+
+  @@index([guildId])
+}
+
+model ResourceLink {
+  id          String           @id @default(cuid())
+  categoryId  String
+  title       String
+  description String?
+  url         String
+  emoji       String?          @default("🔗")
+  isOfficial  Boolean          @default(false)
+  order       Int              @default(0)
+  category    ResourceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
+
+model ContentCreator {
+  id        String      @id @default(cuid())
+  guildId   String
+  name      String
+  role      String
+  youtube   String?
+  twitch    String?
+  handle    String?
+  color     String      @default("#ef4444")
+  order     Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+
+model SkribblRank {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  userName    String
+  userAvatar  String?
+  bestScore   Int      @default(0)
+  totalPoints Int      @default(0)
+  gamesPlayed Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, bestScore])
+}
+
+model SkribblScore {
+  id         String   @id @default(cuid())
+  guildId    String
+  userId     String
+  userName   String
+  userAvatar String?
+  score      Int
+  createdAt  DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, score])
+}
+
+model GeoguesserRank {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  userName    String
+  userAvatar  String?
+  bestScore   Int      @default(0)
+  totalPoints Int      @default(0)
+  gamesPlayed Int      @default(0)
+  avgDistance Float    @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, bestScore])
+}
+
+model GeoguesserScore {
+  id         String   @id @default(cuid())
+  guildId    String
+  userId     String
+  userName   String
+  userAvatar String?
+  score      Int
+  distance   Float
+  createdAt  DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, score])
+}
+
+model GeoguesserSession {
+  id           String                    @id @default(cuid())
+  guildId      String
+  hostId       String
+  hostName     String
+  status       GeoguesserSessionStatus   @default(LOBBY)
+  currentRound Int                       @default(1)
+  maxRounds    Int                       @default(5)
+  timePerRound Int                       @default(30)
+  targetMapIds Int[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants GeoguesserSessionPlayer[]
+
+  @@index([guildId, status])
+}
+
+model GeoguesserSessionPlayer {
+  id         String            @id @default(cuid())
+  sessionId  String
+  userId     String
+  userName   String
+  userAvatar String?
+  guesses    Json?
+  totalScore Int               @default(0)
+  hasGuessed Boolean           @default(false)
+  lastActive DateTime          @default(now()) @updatedAt
+  session    GeoguesserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
+model GarticRoom {
+  id         String          @id @default(cuid())
+  guildId    String
+  hostId     String
+  mode       String          @default("NORMAL")
+  maxPlayers Int             @default(8)
+  maxRounds  Int             @default(3)
+  drawTime   Int             @default(60)
+  status     String          @default("WAITING")
+  createdAt  DateTime        @default(now())
+  finishedAt DateTime?
+  albums     GarticAlbum[]
+  guild      GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  sessions   GarticSession[]
+}
+
+model GarticSession {
+  id       String     @id @default(cuid())
+  roomId   String
+  userId   String
+  score    Int        @default(0)
+  rank     Int?
+  joinedAt DateTime   @default(now())
+  room     GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model GarticAlbum {
+  id      String             @id @default(cuid())
+  roomId  String
+  ownerId String
+  room    GarticRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  entries GarticAlbumEntry[]
+}
+
+model GarticAlbumEntry {
+  id        String      @id @default(cuid())
+  albumId   String
+  authorId  String
+  type      String
+  content   String
+  round     Int
+  createdAt DateTime    @default(now())
+  album     GarticAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+}
+
+model GarticPlayerStats {
+  id              String @id @default(cuid())
+  userId          String @unique
+  totalGames      Int    @default(0)
+  totalWins       Int    @default(0)
+  totalPoints     Int    @default(0)
+  correctGuesses  Int    @default(0)
+  drawingsCreated Int    @default(0)
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SigilKingRank {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  userName    String
+  userAvatar  String?
+  bestScore   Int      @default(0)
+  totalPoints Int      @default(0)
+  gamesPlayed Int      @default(0)
+  wins        Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, bestScore])
+}
+
+model SigilKingScore {
+  id         String   @id @default(cuid())
+  guildId    String
+  userId     String
+  userName   String
+  userAvatar String?
+  score      Int
+  rank       Int?
+  createdAt  DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, score])
+}
+
+model SigilKingSession {
+  id           String                   @id @default(cuid())
+  guildId      String
+  hostId       String
+  hostName     String
+  status       String                   @default("LOBBY")
+  currentRound Int                      @default(1)
+  maxRounds    Int                      @default(1)
+  targetScore  Int                      @default(200)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  participants SigilKingSessionPlayer[]
+
+  @@index([guildId, status])
+}
+
+model SigilKingSessionPlayer {
+  id         String           @id @default(cuid())
+  sessionId  String
+  userId     String
+  userName   String
+  userAvatar String?
+  totalScore Int              @default(0)
+  roundScore Int              @default(0)
+  cards      Json?            // Current hand
+  hasPlayed  Boolean          @default(false)
+  lastActive DateTime         @default(now()) @updatedAt
+  session    SigilKingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
 enum ProfileStatus {
   ACTIVE
   ARCHIVED
@@ -1396,75 +1767,6 @@ enum KamaDonationStatus {
   REJECTED
 }
 
-model KamaDonation {
-  id               String               @id @default(cuid())
-  guildId          String
-  profileId        String
-  amount           Int                  // Montant en kamas
-  proofUrl         String?              // Screenshot preuve
-  status           KamaDonationStatus   @default(PENDING)
-  validatedById    String?              // profileId de l'admin validateur
-  validatedAt      DateTime?
-  rejectedReason   String?
-  note             String?              @db.Text
-  weekNumber       Int?                 // Semaine de contribution
-  yearNumber       Int?                 // Année
-  discordMessageId String?              // "channelId:messageId" pour supprimer l'embed Discord
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  guild            GuildConfig          @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  profile          UserProfile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@index([guildId, status])
-  @@index([guildId, createdAt])
-  @@index([profileId])
-}
-
-model GlobalBlocklist {
-  id             String   @id @default("GLOBAL")
-  words          Json     @default("[]") // Custom global words
-  baseWords      Json     @default("[]") // "Hardcoded" words override/supplement
-  allowedDomains Json     @default("[]") // URL Whitelist (default: sigilos.fr, beta.sigilos.fr)
-  updatedAt      DateTime @updatedAt
-}
-
-// =============================================================================
-// SUPPORT TICKET SYSTEM
-// =============================================================================
-
-model SupportTicket {
-  id                 String         @id @default(cuid())
-  ticketNumber       Int            @unique @default(autoincrement())
-  discordThreadId    String?        @unique
-  discordGuildId     String         // Discord server where ticket was opened (support server)
-  category           TicketCategory
-  status             TicketStatus   @default(OPEN)
-  subject            String
-  description        String         @db.Text
-
-  // Creator info (Discord-based, may not have a SigilOS account)
-  creatorDiscordId   String
-  creatorDiscordName String
-
-  // Assignment
-  assignedToId       String?        // SigilOS User ID (super admin)
-
-  // Lifecycle
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  closedAt           DateTime?
-  closedBy           String?        // Discord ID of closer
-  closedReason       String?
-
-  // Transcript (JSON array of messages for archival)
-  transcript         Json?          @db.Json
-
-  @@index([status])
-  @@index([category])
-  @@index([creatorDiscordId])
-  @@index([discordGuildId])
-}
-
 enum TicketCategory {
   ACCESS_REQUEST
   BUG_REPORT
@@ -1479,172 +1781,8 @@ enum TicketStatus {
   CLOSED
 }
 
-model ContentCache {
-  id        String   @id @default(cuid())
-  type      String   // "YOUTUBE", "TWITCH", "NEWS"
-  creatorId String   // e.g., "Skyzio", "Ankama"
-  title     String
-  url       String
-  thumbnail String?
-  description String?
-  published DateTime
-  fetchedAt DateTime @default(now())
-
-  @@unique([type, creatorId, url])
-}
-
-model ResourceCategory {
-  id        String         @id @default(cuid())
-  guildId   String
-  label     String
-  color     String         @default("#10b981")
-  order     Int            @default(0)
-  links     ResourceLink[]
-  guild     GuildConfig    @relation(fields: [guildId], references: [id], onDelete: Cascade)
-
-  @@index([guildId])
-}
-
-model ResourceLink {
-  id          String           @id @default(cuid())
-  categoryId  String
-  title       String
-  description String?
-  url         String
-  emoji       String?          @default("🔗")
-  isOfficial  Boolean          @default(false)
-  order       Int              @default(0)
-  category    ResourceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@index([categoryId])
-}
-
-model ContentCreator {
-  id        String   @id @default(cuid())
-  guildId   String
-  name      String
-  role      String
-  youtube   String?
-  twitch    String?
-  handle    String?  // matching string for status (e.g. "skyzio")
-  color     String   @default("#ef4444")
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-
-  @@index([guildId])
-}
-model GeoguesserRank {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  userName    String
-  userAvatar  String?
-  bestScore   Int      @default(0)
-  totalPoints Int      @default(0)
-  gamesPlayed Int      @default(0)
-  avgDistance Float    @default(0)
-  updatedAt   DateTime @updatedAt
-
-  @@unique([guildId, userId])
-  @@index([guildId, bestScore(desc)])
-}
-
 enum GeoguesserSessionStatus {
   LOBBY
   IN_PROGRESS
   FINISHED
-}
-
-model GeoguesserSession {
-  id            String                 @id @default(cuid())
-  guildId       String
-  hostId        String
-  hostName      String
-  status        GeoguesserSessionStatus @default(LOBBY)
-  currentRound  Int                    @default(1)
-  maxRounds     Int                    @default(5)
-  timePerRound  Int                    @default(30)
-  targetMapIds  Int[]                  // Liste des IDs de maps choisis pour la partie
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  participants  GeoguesserSessionPlayer[]
-
-  @@index([guildId, status])
-}
-
-model GeoguesserSessionPlayer {
-  id         String            @id @default(cuid())
-  sessionId  String
-  userId     String
-  userName   String
-  userAvatar String?
-  guesses    Json?             // Array de { round: 1, x, y, score, distance }
-  totalScore Int               @default(0)
-  hasGuessed Boolean           @default(false) // Pour le round en cours
-  lastActive DateTime          @default(now()) @updatedAt
-  session    GeoguesserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@unique([sessionId, userId])
-}
-
-model GarticRoom {
-  id          String   @id @default(cuid())
-  guildId     String
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  hostId      String
-  mode        String   @default("NORMAL")
-  maxPlayers  Int      @default(8)
-  maxRounds   Int      @default(3)
-  drawTime    Int      @default(60)
-  status      String   @default("WAITING") // WAITING | PLAYING | FINISHED
-  createdAt   DateTime @default(now())
-  finishedAt  DateTime?
-
-  sessions    GarticSession[]
-  albums      GarticAlbum[]
-}
-
-model GarticSession {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  score     Int      @default(0)
-  rank      Int?
-  joinedAt  DateTime @default(now())
-
-  @@unique([roomId, userId])
-}
-
-model GarticAlbum {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  ownerId   String   // joueur propriétaire de cet album
-  entries   GarticAlbumEntry[]
-}
-
-model GarticAlbumEntry {
-  id        String   @id @default(cuid())
-  albumId   String
-  album     GarticAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  authorId  String
-  type      String   // "drawing" | "text"
-  content   String   @db.Text // base64 pour drawing, texte pour text
-  round     Int
-  createdAt DateTime @default(now())
-}
-
-model GarticPlayerStats {
-  id              String @id @default(cuid())
-  userId          String @unique
-  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  totalGames      Int    @default(0)
-  totalWins       Int    @default(0)
-  totalPoints     Int    @default(0)
-  correctGuesses  Int    @default(0)
-  drawingsCreated Int    @default(0)
 }

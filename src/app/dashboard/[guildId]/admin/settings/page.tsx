@@ -9,7 +9,6 @@ import {
     ShieldAlert, UserCheck, Sparkles, Gem
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
-import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
 import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
@@ -169,9 +168,6 @@ export default async function FeatureSettingsPage({
                     {activeTab === "metamob" && (
                         <div className="space-y-8">
                             <OcreSettingsClient guildId={guildId} />
-                            <div className="pt-8 border-t border-white/5">
-                                <MetamobSettingsClient guildId={guildId} />
-                            </div>
                             <div className="pt-6 border-t border-white/5 max-w-4xl">
                                 <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
                                     <ShieldAlert className="w-4 h-4 text-amber-400" />

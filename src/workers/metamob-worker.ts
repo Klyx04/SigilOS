@@ -28,7 +28,7 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
     // 1. Get current user's profile
     const currentUserProfile = await db.userProfile.findFirst({
         where: { userId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
-        select: { metamobPseudo: true, metamobQuestSlug: true, metamobVerified: true, metamobApiKey: true, guild: { select: { metamobApiKey: true } } },
+        select: { metamobPseudo: true, metamobQuestSlug: true, metamobVerified: true, metamobApiKey: true },
     });
 
     if (!currentUserProfile?.metamobQuestSlug || !currentUserProfile?.metamobPseudo || !currentUserProfile.metamobVerified) {
@@ -36,7 +36,7 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         return;
     }
 
-    const effectiveApiKey = decrypt(currentUserProfile.metamobApiKey) || decrypt(currentUserProfile.guild?.metamobApiKey) || undefined;
+    const effectiveApiKey = currentUserProfile.metamobApiKey || undefined;
 
     await job.updateProgress(20);
 

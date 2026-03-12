@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
-import { MetamobSettingsClient } from "./_components/metamob-settings-client";
 import { MetamobUnlocker } from "./_components/metamob-unlocker";
 import { Crown } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -28,8 +27,8 @@ export default async function ArchimonstresAdminPage({
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
-                title="Configuration Quête Ocre"
-                description="Configurez l'intégration Metamob pour la Quête Ocre."
+                title="Gestion de la Bourse aux Archimonstres"
+                description="Outils d'administration pour le module Metamob."
                 imageSrc="/assets/ui/icons/archis.png"
                 backHref={`/dashboard/${guildId}/admin/settings`}
             />
@@ -38,22 +37,18 @@ export default async function ArchimonstresAdminPage({
             <div className="border-b border-white/10" />
 
             {/* Info Card */}
-            <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20 flex gap-3">
-                <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20 flex gap-3">
                 <div className="text-sm">
-                    <p className="text-amber-300 font-medium">Clé API requise</p>
+                    <p className="text-blue-300 font-medium">Clés API individuelles</p>
                     <p className="text-muted-foreground mt-1">
-                        Chaque guilde doit configurer sa propre clé API Metamob pour utiliser le module Quête Ocre.
-                        Cette clé permet de récupérer les données de vos membres depuis metamob.fr.
+                        Désormais, SigilOS utilise uniquement les clés API renseignées par chaque membre sur leur profil. 
+                        La clé de guilde globale a été supprimée pour plus de sécurité et de flexibilité.
                     </p>
                 </div>
             </div>
 
             {/* Unlocker Tool */}
             <MetamobUnlocker guildId={guildId} />
-
-            {/* Settings Component */}
-            <MetamobSettingsClient guildId={guildId} />
         </div>
     );
 }

@@ -845,3 +845,9 @@ Réponse :
     }
   ]
 }
+Limites d'utilisation
+Pour garantir la disponibilité du service, l'API est soumise à des limites :
+
+60 requêtes par minute par clé API
+Les requêtes au-delà de cette limite recevront une erreur 429 Too Many Requests
+L'en-tête Retry-After indique le temps d'attente avant de pouvoir refaire une requête

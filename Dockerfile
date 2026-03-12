@@ -50,6 +50,9 @@ RUN npm run build:maintenance
 # Build worker script
 RUN npm run build:worker
 
+# Build WebSockets server
+RUN npm run build:ws
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -90,6 +93,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
 # Copy bundled worker
 COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js
+
+# Copy WebSockets server
+COPY --from=builder --chown=nextjs:nodejs /app/dist/ws-server.js ./ws-server.js
 
 # Copy entrypoint script
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./

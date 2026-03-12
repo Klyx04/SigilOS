@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -701,7 +701,7 @@ export async function submitMissionProof(
         }
 
         // Image Hashing (Anti-Duplicate)
-        const imageHash = hashImage(base64Data);
+        const imageHash = hashImage(buffer);
         const existingHash = await (db as any).imageHash.findUnique({
             where: { guildId_hash: { guildId: mission.guildId, hash: imageHash } }
         });

@@ -24,6 +24,7 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-require-imports": "warn",
       "@typescript-eslint/ban-ts-comment": "warn",
       "@next/next/no-assign-module-variable": "warn",
+      "@typescript-eslint/no-this-alias": "warn",
 
       // Règles React Hooks — toutes en warn pour laisser le CI passer
       // (react-hooks v7 inclus dans eslint-config-next v16 peut émettre des errors)
@@ -56,6 +57,10 @@ const eslintConfig = defineConfig([
     "list_*.js",
     "final_*.js",
     "prisma.config.js",
+    // Bundled seed files (CommonJS compilé, ne pas linter)
+    "prisma/*.js",
+    "prisma/seed-data/*.js",
+    "prisma/seed_simple.js",
     "scripts/check-db.js",
     "scripts/database-janitor.js",
     "scripts/siphon-bounties.js",

@@ -41,9 +41,24 @@ const eslintConfig = defineConfig([
     "build/**",
     "dist/**",
     "next-env.d.ts",
-    // Bundled seed files
-    "prisma/*.js",
-    "prisma/seed-data/*.js",
+    // Root-level utility scripts (non-applicatif)
+    "check*.js",
+    "check_*.js",
+    "find_*.js",
+    "find_*.ts",
+    "debug_*.js",
+    "debug_*.ts",
+    "trace*.js",
+    "tmp_*.js",
+    "tmp_*.ts",
+    "inspect_*.js",
+    "list_*.js",
+    "final_*.js",
+    "prisma.config.js",
+    "scripts/check-db.js",
+    "scripts/database-janitor.js",
+    "scripts/siphon-bounties.js",
+    "scripts/test-prisma.js",
   ]),
 ]);
 

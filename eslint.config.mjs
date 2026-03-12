@@ -42,6 +42,11 @@ const eslintConfig = defineConfig([
   // ── 3. NOS OVERRIDES (DERNIER = GAGNE en flat config) ──
   // Ce bloc DOIT être le dernier pour écraser eslint-config-next.
   {
+    // Les "Unused eslint-disable directive" deviennent des errors dans ESLint 10
+    // quand on passe des règles de error→warn. On les ignore.
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
     rules: {
       "react/no-unescaped-entities": "off",
       "@typescript-eslint/no-explicit-any": "warn",

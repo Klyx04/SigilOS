@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "../../lib/socket-utils";
 import { GamePhase, PublicPlayer } from "../../types/socket-events";
 
 // Global connection state so we don't spam reconnections across unmounts 
@@ -31,9 +32,8 @@ export function useGarticSocket() {
 
     useEffect(() => {
         if (!socketInstance) {
-            // Note: Update URL in production (e.g. env var)
-            socketInstance = io("http://localhost:3001", {
-                path: "/api/socket/",
+            socketInstance = io(buildWsUrl(), {
+                path: "/socket.io/",
             });
         }
 

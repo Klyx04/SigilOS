@@ -443,3 +443,81 @@ export async function getContributionLadder(
         return { success: false, error: "Erreur lors du chargement du classement de contribution" };
     }
 }
+
+/**
+ * Get Guildatons Ladder (Guild currency ranking)
+ */
+export async function getGuildatonsLadder(
+    guildId: string
+): Promise<ActionResponse<LadderEntry[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id }
+        });
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                guildatons: { gt: 0 }
+            },
+            select: {
+                id: true,
+                discordNickname: true,
+                discordRoleColor: true,
+                discordRoleName: true,
+                discordJoinedAt: true,
+                pseudoDofus: true,
+                classe: true,
+                guildatons: true,
+                user: {
+                    select: { image: true }
+                }
+            },
+            orderBy: [
+                { guildatons: "desc" },
+                { discordJoinedAt: "asc" } // Tie-breaker
+            ]
+        });
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
+
+        const ladder: LadderEntry[] = profiles.map((p, idx) => {
+            return {
+                rank: idx + 1,
+                profileId: p.id,
+                discordNickname: p.discordNickname,
+                discordRoleColor: p.discordRoleColor,
+                discordImage: p.user.image,
+                pseudoDofus: p.pseudoDofus,
+                classe: p.classe,
+                value: p.guildatons || 0,
+                isCurrentUser: p.id === currentProfile?.id,
+                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
+            };
+        });
+
+        return { success: true, data: ladder };
+    } catch (error) {
+        console.error("[getGuildatonsLadder] Error:", error);
+        return { success: false, error: "Erreur lors du chargement du classement de guildatons" };
+    }
+}

@@ -10,6 +10,7 @@ import {
     getSeniorityLadder,
     getSuccessLadder,
     getContributionLadder,
+    getGuildatonsLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -23,7 +24,7 @@ type Props = {
 };
 
 export function LadderClient({ guildId, canValidate }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "guildatons">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -45,6 +46,9 @@ export function LadderClient({ guildId, canValidate }: Props) {
                     break;
                 case "success":
                     result = await getSuccessLadder(guildId);
+                    break;
+                case "guildatons":
+                    result = await getGuildatonsLadder(guildId);
                     break;
             }
 
@@ -69,6 +73,8 @@ export function LadderClient({ guildId, canValidate }: Props) {
                 return formatSeniority(entry.value);
             case "success":
                 return `${entry.value.toLocaleString()} pts`;
+            case "guildatons":
+                return `${entry.value.toLocaleString()} 💰`;
             default:
                 return entry.value.toString();
         }
@@ -110,13 +116,22 @@ export function LadderClient({ guildId, canValidate }: Props) {
             color: "amber",
             activeClass: "bg-amber-500/20 border-amber-500/40 text-amber-200 shadow-lg shadow-amber-500/10",
             idleClass: "bg-amber-500/5 border-amber-500/10 text-amber-400/60 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-300"
+        },
+        {
+            id: "guildatons",
+            label: "Guildatons",
+            icon: TrendingUp,
+            description: "La fortune de la guilde",
+            color: "yellow",
+            activeClass: "bg-yellow-500/20 border-yellow-500/40 text-yellow-200 shadow-lg shadow-yellow-500/10",
+            idleClass: "bg-yellow-500/5 border-yellow-500/10 text-yellow-400/60 hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-300"
         }
     ] as const;
 
     return (
         <div className="space-y-8">
             {/* Interactive Tab Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 {categories.map((cat) => {
                     const Icon = cat.icon;
                     const isActive = activeTab === cat.id;
@@ -152,7 +167,7 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 "absolute -bottom-4 -right-4 w-16 h-16 rounded-full blur-[30px] opacity-20 pointer-events-none transition-transform duration-700",
                                 isActive ? "scale-150 rotate-12" : "scale-0"
                             )}
-                                style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'emerald' ? '#10b981' : cat.color === 'cyan' ? '#06b6d4' : '#f59e0b' }}
+                                style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'emerald' ? '#10b981' : cat.color === 'cyan' ? '#06b6d4' : cat.color === 'yellow' ? '#eab308' : '#f59e0b' }}
                             />
                         </button>
                     );
@@ -165,10 +180,10 @@ export function LadderClient({ guildId, canValidate }: Props) {
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-2 h-2 rounded-full animate-pulse",
-                            activeTab === 'activity' ? 'bg-purple-400' : activeTab === 'contribution' ? 'bg-emerald-400' : activeTab === 'seniority' ? 'bg-cyan-400' : 'bg-amber-400'
+                            activeTab === 'activity' ? 'bg-purple-400' : activeTab === 'contribution' ? 'bg-emerald-400' : activeTab === 'seniority' ? 'bg-cyan-400' : activeTab === 'guildatons' ? 'bg-yellow-400' : 'bg-amber-400'
                         )} />
                         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400">
-                            RANGS {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : 'DE PRESTIGE'}
+                            RANGS {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : activeTab === 'guildatons' ? 'DE RICHESSE' : 'DE PRESTIGE'}
                         </h2>
                     </div>
 
@@ -219,7 +234,7 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 key={entry.profileId}
                                 entry={entry}
                                 valueLabel={getValueLabel(entry)}
-                                accentColor={activeTab === 'activity' ? 'purple' : activeTab === 'contribution' ? 'emerald' : activeTab === 'seniority' ? 'cyan' : 'amber'}
+                                accentColor={activeTab === 'activity' ? 'purple' : activeTab === 'contribution' ? 'emerald' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : 'amber'}
                             />
                         ))}
                     </div>

@@ -124,9 +124,13 @@ export async function createVaultEntry(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, serviceVaultEnabled: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        if (!guildConfig.serviceVaultEnabled && !user.isAdmin) {
+            return { success: false, error: "Le coffre de guilde est actuellement en maintenance." };
+        }
 
         // Handle proof upload
         let proofUrl: string | null = null;

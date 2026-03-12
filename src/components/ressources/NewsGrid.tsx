@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, Newspaper, Zap, Scroll, Shield, Sparkles, Globe2, ChevronDown, RefreshCw, Rss } from "lucide-react";
+import { ExternalLink, Newspaper, Zap, Scroll, Shield, Sparkles, Globe2, ChevronDown, RefreshCw, Rss, Send, Globe, CheckCircle2, XCircle, Bell, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KralamoureWidget } from "@/components/ressources/KralamoureWidget";
+import { useParams } from "next/navigation";
+import { getUserContext, type UserContext } from "@/server/actions/user-actions";
+import { sendNewsToDiscord, broadcastNewsToAllGuilds, type DiscordNewsItem } from "@/server/actions/news-discord-actions";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,9 +51,88 @@ const CARD_PALETTE = [
     { from: "#0f0a1a", accent: "#8b5cf6", icon: Zap },
 ];
 
+// ─── News Actions Subcomponent ────────────────────────────────────────────────
+
+function NewsActions({ 
+    item, 
+    userCtx, 
+    sending, 
+    handleSendToDiscord, 
+    handleBroadcast, 
+    broadcasting,
+    variant = "default"
+}: { 
+    item: NewsItem; 
+    userCtx: UserContext | null; 
+    sending: string | null;
+    handleSendToDiscord: (item: NewsItem) => void;
+    handleBroadcast: (item: NewsItem) => void;
+    broadcasting: boolean;
+    variant?: "default" | "minimal"
+}) {
+    if (!userCtx?.isAdmin) return null;
+
+    const isSending = sending === item.link;
+
+    return (
+        <div className={cn(
+            "flex items-center gap-2 transition-all duration-300",
+            variant === "default" ? "opacity-0 group-hover:opacity-100" : "opacity-40 group-hover:opacity-100"
+        )}>
+            <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSendToDiscord(item); }}
+                disabled={isSending}
+                className={cn(
+                    "rounded-lg transition-all disabled:opacity-50",
+                    variant === "default" 
+                        ? "p-2 bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] hover:bg-[#5865F2] hover:text-white"
+                        : "p-1.5 bg-white/5 border border-white/10 text-zinc-400 hover:text-[#5865F2] hover:border-[#5865F2]/30"
+                )}
+                title="Partager sur Discord"
+            >
+                <Bell className={cn(variant === "default" ? "w-4 h-4" : "w-3.5 h-3.5", isSending && "animate-spin")} />
+            </button>
+            
+            {userCtx?.isSuperAdmin && (
+                <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBroadcast(item); }}
+                    disabled={broadcasting}
+                    className={cn(
+                        "rounded-lg transition-all disabled:opacity-50",
+                        variant === "default" 
+                            ? "p-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black"
+                            : "p-1.5 bg-white/5 border border-white/10 text-zinc-400 hover:text-amber-500 hover:border-amber-500/30"
+                    )}
+                    title="Diffuser à toutes les guildes (GOD MODE)"
+                >
+                    <Megaphone className={cn(variant === "default" ? "w-4 h-4" : "w-3.5 h-3.5", broadcasting && "animate-pulse")} />
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ─── Featured card ────────────────────────────────────────────────────────────
 
-function FeaturedCard({ item, feedColor, feedLabel }: { item: NewsItem; feedColor: string; feedLabel: string }) {
+function FeaturedCard({ 
+    item, 
+    feedColor, 
+    feedLabel,
+    userCtx,
+    sending,
+    handleSendToDiscord,
+    handleBroadcast,
+    broadcasting
+}: { 
+    item: NewsItem; 
+    feedColor: string; 
+    feedLabel: string;
+    userCtx: UserContext | null;
+    sending: string | null;
+    handleSendToDiscord: (item: NewsItem) => void;
+    handleBroadcast: (item: NewsItem) => void;
+    broadcasting: boolean;
+}) {
     const [imgError, setImgError] = useState(false);
     const grad = CARD_PALETTE[0];
 
@@ -108,6 +191,18 @@ function FeaturedCard({ item, feedColor, feedLabel }: { item: NewsItem; feedColo
                     </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-transparent to-transparent pointer-events-none" />
+                
+                {/* ACTIONS TOP RIGHT */}
+                <div className="absolute top-4 right-4 z-20">
+                    <NewsActions 
+                        item={item} 
+                        userCtx={userCtx} 
+                        sending={sending} 
+                        handleSendToDiscord={handleSendToDiscord} 
+                        handleBroadcast={handleBroadcast} 
+                        broadcasting={broadcasting}
+                    />
+                </div>
             </div>
 
             {/* Content */}
@@ -140,7 +235,25 @@ function FeaturedCard({ item, feedColor, feedLabel }: { item: NewsItem; feedColo
 
 // ─── Side card ────────────────────────────────────────────────────────────────
 
-function SideCard({ item, idx, feedColor }: { item: NewsItem; idx: number; feedColor: string }) {
+function SideCard({ 
+    item, 
+    idx, 
+    feedColor,
+    userCtx,
+    sending,
+    handleSendToDiscord,
+    handleBroadcast,
+    broadcasting
+}: { 
+    item: NewsItem; 
+    idx: number; 
+    feedColor: string;
+    userCtx: UserContext | null;
+    sending: string | null;
+    handleSendToDiscord: (item: NewsItem) => void;
+    handleBroadcast: (item: NewsItem) => void;
+    broadcasting: boolean;
+}) {
     const [imgError, setImgError] = useState(false);
     const grad = CARD_PALETTE[(idx + 1) % CARD_PALETTE.length];
 
@@ -149,7 +262,7 @@ function SideCard({ item, idx, feedColor }: { item: NewsItem; idx: number; feedC
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/5"
+            className="group flex items-start gap-4 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/5"
             style={{ border: "1px solid rgba(255,255,255,0.03)" }}
         >
             <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
@@ -178,8 +291,18 @@ function SideCard({ item, idx, feedColor }: { item: NewsItem; idx: number; feedC
                     {item.title}
                 </h4>
             </div>
-            <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-50 transition-opacity mt-1"
-                style={{ color: feedColor }} />
+            
+            <div className="flex flex-col items-end gap-2 h-full justify-between py-1">
+                <NewsActions 
+                    item={item} 
+                    userCtx={userCtx} 
+                    sending={sending} 
+                    handleSendToDiscord={handleSendToDiscord} 
+                    handleBroadcast={handleBroadcast} 
+                    broadcasting={broadcasting}
+                    variant="minimal"
+                />
+            </div>
         </a>
     );
 }
@@ -206,21 +329,84 @@ export function NewsGrid({
     hideSelector = false,
     title,
     maxItems = 8,
-    showKralamoure = false
+    showKralamoure = false,
+    layout = "grid"
 }: {
     defaultFeed?: FeedKey;
     hideSelector?: boolean;
     title?: string;
     maxItems?: number;
     showKralamoure?: boolean;
+    layout?: "grid" | "list";
 }) {
     const [activeFeed, setActiveFeed] = useState<FeedKey>(defaultFeed);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [items, setItems] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [userCtx, setUserCtx] = useState<UserContext | null>(null);
+    const [sending, setSending] = useState<string | null>(null); // URL of item being sent
+    const [broadcasting, setBroadcasting] = useState(false);
+
+    const params = useParams();
+    const discordGuildId = params.guildId as string;
+
+    useEffect(() => {
+        getUserContext(discordGuildId).then(setUserCtx);
+    }, [discordGuildId]);
 
     const currentFeed = FEEDS.find(f => f.key === activeFeed) ?? FEEDS[0];
+
+    const handleSendToDiscord = async (item: NewsItem) => {
+        if (!discordGuildId) return;
+        setSending(item.link);
+        
+        try {
+            const res = await sendNewsToDiscord(discordGuildId, {
+                title: item.title,
+                url: item.link,
+                imageUrl: item.imageUrl,
+                description: item.description,
+                pubDate: item.pubDate,
+                category: currentFeed.label
+            });
+
+            if (res.success) {
+                toast.success("Envoyé sur Discord !");
+            } else {
+                toast.error("Échec de l'envoi: " + (res.error || "Une erreur est survenue."));
+            }
+        } catch (err) {
+            toast.error("Impossible de contacter l'API Discord.");
+        } finally {
+            setSending(null);
+        }
+    };
+
+    const handleBroadcast = async (item: NewsItem) => {
+        if (!userCtx?.isSuperAdmin) return;
+        if (!confirm(`Voulez-vous vraiment diffuser cette annonce à TOUTES les guildes actives (${item.title}) ?`)) return;
+        
+        setBroadcasting(true);
+        try {
+            const res = await broadcastNewsToAllGuilds({
+                title: item.title,
+                url: item.link,
+                imageUrl: item.imageUrl,
+                description: item.description,
+                pubDate: item.pubDate,
+                category: currentFeed.label
+            });
+
+            if (res.success) {
+                toast.success(`Diffusion terminée ! (${res.results?.success} guildes)`);
+            }
+        } catch (err) {
+            toast.error("Échec de la diffusion critique.");
+        } finally {
+            setBroadcasting(false);
+        }
+    };
 
     const fetchNews = useCallback(async (feedKey: FeedKey) => {
         setLoading(true);
@@ -348,17 +534,94 @@ export function NewsGrid({
                         <RefreshCw className="h-3.5 w-3.5" /> Réessayer
                     </button>
                 </div>
+            ) : layout === "list" ? (
+                <div className="flex flex-col gap-2 relative">
+                    {/* Vertical line connector */}
+                    <div className="absolute left-[31px] top-6 bottom-6 w-px bg-white/5" />
+                    
+                    {items.slice(0, maxItems).map((item, i) => (
+                        <a
+                            key={i}
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative flex items-center gap-6 p-3 rounded-2xl bg-zinc-950/20 border border-white/5 hover:bg-white/[0.04] transition-all duration-300"
+                        >
+                            {/* Dot / Timeline */}
+                            <div className="relative z-10 w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.03] border border-white/10 group-hover:border-amber-500/30 transition-colors flex items-center justify-center">
+                                {item.imageUrl ? (
+                                    <img 
+                                        src={item.imageUrl} 
+                                        alt="" 
+                                        referrerPolicy="no-referrer"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                    />
+                                ) : (
+                                    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-500/10 to-transparent">
+                                        <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
+                                        <Zap className="absolute top-2 right-2 w-3 h-3 text-amber-500 animate-pulse" />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        {formatPubDate(item.pubDate)}
+                                    </span>
+                                    <div className="h-px w-8 bg-white/10" />
+                                </div>
+                                <h4 className="text-base font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">
+                                    {item.title}
+                                </h4>
+                            </div>
+
+                            <NewsActions 
+                                item={item} 
+                                userCtx={userCtx} 
+                                sending={sending} 
+                                handleSendToDiscord={handleSendToDiscord} 
+                                handleBroadcast={handleBroadcast} 
+                                broadcasting={broadcasting}
+                            />
+
+                            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+                                Détails
+                            </div>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 mr-2" />
+                        </a>
+                    ))}
+                </div>
             ) : (
                 <div className="grid gap-4 grid-cols-1 lg:grid-cols-5 items-stretch">
                     {featured && (
                         <div className="lg:col-span-3">
-                            <FeaturedCard item={featured} feedColor={currentFeed.color} feedLabel={currentFeed.label} />
+                            <FeaturedCard 
+                                item={featured} 
+                                feedColor={currentFeed.color} 
+                                feedLabel={currentFeed.label} 
+                                userCtx={userCtx}
+                                sending={sending}
+                                handleSendToDiscord={handleSendToDiscord}
+                                handleBroadcast={handleBroadcast}
+                                broadcasting={broadcasting}
+                            />
                             {showKralamoure && <div className="mt-3"><KralamoureWidget /></div>}
                         </div>
                     )}
                     <div className="lg:col-span-2 flex flex-col gap-1 max-h-[500px] lg:max-h-none overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
                         {rest.slice(0, maxItems - 1).map((item, i) => (
-                            <SideCard key={i} item={item} idx={i} feedColor={currentFeed.color} />
+                            <SideCard 
+                                key={i} 
+                                item={item} 
+                                idx={i} 
+                                feedColor={currentFeed.color} 
+                                userCtx={userCtx}
+                                sending={sending}
+                                handleSendToDiscord={handleSendToDiscord}
+                                handleBroadcast={handleBroadcast}
+                                broadcasting={broadcasting}
+                            />
                         ))}
                     </div>
                 </div>

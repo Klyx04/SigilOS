@@ -150,7 +150,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 </div>
 
                 {/* Noise texture overlay */}
-                <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url('/noise.svg')] bg-repeat z-10" />
+                <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
 
                 {/* Visual indicator (Lueur) */}
                 <div className="absolute inset-x-0 bottom-0 h-[1px] bg-white/20 blur-[1px] z-10" />

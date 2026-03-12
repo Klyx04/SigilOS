@@ -32,20 +32,26 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 </div>
             </div>
 
-            {/* KPI Cards — Row 1 */}
+            {/* KPI Cards — Row 1 (Activity) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard icon={Users} label="Membres actifs" value={stats.activeMembers} accent="violet" />
-                <StatCard icon={Star} label="XP Total" value={stats.totalXp} accent="teal" />
+                <StatCard icon={Star} label="XP Total" value={stats.totalXp.toLocaleString()} accent="teal" />
                 <StatCard icon={CheckCircle2} label="Missions validées" value={stats.totalMissionsValidated} accent="emerald" />
-                <StatCard icon={Moon} label="Songes complétés" value={stats.totalSongesCompleted} accent="blue" />
+                <StatCard icon={Target} label="Taux validation" value={`${stats.validationRate}%`} accent="rose" />
             </div>
 
-            {/* KPI Cards — Row 2 */}
+            {/* KPI Cards — Row 2 (Kamas & Guildatons) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard icon={Coins} label="Guildatons" value={stats.totalGuildatons} accent="amber" />
-                <StatCard icon={Target} label="Taux validation" value={`${stats.validationRate}%`} accent="rose" />
-                <StatCard icon={CalendarDays} label="Events organisés" value={stats.totalEvents} accent="orange" />
+                <StatCard icon={Coins} label="Guildatons Actuels" value={stats.totalGuildatons.toLocaleString()} accent="amber" />
+                <StatCard icon={Coins} label="Guildatons Gagnés" value={(stats.totalGuildatonsEarned || 0).toLocaleString()} accent="yellow" />
+                <StatCard icon={Coins} label="Kamas Collectés" value={`${((stats.totalKamasCollected || 0) / 1000000).toLocaleString()}M`} accent="orange" />
                 <StatCard icon={HandHeart} label="Pts Entraide" value={stats.totalEntraidePoints} accent="pink" />
+            </div>
+
+            {/* KPI Cards — Row 3 (Social/Game) */}
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+                <StatCard icon={Moon} label="Songes complétés" value={stats.totalSongesCompleted} accent="blue" />
+                <StatCard icon={CalendarDays} label="Events organisés" value={stats.totalEvents} accent="sky" />
             </div>
 
             {/* Activity Chart */}
@@ -64,7 +70,11 @@ export default function StatsClient({ stats }: StatsClientProps) {
                         <Target className="w-5 h-5 text-teal-400" />
                         Missions
                     </h3>
-                    <MissionsStats categories={stats.missionsByCategory} topValidators={stats.topValidators} />
+                    <MissionsStats
+                        categories={stats.missionsByCategory}
+                        topValidators={stats.topValidators}
+                        topDonors={stats.topDonors}
+                    />
                 </section>
 
                 <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
@@ -109,7 +119,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     🏆 Records & Fun Facts
                 </h3>
-                <RecordsSection records={stats.records} />
+                <RecordsSection records={stats.records} topAchievers={stats.topAchievers} />
             </section>
         </div>
     );

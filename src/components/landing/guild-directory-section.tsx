@@ -23,7 +23,7 @@ export function GuildDirectorySection({ guilds }: { guilds: GuildTeaser[] }) {
     return (
         <div className="w-full relative">
             {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
 
             <div className="flex flex-col items-center">
 
@@ -38,33 +38,33 @@ export function GuildDirectorySection({ guilds }: { guilds: GuildTeaser[] }) {
                             transition={{ delay: idx * 0.1 + 0.3 }}
                         >
                             <Link href={`/guilds/${guild.discordGuildId}`} className="group block">
-                                <GlassPanel className="p-6 border border-white/5 group-hover:border-purple-500/30 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
+                                <GlassPanel className="p-6 border border-white/5 group-hover:border-emerald-500/30 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/10">
                                     <div className="flex items-center gap-4">
-                                        <div className="relative w-14 h-14 rounded-xl border border-white/10 overflow-hidden bg-zinc-900 shrink-0">
+                                        <div className="relative w-14 h-14 rounded-xl border border-white/10 overflow-hidden bg-zinc-900 shrink-0 shadow-2xl">
                                             {guild.iconUrl ? (
                                                 <Image src={guild.iconUrl} alt={guild.name} fill className="object-cover" />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-xl font-bold text-zinc-600">
+                                                <div className="w-full h-full flex items-center justify-center text-xl font-bold text-emerald-500/50 bg-emerald-500/5">
                                                     {guild.name.charAt(0)}
                                                 </div>
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <h4 className="text-lg font-bold text-white truncate group-hover:text-purple-400 transition-colors">
+                                            <h4 className="text-lg font-bold text-white truncate group-hover:text-emerald-400 transition-colors">
                                                 {guild.name}
                                             </h4>
                                             <p className="text-xs text-zinc-500 flex items-center gap-1 uppercase tracking-wider font-semibold">
-                                                <ShieldCheck className="w-3 h-3 text-purple-500" />
+                                                <ShieldCheck className="w-3 h-3 text-amber-500" />
                                                 Verified Elite
                                             </p>
                                         </div>
                                     </div>
                                     <div className="mt-6 flex items-center justify-between">
-                                        <div className="text-[10px] font-bold text-zinc-500 uppercase">
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                                             {guild.server || "Serveur Privé"}
                                         </div>
                                         {guild.isRecruiting && (
-                                            <div className="text-[10px] font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                            <div className="text-[10px] font-black text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.1)]">
                                                 Recrutement
                                             </div>
                                         )}
@@ -82,13 +82,13 @@ export function GuildDirectorySection({ guilds }: { guilds: GuildTeaser[] }) {
                     transition={{ delay: 0.6 }}
                     className="mt-16"
                 >
-                    <Button asChild variant="outline" className="rounded-full border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-purple-300 hover:text-white px-8 group">
-                        <Link href="/guilds" className="flex items-center gap-2">
-                            Explorer tout l&apos;annuaire
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                    </Button>
+                    <Link href="/guilds" className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 border border-white/10 hover:border-emerald-500/50 text-zinc-400 hover:text-white transition-all font-bold text-sm uppercase tracking-widest overflow-hidden">
+                        <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        Explorer tout l&apos;annuaire
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                 </motion.div>
+
             </div>
         </div>
     );

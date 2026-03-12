@@ -249,8 +249,57 @@ export async function markChangelogAsSeen(changelogId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Discord
+// Discord & Platform Config
 // ---------------------------------------------------------------------------
+
+export async function getPlatformConfig() {
+    try {
+        let config = await db.platformConfig.findUnique({ where: { id: "singleton" } });
+        if (!config) {
+            config = await db.platformConfig.create({ data: { id: "singleton" } });
+        }
+        return { success: true, config };
+    } catch (e) {
+        return { success: false, error: "Erreur lecture config" };
+    }
+}
+
+export async function updatePlatformConfig(data: { hubChannelId?: string, serviceStatusChannelId?: string }) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        const config = await db.platformConfig.upsert({
+            where: { id: "singleton" },
+            update: { 
+                ...(data.hubChannelId !== undefined && { hubChannelId: data.hubChannelId || null }),
+                ...(data.serviceStatusChannelId !== undefined && { serviceStatusChannelId: data.serviceStatusChannelId || null })
+            },
+            create: { 
+                id: "singleton", 
+                hubChannelId: data.hubChannelId || null,
+                serviceStatusChannelId: data.serviceStatusChannelId || null
+            }
+        });
+        return { success: true, config };
+    } catch (e) {
+        console.error('[updatePlatformConfig]', e);
+        return { success: false, error: "Erreur écriture config" };
+    }
+}
+
+export async function testStatusPing() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        const { sendGlobalStatusPing } = await import("./status-actions");
+        return await sendGlobalStatusPing(true);
+    } catch (e: any) {
+        console.error('[testStatusPing]', e);
+        return { success: false, error: e.message || "Erreur interne" };
+    }
+}
 
 const CATEGORY_EMOJI: Record<string, string> = {
     FEATURE: '✨', BUGFIX: '🐛', SECURITY: '🔒', PERFORMANCE: '⚡', DOCUMENTATION: '📄'
@@ -263,16 +312,18 @@ const CATEGORY_FR: Record<string, string> = {
 };
 
 /**
- * DISC-1 — Publish a changelog entry to the SigilOS Discord via webhook.
- * Requires SIGILOS_CHANGELOG_WEBHOOK_URL in env. Super-admin only.
+ * DISC-1 — Publish a changelog entry to the SigilOS Hub (official Discord).
+ * Requires hubChannelId in PlatformConfig. Super-admin only.
  */
 export async function sendChangelogToDiscord(entryId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
-    const webhookUrl = process.env.SIGILOS_CHANGELOG_WEBHOOK_URL;
-    if (!webhookUrl || !webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
-        return { success: false, error: 'Webhook non configuré — ajouter SIGILOS_CHANGELOG_WEBHOOK_URL dans le .env' };
+    const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
+    const hubChannelId = platformConfig?.hubChannelId;
+    
+    if (!hubChannelId) {
+        return { success: false, error: 'Salon du Hub non configuré dans les paramètres GOD' };
     }
 
     if (!entryId || entryId.length > 64) return { success: false, error: 'ID invalide' };
@@ -296,40 +347,97 @@ export async function sendChangelogToDiscord(entryId: string) {
     const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
 
-    const body = {
-        embeds: [{
-            title: `${emoji} ${entry.version} — ${entry.title}`,
-            url: `${appUrl}/changelog`,
-            description: entry.summary,
-            color,
-            fields: plainContent ? [
-                { name: '📋 Changements', value: plainContent, inline: false }
-            ] : [],
-            footer: {
-                text: `SigilOS Changelog • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
-                icon_url: 'https://i.imgur.com/AfFp7pu.png'
-            },
-            timestamp: new Date().toISOString(),
-        }]
+    const embed = {
+        embedTitle: `${emoji} ${entry.version} — ${entry.title}`,
+        embedUrl: `${appUrl}/changelog`,
+        embedDescription: entry.summary || "",
+        embedColor: color,
+        embedFooter: `SigilOS Changelog • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+        embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
     };
+    
+    const fullDescription = `${entry.summary}\n\n**📋 Changements principaux**\n${plainContent || "Améliorations diverses."}\n\n[Voir le détail complet sur l'application](${appUrl}/changelog)`;
+    embed.embedDescription = fullDescription.slice(0, 4096);
+
+    const { sendChannelMessage } = await import("@/server/discord");
 
     try {
-        const res = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            cache: 'no-store',
-        });
-
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error('[Changelog Discord] Webhook error:', res.status, errText);
-            return { success: false, error: `Discord a rejeté le message (${res.status})` };
-        }
-
+        const mid = await sendChannelMessage(hubChannelId, "", embed);
+        if (!mid) return { success: false, error: `Discord a rejeté le message (Salon introuvable ou permissions manquantes)` };
         return { success: true };
     } catch (error) {
         console.error('[Changelog Discord] Fetch error:', error);
         return { success: false, error: "Erreur réseau lors de l'envoi" };
     }
+}
+
+
+/**
+ * Broadcast a SigilOS Changelog to ALL active guilds (systemNotifyChannelId)
+ * Super-admin only.
+ */
+export async function broadcastChangelogToGuilds(entryId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    const entry = await db.changelogEntry.findUnique({ where: { id: entryId } });
+    if (!entry) return { success: false, error: 'Entrée introuvable' };
+
+    const guilds = await db.guildConfig.findMany({
+        where: { isActive: true, systemNotifyChannelId: { not: null } },
+        select: { discordGuildId: true, systemNotifyChannelId: true, name: true }
+    });
+
+    const results = {
+        total: guilds.length,
+        success: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    // Prepare Embed
+    const plainContent = entry.content
+        .replace(/<li>/gi, '• ')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<h[1-6][^>]*>/gi, '**')
+        .replace(/<\/h[1-6]>/gi, '**\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, 1024);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
+    const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
+    const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
+
+    const embed = {
+        embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
+        embedUrl: `${appUrl}/changelog`,
+        embedDescription: entry.summary || "",
+        embedColor: color,
+        embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+        embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
+    };
+
+    // If there is details, we can append it as another field, but sendChannelMessage from @/server/discord doesn't support custom fields directly in its current simplified form. 
+    // Wait, createNewsEmbed supported description. We will just put the plain content inside the description or a concatenated string.
+    const fullDescription = `${entry.summary}\n\n**📋 Changements principaux**\n${plainContent || "Améliorations diverses."}\n\n[Voir le détail complet sur l'application](${appUrl}/changelog)`;
+    embed.embedDescription = fullDescription.slice(0, 4096);
+
+    const { sendChannelMessage } = await import("@/server/discord");
+
+    // Batch sending (serial to avoid rate limits)
+    for (const guild of guilds) {
+        try {
+            const mid = await sendChannelMessage(guild.systemNotifyChannelId!, "", embed);
+            if (mid) results.success++;
+            else throw new Error(`API null response for ${guild.name}`);
+        } catch (e) {
+            results.failed++;
+            results.errors.push(`${guild.name}: ${(e as Error).message}`);
+        }
+    }
+
+    return { success: true, results };
 }

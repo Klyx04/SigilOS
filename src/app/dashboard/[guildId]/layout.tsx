@@ -19,6 +19,7 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 
 export default async function DashboardLayout({
@@ -182,6 +183,9 @@ export default async function DashboardLayout({
 
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
+
+                {/* Live Games Floating Widget */}
+                <GamesLiveWidget />
 
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />

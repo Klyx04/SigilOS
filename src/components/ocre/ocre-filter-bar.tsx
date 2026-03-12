@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 // TYPES
 // =============================================================================
 
-export type MonsterType = "all" | "monstre" | "boss" | "archimonstre";
+export type MonsterType = "all" | "boss" | "archimonstre";
 export type SortOption = "name-asc" | "name-desc" | "step-asc" | "step-desc";
 
 export interface OcreFilters {
@@ -64,7 +64,6 @@ interface OcreFilterBarProps {
 
 const MONSTER_TYPES: Array<{ id: MonsterType; label: string; icon: typeof Swords; shortLabel: string }> = [
     { id: "all", label: "Tous types", shortLabel: "Tous", icon: Swords },
-    { id: "monstre", label: "Monstres", shortLabel: "Monstres", icon: Swords },
     { id: "boss", label: "Boss", shortLabel: "Boss", icon: Skull },
     { id: "archimonstre", label: "Archimonstres", shortLabel: "Archis", icon: Crown },
 ];

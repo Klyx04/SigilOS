@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // ─── RSS Sources Dofus ────────────────────────────────────────────────────────
 
@@ -110,10 +111,10 @@ async function fetchDirect(url: string, signal: AbortSignal): Promise<string | n
             const text = await res.text();
             if (text.length > 500) return text;
         }
-        console.warn(`[news/route] Direct fetch failed: ${res.status} for ${url}`);
+        logger.warn(`[news/route] Direct fetch failed: ${res.status}`, { url });
         return null;
     } catch (err) {
-        console.error(`[news/route] Direct fetch error: ${err instanceof Error ? err.message : err}`);
+        logger.error(`[news/route] Direct fetch error`, { error: err });
         return null;
     }
 }
@@ -132,11 +133,11 @@ async function fetchWithCurl(url: string): Promise<string | null> {
         );
 
         if (stdout && stdout.length > 500) {
-            console.log(`[news/route] Curl fallback succeeded for ${url}`);
+            logger.info(`[news/route] Curl fallback succeeded`, { url });
             return stdout;
         }
     } catch (err) {
-        console.warn(`[news/route] Curl fallback failed: ${err instanceof Error ? err.message : 'timeout'}`);
+        logger.warn(`[news/route] Curl fallback failed`, { error: err });
     }
     return null;
 }
@@ -161,7 +162,7 @@ async function fetchWithProxy(url: string): Promise<string | null> {
         const timeout = setTimeout(() => controller.abort(), 12_000);
 
         try {
-            console.log(`[news/route] Attempting proxy #${i + 1} for: ${url}`);
+            logger.debug(`[news/route] Attempting proxy #${i + 1}`, { url });
             const res = await fetch(proxyUrl, {
                 headers: { "User-Agent": "SigilOS/1.0 (Research Bot)" },
                 signal: controller.signal,
@@ -170,7 +171,7 @@ async function fetchWithProxy(url: string): Promise<string | null> {
             clearTimeout(timeout);
 
             if (!res.ok) {
-                console.warn(`[news/route] Proxy #${i + 1} returned status ${res.status} for ${url}`);
+                logger.warn(`[news/route] Proxy #${i + 1} returned status ${res.status}`, { url });
                 continue;
             }
 
@@ -182,21 +183,21 @@ async function fetchWithProxy(url: string): Promise<string | null> {
                     const json = JSON.parse(text) as { contents?: string };
                     if (json.contents) return json.contents;
                 } catch (parseErr) {
-                    console.error(`[news/route] AllOrigins parse error. Text snippet: ${text.substring(0, 100)}`);
+                    logger.error(`[news/route] AllOrigins parse error.`, { snippet: text.substring(0, 100) });
                 }
             } else if (proxyUrl.includes('htmldriven')) {
                 try {
                     const json = JSON.parse(text);
                     if (json.body) return json.body;
                 } catch (parseErr) {
-                    console.error(`[news/route] HTMLDriven parse error. Text snippet: ${text.substring(0, 100)}`);
+                    logger.error(`[news/route] HTMLDriven parse error.`, { snippet: text.substring(0, 100) });
                 }
             } else {
                 if (text && text.length > 500) return text;
             }
         } catch (err) {
             clearTimeout(timeout);
-            console.warn(`[news/route] Proxy #${i + 1} failed: ${err instanceof Error ? err.message : 'timeout'}`);
+            logger.warn(`[news/route] Proxy #${i + 1} failed`, { error: err });
         }
     }
     return null;
@@ -226,7 +227,7 @@ export async function GET(req: NextRequest) {
                 { headers: { "Cache-Control": "public, s-maxage=1800" } }
             );
         } catch (err) {
-            console.error("DPLN Scraper error", err);
+            logger.error("DPLN Scraper error", { error: err });
             // fallback if scraper fails
         }
     }
@@ -249,8 +250,30 @@ export async function GET(req: NextRequest) {
                 { headers: { "Cache-Control": "public, s-maxage=1800" } }
             );
         } catch (err) {
-            console.error("Dofus News format error", err);
+            logger.error("Dofus News format error", { error: err });
             // fallback if it fails
+        }
+    }
+    
+    // ─── Custom Dofus Changelog Fetcher (Haapi API) ─────────────────────
+    if (feedKey === "changelog") {
+        try {
+            const { fetchDofusChangelogs } = await import("@/lib/feed-aggregators");
+            const rawItems = await fetchDofusChangelogs();
+            const items = rawItems.map(item => ({
+                title: item.title,
+                link: item.url,
+                imageUrl: item.thumbnail || undefined,
+                pubDate: item.published.toISOString(),
+                description: item.description || "",
+                category: "Changelog"
+            }));
+            return NextResponse.json(
+                { items, feedKey, label: "Changelog" },
+                { headers: { "Cache-Control": "public, s-maxage=3600" } }
+            );
+        } catch (err) {
+            logger.error("Dofus Changelog format error", { error: err });
         }
     }
 
@@ -267,13 +290,13 @@ export async function GET(req: NextRequest) {
 
         // ── 2. Fallback Curl (souvent plus probant que fetch sur VPS) ───
         if (!xml || xml.length < 500) {
-            console.warn(`[news/route] Direct fetch failed (WAF), trying Curl fallback: ${feed.url}`);
+            logger.warn(`[news/route] Direct fetch failed (WAF), trying Curl fallback`, { url: feed.url });
             xml = await fetchWithCurl(feed.url);
         }
 
         // ── 3. Fallback proxy si tout le reste a échoué ─────────────────
         if (!xml || xml.length < 500) {
-            console.warn(`[news/route] Direct & Curl failed, trying proxies for: ${feed.url}`);
+            logger.warn(`[news/route] Direct & Curl failed, trying proxies`, { url: feed.url });
             xml = await fetchWithProxy(feed.url);
         }
 
@@ -296,7 +319,7 @@ export async function GET(req: NextRequest) {
         );
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "unknown error";
-        console.error(`[news/route] Unhandled error: ${message}`);
+        logger.error(`[news/route] Unhandled error`, { message });
         return NextResponse.json(
             { error: message, items: [] },
             { status: 200, headers: { "Cache-Control": "no-store" } }

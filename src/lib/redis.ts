@@ -41,7 +41,15 @@ export const redis = redisInstance;
 
 // LOGGING (errors only — Sentry captures console.error)
 redis.on("error", (err) => {
-    console.error("[Redis] Error:", err.message);
+    console.error("[Redis] ❌ Error:", err.message);
+});
+
+redis.on("connect", () => {
+    console.log("[Redis] ✅ Connected to Redis server");
+});
+
+redis.on("ready", () => {
+    console.log("[Redis] 🚀 Redis is ready");
 });
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;

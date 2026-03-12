@@ -20,13 +20,19 @@ import { createAuditLog } from "@/server/actions/audit-actions";
 const kamaDb = db as unknown as PrismaClient;
 
 // Inline XP helper (addProfileXp is not exported from mission-actions)
-async function grantXp(profileId: string, amount: number) {
-    if (amount <= 0) return;
+async function grantRewards(profileId: string, xp: number, guildatons: number = 0) {
+    if (xp <= 0 && guildatons <= 0) return;
     try {
-        const profile = await db.userProfile.findUnique({ where: { id: profileId }, select: { xp: true } });
-        if (!profile) return;
-        await db.userProfile.update({ where: { id: profileId }, data: { xp: (profile.xp || 0) + amount } });
-    } catch (e) { console.error(`[XP] grantXp failed for ${profileId}:`, e); }
+        await db.userProfile.update({
+            where: { id: profileId },
+            data: {
+                xp: { increment: xp > 0 ? xp : 0 },
+                guildatons: { increment: guildatons > 0 ? guildatons : 0 }
+            }
+        });
+    } catch (e) {
+        console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
+    }
 }
 
 // ============================================================================
@@ -104,10 +110,11 @@ export async function internalValidateMissionSubmission(
             include: { profile: { include: { user: true } }, helpers: true },
         });
 
-        // 4. Award XP (if validated)
+        // 4. Award XP & Guildatons (if validated)
         if (status === "VALIDATED") {
             const xpReward = (submission.mission as any).xpReward || 0;
-            await grantXp(updated.profileId, xpReward);
+            const guildatonsReward = (submission.mission as any).guildatonsReward || 0;
+            await grantRewards(updated.profileId, xpReward, guildatonsReward);
 
             // Award helpers contribution points
             if (updated.helpers.length > 0) {
@@ -274,6 +281,18 @@ export async function internalReviewKamaDonation(
                 discordMessageId: null,
             },
         });
+
+        // Award rewards (if validated)
+        if (newStatus === "VALIDATED") {
+            const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+            const tranches = Math.floor(donation.amount / KAMA_TRANCHE);
+            const addedXp = tranches * REWARDS_PER_TRANCHE.xp;
+            const addedGuildatons = tranches * REWARDS_PER_TRANCHE.guildatons;
+
+            if (addedXp > 0 || addedGuildatons > 0) {
+                await grantRewards(donation.profileId, addedXp, addedGuildatons);
+            }
+        }
 
         // Delete proof file + image hash (validation ET rejet)
         if (donation.proofUrl) {

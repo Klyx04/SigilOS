@@ -21,6 +21,10 @@ sigilos.fr {
         respond "google-site-verification: google77dc76da1868d7bd.html" 200
     }
 
+    handle /socket.io/* {
+        reverse_proxy sigilos-ws-prod:3001
+    }
+
     handle {
         root * /srv/static
         rewrite * /maintenance.html
@@ -47,6 +51,10 @@ beta.sigilos.fr {
     }
 
     # Normal operation: proxy to Next.js
+    handle /socket.io/* {
+        reverse_proxy sigilos-ws-beta:3001
+    }
+
     handle {
         reverse_proxy sigilos-beta:3000
     }

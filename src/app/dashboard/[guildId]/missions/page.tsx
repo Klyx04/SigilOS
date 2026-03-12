@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { getWeekMissions, getGuildMissionXpOverride } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
-import { getMyWeeklyKamaStatus } from "@/server/actions/kama-actions";
+import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
@@ -34,10 +34,11 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     const { week, year } = getDofusWeek();
 
     // Fetch all data in parallel
-    const [response, overrideRes, kamaRes] = await Promise.all([
+    const [response, overrideRes, kamaRes, kamaStatsRes] = await Promise.all([
         getWeekMissions(guildId, week, year),
         getGuildMissionXpOverride(guildId),
         getMyWeeklyKamaStatus(guildId),
+        getKamaStats(guildId), // Fetch total guild stats for kama XP calculation
     ]);
 
     if (!response.success) {
@@ -56,12 +57,12 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
         return acc + ((mission as any).xpReward || 0) * validatedCount;
     }, 0);
 
-    // [KAM-XP] Add validated kama donations XP this week
+    // [KAM-XP] Add validated kama donations XP this week (guild-wide)
     let kamaXP = 0;
-    if (kamaRes.success && kamaRes.data) {
+    if (kamaStatsRes.success && kamaStatsRes.data) {
         const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
-        const validatedKamas = kamaRes.data.validatedThisWeek;
-        const validatedTranches = Math.floor(validatedKamas / KAMA_TRANCHE);
+        const validatedWeeklyKamas = kamaStatsRes.data.weeklyTotal || 0; // The whole guild's valid kamas this week
+        const validatedTranches = Math.floor(validatedWeeklyKamas / KAMA_TRANCHE);
         kamaXP = validatedTranches * REWARDS_PER_TRANCHE.xp;
     }
 

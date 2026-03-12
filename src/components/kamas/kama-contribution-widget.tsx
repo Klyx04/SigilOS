@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import {
     Coins, Plus, Minus, Upload, X, Loader2,
@@ -17,6 +17,7 @@ import {
     KAMA_TRANCHE, KAMA_MAX_TRANCHES, KAMA_MAX_PER_WEEK,
     REWARDS_PER_TRANCHE,
 } from "@/lib/kama-constants";
+import { cn } from "@/lib/utils";
 
 interface KamaContributionWidgetProps {
     guildId: string;
@@ -43,13 +44,33 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
         if (res.success && res.data) setStatus(res.data);
     }, [guildId]);
 
-    const handleFile = (f: File) => {
+    const validateAndSetFile = async (f: File) => {
         const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
         if (!ALLOWED.includes(f.type)) { toast.error("JPEG, PNG ou WebP uniquement."); return; }
-        if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB."); return; }
+        if (f.size > 10 * 1024 * 1024) { toast.error("Max 10 MB."); return; }
+
         setFile(f);
+        if (preview) URL.revokeObjectURL(preview);
         setPreview(URL.createObjectURL(f));
     };
+
+    useEffect(() => {
+        if (step !== "proof" || !expanded) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            if (e.clipboardData && e.clipboardData.files.length > 0) {
+                const f = e.clipboardData.files[0];
+                if (f.type.startsWith("image/")) {
+                    e.preventDefault();
+                    validateAndSetFile(f);
+                    toast.info("Image collée ! 📋");
+                }
+            }
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [step, expanded, guildId, preview]);
 
     const handleSubmit = async () => {
         if (!file) { toast.error("Ajoutez un screenshot de preuve."); return; }
@@ -255,16 +276,28 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                         </div>
                                     ) : (
                                         <div
-                                            className="border-2 border-dashed border-white/10 rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all group"
-                                            onClick={() => fileRef.current?.click()}
-                                            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                                            className="border-2 border-dashed border-white/10 rounded-xl p-5 flex flex-col items-center gap-2 transition-all group"
+                                            onDrop={e => {
+                                                e.preventDefault();
+                                                const f = e.dataTransfer.files[0];
+                                                if (f) validateAndSetFile(f);
+                                            }}
                                             onDragOver={e => e.preventDefault()}
                                         >
                                             <Upload className="w-5 h-5 text-zinc-600 group-hover:text-amber-400 transition-colors" />
-                                            <p className="text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors text-center">
-                                                Screenshot du comptoir d&apos;inventaire<br />
-                                                <span className="text-[10px] text-zinc-600">JPEG · PNG · WebP · max 5MB</span>
-                                            </p>
+                                            <div className="text-xs text-zinc-500 text-center">
+                                                <p className="group-hover:text-zinc-300 transition-colors">
+                                                    Glissez, collez (Ctrl+V) ou{" "}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => fileRef.current?.click()}
+                                                        className="text-amber-400 hover:text-amber-300 font-medium hover:underline focus:outline-none"
+                                                    >
+                                                        cliquez ici
+                                                    </button>
+                                                </p>
+                                                <p className="text-[10px] text-zinc-600 mt-1">JPEG · PNG · WebP · max 10MB</p>
+                                            </div>
                                         </div>
                                     )}
                                     <input
@@ -272,7 +305,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                         type="file"
                                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                                         className="hidden"
-                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
                                     />
 
                                     <Button

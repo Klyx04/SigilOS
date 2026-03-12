@@ -343,172 +343,213 @@ export function MetamobLink({
                                         Connecter Metamob
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Lier votre compte Metamob</DialogTitle>
-                                        <DialogDescription>
+                                <DialogContent className="sm:max-w-2xl bg-zinc-950 border-white/10 shadow-2xl overflow-hidden p-0 gap-0">
+                                    <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none -ml-32 -mt-32" />
+                                    
+                                    <DialogHeader className="p-8 border-b border-white/5 relative z-10">
+                                        <DialogTitle className="text-2xl font-black text-white flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/20">
+                                                <Link2 className="h-6 w-6" />
+                                            </div>
+                                            Lier votre compte Metamob
+                                        </DialogTitle>
+                                        <DialogDescription className="text-base text-zinc-400 mt-2">
                                             {linkStep === 1
-                                                ? "Entrez votre pseudo Metamob pour synchroniser votre quête Ocre."
-                                                : "Votre clé API personnelle est nécessaire pour accéder à vos données."}
+                                                ? "Entrez votre pseudo Metamob pour commencer la synchronisation."
+                                                : "Votre clé API personnelle (V2) est indispensable pour accéder à vos données privées."}
                                         </DialogDescription>
                                     </DialogHeader>
 
-                                    {/* Step indicator */}
-                                    <div className="flex items-center gap-2 py-2">
-                                        <div className={cn("flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full transition-all", linkStep === 1 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30")}>
-                                            {linkStep === 1 ? "1" : <CheckCircle2 className="w-3 h-3" />}
-                                            <span>Pseudo</span>
-                                        </div>
-                                        <div className="h-px flex-1 bg-white/10" />
-                                        <div className={cn("flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full transition-all", linkStep === 2 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-zinc-800 text-zinc-500 border border-white/5")}>
-                                            2
-                                            <span>Clé API</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4 py-2">
-                                        {linkStep === 1 ? (
-                                            /* STEP 1: Pseudo */
-                                            <div className="space-y-3">
-                                                <div className="space-y-2">
-                                                    <label htmlFor="metamob-pseudo" className="text-sm font-medium block">
-                                                        Pseudo Metamob
-                                                    </label>
-                                                    <Input
-                                                        id="metamob-pseudo"
-                                                        placeholder="MonPseudo"
-                                                        value={inputPseudo}
-                                                        onChange={(e) => {
-                                                            setInputPseudo(e.target.value);
-                                                            setLinkError(null);
-                                                            setForceLink(false);
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter" && inputPseudo.trim()) {
-                                                                setLinkStep(2);
-                                                            }
-                                                        }}
-                                                        className="bg-zinc-950 border-zinc-800"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                {/* URL preview */}
-                                                {inputPseudo.trim() && (
-                                                    <div className="flex items-center gap-2 p-2 bg-zinc-900/50 rounded-lg border border-white/5 text-xs text-zinc-500">
-                                                        <ExternalLink className="w-3 h-3 shrink-0" />
-                                                        <span>metamob.fr/profile/<b className="text-amber-400">{inputPseudo.trim()}</b></span>
-                                                    </div>
-                                                )}
-                                                <p className="text-[10px] text-zinc-500">
-                                                    Pas de compte ? <a href="https://www.metamob.fr/register" target="_blank" className="text-amber-500 hover:underline">Créez-en un sur Metamob.fr</a>
-                                                </p>
+                                    <div className="p-8 space-y-8 relative z-10">
+                                        {/* Step indicator */}
+                                        <div className="flex items-center gap-4">
+                                            <div className={cn("flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.2em] px-4 py-2 rounded-xl transition-all", linkStep === 1 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_-5px_rgba(245,158,11,0.5)]" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30")}>
+                                                {linkStep === 1 ? <span className="w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold">1</span> : <CheckCircle2 className="w-5 h-5" />}
+                                                <span>Pseudo</span>
                                             </div>
-                                        ) : (
-                                            /* STEP 2: API Key (Required) */
-                                            <div className="space-y-3">
-                                                <div className="p-2.5 bg-emerald-500/5 rounded-lg border border-emerald-500/10 text-xs text-emerald-400 flex items-center gap-2">
-                                                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                                    <span>Pseudo : <b>{inputPseudo}</b></span>
-                                                    <Button variant="ghost" size="sm" className="h-5 ml-auto text-[10px] px-1.5 text-zinc-500 hover:text-white" onClick={() => setLinkStep(1)}>
-                                                        Modifier
-                                                    </Button>
-                                                </div>
+                                            <div className="h-0.5 flex-1 bg-gradient-to-r from-amber-500/20 to-zinc-800" />
+                                            <div className={cn("flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.2em] px-4 py-2 rounded-xl transition-all", linkStep === 2 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_-5px_rgba(245,158,11,0.5)]" : "bg-zinc-900 text-zinc-600 border border-white/5")}>
+                                                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-bold", linkStep === 2 ? "bg-amber-500 text-black" : "bg-zinc-800")}>2</span>
+                                                <span>Clé API</span>
+                                            </div>
+                                        </div>
 
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <label htmlFor="metamob-key" className="text-sm font-medium flex items-center gap-1.5">
-                                                            Clé API
-                                                            <span className="text-[9px] font-normal text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full border border-red-500/20">Requis</span>
+                                        <div className="space-y-6">
+                                            {linkStep === 1 ? (
+                                                /* STEP 1: Pseudo */
+                                                <div className="space-y-5">
+                                                    <div className="space-y-3">
+                                                        <label htmlFor="metamob-pseudo" className="text-base font-bold text-zinc-200 block ml-1">
+                                                            Pseudo Metamob
                                                         </label>
-                                                        <a
-                                                            href="https://www.metamob.fr/settings#api"
-                                                            target="_blank"
-                                                            className="text-[10px] text-amber-500 hover:underline flex items-center gap-1"
-                                                        >
-                                                            Où la trouver ? <ExternalLink className="h-3 w-3" />
-                                                        </a>
+                                                        <Input
+                                                            id="metamob-pseudo"
+                                                            placeholder="Ex: MonPseudo"
+                                                            value={inputPseudo}
+                                                            onChange={(e) => {
+                                                                setInputPseudo(e.target.value);
+                                                                setLinkError(null);
+                                                                setForceLink(false);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter" && inputPseudo.trim()) {
+                                                                    setLinkStep(2);
+                                                                }
+                                                            }}
+                                                            className="h-14 bg-zinc-900/50 border-zinc-800 text-lg font-medium px-4 focus:ring-amber-500/20"
+                                                            autoFocus
+                                                        />
                                                     </div>
-                                                    <Input
-                                                        id="metamob-key"
-                                                        type="password"
-                                                        placeholder="Collez votre clé API ici..."
-                                                        value={inputApiKey}
-                                                        onChange={(e) => setInputApiKey(e.target.value)}
-                                                        className="bg-zinc-950 border-zinc-800"
-                                                    />
+                                                    
+                                                    {inputPseudo.trim() && (
+                                                        <div className="flex items-center gap-3 p-4 bg-amber-500/5 rounded-2xl border border-amber-500/10 text-sm text-zinc-400">
+                                                            <ExternalLink className="w-4 h-4 text-amber-500 shrink-0" />
+                                                            <span>Votre profil : <b className="text-zinc-100 font-bold">metamob.fr/profile/{inputPseudo.trim()}</b></span>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <p className="text-xs text-zinc-500 ml-1">
+                                                        Pas de compte ? <a href="https://www.metamob.fr/register" target="_blank" className="text-amber-500 font-bold hover:underline">Inscrivez-vous sur Metamob.fr</a>
+                                                    </p>
                                                 </div>
-
-                                                <div className="p-2.5 bg-amber-500/5 rounded-lg border border-amber-500/10 text-[10px] text-zinc-500 space-y-1">
-                                                    <p><b className="text-amber-400">Comment l&apos;obtenir ?</b></p>
-                                                    <p>1. Allez sur <a href="https://www.metamob.fr/settings#api" target="_blank" className="text-amber-500 hover:underline">Metamob.fr → Paramètres → API</a></p>
-                                                    <p>2. Cliquez sur &quot;Créer une clé API&quot; (ou copiez celle existante)</p>
-                                                    <p>3. Collez-la ci-dessus</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {linkError && (
-                                            <div className="space-y-3">
-                                                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm border border-red-500/20">
-                                                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                                    <div className="space-y-3 flex-1">
-                                                        <span>{linkError}</span>
-                                                    </div>
-                                                </div>
-
-                                                {linkError.toLowerCase().includes("déjà lié") && !isAdmin && (
-                                                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-400">
-                                                        <p className="font-semibold mb-1 flex items-center gap-2">
-                                                            <ShieldCheck className="h-3.5 w-3.5" />
-                                                            Sécurité
-                                                        </p>
-                                                        <p className="opacity-90">
-                                                            Ce compte Metamob semble déjà lié à un autre membre.
-                                                            <br />Demandez à un <b>Admin</b> de débloquer la situation.
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {forceLink && isAdmin && (
-                                                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg animate-in fade-in slide-in-from-top-2">
-                                                        <h4 className="text-sm font-bold text-amber-500 mb-1 flex items-center gap-2">
-                                                            <ShieldCheck className="h-4 w-4" />
-                                                            Mode Admin
-                                                        </h4>
-                                                        <p className="text-xs text-zinc-400 mb-3">
-                                                            Compte déjà utilisé. Forcer la liaison déconnectera l&apos;ancien propriétaire.
-                                                        </p>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            onClick={() => handleLink(true)}
-                                                            disabled={isLinking}
-                                                            className="w-full"
-                                                        >
-                                                            {isLinking && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
-                                                            <Unlink className="h-3.5 w-3.5 mr-2" />
-                                                            Forcer la liaison
+                                            ) : (
+                                                /* STEP 2: API Key (Required) */
+                                                <div className="space-y-6">
+                                                    <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 flex items-center gap-4 group">
+                                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/20 shrink-0">
+                                                            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60 leading-none mb-1">Cible</span>
+                                                            <span className="text-lg font-black text-white">{inputPseudo}</span>
+                                                        </div>
+                                                        <Button variant="ghost" size="sm" className="h-10 ml-auto px-4 bg-zinc-900/50 border border-white/5 text-zinc-400 hover:text-white" onClick={() => setLinkStep(1)}>
+                                                            Modifier
                                                         </Button>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
+
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between ml-1">
+                                                            <label htmlFor="metamob-key" className="text-base font-bold text-zinc-200 flex items-center gap-2">
+                                                                Clé API
+                                                                <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-400 bg-red-500/10 uppercase tracking-tighter h-5">Requis</Badge>
+                                                            </label>
+                                                            <a
+                                                                href="https://www.metamob.fr/settings#api"
+                                                                target="_blank"
+                                                                className="text-xs text-amber-500 font-bold hover:underline flex items-center gap-1.5"
+                                                            >
+                                                                Récupérer ma clé <ExternalLink className="h-3.5 w-3.5" />
+                                                            </a>
+                                                        </div>
+                                                        <Input
+                                                            id="metamob-key"
+                                                            type="password"
+                                                            placeholder="Ex: 8a7f...d2c1 (64 caractères)"
+                                                            value={inputApiKey}
+                                                            onChange={(e) => setInputApiKey(e.target.value)}
+                                                            className="h-14 bg-zinc-900/50 border-zinc-800 text-lg font-mono focus:ring-amber-500/20"
+                                                        />
+                                                    </div>
+
+                                                    <div className="p-5 bg-zinc-900/80 rounded-2xl border border-white/5 space-y-3 shadow-inner">
+                                                        <p className="text-sm font-black text-amber-500 flex items-center gap-2">
+                                                            <Settings className="w-4 h-4" />
+                                                            GUIDE D’INSTALLATION
+                                                        </p>
+                                                        <ul className="space-y-2.5">
+                                                            <li className="flex items-start gap-3 text-xs text-zinc-400">
+                                                                <span className="w-5 h-5 rounded-full bg-zinc-800 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">1</span>
+                                                                <span>Allez dans <a href="https://www.metamob.fr/settings#api" target="_blank" className="text-amber-500 font-bold hover:underline">Paramètres → API</a></span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3 text-xs text-zinc-400">
+                                                                <span className="w-5 h-5 rounded-full bg-zinc-800 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">2</span>
+                                                                <span>Copiez la <b>Clé API V2</b> (elle fait 64 caractères)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3 text-xs text-zinc-400">
+                                                                <span className="w-5 h-5 rounded-full bg-zinc-800 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">3</span>
+                                                                <span>Collez-la dans le champ ci-dessus pour finaliser</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {linkError && (
+                                                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                                    <div className="flex items-start gap-4 p-5 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 shadow-lg shadow-red-950/20">
+                                                        <AlertCircle className="h-6 w-6 shrink-0 mt-0.5" />
+                                                        <div className="space-y-4 flex-1">
+                                                            <p className="text-base font-bold leading-tight">{linkError}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {linkError.toLowerCase().includes("déjà lié") && !isAdmin && (
+                                                        <div className="mt-4 p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                                                            <p className="font-black text-sm text-blue-400 mb-2 flex items-center gap-2">
+                                                                <ShieldCheck className="h-4 w-4" />
+                                                                PROTECTION DE COMPTE
+                                                            </p>
+                                                            <p className="text-sm text-zinc-400 leading-relaxed">
+                                                                Ce compte Metamob est déjà associé à un autre membre. 
+                                                                Si vous avez changé de compte Discord, contactez un <b>Administrateur</b>.
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {forceLink && isAdmin && (
+                                                        <div className="mt-4 p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl shadow-xl">
+                                                            <h4 className="text-sm font-black text-amber-500 mb-2 flex items-center gap-2">
+                                                                <ShieldCheck className="h-4 w-4" />
+                                                                MODÉRATEUR : ACTION FORCÉE
+                                                            </h4>
+                                                            <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
+                                                                Vous pouvez écraser la liaison existante. L&apos;ancien utilisateur perdra son accès immédiat.
+                                                            </p>
+                                                            <Button
+                                                                size="lg"
+                                                                variant="destructive"
+                                                                onClick={() => handleLink(true)}
+                                                                disabled={isLinking}
+                                                                className="w-full h-12 font-black uppercase tracking-widest text-[10px]"
+                                                            >
+                                                                {isLinking && <Loader2 className="h-4 w-4 mr-3 animate-spin" />}
+                                                                Forcer le transfert de propriété
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <DialogFooter>
+                                    <DialogFooter className="p-8 bg-zinc-900/30 border-t border-white/5 relative z-10 flex flex-col sm:flex-row gap-3">
                                         {linkStep === 1 ? (
-                                            <Button onClick={() => setLinkStep(2)} disabled={!inputPseudo.trim()}>
-                                                Continuer
+                                            <Button 
+                                                onClick={() => setLinkStep(2)} 
+                                                disabled={!inputPseudo.trim()}
+                                                className="w-full sm:w-auto px-10 h-12 bg-zinc-100 text-zinc-950 hover:bg-white font-black uppercase tracking-widest text-[10px]"
+                                            >
+                                                Étape suivante
+                                                <ArrowRightLeft className="w-4 h-4 ml-3" />
                                             </Button>
                                         ) : (
-                                            <div className="flex gap-2 w-full">
-                                                <Button variant="ghost" onClick={() => setLinkStep(1)} className="flex-1">
+                                            <div className="flex gap-3 w-full">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    onClick={() => setLinkStep(1)} 
+                                                    className="flex-1 h-12 border border-white/5 hover:bg-white/5 text-zinc-400 font-bold"
+                                                >
                                                     Retour
                                                 </Button>
                                                 {!forceLink && (
-                                                    <Button onClick={() => handleLink(false)} disabled={isLinking || !inputPseudo.trim() || !inputApiKey.trim()} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white">
-                                                        {isLinking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                                        Vérifier & Lier
+                                                    <Button 
+                                                        onClick={() => handleLink(false)} 
+                                                        disabled={isLinking || !inputPseudo.trim() || !inputApiKey.trim()} 
+                                                        className="flex-[2] h-12 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] shadow-xl shadow-amber-900/30"
+                                                    >
+                                                        {isLinking ? <Loader2 className="h-4 w-4 mr-3 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-3" />}
+                                                        Vérifier & Lier le compte
                                                     </Button>
                                                 )}
                                             </div>

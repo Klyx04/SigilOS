@@ -210,21 +210,15 @@ export async function linkOcreAccount(
             return { success: false, error: "Profil introuvable" };
         }
 
-        // Get guild's API key (fallback if user doesn't provide one)
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { metamobApiKey: true },
-        });
-
         // Determine which key to use for verification
-        const keyToUse = apiKey || decrypt(guildConfig?.metamobApiKey);
+        const keyToUse = apiKey;
 
         if (!keyToUse) {
             return {
                 success: false,
                 error: (apiKey)
                     ? "Clé API invalide."
-                    : "Aucune clé API configurée (ni perso, ni guilde). Entrez votre clé API personnelle."
+                    : "Votre compte Metamob semble privé ou vous n'avez pas renseigné de clé API. Liez votre compte avec votre clé personnelle."
             };
         }
 
@@ -349,10 +343,15 @@ export async function linkOcreAccount(
                     data: { pseudoDofus: metamobCharName.trim() },
                 });
             } else if (normalizedMetamobChar !== userPseudoDofus) {
-                return {
-                    success: false,
-                    error: `Le personnage Metamob "${metamobCharName}" ne correspond pas à votre pseudo Dofus "${profile.pseudoDofus}".`
-                };
+                // If the user provided an API key, we trust ownership but log the discrepancy
+                if (apiKey) {
+                    console.warn(`[linkOcreAccount] Character name mismatch for user ${effectiveUserId}: Metamob="${metamobCharName}", Dofus="${profile.pseudoDofus}". Linking anyway because API key was provided.`);
+                } else {
+                    return {
+                        success: false,
+                        error: `Le personnage Metamob "${metamobCharName}" ne correspond pas à votre pseudo Dofus "${profile.pseudoDofus}". Utilisez votre clé API personnelle pour valider l'identité.`
+                    };
+                }
             }
         }
 
@@ -504,7 +503,6 @@ export async function getMyOcreProgress(
                     metamobServerId: true,
                     metamobVerified: true,
                     metamobLastSync: true,
-                    guild: { select: { metamobApiKey: true } },
                 },
             });
 
@@ -514,7 +512,7 @@ export async function getMyOcreProgress(
 
             const safePseudo = profile.metamobPseudo;
             let questSlug = profile.metamobQuestSlug;
-            const effectiveApiKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild?.metamobApiKey);
+            const effectiveApiKey = profile.metamobApiKey;
 
             // Auto-discover quest if missing
             if (!questSlug) {
@@ -597,6 +595,9 @@ export async function getMyOcreProgress(
                 const userMonster = userMap.get(templateMonster.id);
                 const normalized = normalizeQuestMonster(userMonster || templateMonster, PQ);
                 if (!userMonster) { normalized.owned = PQ; normalized.state = "POSSEDE"; }
+
+                // [SigilOS V3] Filter out normal monsters - Dofus removed them from the quest
+                if (normalized.type === "monstre") continue;
 
                 // Map the zone we just fetched
                 const mappedZone = monsterZoneMap.get(normalized.id);
@@ -770,11 +771,7 @@ export async function findMonsterOwnersAction(
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
         if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { metamobApiKey: true }
-        });
-        const guildApiKey = decrypt(guildConfig?.metamobApiKey) || undefined;
+        const guildApiKey = undefined; // Deprecated guild key
 
         // Get guild members with linked Metamob
         const members = await db.userProfile.findMany({
@@ -892,7 +889,6 @@ export async function getProfileMatchingArchis(
         const [me, target] = await Promise.all([
             db.userProfile.findFirst({
                 where: { userId: session.user.id, guild: { discordGuildId: guildId } },
-                include: { guild: { select: { metamobApiKey: true } } }
             }),
             db.userProfile.findFirst({
                 where: {
@@ -906,7 +902,7 @@ export async function getProfileMatchingArchis(
         if (!me?.metamobPseudo || !me.metamobVerified) return { success: false, error: "Votre compte Metamob n'est pas lié" };
         if (!target?.metamobPseudo || !target.metamobVerified) return { success: false, error: "Le membre n'a pas lié Metamob" };
 
-        const guildApiKey = decrypt(me.guild?.metamobApiKey) || undefined;
+        const guildApiKey = undefined;
 
         // 2. Get My Progress (to know what I need)
         const myProgress = await getMyOcreProgress(guildId);
@@ -932,6 +928,12 @@ export async function getProfileMatchingArchis(
         const pq = targetQuest.parallel_quests || 1;
 
         for (const m of targetQuest.monsters) {
+            // [SigilOS V3] Filter out normal monsters
+            const typeName = m.type?.name?.fr?.toLowerCase() || "";
+            if (!typeName.includes("archimonstre") && !typeName.includes("gardien") && !typeName.includes("boss")) {
+                continue;
+            }
+
             // @ts-ignore
             const owned = m.owned ?? m.quantite ?? m.amount ?? m.quantity ?? 0;
             // @ts-ignore
@@ -1017,11 +1019,7 @@ export async function getGuildExchangeMap(
 
         // Build map by fetching each member's doublons
         const availableExchanges: Record<number, number> = {};
-        const guildConfig = await db.guildConfig.findFirst({
-            where: { discordGuildId: guildId },
-            select: { metamobApiKey: true },
-        });
-        const guildApiKey = decrypt(guildConfig?.metamobApiKey) || undefined;
+        const guildApiKey = undefined;
 
         // Parallel fetch with limit
         const batchSize = 4; // Lower concurrency for heavier "all" queries
@@ -1031,7 +1029,7 @@ export async function getGuildExchangeMap(
                 if (!member.metamobPseudo || !member.metamobQuestSlug) return;
 
                 try {
-                    const effectiveKey = decrypt(member.metamobApiKey) || guildApiKey;
+                    const effectiveKey = member.metamobApiKey || guildApiKey;
 
                     // Fetch first page to get total and parallel quests
                     // Short cache (5min) for the map to stay relatively fresh vs external updates
@@ -1046,6 +1044,12 @@ export async function getGuildExchangeMap(
 
                     // Process first page
                     for (const monster of allMonsters) {
+                        // [SigilOS V3] Filter out normal monsters
+                        const typeName = monster.type?.name?.fr?.toLowerCase() || "";
+                        if (!typeName.includes("archimonstre") && !typeName.includes("gardien") && !typeName.includes("boss")) {
+                            continue;
+                        }
+
                         const owned = monster.owned ?? 0;
                         if (owned > pq) {
                             availableExchanges[monster.id] = (availableExchanges[monster.id] || 0) + 1;
@@ -1062,6 +1066,12 @@ export async function getGuildExchangeMap(
                         );
 
                         for (const monster of nextPage.monsters) {
+                            // [SigilOS V3] Filter out normal monsters
+                            const typeName = monster.type?.name?.fr?.toLowerCase() || "";
+                            if (!typeName.includes("archimonstre") && !typeName.includes("gardien") && !typeName.includes("boss")) {
+                                continue;
+                            }
+
                             const owned = monster.owned ?? 0;
                             if (owned > pq) {
                                 availableExchanges[monster.id] = (availableExchanges[monster.id] || 0) + 1;
@@ -1122,10 +1132,10 @@ export async function getGuildKralamoureEvents(
             select: { metamobApiKey: true, metamobServerId: true }
         });
 
-        // PRIORITY 2: Guild's global key & default server (Mapping Dofus ID -> Metamob ID)
+        // PRIORITY 2: Default server (Mapping Dofus ID -> Metamob ID)
         const guildConfig = await db.guildConfig.findFirst({
             where: { discordGuildId: guildId },
-            select: { metamobApiKey: true, dofusServerId: true },
+            select: { dofusServerId: true },
         });
 
         const guildDefaultServerId = guildConfig?.dofusServerId ? DOFUS_TO_METAMOB_SERVER[guildConfig.dofusServerId] : undefined;
@@ -1143,9 +1153,8 @@ export async function getGuildKralamoureEvents(
         });
 
         const guildApiKey =
-            decrypt(currentUser?.metamobApiKey) ||
-            decrypt(guildConfig?.metamobApiKey) ||
-            decrypt(memberWithServer?.metamobApiKey) ||
+            currentUser?.metamobApiKey ||
+            memberWithServer?.metamobApiKey ||
             undefined;
 
         const serverId = currentUser?.metamobServerId || guildDefaultServerId || memberWithServer?.metamobServerId || undefined;
@@ -1189,12 +1198,7 @@ export async function getOcreZones(
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
         if (!guard.allowed) return { success: true, data: [] }; // Silent fail for common data
 
-        const guildConfig = await db.guildConfig.findFirst({
-            where: { discordGuildId: guildId },
-            select: { metamobApiKey: true },
-        });
-
-        const guildApiKey = decrypt(guildConfig?.metamobApiKey) || undefined;
+        const guildApiKey = undefined;
         const zones = await getZones({ guildApiKey });
 
         return { success: true, data: zones };
@@ -1238,7 +1242,6 @@ export async function refreshOcreCache(
                 metamobPseudo: true,
                 metamobApiKey: true, // Fetch user key
                 metamobQuestSlug: true,
-                guild: { select: { metamobApiKey: true } },
             },
         });
 
@@ -1246,8 +1249,8 @@ export async function refreshOcreCache(
             return { success: false, error: "Aucun compte Metamob lié" };
         }
 
-        // Prefer User Key over Guild Key
-        const guildApiKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild?.metamobApiKey) || undefined;
+        // Use User Key
+        const guildApiKey = profile.metamobApiKey || undefined;
 
         // Clear cache for this user first
         clearCache(profile.metamobPseudo.toLowerCase());
@@ -1350,7 +1353,6 @@ export async function forceRefreshOcre(
                 metamobPseudo: true,
                 metamobQuestSlug: true,
                 metamobApiKey: true,
-                guild: { select: { metamobApiKey: true } }
             },
         });
 
@@ -1369,7 +1371,7 @@ export async function forceRefreshOcre(
 
         // 2. Fetch fresh data from Metamob API to verify it works (and detect quest changes)
         // We force skipCache: true
-        const effectiveKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild?.metamobApiKey);
+        const effectiveKey = profile.metamobApiKey;
 
         let questUpdated = false;
 
@@ -1440,12 +1442,12 @@ export async function getAvailableOcreQuests(guildId: string, targetUserId?: str
                 userId: effectiveUserId,
                 guild: { discordGuildId: guildId },
             },
-            select: { metamobPseudo: true, metamobApiKey: true, guild: { select: { metamobApiKey: true } } }
+            select: { metamobPseudo: true, metamobApiKey: true }
         });
 
         if (!profile?.metamobPseudo) return { success: false, error: "Compte non lié" };
 
-        const effectiveKey = decrypt(profile.metamobApiKey) || decrypt(profile.guild.metamobApiKey);
+        const effectiveKey = profile.metamobApiKey || undefined;
 
         // Always skip cache to get latest list
         const quests = await getUserQuests(profile.metamobPseudo, {
@@ -1477,13 +1479,13 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
                 guild: { discordGuildId: guildId },
                 status: "ACTIVE",
             },
-            select: { id: true, metamobPseudo: true, metamobQuestSlug: true, metamobApiKey: true, guild: { select: { metamobApiKey: true } } },
+            select: { id: true, metamobPseudo: true, metamobQuestSlug: true, metamobApiKey: true },
         });
 
         if (!member) return { success: false, error: "Profil introuvable" };
         if (!member.metamobPseudo) return { success: false, error: "Compte Metamob non lié" };
 
-        const effectiveKey = decrypt(member.metamobApiKey) || decrypt(member.guild.metamobApiKey);
+        const effectiveKey = member.metamobApiKey || undefined;
 
         // Verify the quest exists and belongs to user
         const quests = await getUserQuests(member.metamobPseudo, {
@@ -1680,6 +1682,8 @@ export async function createTradeRequest(
                 requesterId: requesterProfile.id,
                 targetId: targetProfile.id,
                 monsterId,
+                monsterName: clientMonsterName || null,
+                monsterImageUrl: clientMonsterImage || null,
                 message,
                 status: "PENDING"
             }
@@ -1739,6 +1743,15 @@ export async function createTradeRequest(
 
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+        
+        // Trigger live update via socket for responsiveness
+        try {
+            const redis = (await import("@/lib/redis")).default;
+            await redis.publish("ocre:trade:update", JSON.stringify({ guildId, type: "NEW_REQUEST", monsterId }));
+        } catch (e) {
+            console.error("Failed to publish ocre trade update:", e);
+        }
+
         return { success: true };
     } catch (error: any) {
         console.error("[createTradeRequest] Detailed Error:", error);
@@ -1777,6 +1790,13 @@ export async function rejectTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        // Trigger live update via socket
+        try {
+            const redis = (await import("@/lib/redis")).default;
+            await redis.publish("ocre:trade:update", JSON.stringify({ guildId, type: "REJECTED", requestId }));
+        } catch (e) { }
+
         return { success: true };
     } catch (error) {
         console.error("[rejectTradeRequest] Error:", error);
@@ -1810,6 +1830,13 @@ export async function cancelTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        // Trigger live update via socket
+        try {
+            const redis = (await import("@/lib/redis")).default;
+            await redis.publish("ocre:trade:update", JSON.stringify({ guildId, type: "CANCELED", requestId }));
+        } catch (e) { }
+
         return { success: true };
     } catch (error) {
         console.error("[cancelTradeRequest] Error:", error);
@@ -1908,6 +1935,13 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
         }
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        // Trigger live update via socket
+        try {
+            const redis = (await import("@/lib/redis")).default;
+            await redis.publish("ocre:trade:update", JSON.stringify({ guildId, type: "ACCEPTED", requestId }));
+        } catch (e) { }
+
         return { success: true };
     } catch (error) {
         console.error("[acceptTradeRequest] Error:", error);
@@ -1929,13 +1963,13 @@ export async function getPendingTradeRequests(guildId: string): Promise<ActionRe
 
         if (!userProfile) return { success: false, error: "Profil introuvable" };
 
-        const incoming = await (db as any).ocreTradeRequest.findMany({
+        const incomingRaw = await (db as any).ocreTradeRequest.findMany({
             where: { targetId: userProfile.id, status: "PENDING" },
             include: { requester: { select: { discordNickname: true, metamobPseudo: true, user: { select: { name: true, image: true } } } } },
             orderBy: { createdAt: "desc" }
         });
 
-        const outgoing = await (db as any).ocreTradeRequest.findMany({
+        const outgoingRaw = await (db as any).ocreTradeRequest.findMany({
             where: { requesterId: userProfile.id, status: "PENDING" },
             include: { target: { select: { discordNickname: true, metamobPseudo: true, user: { select: { name: true, image: true } } } } },
             orderBy: { createdAt: "desc" }
@@ -1944,23 +1978,82 @@ export async function getPendingTradeRequests(guildId: string): Promise<ActionRe
         const { getMonster } = await import("@/lib/metamob-client");
         const enrichRequests = async (reqs: any[]) => {
             return Promise.all(reqs.map(async (req) => {
-                let monsterName = `Monstre #${req.monsterId}`;
-                let monsterImageUrl = "";
+                // Determine if we need to fetch info
+                const isPlaceholder = !req.monsterName || req.monsterName.includes("#");
+                const hasImage = !!req.monsterImageUrl;
+
+                // Return immediately if enrichment already happened accurately
+                if (!isPlaceholder && hasImage) {
+                    return req;
+                }
+
+                let monsterName = req.monsterName || `Monstre #${req.monsterId}`;
+                let monsterImageUrl = req.monsterImageUrl || "";
+                
                 try {
                     const m = await getMonster(req.monsterId);
-                    monsterName = m.name?.fr || monsterName;
-                    monsterImageUrl = m.image ? (m.image.startsWith('http') ? m.image : `https://www.metamob.fr/img/monsters/${m.image}`) : "";
-                } catch (e) { }
+                    if (m && m.name) {
+                        monsterName = m.name.fr || m.name.en || monsterName;
+                        monsterImageUrl = m.image ? (m.image.startsWith('http') ? m.image : `https://www.metamob.fr/img/monsters/${m.image}`) : monsterImageUrl;
+                        
+                        // Background update: fill missing info in DB to avoid future API calls
+                        (db as any).ocreTradeRequest.update({
+                            where: { id: req.id },
+                            data: { monsterName, monsterImageUrl }
+                        }).catch(() => {}); // Fire and forget
+                    }
+                } catch (e) {
+                    console.error(`[getPendingTradeRequests] Failed to enrich monster ${req.monsterId}:`, e);
+                }
+
                 return { ...req, monsterName, monsterImageUrl };
             }));
         };
 
-        const enrichedIncoming = await enrichRequests(incoming);
-        const enrichedOutgoing = await enrichRequests(outgoing);
+        const [incoming, outgoing] = await Promise.all([
+            enrichRequests(incomingRaw),
+            enrichRequests(outgoingRaw)
+        ]);
 
-        return { success: true, data: { incoming: enrichedIncoming, outgoing: enrichedOutgoing } };
+        return { success: true, data: { incoming, outgoing } };
     } catch (error) {
         console.error("[getPendingTradeRequests] Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/** Get archmonsters for a specific zone from the user's Metamob progress */
+export async function getZoneArchmonsters(guildId: string, zoneName: string): Promise<ActionResponse<OcreMonster[]>> {
+    try {
+        const res = await getMyOcreProgress(guildId);
+        if (!res.success || !res.data) {
+            return { success: false, error: res.error || "Impossible de récupérer la progression Ocre" };
+        }
+
+        const normalizedZone = zoneName.toLowerCase().trim();
+        
+        // Filter archmonsters that match the zone or subzone name
+        // Improved matching to check both directions and handle specific cases
+        const zoneArchis = res.data.monsters.filter(m => 
+            m.type === "archimonstre" && 
+            (
+                (m.zone && normalizedZone.includes(m.zone.toLowerCase())) || 
+                (m.subzone && normalizedZone.includes(m.subzone.toLowerCase())) ||
+                (m.zone && m.zone.toLowerCase().includes(normalizedZone)) ||
+                (m.subzone && m.subzone.toLowerCase().includes(normalizedZone))
+            )
+        );
+
+        // Sort: Missing first, then by name
+        const sorted = zoneArchis.sort((a, b) => {
+            if (a.state === "MANQUANT" && b.state !== "MANQUANT") return -1;
+            if (a.state !== "MANQUANT" && b.state === "MANQUANT") return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        return { success: true, data: sorted };
+    } catch (error) {
+        console.error("[getZoneArchmonsters] Error:", error);
+        return { success: false, error: "Erreur lors du filtrage des archimonstres" };
     }
 }

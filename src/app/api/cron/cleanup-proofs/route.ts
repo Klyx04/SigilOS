@@ -4,6 +4,7 @@ import { unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { sendChannelMessage } from "@/server/discord";
+import { logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // CLEANUP: supprime les screenshots de preuve
@@ -79,13 +80,13 @@ export async function POST(request: NextRequest) {
     // Security: validate cron secret
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
-        console.error("[cleanup-proofs] CRON_SECRET not configured");
+        logger.error("[cleanup-proofs] CRON_SECRET not configured");
         return NextResponse.json({ error: "Not configured" }, { status: 500 });
     }
 
     const authHeader = request.headers.get("authorization");
     if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-        console.warn("[cleanup-proofs] Unauthorized cron attempt");
+        logger.warn("[cleanup-proofs] Unauthorized cron attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -449,6 +450,6 @@ export async function POST(request: NextRequest) {
         }
     } catch (err) { stats.errors.push(`Achievement submissions batch error: ${err}`); }
 
-    console.log("[cleanup-proofs] Done:", { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
+    logger.info("[cleanup-proofs] Done", { stats: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats } });
     return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
 }

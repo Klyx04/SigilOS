@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { DOFUS_CLASSES, DOFUS_JOBS } from "@/lib/dofus-data";
 import { Loader2, Save, User as UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatDofusPseudo } from "@/lib/utils";
 
 interface ExtendedProfile extends UserProfile {
     user: { name: string | null; image: string | null };
@@ -123,7 +124,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                         <Label>Pseudo en jeu (Obligatoire)</Label>
                         <Input
                             value={pseudo}
-                            onChange={(e) => setPseudo(e.target.value)}
+                            onChange={(e) => setPseudo(formatDofusPseudo(e.target.value))}
                             placeholder="Ex: Dark-Sasuké"
                             className="bg-zinc-950/50 border-white/10 focus:border-primary/50"
                         />

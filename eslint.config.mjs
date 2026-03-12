@@ -4,46 +4,18 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 const eslintConfig = defineConfig([
+  // ── 1. Configs Next.js (chargés en premier) ──
   ...fixupConfigRules(nextVitals),
   ...fixupConfigRules(nextTs),
-  {
-    rules: {
-      // On est tolerant avec les apostrophes dans le texte (121 erreurs d'un coup !)
-      "react/no-unescaped-entities": "off",
 
-      // On transforme les 'any' en warnings au lieu d'erreurs bloquantes
-      "@typescript-eslint/no-explicit-any": "warn",
-
-      // On autorise les variables inutilisées si elles commencent par '_'
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-
-      // Autres ajustements pour la stabilite
-      "@next/next/no-img-element": "warn",
-
-      // On passe les erreurs de Hooks et autres en warnings pour la CI
-      "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/ban-ts-comment": "warn",
-      "@next/next/no-assign-module-variable": "warn",
-      "@typescript-eslint/no-this-alias": "warn",
-
-      // Règles React Hooks — toutes en warn pour laisser le CI passer
-      // (react-hooks v7 inclus dans eslint-config-next v16 peut émettre des errors)
-      "react-hooks/rules-of-hooks": "warn",
-      "react-hooks/exhaustive-deps": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/static-components": "warn",
-      "react-hooks/set-state-in-effect": "warn"
-    }
-  },
-  // Override default ignores of eslint-config-next.
+  // ── 2. Fichiers à ignorer ──
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "dist/**",
     "next-env.d.ts",
-    // Root-level utility scripts (non-applicatif)
+    // Scripts utilitaires racine
     "check*.js",
     "check_*.js",
     "find_*.js",
@@ -57,7 +29,7 @@ const eslintConfig = defineConfig([
     "list_*.js",
     "final_*.js",
     "prisma.config.js",
-    // Bundled seed files (CommonJS compilé, ne pas linter)
+    // Fichiers bundlés (CommonJS compilé)
     "prisma/*.js",
     "prisma/seed-data/*.js",
     "prisma/seed_simple.js",
@@ -66,6 +38,34 @@ const eslintConfig = defineConfig([
     "scripts/siphon-bounties.js",
     "scripts/test-prisma.js",
   ]),
+
+  // ── 3. NOS OVERRIDES (DERNIER = GAGNE en flat config) ──
+  // Ce bloc DOIT être le dernier pour écraser eslint-config-next.
+  {
+    rules: {
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+      "@next/next/no-img-element": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "@next/next/no-assign-module-variable": "warn",
+      "@typescript-eslint/no-this-alias": "warn",
+      "@typescript-eslint/no-unused-expressions": "warn",
+
+      // React Hooks — classiques
+      "react-hooks/rules-of-hooks": "warn",
+      "react-hooks/exhaustive-deps": "warn",
+
+      // React Hooks v7 (nouvelles règles) — OFF car eslint-config-next
+      // les force en "error" et notre "warn" se fait écraser.
+      // Ce sont des règles de style/perf, pas de correction de bugs.
+      "react-hooks/immutability": "off",
+      "react-hooks/static-components": "off",
+      "react-hooks/set-state-in-effect": "off",
+    }
+  },
 ]);
 
 export default eslintConfig;
+

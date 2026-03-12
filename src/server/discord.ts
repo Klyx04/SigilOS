@@ -128,6 +128,19 @@ export async function fetchGuild(guildId: string) {
     };
 }
 
+export async function fetchBotGuilds() {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`https://discord.com/api/v10/users/@me/guilds`, {
+        headers: { Authorization: `Bot ${token}` },
+    });
+
+    if (!res.ok) throw new Error(`Failed to fetch bot guilds: ${res.statusText}`);
+
+    return (await res.json()) as Array<{ id: string; name: string; icon: string | null }>;
+}
+
 export async function fetchGuildMember(guildId: string, userId: string) {
     const cacheKey = `member:${guildId}:${userId}`;
     const cached = getCached<{ user?: { id: string; username: string; global_name?: string }; nick?: string | null; roles: string[]; joined_at?: string } | null>(cacheKey);

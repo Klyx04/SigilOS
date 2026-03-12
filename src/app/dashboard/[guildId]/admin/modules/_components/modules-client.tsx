@@ -25,6 +25,7 @@ import {
     Map,
     Library,
     MessageCircle,
+    Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -138,6 +139,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-indigo-400",
                 bgColor: "bg-indigo-500/10",
                 borderColor: "border-indigo-500/30",
+            },
+            {
+                key: "gartic",
+                label: "Sigil-Phone",
+                description: "Mini-jeu collaboratif de dessin et de devinettes (Gartic Phone) sur le thème de Dofus.",
+                icon: Palette,
+                color: "text-pink-400",
+                bgColor: "bg-pink-500/10",
+                borderColor: "border-pink-500/30",
             },
         ],
     },

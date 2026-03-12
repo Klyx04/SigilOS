@@ -139,6 +139,11 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
         { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
         { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
+        ...(run.scheduledAt ? [{ 
+            name: "📅 Date & Heure", 
+            value: `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`, 
+            inline: false 
+        }] : []),
         ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
         { name: "🎯 Objectifs", value: objectivesStr, inline: false },
         { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },

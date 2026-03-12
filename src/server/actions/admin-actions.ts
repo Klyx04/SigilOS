@@ -240,117 +240,6 @@ export async function updateAbsenceChannel(
     }
 }
 
-// ============================================================================
-// METAMOB / ARCHIMONSTRES CONFIGURATION
-// ============================================================================
-
-export async function getMetamobConfig(guildId: string): Promise<{
-    success: boolean;
-    error?: string;
-    data?: {
-        hasApiKey: boolean;
-        maskedKey: string | null;
-    };
-}> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
-    if (!guard.isAuthorized) return { success: false, error: guard.error };
-
-    try {
-        const config = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { metamobApiKey: true }
-        });
-
-        if (!config) return { success: false, error: "Guilde introuvable" };
-
-        // Mask the key for security (show only last 4 chars)
-        const hasKey = !!config.metamobApiKey;
-        const masked = hasKey && config.metamobApiKey
-            ? `${"•".repeat(Math.max(0, config.metamobApiKey.length - 4))}${config.metamobApiKey.slice(-4)}`
-            : null;
-
-        return {
-            success: true,
-            data: {
-                hasApiKey: hasKey,
-                maskedKey: masked
-            }
-        };
-    } catch (error) {
-        console.error("Get Metamob Config Error:", error);
-        return { success: false, error: "Erreur serveur" };
-    }
-}
-
-export async function updateMetamobApiKey(
-    guildId: string,
-    apiKey: string | null
-): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
-    try {
-        // Security: Verify user is admin of this guild
-        const account = await db.account.findFirst({
-            where: { userId: session.user.id, provider: "discord" },
-            select: { providerAccountId: true }
-        });
-
-        if (!account) return { success: false, error: "No Discord account linked" };
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        // Check admin permission
-        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-        const member = await fetchGuildMember(guildId, account.providerAccountId);
-
-        if (!member) return { success: false, error: "Not a member of this guild" };
-
-        let isAdmin = guildInfo.owner_id === account.providerAccountId;
-
-        if (!isAdmin) {
-            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
-            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
-            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-        }
-
-        if (!isAdmin) {
-            return { success: false, error: "Permission refusée: Admin requis" };
-        }
-
-        // Update API key (trim and validate)
-        const cleanKey = apiKey?.trim() || null;
-
-        if (cleanKey) {
-            if (cleanKey.length !== 64) {
-                return { success: false, error: "La clé API V2 doit contenir exactement 64 caractères" };
-            }
-            if (!/^[a-f0-9]+$/.test(cleanKey)) {
-                return { success: false, error: "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)" };
-            }
-        }
-
-        await db.guildConfig.update({
-            where: { discordGuildId: guildId },
-            data: { metamobApiKey: cleanKey }
-        });
-
-        revalidatePath(`/dashboard/${guildId}/admin/archimonstres`);
-        return { success: true };
-    } catch (error) {
-        console.error("Update Metamob API Key Error:", error);
-        return { success: false, error: "Erreur serveur" };
-    }
-}
 
 // ============================================================================
 // OCRE NOTIFICATION CONFIGURATION
@@ -1067,3 +956,91 @@ export async function getPendingValidationsCount(guildId: string) {
         return { success: false, error: "Server error" };
     }
 }
+
+// ============================================================================
+// SERVICES MAINTENANCE CONFIGURATION
+// ============================================================================
+
+export async function getServicesStatusConfig(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        serviceMarketplaceEnabled: boolean;
+        serviceMarketplaceMessage: string | null;
+        serviceLoansEnabled: boolean;
+        serviceLoansMessage: string | null;
+        serviceVaultEnabled: boolean;
+        serviceVaultMessage: string | null;
+    }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                serviceMarketplaceEnabled: true,
+                serviceMarketplaceMessage: true,
+                serviceLoansEnabled: true,
+                serviceLoansMessage: true,
+                serviceVaultEnabled: true,
+                serviceVaultMessage: true,
+            }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return {
+            success: true,
+            data: {
+                serviceMarketplaceEnabled: config.serviceMarketplaceEnabled,
+                serviceMarketplaceMessage: config.serviceMarketplaceMessage,
+                serviceLoansEnabled: config.serviceLoansEnabled,
+                serviceLoansMessage: config.serviceLoansMessage,
+                serviceVaultEnabled: config.serviceVaultEnabled,
+                serviceVaultMessage: config.serviceVaultMessage,
+            }
+        };
+    } catch (error) {
+        console.error("Get Services Status Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateServicesStatusConfig(
+    guildId: string,
+    data: {
+        serviceMarketplaceEnabled?: boolean;
+        serviceMarketplaceMessage?: string | null;
+        serviceLoansEnabled?: boolean;
+        serviceLoansMessage?: string | null;
+        serviceVaultEnabled?: boolean;
+        serviceVaultMessage?: string | null;
+    }
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: data
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/passages`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Services Status Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

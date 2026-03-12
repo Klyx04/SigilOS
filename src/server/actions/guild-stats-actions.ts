@@ -80,7 +80,9 @@ export interface GuildStats {
     // KPI
     activeMembers: number;
     totalXp: number;
-    totalGuildatons: number;
+    totalGuildatons: number; // Current balance
+    totalGuildatonsEarned: number; // Sum of rewards
+    totalKamasCollected: number; // Sum of kama donations
     totalMissionsValidated: number;
     validationRate: number;
     totalSongesCompleted: number;
@@ -91,6 +93,8 @@ export interface GuildStats {
     weeklyActivity: WeeklyActivity[];
     missionsByCategory: CategoryBreakdown[];
     topValidators: LeaderboardEntry[];
+    topDonors: LeaderboardEntry[];
+    topAchievers: LeaderboardEntry[];
 
     // Sections
     songes: SongesStats;
@@ -134,15 +138,15 @@ export async function getGuildStats(guildId: string): Promise<{
             missionCategories,
             songesAll,
             songesFloorAvg,
-            candidatures,
+            candidaturesByStatus,
             allEvents,
             eventParticipants,
-            helpCredits,
+            helpCreditsAgg,
             contributionAgg,
             ocreAccepted,
             pollsCreated,
             pollVoters,
-            bonuses,
+            bonusesByStatus,
             topXpMember,
             oldestMember,
             loansByStatus,
@@ -151,6 +155,10 @@ export async function getGuildStats(guildId: string): Promise<{
             vaultWithdrawals,
             vaultByProfile,
             vaultTopItem,
+            validatedKamaDonations,
+            validatedMissionsWithRewards,
+            kamaDonorsAgg,
+            topAchieversProfiles,
         ] = await Promise.all([
             db.userProfile.count({
                 where: { guildId: internalGuildId, status: "ACTIVE" },
@@ -266,17 +274,54 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { _count: { itemName: "desc" } },
                 take: 1,
             }),
+            // -- Kama & Guildatons Earned --
+            db.kamaDonation.findMany({
+                where: { guildId: internalGuildId, status: "VALIDATED" },
+                select: { amount: true },
+            }),
+            db.submission.findMany({
+                where: { mission: { guildId: internalGuildId }, status: "VALIDATED" },
+                select: { mission: { select: { guildatonsReward: true } } },
+            }),
+            // -- Top Leaders --
+            db.kamaDonation.groupBy({
+                by: ["profileId"],
+                where: { guildId: internalGuildId, status: "VALIDATED" },
+                _sum: { amount: true },
+                orderBy: { _sum: { amount: "desc" } },
+                take: 5,
+            }),
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId, status: "ACTIVE", successPoints: { gt: 0 } },
+                orderBy: { successPoints: "desc" },
+                take: 5,
+                select: { id: true, discordNickname: true, pseudoDofus: true, successPoints: true, user: { select: { name: true } } },
+            }),
         ]);
 
         // ===== PROCESS RESULTS =====
 
-        const validationRate = totalSubmissions > 0
-            ? Math.round((validatedSubmissions / totalSubmissions) * 100)
-            : 0;
+        // -- Guildatons & Kama calculations --
+        const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+        const totalKamasCollected = validatedKamaDonations.reduce((acc, d) => acc + d.amount, 0);
+        const guildatonsFromKamas = validatedKamaDonations.reduce((acc, d) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons), 0);
+        const guildatonsFromMissions = validatedMissionsWithRewards.reduce((acc, s) => acc + (s.mission.guildatonsReward || 0), 0);
+        const totalGuildatonsEarned = guildatonsFromKamas + guildatonsFromMissions;
+
+        const validationRate = totalSubmissions > 0 ? Math.round((validatedSubmissions / totalSubmissions) * 100) : 0;
 
         const weeklyActivity = await getWeeklyActivity(internalGuildId);
         const missionsByCategory = await getMissionCategoryStats(internalGuildId, missionCategories);
         const topValidators = await getTopValidators(internalGuildId);
+        const topDonors = await resolveLeaderboard(
+            kamaDonorsAgg.map(d => [d.profileId, d._sum.amount || 0] as [string, number]),
+            internalGuildId,
+            "profileId"
+        );
+        const topAchievers = topAchieversProfiles.map(p => ({
+            name: getName(p),
+            value: p.successPoints || 0
+        }));
 
         // -- Songes --
         const songesCompleted = songesAll.filter(r => r.status === "COMPLETED").length;
@@ -293,8 +338,8 @@ export async function getGuildStats(guildId: string): Promise<{
             "userId"
         );
 
-        const candidaturesTotal = candidatures.reduce((acc, c) => acc + c._count, 0);
-        const candidaturesAccepted = candidatures.find(c => c.status === "ACCEPTED")?._count || 0;
+        const candidaturesTotal = candidaturesByStatus.reduce((acc, c) => acc + c._count, 0);
+        const candidaturesAccepted = candidaturesByStatus.find(c => c.status === "ACCEPTED")?._count || 0;
 
         // -- Events --
         const eventsByType: Record<string, number> = {};
@@ -321,7 +366,7 @@ export async function getGuildStats(guildId: string): Promise<{
 
         // -- Community --
         const topHelpers = await resolveLeaderboard(
-            helpCredits.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
+            helpCreditsAgg.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
             internalGuildId,
             "userId"
         );
@@ -387,6 +432,8 @@ export async function getGuildStats(guildId: string): Promise<{
                 activeMembers,
                 totalXp: xpAgg._sum.xp || 0,
                 totalGuildatons: guildatonsAgg._sum.guildatons || 0,
+                totalGuildatonsEarned,
+                totalKamasCollected,
                 totalMissionsValidated: validatedSubmissions,
                 validationRate,
                 totalSongesCompleted: songesCompleted,
@@ -395,6 +442,8 @@ export async function getGuildStats(guildId: string): Promise<{
                 weeklyActivity,
                 missionsByCategory,
                 topValidators,
+                topDonors,
+                topAchievers,
                 songes: {
                     total: songesAll.length,
                     completed: songesCompleted,
@@ -419,8 +468,8 @@ export async function getGuildStats(guildId: string): Promise<{
                     ocreTradesAccepted: ocreAccepted,
                     pollsCreated,
                     pollParticipationRate,
-                    bonusesPurchased: bonuses.reduce((acc, b) => acc + b._count, 0),
-                    bonusByType: bonuses.map(b => ({ type: b.bonusType, count: b._count })),
+                    bonusesPurchased: bonusesByStatus.reduce((acc, b) => acc + b._count, 0),
+                    bonusByType: bonusesByStatus.map(b => ({ type: b.bonusType, count: b._count })),
                 },
                 services: {
                     loans: {
@@ -459,17 +508,32 @@ async function resolveLeaderboard(
     internalGuildId: string,
     lookupBy: "userId" | "profileId"
 ): Promise<LeaderboardEntry[]> {
-    const result: LeaderboardEntry[] = [];
-    for (const [id, value] of entries) {
-        const profile = await db.userProfile.findFirst({
-            where: lookupBy === "userId"
-                ? { userId: id, guildId: internalGuildId }
-                : { id },
-            select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
-        });
-        result.push({ name: getName(profile || {}), value });
-    }
-    return result;
+    if (entries.length === 0) return [];
+
+    const ids = entries.map(([id]) => id);
+    const profiles = await db.userProfile.findMany({
+        where: lookupBy === "userId"
+            ? { userId: { in: ids }, guildId: internalGuildId }
+            : { id: { in: ids } },
+        select: {
+            id: true,
+            userId: true,
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true } }
+        },
+    });
+
+    const profileMap = new Map();
+    profiles.forEach(p => {
+        const key = lookupBy === "userId" ? p.userId : p.id;
+        profileMap.set(key, p);
+    });
+
+    return entries.map(([id, value]) => {
+        const profile = profileMap.get(id);
+        return { name: getName(profile || {}), value };
+    });
 }
 
 async function getWeeklyActivity(internalGuildId: string): Promise<WeeklyActivity[]> {

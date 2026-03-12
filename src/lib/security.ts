@@ -1,13 +1,12 @@
+import DOMPurify from 'isomorphic-dompurify';
+
 /**
  * Shared Security Utilities
  */
 
 /**
  * Sanitize HTML/Markdown input to prevent XSS
- * - Removes script tags
- * - Removes iframe tags
- * - Removes javascript: protocols
- * - Removes event handlers (on*)
+ * - Uses isomorphic-dompurify for robust DOM-based sanitization
  * 
  * @param input The raw string to sanitize
  * @param maxLength Optional max length constraint
@@ -16,30 +15,15 @@
 export function sanitizeHtml(input: string | null, maxLength: number = 100000, strict: boolean = false): string | null {
     if (!input) return null;
 
-    let clean = input
-        // Remove script tags and content
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-        // Remove iframe tags
-        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-        // Remove object/embed
-        .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
-        .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "")
-        // Remove javascript: protocols in href/src
-        .replace(/javascript:/gi, "")
-        .replace(/vbscript:/gi, "")
-        .replace(/data:text\/html/gi, "")
-        // Remove event handlers (onclick, onmouseover, etc.)
-        .replace(/ on\w+="[^"]*"/gi, "")
-        .replace(/ on\w+='[^']*'/gi, "")
-        .replace(/ on\w+=\S+/gi, "");
+    // Limit length first
+    const truncated = input.slice(0, maxLength);
 
     // Strict mode for Presentation (Bio/Description)
-    if (strict) {
-        clean = clean.replace(/<(?!\/?(b|i|u|strong|em|br)\b)[^>]+>/gi, "");
-    }
+    const config = strict
+        ? { ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br'] }
+        : {}; // Normal mode allows safe HTML (h1, img, etc.) but removes scripts/iframes.
 
-    // Limit length
-    return clean.slice(0, maxLength);
+    return DOMPurify.sanitize(truncated, config);
 }
 
 /**

@@ -15,6 +15,7 @@ import {
     REWARDS_PER_TRANCHE
 } from "@/lib/kama-constants";
 import { getDofusWeek } from "@/lib/date-utils";
+import { hashImage } from "@/lib/llm-ocr";
 
 // Le client etendu ($extends) masque les types TS des modeles, on caste vers PrismaClient
 // pour acceder a kamaDonation avec les bons types. En runtime, tout fonctionne correctement.
@@ -223,8 +224,7 @@ export async function submitKamaDonation(
         const file = proofFormData.get("file") as File | null;
         if (!file) return { success: false, error: "Aucun fichier fourni" };
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const { createHash } = await import("crypto");
-        const imageHash = createHash("sha256").update(fileBuffer).digest("hex");
+        const imageHash = hashImage(fileBuffer);
 
         const existingHash = await (db as any).imageHash.findUnique({
             where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } },

@@ -123,6 +123,58 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
     }
 }
 
+export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
+    try {
+        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=CHANGELOG';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            next: { revalidate: 3600 } // Changelogs are less frequent
+        });
+
+        if (!res.ok) throw new Error("Could not fetch Dofus Changelog Haapi API: " + res.status);
+
+        const items: any[] = await res.json();
+
+        // Fallback image strategy: find the first non-null image in the list to use as a default for patch notes
+        let commonImage = items.find(i => i.image_url)?.image_url || null;
+        if (!commonImage) {
+            // Very last fallback: generic dofus news image
+            commonImage = "https://static.ankama.com/ankama/cms/images/282/2026/01/21/1765851.jpg"; 
+        }
+
+        return items.slice(0, 10).map((item, idx) => {
+            const descriptionHtml = item.baseline || "";
+            const plainDescription = descriptionHtml.replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/gi, " ").trim();
+
+            let thumbnail = item.image_url || item.image || item.picture || commonImage;
+            if (thumbnail && typeof thumbnail === 'string') {
+                if (!thumbnail.startsWith('http')) {
+                    if (thumbnail.startsWith('//')) thumbnail = 'https:' + thumbnail;
+                    else if (thumbnail.startsWith('/')) thumbnail = 'https://static.ankama.com' + thumbnail;
+                    else thumbnail = 'https://static.ankama.com/' + thumbnail;
+                }
+            }
+
+            // Try to find a real date, otherwise use pseudo-chronological
+            const pubDateStr = item.date_publication || item.publication_date || item.created_at || item.date;
+            const published = pubDateStr ? new Date(pubDateStr) : new Date(Date.now() - idx * 86400000);
+
+            return {
+                type: "NEWS" as const,
+                creatorId: "Ankama",
+                title: item.name || "Patch Notes Dofus",
+                url: item.url || "https://www.dofus.com/fr/mmorpg/actualites/maj/correctifs",
+                thumbnail: thumbnail as string | null,
+                description: plainDescription || undefined,
+                published,
+            };
+        });
+    } catch (e) {
+        console.error("Failed to fetch Dofus Changelog Haapi API", e);
+        return [];
+    }
+}
+
 // ─── DOFUS POUR LES NOOBS HOMEPAGE SCRAPER ────────────────────────
 export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
     try {

@@ -173,7 +173,6 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-3">
-                        {renderProgressBar("Monstres", data.stats.monsters, data.stats.monsters.total)}
                         {renderProgressBar("Gardiens de Donjon", data.stats.bosses, data.stats.bosses.total)}
                         {renderProgressBar("Archimonstres", data.stats.archis, data.stats.archis.total)}
                     </div>
@@ -183,7 +182,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
             {/* Stats Overview */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
-                    label="Total Collection"
+                    label="Gardiens & Archis"
                     value={data.stats.total}
                     icon={<Bug className="h-5 w-5" />}
                     color="text-primary"

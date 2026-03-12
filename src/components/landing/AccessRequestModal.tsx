@@ -17,7 +17,7 @@ interface AccessRequestModalProps {
 }
 
 function ModalContent({ onClose }: { onClose: () => void }) {
-    const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/sigilos";
+    const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
     return (
         <>

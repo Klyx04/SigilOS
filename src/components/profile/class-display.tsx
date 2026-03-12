@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Pencil, Info, Plus, UserCircle } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
-import { cn } from "@/lib/utils";
+import { cn, formatDofusPseudo } from "@/lib/utils";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -163,8 +163,7 @@ export function ClassDisplay({
                                 <Input
                                     value={localPseudo}
                                     onChange={(e) => {
-                                        const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]/g, "");
-                                        setLocalPseudo(val);
+                                        setLocalPseudo(formatDofusPseudo(e.target.value));
                                     }}
                                     placeholder="Votre pseudo en jeu..."
                                     className="bg-zinc-900/50 border-white/10 h-14 focus:ring-primary/20 pr-16 text-lg font-semibold"

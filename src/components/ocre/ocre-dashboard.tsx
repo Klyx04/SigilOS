@@ -38,6 +38,7 @@ import { OcreStatCard, StatsGrid } from "./ocre-stats";
 import { OcreMonsterCard } from "./ocre-monster-card";
 import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } from "./ocre-filter-bar";
 import { OcreExchangeModal } from "./ocre-exchange-modal";
+import { OcreTradeInbox } from "./ocre-trade-inbox";
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
@@ -367,29 +368,15 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
                     {/* Right Side: Progress Bars */}
                     <div className="w-full md:w-[350px] space-y-3 bg-background/30 p-4 rounded-2xl border border-border/50">
-                        {renderProgressBar("Monstres", data.stats.monsters)}
                         {renderProgressBar("Gardiens", data.stats.bosses)}
                         {renderProgressBar("Archimonstres", data.stats.archis)}
                     </div>
                 </div>
 
-                {/* Last Sync Info - Discreet Corner */}
-                <div className="absolute bottom-2 right-4 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-medium uppercase tracking-tighter">Dernière synchro :</span>
-                    <span className="text-[10px] font-mono">
-                        {data.lastSync ? new Date(data.lastSync).toLocaleString("fr-FR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit"
-                        }) : "Jamais"}
-                    </span>
-                </div>
             </div>
 
             {/* Mobile Progress Bars (Separate) */}
             <div className="md:hidden grid gap-4 p-4 rounded-xl bg-card/30 border border-white/5">
-                {renderProgressBar("Monstres", data.stats.monsters)}
                 {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
                 {renderProgressBar("Archimonstres", data.stats.archis)}
             </div>
@@ -423,7 +410,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/50">Vue d&apos;ensemble</h3>
                         <StatsGrid>
                             <OcreStatCard
-                                label="Total Monstres"
+                                label="Total Éléments"
                                 value={data.stats.total}
                                 icon={Bug}
                                 color="purple"
@@ -552,24 +539,28 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     </Tabs>
                 </TabsContent>
 
-                {/* Tab: Exchange Hub (Coming soon / Marketplace Integrated) */}
-                <TabsContent value="echanges" className="outline-none mt-0">
-                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-                        <div className="h-20 w-20 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                            <ArrowRightLeft className="h-10 w-10 text-emerald-500" />
+                {/* Tab: Exchange Hub */}
+                <TabsContent value="echanges" className="outline-none mt-0 space-y-8">
+                    {/* Active Trade Requests Section */}
+                    <OcreTradeInbox guildId={guildId} />
+
+                    {/* Discovery Section (Placeholder styled as discovery) */}
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-6 bg-background/30 rounded-3xl border border-dashed border-border">
+                        <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                            <Sparkles className="h-8 w-8 text-emerald-500" />
                         </div>
                         <div className="max-w-sm space-y-2">
-                            <h3 className="text-xl font-bold">Place de Marché de Guilde</h3>
-                            <p className="text-muted-foreground text-sm">
-                                Retrouvez bientôt ici un récapitulatif complet des échanges possibles au sein de votre guilde pour terminer votre quête plus rapidement.
+                            <h3 className="text-lg font-bold uppercase tracking-wider">Trouver de nouveaux partenaires</h3>
+                            <p className="text-muted-foreground text-xs leading-relaxed">
+                                Analysez les doublons des membres de la guilde pour trouver les archimonstres qui vous manquent.
                             </p>
                         </div>
                         <OcreExchangeModal
                             guildId={guildId}
                             hasOcreChannel={hasOcreChannel}
                             trigger={
-                                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-12 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.05]">
-                                    Ouvrir la liste des échanges
+                                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-11 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] text-xs">
+                                    Lancer la recherche de doublons
                                 </Button>
                             }
                         />

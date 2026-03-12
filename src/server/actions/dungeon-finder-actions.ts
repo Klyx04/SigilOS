@@ -4,6 +4,19 @@ import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { redis } from "@/lib/redis";
+
+// ---------------------------------------------------------------------------
+// UTILS
+// ---------------------------------------------------------------------------
+
+async function notifyDjUpdate(guildId: string) {
+    try {
+        await redis.publish("dj:finder:update", JSON.stringify({ guildId }));
+    } catch (err) {
+        console.error("[notifyDjUpdate] Error publishing to Redis:", err);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -219,7 +232,7 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         const token = process.env.DISCORD_BOT_TOKEN;
         if (!token) return;
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
-        const embed = buildPostEmbed(post, authorName, guildId, post.participants);
+        const embed = await buildPostEmbed(post, authorName, guildId, post.participants);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
         const isOpen = post.status === "OPEN" || post.status === "FULL";
         const components = isOpen ? [{
@@ -285,12 +298,22 @@ async function deleteDiscordMessage(channelId: string, messageId: string) {
 }
 
 
-function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
+async function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const isDungeon = post.mode === "DONJON";
     const title = isDungeon
         ? `⚔️ Recherche de groupe — Donjon`
         : `📜 Recherche de groupe — Quête`;
+
+    // Fetch creator's Discord ID for pinging
+    let creatorDiscordId: string | null = null;
+    if (post.profile?.userId) {
+        const acc = await db.account.findFirst({
+            where: { userId: post.profile.userId, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+        creatorDiscordId = acc?.providerAccountId || null;
+    }
 
     const fields: any[] = [];
 
@@ -298,7 +321,7 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
         fields.push({ name: "📊 Niveau", value: `${post.dungeon.level}`, inline: true });
     }
 
-    fields.push({ name: "👥 Places", value: `1/${post.maxMembers}`, inline: true });
+    // Removed "Places" field as it was redundant and didn't refresh correctly
 
     if (post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
         const achNames = post.dungeon.achievements
@@ -316,15 +339,10 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
 
     if (post.targetDate) {
         const d = new Date(post.targetDate);
+        const timestamp = Math.floor(d.getTime() / 1000);
         fields.push({
             name: "\uD83D\uDCC5 Date prévue",
-            value: d.toLocaleDateString("fr-FR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                hour: "2-digit",
-                minute: "2-digit",
-            }),
+            value: `<t:${timestamp}:F> (<t:${timestamp}:R>)`,
         });
     }
 
@@ -338,11 +356,10 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
                 return p.classe ? `${n} *(${p.classe})*` : n;
             })
             .join("\n");
-        fields.push({ name: `\uD83D\uDC64 Membres (${totalCount}/${post.maxMembers})`, value: names });
+        fields.push({ name: `\uD83D\uDC64 Membres (${totalCount}/${post.maxMembers})`, value: `**${authorName} (LEAD)**\n${names}` });
     } else {
-        fields.push({ name: `\uD83D\uDC64 Membres (1/${post.maxMembers})`, value: "En attente de joueurs\u2026" });
+        fields.push({ name: `\uD83D\uDC64 Membres (1/${post.maxMembers})`, value: `**${authorName} (LEAD)**\nEn attente de joueurs\u2026` });
     }
-
 
     return {
         title,
@@ -350,7 +367,7 @@ function buildPostEmbed(post: any, authorName: string, guildId: string, accepted
             isDungeon
                 ? `🏰 **Donjon :** ${post.dungeon?.name || "Inconnu"}`
                 : `📜 **Quête :** ${post.questName || "Inconnue"}`,
-            `👤 **${authorName}** cherche des compagnons !`,
+            `👤 **${creatorDiscordId ? `<@${creatorDiscordId}>` : authorName}** cherche des compagnons !`,
             post.message ? `\n💬 *${post.message}*` : "",
         ].filter(Boolean).join("\n"),
         color: isDungeon ? 0x818cf8 : 0x34d399,
@@ -445,7 +462,7 @@ export async function createDjPost(
         // Discord notification
         if (data.isDiscordPublished) {
             const authorName = user.name || "Membre";
-            const embed = buildPostEmbed(post, authorName, guildId);
+            const embed = await buildPostEmbed(post, authorName, guildId);
             await sendDiscordNotification(guildId, post.id, embed);
         }
 
@@ -464,6 +481,7 @@ export async function createDjPost(
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        await notifyDjUpdate(guildId);
         return { success: true, data: { id: post.id } };
     } catch (error) {
         console.error("[createDjPost]", error);
@@ -632,6 +650,7 @@ export async function closeDjPost(
         disableDjDiscordEmbed(guildId, post.discordChannelId, post.discordMessageId).catch(() => { });
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
         console.error("[closeDjPost]", error);
@@ -756,7 +775,10 @@ export async function joinDjPost(
             }
         }
 
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
         console.error("[joinDjPost]", error);
@@ -804,7 +826,10 @@ export async function leaveDjPost(
             });
         }
 
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
         console.error("[leaveDjPost]", error);
@@ -862,7 +887,10 @@ export async function internalJoinDjPost(
             include: { guild: { select: { discordGuildId: true } } },
         });
         const joinGuildId = joinPostForEmbed?.guild?.discordGuildId;
-        if (joinGuildId) updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
+        if (joinGuildId) {
+            updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
+            await notifyDjUpdate(joinGuildId);
+        }
 
         return { success: true };
     } catch (error) {
@@ -911,7 +939,10 @@ export async function internalLeaveDjPost(
             include: { guild: { select: { discordGuildId: true } } },
         });
         const embedGuildId = postForEmbed?.guild?.discordGuildId;
-        if (embedGuildId) updateDjDiscordEmbed(embedGuildId, postId).catch(() => { });
+        if (embedGuildId) {
+            updateDjDiscordEmbed(embedGuildId, postId).catch(() => { });
+            await notifyDjUpdate(embedGuildId);
+        }
 
         return { success: true };
     } catch (error) {
@@ -1393,7 +1424,8 @@ export async function updateDjSettings(
  */
 export async function getDungeonDirectory(
     guildId: string,
-    dungeonId: string
+    dungeonId: string,
+    dungeonName?: string
 ): Promise<ActionResponse<{
     achievementId: string;
     achievementName: string;
@@ -1413,8 +1445,26 @@ export async function getDungeonDirectory(
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // 1. Get all achievements for this dungeon
+        let targetDjId = dungeonId;
+
+        // If dungeonId looks like a Dofus numeric ID or if no achievements found, try name lookup
+        if (dungeonName || !dungeonId.startsWith('c')) {
+            const resolvedDungeon = await db.dungeon.findFirst({
+                where: {
+                    OR: [
+                        { name: { contains: dungeonName || dungeonId, mode: 'insensitive' } },
+                        { bossName: { contains: dungeonName || dungeonId, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true }
+            });
+            if (resolvedDungeon) {
+                targetDjId = resolvedDungeon.id;
+            }
+        }
+
         const dungeonAchievements = await (db as any).dungeonAchievement.findMany({
-            where: { dungeonId },
+            where: { dungeonId: targetDjId },
             include: { challenge: { select: { name: true, iconUrl: true } } },
         });
 

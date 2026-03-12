@@ -461,7 +461,7 @@ export async function POST(request: NextRequest) {
                                 components: [{
                                     type: 4, custom_id: "guild_name",
                                     label: "Nom de votre guilde Dofus",
-                                    style: 1, placeholder: "Ex: Les Gardiens de Bonta",
+                                    style: 1, placeholder: "Uniquement des lettres (Ex: Les Gardiens)",
                                     required: true, min_length: 2, max_length: 50,
                                 }],
                             },
@@ -469,9 +469,18 @@ export async function POST(request: NextRequest) {
                                 type: 1,
                                 components: [{
                                     type: 4, custom_id: "pseudo_dofus",
-                                    label: "Votre pseudo Dofus + nombre de membres",
-                                    style: 1, placeholder: "Ex: Klyx · ~45 membres",
-                                    required: true, min_length: 2, max_length: 60,
+                                    label: "Votre pseudo Dofus",
+                                    style: 1, placeholder: "Uniquement des lettres (Ex: Klyx)",
+                                    required: true, min_length: 2, max_length: 30,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "member_count",
+                                    label: "Nombre de membres",
+                                    style: 1, placeholder: "Entre 1 et 500 (chiffres uniquement)",
+                                    required: true, min_length: 1, max_length: 3,
                                 }],
                             },
                             {
@@ -575,24 +584,30 @@ export async function POST(request: NextRequest) {
                         },
                     });
                 } else if (action === "close") {
-                    // Close ticket
+                    // SECURE: Check if caller is dev/admin synchronously 
+                    // before acknowledging to give proper feedback if rejected.
+                    const { isDiscordSuperAdmin } = await import("@/server/actions/super-admin-actions");
+                    const isDev = await isDiscordSuperAdmin(member.user.id);
+                    
+                    if (!isDev) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket.", flags: 64 },
+                        });
+                    }
+
+                    // ACK immediately (Deferred update)
+                    const response = NextResponse.json({ type: 6 }); 
+
+                    // Background heavy lifting
                     const { closeSupportTicket } = await import("@/server/actions/ticket-actions");
-                    const closeResult = await closeSupportTicket(
+                    closeSupportTicket(
                         entityId,
                         member.user.id,
                         member.user.global_name || member.user.username
-                    );
-                    if (closeResult.success) {
-                        return NextResponse.json({
-                            type: 4,
-                            data: { content: "🔒 Ticket fermé avec succès.", flags: 64 },
-                        });
-                    } else {
-                        return NextResponse.json({
-                            type: 4,
-                            data: { content: `❌ ${closeResult.error}`, flags: 64 },
-                        });
-                    }
+                    ).catch(err => console.error("Discord Close Error:", err));
+
+                    return response;
                 }
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
@@ -722,29 +737,65 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Build subject and description based on category
+                let targetMeta: any = {};
                 let subject = "";
                 let description = "";
 
                 if (ticketCategory === "ACCESS_REQUEST") {
-                    // Validate Discord Guild ID (snowflake = 17-20 digit number)
+                    // 1. Validate Discord Guild ID
                     const discordGuildIdInput = fields.discord_guild_id || "";
                     if (!/^\d{17,20}$/.test(discordGuildIdInput)) {
                         return NextResponse.json({
                             type: 4,
                             data: {
-                                content: "❌ L'ID de serveur Discord est invalide. Il doit contenir **17 à 20 chiffres**.\n\n💡 **Pour le trouver :** Paramètres Discord → Avancé → Mode développeur → Clic droit sur votre serveur → Copier l'identifiant.",
+                                content: "❌ L'ID de serveur Discord est invalide (17-20 chiffres).\n💡 Clic droit sur votre serveur -> Copier l'identifiant.",
                                 flags: 64,
                             },
                         });
                     }
 
-                    subject = `Accès — ${fields.guild_name || "Guilde inconnue"} (${fields.pseudo_dofus || "?"})`;
+                    // 2. Validate Names (STRICT: Letters and spaces only)
+                    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/; // Added hyphen and apostrophe
+                    const guildName = fields.guild_name || "";
+                    const pseudoDofus = fields.pseudo_dofus || "";
+
+                    if (!nameRegex.test(guildName)) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le nom de guilde ne doit contenir que des lettres (pas de chiffres ou caractères spéciaux).", flags: 64 },
+                        });
+                    }
+                    if (!nameRegex.test(pseudoDofus)) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le pseudo Dofus ne doit contenir que des lettres (pas de chiffres ou caractères spéciaux).", flags: 64 },
+                        });
+                    }
+
+                    // 3. Validate Member Count
+                    const memberCountRaw = fields.member_count || "";
+                    const count = parseInt(memberCountRaw, 10);
+                    if (isNaN(count) || count < 1 || count > 500) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le nombre de membres doit être un chiffre entre 1 et 500.", flags: 64 },
+                        });
+                    }
+
+                    targetMeta = {
+                        targetGuildId: discordGuildIdInput,
+                        targetGuildName: guildName,
+                        targetGuildMemberCount: count,
+                    };
+
+                    subject = `Accès — ${guildName} (${pseudoDofus})`;
                     description = [
-                        `� **Serveur Discord :** \`${discordGuildIdInput}\``,
-                        `� **Guilde :** ${fields.guild_name || "Non renseigné"}`,
-                        `🎮 **Pseudo / Membres :** ${fields.pseudo_dofus || "Non renseigné"}`,
+                        `🔹 **Serveur Discord :** \`${discordGuildIdInput}\``,
+                        `🏰 **Guilde :** ${guildName}`,
+                        `👤 **Leader :** ${pseudoDofus}`,
+                        `👥 **Membres :** ${count}`,
                         "",
-                        `📝 **Motivation :**`,
+                        `📝 **Message :**`,
                         fields.description || "Aucune description",
                     ].join("\n");
                 } else if (ticketCategory === "BUG_REPORT") {
@@ -778,6 +829,7 @@ export async function POST(request: NextRequest) {
                     description,
                     creatorDiscordId: member.user.id,
                     creatorDiscordName: member.user.global_name || member.user.username,
+                    ...targetMeta,
                 });
 
                 if (ticketResult.success) {

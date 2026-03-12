@@ -34,6 +34,7 @@ const UpdateModulesSchema = z.object({
     resources: z.boolean(),
     // Nouveau
     chat: z.boolean(),
+    gartic: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -80,6 +81,7 @@ export async function getGuildModules(
             worldmap: m.worldmap,
             resources: m.resources,
             chat: m.chat,
+            gartic: m.gartic,
         };
     } catch {
         // Fail open — if we can't read modules, assume all enabled

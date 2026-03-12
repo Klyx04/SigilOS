@@ -56,11 +56,18 @@ export function AltPseudos({
     }, [altPseudos]);
 
     const formatPseudo = (value: string) => {
-        const cleaned = value.replace(/[^a-zA-Z0-9-]/g, "");
-        if (cleaned.length > 0) {
-            return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-        }
-        return cleaned;
+        // Supprimer les caractères spéciaux non autorisés (autorise lettres, chiffres, tirets)
+        const cleaned = value.replace(/[^a-zA-Z0-9\u00C0-\u017F\u00DF\u00FF\u0100-\u017F-]/g, "");
+        if (!cleaned) return "";
+        
+        // Formater : 1ère lettre majuscule, reste minuscule. Si '-', 1ère lettre après '-' majuscule.
+        return cleaned
+            .split("-")
+            .map(part => {
+                if (part.length === 0) return part;
+                return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+            })
+            .join("-");
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,10 +77,7 @@ export function AltPseudos({
     const validatePseudo = (pseudo: string): { valid: boolean; error?: string } => {
         if (pseudo.length < 3) return { valid: false, error: "Minimum 3 caractères" };
         if (pseudo.length > 20) return { valid: false, error: "Maximum 20 caractères" };
-        const regex = /^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/;
-        if (!regex.test(pseudo)) {
-            return { valid: false, error: "Format invalide (Ex: Pseudo, Pseudo-mule)" };
-        }
+        // Le pseudo est déjà formaté par formatPseudo
         return { valid: true };
     };
 

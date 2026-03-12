@@ -306,9 +306,13 @@ export async function createServiceListing(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, serviceMarketplaceEnabled: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        if (!guildConfig.serviceMarketplaceEnabled && !user.isAdmin) {
+            return { success: false, error: "La marketplace est actuellement en maintenance." };
+        }
 
         // Limit: max 10 active listings per user per guild
         const activeCount = await db.serviceListing.count({

@@ -21,6 +21,16 @@ export async function createGeoguesserSession(guildId: string, maxRounds: number
         const client = getClient();
         if (!client) return { success: false, error: "Database client not ready" };
 
+        // Safety: Auto-cleanup ghost sessions older than 2 hours
+        await client.geoguesserSession.deleteMany({
+            where: {
+                guildId,
+                hostId: session.user.id,
+                status: { in: ['LOBBY', 'IN_PROGRESS'] },
+                createdAt: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) }
+            }
+        });
+
         const existingRoom = await client.geoguesserSession.findFirst({
             where: {
                 guildId,
@@ -30,7 +40,7 @@ export async function createGeoguesserSession(guildId: string, maxRounds: number
         });
 
         if (existingRoom) {
-            return { success: false, error: "Vous avez déjà un salon actif en cours." };
+            await client.geoguesserSession.delete({ where: { id: existingRoom.id } });
         }
 
         const room = await client.geoguesserSession.create({
@@ -60,8 +70,7 @@ export async function createGeoguesserSession(guildId: string, maxRounds: number
         revalidatePath(`/dashboard/${guildId}/mini-jeux`);
         return { success: true, data: room };
     } catch (error) {
-        console.error("Failed to create room:", error);
-        return { success: false, error: "Database error" };
+        return { success: false, error: "Erreur de base de données" };
     }
 }
 
@@ -117,12 +126,11 @@ export async function getActiveGeoguesserSessions(guildId: string) {
 
         return sessions;
     } catch (error) {
-        console.error("Failed to fetch rooms:", error);
         return [];
     }
 }
 
-export async function joinGeoguesserSession(sessionId: string) {
+export async function joinGeoguesserSession(sessionId: string, isSpectator: boolean = false) {
     const sessionToken = await auth();
     if (!sessionToken?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -130,16 +138,29 @@ export async function joinGeoguesserSession(sessionId: string) {
         const client = getClient();
         if (!client) return { success: false, error: "Database client not ready" };
 
+        if (isSpectator) {
+             const room = await client.geoguesserSession.findUnique({ where: { id: sessionId } });
+             if (!room) return { success: false, error: "Salon introuvable" };
+             return { success: true };
+        }
+
         const room = await client.geoguesserSession.findUnique({
             where: { id: sessionId },
             include: { participants: true }
         });
 
-        if (!room) return { success: false, error: "Room not found" };
-        if (room.status !== 'LOBBY') return { success: false, error: "Game already started" };
-        if (room.participants.length >= 8) return { success: false, error: "Le salon est complet (8 joueurs max)." };
-
+        if (!room) return { success: false, error: "Salon introuvable" };
+        
         const isAlreadyIn = room.participants.some((p: any) => p.userId === sessionToken.user!.id);
+
+        if (room.status !== 'LOBBY' && !isAlreadyIn) {
+            return { success: false, error: "La partie a déjà commencé" };
+        }
+        
+        if (!isAlreadyIn && room.participants.length >= 8) {
+            return { success: false, error: "Le salon est complet (8 joueurs max)." };
+        }
+
         if (!isAlreadyIn) {
             await client.geoguesserSessionPlayer.create({
                 data: {
@@ -172,11 +193,9 @@ export async function joinGeoguesserSession(sessionId: string) {
         // --- INVALIDATE CACHE ---
         await redis.del(`lobby:guild:${room.guildId}`);
 
-        revalidatePath(`/dashboard/${room.guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to join room:", error);
-        return { success: false, error: "Database error" };
+        return { success: false, error: "Erreur de base de données" };
     }
 }
 
@@ -207,7 +226,6 @@ export async function startGeoguesserSession(sessionId: string, targetMapIds: nu
         // --- INVALIDATE CACHE ---
         await redis.del(`lobby:guild:${room.guildId}`);
 
-        revalidatePath(`/dashboard/${room.guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
         console.error("Failed to start game:", error);
@@ -300,10 +318,8 @@ export async function advanceSessionRound(sessionId: string, newRound: number) {
         if (room) {
             // --- INVALIDATE CACHE ---
             await redis.del(`lobby:guild:${room.guildId}`);
-            revalidatePath(`/dashboard/${room.guildId}/mini-jeux`);
         }
 
-        return { success: true };
         return { success: true };
     } catch (error) {
         console.error("Failed to advance round:", error);
@@ -320,30 +336,104 @@ export async function leaveGeoguesserSession(sessionId: string) {
         if (!client) return { success: false, error: "Database client not ready" };
 
         const room = await client.geoguesserSession.findUnique({
-            where: { id: sessionId }
+            where: { id: sessionId },
+            include: { participants: true }
         });
 
         if (!room) return { success: false, error: "Room not found" };
 
+        // Save scores to perpetual ladder if it was a real game
+        if (room.status === 'FINISHED' || room.status === 'IN_PROGRESS') {
+            for (const p of room.participants) {
+                if (p.totalScore > 0) {
+                    await updateGeoguesserLadder(p.userName, p.totalScore);
+                }
+            }
+        }
+
         if (room.hostId === sessionToken.user.id) {
-            // Hôte : on supprime totalement le salon
-            await client.geoguesserSession.delete({
-                where: { id: sessionId }
-            });
+            await client.geoguesserSession.delete({ where: { id: sessionId } });
         } else {
-            // Joueur normal : on le retire
             await client.geoguesserSessionPlayer.deleteMany({
                 where: { sessionId, userId: sessionToken.user.id }
             });
         }
 
-        // Invalidate cache
         await redis.del(`lobby:guild:${room.guildId}`);
-
-        revalidatePath(`/dashboard/${room.guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to leave room:", error);
         return { success: false, error: "Database error" };
+    }
+}
+
+export async function finishGeoguesserSession(sessionId: string) {
+    try {
+        const client = getClient();
+        if (!client) return;
+        
+        await client.geoguesserSession.update({
+            where: { id: sessionId },
+            data: { status: 'FINISHED' }
+        });
+
+        // Sync to ladder
+        const room = await client.geoguesserSession.findUnique({
+            where: { id: sessionId },
+            include: { participants: true }
+        });
+
+        if (room) {
+            for (const p of room.participants) {
+                if (p.totalScore > 0) {
+                    await updateGeoguesserLadder(p.userName, p.totalScore);
+                }
+            }
+            // --- INVALIDATE CACHE ---
+            await redis.del(`lobby:guild:${room.guildId}`);
+        }
+    } catch (e) {
+        console.error("Failed to finish session:", e);
+    }
+}
+
+export async function deleteGeoguesserSession(sessionId: string) {
+    try {
+        const client = getClient();
+        if (!client) return;
+
+        const room = await client.geoguesserSession.findUnique({ where: { id: sessionId } });
+        if (room) {
+            await client.geoguesserSession.delete({ where: { id: sessionId } });
+            await redis.del(`lobby:guild:${room.guildId}`);
+        }
+    } catch (e) {
+        // Silently fail if already deleted
+    }
+}
+
+async function updateGeoguesserLadder(pseudo: string, score: number) {
+    if (redis.status !== "ready") return;
+    try {
+        await redis.zincrby("sigilguesser:ladder:v1", score, pseudo);
+    } catch (e) {
+        console.error("Ladder update failed:", e);
+    }
+}
+
+export async function getGeoguesserLadder(limit: number = 10) {
+    if (redis.status !== "ready") return [];
+    try {
+        // ZREVRANGE returns the top scores
+        const data = await redis.zrevrange("sigilguesser:ladder:v1", 0, limit - 1, "WITHSCORES");
+        const results = [];
+        for (let i = 0; i < data.length; i += 2) {
+            results.push({
+                pseudo: data[i],
+                score: parseInt(data[i + 1], 10)
+            });
+        }
+        return results;
+    } catch (e) {
+        return [];
     }
 }

@@ -132,7 +132,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         </div>
                     </div>
                     {/* Diagonal scanlines or subtle texture */}
-                    <div className="absolute inset-0 bg-[url('/scanlines.png')] opacity-20 mix-blend-overlay" />
+                    <div className="absolute inset-0 bg-[url(/scanlines.png)] opacity-20 mix-blend-overlay" />
                     <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-amber-500/5 blur-[80px] rounded-full" />
                 </div>
             )}

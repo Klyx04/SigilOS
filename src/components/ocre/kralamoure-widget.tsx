@@ -23,6 +23,7 @@ import {
     Timer,
     Users,
     MessageSquare,
+    Sparkles,
 } from "lucide-react";
 import { formatDistanceToNow, format, isWithinInterval, addMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -81,20 +82,20 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent pointer-events-none" />
 
-            <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Skull className="h-5 w-5 text-pink-400" />
+            <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-3 px-5 pt-5">
+                <CardTitle className="text-base font-black flex items-center gap-2 text-white">
+                    <Skull className="h-5 w-5 text-pink-500 fill-pink-500/10" />
                     Kralamoure
                 </CardTitle>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
                     onClick={loadEvents}
                     disabled={loading}
                 >
                     <RefreshCw
-                        className={cn("h-4 w-4 text-muted-foreground", loading && "animate-spin")}
+                        className={cn("h-4 w-4 text-muted-foreground group-hover:text-white transition-colors", loading && "animate-spin")}
                     />
                 </Button>
             </CardHeader>
@@ -188,124 +189,92 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             exit={{ opacity: 0, x: 20 }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-                "relative p-3 rounded-lg border transition-all duration-300",
-                "bg-gradient-to-r from-black/30 to-transparent",
+                "relative p-4 rounded-xl border transition-all duration-300 overflow-hidden",
+                "bg-zinc-900/40 backdrop-blur-md",
                 isImminent
-                    ? "border-red-500/50 bg-red-500/10 animate-pulse"
+                    ? "border-red-500/50 shadow-[0_0_15px_-5px_rgba(239,68,68,0.5)]"
                     : isUpcoming
-                        ? "border-amber-500/40 bg-amber-500/5"
-                        : "border-white/10 hover:border-pink-500/30"
+                        ? "border-amber-500/40"
+                        : "border-white/5 hover:border-white/10"
             )}
         >
-            {/* Imminent indicator */}
-            {isImminent && (
-                <div className="absolute -top-1 -right-1">
-                    <Badge className="bg-red-500 text-white text-[10px] font-bold animate-bounce">
-                        <Timer className="h-2.5 w-2.5 mr-0.5" />
-                        Bientôt !
-                    </Badge>
-                </div>
-            )}
+            {/* Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
 
-            {/* Imported indicator */}
-            {isImported && (
-                <div className="absolute -top-1 -left-1">
-                    <Badge className="bg-green-500 text-white text-[10px] font-bold">
-                        <CalendarCheck className="h-2.5 w-2.5 mr-0.5" />
+            {/* Top Row: Title & Badge */}
+            <div className="relative z-10 flex items-start justify-between mb-3">
+                <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-black text-sm text-white tracking-tight">
+                            CHASSE KRALAMOURE
+                        </h4>
+                        {isUpcoming && <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />}
+                    </div>
+                    <p className="text-[10px] font-black text-pink-500 uppercase tracking-[0.1em]">
+                        {event.server.name}
+                    </p>
+                </div>
+
+                {isImported && (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                        <CalendarCheck className="h-3 w-3 mr-1" />
                         Importé
                     </Badge>
-                </div>
-            )}
+                )}
+            </div>
 
-            <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                    {/* Event title/description */}
-                    <h4 className="font-medium text-sm flex items-center gap-2">
-                        Chasse Kralamoure
-                        {isUpcoming && <span className="text-amber-400">✨</span>}
-                    </h4>
-
-                    {/* Server */}
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span>{event.server.name}</span>
-                    </div>
-
-                    {/* Participants & messages */}
-                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="flex items-center gap-1 cursor-help">
-                                        <Users className="h-3 w-3" />
-                                        {event.participants_count}
-                                    </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    {event.participants_count} participants ({event.character_count} personnages)
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+            {/* Middle Row: Content & Time */}
+            <div className="relative z-10 flex items-end justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500">
+                        <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {event.participants_count}
+                        </span>
                         {(event.messages_count ?? 0) > 0 && (
                             <span className="flex items-center gap-1">
                                 <MessageSquare className="h-3 w-3" />
                                 {event.messages_count}
                             </span>
                         )}
-                        <span className="text-muted-foreground/40">par {event.creator}</span>
+                        <span className="opacity-40">par {event.creator}</span>
                     </div>
 
-                    {/* Description if available */}
                     {event.description && (
-                        <p className="text-[10px] text-muted-foreground/70 line-clamp-2 mt-1">
+                        <p className="text-[10px] text-zinc-400/70 italic line-clamp-1 border-l-2 border-white/5 pl-2">
                             {event.description}
                         </p>
                     )}
                 </div>
 
-                {/* Time & Actions */}
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className="text-right">
-                        <p
-                            className={cn(
-                                "text-xs font-medium",
-                                isImminent
-                                    ? "text-red-400"
-                                    : isUpcoming
-                                        ? "text-amber-400"
-                                        : "text-pink-400"
-                            )}
-                        >
-                            {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                <div className="text-right shrink-0">
+                    <p className={cn(
+                        "text-[9px] font-black uppercase tracking-wider mb-0.5",
+                        isImminent ? "text-red-400" : isUpcoming ? "text-amber-400" : "text-zinc-500"
+                    )}>
+                        {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
+                    </p>
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl font-black text-white tabular-nums leading-none">
                             {format(eventTime, "HH:mm", { locale: fr })}
-                        </p>
+                        </span>
+                        
+                        {canManageCalendar && !isImported && (
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg bg-white/5 border-white/10 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"
+                                onClick={handleImport}
+                                disabled={isImporting}
+                            >
+                                {isImporting ? (
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <CalendarPlus className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
                     </div>
-
-                    {/* Import Button */}
-                    {canManageCalendar && (
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className={cn(
-                                "h-6 w-6 mt-1 border-white/10",
-                                isImported
-                                    ? "bg-green-500/20 text-green-400 cursor-not-allowed"
-                                    : "hover:bg-pink-500/20 hover:text-pink-400"
-                            )}
-                            onClick={handleImport}
-                            disabled={isImporting || isImported}
-                            title={isImported ? "Déjà importé" : "Importer dans le calendrier"}
-                        >
-                            {isImporting ? (
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                            ) : isImported ? (
-                                <CalendarCheck className="h-3.5 w-3.5" />
-                            ) : (
-                                <CalendarPlus className="h-3.5 w-3.5" />
-                            )}
-                        </Button>
-                    )}
                 </div>
             </div>
         </motion.div>

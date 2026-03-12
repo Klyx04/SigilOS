@@ -9,6 +9,7 @@ import {
     Swords, Map, Users, Clock, Calendar, CheckCircle2,
     XCircle, LogIn, LogOut, Crown, Link2
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { closeDjPost, joinDjPost, leaveDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
 import { DjCloseModal } from "./DjCloseModal";
@@ -170,6 +171,41 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 <span className="text-emerald-400 ml-1">+{spotsLeft}</span>
                             )}
                         </div>
+                    </div>
+
+                    {/* Participants Bubbles */}
+                    <div className="flex -space-x-2 overflow-hidden py-1">
+                        {/* Leader */}
+                        <div key={post.profileId} className="relative group/avatar" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
+                            <Avatar className="h-8 w-8 ring-2 ring-indigo-500/50 hover:ring-indigo-400 transition-all border-2 border-slate-950">
+                                <AvatarImage src={post.profile.user.image || undefined} />
+                                <AvatarFallback className="bg-indigo-950 text-indigo-300 text-[10px] font-black">
+                                    {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-1 -right-1 bg-indigo-500 rounded-full p-0.5 border border-slate-950">
+                                <Crown className="w-2 h-2 text-white" />
+                            </div>
+                        </div>
+
+                        {/* Others */}
+                        {post.participants.map((p) => (
+                            <div key={p.id} className="relative group/avatar" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
+                                <Avatar className="h-8 w-8 ring-2 ring-slate-800 hover:ring-indigo-500/30 transition-all border-2 border-slate-950">
+                                    <AvatarImage src={p.profile.user.image || undefined} />
+                                    <AvatarFallback className="bg-slate-800 text-slate-400 text-[10px] font-bold">
+                                        {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </div>
+                        ))}
+
+                        {/* Empty Spots */}
+                        {Array.from({ length: spotsLeft }).map((_, i) => (
+                            <div key={`empty-${i}`} className="w-8 h-8 rounded-full border-2 border-dashed border-white/10 bg-white/[0.02] flex items-center justify-center">
+                                <Users className="w-3 h-3 text-white/5" />
+                            </div>
+                        ))}
                     </div>
 
                     {/* Wanted achievements */}

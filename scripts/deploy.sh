@@ -51,7 +51,7 @@ if [ "$TARGET" == "beta" ]; then
     sleep 1
 
     echo "🧪 Mise à jour du laboratoire BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta discord-bot-beta worker-beta --force-recreate caddy
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta ws-beta discord-bot-beta worker-beta --force-recreate caddy
 
     echo "🔄 Caddy recréé avec le nouveau Caddyfile."
 
@@ -68,7 +68,7 @@ if [ "$TARGET" == "beta" ]; then
 
 else
     echo "🏰 Mise à jour de la PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod discord-bot-prod worker-prod
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod ws-prod discord-bot-prod worker-prod
     echo "🧹 Synchronisation des migrations PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma migrate deploy
     echo "🌱 Seeding des données de jeu PRODUCTION..."

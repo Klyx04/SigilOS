@@ -3,17 +3,14 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserContext } from "@/server/actions/user-actions";
-import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton, OcreTradeInbox } from "@/components/ocre";
+import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton } from "@/components/ocre";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bug, AlertCircle, Link2, Sparkles, Crown } from "lucide-react";
+import { Sparkles, Crown } from "lucide-react";
 import { db } from "@/lib/prisma";
-import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { EmptyState } from "@/components/ui/empty-state";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 
@@ -34,12 +31,11 @@ export default async function QueteOcrePage({
         redirect(`/dashboard/${guildId}`);
     }
 
-    // RBAC: Check permission to view Archis (TODO: Rename to OCRE_VIEW when permissions updated)
+    // RBAC
     const user = await getUserContext(guildId);
     if (!user.canViewArchis) {
         return <AccessDenied />;
     }
-
 
     // Fetch user's Quête Ocre data
     const ocreResponse = await getMyOcreProgress(guildId);
@@ -47,8 +43,8 @@ export default async function QueteOcrePage({
     // Fetch if guild has Ocre discord channel
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { ocreNotifyChannelId: true } as any
-    }) as any;
+        select: { ocreNotifyChannelId: true }
+    });
     const hasOcreChannel = !!guildConfig?.ocreNotifyChannelId;
 
     return (
@@ -63,17 +59,14 @@ export default async function QueteOcrePage({
                     icon={Crown}
                     iconColor="#f59e0b"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<OcreSyncButton guildId={guildId} />}
+                    actions={<OcreSyncButton guildId={guildId} lastSync={ocreResponse.data?.lastSync} />}
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
                     {/* Main Content */}
                     <div className="space-y-6">
                         {ocreResponse.success && ocreResponse.data ? (
-                            <div className="space-y-6">
-                                <OcreTradeInbox guildId={guildId} />
-                                <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
-                            </div>
+                            <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
                         ) : (
                             <NotLinkedState guildId={guildId} error={ocreResponse.error} />
                         )}
@@ -114,4 +107,3 @@ export default async function QueteOcrePage({
         </div>
     );
 }
-

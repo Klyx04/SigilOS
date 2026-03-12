@@ -6,14 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ChangelogCategory } from '@prisma/client';
-import { Plus, Trash2, Edit, Eye, Save, X, Terminal, Rocket, Layout, FileText, Settings2, Sparkles, ChevronRight, Activity, Send } from 'lucide-react';
+import { Plus, Trash2, Edit, Eye, Save, X, Terminal, Rocket, Layout, FileText, Settings2, Sparkles, ChevronRight, Activity, Send, Globe, Settings } from 'lucide-react';
 import {
     createChangelogEntry,
     getChangelogEntries,
     deleteChangelogEntry,
     updateChangelogEntry,
     sendChangelogToDiscord,
+    broadcastChangelogToGuilds,
+    getPlatformConfig,
+    updatePlatformConfig,
+    testStatusPing,
 } from '@/server/actions/changelog-actions';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -47,6 +52,14 @@ export default function GODChangelogPage() {
     const [loading, setLoading] = useState(false);
     const [filterCategory, setFilterCategory] = useState<ChangelogCategory | undefined>(undefined);
     const [publishingId, setPublishingId] = useState<string | null>(null);
+    const [broadcastingId, setBroadcastingId] = useState<string | null>(null);
+
+    // Settings state
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [hubChannelId, setHubChannelId] = useState('');
+    const [serviceStatusChannelId, setServiceStatusChannelId] = useState('');
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [isTestingPing, setIsTestingPing] = useState(false);
 
     const filteredEntries = filterCategory
         ? entries.filter(e => e.category === filterCategory)
@@ -64,7 +77,43 @@ export default function GODChangelogPage() {
 
     useEffect(() => {
         loadEntries();
+        loadSettings();
     }, []);
+
+    async function loadSettings() {
+        const res = await getPlatformConfig();
+        if (res.success && res.config) {
+            setHubChannelId(res.config.hubChannelId || '');
+            setServiceStatusChannelId(res.config.serviceStatusChannelId || '');
+        }
+    }
+
+    async function handleSaveSettings() {
+        setIsSavingSettings(true);
+        const res = await updatePlatformConfig({ hubChannelId, serviceStatusChannelId });
+        if (res.success) {
+            toast.success("Paramètres sauvegardés");
+            setIsSettingsOpen(false);
+        } else {
+            toast.error(res.error || "Erreur de sauvegarde");
+        }
+        setIsSavingSettings(false);
+    }
+
+    async function handleTestPing() {
+        if (!serviceStatusChannelId) {
+            toast.error("Veuillez sauvegarder un ID de salon d'abord");
+            return;
+        }
+        setIsTestingPing(true);
+        const res = await testStatusPing();
+        if (res.success) {
+            toast.success("Ping envoyé avec succès !");
+        } else {
+            toast.error(res.error || "Erreur lors de l'envoi du ping");
+        }
+        setIsTestingPing(false);
+    }
 
     async function loadEntries() {
         const data = await getChangelogEntries();
@@ -116,18 +165,30 @@ export default function GODChangelogPage() {
         }
     }
 
-    async function handlePublishDiscord(id: string) {
+    function handlePublishDiscord(id: string) {
+        if (!confirm('Publier cette release sur le Discord Principal (Webhook Hub) ?')) return;
         setPublishingId(id);
-        try {
-            const result = await sendChangelogToDiscord(id);
+        sendChangelogToDiscord(id).then((result) => {
             if (result.success) {
-                toast.success('📢 Publié sur Discord !');
+                toast.success('📢 Publié sur le Hub (Discord Officiel) !');
             } else {
                 toast.error(result.error || 'Erreur Discord');
             }
-        } finally {
-            setPublishingId(null);
-        }
+        }).finally(() => setPublishingId(null));
+    }
+
+    function handleBroadcast(id: string) {
+        if (!confirm('Voulez-vous vraiment diffuser cette annonce à TOUTES les guildes actives ?')) return;
+        setBroadcastingId(id);
+        broadcastChangelogToGuilds(id).then((result) => {
+            if (result.success) {
+                toast.success(`Diffusion terminée ! (${result.results?.success} guildes)`);
+            } else {
+                toast.error(result.error || 'Échec de la diffusion');
+            }
+        }).catch(() => {
+            toast.error("Erreur inattendue");
+        }).finally(() => setBroadcastingId(null));
     }
 
     function handleEdit(entry: any) {
@@ -198,10 +259,66 @@ export default function GODChangelogPage() {
                             </Button>
                         </>
                     ) : (
-                        <Button onClick={() => setIsCreating(true)} className="bg-amber-500 hover:bg-amber-400 text-black font-black h-12 px-8 rounded-2xl shadow-xl shadow-amber-500/20 uppercase tracking-widest">
-                            <Plus className="w-5 h-5 mr-3" />
-                            Nouvelle Release
-                        </Button>
+                        <>
+                            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" className="h-12 w-12 p-0 rounded-2xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+                                        <Settings className="w-5 h-5" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-zinc-950 border-white/5 sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
+                                            <Settings className="w-5 h-5 text-amber-500" />
+                                            Configuration GOD
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-6 pt-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon Discord (Hub)</Label>
+                                            <Input
+                                                value={hubChannelId}
+                                                onChange={e => setHubChannelId(e.target.value)}
+                                                placeholder="Ex: 123456789012345678"
+                                                className="h-12 bg-zinc-900/50 border-white/10 rounded-xl font-mono text-amber-500 px-4"
+                                            />
+                                            <p className="text-[10px] text-zinc-500 mt-2 ml-1">Ce salon recevra les annonces du changelog via le bouton de publication (Hub).</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon État des Services</Label>
+                                            <Input
+                                                value={serviceStatusChannelId}
+                                                onChange={e => setServiceStatusChannelId(e.target.value)}
+                                                placeholder="Ex: 123456789012345678"
+                                                className="h-12 bg-zinc-900/50 border-white/10 rounded-xl font-mono text-amber-500 px-4"
+                                            />
+                                            <p className="text-[10px] text-zinc-500 mt-2 ml-1">Salon où pinguer automatiquement les maintenances et uptime.</p>
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <Button 
+                                                onClick={handleTestPing} 
+                                                disabled={isTestingPing || !serviceStatusChannelId} 
+                                                variant="outline"
+                                                className="w-1/3 bg-zinc-900 border-white/10 text-white font-bold h-12 rounded-xl text-xs hover:bg-zinc-800"
+                                            >
+                                                {isTestingPing ? <Activity className="w-4 h-4 animate-spin" /> : "Ping Test"}
+                                            </Button>
+                                            <Button 
+                                                onClick={handleSaveSettings} 
+                                                disabled={isSavingSettings} 
+                                                className="w-2/3 bg-amber-500 hover:bg-amber-400 text-black font-black h-12 rounded-xl"
+                                            >
+                                                {isSavingSettings ? <Activity className="w-4 h-4 animate-spin" /> : "Sauvegarder"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                            <Button onClick={() => setIsCreating(true)} className="bg-amber-500 hover:bg-amber-400 text-black font-black h-12 px-8 rounded-2xl shadow-xl shadow-amber-500/20 uppercase tracking-widest">
+                                <Plus className="w-5 h-5 mr-3" />
+                                Nouvelle Release
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -310,10 +427,13 @@ export default function GODChangelogPage() {
 
                                                             {/* Actions */}
                                                             <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
-                                                                <Button size="icon" variant="ghost" onClick={() => handlePublishDiscord(entry.id)} disabled={publishingId === entry.id} title="Publier sur Discord" className="h-8 w-8 rounded-xl bg-white/5 hover:bg-indigo-500/10 text-zinc-400 hover:text-indigo-400">
+                                                                <Button size="icon" variant="ghost" onClick={() => handlePublishDiscord(entry.id)} disabled={publishingId === entry.id || broadcastingId === entry.id} title="Publier sur le Hub (Webhook)" className="h-8 w-8 rounded-xl bg-white/5 hover:bg-indigo-500/10 text-zinc-400 hover:text-indigo-400">
                                                                     {publishingId === entry.id ? <Activity className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                                                 </Button>
-                                                                <Button size="icon" variant="ghost" onClick={() => handleEdit(entry)} className="h-8 w-8 rounded-xl bg-white/5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400">
+                                                                <Button size="icon" variant="ghost" onClick={() => handleBroadcast(entry.id)} disabled={publishingId === entry.id || broadcastingId === entry.id} title="Diffuser à TOUTES les guildes" className="h-8 w-8 rounded-xl bg-white/5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400">
+                                                                    {broadcastingId === entry.id ? <Activity className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" onClick={() => handleEdit(entry)} className="h-8 w-8 rounded-xl bg-white/5 hover:bg-zinc-500/10 text-zinc-400 hover:text-white">
                                                                     <Edit className="w-3.5 h-3.5" />
                                                                 </Button>
                                                                 <Button size="icon" variant="ghost" onClick={() => handleDelete(entry.id)} className="h-8 w-8 rounded-xl bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400">

@@ -23,7 +23,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     const [guildConfig, userProfile] = await Promise.all([
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, metamobApiKey: true }
+            select: { id: true }
         }),
         db.userProfile.findFirst({
             where: {
@@ -61,8 +61,8 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     // 3. Fetch Kralamoure Events (if user has a server configured)
     let kralaPromise: Promise<any[]> = Promise.resolve([]);
     if (userProfile?.metamobServerId) {
-        // Use User's key first, then Guild's key
-        const apiKey = decrypt(userProfile.metamobApiKey) || decrypt(guildConfig.metamobApiKey);
+        // Use User's key first
+        const apiKey = userProfile.metamobApiKey;
 
         kralaPromise = getKralamoureEvents({
             serverId: userProfile.metamobServerId,
@@ -112,14 +112,14 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) return null;
 
-    // We need an API key. Try user's key first, then guild key, then any member's key.
+    // We need an API key. Try user's key first, then any member's key.
     const userProfile = await db.userProfile.findFirst({
         where: { userId: session.user.id, guildId: ctx.guildId },
-        select: { metamobApiKey: true, guild: { select: { metamobApiKey: true } } }
+        select: { metamobApiKey: true }
     });
 
-    let apiKey = decrypt(userProfile?.metamobApiKey) || decrypt(userProfile?.guild?.metamobApiKey);
-    let keySource = userProfile?.metamobApiKey ? "user" : userProfile?.guild?.metamobApiKey ? "guild" : "none";
+    let apiKey = userProfile?.metamobApiKey;
+    let keySource = userProfile?.metamobApiKey ? "user" : "none";
 
     // Fallback: grab any guild member's key if we still have none
     if (!apiKey) {
@@ -127,7 +127,7 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
             where: { guildId: ctx.guildId, metamobApiKey: { not: null }, status: "ACTIVE" },
             select: { metamobApiKey: true },
         });
-        apiKey = decrypt(anyMemberWithKey?.metamobApiKey);
+        apiKey = anyMemberWithKey?.metamobApiKey;
         keySource = anyMemberWithKey ? "fallback-member" : "none";
     }
 

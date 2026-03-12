@@ -108,8 +108,8 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     // Coming Soon Modules (placed in tools for now)
     [PERMISSIONS.QUESTS_VIEW]: { label: "Voir Quêtes Dofus", description: "Suivre et trouver des partenaires de quêtes.", module: "tools" },
     [PERMISSIONS.QUESTS_MANAGE]: { label: "Gérer Quêtes Dofus", description: "Gérer les arbres de progression.", module: "admin" },
-    [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir Carte & Mini-Jeux", description: "Accès à la carte du monde et jeux.", module: "tools" },
-    [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer Carte & Mini-Jeux", description: "Gérer les marqueurs de la carte.", module: "admin" },
+    [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir la Carte du Monde", description: "Accès à la carte interactive et aux outils d'exploration.", module: "tools" },
+    [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer la Carte du Monde", description: "Gérer les marqueurs et configurations de la carte.", module: "admin" },
 
     // Calendar
     [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },

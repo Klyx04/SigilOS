@@ -4,6 +4,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { AccessRequestModal } from "./AccessRequestModal";
 import Image from "next/image";
+import { User } from "next-auth";
+import Link from "next/link";
+import { ChevronRight, LayoutDashboard, Users, Zap } from "lucide-react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -11,82 +14,61 @@ const DiscordIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-export function HeroSection() {
+interface HeroSectionProps {
+    user?: User;
+    userGuilds?: { id: string; name: string; iconUrl: string | null }[];
+}
+
+export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
     const [showAccessModal, setShowAccessModal] = useState(false);
 
     return (
-        <section className="relative min-h-[75vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6">
+        <section className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6 pt-32 pb-20">
 
             {/* Background Effects */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px]" />
+                <div className="absolute inset-0 bg-[url(/noise.svg)] opacity-[0.03] mix-blend-overlay" />
+                
+                {/* Grid Accent */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
             </div>
 
-            {/* Floating Dofus Icon — LEFT side */}
-            <motion.div
-                initial={{ opacity: 0, x: -40, rotate: 10 }}
-                animate={{ opacity: 1, x: 0, rotate: 0 }}
-                transition={{ duration: 1, delay: 0.9 }}
-                className="hidden lg:block absolute left-[3%] xl:left-[8%] top-1/2 -translate-y-1/2 z-10"
-            >
-                <div className="relative">
-                    <div className="absolute inset-0 bg-amber-500/15 blur-[60px] rounded-full animate-pulse-slow" />
-                    <Image
-                        src="/assets/landing/icone-dofus.png"
-                        alt="Dofus"
-                        width={140}
-                        height={140}
-                        className="relative drop-shadow-[0_0_40px_rgba(245,158,11,0.3)] hover:scale-110 transition-transform duration-500 lg:w-[100px] lg:h-[100px] xl:w-[130px] xl:h-[130px] -scale-x-100"
-                    />
-                </div>
-            </motion.div>
+            <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
 
-            {/* Floating Dofus Icon — RIGHT side */}
-            <motion.div
-                initial={{ opacity: 0, x: 40, rotate: -10 }}
-                animate={{ opacity: 1, x: 0, rotate: 0 }}
-                transition={{ duration: 1, delay: 0.8 }}
-                className="hidden lg:block absolute right-[3%] xl:right-[8%] top-1/2 -translate-y-1/2 z-10"
-            >
-                <div className="relative">
-                    <div className="absolute inset-0 bg-emerald-500/15 blur-[60px] rounded-full animate-pulse-slow" />
-                    <Image
-                        src="/assets/landing/icone-dofus.png"
-                        alt="Dofus"
-                        width={140}
-                        height={140}
-                        className="relative drop-shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:scale-110 transition-transform duration-500 lg:w-[100px] lg:h-[100px] xl:w-[130px] xl:h-[130px]"
-                    />
-                </div>
-            </motion.div>
-
-            <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6 w-full">
-
-                {/* Badge Bêta */}
+                {/* Status Badge */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.3 }}
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md mx-auto"
+                    className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mx-auto"
                 >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-mono text-emerald-300 uppercase tracking-wider font-bold">
-                        Bêta Ouverte !
+                    <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">
+                        {user ? `Session Active : ${user.name}` : "Système Bêta Ouvert"}
                     </span>
                 </motion.div>
 
-                {/* H1 */}
+                {/* Hero Title */}
                 <motion.h1
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.4 }}
-                    className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white font-heading leading-[1.1]"
+                    className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white font-heading leading-[1.05]"
                 >
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-emerald-400">
-                        Fini les tableurs excel : <br /><span className="italic">Le dashboard de gestion de guilde Dofus Unity.</span>
-                    </span>
+                    {user ? (
+                        <span>
+                            Prenez les commandes <br /> 
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">
+                                de votre empire Dofus.
+                            </span>
+                        </span>
+                    ) : (
+                        <span>
+                            L&apos;OS ultime <br /><span className="italic">pour les guildes d&apos;élite.</span>
+                        </span>
+                    )}
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -94,29 +76,82 @@ export function HeroSection() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.5 }}
-                    className="text-base md:text-lg text-zinc-400 max-w-lg mx-auto leading-relaxed"
+                    className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto leading-relaxed font-medium"
                 >
-                    Le dashboard tout-en-un pour guildes Dofus Unity. Missions, membres, events, sondages — centralisés.
+                    {user 
+                        ? "Centralisez la gestion de vos membres, automatisez vos missions et coordonnez vos sorties depuis un cockpit unique."
+                        : "Le premier véritable système d'exploitation conçu pour la gestion haute performance de guildes sur Dofus Unity."
+                    }
                 </motion.p>
 
-                {/* CTAs */}
+                {/* CTAs / Quick Access */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.6 }}
-                    className="pt-2 w-full flex flex-col items-center gap-4"
+                    className="pt-6 w-full flex flex-col items-center gap-8"
                 >
-                    {/* PRIMARY CTA — Demander l'accès */}
-                    <button
-                        onClick={() => setShowAccessModal(true)}
-                        className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.6)] hover:shadow-[0_28px_70px_-6px_rgba(16,185,129,0.75)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
-                    >
-                        {/* Shimmer */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                        <DiscordIcon className="w-7 h-7 flex-shrink-0" />
-                        <span className="text-lg">Demander l&apos;accès</span>
-                    </button>
+                    {/* Logged In View: Quick Access + Request Access */}
+                    {user ? (
+                        <div className="w-full max-w-3xl flex flex-col items-center gap-8">
+                            {/* Guild Quick Links - Dashboard specialized */}
+                            {userGuilds.length > 0 && (
+                                <div className="flex flex-wrap justify-center gap-4 w-full">
+                                    {userGuilds.slice(0, 3).map((guild, i) => (
+                                        <motion.div
+                                            key={guild.id}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: 0.7 + (i * 0.1) }}
+                                        >
+                                            <Link 
+                                                href={`/dashboard/${guild.id}`}
+                                                className="flex items-center gap-3 p-2 pr-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-500/30 transition-all hover:-translate-y-1 group"
+                                            >
+                                                {guild.iconUrl ? (
+                                                    <Image src={guild.iconUrl} alt={guild.name} width={40} height={40} className="rounded-xl" />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-amber-500 flex items-center justify-center text-xs font-black">
+                                                        {guild.name[0]}
+                                                    </div>
+                                                )}
+                                                <div className="text-left">
+                                                    <div className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none mb-1 text-emerald-400/50">Explorer</div>
+                                                    <div className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">{guild.name}</div>
+                                                </div>
+                                            </Link>
+                                        </motion.div>
+                                    ))}
+                                    {userGuilds.length > 3 && (
+                                        <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 text-xs font-bold" title="Voir toutes mes guildes">
+                                            +{userGuilds.length - 3}
+                                        </Link>
+                                    )}
+                                </div>
+                            )}
 
+                            {/* Main CTA: Request Access (Always visible for conversion) */}
+                            <button
+                                onClick={() => setShowAccessModal(true)}
+                                className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+                                <span className="text-lg">Demander l&apos;accès</span>
+                                <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                            </button>
+                        </div>
+                    ) : (
+                        /* Logged Out View */
+                        <button
+                            onClick={() => setShowAccessModal(true)}
+                            className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+                            <DiscordIcon className="w-7 h-7 flex-shrink-0" />
+                            <span className="text-lg">Demander l&apos;accès</span>
+                            <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                        </button>
+                    )}
                 </motion.div>
             </div>
 

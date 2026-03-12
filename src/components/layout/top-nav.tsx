@@ -137,8 +137,17 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                     />
                 </div>
 
-                {/* 4. User Profile & System Notifications */}
-                <div className="relative z-10 flex border-l border-white/5 bg-zinc-950/20 items-center">
+                {/* 4. Notification Bell — standalone, left of profile */}
+                <div className="relative z-10 border-r border-white/10">
+                    <NotificationBell
+                        userId={userId}
+                        guildId={sidebarProps.guildId}
+                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
+                    />
+                </div>
+
+                {/* 5. User Profile */}
+                <div className="relative z-10 flex bg-zinc-950/20 items-center">
                     {sidebarProps.user.canViewProfile ? (
                         <Link
                             href={`/dashboard/${sidebarProps.guildId}/profile`}
@@ -159,15 +168,6 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                                         {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
                                     </AvatarFallback>
                                 </Avatar>
-
-                                {/* Notification Bell integrated into the Avatar corner */}
-                                <div className="absolute -top-1 -right-1 z-30 scale-[0.85] origin-top-right translate-x-1/3 -translate-y-1/3">
-                                    <NotificationBell
-                                        userId={userId}
-                                        guildId={sidebarProps.guildId}
-                                        className="h-10 w-10 bg-zinc-900 border-2 border-white/20 text-white rounded-full hover:bg-zinc-800 transition-all shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:scale-110 active:scale-95"
-                                    />
-                                </div>
                                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#09090b] shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                             </div>
                         </Link>

@@ -113,7 +113,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugGrid, isMiniMap, guessResult, selectedPosition }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
@@ -169,11 +169,17 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
         const subAreaId = isMiniMap ? null : hoveredSubAreaIdRef.current;
         const cellKey = hoveredCellRef.current;
 
-        if (subAreaId !== null && mapsBySubAreaId) {
+        // L'utilisateur souhaite voir la zone entière en option ou moins forte, 
+        // et une surbrillance très marquée de la case unique si la grille est activée.
+        
+        // 1.a) Rendu de la sous-zone (affiché seulement si grille inactive)
+        const showSubArea = !showDebugGrid; 
+
+        if (subAreaId !== null && mapsBySubAreaId && showSubArea) {
             const mapsInZone = mapsBySubAreaId.get(subAreaId);
             if (mapsInZone) {
-                ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-                ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; 
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
                 ctx.lineWidth = 1.5;
 
                 const painted = new Set<string>();
@@ -190,12 +196,23 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
                     ctx.strokeRect(Math.round(tl.x), Math.round(tl.y), w, h);
                 });
             }
-        } else if (cellKey) {
+        } 
+        
+        // 1.b) Rendu de la case survolée (fort et précis si grille active)
+        if (cellKey && (showDebugGrid || !showSubArea)) {
             const [hx, hy] = cellKey.split(',').map(Number);
             const tl = map.latLngToContainerPoint(L.latLng(-(oy + hy * mh), ox + hx * mw));
             const br = map.latLngToContainerPoint(L.latLng(-(oy + (hy + 1) * mh), ox + (hx + 1) * mw));
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            
+            // Highlight très puissant sur la case unique
+            ctx.fillStyle = showDebugGrid ? 'rgba(250, 204, 21, 0.35)' : 'rgba(255, 255, 255, 0.15)'; // Jaune si grille (yellow-400), Blanc sinon
+            ctx.strokeStyle = showDebugGrid ? 'rgba(250, 204, 21, 0.9)' : 'transparent';
+            ctx.lineWidth = showDebugGrid ? 3 : 0;
+            
             ctx.fillRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
+            if (showDebugGrid) {
+                ctx.strokeRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
+            }
         }
 
         // ── 2. Selection Highlight (Ancisnt Rectangle SVG -> Canvas) ──
@@ -209,69 +226,79 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
             ctx.strokeRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
         }
 
-        // ── 3. Guess Result (Trait + Dots) ──
-        if (guessResult) {
+        // ── 3. Guess Results (Multiple participants if in result phase) ──
+        if (participants && participants.length > 0 && guessResult?.target && guessResult.target.worldMap === world.id) {
+            const t = guessResult.target;
+            const p1 = map.latLngToContainerPoint(L.latLng(-(oy + t.y * mh + mh / 2), ox + t.x * mw + mw / 2));
+            
+            // Draw Target (Red Flag/Target Circle) - Always drawn
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
+            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+
+            participants.forEach((p: any) => {
+                const g = p.lastGuess;
+                if (!g || g.hidden) return;
+                if (g.worldId !== world.id && g.worldId !== undefined) return; // Skip if wrong world
+
+                const p2 = map.latLngToContainerPoint(L.latLng(-(oy + g.y * mh + mh / 2), ox + g.x * mw + mw / 2));
+                const isMe = p.userId === currentUserId;
+
+                // Path Line
+                ctx.shadowBlur = isMe ? 15 : 5;
+                ctx.shadowColor = isMe ? 'rgba(16, 185, 129, 0.6)' : 'rgba(255, 255, 255, 0.2)';
+                
+                ctx.beginPath();
+                ctx.setLineDash(isMe ? [] : [10, 10]);
+                ctx.strokeStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = isMe ? 4 : 2;
+                ctx.lineCap = 'round';
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+
+                // Guess Point
+                ctx.setLineDash([]);
+                ctx.shadowBlur = isMe ? 15 : 0;
+                ctx.shadowColor = 'rgba(16, 185, 129, 0.8)';
+                ctx.fillStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.8)';
+                ctx.beginPath(); ctx.arc(p2.x, p2.y, isMe ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke();
+
+                // Label for ME or winner
+                if (isMe) {
+                    const dist = Math.round(g.distance || 0);
+                    const label = `${dist} maps`;
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    const tw = ctx.measureText(label).width;
+                    const mx = (p1.x + p2.x) / 2;
+                    const my = (p1.y + p2.y) / 2;
+                    
+                    ctx.shadowBlur = 10; ctx.shadowColor = 'black';
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                    ctx.beginPath(); ctx.roundRect(mx - tw/2 - 8, my - 12, tw + 16, 24, 6); ctx.fill();
+                    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = '#fbbf24'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(label, mx, my + 1);
+                }
+            });
+        }
+        else if (guessResult?.target && guessResult?.guess && guessResult.target.worldMap === world.id) {
+            // Fallback for single guess (non-room or quick sync)
             const t = guessResult.target;
             const g = guessResult.guess;
-
-            // Si pas de guess (temps écoulé), on ne dessine pas le trait
-            if (!g) return;
-
+            if (g.worldMap !== world.id && g.worldMap !== undefined) return;
+            
             const p1 = map.latLngToContainerPoint(L.latLng(-(oy + t.y * mh + mh / 2), ox + t.x * mw + mw / 2));
             const p2 = map.latLngToContainerPoint(L.latLng(-(oy + g.y * mh + mh / 2), ox + g.x * mw + mw / 2));
+            
+            ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
+            ctx.beginPath(); ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
 
-            // Glow Effect
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(245, 158, 11, 0.5)';
-
-            // Le trait
-            ctx.beginPath();
-            ctx.setLineDash([12, 8]);
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 6;
-            ctx.lineCap = 'round';
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Points de départ/arrivée
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = 'rgba(16, 185, 129, 0.8)';
-            ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 10, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
-
-            ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
-            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(p2.x, p2.y, 10, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
-
-            ctx.shadowBlur = 0;
-
-            // Label de distance au milieu
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            const dx = t.x - g.x;
-            const dy = t.y - g.y;
-            const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
-
-            const label = `${dist} maps`;
-            ctx.font = 'bold 14px Inter, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-
-            // Fond du label
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
-            ctx.beginPath();
-            ctx.rect(midX - textWidth / 2 - 10, midY - 15, textWidth + 20, 30);
-            ctx.fill();
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Texte
-            ctx.fillStyle = '#fbbf24';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, midX, midY);
+            ctx.shadowColor = '#ef4444'; ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowColor = '#10b981'; ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(p2.x, p2.y, 8, 0, Math.PI * 2); ctx.fill();
         }
 
         if (!showDebugGrid || isMiniMap) return;
@@ -291,8 +318,8 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
         const maxGY = Math.ceil(Math.max(g1Y, g2Y)) + 1;
 
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Plus visible, épaisseur et couleur accentuées
+        ctx.lineWidth = 2; // Traits de la grille plus costauds
 
         for (let gx = minGX; gx <= maxGX + 1; gx++) {
             const p = map.latLngToContainerPoint(L.latLng(0, ox + gx * mw));
@@ -308,12 +335,12 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
             ctx.lineTo(size.x, y);
         }
         ctx.stroke();
-    }, [map, activeWorld, mapsBySubAreaId, showDebugGrid, isMiniMap, guessResult, selectedPosition]);
+    }, [map, activeWorld, mapsBySubAreaId, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId]);
 
     // Redraw on every map movement, zoom and toggle (rAF-throttled)
     useEffect(() => {
         drawGrid();
-    }, [showDebugGrid, drawGrid, selectedPosition, guessResult]);
+    }, [showDebugGrid, drawGrid, selectedPosition, guessResult, participants, currentUserId]);
 
     useMapEvents({
         move: () => {
@@ -363,7 +390,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
-function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger }: any) {
+function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
     const map = useMap();
 
     useEffect(() => {
@@ -405,21 +432,32 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
     }, [minimapRecenterTrigger, isMiniMap, map, activeWorld, guessResult]);
 
     useEffect(() => {
-        if (guessResult && isMiniMap && activeWorld) {
-            const { target, guess } = guessResult;
-            if (!guess) return; // Don't fly if no guess made (timeout)
-            const world = activeWorld;
+        if (!isMiniMap || !activeWorld || !map) return;
+        
+        const world = activeWorld;
+        const target = guessResult?.target;
+        if (!target) return;
 
-            const p1 = L.latLng(-(world.origineY + target.y * world.mapHeight + world.mapHeight / 2), world.origineX + target.x * world.mapWidth + world.mapWidth / 2);
-            const p2 = L.latLng(-(world.origineY + guess.y * world.mapHeight + world.mapHeight / 2), world.origineX + guess.x * world.mapWidth + world.mapWidth / 2);
+        const points: L.LatLng[] = [];
+        points.push(L.latLng(-(world.origineY + target.y * world.mapHeight + world.mapHeight / 2), world.origineX + target.x * world.mapWidth + world.mapWidth / 2));
 
-            const bounds = L.latLngBounds([p1, p2]);
-            // Petit timeout pour s'assurer que Leaflet a fini son rendu initial
+        if (participants && participants.length > 0) {
+            participants.forEach((p: any) => {
+                if (p.lastGuess && !p.lastGuess.hidden) {
+                    points.push(L.latLng(-(world.origineY + p.lastGuess.y * world.mapHeight + world.mapHeight / 2), world.origineX + p.lastGuess.x * world.mapWidth + world.mapWidth / 2));
+                }
+            });
+        } else if (guessResult?.guess) {
+            points.push(L.latLng(-(world.origineY + guessResult.guess.y * world.mapHeight + world.mapHeight / 2), world.origineX + guessResult.guess.x * world.mapWidth + world.mapWidth / 2));
+        }
+
+        if (points.length >= 2) {
+            const bounds = L.latLngBounds(points);
             setTimeout(() => {
-                map.flyToBounds(bounds, { padding: [80, 80], duration: 1.5, easeLinearity: 0.25 });
+                map.flyToBounds(bounds, { padding: [100, 100], duration: 1.5, easeLinearity: 0.25 });
             }, 100);
         }
-    }, [guessResult, isMiniMap, map, activeWorld]);
+    }, [guessResult, isMiniMap, map, activeWorld, participants]);
 
     return null;
 }
@@ -519,13 +557,16 @@ interface LeafletMapCoreProps {
     mapsBySubAreaId?: Map<number, any[]>;
     minimapZoomLevel?: number;
     minimapRecenterTrigger?: number;
+    participants?: any[];
+    currentUserId?: string;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const {
         activeWorld, selectedWorldId, activeMaps, mapsByCoords, subAreasById,
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
-        isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger
+        isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
+        participants, currentUserId
     } = props;
 
     // Correction Alignement : Décalage manuel de +2 cases à droite spécifique au Monde des Douze
@@ -606,7 +647,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 zoomControl={false}
                 attributionControl={false}
-                minZoom={isMiniMap ? -6 : (-(correctedActiveWorld.zoom?.length || 1) - 1)}
+                minZoom={Math.max((isMiniMap && selectedWorldId !== 1) ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
                 maxBoundsViscosity={0.8}
                 zoomSnap={0.1}
@@ -619,6 +660,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     activeWorld={correctedActiveWorld}
                     minimapZoomLevel={minimapZoomLevel}
                     minimapRecenterTrigger={minimapRecenterTrigger}
+                    participants={participants}
                 />
                 {/* 1. Tuiles */}
                 <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
@@ -632,6 +674,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}
+                    participants={participants}
+                    currentUserId={currentUserId}
                 />
 
                 {/* 4. Interactions */}
@@ -669,10 +713,16 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                                 iconSize: [28, 28],
                                 iconAnchor: [14, 14]
                             })}
-                            eventHandlers={{ click: () => setSelectedDungeon(group.dungeons) }}
+                            eventHandlers={{ click: (e) => { e.originalEvent.stopPropagation(); setSelectedDungeon(group.dungeons); } }}
                         >
                             <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                <div className="text-amber-500 font-bold text-xs">{dCount > 1 ? `${dCount} Donjons` : group.dungeons[0].name.fr}</div>
+                                <div className="text-amber-500 font-bold text-xs">
+                                    {dCount > 1
+                                        ? `${dCount} Donjons`
+                                        : (typeof group.dungeons[0].name === 'string'
+                                            ? group.dungeons[0].name
+                                            : group.dungeons[0].name?.fr || 'Donjon')}
+                                </div>
                             </Tooltip>
                         </Marker>
                     );

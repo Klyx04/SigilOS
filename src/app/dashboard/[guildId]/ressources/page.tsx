@@ -152,6 +152,11 @@ export default async function RessourcesPage({ params }: Props) {
                             {/* Right: DPLN */}
                             <NewsGrid defaultFeed="dpln" title="Dofuspourlesnoobs (DPLN)" maxItems={6} showKralamoure={false} />
                         </div>
+
+                        {/* Bottom: Patch Notes Full Width */}
+                        <div className="mt-12 pt-12 border-t border-white/10">
+                            <NewsGrid defaultFeed="changelog" title="Dofus Patch Notes & Correctifs" maxItems={5} layout="list" />
+                        </div>
                     </section>
                 </TabsContent>
 

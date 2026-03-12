@@ -91,6 +91,7 @@ const CreateRunSchema = z.object({
     ])).min(1, "Sélectionnez au moins un objectif"),
     publishToDiscord: z.boolean().optional(),
     epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
+    scheduledAt: z.date().optional().nullable(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -181,6 +182,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             objectives: validated.data.objectives,
             objective: validated.data.objectives[0], // Init legacy field
             epreuveCode: validated.data.epreuveCode ?? null,
+            scheduledAt: validated.data.scheduledAt ?? null,
             members: {
                 create: {
                     userId: ctx.userId,

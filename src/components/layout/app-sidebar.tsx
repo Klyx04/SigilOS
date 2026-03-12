@@ -64,7 +64,12 @@ export function AppSidebar({
     modules = DEFAULT_MODULES,
     className
 }: AppSidebarProps) {
+    const [mounted, setMounted] = useState(false);
     const pathname = usePathname();
+
+    useState(() => {
+        if (typeof window !== "undefined") setMounted(true);
+    });
 
     const checkIsActive = (href: string, exact = false, aliases?: string[]) => {
         if (exact) return pathname === href;
@@ -99,6 +104,7 @@ export function AppSidebar({
 
     const NAV_ACTIVITIES_TOP = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "text-emerald-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
     ];
 
     // Sub-items grouped under the collapsible "Progression" parent
@@ -116,12 +122,12 @@ export function AppSidebar({
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-cyan-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
 
     const NAV_COMING_SOON = [
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
-        { name: "Carte & Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
     ];
 
     const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };
@@ -159,78 +165,82 @@ export function AppSidebar({
                 </Link>
 
                 {/* Guild Switcher */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            className="w-full justify-between h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-left px-3 group"
-                        >
-                            <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-6 w-6 rounded-md border border-white/10">
-                                    <AvatarImage src={guildData.iconUrl || undefined} />
-                                    <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-400">
-                                        {guildData.name?.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
-                                        {guildData.name}
-                                    </span>
-                                    <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">
-                                        Guilde Active
-                                    </span>
+                {!mounted ? (
+                    <div className="w-full h-12 bg-white/5 border border-white/10 rounded-md animate-pulse" />
+                ) : (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-between h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-left px-3 group"
+                            >
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <Avatar className="h-6 w-6 rounded-md border border-white/10">
+                                        <AvatarImage src={guildData.iconUrl || undefined} />
+                                        <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-400">
+                                            {guildData.name?.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
+                                            {guildData.name}
+                                        </span>
+                                        <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">
+                                            Guilde Active
+                                        </span>
+                                    </div>
                                 </div>
+                                <ChevronsUpDown className="h-4 w-4 text-zinc-500 shrink-0" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            className="w-64 bg-zinc-950 border-zinc-500/20 text-zinc-200 shadow-[0_0_40px_rgba(0,0,0,0.8)] p-1 backdrop-blur-3xl"
+                            align="start"
+                            sideOffset={8}
+                        >
+                            <DropdownMenuLabel className="px-3 py-2 text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
+                                Changer de guilde
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                            <div className="space-y-0.5 p-1">
+                                {userGuilds.map((g) => (
+                                    <DropdownMenuItem key={g.id} asChild>
+                                        <Link
+                                            href={`/dashboard/${g.id}`}
+                                            className={cn(
+                                                "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200",
+                                                g.id === guildId
+                                                    ? "bg-primary/10 border border-primary/20 text-white"
+                                                    : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"
+                                            )}
+                                        >
+                                            <Avatar className="h-6 w-6 rounded-md border border-white/10">
+                                                <AvatarImage src={g.iconUrl || undefined} />
+                                                <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
+                                                    {g.name?.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className={cn("text-xs font-black truncate", g.id === guildId ? "text-primary" : "")}>
+                                                    {g.name}
+                                                </span>
+                                                {g.id === guildId && <span className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Connecté</span>}
+                                            </div>
+                                            {g.id === guildId && (
+                                                <div className="ml-auto w-1 h-4 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
+                                            )}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                ))}
                             </div>
-                            <ChevronsUpDown className="h-4 w-4 text-zinc-500 shrink-0" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        className="w-64 bg-zinc-950 border-zinc-500/20 text-zinc-200 shadow-[0_0_40px_rgba(0,0,0,0.8)] p-1 backdrop-blur-3xl"
-                        align="start"
-                        sideOffset={8}
-                    >
-                        <DropdownMenuLabel className="px-3 py-2 text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
-                            Changer de guilde
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
-                        <div className="space-y-0.5 p-1">
-                            {userGuilds.map((g) => (
-                                <DropdownMenuItem key={g.id} asChild>
-                                    <Link
-                                        href={`/dashboard/${g.id}`}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200",
-                                            g.id === guildId
-                                                ? "bg-primary/10 border border-primary/20 text-white"
-                                                : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"
-                                        )}
-                                    >
-                                        <Avatar className="h-6 w-6 rounded-md border border-white/10">
-                                            <AvatarImage src={g.iconUrl || undefined} />
-                                            <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
-                                                {g.name?.substring(0, 2).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className={cn("text-xs font-black truncate", g.id === guildId ? "text-primary" : "")}>
-                                                {g.name}
-                                            </span>
-                                            {g.id === guildId && <span className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Connecté</span>}
-                                        </div>
-                                        {g.id === guildId && (
-                                            <div className="ml-auto w-1 h-4 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
-                                        )}
-                                    </Link>
-                                </DropdownMenuItem>
-                            ))}
-                        </div>
-                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
-                        <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
-                            <Plus className="h-3.5 w-3.5" />
-                            Rejoindre une guilde
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                            <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                            <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
+                                <Plus className="h-3.5 w-3.5" />
+                                Rejoindre une guilde
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
 
             {/* 2. SCROLLABLE NAVIGATION */}
@@ -381,60 +391,64 @@ export function AppSidebar({
 
             {/* 3. FOOTER: USER ISLAND */}
             <div className="p-4 mt-auto">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
-                        >
-                            <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
-                                    <AvatarImage src={user.image || ""} />
-                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                    <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
-                                        {user.name || "Compte"}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
-                                        {user.roleName || "Membre"}
-                                    </span>
+                {!mounted ? (
+                    <div className="w-full h-14 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+                ) : (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
+                            >
+                                <div className="flex items-center gap-3 w-full">
+                                    <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
+                                        <AvatarImage src={user.image || ""} />
+                                        <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col items-start min-w-0 flex-1 text-left">
+                                        <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
+                                            {user.name || "Compte"}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
+                                            {user.roleName || "Membre"}
+                                        </span>
+                                    </div>
+                                    <ChevronsUpDown className="h-4 w-4 text-zinc-500 group-hover/island:text-white transition-all shrink-0" />
                                 </div>
-                                <ChevronsUpDown className="h-4 w-4 text-zinc-500 group-hover/island:text-white transition-all shrink-0" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl" align="end" side="right" sideOffset={12}>
+                            <div className="px-2 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-white/5 rounded-md mb-1 mx-1 mt-1">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Session Active</span>
                             </div>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl" align="end" side="right" sideOffset={12}>
-                        <div className="px-2 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-white/5 rounded-md mb-1 mx-1 mt-1">
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Session Active</span>
-                        </div>
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        {user.canViewProfile && (
-                            <>
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                    <Link href={`/dashboard/${guildId}/profile`}>
-                                        <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
-                                        <span className="font-bold">Mon Profil</span>
-                                    </Link>
-                                </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-white/10" />
+                            {user.canViewProfile && (
+                                <>
+                                    <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                        <Link href={`/dashboard/${guildId}/profile`}>
+                                            <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
+                                            <span className="font-bold">Mon Profil</span>
+                                        </Link>
+                                    </DropdownMenuItem>
 
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                    <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
-                                        <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                                        <span className="font-bold">Paramètres</span>
-                                    </Link>
-                                </DropdownMenuItem>
-                            </>
-                        )}
+                                    <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
+                                        <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
+                                            <Settings className="mr-2 h-4 w-4 text-zinc-500" />
+                                            <span className="font-bold">Paramètres</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
 
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span className="font-black">Déconnexion</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span className="font-black">Déconnexion</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
         </div>
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer } from "lucide-react";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -25,6 +25,11 @@ import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type Obje
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 
 // Couleur selon difficulté
 function getDifficultyBadgeColor(diffKey: DifficultyKey) {
@@ -49,6 +54,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
     // Shared
     const [publishToDiscord, setPublishToDiscord] = useState(!!isDiscordConfigured);
+    const [isScheduled, setIsScheduled] = useState(false);
+    const [scheduledDate, setScheduledDate] = useState<Date | undefined>(new Date());
+    const [scheduledTime, setScheduledTime] = useState("20:00");
     const [error, setError] = useState<string | null>(null);
     const [rateLimitReset, setRateLimitReset] = useState<number | null>(null); // timestamp ms
     const [countdown, setCountdown] = useState<string | null>(null);
@@ -78,7 +86,19 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             }
             setError(null);
             startTransition(async () => {
-                const result = await createDreamRun(guildId, { difficulty, objectives, publishToDiscord });
+                let scheduledAt: Date | null = null;
+                if (isScheduled && scheduledDate) {
+                    const [hours, minutes] = scheduledTime.split(":").map(Number);
+                    scheduledAt = new Date(scheduledDate);
+                    scheduledAt.setHours(hours, minutes, 0, 0);
+                }
+
+                const result = await createDreamRun(guildId, { 
+                    difficulty, 
+                    objectives, 
+                    publishToDiscord,
+                    scheduledAt
+                });
                 if (result.success) {
                     toast.success("Run créée avec succès !");
                     setOpen(false);
@@ -100,11 +120,19 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             const epreuve = EPREUVES_SONGE.find(e => e.code === selectedEpreuve)!;
             setError(null);
             startTransition(async () => {
+                let scheduledAt: Date | null = null;
+                if (isScheduled && scheduledDate) {
+                    const [hours, minutes] = scheduledTime.split(":").map(Number);
+                    scheduledAt = new Date(scheduledDate);
+                    scheduledAt.setHours(hours, minutes, 0, 0);
+                }
+
                 const result = await createDreamRun(guildId, {
                     difficulty: epreuve.difficulty,
                     objectives: ["SUCCES_NO_ACHAT"],
                     publishToDiscord,
                     epreuveCode: epreuve.code,
+                    scheduledAt
                 });
                 if (result.success) {
                     toast.success(`Épreuve ${epreuve.code} lancée !`);
@@ -318,6 +346,69 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
                             ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
                         </p>
+                    )}
+                </div>
+
+                {/* ─── SCHEDULE TOGGLE ─── */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
+                        <div className="flex items-center gap-3">
+                            <CalendarIcon className="w-5 h-5 text-purple-400" />
+                            <div>
+                                <p className="text-sm font-medium text-white/80">Planifier la Run</p>
+                                <p className="text-xs text-white/35">Définir une date et une heure</p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={isScheduled}
+                            onCheckedChange={setIsScheduled}
+                            className="data-[state=checked]:bg-purple-600"
+                        />
+                    </div>
+
+                    {isScheduled && (
+                        <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className={cn(
+                                                "w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/8",
+                                                !scheduledDate && "text-white/40"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4 text-purple-400" />
+                                            {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#0c0514] border-white/10" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={scheduledDate}
+                                            onSelect={setScheduledDate}
+                                            disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
+                                            initialFocus
+                                            className="bg-transparent text-white"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Heure</Label>
+                                <div className="relative">
+                                    <Clock className="absolute left-3 top-3 h-4 w-4 text-purple-400" />
+                                    <Input
+                                        type="time"
+                                        value={scheduledTime}
+                                        onChange={(e) => setScheduledTime(e.target.value)}
+                                        className="h-10 pl-10 bg-white/5 border-white/10 text-white focus:border-purple-500/50"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
 

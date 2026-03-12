@@ -16,11 +16,12 @@ export class GarticRoom {
     private state!: GameContext;
     private machine: Actor<typeof garticMachine>;
     private io: Server;
-    public strokeHistory: StrokeData[] = [];
     private timers: Map<string, NodeJS.Timeout> = new Map();
+    private guildId: string;
 
-    constructor(io: Server, config: RoomConfig) {
+    constructor(io: Server, config: RoomConfig & { guildId: string }) {
         this.io = io;
+        this.guildId = config.guildId;
         this.machine = createActor(garticMachine, {
             input: { roomId: config.id, ...config },
         });
@@ -28,56 +29,151 @@ export class GarticRoom {
         this.machine.subscribe(this.onStateChange.bind(this));
     }
 
+    public getGuildId() {
+        return this.guildId;
+    }
+
     private onStateChange(snapshot: any) {
         const snap = snapshot;
         const phase = snap.value as GamePhase;
         this.state = snap.context;
 
-        this.io.to(this.state.roomId).emit("gartic:state:update", {
+        // Emit general state to everyone
+        const basicState = {
+            id: this.state.roomId,
             phase,
-            players: Array.from(this.state.players.values()),
-            currentRound: snap.context.currentRound,
-            maxRounds: snap.context.maxRounds,
-            drawerName: "Drawer", // to fix
-            timer: snap.context.timer,
-            scores: Object.fromEntries(snap.context.scores),
+            currentRound: this.state.currentRound,
+            maxRounds: this.state.maxRounds,
+            timer: this.state.timer,
+            maxTimer: this.state.maxTimer,
+            hostId: this.state.hostId,
+            players: Array.from(this.state.players.values()).map(p => ({
+                id: p.id,
+                username: p.username,
+                dofusClass: p.dofusClass,
+                score: p.score,
+                isHost: p.id === this.state.hostId || p.userId === this.state.hostId,
+                hasSubmitted: this.state.submittedThisRound.has(p.id)
+            })),
+        };
+        
+        if (phase === "REVEAL") {
+            (basicState as any).albums = Array.from(this.state.chains.entries()).map(([ownerId, entries]) => ({
+                owner: { username: this.state.players.get(ownerId)?.username || "Inconnu" },
+                entries: entries.map(e => ({
+                    ...e,
+                    author: { username: this.state.players.get(e.playerId)?.username || "Inconnu" }
+                }))
+            }));
+            (basicState as any).revealIndex = this.state.revealIndex;
+        }
+
+        // For each player, send custom task data
+        this.state.players.forEach(player => {
+            const chainId = this.state.assignments.get(player.id);
+            let task = null;
+
+            if (chainId && (phase === "DRAWING" || phase === "GUESSING")) {
+                const chain = this.state.chains.get(chainId) || [];
+                // IMPORTANT: The task is always the entry from the PREVIOUS round
+                const taskEntry = chain[this.state.currentRound - 1]; 
+                if (taskEntry) {
+                    task = {
+                        type: taskEntry.type,
+                        content: taskEntry.content
+                    };
+                }
+            }
+
+            this.io.to(player.id).emit("gartic:state:update", {
+                ...basicState,
+                task
+            });
         });
 
-        switch (phase) {
-            case "BRIEFING":
-                this.handleBriefing(snap.context);
-                break;
-            case "DRAWING":
-                this.strokeHistory = [];
-                this.startCountdown(snap.context.timer, "DRAWING");
-                break;
-            case "GUESSING":
-                this.startCountdown(45, "GUESSING");
-                break;
-            case "REVEAL":
-                this.sendAlbums(snap.context);
-                break;
+        // Trigger phase-specific countdown
+        if (["STARTING", "WRITING", "DRAWING", "GUESSING", "INTERMISSION"].includes(phase)) {
+            this.startCountdown(this.state.maxTimer, phase);
         }
     }
 
-    public addPlayer(socket: Socket) {
-        const user = socket.data?.user;
-        if (!user) return;
-        this.state.players.set(socket.id, {
-            id: socket.id,
-            username: user.name || "Unknown",
-            dofusClass: "1",
-            isReady: false,
-            score: 0
+    public addPlayer(socket: Socket, userName: string = "Anonyme", userId?: string, userAvatar?: string, isSpectator: boolean = false) {
+        this.machine.send({
+            type: "PLAYER_JOIN",
+            player: {
+                id: socket.id,
+                userId,
+                username: userName,
+                userAvatar,
+                dofusClass: (Math.floor(Math.random() * 18) + 1).toString(),
+                isReady: false,
+                score: 0,
+                isSpectator
+            }
         });
     }
 
-    public handlePlayerDisconnect(socketId: string, reason: string) {
-        this.state.players.delete(socketId);
+    public startGame() {
+        if (this.state.players.size < 1) { // 1 pour tester
+            this.io.to(this.state.roomId).emit("gartic:error", { message: "Il faut au moins 1 joueur !" });
+            return;
+        }
+        this.machine.send({ type: "START_GAME" });
+    }
+
+    public isHost(socketId: string): boolean {
+        const player = this.state.players.get(socketId);
+        if (!player) return false;
+        return this.state.hostId === player.id || this.state.hostId === player.userId;
+    }
+
+    public isSpectator(socketId: string): boolean {
+        return this.state?.players.get(socketId)?.isSpectator || false;
+    }
+
+    public handleTextSubmit(socket: Socket, text: string) {
+        this.machine.send({ type: "SUBMIT_TEXT", playerId: socket.id, text });
+    }
+
+    public handleDrawSubmit(socket: Socket, dataUrl: string) {
+        // SECURITY: Limit drawing size to 1MB to prevent DOS (RAM exhaustion)
+        if (dataUrl && dataUrl.length > 1024 * 1024) {
+            console.warn(`[GarticRoom:${this.state.roomId}] ⚠️ Drawing rejected: Payload too large (${Math.round(dataUrl.length / 1024)}KB)`);
+            socket.emit("gartic:error", { message: "Le dessin est trop lourd ! (Max 1Mo)" });
+            return;
+        }
+        this.machine.send({ type: "SUBMIT_DRAW", playerId: socket.id, dataUrl });
+    }
+
+    public getHostId() {
+        return this.state.hostId;
     }
 
     public isEmpty() {
-        return this.state.players.size === 0;
+        return (this.state?.players?.size ?? 0) === 0;
+    }
+
+    public isInLobby(): boolean {
+        return this.machine.getSnapshot().value === "LOBBY";
+    }
+
+    public getPublicInfo(roomId: string) {
+        const host = Array.from(this.state.players.values()).find(p => p.id === this.state.hostId || p.userId === this.state.hostId);
+        return {
+            roomId,
+            playerCount: this.state?.players?.size ?? 0,
+            maxPlayers: this.state?.maxPlayers ?? 14,
+            mode: this.state?.mode ?? "NORMAL",
+            hostName: host?.username || "Hôte"
+        };
+    }
+
+    public handleRevealNext() {
+        this.machine.send({ type: "NEXT_REVEAL" });
+    }
+
+    public handlePlayerDisconnect(socketId: string) {
+        this.machine.send({ type: "PLAYER_LEAVE", playerId: socketId });
     }
 
     public destroy() {
@@ -85,54 +181,35 @@ export class GarticRoom {
         this.machine.stop();
     }
 
-    private handleBriefing(ctx: GameContext) {
-        // Notify drawer and guessers
-    }
+    private sendAlbums(ctx: GameContext) {
+        const albums = Array.from(ctx.chains.entries()).map(([ownerId, entries]) => ({
+            owner: ctx.players.get(ownerId)?.username || "Inconnu",
+            entries: entries.map(e => ({
+                ...e,
+                author: ctx.players.get(e.playerId)?.username || "Inconnu"
+            }))
+        }));
 
-    private async sendAlbums(ctx: any) {
-        // Collect all entries from player tracks
-        const albumData = ctx.album;
-
-        // --- PERFORMANCE OPTIM: Use Redis for ephemeral storage ---
-        // Instead of Prisma (Disk), we use Redis (RAM) with 1h TTL
-        const cacheKey = `gartic:album:${ctx.roomId}`;
-        await redis.set(cacheKey, JSON.stringify(albumData), "EX", 3600);
-
-        this.io.to(ctx.roomId).emit("gartic:album:ready", {
-            roomId: ctx.roomId,
-            expiresIn: 3600
-        });
-    }
-
-    public handleStroke(socket: Socket, stroke: StrokeData) {
-        if (this.machine.getSnapshot().value !== "DRAWING") return;
-        this.strokeHistory.push(stroke);
-        socket.to(this.state.roomId).emit("gartic:draw:stroke", stroke);
-    }
-
-    public handleGuess(socket: Socket, text: string) {
-        if (this.machine.getSnapshot().value !== "GUESSING") return;
-        this.machine.send({ type: "SUBMIT_GUESS", playerId: socket.id, guess: text } as any);
-    }
-
-    public handleLateJoin(socket: Socket) {
-        if (this.strokeHistory.length > 0) {
-            socket.emit("gartic:draw:history", this.strokeHistory);
-        }
+        this.io.to(ctx.roomId).emit("gartic:reveal:ready", { albums });
     }
 
     private startCountdown(duration: number, phase: string) {
         const key = `timer_${phase}`;
-        if (this.timers.has(key)) clearInterval(this.timers.get(key)!);
+        
+        // Clean up ALL active timers for this room to prevent memory leaks
+        this.timers.forEach((t) => clearInterval(t));
+        this.timers.clear();
 
         let remaining = duration;
+        this.machine.send({ type: "TICK", remaining });
         const interval = setInterval(() => {
             remaining--;
-            this.io.to(this.state.roomId).emit("gartic:timer:tick", { remaining });
+            this.machine.send({ type: "TICK", remaining });
 
             if (remaining <= 0) {
                 clearInterval(interval);
-                this.machine.send({ type: "TIMER_END" } as any);
+                this.timers.delete(key);
+                this.machine.send({ type: `TIMER_END_${phase}` as any });
             }
         }, 1000);
 

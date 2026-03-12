@@ -11,6 +11,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
+import { formatDofusPseudo } from "@/lib/utils";
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -26,7 +27,7 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string()
         .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
-        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]+$/, "Le pseudo ne doit contenir que des lettres et tirets (pas de chiffres ni de caractères spéciaux)")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]*$/, "Le pseudo ne doit contenir que des lettres, espaces et tirets (pas de chiffres ni de caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
     classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
@@ -257,7 +258,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                     }
                 }
             } catch (e) {
-                console.warn("Failed to fetch Discord info:", e);
+                logger.warn("Failed to fetch Discord info", { error: e });
             }
         }
 
@@ -314,7 +315,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
             }
         };
     } catch (error) {
-        console.error("Get Member Profile Error:", error);
+        logger.error("Get Member Profile Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -325,7 +326,12 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+    let { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+
+    // Formater le pseudo Dofus
+    if (pseudoDofus) {
+        pseudoDofus = formatDofusPseudo(pseudoDofus);
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
@@ -398,7 +404,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         revalidatePath(`/dashboard/${guildId}/members`);
         return { success: true };
     } catch (error) {
-        console.error("Update Profile Error:", error);
+        logger.error("Update Profile Error", { error });
         return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
@@ -441,7 +447,7 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
 
         return { success: true };
     } catch (error) {
-        console.error("Update Availability Error:", error);
+        logger.error("Update Availability Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -485,7 +491,7 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
-        console.error("Update Vacation Error:", error);
+        logger.error("Update Vacation Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -533,7 +539,7 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
-        console.error("Update Notification Prefs Error:", error);
+        logger.error("Update Notification Prefs Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -572,7 +578,7 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
         return { success: true };
     } catch (error) {
-        console.error("Update Forgemagie Error:", error);
+        logger.error("Update Forgemagie Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -599,12 +605,12 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
     if (!validation.success) {
-        console.error("[Alt Pseudos] Validation error:", validation.error.format());
+        logger.error("[Alt Pseudos] Validation error", { error: validation.error.format() });
         return { success: false, error: "Données invalides" };
     }
     const { guildId, altPseudos, targetUserId } = validation.data;
 
-    console.log(`[Alt Pseudos] Updating alt pseudos for guild ${guildId}:`, altPseudos);
+    logger.info(`[Alt Pseudos] Updating alt pseudos for guild ${guildId}`, { altPseudos });
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -613,7 +619,10 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const cleanedPseudos = altPseudos.slice(0, 5);
+        const cleanedPseudos = altPseudos.slice(0, 5).map(p => ({
+            ...p,
+            pseudo: formatDofusPseudo(p.pseudo)
+        }));
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -625,7 +634,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
         }
 
-        console.log(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
+        logger.info(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving`, { cleanedPseudos });
 
         await db.userProfile.update({
             where: {
@@ -634,12 +643,12 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             data: { altPseudos: cleanedPseudos }
         });
 
-        console.log(`[Dofusbook] Successfully updated database for ${user.id}`);
+        logger.info(`[Dofusbook] Successfully updated database for ${user.id}`);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error: unknown) {
-        console.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR:", error);
+        logger.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR", { error });
         return { success: false, error: "Erreur serveur critique" };
     }
 }
@@ -1088,8 +1097,10 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         const base64Data = imageData.split(',')[1];
         if (!base64Data) return { success: false, error: "Données d'image corrompues." };
 
+        const buffer = Buffer.from(base64Data, 'base64');
+
         // --- ANTI-DUPLICATE CHECK ---
-        const imageHash = hashImage(base64Data);
+        const imageHash = hashImage(buffer);
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
@@ -1205,14 +1216,11 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             const uploadRelativeDir = `uploads/proofs/${guildConfig.discordGuildId}`;
             const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
-
             const { randomUUID: genProofUUID } = await import("crypto");
             const fileName = `${genProofUUID()}.webp`;
             const filePath = join(uploadDir, fileName);
 
-            const buffer = Buffer.from(base64Data, 'base64');
-
-            // 3. Optimize Image using Sharp (before saving for manual validation)
+            // Buffer already created at line 1100
             const optimizedBuffer = await sharp(buffer)
                 .resize(1920, null, {
                     withoutEnlargement: true,

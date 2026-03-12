@@ -471,10 +471,10 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
 // =============================================================================
 
 /**
- * Generate SHA-256 hash of image data for duplicate detection
+ * Generate SHA-256 hash of image buffer for duplicate detection
  */
-export function hashImage(imageBase64: string): string {
-    return createHash('sha256').update(imageBase64).digest('hex');
+export function hashImage(imageBuffer: Buffer): string {
+    return createHash('sha256').update(imageBuffer).digest('hex');
 }
 
 // =============================================================================

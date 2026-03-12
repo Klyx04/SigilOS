@@ -71,12 +71,6 @@ const createPrismaClient = () => {
                     return query(args);
                 }
             },
-            guildConfig: {
-                async update({ args, query }) {
-                    if (typeof args.data.metamobApiKey === 'string') args.data.metamobApiKey = encrypt(args.data.metamobApiKey);
-                    return query(args);
-                }
-            },
             userProfile: {
                 async update({ args, query }) {
                     const data = args.data as any;
@@ -92,15 +86,6 @@ const createPrismaClient = () => {
                     compute(account: any) {
                         if (!account.access_token) return account.access_token;
                         return decrypt(account.access_token);
-                    }
-                }
-            },
-            guildConfig: {
-                metamobApiKey: {
-                    needs: { metamobApiKey: true },
-                    compute(config: any) {
-                        if (!config.metamobApiKey) return config.metamobApiKey;
-                        return decrypt(config.metamobApiKey);
                     }
                 }
             },

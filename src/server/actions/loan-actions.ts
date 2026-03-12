@@ -175,9 +175,13 @@ export async function createLoan(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, serviceLoansEnabled: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        if (!guildConfig.serviceLoansEnabled && !user.isAdmin) {
+            return { success: false, error: "Le service de prêts est actuellement en maintenance." };
+        }
 
         // Verify borrower belongs to same guild
         const borrower = await db.userProfile.findUnique({

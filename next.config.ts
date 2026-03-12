@@ -67,13 +67,13 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' blob: data: https:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://discord.com https://api.metamob.fr https://tesseract.projectnaptha.com https://cdn.jsdelivr.net https://unpkg.com https://api.dofusdb.fr",
+              "connect-src 'self' https://discord.com https://api.metamob.fr https://tesseract.projectnaptha.com https://cdn.jsdelivr.net https://unpkg.com https://api.dofusdb.fr ws://localhost:3001 ws://127.0.0.1:3001 http://localhost:3001 http://127.0.0.1:3001 wss://sigilos.fr wss://beta.sigilos.fr",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
-              "upgrade-insecure-requests",
-            ].join("; ")
+              process.env.NODE_ENV === "production" ? "upgrade-insecure-requests" : "",
+            ].filter(Boolean).join("; ")
           },
         ],
       },

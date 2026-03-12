@@ -5,6 +5,7 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getServiceListings } from "@/server/actions/service-actions";
 import { getLoans } from "@/server/actions/loan-actions";
 import { getVaultEntries, getVaultBalance } from "@/server/actions/vault-actions";
+import { getServicesStatusConfig } from "@/server/actions/admin-actions";
 import { PassagesClient } from "./_components/passages-client";
 
 export default async function PassagesPage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -21,11 +22,12 @@ export default async function PassagesPage({ params }: { params: Promise<{ guild
     }
 
     // Fetch all data in parallel
-    const [listingsRes, loansRes, vaultRes, vaultBalanceRes] = await Promise.all([
+    const [listingsRes, loansRes, vaultRes, vaultBalanceRes, statusRes] = await Promise.all([
         getServiceListings(guildId),
         getLoans(guildId),
         getVaultEntries(guildId),
         getVaultBalance(guildId),
+        getServicesStatusConfig(guildId),
     ]);
 
     return (
@@ -38,6 +40,8 @@ export default async function PassagesPage({ params }: { params: Promise<{ guild
             loans={loansRes.success ? (loansRes.data || []) : []}
             vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}
             vaultSummary={vaultBalanceRes.success ? (vaultBalanceRes.data || []) : []}
+            maintenance={statusRes.success ? statusRes.data : undefined}
         />
     );
 }
+

@@ -4,11 +4,24 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Super-admin Discord IDs (from environment)
-function getSuperAdminIds(): string[] {
+/**
+ * RECOMPILE TRIGGER: 2026-03-11 02:22
+ * This file MUST be async because it is marked with "use server".
+ */
+
+// Super-admin Discord IDs (from environment) - Forced async
+export async function getSuperAdminIds(): Promise<string[]> {
     const envVar = process.env.SUPER_ADMIN_IDS;
     if (!envVar) return [];
     return envVar.split(",").map(id => id.trim()).filter(Boolean);
+}
+
+/**
+ * Check if a Discord ID belongs to a super-admin
+ */
+export async function isDiscordSuperAdmin(discordId: string): Promise<boolean> {
+    const superAdminIds = await getSuperAdminIds();
+    return superAdminIds.includes(discordId);
 }
 
 /**
@@ -25,7 +38,7 @@ export async function isSuperAdmin(): Promise<boolean> {
 
     if (!account?.providerAccountId) return false;
 
-    const superAdminIds = getSuperAdminIds();
+    const superAdminIds = await getSuperAdminIds();
     return superAdminIds.includes(account.providerAccountId);
 }
 
@@ -227,7 +240,7 @@ export async function cleanupGhostUsers(isTestMode = false) {
     const threshold = isTestMode ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000;
     const cutoffDate = new Date(Date.now() - threshold);
 
-    const superAdminIds = getSuperAdminIds();
+    const superAdminIds = await getSuperAdminIds();
 
     // 1. Find candidates (Old users)
     const candidates = await db.user.findMany({
@@ -311,6 +324,7 @@ export async function getPlatformActivityStats() {
     for (let i = 0; i < 30; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
         statsMap.set(d.toISOString().split("T")[0], { users: 0, pulse: 0 });
     }
 

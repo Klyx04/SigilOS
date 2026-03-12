@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-01)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-09)
 
-**Branche Active** : `feat/module-carte` (Préparation pour merge vers `dev`)  
-**Status** : Refonte interactive de la Carte du Monde HD (synchronisée DofusDB), nouvelle UI de Ressources en onglets avec Widgets (Almanax, Kralamoure), Fallback Proxy pour les News Ankama.
+**Branche Active** : `dev` (Intégration continue)  
+**Status** : Intégration Dofusbook finalisée, alignements pixel-perfect de la carte interactive, refonte Top Nav, et structuration stricte de la sécurité et des logs.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -51,9 +51,10 @@ SigilOS/
 │   │   │   └── BossGuide.tsx           # NEW — Modale Guide Boss (144 boss, data Volcasaurus)
 │   │   └── layout/             # PublicHeader, GalacticFooter, AppSidebar...
 │   ├── lib/
+│   │   ├── logger.ts           # Logger structuré (Obligatoire en prod, remplace console.log)
 │   │   ├── module-types.ts     # Types & config des modules (MODULES_CONFIG)
 │   │   ├── queue/              # BullMQ queue (metamob-queue.ts)
-│   │   ├── security.ts         # Central Sanitization & Security Utils
+│   │   ├── security.ts         # Central Sanitization & Security Utils (XSS/CSRF)
 │   │   └── ...                 # utils.ts, storage-utils.ts, llm-ocr.ts...
 │   ├── workers/
 │   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
@@ -273,18 +274,45 @@ SigilOS/
 
 ---
 
-## 🔒 Sécurité & Standards
+### Session — Fix Widgets, Map & Dofusbook Integration (2026-03-07 à 2026-03-09)
 
-### patterns Applicatifs (Server Actions)
+- ✅ **Almanax Widget Fixes** : Résolution du fetching d'API sur le VPS avec un système robuste de `proxy fallback` (multi-proxy) et gestion des erreurs de type (toujours retourner un array) pour empêcher les crashs de l'UI.
+- ✅ **Synchronisation Sécurisée R2/VPS** : Refonte de la méthode de déploiement des assets lourds (`/sync-game-assets`) et nettoyage des clés SSH exposées.
+- ✅ **Carte HD (Alignement Pixel-Perfect)** : Ajustement fin des matrices de coordonnées pour faire correspondre parfaitement la grille Dofux/Leaflet et les positions hover avec le standard de jeu Ankama/DofusDB.
+- ✅ **UI & Top Nav Enhancements** : Agrandissement de la barre de navigation supérieure (`h-[72px]`) pour un style premium. Refonte totale de la cloche de notification (scale 0.85, contrastes forts) et intégration harmonieuse avec le lien Profil. Support des favicons dynamiques pour les outils/liens.
+- ✅ **Dofusbook Integration Finale** : Branchement officiel et mapping des stats (abréviations DBK) vers l'encyclopédie SigilOS. Restitution fluide des recettes artisanales et parsing fiable des patterns d'images distantes.
+
+---
+
+## 🔒 Sécurité & Standards (Aligné avec RULES.md & SECURITY.md)
+
+### 1. Patterns Applicatifs (Server Actions & GOD)
 ```typescript
+// Standard Administrateur Guilde / Membre
 const ctx = await getUserContext(guildId);
 if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 if (!ctx.isMember) return { success: false, error: "Not a member" };
 if (!ctx.isAdmin) return { success: false, error: "Admin required" };
+
+// Super-Administrateur (Actions Centrales / GOD Dashboard)
+const isAdmin = await isSuperAdmin();
+if (!isAdmin) return { success: false, error: "Unauthorized" };
 ```
 
-### Protection Multi-Tenant
+### 2. Protection Multi-Tenant
 Toute requête DB **doit** inclure un filtre par `guildId` ou `profileId` vérifié en amont.
+
+### 3. Logging Policy Strict (Prod: Pas de console.log)
+- Les `console.log()` sont prohibés en production.
+- Utiliser le logger structuré : `import { logger } from '@/lib/logger'`.
+- Ce logger gère l'auto-rédaction de clés sensibles (`token`, `password`, `cookie`, etc.).
+
+### 4. XSS & CSRF Prevention
+- Tout HTML généré par les utilisateurs est échappé via `sanitizeHtml()`.
+- L'anti-CSRF est natif sur Next.js avec `SameSite=Lax` et Header de validation Oring (Origin Header verification).
+
+### 5. Opérations Risquées Proscrites
+- Pas de `eval()`, `dangerouslySetInnerHTML` non nettoyé, ou `$queryRaw()` non typé Prisma.
 
 ---
 

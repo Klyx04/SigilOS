@@ -1,5 +1,6 @@
 import { unlink, rmdir } from "fs/promises";
 import { join, dirname, normalize } from "path";
+import { logger } from "@/lib/logger";
 
 /**
  * Deletes a proof file from the filesystem and cleans up empty parent directories.
@@ -20,14 +21,14 @@ export async function deleteProofFile(proofUrl: string) {
     const uploadsRoot = normalize(join(process.cwd(), "public", "uploads"));
 
     if (!absolutePath.startsWith(uploadsRoot)) {
-        console.warn(`[Storage] Path traversal attempt blocked: ${proofUrl}`);
+        logger.warn(`[Storage] Path traversal attempt blocked`, { proofUrl });
         return;
     }
 
     try {
         // 1. Delete the file
         await unlink(absolutePath);
-        console.log(`[Storage] Deleted proof file: ${proofUrl}`);
+        logger.info(`[Storage] Deleted proof file`, { proofUrl });
 
         // 2. Safely attempt to delete the parent directory if empty
         try {
@@ -41,7 +42,7 @@ export async function deleteProofFile(proofUrl: string) {
         }
     } catch (error: any) {
         if (error.code !== "ENOENT") {
-            console.warn(`[Storage] Failed to delete file ${proofUrl}:`, error);
+            logger.warn(`[Storage] Failed to delete file`, { proofUrl, error });
         }
         // ENOENT = already deleted, silently ignore
     }

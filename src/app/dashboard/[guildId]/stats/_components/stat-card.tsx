@@ -6,7 +6,7 @@ interface StatCardProps {
     icon: LucideIcon;
     label: string;
     value: string | number;
-    accent?: "violet" | "teal" | "amber" | "rose" | "emerald" | "blue" | "orange" | "pink";
+    accent?: "violet" | "teal" | "amber" | "rose" | "emerald" | "blue" | "orange" | "pink" | "yellow" | "sky";
 }
 
 const accentColors = {
@@ -18,6 +18,8 @@ const accentColors = {
     blue: { glow: "rgba(59,130,246,0.4)", text: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
     orange: { glow: "rgba(249,115,22,0.4)", text: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
     pink: { glow: "rgba(236,72,153,0.4)", text: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20" },
+    yellow: { glow: "rgba(234,179,8,0.4)", text: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
+    sky: { glow: "rgba(14,165,233,0.4)", text: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20" },
 };
 
 export default function StatCard({ icon: Icon, label, value, accent = "violet" }: StatCardProps) {

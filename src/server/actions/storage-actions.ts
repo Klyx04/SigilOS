@@ -1,5 +1,7 @@
 "use server";
 
+import { logger } from "@/lib/logger";
+
 import { isSuperAdmin } from "./super-admin-actions";
 import { db } from "@/lib/prisma";
 import { PrismaClient } from "@prisma/client";
@@ -300,7 +302,7 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
 
         return { success: true, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
     } catch (error) {
-        console.error("[getStorageOverview]", error);
+        logger.error("[getStorageOverview]", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -329,13 +331,13 @@ export async function godDeleteFile(
 
     try {
         await unlink(absolutePath);
-        console.log(`[God] Superadmin deleted file: ${fileUrl}`);
+        logger.info(`[God] Superadmin deleted file: ${fileUrl}`);
     } catch (error: any) {
         if (error.code !== "ENOENT") {
             return { success: false, error: `Erreur suppression fichier: ${error.message}` };
         }
         // ENOENT = already gone — still clear the DB field
-        console.warn(`[God] File already missing on disk: ${fileUrl}`);
+        logger.warn(`[God] File already missing on disk: ${fileUrl}`);
     }
 
     // Clear the DB field so the asset disappears from the panel immediately
@@ -346,9 +348,9 @@ export async function godDeleteFile(
                 where: { id: dbClear.guildId },
                 data: { [dbClear.field]: null },
             });
-            console.log(`[God] Cleared DB field ${dbClear.field} for guild ${dbClear.guildId}`);
+            logger.info(`[God] Cleared DB field ${dbClear.field} for guild ${dbClear.guildId}`);
         } catch (dbErr) {
-            console.error("[God] Failed to clear DB field:", dbErr);
+            logger.error("[God] Failed to clear DB field:", { error: dbErr });
         }
     }
 

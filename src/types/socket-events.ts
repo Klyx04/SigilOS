@@ -1,6 +1,8 @@
 export type GamePhase =
     | "LOBBY"
+    | "STARTING"
     | "BRIEFING"
+    | "WRITING"
     | "DRAWING"
     | "GUESSING"
     | "INTERMISSION"
@@ -46,6 +48,8 @@ export interface PublicPlayer {
     dofusClass: string;
     isReady: boolean;
     score: number;
+    isDrawing?: boolean;
+    isHost?: boolean;
 }
 
 export interface AlbumEntry {

@@ -66,6 +66,27 @@ services:
           memory: 512M
     logging: *default-logging
 
+  ws-prod:
+    container_name: sigilos-ws-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env.prod
+    environment:
+      - NODE_ENV=production
+    command: [ "npm", "run", "start:ws" ]
+    depends_on:
+      - redis
+    networks:
+      - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+
   db-prod:
     image: postgres:15-alpine
     container_name: sigilos-db-prod
@@ -161,6 +182,27 @@ services:
           memory: 512M
     logging: *default-logging
 
+  ws-beta:
+    container_name: sigilos-ws-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env.beta
+    environment:
+      - NODE_ENV=production
+    command: [ "npm", "run", "start:ws" ]
+    depends_on:
+      - redis
+    networks:
+      - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+
   db-beta:
     image: postgres:15-alpine
     container_name: sigilos-db-beta
@@ -217,8 +259,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - ./public/maintenance.html:/srv/static/maintenance.html:ro        # 🔴 Prod maintenance page
-      - ./public/maintenance-beta.html:/srv/static/maintenance-beta.html:ro  # 🟡 Beta maintenance page
+      - ./public/maintenance.html:/srv/static/maintenance.html:ro # 🔴 Prod maintenance page
+      - ./public/maintenance-beta.html:/srv/static/maintenance-beta.html:ro # 🟡 Beta maintenance page
       # Uploads are served by Next.js API route — no Caddy volume needed
     env_file: .env.prod
     networks:

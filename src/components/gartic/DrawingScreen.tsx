@@ -55,7 +55,7 @@ export const DrawingScreen = ({
             socket.emit("gartic:draw:submit", { dataUrl });
             setSubmitted(true);
         }
-    }, [submitted, isDrawer, canvasRef, socket]);
+    }, [submitted, isDrawer, isSpectator, canvasRef, socket]);
 
     React.useEffect(() => {
         if (isDrawer && timeLeft <= 1 && !submitted) {

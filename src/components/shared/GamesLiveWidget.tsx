@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { Eye, Users, Gamepad2, X, Loader2, Sparkles, Trophy, Play, Activity, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
@@ -26,20 +27,15 @@ export function GamesLiveWidget() {
     const isDraggingRef = useRef(false);
     const constraintsRef = useRef<HTMLDivElement>(null);
 
-    const buildWsUrl = useCallback((): string => {
-        const proto = window.location.protocol;
-        const host = window.location.hostname;
-        let env = process.env.NEXT_PUBLIC_WS_URL;
-        if (!env || env === "undefined") env = "";
-        const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.");
-        return env || (isLocal ? `${proto}//127.0.0.1:3001` : `${proto}//${host}:3001`);
+    const getWsUrl = useCallback((): string => {
+        return buildWsUrl();
     }, []);
 
     useEffect(() => {
         if (!guildId) return;
 
-        const s = io(buildWsUrl(), {
-            path: "/api/socket/",
+        const s = io(getWsUrl(), {
+            path: "/socket.io/",
             transports: ["websocket", "polling"],
             reconnectionAttempts: 5,
             query: { guildId }

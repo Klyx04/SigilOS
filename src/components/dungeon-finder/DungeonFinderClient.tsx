@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { Plus, Search, Trophy, Sword, RefreshCw, Frown, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DjPostCard } from "./DjPostCard";
@@ -68,9 +69,9 @@ export function DungeonFinderClient({
 
     // Real-time updates via WebSocket
     useEffect(() => {
-        const socketUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+        const socketUrl = buildWsUrl();
         const socket = io(socketUrl, {
-            path: "/api/socket/",
+            path: "/socket.io/",
             query: { guildId }
         });
 

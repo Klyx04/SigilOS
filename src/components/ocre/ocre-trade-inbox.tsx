@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 import { io } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -51,9 +52,9 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
         pollRef.current = setInterval(() => fetchData(true), POLL_INTERVAL_MS);
 
         // Real-time Socket
-        const socketUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+        const socketUrl = buildWsUrl();
         const socket = io(socketUrl, {
-            path: "/api/socket/",
+            path: "/socket.io/",
             query: { guildId }
         });
         socketRef.current = socket;

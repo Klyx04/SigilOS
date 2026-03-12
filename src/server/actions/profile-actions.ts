@@ -326,7 +326,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    let { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+    const { guildId, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+    let { pseudoDofus } = validation.data;
 
     // Formater le pseudo Dofus
     if (pseudoDofus) {

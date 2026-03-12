@@ -29,7 +29,7 @@ export class GeoguesserRoom {
     public guildId: string;
     private maxRounds: number = 5;
     private timePerRound: number = 30; // secondes
-    private difficulty: "easy" = "easy";
+    private difficulty = "easy" as const;
 
     private state: GameState = "LOBBY";
     private players: Player[] = [];

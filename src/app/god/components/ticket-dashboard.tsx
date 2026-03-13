@@ -101,6 +101,8 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     const [panelGuildId, setPanelGuildId] = useState("");
     const [botGuilds, setBotGuilds] = useState<any[]>([]);
     const [availableChannels, setAvailableChannels] = useState<any[]>([]);
+    const [supportGuildRoles, setSupportGuildRoles] = useState<any[]>([]);
+    const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 
     // Fetch bot guilds on mount
     useEffect(() => {
@@ -125,6 +127,30 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
         }
         loadChannels();
     }, [panelGuildId]);
+
+    // Fetch roles when a ticket is selected (for role assignment)
+    useEffect(() => {
+        if (!selectedTicket) {
+            setSupportGuildRoles([]);
+            setSelectedRoleId("");
+            return;
+        }
+        
+        async function loadRoles() {
+            const { getSupportGuildRoles } = await import("@/server/actions/ticket-actions");
+            const res = await getSupportGuildRoles(selectedTicket!.discordGuildId);
+            if (res.success && res.roles) {
+                setSupportGuildRoles(res.roles);
+                // Pre-select first valid role if none
+                if (res.roles.length > 0 && !selectedRoleId) {
+                    // Try to find a role containing "Sigil" or "Membre"
+                    const sigilRole = res.roles.find((r: any) => r.name.toLowerCase().includes("sigil") || r.name.toLowerCase().includes("membre"));
+                    if (sigilRole) setSelectedRoleId(sigilRole.id);
+                }
+            }
+        }
+        loadRoles();
+    }, [selectedTicket]);
 
     const stats = initialStats;
 
@@ -195,7 +221,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     async function handleValidateGuild(ticketId: string, discordGuildId: string) {
         startTransition(async () => {
             const { validateGuildAccess } = await import("@/server/actions/ticket-actions");
-            const res = await validateGuildAccess(ticketId, discordGuildId);
+            const res = await validateGuildAccess(ticketId, discordGuildId, undefined, selectedRoleId || undefined);
             if (res.success) {
                 toast.success("Guilde validée et whiteliste créée !");
                 await refreshTickets();
@@ -474,6 +500,9 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                     replyText={replyText}
                     setReplyText={setReplyText}
                     isPending={isPending}
+                    guildRoles={supportGuildRoles}
+                    selectedRoleId={selectedRoleId}
+                    setSelectedRoleId={setSelectedRoleId}
                 />
             )}
         </div>
@@ -512,6 +541,9 @@ function TicketDetailModal({
     replyText,
     setReplyText,
     isPending,
+    guildRoles,
+    selectedRoleId,
+    setSelectedRoleId,
 }: {
     ticket: SupportTicket;
     onClose: () => void;
@@ -523,6 +555,9 @@ function TicketDetailModal({
     replyText: string;
     setReplyText: (v: string) => void;
     isPending: boolean;
+    guildRoles: any[];
+    selectedRoleId: string;
+    setSelectedRoleId: (v: string) => void;
 }) {
     const cat = CATEGORY_CONFIG[ticket.category];
     const status = STATUS_CONFIG[ticket.status];
@@ -593,14 +628,35 @@ function TicketDetailModal({
                         {/* 🛠️ SPECIFIC TRIGGER: ACCESS VALIDATION */}
                         {ticket.category === "ACCESS_REQUEST" && ticket.status !== "CLOSED" && (
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => onValidateGuild(ticket.id, ticket.targetGuildId || ticket.creatorDiscordId)} 
-                                    disabled={isPending || !ticket.targetGuildId}
-                                    className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-500 text-black rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-xl shadow-emerald-500/20"
-                                >
-                                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                                    Valider l'Accès {ticket.targetGuildName ? `(${ticket.targetGuildName})` : ""}
-                                </button>
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                                            <SelectTrigger className="w-[180px] h-10 bg-zinc-950 border-white/10 rounded-xl text-[10px] font-black uppercase text-zinc-400">
+                                                <SelectValue placeholder="Rôle à attribuer..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="SKIP">Aucun rôle</SelectItem>
+                                                {guildRoles.map((role) => (
+                                                    <SelectItem key={role.id} value={role.id}>
+                                                        {role.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <button
+                                            onClick={() => onValidateGuild(ticket.id, ticket.targetGuildId || ticket.creatorDiscordId)} 
+                                            disabled={isPending || !ticket.targetGuildId}
+                                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-black rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-xl shadow-emerald-500/20"
+                                        >
+                                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                                            Valider {ticket.targetGuildName ? `(${ticket.targetGuildName})` : ""}
+                                        </button>
+                                    </div>
+                                    <p className="text-[9px] text-zinc-600 font-bold ml-1 uppercase underline decoration-zinc-800">
+                                        L'utilisateur sera mentionné avec les étapes d'activation.
+                                    </p>
+                                </div>
                                 <button
                                     onClick={() => onRejectGuild(ticket.id)}
                                     disabled={isPending}

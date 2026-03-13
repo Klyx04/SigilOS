@@ -53,9 +53,12 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
             if (proxyUrl.includes('allorigins')) {
                 const json = await res.json();
                 if (json.contents) return json.contents;
+            } else if (proxyUrl.includes('htmldriven')) {
+                const json = await res.json();
+                if (json.body) return json.body;
             } else {
                 const text = await res.text();
-                if (text.length > 500) return text;
+                if (text.length > 50) return text;
             }
         } catch (e) {
             continue;
@@ -64,18 +67,45 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
     return null;
 }
 
-// ─── DOFUS RSS FEED ──────────────────────────────────────────────
-export async function fetchDofusNews(): Promise<ExtractedContent[]> {
+/**
+ * Generic fetcher for Haapi JSON endpoints with proxy fallback
+ */
+async function fetchHaapiWithFallback(url: string): Promise<any[] | null> {
+    // 1. Direct
     try {
-        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=NEWS';
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
             next: { revalidate: 900 }
         });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) return data;
+        }
+    } catch (e) {
+        console.warn(`[feed-aggregator] Direct Haapi fetch failed for ${url}`);
+    }
 
-        if (!res.ok) throw new Error("Could not fetch Dofus Haapi API: " + res.status);
+    // 2. Proxy Fallback
+    const raw = await fetchWithProxyFallback(url);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (e) {
+            console.error(`[feed-aggregator] Failed to parse Haapi proxy response as JSON`, e);
+        }
+    }
 
-        const items: any[] = await res.json();
+    return null;
+}
+
+// ─── DOFUS RSS FEED ──────────────────────────────────────────────
+export async function fetchDofusNews(): Promise<ExtractedContent[]> {
+    try {
+        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=NEWS';
+        const items = await fetchHaapiWithFallback(url);
+        
+        if (!items || !Array.isArray(items)) return [];
 
         const feedItems = items.slice(0, 6).map((item, idx) => {
             const descriptionHtml = item.baseline || "";
@@ -126,14 +156,9 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
     try {
         const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=CHANGELOG';
-        const res = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            next: { revalidate: 3600 } // Changelogs are less frequent
-        });
+        const items = await fetchHaapiWithFallback(url);
 
-        if (!res.ok) throw new Error("Could not fetch Dofus Changelog Haapi API: " + res.status);
-
-        const items: any[] = await res.json();
+        if (!items || !Array.isArray(items)) return [];
 
         // Fallback image strategy: find the first non-null image in the list to use as a default for patch notes
         let commonImage = items.find(i => i.image_url)?.image_url || null;

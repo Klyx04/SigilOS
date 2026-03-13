@@ -17,7 +17,7 @@ export const GarticStarDecorations = () => {
 
 export const GarticLayout = ({ phase, children, onClose }: { phase: string; children: React.ReactNode; onClose?: () => void }) => {
     return (
-        <div className="min-h-screen h-full w-full relative bg-[#3d8be0] overflow-hidden font-sans">
+        <div className="min-h-screen h-full w-full relative bg-[#3d8be0] font-sans">
             {/* Base Gradient background */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#3d8be0] via-[#5b96ea] to-[#8d69f1]" />
             
@@ -59,7 +59,7 @@ export const GarticLayout = ({ phase, children, onClose }: { phase: string; chil
                 </button>
             )}
 
-            <div className="w-full h-full min-h-screen flex flex-col items-center justify-center relative z-10 px-4 py-6">
+            <div className="w-full h-full min-h-screen flex flex-col items-center justify-center relative z-10 px-4 pt-16 pb-6">
                 {children}
             </div>
         </div>

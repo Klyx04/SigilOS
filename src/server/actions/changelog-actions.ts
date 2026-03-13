@@ -264,21 +264,30 @@ export async function getPlatformConfig() {
     }
 }
 
-export async function updatePlatformConfig(data: { hubChannelId?: string, serviceStatusChannelId?: string }) {
+export async function updatePlatformConfig(data: { 
+    hubChannelId?: string, 
+    serviceStatusChannelId?: string,
+    ticketAutoRoleId?: string,
+    ticketSupportGuildId?: string
+}) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
-        const config = await db.platformConfig.upsert({
+        const config = await (db.platformConfig as any).upsert({
             where: { id: "singleton" },
             update: { 
                 ...(data.hubChannelId !== undefined && { hubChannelId: data.hubChannelId || null }),
-                ...(data.serviceStatusChannelId !== undefined && { serviceStatusChannelId: data.serviceStatusChannelId || null })
+                ...(data.serviceStatusChannelId !== undefined && { serviceStatusChannelId: data.serviceStatusChannelId || null }),
+                ...(data.ticketAutoRoleId !== undefined && { ticketAutoRoleId: data.ticketAutoRoleId || null }),
+                ...(data.ticketSupportGuildId !== undefined && { ticketSupportGuildId: data.ticketSupportGuildId || null })
             },
             create: { 
                 id: "singleton", 
                 hubChannelId: data.hubChannelId || null,
-                serviceStatusChannelId: data.serviceStatusChannelId || null
+                serviceStatusChannelId: data.serviceStatusChannelId || null,
+                ticketAutoRoleId: data.ticketAutoRoleId || null,
+                ticketSupportGuildId: data.ticketSupportGuildId || null
             }
         });
         return { success: true, config };

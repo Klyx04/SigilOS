@@ -15,7 +15,8 @@ import {
     Home,
     Book,
     ClipboardList,
-    Gamepad2
+    Gamepad2,
+    Bug
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,6 +42,7 @@ export function GodSidebar({ className, user }: { className?: string, user: any 
     const NAV_ITEMS = [
         { name: "Vue d'ensemble", href: "/god", icon: LayoutDashboard },
         { name: "Maintenance Jeux", href: "/god/mini-games", icon: Gamepad2 },
+        { name: "Tracker Bugs", href: "/god/bugs", icon: Bug },
         { name: "Documentation", href: "/god/docs", icon: Book },
         { name: "Changelog", href: "/god/changelog", icon: ClipboardList },
         { name: "Chat Firewall", href: "/god/chat", icon: Shield },

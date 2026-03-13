@@ -15,9 +15,11 @@ import { revalidatePath } from "next/cache";
 import {
     createPrivateThread,
     addUserToThread,
+    addRoleToMember,
     archiveThread,
     sendChannelMessage,
     fetchChannel,
+    fetchGuildRoles,
     fetchGuildChannels,
     fetchBotGuilds,
 } from "@/server/discord";
@@ -225,7 +227,7 @@ export async function closeSupportTicket(
 // 3. VALIDATE GUILD ACCESS (New Trigger)
 // =============================================================================
 
-export async function validateGuildAccess(ticketId: string, discordGuildId: string, notes?: string) {
+export async function validateGuildAccess(ticketId: string, discordGuildId: string, notes?: string, roleId?: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Accès refusé" };
 
@@ -235,26 +237,44 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
 
         const session = await auth();
 
-        // 1. Create/Update AllowedGuild record (Whitelist)
+        // 1. Refresh ticket data & get platform config (for default role)
+        const [freshTicket, platformConfig] = await Promise.all([
+            db.supportTicket.findUnique({ where: { id: ticketId } }),
+            db.platformConfig.findUnique({ where: { id: "singleton" } })
+        ]);
+        
+        if (!freshTicket) throw new Error("Ticket introuvable");
+        const threadId = freshTicket.discordThreadId;
+
+        // 2. Create/Update AllowedGuild record (Whitelist)
         await db.allowedGuild.upsert({
             where: { discordGuildId },
             update: { 
                 isActive: true, 
-                notes: notes || `Validé via ticket #${ticket.ticketNumber} — ${ticket.targetGuildName || "Anonyme"}` 
+                notes: notes || `Validé via ticket #${freshTicket.ticketNumber} — ${freshTicket.targetGuildName || "Anonyme"}` 
             },
             create: {
                 discordGuildId,
                 isActive: true,
-                name: ticket.targetGuildName || null,
+                name: freshTicket.targetGuildName || null,
                 addedBy: session?.user?.id || "SYSTEM",
-                notes: notes || `Validé via ticket #${ticket.ticketNumber}`,
+                notes: notes || `Validé via ticket #${freshTicket.ticketNumber}`,
                 tier: "VIP"
             }
         });
 
-        // 2. Notify on Discord with PING
-        if (ticket.discordThreadId) {
-            await sendChannelMessage(ticket.discordThreadId, `<@${ticket.creatorDiscordId}>`, {
+        // 3. [ROLE ASSIGNMENT] Use provided role or platform default
+        const effectiveRoleId = (roleId && roleId !== "SKIP") 
+            ? roleId 
+            : (roleId !== "SKIP" ? platformConfig?.ticketAutoRoleId : null);
+
+        if (effectiveRoleId) {
+            await addRoleToMember(freshTicket.discordGuildId, freshTicket.creatorDiscordId, effectiveRoleId);
+        }
+
+        // 4. Notify on Discord with PING + Mini-Tutorial
+        if (threadId) {
+            await sendChannelMessage(threadId, `<@${freshTicket.creatorDiscordId}>`, {
                 embedTitle: "🚀 Accès Approuvé — Bienvenue sur SigilOS",
                 embedColor: 0x10b981,
                 embedDescription: [
@@ -262,18 +282,41 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                     "",
                     "Bonne nouvelle ! Votre demande d'accès à **SigilOS** a été validée par notre équipe technique.",
                     "",
-                    "**Prochaines étapes :**",
-                    `1️⃣ Connectez-vous sur le [Dashboard](${getAppBaseUrl()})`,
-                    "2️⃣ Invitez le bot sur votre serveur",
-                    "3️⃣ Commencez à configurer vos modules",
+                    "**📖 Mini-Guide d'Activation :**",
+                    "1️⃣ Connectez-vous sur [sigilos.fr](https://sigilos.fr) via Discord.",
+                    "2️⃣ Sur ton Dashboard, clique sur **'Inviter le Bot'** (sur la carte de ta guilde).",
+                    "3️⃣ Une fois le bot sur ton serveur, clique sur **'Déployer'** pour installer l'architecture.",
                     "",
-                    `**Message de l'admin :** ${notes || "Bon jeu à vous !"}`
+                    "💡 *Astuce : Si le bot est déjà présent mais inactif, 'Déployer' suffira à l'allumer.*",
+                    "",
+                    `**Note de l'administrateur :**`,
+                    `> ${notes || "Votre serveur a été ajouté à la whitelist. Bon jeu !"}`
                 ].join("\n"),
-                embedFooter: "SigilOS Onboarding · Système Automatisé",
+                embedFooter: `Validé par ${session?.user?.name || "L'Équipe SigilOS"}`,
+                embedThumbnail: "https://i.imgur.com/AfFp7pu.png" // Logo SigilOS
             });
         }
 
-        // 3. Mark ticket as CLOSED
+        // 4. [AUDIT] Log for traceability
+        await (db as any).auditLog.create({
+            data: {
+                guildId: "PLATFORM", // Global action
+                actorUserId: session?.user?.id || "SYSTEM",
+                actorName: session?.user?.name || "System",
+                action: "GUILD_VALIDATE",
+                targetType: "GUILD",
+                targetId: discordGuildId,
+                metadata: {
+                    ticketId,
+                    ticketNumber: ticket.ticketNumber,
+                    requesterDiscord: ticket.creatorDiscordName,
+                    requesterId: ticket.creatorDiscordId,
+                    roleAdded: roleId
+                }
+            }
+        });
+
+        // 5. Mark ticket as CLOSED
         await closeSupportTicket(ticketId, "SYSTEM", "Automation SigilOS", "Accès validé et whiteliste créée.");
 
         revalidatePath("/god");
@@ -501,5 +544,26 @@ export async function getChannelsForGuild(guildId: string) {
     } catch (error) {
         console.error("[Tickets] Fetch channels error:", error);
         return { success: false, error: "Impossible de récupérer les salons." };
+    }
+}
+
+/**
+ * Fetch all roles for the support guild
+ */
+export async function getSupportGuildRoles(guildId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Accès refusé" };
+
+    try {
+        const roles = await fetchGuildRoles(guildId);
+        // Clean up: remove @everyone and managed/bot roles if possible
+        const filtered = roles
+            .filter(r => r.name !== "@everyone")
+            .sort((a, b) => b.position - a.position);
+
+        return { success: true, roles: filtered };
+    } catch (error) {
+        console.error("[Tickets] Fetch roles error:", error);
+        return { success: false, error: "Impossible de récupérer les rôles." };
     }
 }

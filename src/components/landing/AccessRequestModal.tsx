@@ -96,7 +96,7 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                                 <div className="flex-1 min-w-0">
                                     <span className="font-black text-white text-xl block mb-1">Rejoindre le Discord SigilOS</span>
                                     <span className="text-sm text-zinc-500">
-                                        Ouvrir un ticket dans <span className="text-indigo-400 font-mono">#demande-accès</span>
+                                        Ouvrir un ticket dans <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span>
                                         <span className="ml-2 inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
                                             <Sparkles className="w-3 h-3" /> Réponse 24–48h
                                         </span>

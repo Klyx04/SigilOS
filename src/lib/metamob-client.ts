@@ -795,7 +795,8 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         ? (monster.image.startsWith('http') ? monster.image : `https://www.metamob.fr/img/monsters/${monster.image}`)
         : "";
 
-    const zoneName = (monster as any).zones?.[0]?.name?.fr || undefined;
+    const zones = (monster as any).zones?.map((z: any) => z.name?.fr).filter(Boolean) || [];
+    const zoneName = zones.length > 0 ? zones.join(", ") : undefined;
 
     return {
         id: monster.monster_id ?? m.monster?.id ?? monster.reference?.id ?? monster.id,

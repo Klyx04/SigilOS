@@ -71,19 +71,19 @@ export const DrawingScreen = ({
     const BRUSH_SIZES = [4, 8, 14, 24, 40];
 
     return (
-        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] h-full animate-in zoom-in-95 duration-500 relative py-2 md:py-12 overflow-hidden">
+        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] h-full relative py-4 animate-in zoom-in-95 duration-500">
             {/* Round Counter */}
-            <div className="absolute top-2 md:top-4 left-4 md:left-6 z-50 flex flex-col items-start select-none">
+            <div className="absolute top-2 left-4 md:left-6 z-50 flex flex-col items-start select-none">
                 <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
                 <span className="text-white font-black text-2xl md:text-6xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
                     {round}<span className="text-white/30 text-lg md:text-4xl">/{totalRounds}</span>
                 </span>
             </div>
 
-            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-2 md:p-10 flex flex-col gap-3 md:gap-10 relative shadow-2xl overflow-visible mt-12 md:mt-8 shrink-0 min-h-0 grow">
+            <div className="w-full h-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-3 md:p-8 flex flex-col gap-3 md:gap-6 relative shadow-2xl mt-10 md:mt-8 min-h-0">
                 
                 {/* Purple Card Header */}
-                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-3 md:p-8 relative overflow-hidden shadow-2xl -mt-8 md:-mt-24 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
+                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-3 md:p-8 relative overflow-hidden shadow-2xl -mt-6 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
                     <div className="flex flex-col gap-0.5 md:gap-1 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-1 md:gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -124,11 +124,11 @@ export const DrawingScreen = ({
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-3 md:gap-8 min-h-0 w-full grow overflow-hidden">
+                <div className="flex flex-col lg:flex-row gap-3 md:gap-6 w-full flex-1 min-h-0 relative z-10">
                     {/* LEFT: Toolbar */}
-                    <div className="w-full lg:w-32 flex flex-row lg:flex-col gap-2 md:gap-6 shrink-0 h-[60px] md:h-auto lg:h-full">
+                    <div className="w-full lg:w-32 flex flex-row lg:flex-col gap-2 md:gap-4 shrink-0 h-[60px] lg:h-auto min-h-0">
                         {/* Tools */}
-                        <div className="bg-white/95 rounded-xl md:rounded-[2.5rem] p-1.5 md:p-4 flex flex-row lg:flex-col gap-1.5 md:gap-3 shadow-2xl border-b-[4px] md:border-b-[10px] border-black/10 flex-1 lg:flex-none h-full">
+                        <div className="bg-white/95 rounded-xl md:rounded-[2.5rem] p-1.5 md:p-4 flex flex-row lg:flex-col gap-1.5 md:gap-3 shadow-2xl border-b-[4px] md:border-b-[10px] border-black/10 flex-1 lg:flex-none">
                             {[
                                 { id: "pencil", icon: "✎" },
                                 { id: "bucket", icon: "🪣" },
@@ -148,8 +148,8 @@ export const DrawingScreen = ({
                         </div>
 
                         {/* Colors */}
-                        <div className="flex-[3] lg:flex-1 bg-white/95 rounded-xl md:rounded-[2.5rem] p-1.5 md:p-4 shadow-2xl border-b-[4px] md:border-b-[10px] border-black/10 overflow-hidden h-full">
-                            <div className="grid grid-cols-10 lg:grid-cols-2 gap-1 md:gap-3 h-full overflow-y-auto lg:overflow-y-visible">
+                        <div className="flex-[3] lg:flex-1 bg-white/95 rounded-xl md:rounded-[2.5rem] p-1.5 md:p-4 shadow-2xl border-b-[4px] md:border-b-[10px] border-black/10 flex flex-col min-h-0">
+                            <div className="grid grid-cols-10 lg:grid-cols-2 gap-1 md:gap-3 flex-1 overflow-y-auto lg:overflow-visible">
                                 {COLORS.map(c => (
                                     <button
                                         key={c}
@@ -201,7 +201,7 @@ export const DrawingScreen = ({
                     </div>
 
                     {/* RIGHT: Brush Sizes & Player Status */}
-                    <div className="hidden lg:flex w-48 flex-col gap-6 shrink-0 overflow-hidden h-full">
+                    <div className="hidden lg:flex w-48 flex-col gap-6 shrink-0 min-h-0">
                          {/* Brush Sizes */}
                          <div className="bg-white/95 rounded-[2.5rem] p-8 flex flex-col items-center justify-center gap-8 shadow-2xl border-b-[10px] border-black/10">
                             {BRUSH_SIZES.map(size => (

@@ -48,7 +48,7 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
             <div className="w-full bg-white/10 backdrop-blur-md border-[8px] border-white/10 rounded-[3.5rem] p-8 md:p-12 shadow-2xl flex flex-col gap-10 relative overflow-visible">
                 
                 {/* Purple Header - Adaptive height and text */}
-                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 relative overflow-hidden shadow-2xl -mt-16 md:-mt-24 border-b-8 border-black/20 text-center shrink-0">
+                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 relative overflow-hidden shadow-2xl -mt-10 md:-mt-16 border-b-8 border-black/20 text-center shrink-0">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 md:h-8 bg-black/20 rounded-b-2xl flex items-center justify-center">
                         <span className="text-white/40 font-black text-[8px] md:text-[10px] tracking-widest uppercase italic">SIGILPHONE LOBBY</span>
                     </div>

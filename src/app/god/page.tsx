@@ -109,6 +109,10 @@ export default async function SuperAdminPage() {
                 }
                 infrastructure={
                     <div className="space-y-12">
+                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                            <PlatformConfigServer />
+                        </Suspense>
+
                         {/* Communication Panel (Announcement Banner + Discord Broadcast) */}
                         <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
                             <AnnouncementServer />
@@ -471,6 +475,29 @@ async function TicketsServer() {
             initialTickets={JSON.parse(JSON.stringify(ticketData.tickets))}
             initialTotal={ticketData.total}
             initialStats={stats}
+        />
+    );
+}
+async function PlatformConfigServer() {
+    const { getPlatformConfig } = await import("@/server/actions/changelog-actions");
+    const { fetchBotGuilds, fetchGuildRoles } = await import("@/server/discord");
+    const { PlatformConfigPanel } = await import("./components/platform-config-panel");
+
+    const [configRes, guilds] = await Promise.all([
+        getPlatformConfig(),
+        fetchBotGuilds()
+    ]);
+
+    let roles: any[] = [];
+    if (configRes.success && configRes.config?.ticketSupportGuildId) {
+        roles = await fetchGuildRoles(configRes.config.ticketSupportGuildId);
+    }
+
+    return (
+        <PlatformConfigPanel 
+            config={configRes.success ? configRes.config as any : null} 
+            availableGuilds={guilds.map(g => ({ id: g.id, name: g.name }))}
+            availableRoles={roles.map(r => ({ id: r.id, name: r.name }))}
         />
     );
 }

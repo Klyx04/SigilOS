@@ -245,10 +245,12 @@ export async function GET(req: NextRequest) {
                 description: item.description || "",
                 category: "Actualité"
             }));
-            return NextResponse.json(
-                { items, feedKey, label: "Actualités" },
-                { headers: { "Cache-Control": "public, s-maxage=1800" } }
-            );
+            if (items.length > 0) {
+                return NextResponse.json(
+                    { items, feedKey, label: "Actualités" },
+                    { headers: { "Cache-Control": "public, s-maxage=1800" } }
+                );
+            }
         } catch (err) {
             logger.error("Dofus News format error", { error: err });
             // fallback if it fails
@@ -268,10 +270,13 @@ export async function GET(req: NextRequest) {
                 description: item.description || "",
                 category: "Changelog"
             }));
-            return NextResponse.json(
-                { items, feedKey, label: "Changelog" },
-                { headers: { "Cache-Control": "public, s-maxage=3600" } }
-            );
+
+            if (items.length > 0) {
+                return NextResponse.json(
+                    { items, feedKey, label: "Changelog" },
+                    { headers: { "Cache-Control": "public, s-maxage=3600" } }
+                );
+            }
         } catch (err) {
             logger.error("Dofus Changelog format error", { error: err });
         }

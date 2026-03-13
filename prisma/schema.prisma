@@ -99,11 +99,13 @@ model PlatformConfig {
   hubChannelId           String?
   updatedAt              DateTime @updatedAt
   serviceStatusChannelId String?
+  ticketAutoRoleId       String?
+  ticketSupportGuildId   String?
 }
 
 model MiniGameStatus {
   id             String   @id @default(cuid())
-  gameId         String   @unique // guesser, draw, phone, king
+  gameId         String   @unique
   isEnabled      Boolean  @default(true)
   maintenanceMsg String?  @default("🔧 Ce jeu est temporairement indisponible pour maintenance.")
   updatedAt      DateTime @updatedAt
@@ -318,6 +320,7 @@ model UserProfile {
   isInGame                Boolean                  @default(false)
   lastSeen                DateTime?                @default(now())
   showPresence            Boolean                  @default(true)
+  ocreProgressSnapshot    Json?
   achievementSubmissions  AchievementSubmission[]
   djParticipations        DjSearchParticipant[]
   djSearchPosts           DjSearchPost[]
@@ -476,11 +479,11 @@ model Bounty {
   zoneName  String?
   imageUrl  String?
   reward    String?
-  dpnlUrl   String?
   levelMin  Int?
   levelMax  Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  dpnlUrl   String?
 
   @@index([name])
   @@index([zoneName])
@@ -1279,7 +1282,6 @@ model ContentCreator {
   @@index([guildId])
 }
 
-
 model SkribblRank {
   id          String   @id @default(cuid())
   guildId     String
@@ -1483,12 +1485,26 @@ model SigilKingSessionPlayer {
   userAvatar String?
   totalScore Int              @default(0)
   roundScore Int              @default(0)
-  cards      Json?            // Current hand
+  cards      Json?
   hasPlayed  Boolean          @default(false)
   lastActive DateTime         @default(now()) @updatedAt
   session    SigilKingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
+}
+
+model OcreMonsterTemplate {
+  id        Int      @id
+  name      String
+  type      String
+  image     String?
+  levelMin  Int      @default(0)
+  levelMax  Int      @default(0)
+  zones     String?
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([name])
 }
 
 enum ProfileStatus {
@@ -1785,4 +1801,34 @@ enum GeoguesserSessionStatus {
   LOBBY
   IN_PROGRESS
   FINISHED
+}
+
+enum SystemIssueType {
+  BUG
+  AMELIORATION
+}
+
+enum SystemIssueStatus {
+  A_FAIRE
+  A_INVESTIGUER
+  EN_COURS
+  TERMINE
+  IGNORE
+}
+
+model SystemIssue {
+  id          Int               @id @default(autoincrement())
+  type        SystemIssueType   @default(BUG)
+  category    String            @default("Divers")
+  priority    String            @default("Normal")
+  description String
+  status      SystemIssueStatus @default(A_FAIRE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  forumLink   String?
+  creatorId   String
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
 }

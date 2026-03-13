@@ -328,7 +328,9 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
             case "INTERMISSION":
                 return (
                     <div className="flex flex-col items-center justify-center h-full gap-6 animate-pulse">
-                        <Loader2 className="h-20 w-20 text-purple-400 animate-spin" />
+                        <div className="text-9xl font-black text-purple-400 font-mono drop-shadow-xl mb-4 text-white">
+                             {gameState.timer || 0}
+                        </div>
                         <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">
                             {gameState.phase === "STARTING" ? "La partie commence..." : "Préparation..."}
                         </h2>

@@ -230,9 +230,9 @@ export class GeoguesserRoom {
             p.hasGuessed = false;
         });
 
-        // Update DB status
+        // Update DB status (use updateMany to avoid P2025 if session was already deleted)
         try {
-            await db.geoguesserSession.update({
+            await db.geoguesserSession.updateMany({
                 where: { id: this.id },
                 data: { status: 'IN_PROGRESS', targetMapIds: this.targetMapIds }
             });
@@ -278,7 +278,7 @@ export class GeoguesserRoom {
     }
 
     public triggerNextRound(socket: Socket) {
-        if (this.isHost(socket.id) && this.state === "RESULT") {
+        if (this.isHost(socket.id) && !this.isSpectator(socket.id) && this.state === "RESULT") {
             this.startNextRound();
         }
     }
@@ -358,19 +358,23 @@ export class GeoguesserRoom {
         this.timeLeft = 0;
         this.syncState();
 
-        // Update DB status to FINISHED
+        // Update DB status to FINISHED (use updateMany to avoid P2025 if session was already deleted)
         try {
-            await db.geoguesserSession.update({
+            const updated = await db.geoguesserSession.updateMany({
                 where: { id: this.id },
                 data: { status: 'FINISHED' }
             });
 
-            // Update individual total scores in DB for final result
-            for (const p of this.players) {
-                await db.geoguesserSessionPlayer.updateMany({
-                    where: { sessionId: this.id, userId: p.userId },
-                    data: { totalScore: p.score }
-                });
+            if (updated.count > 0) {
+                // Update individual total scores in DB for final result
+                for (const p of this.players) {
+                    await db.geoguesserSessionPlayer.updateMany({
+                        where: { sessionId: this.id, userId: p.userId },
+                        data: { totalScore: p.score }
+                    });
+                }
+            } else {
+                console.warn(`[GeoRoom:${this.id}] ⚠️ Session DB introuvable lors de endGame (déjà supprimée?). Scores non persistés.`);
             }
         } catch (e) {
             console.error(`[GeoRoom:${this.id}] ❌ Erreur DB status END:`, e);
@@ -436,7 +440,7 @@ export class GeoguesserRoom {
         return {
             id: roomId,
             roomId,
-            playerCount: this.players.filter(p => p.isConnected).length,
+            playerCount: this.players.filter(p => p.isConnected && !p.isSpectator).length,
             maxPlayers: 8,
             hostName: this.players.find(p => p.userId === this.hostId)?.userName || "Hôte",
             maxRounds: this.maxRounds,

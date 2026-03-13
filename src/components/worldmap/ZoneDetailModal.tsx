@@ -20,6 +20,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
     const [monsters, setMonsters] = useState<any>(null);
     const [archis, setArchis] = useState<any[]>([]);
     const [bounties, setBounties] = useState<any[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && zoneName) {
@@ -47,10 +48,19 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                 });
 
                 if (mRes.success && mRes.data) setMonsters(mRes.data);
-                if (aRes.success) setArchis(aRes.data || []);
+                if (aRes.success) {
+                    setArchis(aRes.data || []);
+                    setError(null);
+                } else {
+                    setError(aRes.error || "Erreur inconnue");
+                    setArchis([]);
+                }
                 setBounties(mergedAvis);
                 setLoading(false);
-            }).catch(() => setLoading(false));
+            }).catch(() => {
+                setError("Erreur de connexion");
+                setLoading(false);
+            });
         }
     }, [isOpen, zoneName, guildId]);
 
@@ -96,9 +106,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 pt-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                                 {/* Left Column: Archimonstres */}
-                                <div className="space-y-8">
+                                <div className="space-y-8 min-w-0">
                                     <div className="flex items-center justify-between sticky top-0 bg-[#080a10] py-4 z-10 border-b border-white/5 mb-4">
                                         <h3 className="text-amber-500 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
                                             <Sparkles size={20} /> Archimonstres
@@ -128,11 +138,11 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                                                             <img src={archi.image} alt="" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-500" />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className={`text-sm font-black truncate leading-none mb-1 uppercase italic tracking-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                            <p className={`text-sm font-black truncate leading-tight mb-1 uppercase italic tracking-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
                                                                 {archi.name}
                                                             </p>
-                                                            <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.1em] truncate italic">
-                                                                {archi.subzone || archi.zone}
+                                                            <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.1em] italic line-clamp-2 leading-relaxed">
+                                                                {archi.subzone || archi.zone || "Zone inconnue"}
                                                             </p>
                                                         </div>
                                                         <div className="shrink-0">
@@ -151,17 +161,27 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="py-20 flex flex-col items-center justify-center gap-4 bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem]">
+                                        <div className="py-20 flex flex-col items-center justify-center gap-4 bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem] px-10 text-center">
                                             <Ghost className="text-white/10" size={40} />
-                                            <p className="text-[10px] font-black text-white/15 uppercase tracking-[0.3em] italic text-center px-10">
-                                                Aucun archi-monstre détecté dans ce secteur
+                                            <p className="text-[10px] font-black text-white/15 uppercase tracking-[0.3em] italic">
+                                                {error === "Compte non lié" 
+                                                    ? "Liez votre compte Metamob pour voir vos archimonstres"
+                                                    : "Aucun archi-monstre détecté dans ce secteur"}
                                             </p>
+                                            {error === "Compte non lié" && (
+                                                <a 
+                                                    href={`/dashboard/${guildId}/profile`}
+                                                    className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-black text-[11px] font-black uppercase italic shadow-2xl shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                                                >
+                                                    <Sparkles size={16} /> Lier mon compte Metamob
+                                                </a>
+                                            )}
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Right Column: Avis & Monsters */}
-                                <div className="space-y-12">
+                                <div className="space-y-12 min-w-0">
                                     {/* Avis de Recherche */}
                                     <section className="space-y-6">
                                         <div className="flex items-center justify-between sticky top-0 bg-[#080a10] py-4 z-10 border-b border-white/5 mb-4">
@@ -201,12 +221,12 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                                     </section>
 
                                     {/* Bestiaire Standard */}
-                                    <section className="space-y-6">
-                                        <h3 className="text-white/40 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
-                                            <ChevronDown size={20} /> Faune Standard
-                                        </h3>
-                                        
-                                        {monsters?.normalMonsters?.length > 0 ? (
+                                    {monsters?.normalMonsters?.length > 0 && (
+                                        <section className="space-y-6">
+                                            <h3 className="text-white/40 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
+                                                <ChevronDown size={20} /> Faune Standard
+                                            </h3>
+                                            
                                             <div className="flex flex-wrap gap-2">
                                                 {monsters.normalMonsters.map((m: any) => (
                                                     <div key={m.id} className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-default uppercase italic tracking-tighter">
@@ -214,10 +234,8 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                                                     </div>
                                                 ))}
                                             </div>
-                                        ) : (
-                                            <p className="text-[11px] font-black text-white/10 uppercase italic px-4">Écosystème non répertorié</p>
-                                        )}
-                                    </section>
+                                        </section>
+                                    )}
                                 </div>
                             </div>
                         </div>

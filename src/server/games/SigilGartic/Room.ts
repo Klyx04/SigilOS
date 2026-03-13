@@ -93,7 +93,9 @@ export class GarticRoom {
 
         // Trigger phase-specific countdown
         if (["STARTING", "WRITING", "DRAWING", "GUESSING", "INTERMISSION"].includes(phase)) {
-            this.startCountdown(this.state.maxTimer, phase);
+            if (!this.timers.has(`timer_${phase}`)) {
+                this.startCountdown(this.state.maxTimer, phase);
+            }
         }
     }
 
@@ -195,18 +197,24 @@ export class GarticRoom {
 
     private startCountdown(duration: number, phase: string) {
         const key = `timer_${phase}`;
+        console.log(`[Room:${this.state.roomId}] startCountdown for ${phase} with duration: ${duration}`);
         
         // Clean up ALL active timers for this room to prevent memory leaks
         this.timers.forEach((t) => clearInterval(t));
         this.timers.clear();
 
         let remaining = duration;
-        this.machine.send({ type: "TICK", remaining });
         const interval = setInterval(() => {
             remaining--;
-            this.machine.send({ type: "TICK", remaining });
+            try {
+                this.machine.send({ type: "TICK", remaining });
+                // console.log(`[Room:${this.state.roomId}] TICK ${phase}: ${remaining}`);
+            } catch (e) {
+                 console.error(`[Room:${this.state.roomId}] TICK error:`, e);
+            }
 
             if (remaining <= 0) {
+                console.log(`[Room:${this.state.roomId}] Timer ${phase} ended, sending TIMER_END_${phase}`);
                 clearInterval(interval);
                 this.timers.delete(key);
                 this.machine.send({ type: `TIMER_END_${phase}` as any });
@@ -214,5 +222,6 @@ export class GarticRoom {
         }, 1000);
 
         this.timers.set(key, interval);
+        this.machine.send({ type: "TICK", remaining });
     }
 }

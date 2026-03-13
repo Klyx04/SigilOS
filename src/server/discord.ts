@@ -639,6 +639,25 @@ export async function addUserToThread(threadId: string, userId: string): Promise
 }
 
 /**
+ * Add a role to a member in a guild
+ */
+export async function addRoleToMember(guildId: string, userId: string, roleId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "PUT",
+            headers: { Authorization: `Bot ${token}` },
+        });
+        return res.ok || res.status === 204;
+    } catch (error) {
+        console.error("[Discord] Error adding role to member:", error);
+        return false;
+    }
+}
+
+/**
  * Archive and lock a thread (used when closing a ticket)
  */
 export async function archiveThread(threadId: string): Promise<boolean> {

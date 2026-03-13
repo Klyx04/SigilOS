@@ -381,8 +381,8 @@ export async function POST(request: NextRequest) {
                 // TICKET SYSTEM V2 — 2-step flow: Select Menu → Adapted Modal
                 // =========================================================
                 if (action === "open") {
-                    // RATE LIMIT: 2 ticket opens per 10 minutes per user
-                    const waitSec = getRateLimitRemaining(`ticket:${member.user.id}`, 2, 10 * 60_000);
+                    // RATE LIMIT: 1 ticket every 10 seconds per user
+                    const waitSec = getRateLimitRemaining(`ticket:${member.user.id}`, 1, 10_000);
                     if (waitSec > 0) {
                         return NextResponse.json({
                             type: 4,
@@ -440,6 +440,33 @@ export async function POST(request: NextRequest) {
                 } else if (action === "select") {
                     // Step 2: User selected a category from dropdown → open adapted modal
                     const selectedCategory = payload.data?.values?.[0] || "OTHER";
+
+                    const categoryLabels: Record<string, string> = {
+                        ACCESS_REQUEST: "🔑 Demande d'accès",
+                        BUG_REPORT: "🐛 Signaler un bug",
+                        FEATURE_REQUEST: "💡 Proposer une feature",
+                        OTHER: "📩 Autre demande",
+                    };
+
+                    // [DUP-CHECK] Verify user doesn't have an active ticket in this category
+                    const existingTicket = await db.supportTicket.findFirst({
+                        where: {
+                            creatorDiscordId: member.user.id,
+                            category: selectedCategory as any,
+                            status: { not: "CLOSED" },
+                        },
+                        select: { ticketNumber: true }
+                    });
+
+                    if (existingTicket) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { 
+                                content: `⚠️ Tu as déjà un ticket ouvert pour la catégorie **${categoryLabels[selectedCategory] || selectedCategory}**.\n\nFerme ton ticket **#${existingTicket.ticketNumber}** avant d'en ouvrir un nouveau.`, 
+                                flags: 64 
+                            },
+                        });
+                    }
 
                     // Build modal fields based on category
                     const modalComponents: any[] = [];

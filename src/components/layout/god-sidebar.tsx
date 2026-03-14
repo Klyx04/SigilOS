@@ -43,6 +43,7 @@ export function GodSidebar({ className, user }: { className?: string, user: any 
         { name: "Vue d'ensemble", href: "/god", icon: LayoutDashboard },
         { name: "Maintenance Jeux", href: "/god/mini-games", icon: Gamepad2 },
         { name: "Tracker Bugs", href: "/god/bugs", icon: Bug },
+        { name: "Roadmap Pro", href: "/god/roadmap", icon: Database },
         { name: "Documentation", href: "/god/docs", icon: Book },
         { name: "Changelog", href: "/god/changelog", icon: ClipboardList },
         { name: "Chat Firewall", href: "/god/chat", icon: Shield },

@@ -75,13 +75,15 @@ export const SEED_WORDS: Record<string, SkribblWord[]> = {
   ].map(w => ({ ...w, word: w.word.trim() }))
 };
 
-const getCategoryFromUrl = (url?: string): string => {
+const getCategoryFromUrl = (url?: string, existingCategory?: string): string => {
+  if (existingCategory && existingCategory !== "Dofus" && existingCategory !== "Inconnu") return existingCategory;
   if (!url) return "Inconnu";
-  if (url.includes("/items/")) return "Objet / Équipement";
-  if (url.includes("/monsters/")) return "Monstre";
-  if (url.includes("/spells/")) return "Sort / Action";
-  if (url.includes("/mounts/")) return "Monture";
-  if (url.includes("/npcs/")) return "Personnage";
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes("/items/")) return "Objet / Équipement";
+  if (lowerUrl.includes("/monsters/")) return "Monstre";
+  if (lowerUrl.includes("/spells/")) return "Sort / Action";
+  if (lowerUrl.includes("/mounts/")) return "Monture";
+  if (lowerUrl.includes("/npcs/")) return "Personnage";
   return "Dofus";
 };
 
@@ -92,8 +94,8 @@ const isValidWord = (w: any): boolean => {
     if (/^archi\s+\d+$/i.test(w.word ?? '')) return false;
     if (!w.word || /^[\s.]+$/.test(w.word)) return false;
     
-    // Nouveauté : on refuse les mots composés de plus de 2 parties
-    if (w.word.trim().split(/\s+/).length > 2) return false;
+    // On refuse les mots composés de plus de 3 parties
+    if (w.word.trim().split(/\s+/).length > 3) return false;
 
     const letters = (w.word as string).replace(/\s/g, '');
     if (letters.length < 3) return false;
@@ -101,9 +103,9 @@ const isValidWord = (w: any): boolean => {
 };
 
 export const DOFUS_WORDS: Record<string, SkribblWord[]> = {
-  facile: [...SEED_WORDS.facile, ...(generatedWords.facile || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "") })),
-  moyen: [...SEED_WORDS.moyen, ...(generatedWords.moyen || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "") })),
-  difficile: [...SEED_WORDS.difficile, ...(generatedWords.difficile || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "") }))
+  facile: [...SEED_WORDS.facile, ...(generatedWords.facile || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "", (w as SkribblWord).category) })),
+  moyen: [...SEED_WORDS.moyen, ...(generatedWords.moyen || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "", (w as SkribblWord).category) })),
+  difficile: [...SEED_WORDS.difficile, ...(generatedWords.difficile || []).filter(isValidWord)].map(w => ({ ...w, category: getCategoryFromUrl(w.iconUrl || "", (w as SkribblWord).category) }))
 };
 
 const fisherYatesShuffle = (array: SkribblWord[]) => {
@@ -136,6 +138,8 @@ export const getDofusWords = (
   const poolFacile = filterPool(DOFUS_WORDS.facile);
   const poolMoyen = filterPool(DOFUS_WORDS.moyen);
   const poolDifficile = filterPool(DOFUS_WORDS.difficile);
+
+  console.log(`[getDofusWords] Pool sizes - Facile: ${poolFacile.length}, Moyen: ${poolMoyen.length}, Difficile: ${poolDifficile.length} (Filter category: ${allowedCategories?.join(', ') || 'all'})`);
 
   if (difficulty === "facile") {
     selected = [

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import Link from "next/link";
 import {
@@ -29,6 +30,7 @@ type AdminCard = {
     title: string;
     description: string;
     accent: string; // Tailwind color token (e.g. "violet")
+    permission?: keyof typeof PERMISSIONS | ((user: any) => boolean);
 };
 
 type AdminSection = {
@@ -53,6 +55,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Modules",
                     description: "Activer ou désactiver les fonctionnalités disponibles pour la guilde.",
                     accent: "violet",
+                    permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
@@ -60,6 +63,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Permissions",
                     description: "Attribuer les droits d'accès aux rôles Discord de la guilde.",
                     accent: "blue",
+                    permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/settings`,
@@ -67,6 +71,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Paramètres",
                     description: "Intégrations Discord, Metamob, Dofus et configuration avancée.",
                     accent: "slate",
+                    permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
@@ -74,6 +79,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Page Guilde",
                     description: "Éditer la page de présentation publique et de recrutement.",
                     accent: "indigo",
+                    permission: (u) => u.canEditPresentation,
                 },
             ],
         },
@@ -87,6 +93,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Valider les Preuves",
                     description: "Accepter ou refuser les soumissions de missions des membres.",
                     accent: "green",
+                    permission: (u) => u.canValidateMissions,
                 },
                 {
                     href: `/dashboard/${guildId}/missions/manage`,
@@ -94,6 +101,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Gérer les Missions",
                     description: "Créer, modifier et archiver les missions hebdomadaires.",
                     accent: "emerald",
+                    permission: (u) => u.canManageMissions,
                 },
                 {
                     href: `/dashboard/${guildId}/missions/manage#bonus`,
@@ -101,6 +109,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Bonus de Guilde",
                     description: "Acheter et gérer les bonus temporaires actifs pour la guilde.",
                     accent: "amber",
+                    permission: (u) => u.canManageBonus,
                 },
             ],
         },
@@ -114,6 +123,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Logs d'Audit",
                     description: "Consulter l'historique complet des actions administratives.",
                     accent: "rose",
+                    permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/settings#membres`,
@@ -121,6 +131,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Membres & Sync",
                     description: "Gérer les membres, archiver des comptes et synchroniser Discord.",
                     accent: "cyan",
+                    permission: (u) => u.canManageMembers,
                 },
             ],
         },
@@ -155,7 +166,15 @@ export default async function AdminPage({
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    
+    // Allow access if user is admin OR has any management permission
+    const hasAnyAdminPermission = user.isAdmin || 
+        user.canManageMissions || user.canValidateMissions || user.canManageBonus ||
+        user.canManageMembers || user.canManageCalendar || user.canManageQuests ||
+        user.canManageWorldmap || user.canManageResources || user.canModerateChat ||
+        user.canEditPresentation || user.canViewAdminDocs;
+
+    if (!hasAnyAdminPermission) {
         await logAdminAccessDenied(guildId, "/admin");
         return <AccessDenied />;
     }
@@ -187,7 +206,11 @@ export default async function AdminPage({
 
                         {/* Cards grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {section.cards.map((card) => {
+                            {section.cards.filter(card => {
+                                if (user.isSuperAdmin) return true;
+                                if (typeof card.permission === 'function') return card.permission(user);
+                                return user.isAdmin;
+                            }).map((card) => {
                                 const Icon = card.icon;
                                 const a = ACCENT[card.accent] ?? ACCENT.slate;
                                 return (

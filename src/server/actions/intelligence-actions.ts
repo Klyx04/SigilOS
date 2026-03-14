@@ -1,5 +1,5 @@
 import { db } from "@/lib/prisma";
-import { getMyOcreProgress } from "./ocre-actions";
+import { getMyOcreProgress, OcreProgressData } from "./ocre-actions";
 import { getDreamRuns } from "./songes/dream-run-actions";
 import { UserContext } from "./user-actions";
 
@@ -19,15 +19,25 @@ export interface FocusCardData {
  * The Brain of SigilOS Dashboard.
  * Analyzes user state and returns the most relevant "Focus" action.
  */
-export async function getDashboardFocus(guildId: string, user: UserContext): Promise<FocusCardData> {
+export async function getDashboardFocus(
+    guildId: string, 
+    user: UserContext,
+    prefetchedOcre?: OcreProgressData
+): Promise<FocusCardData> {
     const cards: FocusCardData[] = [];
 
     try {
-        // 1. Check Ocre Progress
+        // 1. Check Ocre Progress (Use prefetched data if available to save DB connections)
         if (user.canViewArchis) {
-            const ocre = await getMyOcreProgress(guildId);
-            if (ocre.success && ocre.data) {
-                const stats = ocre.data.stats;
+            let ocreData = prefetchedOcre;
+            
+            if (!ocreData) {
+                const ocre = await getMyOcreProgress(guildId);
+                if (ocre.success) ocreData = ocre.data;
+            }
+
+            if (ocreData) {
+                const stats = ocreData.stats;
                 if (stats.progressPercent > 80 && stats.progressPercent < 100) {
                     cards.push({
                         type: "OCRE_STEP",

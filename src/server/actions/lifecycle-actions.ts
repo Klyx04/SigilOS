@@ -139,10 +139,12 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
 
 // Retention periods in days
 const RETENTION_DAYS = {
-    LEFT: 90,    // Voluntary departure: 90 days
-    KICKED: 30,  // Kicked by admin: 30 days
-    BANNED: 0,   // Already anonymized immediately
-    GDPR_REQUEST: 0 // Immediate deletion on GDPR request
+    USER_LEAVE: 90,    // Voluntary departure: 90 days
+    LEFT: 90,          // Left via sync: 90 days
+    ADMIN_ACTION: 30,  // Archived by admin: 30 days
+    KICKED: 30,        // Wiped by admin: 30 days
+    BANNED: 0,         // Already anonymized immediately
+    GDPR_REQUEST: 0    // Immediate deletion on GDPR request
 };
 
 /**

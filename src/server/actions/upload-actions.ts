@@ -3,6 +3,8 @@ import { existsSync } from "fs";
 import path from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
+import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
 import {
     validateMagicBytes,
     generateSafeFilename,
@@ -10,7 +12,7 @@ import {
     MAX_FILE_SIZE
 } from "@/lib/image-security";
 
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
+const UPLOAD_BASE_DIR = path.join(process.cwd(), "private_uploads", "guilds");
 
 type UploadResult = {
     success: boolean;
@@ -28,12 +30,22 @@ type UploadResult = {
  * 4. UUID-based filename (no user-controlled names)
  * 5. Dedicated upload directory per guild
  * 6. No executable file extensions allowed
+ * 7. Rate Limiting to prevent CPU/RAM DoS via Sharp
  */
 export async function uploadGuildImage(
     guildId: string,
     formData: FormData,
     imageType: "banner" | "photo"
 ): Promise<UploadResult> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // 🛡️ RATE LIMITING: 15 uploads per minute max
+    const { success: rateSuccess } = await rateLimit(`upload_action_${session.user.id}`, 15, 60_000);
+    if (!rateSuccess) {
+        return { success: false, error: "Trop de requêtes, veuillez patienter." };
+    }
+
     try {
         const file = formData.get("file") as File | null;
 
@@ -68,9 +80,6 @@ export async function uploadGuildImage(
         }
 
         // 5. Optimize Image using Sharp
-        // - Resize to max 1920px width
-        // - Convert to WebP (80% quality)
-        // - This also acts as a final binary sanitization
         const optimizedBuffer = await sharp(buffer)
             .resize(1920, null, {
                 withoutEnlargement: true,
@@ -79,28 +88,20 @@ export async function uploadGuildImage(
             .webp({ quality: 80 })
             .toBuffer();
 
-        // 6. Generate safe filename (Always .webp now)
+        // 6. Generate safe filename
         const safeFilename = generateSafeFilename("webp");
-
-        // 6. Create guild-specific directory
         const guildDir = path.join(UPLOAD_BASE_DIR, guildId);
         if (!existsSync(guildDir)) {
             await mkdir(guildDir, { recursive: true });
         }
 
-        // 7. Build safe file path (prevent path traversal)
         const filePath = path.join(guildDir, safeFilename);
-
-        // Verify the path is within expected directory (defense in depth)
         const normalizedPath = path.normalize(filePath);
         if (!normalizedPath.startsWith(path.normalize(guildDir))) {
             return { success: false, error: "Chemin de fichier invalide" };
         }
 
-        // 9. Write optimized file
         await writeFile(filePath, optimizedBuffer);
-
-        // 9. Return public URL
         const publicUrl = `/uploads/guilds/${guildId}/${safeFilename}`;
 
         return { success: true, url: publicUrl };
@@ -162,6 +163,15 @@ export async function uploadProofImage(
     internalGuildId: string,
     formData: FormData
 ): Promise<UploadResult> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // 🛡️ RATE LIMITING: 20 proofs per minute max
+    const { success: rateSuccess } = await rateLimit(`upload_proof_${session.user.id}`, 20, 60_000);
+    if (!rateSuccess) {
+        return { success: false, error: "Trop de requêtes, veuillez patienter." };
+    }
+
     try {
         const file = formData.get("file") as File | null;
         if (!file) return { success: false, error: "Aucun fichier fourni" };

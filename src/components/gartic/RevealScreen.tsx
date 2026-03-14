@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Album } from "../../types/socket-events";
 import { cn } from "@/lib/utils";
 import { Download, ArrowRight, Home, Maximize2, Volume2, User } from "lucide-react";
@@ -24,6 +24,31 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
     // For simplicity and matching the "Album" feel, we'll show all entries in the current album.
     const entries = album.entries || [];
 
+    const [visibleCount, setVisibleCount] = useState(0);
+
+    useEffect(() => {
+        setVisibleCount(0);
+        const timer = setTimeout(() => {
+            setVisibleCount(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [revealIndex]);
+
+    useEffect(() => {
+        if (visibleCount > 0 && visibleCount < entries.length) {
+            const timer = setTimeout(() => {
+                import("@/lib/sounds").then(({ playSoundEffect }) => playSoundEffect("ding"));
+                setVisibleCount(v => v + 1);
+            }, 5000);
+            return () => clearTimeout(timer);
+        } else if (visibleCount === entries.length && isHost) {
+            const timer = setTimeout(() => {
+                onNextAlbum();
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [visibleCount, entries.length, isHost, onNextAlbum]);
+
     const handleDownload = () => {
         // Simple download logic (could be improved to download as image)
         const content = JSON.stringify(album, null, 2);
@@ -36,7 +61,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
     };
 
     return (
-        <div className="w-full h-full max-w-[95vw] flex flex-col gap-8 animate-in fade-in duration-1000 py-12 relative">
+        <div className="w-full h-full max-w-[95vw] flex flex-col gap-4 animate-in fade-in duration-1000 py-4 relative">
             {/* Top Bar / Navigation */}
             <div className="flex items-center justify-between w-full px-2">
                 <button 
@@ -112,7 +137,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                     </div>
 
                     <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar shadow-2xl relative">
-                        {entries.map((entry, idx) => {
+                        {entries.slice(0, visibleCount).map((entry, idx) => {
                             const author = typeof entry.author === "string" ? entry.author : (entry.author as any)?.username || "?";
                             const isOdd = idx % 2 !== 0; // Drawing is usually odd indices if we start with text
                             const isText = entry.type === "text";
@@ -166,40 +191,23 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                         })}
 
                         {/* End Indicator */}
-                        <div className="mt-8 flex flex-col items-center gap-4">
-                            <div className="w-full h-px bg-white/20" />
-                            <span className="text-white/40 font-black uppercase tracking-[0.5em] text-xs">
-                                FIN DE L'ALBUM DE {ownerName.toUpperCase()}
-                            </span>
-                            
-                            <div className="flex gap-4 mt-4 w-full max-w-md">
-                                <button 
-                                    onClick={handleDownload}
-                                    className="flex-1 bg-white/10 hover:bg-white/20 text-white p-6 rounded-3xl border-b-[8px] border-black/20 transition-all active:translate-y-2 active:border-b-0 flex items-center justify-center"
-                                >
-                                    <Download size={32} strokeWidth={3} />
-                                </button>
-                                <button 
-                                    onClick={onNextAlbum}
-                                    disabled={!isHost && revealIndex < albums.length - 1}
-                                    className={cn(
-                                        "flex-[3] p-6 rounded-3xl font-black text-white text-3xl uppercase italic tracking-tighter border-b-[12px] flex items-center justify-center gap-4 transition-all shadow-2xl",
-                                        (!isHost && revealIndex < albums.length - 1)
-                                            ? "bg-gray-500 border-gray-700 opacity-50 cursor-not-allowed"
-                                            : "bg-[#2ed573] hover:bg-[#26af5f] border-[#1e9b53] active:translate-y-3 active:border-b-0"
-                                    )}
-                                >
-                                    {!isHost && revealIndex < albums.length - 1 ? (
-                                        "EN ATTENTE..."
-                                    ) : (
-                                        <>
-                                            <span>SUIVANT</span>
-                                            <ArrowRight size={32} strokeWidth={4} />
-                                        </>
-                                    )}
-                                </button>
+                        {visibleCount === entries.length && (
+                            <div className="mt-8 flex flex-col items-center gap-4 animate-in fade-in duration-500">
+                                <div className="w-full h-px bg-white/20" />
+                                <span className="text-white/40 font-black uppercase tracking-[0.5em] text-xs">
+                                    FIN DE L'ALBUM DE {ownerName.toUpperCase()}
+                                </span>
+                                
+                                <div className="flex gap-4 mt-4 w-full max-w-md">
+                                    <button 
+                                        onClick={handleDownload}
+                                        className="flex-1 bg-white/10 hover:bg-white/20 text-white p-6 rounded-3xl border-b-[8px] border-black/20 transition-all active:translate-y-2 active:border-b-0 flex items-center justify-center"
+                                    >
+                                        <Download size={32} strokeWidth={3} />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -8,7 +8,13 @@ import {
     ChevronRight,
     Menu,
     Home,
-    ScrollText
+    ScrollText,
+    Gamepad2,
+    Loader2,
+    Plus,
+    Minus,
+    CircleHelp,
+    Rocket
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -18,11 +24,10 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
 import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
-import { CommandMenu } from "@/components/layout/command-menu";
-import { CircleHelp } from "lucide-react";
 import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
+import { useState } from "react";
 
 // Helper to format breadcrumbs
 const formatSegment = (segment: string) => {
@@ -42,13 +47,17 @@ interface TopNavProps {
     sidebarProps: React.ComponentProps<typeof AppSidebar>;
     userId: string;
     events?: UpcomingEvent[];
+    roadmapEnabled?: boolean;
 }
 
-export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
+export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = false }: TopNavProps) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
     // segments: ["dashboard", "guildId", "module", "subpage", ...]
     const breadcrumbSegments = segments.slice(2);
+
+    const [isArcadeOpen, setIsArcadeOpen] = useState(false);
+    const [roomCount, setRoomCount] = useState(0);
 
     return (
         <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-[72px] px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_30px_rgba(0,0,0,0.6)]">
@@ -118,6 +127,19 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                     />
                 </div>
 
+                {/* 1.25. Roadmap (Global Toggle) */}
+                {roadmapEnabled && (
+                    <div className="relative z-10 border-r border-white/10 flex">
+                        <Link
+                            href="/roadmap"
+                            className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/roadmap active:scale-95"
+                            title="Roadmap SigilOS"
+                        >
+                            <Rocket className="w-4 h-4 text-amber-500/70 group-hover/roadmap:text-amber-400 transition-colors" />
+                        </Link>
+                    </div>
+                )}
+
                 {/* 1.5. Changelog */}
                 <div className="relative z-10 border-r border-white/10 flex">
                     <Link
@@ -143,6 +165,32 @@ export function TopNav({ sidebarProps, userId, events = [] }: TopNavProps) {
                         userId={userId}
                         guildId={sidebarProps.guildId}
                         className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
+                    />
+                </div>
+
+                {/* Arcade Button & GamesLiveWidget */}
+                <div className="relative z-10 border-r border-white/10 flex">
+                    {roomCount > 0 && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsArcadeOpen(!isArcadeOpen)}
+                            className={cn(
+                                "h-10 px-4 bg-transparent hover:bg-emerald-500/10 text-emerald-500 rounded-none transition-all flex items-center gap-2 group",
+                                isArcadeOpen && "bg-emerald-500/20 text-emerald-400"
+                            )}
+                        >
+                            <Loader2 className="w-4 h-4 animate-spin-slow" />
+                            <span className="text-[10px] font-black uppercase italic tracking-widest hidden sm:inline">Parties Live</span>
+                            <span className="bg-emerald-500 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
+                                {roomCount}
+                            </span>
+                        </Button>
+                    )}
+                    <GamesLiveWidget 
+                        isOpen={isArcadeOpen} 
+                        onOpenChange={setIsArcadeOpen} 
+                        onRoomCountChange={setRoomCount}
+                        guildId={sidebarProps.guildId}
                     />
                 </div>
 

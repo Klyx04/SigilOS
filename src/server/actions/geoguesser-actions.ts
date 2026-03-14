@@ -8,7 +8,8 @@ import { revalidatePath } from "next/cache";
 export async function submitGeoguesserScore(
     guildId: string,
     score: number,
-    avgDistance: number
+    avgDistance: number,
+    isSolo: boolean = false
 ) {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non autorisé" };
@@ -17,42 +18,58 @@ export async function submitGeoguesserScore(
     if (!ctx.isMember) return { success: false, error: "Non membre" };
 
     try {
-        // Update aggregate rank (ladder)
-        const rank = await db.geoguesserRank.upsert({
-            where: {
-                guildId_userId: {
+        // Only update Hall of Fame for multiplay (/!\ the user asked not to count solo)
+        if (!isSolo) {
+            // Update aggregate rank (ladder)
+            const rank = await db.geoguesserRank.upsert({
+                where: {
+                    guildId_userId: {
+                        guildId,
+                        userId: session.user.id
+                    }
+                },
+                create: {
                     guildId,
-                    userId: session.user.id
+                    userId: session.user.id,
+                    userName: session.user.name || "Inconnu",
+                    userAvatar: session.user.image,
+                    bestScore: score,
+                    totalPoints: score,
+                    gamesPlayed: 1,
+                    avgDistance: avgDistance
+                },
+                update: {
+                    totalPoints: { increment: score },
+                    gamesPlayed: { increment: 1 },
+                    avgDistance: {
+                        set: avgDistance
+                    },
+                    userName: session.user.name || "Inconnu",
+                    userAvatar: session.user.image,
                 }
-            },
-            create: {
+            });
+
+            // Re-check best score to ensure we don't overwrite with lower
+            if (score > rank.bestScore) {
+                await db.geoguesserRank.update({
+                    where: { id: rank.id },
+                    data: { bestScore: score }
+                });
+            }
+        }
+
+        // Always save individual score for history/stats if needed, 
+        // but here we primarily use geoguesserScore model for all games.
+        await db.geoguesserScore.create({
+            data: {
                 guildId,
                 userId: session.user.id,
                 userName: session.user.name || "Inconnu",
                 userAvatar: session.user.image,
-                bestScore: score,
-                totalPoints: score,
-                gamesPlayed: 1,
-                avgDistance: avgDistance
-            },
-            update: {
-                totalPoints: { increment: score },
-                gamesPlayed: { increment: 1 },
-                avgDistance: {
-                    set: avgDistance
-                },
-                userName: session.user.name || "Inconnu",
-                userAvatar: session.user.image,
+                score,
+                distance: avgDistance
             }
         });
-
-        // Re-check best score to ensure we don't overwrite with lower
-        if (score > rank.bestScore) {
-            await db.geoguesserRank.update({
-                where: { id: rank.id },
-                data: { bestScore: score }
-            });
-        }
 
         revalidatePath(`/dashboard/${guildId}/mini-jeux`);
         return { success: true };

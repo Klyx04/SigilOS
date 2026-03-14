@@ -124,6 +124,15 @@ export function ProfileBentoGrid({
         if (tab) setActiveTab(tab);
     }, [searchParams]);
 
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([initialTab]));
+
+    useEffect(() => {
+        setVisitedTabs(prev => {
+            if (prev.has(activeTab)) return prev;
+            return new Set(prev).add(activeTab);
+        });
+    }, [activeTab]);
+
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
     const now = new Date();
@@ -386,11 +395,8 @@ export function ProfileBentoGrid({
                                     targetUserId={targetUserId}
                                 />
                             )}
-
-
                         </div>
 
-                        {/* Jobs */}
                         {/* Jobs */}
                         <JobsGrid
                             jobs={localProfile.metiers || []}
@@ -408,114 +414,129 @@ export function ProfileBentoGrid({
 
                 {/* INTRODUCTION TAB */}
                 <TabsContent value="intro" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <IntroductionCard
-                        introduction={localProfile.introduction || ""}
-                        onSave={(text: string) => setLocalProfile(prev => ({ ...prev, introduction: text }))}
-                        readOnly={!canEdit}
-                        guildId={guildId}
-                        displayName={displayName}
-                        targetUserId={targetUserId}
-                    />
+                    {visitedTabs.has("intro") && (
+                        <IntroductionCard
+                            introduction={localProfile.introduction || ""}
+                            onSave={(text: string) => setLocalProfile(prev => ({ ...prev, introduction: text }))}
+                            readOnly={!canEdit}
+                            guildId={guildId}
+                            displayName={displayName}
+                            targetUserId={targetUserId}
+                        />
+                    )}
                 </TabsContent>
 
                 {/* COMBAT TAB (Stuffs) */}
                 <TabsContent value="combat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="w-full">
-                        <BuildsCard
-                            links={localProfile.dofusBookLinks as any || []}
-                            onSave={(links) => setLocalProfile(prev => ({ ...prev, dofusBookLinks: links }))}
-                            readOnly={!canEdit}
-                            guildId={guildId}
-                            targetUserId={targetUserId}
-                        />
-                    </div>
+                    {visitedTabs.has("combat") && (
+                        <div className="w-full">
+                            <BuildsCard
+                                links={localProfile.dofusBookLinks as any || []}
+                                onSave={(links) => setLocalProfile(prev => ({ ...prev, dofusBookLinks: links }))}
+                                readOnly={!canEdit}
+                                guildId={guildId}
+                                targetUserId={targetUserId}
+                            />
+                        </div>
+                    )}
                 </TabsContent>
 
                 {/* MULES TAB */}
                 <TabsContent value="mules" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="w-full">
-                        <AltPseudos
-                            altPseudos={localProfile.altPseudos as any || []}
-                            onSave={handleAltPseudosSave}
-                            readOnly={!canEdit}
-                        />
-                    </div>
+                    {visitedTabs.has("mules") && (
+                        <div className="w-full">
+                            <AltPseudos
+                                altPseudos={localProfile.altPseudos as any || []}
+                                onSave={handleAltPseudosSave}
+                                readOnly={!canEdit}
+                            />
+                        </div>
+                    )}
                 </TabsContent>
 
                 {/* PLANNING TAB */}
                 <TabsContent value="planning" className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2">
-                            <AvailabilityHeatmap
-                                availability={localProfile.availability || {}}
-                                onSave={handleAvailabilitySave}
-                                readOnly={!canEdit}
-                                vacationStart={localProfile.vacationStart}
-                                vacationEnd={localProfile.vacationEnd}
-                            />
+                    {visitedTabs.has("planning") && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2">
+                                <AvailabilityHeatmap
+                                    availability={localProfile.availability || {}}
+                                    onSave={handleAvailabilitySave}
+                                    readOnly={!canEdit}
+                                    vacationStart={localProfile.vacationStart}
+                                    vacationEnd={localProfile.vacationEnd}
+                                />
+                            </div>
+                            <div>
+                                <VacationMode
+                                    vacationStart={localProfile.vacationStart}
+                                    vacationEnd={localProfile.vacationEnd}
+                                    vacationNotify={localProfile.vacationNotify}
+                                    onSave={handleVacationSave}
+                                    readOnly={!canEdit}
+                                    guildId={guildId}
+                                    pseudo={displayName}
+                                    profileId={profile.id}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <VacationMode
-                                vacationStart={localProfile.vacationStart}
-                                vacationEnd={localProfile.vacationEnd}
-                                vacationNotify={localProfile.vacationNotify}
-                                onSave={handleVacationSave}
-                                readOnly={!canEdit}
-                                guildId={guildId}
-                                pseudo={displayName}
-                                profileId={profile.id}
-                            />
-                        </div>
-                    </div>
+                    )}
                 </TabsContent>
+
                 {/* ACHIEVEMENTS TAB */}
                 <TabsContent value="achievements" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <SuccessSync
-                        pseudoDofus={localProfile.pseudoDofus}
-                        guildId={guildId}
-                        dofusServerId={dofusServerId}
-                        successPoints={localProfile.successPoints}
-                        lastUpdate={localProfile.lastLadderUpdate}
-                        readOnly={!canEdit}
-                        onTabChange={setActiveTab}
-                        onSuccess={(points) => {
-                            setLocalProfile(prev => ({
-                                ...prev,
-                                successPoints: points,
-                                lastLadderUpdate: new Date(),
-                                pendingSubmission: null // Clear on success
-                            }));
-                        }}
-                        pendingSubmission={localProfile.pendingSubmission}
-                        onCancel={() => {
-                            setLocalProfile(prev => ({
-                                ...prev,
-                                pendingSubmission: null
-                            }));
-                        }}
-                        targetUserId={targetUserId}
-                    />
+                    {visitedTabs.has("achievements") && (
+                        <SuccessSync
+                            pseudoDofus={localProfile.pseudoDofus}
+                            guildId={guildId}
+                            dofusServerId={dofusServerId}
+                            successPoints={localProfile.successPoints}
+                            lastUpdate={localProfile.lastLadderUpdate}
+                            readOnly={!canEdit}
+                            onTabChange={setActiveTab}
+                            onSuccess={(points) => {
+                                setLocalProfile(prev => ({
+                                    ...prev,
+                                    successPoints: points,
+                                    lastLadderUpdate: new Date(),
+                                    pendingSubmission: null
+                                }));
+                            }}
+                            pendingSubmission={localProfile.pendingSubmission}
+                            onCancel={() => {
+                                setLocalProfile(prev => ({
+                                    ...prev,
+                                    pendingSubmission: null
+                                }));
+                            }}
+                            targetUserId={targetUserId}
+                        />
+                    )}
                 </TabsContent>
 
                 {/* SONGES TAB */}
                 <TabsContent value="songes" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <DreamRunHistory guildId={guildId} userId={profile.userId} />
+                    {visitedTabs.has("songes") && (
+                        <DreamRunHistory guildId={guildId} userId={profile.userId} />
+                    )}
                 </TabsContent>
 
                 {/* SETTINGS TAB */}
                 {canEdit && (
                     <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <UserSettings
-                            guildId={guildId}
-                            guildName={guildName || "la guilde"}
-                            profileId={profile.id}
-                            notificationPrefs={localProfile.notificationPrefs as any}
-                            onNotificationPrefsSave={handleNotificationPrefsSave}
-                            showPresence={localProfile.showPresence ?? true}
-                            onPresenceToggle={handlePresenceToggle}
-                            isAdmin={isAdmin}
-                            targetUserId={targetUserId}
-                        />
+                        {visitedTabs.has("settings") && (
+                            <UserSettings
+                                guildId={guildId}
+                                guildName={guildName || "la guilde"}
+                                profileId={profile.id}
+                                notificationPrefs={localProfile.notificationPrefs as any}
+                                onNotificationPrefsSave={handleNotificationPrefsSave}
+                                showPresence={localProfile.showPresence ?? true}
+                                onPresenceToggle={handlePresenceToggle}
+                                isAdmin={isAdmin}
+                                targetUserId={targetUserId}
+                            />
+                        )}
                     </TabsContent>
                 )}
             </Tabs>

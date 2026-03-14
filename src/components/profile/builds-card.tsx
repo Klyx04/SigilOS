@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Plus, Pencil, ShieldAlert } from "lucide-react";
+import { Link2, Trash2, Plus, Pencil, ShieldAlert, RefreshCw } from "lucide-react";
+import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,26 +11,76 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
-
-export type BUILD_TAG_TYPE = "eau" | "feu" | "terre" | "air" | "multi" | "tank" | "dopou" | "pp" | "retpa" | "retpm" | "soin";
-
-export const DO_TAGS = [
-    { id: "eau", label: "Eau", text: "💧 Eau", className: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
-    { id: "feu", label: "Feu", text: "🔥 Feu", className: "bg-red-500/10 text-red-400 border border-red-500/20" },
-    { id: "terre", label: "Terre", text: "🌱 Terre", className: "bg-green-600/10 text-green-500 border border-green-600/20" },
-    { id: "air", label: "Air", text: "💨 Air", className: "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20" },
-    { id: "multi", label: "Multi", text: "🌈 Multi", className: "bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20" },
-    { id: "tank", label: "Tank", text: "🛡️ Tank", className: "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20" },
-    { id: "dopou", label: "Do Pou", text: "💥 Do Pou", className: "bg-orange-500/10 text-orange-400 border border-orange-500/20" },
-    { id: "pp", label: "PP", text: "🍀 PP", className: "bg-yellow-400/10 text-yellow-500 border border-yellow-400/20" }
-];
+import { DO_TAGS } from "@/lib/dofus-tags";
+import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
 
 export type DofusBookLink = {
     id: string;
     url: string;
     name: string;
     tags?: string[];
+    classId?: number;
+    previewData?: any; // Cached build info
 };
+
+const ClassSelector = ({ 
+    selectedId, 
+    onSelect, 
+    classes 
+}: { 
+    selectedId: number | null, 
+    onSelect: (id: number) => void,
+    classes: { id: number, name: string }[]
+}) => (
+    <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+        {classes.map((cls) => {
+            const colors: Record<number, string> = {
+                1: "#8b5cf6", 2: "#f59e0b", 3: "#10b981", 4: "#6366f1", 5: "#3b82f6",
+                6: "#ef4444", 7: "#ec4899", 8: "#f97316", 9: "#84cc16", 10: "#059669",
+                11: "#dc2626", 12: "#4ade80", 13: "#7c3aed", 14: "#1e40af", 15: "#0ea5e9",
+                16: "#2563eb", 17: "#9333ea", 18: "#ea580c", 19: "#06b6d4"
+            };
+            const color = colors[cls.id] || "#10b981";
+            const isSelected = selectedId === cls.id;
+
+            return (
+                <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => onSelect(cls.id)}
+                    className={cn(
+                        "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center group overflow-hidden",
+                        isSelected 
+                            ? "border-white/40 shadow-xl scale-105" 
+                            : "bg-zinc-900/50 border-white/5 hover:border-white/20 hover:scale-105"
+                    )}
+                    style={{ 
+                        backgroundColor: isSelected ? `${color}22` : undefined,
+                        boxShadow: isSelected ? `0 0 20px ${color}33` : undefined
+                    }}
+                    title={cls.name}
+                >
+                    {/* Background Glow on Selection */}
+                    {isSelected && (
+                        <div className="absolute inset-0 opacity-40 blur-xl pointer-events-none" style={{ backgroundColor: color }} />
+                    )}
+
+                    <div className={cn(
+                        "relative w-7 h-7 sm:w-9 sm:h-9 transition-all duration-500 z-10",
+                        isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110"
+                    )}>
+                        <NextImage
+                            src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
+                            alt={cls.name}
+                            fill
+                            className="object-contain"
+                        />
+                    </div>
+                </button>
+            );
+        })}
+    </div>
+);
 
 interface BuildsCardProps {
     links: DofusBookLink[];
@@ -44,9 +95,20 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
     const [newLinkName, setNewLinkName] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
     const [newLinkTags, setNewLinkTags] = useState<string[]>([]);
+    const [newLinkClassId, setNewLinkClassId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingLink, setEditingLink] = useState<DofusBookLink | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+
+    const DOFUS_CLASSES = [
+        { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
+        { id: 4, name: "Sram" }, { id: 5, name: "Xélor" }, { id: 6, name: "Écaflip" },
+        { id: 7, name: "Éniripsa" }, { id: 8, name: "Iop" }, { id: 9, name: "Crâ" },
+        { id: 10, name: "Sadida" }, { id: 11, name: "Sacrieur" }, { id: 12, name: "Pandawa" },
+        { id: 13, name: "Roublard" }, { id: 14, name: "Zobal" }, { id: 15, name: "Steamer" },
+        { id: 16, name: "Éliotrope" }, { id: 17, name: "Huppermage" }, { id: 18, name: "Ouginak" },
+        { id: 19, name: "Forgelance" }
+    ];
 
     const handleAddLink = async () => {
         if (!newLinkName.trim() || !newLinkUrl.trim()) {
@@ -68,11 +130,14 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
         setIsSubmitting(true);
 
+
         const newLink: DofusBookLink = {
             id: crypto.randomUUID(),
             name: newLinkName.trim(),
             url: newLinkUrl.trim(),
-            tags: newLinkTags
+            tags: newLinkTags,
+            classId: newLinkClassId || undefined,
+            previewData: null
         };
 
         const updatedLinks = [...links, newLink];
@@ -89,6 +154,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 setNewLinkName("");
                 setNewLinkUrl("");
                 setNewLinkTags([]);
+                setNewLinkClassId(null);
                 toast.success("Build ajouté");
             } else {
                 toast.error(result.error || "Erreur lors de l'ajout");
@@ -112,17 +178,26 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             return;
         }
         setIsSubmitting(true);
-        const updatedLinks = links.map(l => l.id === editingLink.id ? editingLink : l);
+
+        const updatedLinks = links.map(l =>
+            l.id === editingLink.id ? editingLink : l
+        );
+
+        setIsSubmitting(true);
         try {
-            const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
+            const result = await updateDofusBookLinks({
+                guildId,
+                links: updatedLinks,
+                targetUserId
+            });
             if (result.success) {
                 onSave(updatedLinks);
                 setEditingLink(null);
                 toast.success("Build mis à jour");
             } else {
-                toast.error(result.error || "Erreur lors de la modification");
+                toast.error(result.error || "Erreur lors de la mise à jour");
             }
-        } catch {
+        } catch (error) {
             toast.error("Erreur serveur");
         } finally {
             setIsSubmitting(false);
@@ -142,6 +217,28 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             // Revert (not easily done without local state refetch, but acceptable for now)
         } else {
             toast.success("Build supprimé");
+        }
+    };
+
+    const handleForceBake = async (link: DofusBookLink) => {
+        setIsSubmitting(true);
+        toast.info("Tentative de récupération des données via le serveur...");
+        
+        // We clear previewData to force the server action to re-bake
+        const updatedLinks = links.map(l => l.id === link.id ? { ...l, previewData: null } : l);
+        
+        try {
+            const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
+            if (result.success) {
+                onSave(updatedLinks); 
+                toast.success("Données récupérées !");
+            } else {
+                toast.error(result.error || "Échec de la synchronisation");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -216,7 +313,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     type="button"
                                                     onClick={() => {
                                                         if (isSelected) {
-                                                            setNewLinkTags(prev => prev.filter(t => t !== tag.id));
+                                                            setNewLinkTags(prev => prev.filter((t: string) => t !== tag.id));
                                                         } else if (newLinkTags.length < 3) {
                                                             setNewLinkTags(prev => [...prev, tag.id]);
                                                         }
@@ -233,6 +330,17 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             );
                                         })}
                                     </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Icône de classe (Recommandé)</Label>
+                                    <ClassSelector 
+                                        selectedId={newLinkClassId} 
+                                        onSelect={setNewLinkClassId} 
+                                        classes={DOFUS_CLASSES} 
+                                    />
+                                    <p className="text-[10px] text-zinc-500">
+                                        Sélectionnez la classe pour assurer une belle preview, même si Dofusbook est lent.
+                                    </p>
                                 </div>
                             </div>
 
@@ -293,10 +401,18 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col">
-                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} />
+                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
 
                             {!readOnly && (
                                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20">
+                                    <button
+                                        onClick={() => handleForceBake(link)}
+                                        disabled={isSubmitting}
+                                        className="p-2 bg-zinc-800/90 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all disabled:opacity-50"
+                                        title="Récupérer les données (Baking)"
+                                    >
+                                        <RefreshCw className={cn("w-4 h-4", isSubmitting && "animate-spin")} />
+                                    </button>
                                     <button
                                         onClick={() => setEditingLink({ ...link })}
                                         className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
@@ -327,7 +443,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
             {/* Edit Dialog */}
             <Dialog open={!!editingLink} onOpenChange={(open) => !open && setEditingLink(null)}>
-                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-md">
+                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Modifier le Build</DialogTitle>
                         <DialogDescription className="text-zinc-400">
@@ -370,7 +486,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                         if (!prev) return prev;
                                                         const curTags = prev.tags || [];
                                                         if (isSelected) {
-                                                            return { ...prev, tags: curTags.filter(t => t !== tag.id) };
+                                                            return { ...prev, tags: curTags.filter((t: string) => t !== tag.id) };
                                                         } else if (curTags.length < 3) {
                                                             return { ...prev, tags: [...curTags, tag.id] };
                                                         }
@@ -389,6 +505,17 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                         );
                                     })}
                                 </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Icône de classe (Recommandé)</Label>
+                                <ClassSelector 
+                                    selectedId={editingLink.classId || null} 
+                                    onSelect={(id) => setEditingLink(prev => prev ? { ...prev, classId: id } : null)} 
+                                    classes={DOFUS_CLASSES} 
+                                />
+                                <p className="text-[10px] text-zinc-500">
+                                    Sélectionnez la classe pour assurer une belle preview.
+                                </p>
                             </div>
                         </div>
                     )}

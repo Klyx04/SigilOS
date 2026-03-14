@@ -110,7 +110,7 @@ export const garticMachine = createMachine({
             },
         },
         STARTING: {
-            entry: assign({ timer: 10, maxTimer: 10 }),
+            entry: assign({ timer: 5, maxTimer: 5 }),
             on: {
                 TIMER_END_STARTING: "WRITING",
             }

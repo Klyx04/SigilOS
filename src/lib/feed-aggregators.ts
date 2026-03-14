@@ -37,28 +37,35 @@ async function fetchWithProxyFallback(url: string): Promise<string | null> {
         console.warn(`[feed-aggregator] Curl failed for ${url}, trying proxies...`);
     }
 
-    // 3. Proxy attempts
+    // 3. Proxy attempts (Aggressive rotation)
     const proxies = [
         (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
         (u: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-        (u: string) => `https://api.cors.lol/?url=${encodeURIComponent(u)}`
+        (u: string) => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
+        // Backup: No-CORS proxy (unreliable but last resort)
+        (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`
     ];
 
     for (const proxyFn of proxies) {
         try {
             const proxyUrl = proxyFn(url);
-            const res = await fetch(proxyUrl, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+            const res = await fetch(proxyUrl, { 
+                cache: 'no-store', 
+                signal: AbortSignal.timeout(12000),
+                headers: { 'User-Agent': 'SigilOS/1.0 (Research Bot)' }
+            });
             if (!res.ok) continue;
 
+            const text = await res.text();
+            
             if (proxyUrl.includes('allorigins')) {
-                const json = await res.json();
+                const json = JSON.parse(text);
                 if (json.contents) return json.contents;
             } else if (proxyUrl.includes('htmldriven')) {
-                const json = await res.json();
+                const json = JSON.parse(text);
                 if (json.body) return json.body;
             } else {
-                const text = await res.text();
-                if (text.length > 50) return text;
+                if (text && text.length > 50) return text;
             }
         } catch (e) {
             continue;
@@ -154,11 +161,21 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 }
 
 export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
-    try {
-        const url = 'https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=CHANGELOG';
-        const items = await fetchHaapiWithFallback(url);
+    const keys = ['PATCHNOTES', 'CHANGELOG', 'MAJ', 'CORRECTIFS'];
+    let items: any[] | null = null;
+    
+    for (const key of keys) {
+        try {
+            const url = `https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=${key}`;
+            items = await fetchHaapiWithFallback(url);
+            if (items && Array.isArray(items) && items.length > 0) {
+                console.log(`[feed-aggregator] Found changelogs with key: ${key}`);
+                break;
+            }
+        } catch(e) { /* continue */ }
+    }
 
-        if (!items || !Array.isArray(items)) return [];
+    if (!items || !Array.isArray(items)) return [];
 
         // Fallback image strategy: find the first non-null image in the list to use as a default for patch notes
         let commonImage = items.find(i => i.image_url)?.image_url || null;
@@ -182,7 +199,12 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
 
             // Try to find a real date, otherwise use pseudo-chronological
             const pubDateStr = item.date_publication || item.publication_date || item.created_at || item.date;
-            const published = pubDateStr ? new Date(pubDateStr) : new Date(Date.now() - idx * 86400000);
+            let published = pubDateStr ? new Date(pubDateStr) : new Date(Date.now() - idx * 86400000);
+            
+            // Safety check for invalid dates
+            if (isNaN(published.getTime())) {
+                published = new Date(Date.now() - idx * 86400000);
+            }
 
             return {
                 type: "NEWS" as const,
@@ -194,10 +216,6 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
                 published,
             };
         });
-    } catch (e) {
-        console.error("Failed to fetch Dofus Changelog Haapi API", e);
-        return [];
-    }
 }
 
 // ─── DOFUS POUR LES NOOBS HOMEPAGE SCRAPER ────────────────────────

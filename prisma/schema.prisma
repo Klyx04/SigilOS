@@ -63,8 +63,9 @@ model User {
   garticSessions      GarticSession[]
   guildEvents         GuildEvent[]
   notifications       Notification[]
-  sessions            Session[]
   profiles            UserProfile[]
+  sessions            Session[]
+  administeredRelances Relance[]           @relation("RelanceAdmin")
 }
 
 model AllowedGuild {
@@ -101,6 +102,21 @@ model PlatformConfig {
   serviceStatusChannelId String?
   ticketAutoRoleId       String?
   ticketSupportGuildId   String?
+  roadmapEnabled         Boolean  @default(false)
+}
+
+model RoadmapItem {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  status      String   @default("TODO") // "TODO", "PROGRESS", "DONE"
+  quarter     String   // e.g. "Q2 2026", "Moyen Terme", "Vision Long Terme"
+  priority    String   @default("NORMAL") // "HIGH", "NORMAL", "LOW"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([quarter])
 }
 
 model MiniGameStatus {
@@ -205,6 +221,7 @@ model GuildConfig {
   sigilRoles                    SigilRole[]
   profiles                      UserProfile[]
   vaultEntries                  VaultEntry[]
+  relances                      Relance[]
 }
 
 model GuildModules {
@@ -1831,4 +1848,20 @@ model SystemIssue {
   @@index([status])
   @@index([type])
   @@index([createdAt])
+}
+
+model Relance {
+  id              String      @id @default(cuid())
+  guildId         String
+  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  adminId         String
+  admin           User        @relation("RelanceAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  type            String      // DM, CHANNEL, BULK
+  targetIds       Json        // Array of Discord user IDs
+  message         String      @db.Text
+  criteria        String?
+  createdAt       DateTime    @default(now())
+
+  @@index([guildId])
+  @@index([adminId])
 }

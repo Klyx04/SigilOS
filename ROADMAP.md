@@ -75,31 +75,52 @@
 - [x] **Welcome V2** : Embeds de bienvenue ultra-riches et personnalisables par guilde.
 
 ---
-
-## 🏗️ Phase 5 — Chat Live & Ocre V2 (Avril 2026) 🏗️
-
-> **Objectif** : Communication temps-réel et fluidification des échanges Ocre.
-
-- [ ] **Chat Live (Sidebar)** : Panneau rétractable avec historique 200 messages.
-- [ ] **Ocre Trade Link** : Génération d'un lien d'échange "Public" à partager hors guilde.
-- [ ] **Double Auth (2FA)** : Optionnelle pour le Super-Admin (TOTP).
-
----
-
-## 📊 Phase 6 — Statistiques & Micro-Interactions (Mai 2026)
-
-- [ ] **Tooltips Recharts** : Micro-interactions plus fluides sur les graphiques de guilde.
-- [ ] **Météo In-Game** : (Concept) Tracker des zones à bonus/malus.
-- [ ] **Ladder Inter-Guildes** : Comparaison du prestige entre les guildes whitelisted.
-
----
-
-## 🚀 Phase 7 — Infrastructure V2 (Future)
-
-- [ ] **Coolify Migration** : Passage à une gestion PaaS auto-hébergé pour faciliter les déploiements.
-- [ ] **Cloudflare R2 full** : Migration totale si le stockage local dépasse 200 Go.
-- [ ] **Alertes Disk Usage** : Alerte Discord automatique à 80% de remplissage.
-- [ ] **Pagination Cursor-based** : Généralisation à toutes les listes > 500 entrées.
+ 
+ ## 🏗️ Phase 5 — Chat Live & Ocre V2 (Avril 2026) 🏗️
+ 
+ > **Objectif** : Communication temps-réel et fluidification des échanges Ocre.
+ 
+ - [ ] **Chat Live (Sidebar)** : Panneau rétractable avec historique 200 messages.
+ - [ ] **Ocre Trade Link** : Génération d'un lien d'échange "Public" à partager hors guilde.
+ - [ ] **Double Auth (2FA)** : Optionnelle pour le Super-Admin (TOTP).
+ 
+ ---
+ 
+ ## 🧭 Phase 6 — Quest Graph : Le GPS Narratif (Mai - Juillet 2026) 🏗️
+ 
+ > **Objectif** : Transformer les ~2000 quêtes en un Knowledge Graph intelligent et visuel.
+ 
+ ### V0 & V1 — Prototype & MVP (Mai)
+ - [ ] **Core Engine** : Modélisation des tables `graph_nodes` et `graph_edges` (Prisma).
+ - [ ] **Pipeline d'Import** : Scrapping et curation des données DofusDB / Dofus Pour Les Noobs.
+ - [ ] **Lien Carte HD** : Synchronisation des ZoneNode avec le module Map existant.
+ - [ ] **War Room V1** : Heatmap de progression de guilde par zone.
+ 
+ ### V2 — Neural Tree & Synergies (Juin)
+ - [ ] **Neural Canvas UI** : Arbre neuronal animé avec zoom sémantique et LOD (Level of Detail).
+ - [ ] **Algorithme de Routage** : Calcul du chemin critique (temps/difficulté) et quêtes de synergie.
+ - [ ] **HUD de Progression** : Console de suivi temps-réel des 3 prochaines étapes optimales.
+ 
+ ### V3 — Copilote IA & Journal (Juillet)
+ - [ ] **Sigil Copilot** : IA (RAG) branchée sur le graphe pour les requêtes de progression naturelle.
+ - [ ] **Journal Narratif** : Génération automatique de récits d'aventure pour chaque personnage.
+ 
+ ---
+ 
+ ## 📊 Phase 7 — Statistiques & Micro-Interactions (Août 2026)
+ 
+ - [ ] **Tooltips Recharts** : Micro-interactions plus fluides sur les graphiques de guilde.
+ - [ ] **Météo In-Game** : (Concept) Tracker des zones à bonus/malus.
+ - [ ] **Ladder Inter-Guildes** : Comparaison du prestige entre les guildes whitelisted.
+ 
+ ---
+ 
+ ## 🚀 Phase 8 — Infrastructure V2 (Future)
+ 
+ - [ ] **Coolify Migration** : Passage à une gestion PaaS auto-hébergé pour faciliter les déploiements.
+ - [ ] **Cloudflare R2 full** : Migration totale si le stockage local dépasse 200 Go.
+ - [ ] **Alertes Disk Usage** : Alerte Discord automatique à 80% de remplissage.
+ - [ ] **Pagination Cursor-based** : Généralisation à toutes les listes > 500 entrées.
 
 ---
 

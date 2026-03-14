@@ -31,8 +31,56 @@ export class WorldMapService {
             const fileContent = fs.readFileSync(filePath, 'utf8');
             const data = JSON.parse(fileContent);
 
+            const excludedKeywords = [
+                // General Interiors/Dungeons
+                "donjon", "tunnel", "souterrain", "cave", "crypt", "labyrinthe", 
+                "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
+                "égout", "cellule", "prison", "temple", "salle", "château",
+                "laboratoire", "secret", "caché", "salle du trône", "boss",
+                
+                // Divine Dimensions (Usually hard to guess/find)
+                "dimension", "ecaflipus", "enutrosor", "srambad", "xelorium", 
+                "écafli", "énutro", "sram", "xélor", "défi",
+                
+                // Specific Bosses/Areas
+                "chaloeil", "vortex", "nidas", "reine des voleurs", "koutoulou", 
+                "dantinéa", "meno", "merkab", "trône", "sommet", "antre",
+                "fond de la mer", "profondeurs", "obscur", "sombre", "cachot",
+                "laboratoire", "infirmerie", "forge", "atelier", "bibliothèque",
+                "taverne", "maison", "villa", "palais", "résidence"
+            ];
+
+            const subAreaNames = new Map<number, string>();
+            if (data.subareas) {
+                // Also load subarea names from a different property if possible
+                data.subareas.forEach((s: any) => {
+                    const nameFR = s.nameFR || s.name_fr || (typeof s.name === 'string' ? s.name : s.name?.fr || "");
+                    const name = nameFR.toLowerCase();
+                    subAreaNames.set(s.id, name);
+                });
+            }
+
+            this.playableMaps = []; // Clear current list for reload
             if (data.maps) {
                 data.maps.forEach((m: any) => {
+                    const subAreaName = subAreaNames.get(m.subAreaId) || "";
+                    const isExcluded = excludedKeywords.some(key => subAreaName.includes(key));
+
+                    // Strict check: must be outdoor AND from a primary world map AND not excluded by keyword
+                    // We only allow World 1 (Amakna) and World 2 (Incarnam) as "Playable" origins for special mode
+                    // Tunnels (World 3) and small labyrinths (World 4, 5, 6...) are excluded.
+                    const isMainWorld = m.worldMap === 1 || m.worldMap === 2;
+                    
+                    if (m.outdoor && m.worldMap !== -1 && isMainWorld && !isExcluded) {
+                        this.playableMaps.push({
+                            id: m.id,
+                            x: m.x,
+                            y: m.y,
+                            worldMap: m.worldMap,
+                            outdoor: m.outdoor
+                        });
+                    }
+                    
                     this.maps.set(m.id, {
                         id: m.id,
                         x: m.x,
@@ -40,15 +88,15 @@ export class WorldMapService {
                         worldMap: m.worldMap,
                         outdoor: m.outdoor
                     });
-
-                    // Pre-filter playable maps (outdoor, valid world)
-                    if (m.outdoor && m.worldMap !== -1) {
-                        this.playableMaps.push(m);
-                    }
                 });
             }
             this.isLoaded = true;
-            console.log(`[WorldMapService] 🗺️ ${this.maps.size} maps loaded (${this.playableMaps.length} playable)`);
+            
+            const stats: Record<number, number> = {};
+            this.playableMaps.forEach(m => {
+                stats[m.worldMap] = (stats[m.worldMap] || 0) + 1;
+            });
+            console.log(`[WorldMapService] 🗺️ ${this.maps.size} maps loaded. Playable stats:`, stats);
         } catch (error) {
             console.error('[WorldMapService] ❌ Failed to load worldmap data:', error);
         }
@@ -61,9 +109,12 @@ export class WorldMapService {
     public getRandomMaps(count: number, mode: 'NORMAL' | 'SPECIAL' = 'NORMAL'): number[] {
         let filtered = this.playableMaps;
         if (mode === 'NORMAL') {
+            // Normal mode is World of Twelve (Amakna)
             filtered = filtered.filter(m => m.worldMap === 1);
         } else {
-            // Mode SPECIAL: Exclude World 1, World 19 (Mappemondes), World 29 (Ecaflip City)
+            // Mode SPECIAL: Include Incarnam (World 2) and others if allowed, 
+            // but we usually want to stay on identifiable maps.
+            // Exclude World 1, World 19 (Mappemondes), World 29 (Ecaflip City)
             filtered = filtered.filter(m => m.worldMap !== 1 && m.worldMap !== 19 && m.worldMap !== 29);
         }
 

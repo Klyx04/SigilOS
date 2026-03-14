@@ -42,7 +42,8 @@ export type AuditAction =
     | "CHAT_UNMUTE"                // Admin unmuted a user in chat
     | "CHAT_CLEAR"                 // Admin cleared guild chat history
     | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
-    | "CHAT_MOTD_UPDATE";          // Admin updated the MOTD
+    | "CHAT_MOTD_UPDATE"           // Admin updated the MOTD
+    | "MEMBER_RELANCE";            // Admin sent pings/changed roles for absents
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -57,7 +58,8 @@ export type AuditTargetType =
     | "MISSION"
     | "GUILD"
     | "CHAT"
-    | "POLL";
+    | "POLL"
+    | "MEMBER";
 
 export type AuditLogEntry = {
     id: string;
@@ -109,6 +111,11 @@ export async function reportSecurityIncident(
             console.warn("[Security] User lookup failed, using session name", e);
         }
 
+        // 🛡️ FORENSICS: Get real security headers
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+
         const result = await createAuditLog({
             guildId,
             actorUserId: session.user.id,
@@ -119,10 +126,35 @@ export async function reportSecurityIncident(
             metadata: {
                 description,
                 ...metadata,
+                ip: ip.substring(0, 45),
                 severity: "HIGH"
             }
         });
 
+        // 🔔 TRIGGER DISCORD ALERT
+        if (result.success) {
+            const { sendSecurityAlert } = await import("@/server/discord");
+            let guildName = "Unknown Guild";
+            try {
+                const config = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guildId },
+                    select: { name: true }
+                });
+                if (config?.name) guildName = config.name;
+            } catch {}
+
+            await sendSecurityAlert({
+                type: incidentType,
+                description,
+                severity: "HIGH",
+                guildName,
+                userName: actorName,
+                metadata: {
+                    ...metadata,
+                    logId: result.data?.logId
+                }
+            });
+        }
 
         return { success: true };
     } catch (error) {
@@ -236,6 +268,12 @@ export async function logAdminAccessDenied(
             // If we can't get context, they're likely external
         }
 
+        // 🛡️ FORENSICS: Get real security headers
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const userAgent = headersList.get("user-agent") || "Inconnu";
+        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+
         // Import Prisma for JsonNull handling
         const { Prisma } = await import("@prisma/client");
 
@@ -250,7 +288,8 @@ export async function logAdminAccessDenied(
                 oldValue: Prisma.JsonNull,
                 newValue: Prisma.JsonNull,
                 metadata: {
-                    userAgent: "web",
+                    userAgent,
+                    ip: ip.substring(0, 45), // Protection contre les headers trop longs
                     timestamp: new Date().toISOString(),
                     isMember,
                     roleName: roleName || "Aucun rôle (externe)",
@@ -411,10 +450,23 @@ export async function getAuditLogs(
             }
         });
 
+        // 🛡️ SECURITY: Mask IP for non-super-admins
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        const isGod = await isSuperAdmin();
+
+        const filteredLogs = logs.map(log => {
+            if (!isGod && log.metadata && typeof log.metadata === "object") {
+                const cleanMetadata = { ...(log.metadata as Record<string, any>) };
+                delete cleanMetadata.ip;
+                return { ...log, metadata: cleanMetadata };
+            }
+            return log;
+        });
+
         return {
             success: true,
             data: {
-                logs: logs as AuditLogEntry[],
+                logs: filteredLogs as AuditLogEntry[],
                 total,
                 hasMore: page * limit < total
             }

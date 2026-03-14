@@ -49,13 +49,16 @@ export default async function DashboardLayout({
     }
 
 
-    const [user, guildData, userGuilds, events, modules] = await Promise.all([
+    const [user, guildData, userGuilds, events, modules, configRes] = await Promise.all([
         getUserContext(guildId),
         getGuildHeaderData(guildId),
         getUserGuilds(),
         import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId)),
         getGuildModules(guildId),
+        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
     ]);
+
+    const roadmapEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
 
     // ── ARCHIVED: specific message to contact staff ──
     if ((user as any).isArchived) {
@@ -146,6 +149,7 @@ export default async function DashboardLayout({
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
                             events={events}
+                            roadmapEnabled={roadmapEnabled}
                         />
                     </div>
 
@@ -183,9 +187,6 @@ export default async function DashboardLayout({
 
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
-
-                {/* Live Games Floating Widget */}
-                <GamesLiveWidget />
 
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />

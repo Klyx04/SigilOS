@@ -12,24 +12,8 @@ import { existsSync } from "fs";
 import path from "path";
 
 // ---------------------------------------------------------------------------
-// HELPER — suppression sécurisée d'un fichier proof local
+// HELPERS
 // ---------------------------------------------------------------------------
-
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
-
-async function deleteLocalProof(proofUrl: string, internalGuildId: string): Promise<void> {
-    try {
-        const prefix = `/uploads/guilds/${internalGuildId}/proofs/`;
-        if (!proofUrl.startsWith(prefix)) return;
-        const filename = proofUrl.slice(prefix.length);
-        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return;
-        const filePath = path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs", filename);
-        if (!path.normalize(filePath).startsWith(path.normalize(path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs")))) return;
-        if (existsSync(filePath)) await unlink(filePath);
-    } catch (err) {
-        console.error("[deleteLocalProof]", err);
-    }
-}
 
 async function getDiscordId(userId: string): Promise<string | null> {
     const account = await db.account.findFirst({
@@ -361,8 +345,9 @@ export async function markLoanReturned(
             });
             if (loanForCleanup) {
                 const urlsToDelete = [loanForCleanup.proofUrl, returnProofUrl || loanForCleanup.returnProofUrl].filter(Boolean) as string[];
+                const { deleteProofFile } = await import("@/lib/storage-utils");
                 for (const url of urlsToDelete) {
-                    await deleteLocalProof(url, loanForCleanup.guildId);
+                    await deleteProofFile(url);
                 }
                 // Effacer les URLs en DB immédiatement
                 await db.guildLoan.update({
@@ -425,8 +410,9 @@ export async function cancelLoan(
 
         if (loanForCleanup) {
             const urlsToDelete = [loanForCleanup.proofUrl, loanForCleanup.returnProofUrl].filter(Boolean) as string[];
+            const { deleteProofFile } = await import("@/lib/storage-utils");
             for (const url of urlsToDelete) {
-                await deleteLocalProof(url, loanForCleanup.guildId);
+                await deleteProofFile(url);
             }
             await db.guildLoan.update({
                 where: { id: loanId },

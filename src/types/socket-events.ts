@@ -50,6 +50,8 @@ export interface PublicPlayer {
     score: number;
     isDrawing?: boolean;
     isHost?: boolean;
+    userAvatar?: string;
+    isSpectator?: boolean;
 }
 
 export interface AlbumEntry {

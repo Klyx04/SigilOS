@@ -120,7 +120,8 @@ async function getPendingFilesForGuild(
         for (const sub of missionSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const s = await stat(join(cwd, "public", sub.proofUrl.replace(/^\//, "")));
+                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
                     url: sub.proofUrl, sizeBytes: s.size,
@@ -145,7 +146,8 @@ async function getPendingFilesForGuild(
         for (const sub of kamaSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const s = await stat(join(cwd, "public", sub.proofUrl.replace(/^\//, "")));
+                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
                     url: sub.proofUrl, sizeBytes: s.size,
@@ -170,7 +172,8 @@ async function getPendingFilesForGuild(
         for (const sub of achSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const s = await stat(join(cwd, "public", sub.proofUrl.replace(/^\//, "")));
+                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
                     url: sub.proofUrl, sizeBytes: s.size,
@@ -207,12 +210,10 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
 
         const entries: StorageGuildEntry[] = await Promise.all(
             guilds.map(async (g: any) => {
-                const missionsDir = join(cwd, "public", "uploads", "proofs", g.discordGuildId);
-                const kamaDir = join(cwd, "public", "uploads", "guilds", g.id, "proofs");
-                const achievementDir = join(cwd, "public", "uploads", "guilds", g.id, "achievements");
-                // Prêts & Coffre partagent le même dossier /proofs/ que Kama
-                // On distingue à partir de la DB (les prêts ont des proofUrl dans /proofs/)
-                const loansProofsDir = join(cwd, "public", "uploads", "guilds", g.id, "proofs");
+                const missionsDir = join(cwd, "private_uploads", "proofs", g.discordGuildId);
+                const kamaDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
+                const achievementDir = join(cwd, "private_uploads", "guilds", g.id, "achievements");
+                const loansProofsDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
 
                 const missionsUrlBase = `/uploads/proofs/${g.discordGuildId}`;
                 const kamaUrlBase = `/uploads/guilds/${g.id}/proofs`;
@@ -321,11 +322,11 @@ export async function godDeleteFile(
         return { success: false, error: "Chemin non autorisé (doit commencer par /uploads/)" };
     }
 
-    const relativePath = fileUrl.replace(/^\//, "");
-    const absolutePath = normalize(join(process.cwd(), "public", relativePath));
-    const uploadsRoot = normalize(join(process.cwd(), "public", "uploads"));
+    const physicalPath = fileUrl.replace("/uploads/", "");
+    const absolutePath = normalize(join(process.cwd(), "private_uploads", physicalPath));
+    const storageRoot = normalize(join(process.cwd(), "private_uploads"));
 
-    if (!absolutePath.startsWith(uploadsRoot)) {
+    if (!absolutePath.startsWith(storageRoot)) {
         return { success: false, error: "Path traversal détecté — opération refusée." };
     }
 

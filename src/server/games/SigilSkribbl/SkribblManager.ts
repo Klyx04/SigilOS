@@ -29,6 +29,7 @@ export class SkribblManager {
         socket.on("skribbl:game:start", () => this.handleStart(socket));
         socket.on("skribbl:word:select", ({ word }) => this.handleWordChoice(socket, word));
         socket.on("skribbl:word:choose", ({ word }) => this.handleWordChoice(socket, word)); // Alias client
+        socket.on("skribbl:word:reroll", () => this.handleWordReroll(socket));
         socket.on("skribbl:room:delete", () => this.handleDeleteRoom(socket));
         socket.on("skribbl:room:settings", (config) => this.handleUpdateSettings(socket, config));
     }
@@ -48,7 +49,7 @@ export class SkribblManager {
 
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.getState() === "LOBBY" && room.getGuildId() === guildId) {
+            if (room.getGuildId() === guildId && !room.isEmpty()) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });
@@ -60,7 +61,7 @@ export class SkribblManager {
 
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.getState() === "LOBBY" && room.getGuildId() === guildId) {
+            if (room.getGuildId() === guildId && !room.isEmpty()) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });
@@ -259,6 +260,13 @@ export class SkribblManager {
         if (!roomId) return;
         const room = this.rooms.get(roomId);
         if (room) room.handleWordChoice(socket.id, word);
+    }
+
+    private async handleWordReroll(socket: Socket) {
+        const roomId = await redis.get(`socket:skribbl:${socket.id}:room`);
+        if (!roomId) return;
+        const room = this.rooms.get(roomId);
+        if (room) room.handleWordReroll(socket.id);
     }
 
     public async handleDisconnect(socket: Socket, reason: string) {

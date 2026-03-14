@@ -65,15 +65,16 @@ export default async function AdminLogsPage({ params }: Props) {
             />
 
             {/* Security Notice */}
-            <Card className="bg-amber-500/10 border-amber-500/20">
-                <CardContent className="p-4 flex items-start gap-3">
-                    <Shield className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-sm text-amber-200">
-                        <strong>Logs immutables</strong> — Ces entrées ne peuvent pas être modifiées ou supprimées.
-                        Chaque action administrative est enregistrée de manière permanente.
-                    </p>
-                </CardContent>
-            </Card>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-6 flex items-start gap-4 mb-8">
+                    <Shield className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
+                    <div>
+                        <h2 className="text-amber-500 font-black uppercase tracking-wider mb-1">Journal de Transparence</h2>
+                        <p className="text-zinc-400 text-sm leading-relaxed">
+                            Ces entrées sont enregistrées pour garantir la sécurité de la guilde et la traçabilité des actions administratives. 
+                            Conformément à notre politique de confidentialité, ces journaux sont <strong>automatiquement supprimés après 30 jours</strong>.
+                        </p>
+                    </div>
+                </div>
 
             {/* Logs Timeline - Client Component */}
             <AuditLogsClient

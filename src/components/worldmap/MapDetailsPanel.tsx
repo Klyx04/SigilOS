@@ -47,13 +47,13 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                     opacity: 1,
                     scale: 1,
                     y: 0,
-                    width: isMaximized ? '100%' : '420px',
-                    height: isMaximized ? 'calc(100% - 64px)' : '550px',
+                    width: isMaximized ? '100%' : 'min(360px, calc(100vw - 2rem))',
+                    height: isMaximized ? 'calc(100% - 64px)' : 'min(400px, calc(100vh - 8rem))',
                     left: isMaximized ? '0' : 'auto',
                     top: isMaximized ? '64px' : 'auto',
-                    right: isMaximized ? '2rem' : '2rem', 
+                    right: isMaximized ? '2rem' : '1rem', 
                     bottom: isMaximized ? '0' : '2rem',
-                    borderRadius: isMaximized ? '0px' : '3rem',
+                    borderRadius: isMaximized ? '0px' : '1rem',
                 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 drag={!isMaximized}
@@ -61,33 +61,33 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                 className="absolute z-[1000] overflow-hidden bg-[#080b12]/95 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] flex flex-col transition-[border-radius] duration-500 ease-out"
             >
                 {/* Header */}
-                <div className="p-8 pb-4 flex items-center justify-between border-b border-white/5 shrink-0 bg-white/5">
-                    <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner">
-                            <MapPin size={24} />
+                <div className="p-4 flex items-center justify-between border-b border-white/5 shrink-0 bg-white/5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner shrink-0">
+                            <MapPin size={20} />
                         </div>
-                        <div>
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-0.5">Tactical Analysis</h3>
-                            <h2 className="text-lg font-black text-white uppercase italic tracking-tighter leading-tight">
+                        <div className="min-w-0 pr-2">
+                            <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-0.5 truncate">Tactical</h3>
+                            <h2 className="text-sm font-black text-white uppercase italic tracking-tighter leading-tight truncate">
                                 {subAreaName || "Zone Inconnue"}
                             </h2>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 shrink-0">
                         <button
                             onClick={() => {
                                 setIsMaximized(!isMaximized);
                                 handleReset();
                             }}
-                            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all hover:scale-105 active:scale-95 shadow-xl"
+                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all hover:scale-105 active:scale-95 shadow-xl"
                         >
-                            {isMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                            {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                         </button>
                         <button
                             onClick={onClose}
-                            className="p-3 rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
+                            className="p-2 rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
                 </div>
@@ -126,35 +126,35 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                         )}
 
                         {/* Top Action Overlay */}
-                        <div className="absolute top-6 left-8 right-8 flex items-center justify-center pointer-events-none">
+                        <div className="absolute top-4 left-4 right-4 flex items-center justify-center pointer-events-none">
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onOpenZoneDetails?.();
                                 }}
-                                className="pointer-events-auto px-6 py-3 rounded-2xl bg-amber-500 text-black font-black text-[10px] uppercase italic shadow-[0_15px_40px_rgba(245,158,11,0.4)] flex items-center gap-3 hover:scale-105 hover:bg-amber-400 active:scale-95 transition-all group"
+                                className="pointer-events-auto px-4 py-2 rounded-xl bg-amber-500 text-black font-black text-[10px] uppercase italic shadow-[0_15px_40px_rgba(245,158,11,0.4)] flex items-center gap-2 hover:scale-105 hover:bg-amber-400 active:scale-95 transition-all group"
                             >
-                                <Sparkles size={16} className="group-hover:rotate-12 transition-transform" /> 
-                                Analyser l'écosystème local
+                                <Sparkles size={14} className="group-hover:rotate-12 transition-transform" /> 
+                                Analyser zone
                             </button>
                         </div>
 
                         {/* Visual Gradients */}
-                        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/90 to-transparent pointer-events-none" />
+                        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/90 to-transparent pointer-events-none" />
 
-                        {/* Botton Info Overlay */}
-                        <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between pointer-events-none">
-                            <div className="px-5 py-3 rounded-2xl bg-black/80 backdrop-blur-2xl border border-white/10 text-emerald-400 font-mono text-sm font-black shadow-2xl flex items-center gap-3">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)] animate-pulse" />
-                                GPS : [{position.displayX}, {position.displayY}]
+                        {/* Bottom Info Overlay */}
+                        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-none">
+                            <div className="px-3 py-2 rounded-xl bg-black/80 backdrop-blur-2xl border border-white/10 text-emerald-400 font-mono text-xs font-black shadow-2xl flex items-center gap-2 max-w-[60%]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)] animate-pulse shrink-0" />
+                                <span className="truncate">[{position.displayX}, {position.displayY}]</span>
                             </div>
                             
                             {zoom > 1 && (
                                 <button 
                                     onClick={handleReset}
-                                    className="pointer-events-auto p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/10 text-white/60 hover:text-white transition-all shadow-xl"
+                                    className="pointer-events-auto p-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/10 text-white/60 hover:text-white transition-all shadow-xl shrink-0"
                                 >
-                                    <RefreshCw size={16} />
+                                    <RefreshCw size={14} />
                                 </button>
                             )}
                         </div>
@@ -162,15 +162,15 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                 </div>
 
                 {/* Mini Footer Stats */}
-                <div className="p-5 px-8 bg-black/50 border-t border-white/5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4 opacity-30">
-                        <div className="flex items-center gap-2">
+                <div className="p-3 px-4 bg-black/50 border-t border-white/5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3 opacity-30">
+                        <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Live Sync</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest">Live Sync</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            <span className="text-[9px] font-black uppercase tracking-widest">{isMaximized ? 'Focus Mode' : 'Quick Preview'}</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest">{isMaximized ? 'Focus Mode' : 'Preview'}</span>
                         </div>
                     </div>
                 </div>

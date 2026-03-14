@@ -44,7 +44,7 @@ export class GameManager {
         const guildId = (socket.handshake.query.guildId as string) || "global";
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.isInLobby() && !room.isEmpty() && room.getGuildId() === guildId) {
+            if (!room.isEmpty() && room.getGuildId() === guildId) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });
@@ -55,7 +55,7 @@ export class GameManager {
         if (!guildId) return;
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.isInLobby() && !room.isEmpty() && room.getGuildId() === guildId) {
+            if (!room.isEmpty() && room.getGuildId() === guildId) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });

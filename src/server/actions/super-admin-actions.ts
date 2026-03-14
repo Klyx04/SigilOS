@@ -199,31 +199,48 @@ export async function getPlatformStats() {
 }
 
 
+// In-memory cache for isGuildAllowed to reduce DB pressure
+const guildAllowedCache = new Map<string, { allowed: boolean; expires: number }>();
+
 /**
  * Check if a guild is allowed (for use in layouts/middleware)
  * This replaces the ALLOWED_GUILD_IDS env check
  */
 export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
-    // Parallel fetch for better performance
-    const [ban, allowed, config] = await Promise.all([
-        db.platformBan.findUnique({ where: { discordId: discordGuildId } }),
-        db.allowedGuild.findUnique({ where: { discordGuildId } }),
-        db.guildConfig.findUnique({
-            where: { discordGuildId },
-            select: { isActive: true }
-        })
-    ]);
+    const now = Date.now();
+    const cached = guildAllowedCache.get(discordGuildId);
+    if (cached && cached.expires > now) return cached.allowed;
 
-    // 1. Check Platform Bans (Highest Priority)
-    if (ban && ban.entityType === "GUILD") return false;
+    try {
+        // Parallel fetch for better performance
+        const [ban, allowed, config] = await Promise.all([
+            db.platformBan.findUnique({ where: { discordId: discordGuildId } }),
+            db.allowedGuild.findUnique({ where: { discordGuildId } }),
+            db.guildConfig.findUnique({
+                where: { discordGuildId },
+                select: { isActive: true }
+            })
+        ]);
 
-    // 2. Check if guild is in the AllowedGuild whitelist
-    if (!allowed || !allowed.isActive) return false;
+        // 1. Check Platform Bans (Highest Priority)
+        let isAllowed = true;
+        if (ban && ban.entityType === "GUILD") isAllowed = false;
 
-    // 3. If config exists, it MUST be active
-    if (config && !config.isActive) return false;
+        // 2. Check if guild is in the AllowedGuild whitelist
+        if (isAllowed && (!allowed || !allowed.isActive)) isAllowed = false;
 
-    return true;
+        // 3. If config exists, it MUST be active
+        if (isAllowed && config && !config.isActive) isAllowed = false;
+
+        // Cache for 1 minute
+        guildAllowedCache.set(discordGuildId, { allowed: isAllowed, expires: now + 60000 });
+        return isAllowed;
+    } catch (e) {
+        console.error(`[Security] Error checking guild status for ${discordGuildId}:`, e);
+        // Fail closed for security, but allow if we have a stale cache? 
+        // Better fail closed on DB error to be safe.
+        return false;
+    }
 }
 /**
  * CLEANUP JANITOR (GDPR & Hygiene)

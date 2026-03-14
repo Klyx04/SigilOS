@@ -217,8 +217,8 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                 >
                                                     <div className="pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
                                                         {/* Missing List */}
-                                                        <div className="space-y-4">
-                                                            <div className="flex items-center justify-between">
+                                                        <div className="space-y-4 flex flex-col h-full">
+                                                            <div className="flex items-center justify-between shrink-0">
                                                                 <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
                                                                     <Circle size={8} fill="currentColor" /> Cherchent encore
                                                                 </span>
@@ -226,21 +226,18 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                                     {achv.missing.length}
                                                                 </span>
                                                             </div>
-                                                            <div className="grid grid-cols-1 gap-2">
-                                                                {achv.missing.length > 0 ? achv.missing.slice(0, 12).map((member) => (
+                                                            <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                                                {achv.missing.length > 0 ? achv.missing.map((member) => (
                                                                     <MemberPill key={member.id} member={member} isMissing />
                                                                 )) : (
                                                                     <p className="text-[10px] text-white/10 italic py-2">Tout le monde a validé ! 🎉</p>
-                                                                )}
-                                                                {achv.missing.length > 12 && (
-                                                                    <span className="text-[9px] text-white/10 italic text-center">+ {achv.missing.length - 12} autres</span>
                                                                 )}
                                                             </div>
                                                         </div>
 
                                                         {/* Completed List */}
-                                                        <div className="space-y-4">
-                                                            <div className="flex items-center justify-between">
+                                                        <div className="space-y-4 flex flex-col h-full">
+                                                            <div className="flex items-center justify-between shrink-0">
                                                                 <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
                                                                     <CheckCircle2 size={8} fill="currentColor" /> Déjà validé
                                                                 </span>
@@ -248,14 +245,11 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                                     {achv.hasCompleted.length}
                                                                 </span>
                                                             </div>
-                                                            <div className="grid grid-cols-1 gap-2">
-                                                                {achv.hasCompleted.length > 0 ? achv.hasCompleted.slice(0, 12).map((member) => (
+                                                            <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                                                {achv.hasCompleted.length > 0 ? achv.hasCompleted.map((member) => (
                                                                     <MemberPill key={member.id} member={member} />
                                                                 )) : (
                                                                     <p className="text-[10px] text-white/10 italic py-2">Aucun succès validé.</p>
-                                                                )}
-                                                                {achv.hasCompleted.length > 12 && (
-                                                                    <span className="text-[9px] text-white/10 italic text-center">+ {achv.hasCompleted.length - 12} autres</span>
                                                                 )}
                                                             </div>
                                                         </div>

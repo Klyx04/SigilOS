@@ -115,9 +115,10 @@
   Evasion: 3
   Tanking: 7
   Information: |
-    - Tape en ligne de 5 PO. En étant délock: à la place, tape en croix de 4 PO autour, en fonction de ses PV manquants et attire
+    - Tape en ligne de 5 PO
+    - En étant délock: à la place, tape en croix de 4 PO autour en fonction de ses PV manquants et attire
     - Invoque un Hamrack Indéplaçable et un monstre random de sa zone à 10 PO (max. 1)
-    - <u>**Délock**</u>: L'Hamrack délock pour 5 tours en ciblant le boss au contact tape en zone bâton et se tue
+    - <u>**Délock**</u>: L'Hamrack délock pour 5 tours en ciblant le boss au contact, tape en zone bâton et se tue
     - L'Hamrack gagne 3 PM (1 tour) par tentative de retrait PM subi
   Advice: |
     - Il tape 0 en étant délock et full vie. Vu le délock de 5 tours, le focus peut attendre
@@ -150,7 +151,7 @@
     - Le Dagon devient Inébranlable quand poussé. Très conseillé pour l'esquiver
     - Pour plus rapidement tuer le Monolithe, vous pouvez éroder ou débuff de 2 tours le bouclier
     - L'état Pesanteur sur le Bethel accélère la dernière phase. Sinon il peut se barrer avec un bond à 3 PO (relance 2)
-    - Gardez Bethel pour tout dernier, que le Bethel pourra alors taper votre Dagon
+    - Gardez Bethel pour tout dernier, uniquement le Bethel pourra alors taper votre Dagon
   InformationShort: |
     - Lancez <u>**Necronyx**</u> avant de tuer les mobs!
     - <u>**Délock**</u>: Tuer le Monolithe invoque le Dagon dans votre camp. <u>**Sa mort tue votre team**</u>. Seulement le Dagon peut taper le boss
@@ -207,11 +208,11 @@
   Tanking: 4
   Information: |
     - Tape au contact en mettant 30% érosion (2 tours)
-    - Enraciné et Lourd, donc insensible au Tacle et impossible de déplacer
+    - Est Enraciné et Lourd, donc insensible au Tacle et impossible de déplacer
     - Invoque un Ashi-Magari à 3 PO qui met -100 PM et Pesanteur au contact (relance 3)
     - <u>**Reinvoque un allié mort chaque tour avec 100% de ses PV**</u>
   Advice: |
-    - L'érosion et le -100 PM de son invocation sont débuffables
+    - L'érosion et le -100 PM de son invocation sont débuffables. Vous pouvez également tuez l'invocation pour se débarasser du malus, ses PV étant faibles
     - L'élément air est déconseillé vu ses énormes rés air. Vous voulez le focus en premier
   InformationShort: |
     - Tape au contact  
@@ -342,7 +343,7 @@
   Advice: |
     - L'état Pesanteur empêche les illusions
     - Les sorts avec "Cible nécessaire" ne peuvent pas désamorcer une illusion
-    - S'il est trop de votre team, il passe son tour en boucle à l'autre bout de la map en utilisant l'illusion avant de s'avancer
+    - S'il est trop loin de votre team, il passe son tour en boucle à l'autre bout de la map en utilisant l'illusion avant de s'avancer
 
 - Id: 4263
   Name: Chaloeil
@@ -501,11 +502,13 @@
     - Tape à 15 PO en retirant 6 PM et en mettant Affaibli et Pesanteur (2x par tour). Tape en zone jusqu'à 8 PO
     - Oneshot vos invocations au contact pour se boost 1 PM et Puissance (2 tours)
     - Le perso le plus proche invoque une Minikrone au début du combat qui vous retire 2 PA et 20% rés (infini) <u>**si tué par le Razof**</u>
+    - La Minikrone vous inflige -2 PM et 50% érosion si elle termine sur sa case de début de tour, et -600 Puissance en étant au contact d'un mob à son début de tour (1 tour)
     - <u>**Délock**</u>: À la fin de son tour, il perd 20% résistances (1 tour) <u>**pour chacune de vos invocations dans la timeline**</u>
   Advice: |
     - Son retrait PM est débuffable, mais pas les états
     - Complètement couper ses lignes de vues est la gestion idéale, sa PO étant immense
     - Un personnage tank / tacle qui coupe sa ligne de vue est très efficace, y compris pour protéger des invocations qui le délock
+    - La Minikrone a une IA support qui suit son invocateur. Ne finissez pas directement à son contact, sinon elle risque de simplement pas bouger et vous mettre ses malus
   InformationShort: |
     - Tape à 15 PO en retirant 6 PM, tape en zone jusqu'à 8 PO, et oneshot au contact les invoc
     - Vous invoquez une Minikrone qui retire 2 PA et 20% rés (infini) <u>**si tué par le Razof**</u>
@@ -540,7 +543,7 @@
   Tanking: 5
   Information: |
     - Sans délock: Tape à 10 PO en poussant de 2, à 14 PO (relance 2) et à 2 PO en débuffant d'un tour
-    - Avec délock: Perd la poussée et l'autre sort à 14 PO. Débloque une coop à 14 PO sans ligne de vue, un sort de zone jusqu'à 5 PO et un sort à 10 PO
+    - Avec délock: Perd la poussée et l'autre sort à 14 PO. <u>**Débloque une coop à 14 PO sans ligne de vue**</u>, un sort de zone jusqu'à 5 PO et un sort à 10 PO
     - Met une "bombe" sur un mob qui applique un bouclier. À la fin du tour de la cible, la bombe explose à 3 PO 
     - La bombe, ainsi que le glyphe de Corruption, appliquent une maladie aléatoire
   Mechanic: |
@@ -548,11 +551,12 @@
     - <u>**Corruption**</u>: Mécanique qui vous inflige des maladies en subissant du retrait PA / PM / PO ou en détaclant. Il existe 9 maladies au total
     - <u>**Chaque maladie vous rend violet, applique un faible poison, 10% érosion et une vulnérabilité**</u>. Vous pouvez cumuler 4 max (40% érosion, 200% dommages subi)
     - <u>**Un seul soin (ou vol de vie!) retire la Peau Pourrissante. 3 soins retirent les autres maladies**</u>
+    - Les soins fonctionnent <u>**même en étant full life**</u>, le vol de vie <u>**doit réellement régénérer des PV!**</u>
     - <u>**Taper un monstre vous inflige un énorme poison cumulable. Avant de taper un mob, il faudra soigner un allié au contact dudit mob pour délock le poison**</u>
   Advice: |
     - Stratégie 1: Délock les monstres 1 par 1 (<u>**délock infini**</u>) et laisser Corruption en dernier
     - Stratégie 2: Délock Corruption en premier <u>**ce qui va délock toute la map (et lui-même) pour 3 tours**</u>. Pratique surtout contre 8 mobs
-    - L'état <u>**Pesanteur**</u> empêche la coop lors du délock du boss. L'état est très fortement conseillé pour la stratégie 2. 
+    - L'état <u>**Pesanteur**</u> empêche la coop lors du délock du boss. L'état est très fortement conseillé pour la stratégie 2
     - Si Corruption est vivant 3 tours après son délock, <u>**toute la map va récupérer le poison**</u>, mêmes les invocations ennemis. Il faudra refaire le délock
     - Les soins déclenchés (Soif de Moskito, Proie etc) sont extrêment utiles, tout comme les vols de vie multi-ligne
     - Un Panda peut 1v1 Corruption en spammant Souffle Alcoolisé sur un Bambou. C'est le Bambou qui prendra le poison, le délock ne sera pas nécessaire
@@ -939,7 +943,7 @@
 - Id: 3234
   Name: Fuji Givrefoux Nourricière
   Image: 3234_Fuji Givrefoux Nourriciere.png
-  Difficulty: 7
+  Difficulty: 6
   ImmediateFocus: 6
   Evasion: 10
   Tanking: 0
@@ -1207,6 +1211,7 @@
     - Elle fait extrêment mal en ralentissant vos dégâts, gardez Ilyzaelle à distance
     - L'état Pesanteur réduit sa mobilité
     - Solutions pour contrer son attirance: Les invocations, les murs, les trous, les pièges ou une Stabilisation
+    - Si les autres ennemis sont dangéreux en mêlée, pensez à ramener Ily dans votre camp avant de phaser
     - Vous n'avez que 2-3 tours pour profiter de son glyphe, priorisez donc les menaces pour drastiquement faciliter la suite
   InformationShort: |
     - Tape très fort et met Pacifiste à 4 PO en ligne, peut bondir à 3 PO
@@ -1487,6 +1492,7 @@
     - En dessous de 50% PV: débloque un sort qui rend Invisible, Pacifiste (1 tour) et qui la soigne, bouclier et boost aux 2 prochains tours
   Advice: |
     - Ses sorts ont PO minimale en phase 1. <u>**Vous pouvez la bloquer dans un coin**</u>, elle servira à rien
+    - Ses sorts tapent multi-ligne, les réductions fixes sont très efficaces
     - Vous pouvez cliquer sur les Kitsounebis dans le chat combat et les répérer (c'est bugué depuis 6 ans)
     - En phase 2, pas la baisser en dessous de 50% PV avant le kill évite son invisibilité
     - Le glyphe de la Lanterne des Spiritueurs répère son invisibilité
@@ -1918,7 +1924,7 @@
   Image: 3397_Nileza.png
   Illustration: Nileza.png
   Caption: Exemple de placement opti
-  Difficulty: 3
+  Difficulty: 4
   ImmediateFocus: 9
   Evasion: 1
   Tanking: 9
@@ -3175,6 +3181,7 @@
     - *À partir du tour 2:* <u>**quand il commence son tour, les alliés à 10 PO ou plus de lui sont oneshot**</u>
   Advice: |
     - Son sort en cône a 2 PO minimale. En le taclant contre un mur, vous limitez drastiquement ses actions et sa fuite
+    - Son initiative étant faible, le tuer avant qu'il joue reste la stratégie la plus facile
     - Son sort sur dégâts est très contraignant mais vous voulez le focus rapidement. Une <u>**Indéprys**</u> permet de taper sans être repoussé
     - Vous pouvez débuff de 2 tours pour retirer la poussée déclenchée
     - S'il reste en vie longtemps, essayez de jouer un placeur avant lui pour corriger la distance et éviter le oneshot

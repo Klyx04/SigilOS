@@ -224,16 +224,16 @@ export function UserSettings({
                         </div>
                     </div>
 
-                    <div className="space-y-3 pt-4 border-t border-white/5">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-blue-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                                        <Target className="w-5 h-5 text-blue-400" />
+                    <div className="pt-4 border-t border-white/5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-blue-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                        <Target className="w-4 h-4 text-blue-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Missions</p>
-                                        <p className="text-[10px] text-zinc-500">Nouvelles missions et validations</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Missions</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Nouvelles & validations</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -243,14 +243,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                        <Flame className="w-5 h-5 text-emerald-400" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                        <Flame className="w-4 h-4 text-emerald-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Songes</p>
-                                        <p className="text-[10px] text-zinc-500">Candidatures et invitations</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Songes</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Invitations & candidatures</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -260,14 +260,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-indigo-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                                        <Swords className="w-5 h-5 text-indigo-400" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-indigo-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                        <Swords className="w-4 h-4 text-indigo-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Donjons &amp; Quêtes</p>
-                                        <p className="text-[10px] text-zinc-500">Quelqu&rsquo;un rejoint ton groupe</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Donjons & Quêtes</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Entrée en groupe</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -277,14 +277,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-purple-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                                        <Calendar className="w-5 h-5 text-purple-400" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-purple-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                                        <Calendar className="w-4 h-4 text-purple-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Événements</p>
-                                        <p className="text-[10px] text-zinc-500">Rappels et invitations de guilde</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Événements</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Rappels de guilde</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -294,14 +294,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-red-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-red-400" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-red-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                                        <Trophy className="w-4 h-4 text-red-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Succès & Ladder</p>
-                                        <p className="text-[10px] text-zinc-500">Validations de succès et rangs</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Succès & Ladder</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Validations & rangs</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -311,14 +311,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-orange-500/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                                        <PieChart className="w-5 h-5 text-orange-400" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-orange-500/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                                        <PieChart className="w-4 h-4 text-orange-400" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Sondages</p>
-                                        <p className="text-[10px] text-zinc-500">Nouveaux sondages et résultats</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Sondages</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Nouveaux votes</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -328,14 +328,14 @@ export function UserSettings({
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-700/30 transition-all duration-300">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-700/10 flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-emerald-500" />
+                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-700/30 transition-all">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-700/10 flex items-center justify-center shrink-0">
+                                        <Trophy className="w-4 h-4 text-emerald-500" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-zinc-200">Quête Ocre</p>
-                                        <p className="text-[10px] text-zinc-500">Demandes d'échange</p>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Quête Ocre</p>
+                                        <p className="text-[9px] text-zinc-500 truncate">Échanges</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -346,14 +346,14 @@ export function UserSettings({
                             </div>
 
                             {isAdmin && (
-                                <div className="flex items-center justify-between p-3 border border-white/5 rounded-2xl bg-zinc-400/5 group hover:border-zinc-300/30 transition-all duration-300">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-zinc-400/10 flex items-center justify-center">
-                                            <ShieldCheck className="w-5 h-5 text-zinc-400" />
+                                <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-zinc-400/5 group hover:border-zinc-300/30 transition-all">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-400/10 flex items-center justify-center shrink-0">
+                                            <ShieldCheck className="w-4 h-4 text-zinc-400" />
                                         </div>
-                                        <div>
-                                            <p className="font-medium text-zinc-200">Alertes Admin</p>
-                                            <p className="text-[10px] text-zinc-500">Validations de missions en attente</p>
+                                        <div className="min-w-0 pr-2">
+                                            <p className="text-[11px] font-semibold text-zinc-200 truncate">Alertes Admin</p>
+                                            <p className="text-[9px] text-zinc-500 truncate">Missions en attente</p>
                                         </div>
                                     </div>
                                     <Switch
@@ -387,18 +387,18 @@ export function UserSettings({
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-[10px]">
                             <div className="p-2 bg-zinc-800/60 rounded-xl border border-white/5">
-                                <p className="font-bold text-zinc-200 mb-1">🚪 Quitter la guilde</p>
+                                <p className="font-bold text-zinc-200 mb-1">📦 Archivage</p>
                                 <ul className="space-y-0.5 text-zinc-500 leading-relaxed">
-                                    <li>• Affecte <b className="text-zinc-300">cette guilde</b> uniquement</li>
-                                    <li>• Profil <b className="text-emerald-400">archivé</b> (pas supprimé)</li>
-                                    <li>• <b className="text-emerald-400">Réversible</b> via Discord</li>
+                                    <li>• Profil <b className="text-emerald-400">mis en pause</b></li>
+                                    <li>• Gardé <b className="text-zinc-300">90 jours</b></li>
+                                    <li>• Retour <b className="text-emerald-400">instantané</b> possible</li>
                                 </ul>
                             </div>
                             <div className="p-2 bg-red-950/30 rounded-xl border border-red-500/10">
-                                <p className="font-bold text-zinc-200 mb-1">💀 Supprimer le compte</p>
+                                <p className="font-bold text-zinc-200 mb-1">💀 Suppression</p>
                                 <ul className="space-y-0.5 text-zinc-500 leading-relaxed">
-                                    <li>• Affecte <b className="text-red-300">toutes</b> les guildes</li>
-                                    <li>• Données <b className="text-red-300">effacées</b> (RGPD)</li>
+                                    <li>• <b className="text-red-300">Adieu</b> définitif</li>
+                                    <li>• Données <b className="text-red-300">tout effacer</b></li>
                                     <li>• <b className="text-red-400">Irréversible</b></li>
                                 </ul>
                             </div>
@@ -411,11 +411,11 @@ export function UserSettings({
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <h4 className="text-sm font-semibold text-zinc-200">Quitter la guilde</h4>
+                                        <h4 className="text-sm font-semibold text-zinc-200">Archiver mon profil</h4>
                                         <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">Réversible</span>
                                     </div>
-                                    <p className="text-[10px] text-zinc-500">
-                                        Archive votre profil pour <b className="text-zinc-300">{guildName}</b>. Vous pourrez revenir.
+                                    <p className="text-[10px] text-zinc-500 leading-tight">
+                                        Met vos données de côté pour <b className="text-zinc-300">{guildName}</b>. Elles sont conservées 90 jours avant suppression automatique.
                                     </p>
                                 </div>
                             </div>
@@ -429,7 +429,7 @@ export function UserSettings({
                                 </AlertDialogTrigger>
                                 <AlertDialogContent className="bg-zinc-900 border-white/10 text-white">
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Quitter {guildName} ?</AlertDialogTitle>
+                                        <AlertDialogTitle>Archiver votre profil sur {guildName} ?</AlertDialogTitle>
                                         <AlertDialogDescription asChild>
                                             <div className="text-zinc-400 space-y-3">
                                                 <p>Votre profil de guilde sera <b className="text-zinc-200">archivé</b>, pas supprimé.</p>

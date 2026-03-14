@@ -597,47 +597,40 @@ export async function getMyOcreProgress(
                 }
 
                 const gathered = finalMonsters.filter(m => (m.state !== "MANQUANT") || (m.step && firstPage.current_step && m.step < firstPage.current_step)).length;
-                const resData = {
+                const resData: OcreProgressData = {
                     monsters: finalMonsters,
                     stats: { total: cT, manquants: cM, possedes: cP, doublons: cD, progressPercent: cT > 0 ? Math.round((gathered / cT) * 100) : 0, monsters: statsByType.monstre, bosses: statsByType.boss, archis: statsByType.archimonstre, acquired: gathered, remaining: cT - gathered },
                     questInfo: { slug: questSlug!, characterName: firstPage.character_name || "Dofusien", currentStep: firstPage.current_step || 0, totalSteps: 34, parallelQuests: PQ, serverName: firstPage.server?.name || "Serveur" },
                     lastSync: new Date()
                 };
 
-                // PUMP: Offline Save
-                try {
-                    // Raw update for snapshot to avoid schema issues
-                    await db.$executeRawUnsafe(`
-                        UPDATE "UserProfile"
-                        SET "metamobLastSync" = $1, "ocreProgressSnapshot" = $2
-                        WHERE id = $3
-                    `, new Date(), JSON.stringify(resData), profile.id);
-                    
-                    const archisToPump = finalMonsters.filter(m => m.type === "archimonstre");
-                    for (const a of archisToPump) {
-                        await (db as any).ocreMonsterTemplate.upsert({
-                            where: { id: a.id },
-                            update: { name: a.name, image: a.image, zones: a.zone, type: a.type, levelMin: a.levelMin, levelMax: a.levelMax },
-                            create: { id: a.id, name: a.name, image: a.image, zones: a.zone, type: a.type, levelMin: a.levelMin || 0, levelMax: a.levelMax || 0 }
-                        });
-                    }
-                } catch (pe) { console.error("[PUMP ERROR]", pe); }
+                // PUMP: Offline Save (Async - don't block response)
+                Promise.resolve().then(async () => {
+                    try {
+                        await db.$executeRawUnsafe(`
+                            UPDATE "UserProfile"
+                            SET "metamobLastSync" = $1, "ocreProgressSnapshot" = $2
+                            WHERE id = $3
+                        `, new Date(), JSON.stringify(resData), profile.id);
+                    } catch (pe) { console.error("[PUMP ERROR]", pe); }
+                });
 
                 return { success: true, data: resData };
             } catch (innerErr) {
                 if (profile.ocreProgressSnapshot) {
-                    return { success: true, data: { ...(profile.ocreProgressSnapshot as any), lastSync: profile.metamobLastSync, isOffline: true } };
+                    return { success: true, data: { ...(profile.ocreProgressSnapshot as any), lastSync: profile.metamobLastSync, isOffline: true } as OcreProgressData };
                 }
                 throw innerErr;
             }
         });
 
         // Don't cache errors unless it's a valid snapshot
-        if (!finalResult.success && !finalResult.data?.isOffline) {
+        const finalResultTyped = finalResult as ActionResponse<OcreProgressData>;
+        if (!finalResultTyped.success && !finalResultTyped.data?.isOffline) {
             await invalidateCache(cacheKey);
         }
 
-        return finalResult;
+        return finalResultTyped;
     } catch (err: any) {
         console.error("[CRITICAL OCRE ERROR]", err);
         try {

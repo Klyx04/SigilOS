@@ -98,37 +98,39 @@ export const GuessingScreen = ({
     }
 
     return (
-        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] h-full animate-in zoom-in-95 duration-500 relative py-2 md:py-8 lg:py-12 overflow-hidden">
-            {/* Round Counter - Compact on small screens */}
-            <div className="absolute top-2 md:top-4 left-4 md:left-6 z-50 flex flex-col items-start select-none">
-                <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
-                <span className="text-white font-black text-2xl md:text-6xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
-                    {round}<span className="text-white/30 text-lg md:text-4xl">/{totalRounds}</span>
-                </span>
+        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] animate-in zoom-in-95 duration-500 relative py-2 md:py-4 lg:py-6 overflow-hidden">
+            {/* Top Bar - Round & Timer */}
+            <div className="absolute top-2 md:top-4 inset-x-4 md:inset-x-8 z-50 flex items-center justify-between select-none pointer-events-none">
+                <div className="flex flex-col items-start translate-y-2">
+                    <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
+                    <span className="text-white font-black text-2xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
+                        {round}<span className="text-white/30 text-lg md:text-3xl">/{totalRounds}</span>
+                    </span>
+                </div>
+                
+                <div className="scale-[0.7] md:scale-100 drop-shadow-2xl translate-y-4">
+                    <CircularTimer remaining={timeLeft} total={totalTime} />
+                </div>
             </div>
-
+ 
             {/* Main Stage */}
-            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-2 md:p-10 shadow-2xl flex flex-col items-center gap-2 md:gap-10 relative mt-12 md:mt-8 shrink-0 min-h-0 overflow-hidden grow">
+            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-2 md:p-8 shadow-2xl flex flex-col items-center gap-2 md:gap-4 relative mt-12 md:mt-20 shrink-0 min-h-0 overflow-hidden grow">
                 
                 {/* Purple Card Header - Fluid */}
-                <div className="w-full max-w-3xl bg-[#5d3fd3] rounded-[1.2rem] md:rounded-[2.5rem] p-3 md:p-8 relative overflow-hidden shadow-2xl -mt-8 md:-mt-24 border-b-[4px] md:border-b-[10px] border-black/20 z-20 shrink-0">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 md:w-48 h-5 md:h-10 bg-black/20 rounded-b-[1.5rem] md:rounded-b-[2rem] flex items-center justify-center">
-                        <span className="text-white/40 font-black text-[6px] md:text-[10px] tracking-[0.2em] md:tracking-[0.4em] uppercase italic">SIGIL PHONE</span>
+                <div className="w-full max-w-3xl bg-[#5d3fd3] rounded-[1.2rem] md:rounded-[2.5rem] p-3 md:p-6 relative shadow-2xl -mt-8 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 z-20 shrink-0">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 md:w-48 h-5 md:h-8 bg-black/20 rounded-b-[1.5rem] md:rounded-b-[2rem] flex items-center justify-center">
+                        <span className="text-white/40 font-black text-[6px] md:text-[8px] tracking-[0.2em] md:tracking-[0.4em] uppercase italic">SIGIL PHONE</span>
                     </div>
-
-                    <div className="mt-3 md:mt-6 text-center">
-                        <h2 className="text-white text-lg md:text-4xl lg:text-5xl font-black uppercase tracking-tighter italic drop-shadow-lg leading-tight">
+ 
+                    <div className="mt-2 md:mt-4 text-center">
+                        <h2 className="text-white text-lg md:text-3xl lg:text-4xl font-black uppercase tracking-tighter italic drop-shadow-lg leading-tight">
                             {isWriting ? "À TOI DE COMMENCER !" : "DÉCRIS CETTE SCÈNE !"}
                         </h2>
                     </div>
-
-                    <div className="absolute top-1 right-2 md:top-6 md:right-8 scale-[0.5] md:scale-110">
-                        <CircularTimer remaining={timeLeft} total={totalTime} />
-                    </div>
                 </div>
-
+ 
                 {/* Notebook Content Area - Adaptive */}
-                <div className="w-full bg-white rounded-[1.2rem] md:rounded-[3rem] p-2 md:p-10 shadow-2xl border-b-[6px] md:border-b-[12px] border-black/10 flex items-center justify-center overflow-hidden relative grow min-h-[120px] md:min-h-[300px]">
+                <div className="w-full bg-white rounded-[1.2rem] md:rounded-[3rem] p-2 md:p-10 shadow-2xl border-b-[6px] md:border-b-[12px] border-black/10 flex items-center justify-center overflow-hidden relative grow min-h-[120px] md:min-h-[250px]">
                     {/* Spiral decorations for the notebook */}
                     <div className="absolute top-0 left-0 w-full flex justify-around px-8 md:px-24 opacity-10 pointer-events-none mt-2">
                         {Array.from({length: 12}).map((_, i) => (
@@ -143,14 +145,14 @@ export const GuessingScreen = ({
                                 <img 
                                     src={`https://sigilos.fr/images/classes/${playerClass || '1'}_1.png`} 
                                     alt="Class Avatar" 
-                                    className="w-24 h-24 md:w-72 md:h-72 object-contain animate-float drop-shadow-[0_25px_35px_rgba(0,0,0,0.3)] relative z-10 hover:scale-110 transition-transform duration-500"
+                                    className="w-20 h-20 md:w-56 md:h-56 object-contain animate-float drop-shadow-[0_25px_35px_rgba(0,0,0,0.3)] relative z-10 hover:scale-110 transition-transform duration-500"
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/bottts/svg?seed=sigil';
                                     }}
                                 />
                             </div>
                             <div className="text-center flex flex-col gap-1 md:gap-2">
-                                <p className="text-[#3d2080] font-black text-sm md:text-3xl uppercase tracking-tighter italic px-4">
+                                <p className="text-[#3d2080] font-black text-sm md:text-2xl uppercase tracking-tighter italic px-4">
                                     ÉCRIS UNE PHRASE !
                                 </p>
                                 <p className="text-slate-400 font-bold uppercase tracking-widest text-[6px] md:text-xs">SOIS CRÉATIF, SOIS DRÔLE !</p>
@@ -180,7 +182,7 @@ export const GuessingScreen = ({
                             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                             placeholder={submitted ? "Patientez..." : "Ta description ici..."}
                             disabled={submitted}
-                            className="w-full bg-transparent border-none text-white text-lg md:text-3xl font-black placeholder:text-white/20 outline-none py-3 md:py-8 group-focus-within:translate-x-1 transition-transform"
+                            className="w-full bg-transparent border-none text-white text-lg md:text-2xl font-black placeholder:text-white/20 outline-none py-2 md:py-6 group-focus-within:translate-x-1 transition-transform"
                             autoFocus
                         />
                     </div>
@@ -188,7 +190,7 @@ export const GuessingScreen = ({
                         onClick={handleSubmit}
                         disabled={submitted || !guess.trim()}
                         className={cn(
-                            "px-6 md:px-14 py-3 md:py-8 rounded-[1.2rem] md:rounded-[2.5rem] font-black text-white text-lg md:text-3xl tracking-tighter uppercase transition-all shadow-2xl group relative overflow-hidden shrink-0",
+                            "px-6 md:px-10 py-3 md:py-6 rounded-[1.2rem] md:rounded-[2.5rem] font-black text-white text-lg md:text-2xl tracking-tighter uppercase transition-all shadow-2xl group relative overflow-hidden shrink-0",
                             "bg-[#2ed573] hover:bg-[#26af5f]",
                             "border-b-[6px] md:border-b-[12px] border-[#1e9b53] active:border-b-0 active:translate-y-2 shadow-black/20",
                             (submitted || !guess.trim()) && "opacity-50 grayscale cursor-not-allowed translate-y-0"

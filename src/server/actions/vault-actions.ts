@@ -265,24 +265,8 @@ export async function deleteVaultEntry(
 
         // Auto-cleanup screenshot avant le delete DB
         if (entryFull.proofUrl) {
-            const { unlink } = await import("fs/promises");
-            const { existsSync } = await import("fs");
-            const path = await import("path");
-            try {
-                const prefix = `/uploads/guilds/${entryFull.guildId}/proofs/`;
-                if (entryFull.proofUrl.startsWith(prefix)) {
-                    const filename = entryFull.proofUrl.slice(prefix.length);
-                    if (/^[a-f0-9-]{36}\.webp$/.test(filename)) {
-                        const base = path.join(process.cwd(), "public", "uploads", "guilds");
-                        const filePath = path.join(base, entryFull.guildId, "proofs", filename);
-                        if (path.normalize(filePath).startsWith(path.normalize(path.join(base, entryFull.guildId, "proofs")))) {
-                            if (existsSync(filePath)) await unlink(filePath);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("[deleteVaultEntry] proof cleanup error:", e);
-            }
+            const { deleteProofFile } = await import("@/lib/storage-utils");
+            await deleteProofFile(entryFull.proofUrl);
         }
 
         await db.vaultEntry.delete({ where: { id: entryId } });

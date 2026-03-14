@@ -1,29 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
-import { Loader2, ExternalLink, Users } from "lucide-react";
+import { getClassName, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { Loader2, ExternalLink, Users, Link2, Zap, Move, Eye, Heart, Shield, FastForward, Info } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
-import { DO_TAGS } from "@/components/profile/builds-card";
+import { DO_TAGS } from "@/lib/dofus-tags";
 import { getClassColor } from "@/components/shared/class-icon";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 interface DofusbookPreviewProps {
     url: string;
     title?: string;
     className?: string;
     tags?: string[];
+    classId?: number;
+    initialData?: DofusbookPreviewData; // New prop for cached data
 }
 
-export function DofusbookPreview({ url, title, className, tags = [] }: DofusbookPreviewProps) {
-    const [data, setData] = useState<DofusbookPreviewData | null>(null);
-    const [loading, setLoading] = useState(true);
+const getIconId = (id: number) => id === 19 ? 20 : id;
+
+export function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
+    const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
+    const [loading, setLoading] = useState(!initialData);
     const [error, setError] = useState<string | null>(null);
 
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?(\d+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
     useEffect(() => {
+        if (initialData) return; // Skip fetch if we have pre-cached data
+
         async function fetchPreview() {
             if (!buildId) {
                 setError("URL Dofusbook invalide.");
@@ -59,164 +66,357 @@ export function DofusbookPreview({ url, title, className, tags = [] }: Dofusbook
         );
     }
 
-    if (error || !data) {
-        return (
-            <div className={cn("flex flex-col items-center justify-center p-6 bg-red-500/5 rounded-2xl border border-red-500/10 text-red-400 text-xs text-center", className)}>
-                <p className="font-bold">{error || "Impossible de charger l'aperçu"}</p>
-                <a href={url} target="_blank" className="mt-3 px-4 py-2 bg-red-500/10 rounded-lg underline flex items-center gap-2 hover:bg-red-500/20 transition-all">
-                    Ouvrir Dofusbook <ExternalLink className="w-3 h-3" />
-                </a>
-            </div>
-        );
+    // --- FALLBACK LOGIC FOR CARD ---
+    const isError = error || !data;
+    const is403 = error?.includes("403");
+
+    // Robust Class Detection for Fallback
+    const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
+    const classesMap: Record<string, number> = {
+        "feca": 1, "osamodas": 2, "osa": 2, "enutrof": 3, "enu": 3, "sram": 4, "xelor": 5, "xel": 5,
+        "ecaflip": 6, "eca": 6, "eniripsa": 7, "eni": 7, "iop": 8, "cra": 9, "sadida": 10, "sadi": 10,
+        "sacrieur": 11, "sacri": 11, "pandawa": 12, "panda": 12, "roublard": 13, "roub": 13,
+        "zobal": 14, "steamer": 15, "steam": 15, "eliotrope": 16, "elio": 16,
+        "huppermage": 17, "hupper": 17, "ouginak": 18, "ougi": 18, "forgelance": 19, "forg": 19
+    };
+
+    let guessedClassId = classId || data?.classId || 0;
+    if (!guessedClassId) {
+        for (const [key, id] of Object.entries(classesMap)) {
+            if (searchString.includes(key)) {
+                guessedClassId = id;
+                break;
+            }
+        }
     }
 
-    const getIconId = (id: number) => id === 19 ? 20 : id;
+    // Guess glow color from tags
+    const tagColors: Record<string, string> = {
+        "feu": "#ef4444", "eau": "#3b82f6", "terre": "#16a34a", "air": "#34d399", "multi": "#d946ef"
+    };
+    const firstElementTag = tags.find(t => tagColors[t]);
+    const glowColor = firstElementTag ? tagColors[firstElementTag] : "#10b981";
 
-    return (
-        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-5 sm:p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.1)]", className)}>
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-[80px] opacity-40 pointer-events-none" />
+    const cardContent = (
+        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-5 sm:p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.1)] cursor-pointer", className)}>
+            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-1000" style={{ backgroundColor: `${glowColor}33` }} />
 
             <div className="flex flex-col gap-6 relative z-10 h-full">
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <div className="relative w-12 h-12 shrink-0 bg-black/40 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
-                        {data.classId > 0 ? (
+                        <div
+                            className="absolute inset-0 opacity-20 blur-md"
+                            style={{ backgroundColor: getClassColor((data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                        />
+                        {(data?.classId || guessedClassId) > 0 ? (
                             <NextImage
-                                src={`/assets/dofus/classes/${getIconId(data.classId)}.png`}
-                                alt={data.className}
+                                src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
+                                alt={data?.className || "Class"}
                                 width={44}
                                 height={44}
-                                className="object-contain p-1"
+                                className="object-contain p-1 relative z-10"
                             />
                         ) : (
-                            <Users className="w-6 h-6 text-zinc-700" />
+                            <Users className="w-6 h-6 text-zinc-700 relative z-10" />
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-[14px] text-white truncate uppercase tracking-tight leading-tight" title={title || data.name}>{title || data.name}</h3>
+                        <h3 className="font-black text-[14px] text-white truncate uppercase tracking-tight leading-tight" title={title || data?.name}>{title || data?.name || "Build Dofusbook"}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-[9px] font-black text-emerald-400 uppercase tracking-tighter">
-                                Lvl {data.level}
+                            <span className="px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-zinc-400 uppercase tracking-tighter">
+                                Lvl {data?.level || "???"}
                             </span>
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{data.className}</p>
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{data?.className || getClassName(guessedClassId) || "Classe inconnue"}</p>
                         </div>
-                        {tags && tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                                {tags.map(tagId => {
-                                    const tagDef = DO_TAGS.find(t => t.id === tagId);
-                                    if (!tagDef) return null;
-                                    return (
-                                        <span key={tagId} className={cn("px-1.5 py-0.5 text-[9px] rounded font-medium", tagDef.className)}>
-                                            {tagDef.text}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </div>
                 </div>
 
-                {/* Equipment Grid - Fixed Dimensions for Uniformity */}
-                <div className="flex justify-center flex-1">
-                    <div className="grid grid-cols-6 grid-rows-5 gap-2 bg-black/40 p-3 rounded-[2.5rem] border border-white/5 relative w-fit shadow-2xl">
-                        {/* Central Class Miniature (Local Asset) */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                            {data.classId > 0 && (
-                                <div className="relative w-full h-full flex items-center justify-center">
-                                    {/* Color Glow */}
-                                    <div
-                                        className="absolute w-28 h-28 rounded-full blur-[50px] opacity-20"
-                                        style={{ backgroundColor: getClassColor(data.className.normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
-                                    />
+                {/* Equipment Grid or Fallback UI */}
+                <div className="relative aspect-square w-full bg-black/40 p-3 rounded-[2.5rem] border border-white/5 flex items-center justify-center shadow-2xl overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        {(data?.classId || guessedClassId) > 0 && (
+                            <div className="relative w-full h-full flex items-center justify-center">
+                                <div
+                                    className="absolute w-24 h-24 rounded-full blur-[40px] opacity-20"
+                                    style={{ backgroundColor: getClassColor((data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                                />
+                                <NextImage
+                                    src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
+                                    alt="Class Icon"
+                                    width={110}
+                                    height={110}
+                                    className="object-contain opacity-20 group-hover:opacity-30 transition-all duration-500"
+                                />
+                            </div>
+                        )}
+                    </div>
 
-                                    <NextImage
-                                        src={`/assets/dofus/classes/${getIconId(data.classId)}.png`}
-                                        alt="Class Icon"
-                                        width={130}
-                                        height={130}
-                                        className="object-contain opacity-20 group-hover:opacity-40 transition-all duration-500 saturate-[1.2] brightness-125 select-none scale-95 group-hover:scale-105"
-                                    />
+                    {!isError && data ? (
+                        <div className="grid grid-cols-6 grid-rows-5 gap-1.5 relative z-10">
+                            {[
+                                { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
+                                { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
+                                { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
+                                { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
+                                { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
+                            ].map((slot) => {
+                                const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                return (
+                                    <div
+                                        key={slot.s}
+                                        className={cn(
+                                            "w-[34px] h-[34px] rounded-lg flex items-center justify-center p-1 relative",
+                                            item ? "bg-zinc-800 border border-white/10" : "bg-white/[0.03] border border-white/5 opacity-40"
+                                        )}
+                                        style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
+                                    >
+                                        {item && (
+                                            <NextImage
+                                                src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                alt={item.name}
+                                                width={32}
+                                                height={32}
+                                                className="object-contain"
+                                                unoptimized
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950/20 backdrop-blur-[1px]">
+                            <div className="w-10 h-10 rounded-full bg-zinc-800/80 border border-white/10 flex items-center justify-center mb-2 shadow-2xl">
+                                <Link2 className="w-4 h-4 text-zinc-500" />
+                            </div>
+                            <p className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] drop-shadow-md">Flux Dbook Bloqué</p>
+                            <p className="text-[8px] text-zinc-500 font-bold mt-1 uppercase tracking-tighter">Cliquer pour détails</p>
+                            {is403 && (
+                                <div className="absolute top-3 right-3 px-2 py-0.5 bg-zinc-900/80 backdrop-blur-md rounded border border-white/10 text-[7px] font-black text-zinc-500 uppercase tracking-widest">
+                                    Dbook Protected
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Tags */}
+                {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                        {tags.map(tagId => {
+                            const tagDef = DO_TAGS.find(t => t.id === tagId);
+                            return tagDef ? (
+                                <span key={tagId} className={cn("px-1.5 py-0.5 text-[8px] rounded font-black uppercase tracking-tighter", tagDef.className)}>
+                                    {tagDef.text}
+                                </span>
+                            ) : null;
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                {cardContent}
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl bg-zinc-950 border-white/10 p-0 overflow-hidden rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                <div className="relative p-6 sm:p-12 flex flex-col md:flex-row gap-12">
+                    {/* Background Class Glow */}
+                    <div
+                        className="absolute inset-x-0 top-0 h-96 opacity-10 blur-[120px] pointer-events-none transition-all duration-1000"
+                        style={{ backgroundColor: getClassColor((data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                    />
+
+                    {/* Left: Large Visual & Stats */}
+                    <div className="w-full md:w-[360px] flex flex-col gap-8 relative z-10">
+                        <div className="relative aspect-square w-full rounded-[3rem] bg-black/60 border border-white/5 flex items-center justify-center p-8 overflow-hidden shadow-inner">
+                            <NextImage
+                                src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
+                                alt={data?.className || "Class"}
+                                fill
+                                className="object-contain opacity-5 p-16"
+                            />
+
+                            {data ? (
+                                <div className="grid grid-cols-6 grid-rows-5 gap-3.5 relative z-10">
+                                    {[
+                                        { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
+                                        { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
+                                        { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
+                                        { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
+                                        { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
+                                    ].map((slot) => {
+                                        const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                        return (
+                                            <a
+                                                key={slot.s}
+                                                href={item ? `https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}` : "#"}
+                                                target={item ? "_blank" : undefined}
+                                                rel="noopener noreferrer"
+                                                className={cn(
+                                                    "w-[50px] h-[50px] rounded-2xl flex items-center justify-center p-2 relative transition-all duration-500 group/modal-slot",
+                                                    item ? "bg-zinc-800/80 border border-white/20 shadow-2xl hover:border-emerald-500/50 hover:bg-zinc-700 hover:scale-110" : "bg-white/[0.02] border border-white/5 opacity-30 cursor-default"
+                                                )}
+                                                style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
+                                                onClick={(e) => !item && e.preventDefault()}
+                                            >
+                                                {item && (
+                                                    <>
+                                                        <NextImage
+                                                            src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                            alt={item.name}
+                                                            width={44}
+                                                            height={44}
+                                                            className="object-contain drop-shadow-xl"
+                                                            unoptimized
+                                                        />
+                                                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 px-3 py-1.5 rounded-xl text-[10px] font-black text-white opacity-0 group-hover/modal-slot:opacity-100 transition-all scale-75 group-hover/modal-slot:scale-100 shadow-2xl z-50 whitespace-nowrap pointer-events-none">
+                                                            {item.name} <span className="text-emerald-400 ml-1">→ DofusDB</span>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </a>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center relative z-10 p-8">
+                                    <Info className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Détails des items bloqués localement</p>
                                 </div>
                             )}
                         </div>
 
-                        {[
-                            { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
-                            { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
-                            { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
-                            { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
-                            { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
-                        ].map((slot) => {
-                            const item = slot.s === 'fa'
-                                ? (data.items?.['fa'] || data.items?.['mo'])
-                                : data.items?.[slot.s];
+                        {/* Elements Summary */}
+                        {data && (
+                            <div className="grid grid-cols-5 gap-2 px-2">
+                                {Object.entries(data.resists).map(([res, val]) => (
+                                    <div key={res} className="flex flex-col items-center gap-1">
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", {
+                                            "bg-zinc-400": res === "neutre",
+                                            "bg-green-500": res === "terre",
+                                            "bg-red-500": res === "feu",
+                                            "bg-blue-500": res === "eau",
+                                            "bg-emerald-400": res === "air",
+                                        })} />
+                                        <span className="text-[10px] font-black text-white">{val}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                            const getImageUrl = () => {
-                                if (!item) return "";
-
-                                // Force fallback for mounts (Dofusbook returns picture: '105' which 404s on DofusDB)
-                                if (slot.s === 'fa' || slot.s === 'mo') {
-                                    const name = item.name.toLowerCase();
-                                    if (name.includes("muldo")) return "https://api.dofusdb.fr/img/items/97322.png";
-                                    if (name.includes("volkorne")) return "https://api.dofusdb.fr/img/items/97273.png";
-                                    if (name.includes("dragodinde")) return "https://api.dofusdb.fr/img/items/97069.png";
-
-                                    // If familer has no picture or has the bugged '105' generic picture from DB, fallback.
-                                    // Otherwise, use the valid familier picture:
-                                    if (!item.picture || item.picture === 105) {
-                                        return "https://api.dofusdb.fr/img/items/121164.png";
-                                    }
-                                }
-
-                                if (item.picture) return `https://api.dofusdb.fr/img/items/${item.picture}.png`;
-                                return `https://www.dofusbook.net/static/dist/items/105-70.webp`;
-                            };
-
-                            return (
-                                <div
-                                    key={slot.s}
-                                    className={cn(
-                                        "w-[36px] h-[36px] rounded-xl flex items-center justify-center p-1.5 relative group/slot transition-all duration-300",
-                                        item ? "bg-zinc-800/80 border border-white/20 shadow-lg hover:border-emerald-500/60 hover:scale-110 z-20 hover:bg-zinc-700" : "bg-white/[0.03] border border-white/5 opacity-40 z-10"
-                                    )}
-                                    style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
-                                >
-                                    {item ? (
-                                        <>
-                                            <NextImage
-                                                src={getImageUrl()}
-                                                alt={item.name}
-                                                width={40}
-                                                height={40}
-                                                className="object-contain drop-shadow-md"
-                                                unoptimized
-                                            />
-                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/20 text-[10px] font-black text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/slot:opacity-100 transition-all scale-75 group-hover/slot:scale-100 shadow-2xl z-[100] whitespace-nowrap pointer-events-none">
-                                                {item.name}
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                                    )}
+                    {/* Right: Info & Stats */}
+                    <div className="flex-1 flex flex-col h-full relative z-10">
+                        <DialogHeader className="mb-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "1-200"}</span>
+                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
+                            </div>
+                            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
+                            <DialogDescription asChild>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {tags.map(tagId => {
+                                        const tagDef = DO_TAGS.find(t => t.id === tagId);
+                                        return tagDef ? (
+                                            <span key={tagId} className={cn("px-2 py-0.5 text-[9px] rounded font-black uppercase tracking-tighter", tagDef.className)}>
+                                                {tagDef.text}
+                                            </span>
+                                        ) : null;
+                                    })}
                                 </div>
-                            );
-                        })}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {data ? (
+                            <>
+                                <div className="grid grid-cols-2 gap-4 mb-8">
+                                    {/* Primary Stats */}
+                                    <div className="grid grid-cols-2 gap-2 bg-white/5 p-4 rounded-3xl border border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
+                                                <Zap className="w-3.5 h-3.5 text-blue-400" />
+                                            </div>
+                                            <span className="text-sm font-black text-blue-400">{data.stats.pa}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/20">
+                                                <Move className="w-3.5 h-3.5 text-red-400" />
+                                            </div>
+                                            <span className="text-sm font-black text-red-400">{data.stats.pm}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className="w-7 h-7 bg-green-500/20 rounded-lg flex items-center justify-center border border-green-500/20">
+                                                <Eye className="w-3.5 h-3.5 text-green-400" />
+                                            </div>
+                                            <span className="text-sm font-black text-green-400">{data.stats.po}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className="w-7 h-7 bg-pink-500/20 rounded-lg flex items-center justify-center border border-pink-500/20">
+                                                <Heart className="w-3.5 h-3.5 text-pink-400" />
+                                            </div>
+                                            <span className="text-sm font-black text-pink-400">{data.stats.vit}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Secondary Stats */}
+                                    <div className="flex flex-col gap-2 bg-white/5 p-4 rounded-3xl border border-white/5 justify-center">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
+                                            <span className="flex items-center gap-1.5"><FastForward className="w-3 h-3" /> INI</span>
+                                            <span className="text-white font-black">{data.stats.ini}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
+                                            <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> INVOC</span>
+                                            <span className="text-white font-black">{data.stats.invoc}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Associated Sets */}
+                                {data.cloths && data.cloths.length > 0 && (
+                                    <div className="mt-auto">
+                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <Shield className="w-3 h-3 text-emerald-500" /> Panoplies Associées
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {data.cloths.map((cloth, i) => (
+                                                <div key={i} className="px-3 py-2 bg-zinc-900 border border-white/5 rounded-xl flex items-center gap-3 group/cloth hover:border-emerald-500/30 transition-all">
+                                                    <span className="text-[11px] font-bold text-zinc-300 group-hover/cloth:text-emerald-400 transition-colors uppercase">{cloth.name}</span>
+                                                    <div className="px-1.5 py-0.5 bg-black/40 rounded text-[9px] font-black text-zinc-500">
+                                                        {cloth.count}<span className="text-zinc-700">/{cloth.total}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/5 rounded-[2rem] border border-white/5 text-center">
+                                <Link2 className="w-8 h-8 text-zinc-700 mb-4" />
+                                <h4 className="text-sm font-black text-white uppercase mb-2">Build non synchronisé</h4>
+                                <p className="text-[10px] text-zinc-500 leading-relaxed max-w-[200px] font-bold uppercase">
+                                    Les statistiques détaillées ne sont pas disponibles car la synchronisation avec Dofusbook est bloquée localement.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="mt-8 flex gap-3">
+                            <a
+                                href={url}
+                                target="_blank"
+                                className="flex-1 px-6 py-3 bg-white text-black rounded-2xl text-center text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+                            >
+                                Ouvrir sur Dofusbook <ExternalLink className="w-4 h-4" />
+                            </a>
+                        </div>
                     </div>
                 </div>
-
-                {/* Clearer Footer */}
-                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-center">
-                    <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group/btn flex items-center gap-2 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 text-[10px] font-black text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all uppercase tracking-widest"
-                    >
-                        <span>Dofusbook</span>
-                        <ExternalLink className="w-3 h-3 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
-                    </a>
-                </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }

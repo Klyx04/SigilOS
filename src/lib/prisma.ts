@@ -25,38 +25,23 @@ const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURICo
 const connectionString = dbUrl || safeFromComponents;
 
 const createPrismaClient = () => {
+    const isDev = process.env.NODE_ENV !== 'production';
+    
     const pool = new Pool({
         connectionString,
-        max: 30,                // Increased pool size for high concurrency (2026)
-        idleTimeoutMillis: 15000, // Faster cleanup of idle connections
-        connectionTimeoutMillis: 5000, // Fail fast if DB is slow
+        max: isDev ? 20 : 30,         // Increased to handle complex parallel dashboard queries in Dev
+        idleTimeoutMillis: 30000, 
+        connectionTimeoutMillis: 10000, // Increased timeout to 10s to prevent 'timed out' errors on heavy parallel loads
     })
 
     const adapter = new PrismaPg(pool)
     const basePrisma = new PrismaClient({
         adapter,
-        log: ["error", "warn"]
+        log: isDev ? ["error"] : ["error", "warn"]
     })
 
     return basePrisma.$extends({
         query: {
-            /*
-                        $allModels: {
-                            async $allOperations({ operation, model, args, query }) {
-                                const start = performance.now();
-                                if (process.env.NODE_ENV === 'development') {
-                                    // console.log(`[Prisma] Starting ${model}.${operation}`);
-                                }
-                                const result = await query(args);
-                                const end = performance.now();
-                                const duration = end - start;
-                                if (duration > 200) {
-                                    console.warn(`[Slow Query] ${model}.${operation} took ${duration.toFixed(2)}ms`);
-                                }
-                                return result;
-                            }
-                        },
-                        */
             account: {
                 async create({ args, query }) {
                     if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);
@@ -102,11 +87,11 @@ const createPrismaClient = () => {
     });
 }
 
-const globalForPrisma = globalThis as unknown as { prisma: ReturnType<typeof createPrismaClient> }
+type PrismaClientExtended = ReturnType<typeof createPrismaClient>;
 
-const clientInstance = globalForPrisma.prisma ?? createPrismaClient();
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClientExtended | undefined }
 
-export const db = clientInstance;
-export const prisma = clientInstance;
+export const db = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = clientInstance as any;
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+export const prisma = db;

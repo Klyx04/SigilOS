@@ -14,6 +14,7 @@ interface UnifiedModuleHeaderProps {
     backHref?: string;
     backLabel?: string;
     actions?: ReactNode;
+    middleContent?: ReactNode;
     className?: string;
     gradient?: boolean;
 }
@@ -27,6 +28,7 @@ export function UnifiedModuleHeader({
     backHref,
     backLabel = "Retour au Dashboard",
     actions,
+    middleContent,
     className,
     gradient = true,
 }: UnifiedModuleHeaderProps) {
@@ -46,7 +48,7 @@ export function UnifiedModuleHeader({
             )}
 
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-[300px]">
                     <div className="flex items-center gap-4 md:gap-6">
                         {imageSrc ? (
                             <div className="relative h-12 w-12 md:h-14 md:w-14 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform duration-500">
@@ -85,11 +87,15 @@ export function UnifiedModuleHeader({
                     )}
                 </div>
 
-                {actions && (
-                    <div className="flex items-center gap-3 shrink-0 lg:pb-1">
-                        {actions}
+                {middleContent && (
+                    <div className="flex-1 flex justify-center items-center px-4">
+                        {middleContent}
                     </div>
                 )}
+                
+                <div className="flex items-center gap-3 shrink-0 lg:pb-1">
+                    {actions}
+                </div>
             </div>
 
             {/* Premium 2026 Divider */}

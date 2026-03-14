@@ -39,6 +39,7 @@ import { type MissionCategory, type MissionPayload } from "@/types/missions";
 
 import { analyzeImageSafety } from "@/lib/safety-client";
 import { MemberSelector } from "./member-selector"; // Import MemberSelector
+import { Honeypot } from "@/components/shared/honeypot";
 
 interface ProofUploadDialogProps {
     open: boolean;
@@ -203,7 +204,11 @@ export function ProofUploadDialog({
 
             // 1. Submit to server action (which handles OCR + Storage)
             setState("uploading");
-            const result = await submitMissionProof(missionId, compressedDataUrl, helperIds); // Pass helperIds
+            
+            // 🍯 Honeypot check
+            const hpValue = (document.getElementById("hp_ignore_field") as HTMLInputElement)?.value;
+            
+            const result = await submitMissionProof(missionId, compressedDataUrl, helperIds, hpValue); // Pass helperIds + Honeypot
 
             if (!result.success) {
                 throw new Error(result.error || "Échec de la soumission");
@@ -258,6 +263,7 @@ export function ProofUploadDialog({
                 </DialogHeader>
 
                 <div className="space-y-4">
+                    <Honeypot />
                     {/* ═══════════════════════════════════════ */}
                     {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
                     {/* ═══════════════════════════════════════ */}

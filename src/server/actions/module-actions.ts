@@ -43,51 +43,55 @@ type ActionResponse<T = undefined> = {
     data?: T;
 };
 
-// ============================================================================
-// QUERIES
-// ============================================================================
+import { cache } from "react";
 
-export async function getGuildModules(
-    discordGuildId: string
-): Promise<GuildModulesState> {
+// In-memory cache for module states (30s TTL)
+const moduleCache = new Map<string, { data: GuildModulesState, expiresAt: number }>();
+const MODULE_CACHE_TTL = 30_000;
+
+export const getGuildModules = cache(async (discordGuildId: string): Promise<GuildModulesState> => {
+    const now = Date.now();
+    const cached = moduleCache.get(discordGuildId);
+
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId },
             include: { modules: true },
         });
 
-        if (!guildConfig?.modules) {
-            return DEFAULT_MODULES;
-        }
-
-        const m = guildConfig.modules;
-        return {
-            presentation: m.presentation,
-            roster: m.roster,
-            stats: m.stats,
-            calendar: m.calendar,
-            missions: m.missions,
-            songes: m.songes,
-            ocre: m.ocre,
-            ladder: m.ladder,
-            services: m.services,
-            donjons: m.donjons,
-            profile: m.profile,
-            docs: m.docs,
-            polls: m.polls,
-            logs: m.logs,
-            admin: m.admin,
-            quests: m.quests,
-            worldmap: m.worldmap,
-            resources: m.resources,
-            chat: m.chat,
-            gartic: m.gartic,
+        const data = !guildConfig?.modules ? DEFAULT_MODULES : {
+            presentation: guildConfig.modules.presentation,
+            roster: guildConfig.modules.roster,
+            stats: guildConfig.modules.stats,
+            calendar: guildConfig.modules.calendar,
+            missions: guildConfig.modules.missions,
+            songes: guildConfig.modules.songes,
+            ocre: guildConfig.modules.ocre,
+            ladder: guildConfig.modules.ladder,
+            services: guildConfig.modules.services,
+            donjons: guildConfig.modules.donjons,
+            profile: guildConfig.modules.profile,
+            docs: guildConfig.modules.docs,
+            polls: guildConfig.modules.polls,
+            logs: guildConfig.modules.logs,
+            admin: guildConfig.modules.admin,
+            quests: guildConfig.modules.quests,
+            worldmap: guildConfig.modules.worldmap,
+            resources: guildConfig.modules.resources,
+            chat: guildConfig.modules.chat,
+            gartic: guildConfig.modules.gartic,
         };
+
+        moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
+        return data;
     } catch {
-        // Fail open — if we can't read modules, assume all enabled
         return DEFAULT_MODULES;
     }
-}
+});
 
 export async function isModuleEnabled(
     discordGuildId: string,

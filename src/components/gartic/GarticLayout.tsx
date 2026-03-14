@@ -15,9 +15,9 @@ export const GarticStarDecorations = () => {
     );
 };
 
-export const GarticLayout = ({ phase, children, onClose }: { phase: string; children: React.ReactNode; onClose?: () => void }) => {
+export const GarticLayout = ({ phase, children, onClose, spectators = [] }: { phase: string; children: React.ReactNode; onClose?: () => void; spectators?: any[] }) => {
     return (
-        <div className="min-h-screen h-full w-full relative bg-[#3d8be0] font-sans">
+        <div className="h-full w-full relative bg-[#3d8be0] font-sans overflow-hidden select-none">
             {/* Base Gradient background */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#3d8be0] via-[#5b96ea] to-[#8d69f1]" />
             
@@ -47,6 +47,24 @@ export const GarticLayout = ({ phase, children, onClose }: { phase: string; chil
                 }
             `}</style>
 
+            {/* Spectators bubbles - Top Right */}
+            {spectators.length > 0 && (
+                <div className="absolute top-2 left-2 md:top-6 md:left-6 z-[200] flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl">
+                    <div className="flex -space-x-2">
+                        {spectators.slice(0, 5).map((s, idx) => (
+                            <div key={s.id || idx} className="w-8 h-8 rounded-full border-2 border-white/20 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:z-10 transition-all cursor-help ring-2 ring-black/10" title={s.username || s.userName}>
+                                <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.username || s.userName}`} className="w-full h-full object-cover rounded-full" alt="" />
+                            </div>
+                        ))}
+                        {spectators.length > 5 && (
+                            <div className="w-8 h-8 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-[10px] font-black text-white/50 backdrop-blur-sm">
+                                +{spectators.length - 5}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {onClose && (
                 <button 
                     onClick={onClose}
@@ -59,7 +77,7 @@ export const GarticLayout = ({ phase, children, onClose }: { phase: string; chil
                 </button>
             )}
 
-            <div className="w-full h-full min-h-screen flex flex-col items-center justify-center relative z-10 px-4 pt-16 pb-6">
+            <div className="w-full h-full flex flex-col items-center justify-center relative z-10 px-4 pt-2 md:pt-4 pb-20 md:pb-24 min-h-[calc(100vh-80px)]">
                 {children}
             </div>
         </div>

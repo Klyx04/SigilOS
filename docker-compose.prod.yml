@@ -36,7 +36,7 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-prod-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
 
@@ -152,7 +152,7 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-beta-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
 

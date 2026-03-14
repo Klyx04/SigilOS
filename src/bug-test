@@ -1,0 +1,307 @@
+Run npm run test: run
+
+    > temp - sigil@0.1.0 test: run
+        > vitest run
+
+
+ RUN  v4.0.18 / home / runner / work / SigilOS / SigilOS
+
+ ✓ tests / lifecycle - management.test.ts(14 tests) 12ms
+stderr | tests / unit / guards.test.ts > guards.ts > requireGuildAdmin > allows guild owner
+[Guard] Admin check failed: Error: [vitest] No "isSuperAdmin" export is defined on the "@/server/actions/super-admin-actions" mock.Did you forget to return it from "vi.mock" ?
+    If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:311:17)
+        at Object.get(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:384:16)
+            at Module.requireGuildAdmin(/home/runner / work / SigilOS / SigilOS / src / server / actions / guards.ts: 45: 17)
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 81: 28
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20 {
+            codeFrame: 'vi.mock(import("@/server/actions/super-admin-actions"), async (importOriginal) => {\n' +
+            '  const actual = await importOriginal()\n' +
+            '  return {\n' +
+            '    ...actual,\n' +
+            '    // your mocked methods\n' +
+            '  }\n' +
+        '})'
+}
+
+            stderr | tests / unit / guards.test.ts > guards.ts > requireGuildAdmin > allows user with Administrator permission(0x8)
+            [Guard] Admin check failed: Error: [vitest] No "isSuperAdmin" export is defined on the "@/server/actions/super-admin-actions" mock.Did you forget to return it from "vi.mock" ?
+                If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:311:17)
+                    at Object.get(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:384:16)
+                        at Module.requireGuildAdmin(/home/runner / work / SigilOS / SigilOS / src / server / actions / guards.ts: 45: 17)
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 102: 28
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20 {
+                        codeFrame: 'vi.mock(import("@/server/actions/super-admin-actions"), async (importOriginal) => {\n' +
+                        '  const actual = await importOriginal()\n' +
+                        '  return {\n' +
+                        '    ...actual,\n' +
+                        '    // your mocked methods\n' +
+                        '  }\n' +
+                    '})'
+}
+
+                        stderr | tests / unit / guards.test.ts > guards.ts > requireGuildAdmin > blocks non - admin guild members
+                    [Guard] Admin check failed: Error: [vitest] No "isSuperAdmin" export is defined on the "@/server/actions/super-admin-actions" mock.Did you forget to return it from "vi.mock" ?
+                        If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:311:17)
+                            at Object.get(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:384:16)
+                                at Module.requireGuildAdmin(/home/runner / work / SigilOS / SigilOS / src / server / actions / guards.ts: 45: 17)
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 122: 28
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20 {
+                                codeFrame: 'vi.mock(import("@/server/actions/super-admin-actions"), async (importOriginal) => {\n' +
+                                '  const actual = await importOriginal()\n' +
+                                '  return {\n' +
+                                '    ...actual,\n' +
+                                '    // your mocked methods\n' +
+                                '  }\n' +
+                            '})'
+}
+
+                                stderr | tests / unit / guards.test.ts > guards.ts > requireGuildAdmin > blocks users not in the guild
+                            [Guard] Admin check failed: Error: [vitest] No "isSuperAdmin" export is defined on the "@/server/actions/super-admin-actions" mock.Did you forget to return it from "vi.mock" ?
+                                If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:311:17)
+                                    at Object.get(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:384:16)
+                                        at Module.requireGuildAdmin(/home/runner / work / SigilOS / SigilOS / src / server / actions / guards.ts: 45: 17)
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 138: 28
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20 {
+                                        codeFrame: 'vi.mock(import("@/server/actions/super-admin-actions"), async (importOriginal) => {\n' +
+                                        '  const actual = await importOriginal()\n' +
+                                        '  return {\n' +
+                                        '    ...actual,\n' +
+                                        '    // your mocked methods\n' +
+                                        '  }\n' +
+                                    '})'
+}
+
+                                        stderr | tests / unit / guards.test.ts > guards.ts > requireGuildAdmin > handles Discord API errors gracefully
+                                    [Guard] Admin check failed: Error: [vitest] No "isSuperAdmin" export is defined on the "@/server/actions/super-admin-actions" mock.Did you forget to return it from "vi.mock" ?
+                                        If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:311:17)
+                                            at Object.get(file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/startModuleRunner.DEj0jb3e.js:384:16)
+                                                at Module.requireGuildAdmin(/home/runner / work / SigilOS / SigilOS / src / server / actions / guards.ts: 45: 17)
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 151: 28
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20 {
+                                                codeFrame: 'vi.mock(import("@/server/actions/super-admin-actions"), async (importOriginal) => {\n' +
+                                                '  const actual = await importOriginal()\n' +
+                                                '  return {\n' +
+                                                '    ...actual,\n' +
+                                                '    // your mocked methods\n' +
+                                                '  }\n' +
+                                            '})'
+}
+
+                                                stderr | tests / unit / guards.test.ts > guards.ts > requireGuildMember > handles Discord API errors gracefully
+                                            [Guard] Member check failed: Error: Discord 500
+    at / home / runner / work / SigilOS / SigilOS / tests / unit / guards.test.ts: 211: 78
+    at processTicksAndRejections(node: internal / process / task_queues: 105: 5)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20
+
+ ❯ tests / unit / guards.test.ts(12 tests | 4 failed) 59ms
+       ✓ blocks unauthenticated users 3ms
+       ✓ blocks users without Discord account linked 0ms
+       × allows guild owner 38ms
+       × allows user with Administrator permission(0x8) 2ms
+       × blocks non - admin guild members 4ms
+       × blocks users not in the guild 3ms
+       ✓ handles Discord API errors gracefully 1ms
+       ✓ blocks unauthenticated users 0ms
+       ✓ blocks users without Discord account linked 3ms
+       ✓ allows guild members 0ms
+       ✓ blocks non - members 0ms
+       ✓ handles Discord API errors gracefully 1ms
+stderr | tests / ladder - actions.test.ts
+ ✓ tests / ladder - actions.test.ts(7 tests) 8ms
+[Redis] ❌ Error: connect ECONNREFUSED 127.0.0.1: 6379
+
+ ✓ tests / security / security.test.ts(13 tests) 5ms
+stderr | tests / infrastructure.test.ts > Infrastructure - Redis Fail - Soft & Fallback > withCache > should fallback to fetcher if Redis GET throws(Fail - soft)
+[Cache] Redis error for key test: key, falling back to source: Error: Redis Dead
+at / home / runner / work / SigilOS / SigilOS / tests / infrastructure.test.ts: 61: 52
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise(<anonymous>)
+    at runWithTimeout (file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///home/runner/work/SigilOS/SigilOS/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | tests/infrastructure.test.ts > Infrastructure - Redis Fail-Soft & Fallback > rateLimit > should fallback to memory if Redis is NOT ready
+    [RateLimit] Redis unavailable - using memory fallback for enforcement
+
+    ✓ tests/infrastructure.test.ts (7 tests) 14ms
+    ✓ tests/unit/encryption.test.ts (8 tests) 27ms
+stderr | tests/unit/ratelimit.test.ts > Rate Limiting Module > rateLimit function > should allow requests under the limit
+    [RateLimit] Redis error, falling back to allow: TypeError: __vite_ssr_import_0__.redis.multi(...).set is not a function
+    at rateLimit (/home/runner/work/SigilOS/SigilOS/src/lib/ratelimit.ts:43:14)
+    at /home/runner/work/SigilOS/SigilOS/tests/unit/ratelimit.test.ts:30:34
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limiting Module > rateLimit function > should return limit info in response
+    [RateLimit] Redis error, falling back to allow: TypeError: __vite_ssr_import_0__.redis.multi(...).set is not a function
+    at rateLimit (/home/runner/work/SigilOS/SigilOS/src/lib/ratelimit.ts:43:14)
+    at /home/runner/work/SigilOS/SigilOS/tests/unit/ratelimit.test.ts:39:34
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limiting Module > rateLimit function > should use unique keys per identifier
+    [RateLimit] Redis error, falling back to allow: TypeError: __vite_ssr_import_0__.redis.multi(...).set is not a function
+    at rateLimit (/home/runner/work/SigilOS/SigilOS/src/lib/ratelimit.ts:43:14)
+    at /home/runner/work/SigilOS/SigilOS/tests/unit/ratelimit.test.ts:49:35
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limiting Module > rateLimit function > should use unique keys per identifier
+    [RateLimit] Redis error, falling back to allow: TypeError: __vite_ssr_import_0__.redis.multi(...).set is not a function
+    at rateLimit (/home/runner/work/SigilOS/SigilOS/src/lib/ratelimit.ts:43:14)
+    at /home/runner/work/SigilOS/SigilOS/tests/unit/ratelimit.test.ts:50:35
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///home/runner/work/SigilOS/SigilOS/node_modules/@vitest/runner/dist/index.js:915:20
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limiting Module > Memory fallback > should use memory fallback when Redis is not ready
+    [RateLimit] Redis unavailable - using memory fallback for enforcement
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limit Edge Cases > should handle zero limit gracefully
+    [RateLimit] Redis unavailable - using memory fallback for enforcement
+
+stderr | tests/unit/ratelimit.test.ts > Rate Limit Edge Cases > should handle very short window
+    [RateLimit] Redis unavailable - using memory fallback for enforcement
+
+    ✓ tests/unit/ratelimit.test.ts (6 tests) 20ms
+    ✓ tests/retention-v1.4.test.ts (2 tests) 8ms
+
+    ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/guards.test.ts > guards.ts > requireGuildAdmin > allows guild owner
+    AssertionError: expected false to be true // Object.is equality
+
+    - Expected
+    + Received
+
+    - true
+    + false
+
+    ❯ tests/unit/guards.test.ts:83:41
+    81|             const result = await requireGuildAdmin("123456789");
+    82|
+    83|             expect(result.isAuthorized).toBe(true);
+    |                                         ^
+    84|             expect(result.discordUserId).toBe("discord-owner-id");
+     85|         });
+
+    ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/unit/guards.test.ts > guards.ts > requireGuildAdmin > allows user with Administrator permission (0x8)
+    AssertionError: expected false to be true // Object.is equality
+
+    - Expected
+    + Received
+
+    - true
+    + false
+
+    ❯ tests/unit/guards.test.ts:104:41
+    102|             const result = await requireGuildAdmin("123456789");
+    103|
+    104|             expect(result.isAuthorized).toBe(true);
+    |                                         ^
+    105|         });
+    106|
+
+    ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/unit/guards.test.ts > guards.ts > requireGuildAdmin > blocks non-admin guild members
+    AssertionError: expected 'Permission check failed' to be 'Admin permission required' // Object.is equality
+
+    Expected: "Admin permission required"
+    Received: "Permission check failed"
+
+    ❯ tests/unit/guards.test.ts:125:34
+    123|
+    124|             expect(result.isAuthorized).toBe(false);
+    125|             expect(result.error).toBe("Admin permission required");
+    |                                  ^
+    126|         });
+    127|
+
+    ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/unit/guards.test.ts > guards.ts > requireGuildAdmin > blocks users not in the guild
+    AssertionError: expected 'Permission check failed' to be 'Not a member of this guild' // Object.is equality
+
+    Expected: "Not a member of this guild"
+    Received: "Permission check failed"
+
+    ❯ tests/unit/guards.test.ts:141:34
+    139|
+    140|             expect(result.isAuthorized).toBe(false);
+    141|             expect(result.error).toBe("Not a member of this guild");
+    |                                  ^
+    142|         });
+    143|
+
+    ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+    Test Files  1 failed | 7 passed (8)
+    Tests  4 failed | 65 passed (69)
+    Start at  01:42:27
+    Duration  1.84s (transform 372ms, setup 0ms, import 577ms, tests 154ms, environment 1ms)
+
+
+    Error: AssertionError: expected false to be true // Object.is equality
+
+    - Expected
+    + Received
+
+    - true
+    + false
+
+    ❯ tests/unit/guards.test.ts:83:41
+
+
+
+    Error: AssertionError: expected false to be true // Object.is equality
+
+    - Expected
+    + Received
+
+    - true
+    + false
+
+    ❯ tests/unit/guards.test.ts:104:41
+
+
+
+    Error: AssertionError: expected 'Permission check failed' to be 'Admin permission required' // Object.is equality
+
+    Expected: "Admin permission required"
+    Received: "Permission check failed"
+
+    ❯ tests/unit/guards.test.ts:125:34
+
+
+
+    Error: AssertionError: expected 'Permission check failed' to be 'Not a member of this guild' // Object.is equality
+
+    Expected: "Not a member of this guild"
+    Received: "Permission check failed"
+
+    ❯ tests/unit/guards.test.ts:141:34
+
+
+    Error: Process completed with exit code 1.

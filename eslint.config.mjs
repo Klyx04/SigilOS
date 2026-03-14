@@ -1,7 +1,8 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import { fixupConfigRules } from "@eslint/compat";
+import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   // ── 1. Configs Next.js (chargés en premier) ──
@@ -15,6 +16,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "dist/**",
     "next-env.d.ts",
+    "old_map*.tsx",
     // Scripts utilitaires racine
     "check*.js",
     "check_*.js",
@@ -42,6 +44,9 @@ const eslintConfig = defineConfig([
   // ── 3. NOS OVERRIDES (DERNIER = GAGNE en flat config) ──
   // Ce bloc DOIT être le dernier pour écraser eslint-config-next.
   {
+    plugins: {
+      "react-hooks": fixupPluginRules(reactHooks),
+    },
     // Les "Unused eslint-disable directive" deviennent des errors dans ESLint 10
     // quand on passe des règles de error→warn. On les ignore.
     linterOptions: {

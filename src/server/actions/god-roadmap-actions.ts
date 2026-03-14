@@ -96,13 +96,16 @@ export async function toggleRoadmapVisibility(enabled: boolean) {
             create: { id: "singleton", roadmapEnabled: enabled }
         });
         revalidatePath("/god/roadmap");
+        revalidatePath("/roadmap");
         revalidatePath("/");
         revalidatePath("/dashboard");
         return { success: true };
     } catch (e: any) {
-        return { success: false, error: e.message };
+        console.error("[Roadmap] Toggle Visibility Error:", e);
+        return { success: false, error: "KO Prisma" };
     }
 }
+
 
 export async function getPlatformConfig() {
     try {

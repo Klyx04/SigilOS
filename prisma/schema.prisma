@@ -41,31 +41,31 @@ model VerificationToken {
 }
 
 model User {
-  id                  String             @id @default(cuid())
-  name                String?
-  email               String?            @unique
-  emailVerified       DateTime?
-  image               String?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @default(now()) @updatedAt
-  deletionRequestedAt DateTime?
-  emailBackup         String?
-  scheduledDeletion   DateTime?
-  lastSeenChangelogId String?
-  lastFeedViewedAt    DateTime?          @default(now())
-  accounts            Account[]
-  dreamJoinRequests   DreamJoinRequest[]
-  dreamRuns           DreamRun[]         @relation("RunLeader")
-  dreamRunMembers     DreamRunMember[]
-  dreamWaitlists      DreamWaitlist[]
-  eventParticipations EventParticipant[]
-  garticStats         GarticPlayerStats?
-  garticSessions      GarticSession[]
-  guildEvents         GuildEvent[]
-  notifications       Notification[]
-  profiles            UserProfile[]
-  sessions            Session[]
-  administeredRelances Relance[]           @relation("RelanceAdmin")
+  id                   String             @id @default(cuid())
+  name                 String?
+  email                String?            @unique
+  emailVerified        DateTime?
+  image                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+  deletionRequestedAt  DateTime?
+  emailBackup          String?
+  scheduledDeletion    DateTime?
+  lastSeenChangelogId  String?
+  lastFeedViewedAt     DateTime?          @default(now())
+  accounts             Account[]
+  dreamJoinRequests    DreamJoinRequest[]
+  dreamRuns            DreamRun[]         @relation("RunLeader")
+  dreamRunMembers      DreamRunMember[]
+  dreamWaitlists       DreamWaitlist[]
+  eventParticipations  EventParticipant[]
+  garticStats          GarticPlayerStats?
+  garticSessions       GarticSession[]
+  guildEvents          GuildEvent[]
+  notifications        Notification[]
+  administeredRelances Relance[]          @relation("RelanceAdmin")
+  sessions             Session[]
+  profiles             UserProfile[]
 }
 
 model AllowedGuild {
@@ -109,9 +109,9 @@ model RoadmapItem {
   id          Int      @id @default(autoincrement())
   title       String
   description String
-  status      String   @default("TODO") // "TODO", "PROGRESS", "DONE"
-  quarter     String   // e.g. "Q2 2026", "Moyen Terme", "Vision Long Terme"
-  priority    String   @default("NORMAL") // "HIGH", "NORMAL", "LOW"
+  status      String   @default("TODO")
+  quarter     String
+  priority    String   @default("NORMAL")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -215,13 +215,13 @@ model GuildConfig {
   missions                      Mission[]
   ocreTradeRequests             OcreTradeRequest[]
   polls                         Poll[]
+  relances                      Relance[]
   resourceCategories            ResourceCategory[]
   serviceActivityLogs           ServiceActivityLog[]
   serviceListings               ServiceListing[]
   sigilRoles                    SigilRole[]
   profiles                      UserProfile[]
   vaultEntries                  VaultEntry[]
-  relances                      Relance[]
 }
 
 model GuildModules {
@@ -248,7 +248,6 @@ model GuildModules {
   resources    Boolean     @default(false)
   worldmap     Boolean     @default(false)
   chat         Boolean     @default(false)
-  gartic       Boolean     @default(false)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -1524,6 +1523,39 @@ model OcreMonsterTemplate {
   @@index([name])
 }
 
+model SystemIssue {
+  id          Int               @id @default(autoincrement())
+  type        SystemIssueType   @default(BUG)
+  category    String            @default("Divers")
+  priority    String            @default("Normal")
+  description String
+  status      SystemIssueStatus @default(A_FAIRE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  forumLink   String?
+  creatorId   String
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Relance {
+  id        String      @id @default(cuid())
+  guildId   String
+  adminId   String
+  type      String
+  targetIds Json
+  message   String
+  criteria  String?
+  createdAt DateTime    @default(now())
+  admin     User        @relation("RelanceAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([adminId])
+}
+
 enum ProfileStatus {
   ACTIVE
   ARCHIVED
@@ -1831,37 +1863,4 @@ enum SystemIssueStatus {
   EN_COURS
   TERMINE
   IGNORE
-}
-
-model SystemIssue {
-  id          Int               @id @default(autoincrement())
-  type        SystemIssueType   @default(BUG)
-  category    String            @default("Divers")
-  priority    String            @default("Normal")
-  description String
-  status      SystemIssueStatus @default(A_FAIRE)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  forumLink   String?
-  creatorId   String
-
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-}
-
-model Relance {
-  id              String      @id @default(cuid())
-  guildId         String
-  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  adminId         String
-  admin           User        @relation("RelanceAdmin", fields: [adminId], references: [id], onDelete: Cascade)
-  type            String      // DM, CHANNEL, BULK
-  targetIds       Json        // Array of Discord user IDs
-  message         String      @db.Text
-  criteria        String?
-  createdAt       DateTime    @default(now())
-
-  @@index([guildId])
-  @@index([adminId])
 }

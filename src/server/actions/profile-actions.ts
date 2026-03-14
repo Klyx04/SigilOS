@@ -1313,7 +1313,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 .toBuffer();
 
             await writeFile(filePath, optimizedBuffer);
-            const proofUrl = `/uploads/${uploadRelativeDir}/${fileName}`;
+            const proofUrl = `/api/storage/${uploadRelativeDir}/${fileName}`;
 
             const submission = await (db as any).achievementSubmission.create({
                 data: {

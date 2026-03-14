@@ -89,19 +89,40 @@ export async function getActivityLadder(
 
             const cacheKey = `ladder:activity:${guildId}:${view}:${startDate.getTime()}`;
             const ladder = await withCache(cacheKey, 300, async () => {
-                // PERF-01: Single aggregation query — SUM xpReward grouped by profileId
-                // Replaces the old N+1 pattern (loading submissions inline per profile)
+                const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+                
+                // PERF-01: Single aggregation query — Combine Mission XP and Kama XP
                 const xpByProfile = await db.$queryRaw<{ profileId: string; totalXp: number }[]>`
-                    SELECT s."profileId", COALESCE(SUM(m."xpReward"), 0)::int AS "totalXp"
-                    FROM "Submission" s
-                    JOIN "Mission" m ON s."missionId" = m."id"
-                    JOIN "UserProfile" up ON s."profileId" = up."id"
-                    WHERE s."status" = 'VALIDATED'
-                      AND s."updatedAt" >= ${startDate}
-                      AND up."guildId" = ${guildConfig.id}
-                      AND up."status" = 'ACTIVE'
-                    GROUP BY s."profileId"
-                    HAVING COALESCE(SUM(m."xpReward"), 0) > 0
+                    WITH MissionXP AS (
+                        SELECT s."profileId", COALESCE(SUM(m."xpReward"), 0)::int AS xp
+                        FROM "Submission" s
+                        JOIN "Mission" m ON s."missionId" = m."id"
+                        JOIN "UserProfile" up ON s."profileId" = up."id"
+                        WHERE s."status" = 'VALIDATED'
+                          AND s."updatedAt" >= ${startDate}
+                          AND up."guildId" = ${guildConfig.id}
+                          AND up."status" = 'ACTIVE'
+                        GROUP BY s."profileId"
+                    ),
+                    KamaXP AS (
+                        SELECT k."profileId", COALESCE(SUM(FLOOR(k."amount" / ${KAMA_TRANCHE}) * ${REWARDS_PER_TRANCHE.xp}), 0)::int AS xp
+                        FROM "KamaDonation" k
+                        JOIN "UserProfile" up ON k."profileId" = up."id"
+                        WHERE k."status" = 'VALIDATED'
+                          AND k."validatedAt" >= ${startDate}
+                          AND up."guildId" = ${guildConfig.id}
+                          AND up."status" = 'ACTIVE'
+                        GROUP BY k."profileId"
+                    ),
+                    CombinedXP AS (
+                        SELECT "profileId", xp FROM MissionXP
+                        UNION ALL
+                        SELECT "profileId", xp FROM KamaXP
+                    )
+                    SELECT "profileId", COALESCE(SUM(xp), 0)::int AS "totalXp"
+                    FROM CombinedXP
+                    GROUP BY "profileId"
+                    HAVING COALESCE(SUM(xp), 0) > 0
                     ORDER BY "totalXp" DESC
                 `;
 

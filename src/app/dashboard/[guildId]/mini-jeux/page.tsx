@@ -35,7 +35,7 @@ export default async function MiniJeuxPage({ params }: Props) {
             <div className="flex-shrink-0 px-4 md:px-6 pt-3 pb-1 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Mini-Jeux"
-                    description="Défiez vos amis sur SigilGuesser, Sigil-Draw et Sigil-Phone"
+                    description="Défiez vos amis sur SigilGuesser et Sigil-Gartic"
                     icon={Trophy}
                     backHref={`/dashboard/${guildId}`}
                     middleContent={<div id="sigil-geoguesser-header-hud" className="w-full flex justify-center" />}

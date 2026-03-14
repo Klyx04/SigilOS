@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { readdir } from "fs/promises";
-import { join } from "path";
+import { join, normalize } from "path";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
@@ -29,8 +29,16 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // 3. Build path
-        const dirPath = join(process.cwd(), "public", "game-data", `${type}s`);
+        // 3. Build path - String concatenation to bypass Turbopack's static analysis
+        const root = process.cwd();
+        let subPath = "";
+        switch (type) {
+            case "achievement": subPath = "game-data/achievements"; break;
+            case "monster": subPath = "game-data/monsters"; break;
+            case "dungeon": subPath = "game-data/dungeons"; break;
+            case "item": subPath = "game-data/items"; break;
+        }
+        const dirPath = normalize(root + "/public/" + subPath);
 
         // 4. Read directory
         const files = await readdir(dirPath, { withFileTypes: true });

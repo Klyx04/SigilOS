@@ -124,7 +124,25 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
             </div>
 
             {/* INFO RIGHT */}
-            <div className="w-[40px] md:w-[60px] shrink-0 flex items-center justify-end">
+            <div className="flex-none flex items-center gap-2">
+                {/* Spectators bubbles */}
+                {gameState.players?.filter((p: any) => p.isSpectator).length > 0 && (
+                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/20 rounded-xl mr-2">
+                        <div className="flex -space-x-1.5">
+                            {gameState.players.filter((p: any) => p.isSpectator).slice(0, 3).map((s: any, idx: number) => (
+                                <div key={s.id || idx} className="w-5 h-5 rounded-md border border-black/10 bg-zinc-900 overflow-hidden grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-help" title={s.userName}>
+                                    <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.userName}`} className="w-full h-full object-cover rounded-sm" alt="" />
+                                </div>
+                            ))}
+                            {gameState.players.filter((p: any) => p.isSpectator).length > 3 && (
+                                <div className="w-5 h-5 rounded-md bg-zinc-800 border border-white/5 flex items-center justify-center text-[8px] font-black text-white/40">
+                                    +{gameState.players.filter((p: any) => p.isSpectator).length - 3}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <button 
                     onClick={() => {
                         toast.info("RÈGLES DU SIGIL-DRAW", {

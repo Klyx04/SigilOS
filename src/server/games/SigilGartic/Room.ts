@@ -3,6 +3,7 @@ import { redis } from "@/lib/redis";
 import { createActor, Snapshot, Actor } from "xstate";
 import { garticMachine, GameContext, Player } from "./StateMachine";
 import { StrokeData, Album, GamePhase, GameMode } from "../../../types/socket-events";
+import { db } from "@/lib/prisma";
 
 export interface RoomConfig {
     id: string;
@@ -33,7 +34,7 @@ export class GarticRoom {
         return this.guildId;
     }
 
-    private onStateChange(snapshot: any) {
+    private async onStateChange(snapshot: any) {
         const snap = snapshot;
         const phase = snap.value as GamePhase;
         this.state = snap.context;
@@ -53,7 +54,9 @@ export class GarticRoom {
                 dofusClass: p.dofusClass,
                 score: p.score,
                 isHost: p.id === this.state.hostId || p.userId === this.state.hostId,
-                hasSubmitted: this.state.submittedThisRound.has(p.id)
+                hasSubmitted: this.state.submittedThisRound.has(p.id),
+                userAvatar: p.userAvatar,
+                isSpectator: p.isSpectator
             })),
         };
         
@@ -66,6 +69,40 @@ export class GarticRoom {
                 }))
             }));
             (basicState as any).revealIndex = this.state.revealIndex;
+        }
+
+        if (phase === "SCORES") {
+            // HALL OF FAME: Save stats
+            const validPlayers = Array.from(this.state.players.values()).filter(p => !p.isSpectator && p.userId);
+            if (validPlayers.length > 1) {
+                for (const p of validPlayers) {
+                    try {
+                        const drawings = Array.from(this.state.chains.values())
+                            .flat()
+                            .filter(e => e.type === "drawing" && e.playerId === p.id).length;
+                        const guesses = Array.from(this.state.chains.values())
+                             .flat()
+                             .filter(e => e.type === "text" && e.playerId === p.id).length;
+
+                        await db.garticPlayerStats.upsert({
+                            where: { userId: p.userId! },
+                            create: {
+                                userId: p.userId!,
+                                totalGames: 1,
+                                drawingsCreated: drawings,
+                                correctGuesses: guesses, // For Phone, all text entries are "guesses" in the stats sense
+                            },
+                            update: {
+                                totalGames: { increment: 1 },
+                                drawingsCreated: { increment: drawings },
+                                correctGuesses: { increment: guesses }
+                            }
+                        });
+                    } catch (err) {
+                        console.error(`[GarticRoom] Error saving stats for ${p.username}:`, err);
+                    }
+                }
+            }
         }
 
         // For each player, send custom task data
@@ -161,9 +198,11 @@ export class GarticRoom {
 
     public getPublicInfo(roomId: string) {
         const host = Array.from(this.state.players.values()).find(p => p.id === this.state.hostId || p.userId === this.state.hostId);
+        const players = Array.from(this.state.players.values());
         return {
             roomId,
-            playerCount: this.state?.players?.size ?? 0,
+            playerCount: players.filter(p => !p.isSpectator).length,
+            spectatorCount: players.filter(p => p.isSpectator).length,
             maxPlayers: this.state?.maxPlayers ?? 14,
             mode: this.state?.mode ?? "NORMAL",
             hostName: host?.username || "Hôte"

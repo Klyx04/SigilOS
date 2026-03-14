@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Plus, Minus } from 'lucide-react';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -419,17 +420,18 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
     // Recenter (Home) logic
     useEffect(() => {
-        if (isMiniMap && minimapRecenterTrigger && activeWorld) {
+        if (minimapRecenterTrigger && activeWorld) {
             const world = activeWorld;
             // Recenter on target if exists, else on origin
             if (guessResult?.target) {
                 const { target } = guessResult;
                 map.flyTo([-(world.origineY + target.y * world.mapHeight + world.mapHeight / 2), world.origineX + target.x * world.mapWidth + world.mapWidth / 2], -2);
             } else {
-                map.flyTo([-(world.origineY + world.totalHeight / 2), world.origineX + world.totalWidth / 2], -3);
+                // Correct center: absolute middle of the world image
+                map.flyTo([-world.totalHeight / 2, world.totalWidth / 2], -3);
             }
         }
-    }, [minimapRecenterTrigger, isMiniMap, map, activeWorld, guessResult]);
+    }, [minimapRecenterTrigger, map, activeWorld, guessResult]);
 
     useEffect(() => {
         if (!isMiniMap || !activeWorld || !map) return;
@@ -464,7 +466,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator }: any) {
     const map = useMap();
     const tooltipRef = useRef<L.Tooltip | null>(null);
     const lastTooltipTime = useRef(0);
@@ -508,6 +510,8 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             }
         },
         click: (e) => {
+            if (isSpectator) return; // Block interactions for spectators
+
             const world = activeWorld;
             if (!world) return;
             const mapX = e.latlng.lng;
@@ -523,8 +527,9 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
     return null;
 }
 
-function ExternalController({ triggerCenterPosition, activeWorld }: any) {
+function ExternalController({ triggerCenterPosition, activeWorld, minimapRecenterTrigger }: any) {
     const map = useMap();
+    const prevTrigger = useRef(minimapRecenterTrigger);
 
     useEffect(() => {
         if (!triggerCenterPosition || !activeWorld) return;
@@ -533,7 +538,59 @@ function ExternalController({ triggerCenterPosition, activeWorld }: any) {
         map.flyTo([-py, px], -1, { duration: 0.5 });
     }, [triggerCenterPosition, activeWorld, map]);
 
+    useEffect(() => {
+        if (minimapRecenterTrigger !== undefined && minimapRecenterTrigger !== prevTrigger.current) {
+            const diff = minimapRecenterTrigger - (prevTrigger.current || 0);
+            prevTrigger.current = minimapRecenterTrigger;
+            
+            if (activeWorld) {
+                if (Math.abs(diff) > 500) {
+                    // It's a zoom command
+                    if (diff > 0) {
+                        map.setZoom(Math.min(map.getZoom() + 1, map.getMaxZoom()), { animate: true });
+                    } else {
+                        map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()), { animate: true });
+                    }
+                } else if (triggerCenterPosition) {
+                    // Recenter command
+                    const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+                    const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
+                    map.flyTo([-py, px], -1, { duration: 0.5 });
+                }
+            }
+        }
+    }, [minimapRecenterTrigger, map]);
+
     return null;
+}
+
+function ZoomControls() {
+    const map = useMap();
+    
+    return (
+        <div className="absolute bottom-6 right-6 z-[1000] flex flex-col gap-2">
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    map.setZoom(Math.min(map.getZoom() + 1, map.getMaxZoom()), { animate: true });
+                }}
+                className="w-10 h-10 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-slate-800 transition-all shadow-xl active:scale-95 group pointer-events-auto"
+                title="Zoomer (x2)"
+            >
+                <Plus size={18} className="group-hover:scale-110 transition-transform" />
+            </button>
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()), { animate: true });
+                }}
+                className="w-10 h-10 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-slate-800 transition-all shadow-xl active:scale-95 group pointer-events-auto"
+                title="Dézoomer (/2)"
+            >
+                <Minus size={18} className="group-hover:scale-110 transition-transform" />
+            </button>
+        </div>
+    );
 }
 
 // -------------------------------------------------------------------------------------
@@ -559,6 +616,7 @@ interface LeafletMapCoreProps {
     minimapRecenterTrigger?: number;
     participants?: any[];
     currentUserId?: string;
+    isSpectator?: boolean;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const {
@@ -566,7 +624,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
-        participants, currentUserId
+        participants, currentUserId, isSpectator
     } = props;
 
     // Correction Alignement : Décalage manuel de +2 cases à droite spécifique au Monde des Douze
@@ -687,6 +745,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     dungeonsByMapId={dungeonsByMapId}
                     setSelectedPosition={setSelectedPosition}
                     isMiniMap={isMiniMap}
+                    isSpectator={isSpectator}
                 />
 
                 {/* 5. Highlight overlay (click selection) */}
@@ -728,7 +787,14 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     );
                 })}
 
-                <ExternalController triggerCenterPosition={triggerCenterPosition} activeWorld={correctedActiveWorld} />
+                <ExternalController 
+                    triggerCenterPosition={triggerCenterPosition} 
+                    activeWorld={correctedActiveWorld} 
+                    minimapRecenterTrigger={minimapRecenterTrigger} 
+                />
+                
+                {/* 7. Contrôles de zoom premium */}
+                {!isMiniMap && <ZoomControls />}
             </MapContainer>
         </div>
     );

@@ -39,6 +39,8 @@ export const PERMISSIONS = {
     QUESTS_MANAGE: "quests:manage",
     WORLDMAP_VIEW: "worldmap:view",
     WORLDMAP_MANAGE: "worldmap:manage",
+    MINIGAMES_VIEW: "minigames:view",
+    MINIGAMES_MANAGE: "minigames:manage",
     RESOURCES_VIEW: "resources:view",
     RESOURCES_MANAGE: "resources:manage",
 
@@ -49,6 +51,7 @@ export const PERMISSIONS = {
     // Chat
     CHAT_VIEW: "chat:view",         // Lire + écrire dans le chat guilde
     CHAT_MODERATE: "chat:moderate", // Muter des membres, vider l'historique
+    STUFF_GALLERY_VIEW: "gallery:stuff_view",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -110,6 +113,9 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.QUESTS_MANAGE]: { label: "Gérer Quêtes Dofus", description: "Gérer les arbres de progression.", module: "admin" },
     [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir la Carte du Monde", description: "Accès à la carte interactive et aux outils d'exploration.", module: "tools" },
     [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer la Carte du Monde", description: "Gérer les marqueurs et configurations de la carte.", module: "admin" },
+    [PERMISSIONS.MINIGAMES_VIEW]: { label: "Voir les Mini-Jeux", description: "Accès au hub des mini-jeux (Guesser, King, etc.).", module: "features" },
+    [PERMISSIONS.MINIGAMES_MANAGE]: { label: "Gérer les Mini-Jeux", description: "Gérer la disponibilité et la maintenance des jeux.", module: "admin" },
+    [PERMISSIONS.STUFF_GALLERY_VIEW]: { label: "Galerie de Stuff", description: "Consulter les builds partagés par la communauté.", module: "features" },
 
     // Calendar
     [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },

@@ -12,7 +12,7 @@ export default async function SigilGarticPage({
     const { room: roomId } = await searchParams;
 
     return (
-        <div className="fixed inset-0 top-[80px] md:left-[280px] bg-[#c83d5a] z-40 overflow-hidden">
+        <div className="fixed top-[64px] md:top-[88px] bottom-0 left-0 md:left-[280px] right-0 bg-[#c83d5a] z-40 overflow-hidden">
             <div className="h-full w-full overflow-hidden relative">
                 <GarticGameWrapper roomId={roomId} guildId={guildId} />
             </div>

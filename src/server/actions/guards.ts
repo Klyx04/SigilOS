@@ -42,6 +42,10 @@ export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
 
     try {
         const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const { isSuperAdmin } = await import("./super-admin-actions");
+
+        // Super-admin bypass (Platform God Mode)
+        if (await isSuperAdmin()) return { isAuthorized: true, discordUserId };
 
         // Parallel fetch for performance (~3x faster)
         const [guildInfo, member, guildRoles] = await Promise.all([
@@ -65,6 +69,8 @@ export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
         const isAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
 
         if (!isAdmin) {
+            const { logAdminAccessDenied } = await import("./audit-actions");
+            await logAdminAccessDenied(guildId, "ADMIN_GUARD_FAILURE");
             return { isAuthorized: false, error: "Admin permission required" };
         }
 

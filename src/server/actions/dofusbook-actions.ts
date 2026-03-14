@@ -14,17 +14,17 @@ const CACHE_TTL = 3600 * 24; // 24 hours
  */
 export async function getDofusbookId(url: string): Promise<string | null> {
     try {
-        // 1. Direct regex for full URLs (handling public, private, or direct)
-        const fullUrlMatch = url.match(/equipement\/(?:[a-z]+\/)?(\d+)/i);
+        // 1. Direct regex for full URLs - handles IDs followed by slugs: 16093854-sram-air...
+        const fullUrlMatch = url.match(/(?:equipement|dofus)\/(?:[a-z]+\/)?(?:private\/)?(\d+)/i);
         if (fullUrlMatch) return fullUrlMatch[1];
 
-        // 2. Short URL resolution
+        // 2. Short URL resolution (d-bk.net)
         if (url.includes("d-bk.net")) {
             const response = await fetch(url, {
-                method: "HEAD",
+                method: "GET", 
                 redirect: "follow",
                 headers: {
-                    "User-Agent": "SigilOS-Bot/1.0 (+https://sigilos.fr)"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                 }
             });
             const finalUrl = response.url;
@@ -56,18 +56,83 @@ export async function getDofusbookPreview(url: string): Promise<{ success: boole
             if (cached) return { success: true, data: JSON.parse(cached), id };
         }
 
-        // 2. Fetch from API
-        // Simplified headers to match working curl test
+        // 2. Fetch from API with Browser-Authentic Headers
+        const headers: Record<string, string> = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.dofusbook.net/fr/equipement/",
+            "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+        };
         const response = await fetch(`${DOFUSBOOK_API}${id}`, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-                "Referer": "https://www.dofusbook.net/"
-            },
+            headers,
             cache: 'no-store'
         });
 
         if (!response.ok) {
-            console.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
+            console.error(`[Dofusbook] API Error ${response.status} for build ${id}.`);
+            
+            // 🚀 FALLBACK: If API is 403 (Cloudflare Block), try to scrape the HTML page
+            // Cloudflare is often less aggressive on the main page than the API endpoint.
+            if (response.status === 403) {
+                console.log(`[Dofusbook] API Blocked (403), attempting HTML scraping fallback for build ${id}...`);
+                try {
+                    const htmlResponse = await fetch(`https://www.dofusbook.net/fr/equipement/${id}`, {
+                        headers: {
+                            ...headers,
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        },
+                        cache: 'no-store'
+                    });
+
+                    if (htmlResponse.ok) {
+                        const html = await htmlResponse.text();
+                        const { load } = await import('cheerio');
+                        const $ = load(html);
+                        
+                        // Look for the script containing the build data
+                        // It's usually in a script tag that contains "initialStuff"
+                        let scrapedData: any = null;
+                        
+                        $('script').each((_, el) => {
+                            const content = $(el).html() || '';
+                            if (content.includes('initialStuff')) {
+                                try {
+                                    // Extract the JSON blob
+                                    const match = content.match(/initialStuff\s*=\s*({.*?});/s);
+                                    if (match) {
+                                        scrapedData = JSON.parse(match[1]);
+                                        return false; // break loop
+                                    }
+                                } catch (e) {
+                                    console.error("[Dofusbook] Failed to parse scraped JSON:", e);
+                                }
+                            }
+                        });
+
+                        if (scrapedData) {
+                            console.log(`[Dofusbook] Successfully scraped data from HTML for build ${id}`);
+                            const data = processDofusbookRawData(id, scrapedData);
+                            
+                            // Store in Cache
+                            if (redis && redis.status === "ready") {
+                                await redis.set(cacheKey, JSON.stringify(data), "EX", CACHE_TTL);
+                            }
+                            return { success: true, data, id };
+                        }
+                    }
+                } catch (scrapeError) {
+                    console.error("[Dofusbook] Scraping fallback failed:", scrapeError);
+                }
+                
+                return { success: false, error: "Dofusbook bloque votre serveur (403). Même le scraping a échoué.", id };
+            }
+
             if (response.status === 404) return { success: false, error: "Stuff introuvable", id };
             return { success: false, error: "Erreur API Dofusbook (" + response.status + ")", id };
         }

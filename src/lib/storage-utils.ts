@@ -16,9 +16,9 @@ export async function deleteProofFile(proofUrl: string) {
     if (!proofUrl.startsWith("/uploads/")) return;
 
     // Normalize to block path traversal (e.g. /../etc/passwd)
-    const relativePath = proofUrl.replace(/^\//, "");
-    const absolutePath = normalize(join(process.cwd(), "public", relativePath));
-    const uploadsRoot = normalize(join(process.cwd(), "public", "uploads"));
+    const relativePath = proofUrl.replace(/^\/uploads\//, "");
+    const absolutePath = normalize(join(process.cwd(), "private_uploads", relativePath));
+    const uploadsRoot = normalize(join(process.cwd(), "private_uploads"));
 
     if (!absolutePath.startsWith(uploadsRoot)) {
         logger.warn(`[Storage] Path traversal attempt blocked`, { proofUrl });

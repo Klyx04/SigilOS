@@ -8,20 +8,38 @@ import { PresenceManager } from "@/lib/presence";
 /**
  * Returns a list of users who have been active in the last X minutes.
  */
-export async function getActivePresence(guildId: string, limit: number = 20) {
-    const ACTIVE_THRESHOLD_MINUTES = 2;
-    const threshold = new Date(Date.now() - ACTIVE_THRESHOLD_MINUTES * 60 * 1000);
+import { cache } from "react";
 
+// In-memory cache for internal guild IDs (5min TTL)
+const guildIdCache = new Map<string, { id: string, expiresAt: number }>();
+
+async function getInternalGuildId(discordGuildId: string): Promise<string | null> {
+    const now = Date.now();
+    const cached = guildIdCache.get(discordGuildId);
+    if (cached && cached.expiresAt > now) return cached.id;
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true }
+    });
+
+    if (guildConfig) {
+        guildIdCache.set(discordGuildId, { id: guildConfig.id, expiresAt: now + 300_000 });
+        return guildConfig.id;
+    }
+    return null;
+}
+
+/**
+ * Returns a list of users who have been active in the last X minutes.
+ */
+export const getActivePresence = cache(async (guildId: string, limit: number = 20) => {
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-
-        if (!guildConfig) return { success: false, data: [], totalActive: 0 };
+        const internalId = await getInternalGuildId(guildId);
+        if (!internalId) return { success: false, data: [], totalActive: 0 };
 
         // --- NEW REDIS-FIRST LOGIC ---
-        const activeIds = await PresenceManager.getActiveUserIds(guildConfig.id);
+        const activeIds = await PresenceManager.getActiveUserIds(internalId);
 
         let activeUsers: any[] = [];
         let totalActive = activeIds.length;
@@ -31,7 +49,7 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
             activeUsers = await db.userProfile.findMany({
                 where: {
                     userId: { in: activeIds },
-                    guildId: guildConfig.id,
+                    guildId: internalId,
                     status: ProfileStatus.ACTIVE
                 },
                 select: {
@@ -47,16 +65,14 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
         }
 
         // Falls back to Prisma only if Redis returned absolutely nothing but thresholds say otherwise?
-        // Actually, Redis is now the source of truth for "active right now".
         if (totalActive === 0) {
-            // Check Prisma as safety/fallback
             const threshold = new Date(Date.now() - 2 * 60 * 1000);
             totalActive = await db.userProfile.count({
-                where: { guildId: guildConfig.id, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE }
+                where: { guildId: internalId, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE }
             });
             if (totalActive > 0) {
                 activeUsers = await db.userProfile.findMany({
-                    where: { guildId: guildConfig.id, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE },
+                    where: { guildId: internalId, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE },
                     select: { id: true, discordNickname: true, pseudoDofus: true, lastActivityAt: true, user: { select: { name: true, image: true } } },
                     take: limit
                 });
@@ -77,11 +93,12 @@ export async function getActivePresence(guildId: string, limit: number = 20) {
         console.error("[Presence] Failed to fetch active users:", error);
         return { success: false, data: [] };
     }
-}
+});
 
 /**
  * Updates the lastActivityAt timestamp for the current user/guild.
- * Also emits LOGIN or NEW_MEMBER activity events when relevant.
+ * Throttles database writes to once every 10 minutes per user/guild.
+ * Always updates Redis for real-time presence.
  */
 export async function updateHeartbeat(guildId: string) {
     try {
@@ -89,31 +106,35 @@ export async function updateHeartbeat(guildId: string) {
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
         const userId = session.user.id;
 
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
+        const internalId = await getInternalGuildId(guildId);
+        if (!internalId) return { success: false };
+
+        // 1. ALWAYS update Redis (High-performance tracker)
+        await PresenceManager.updatePresence(internalId, userId);
+
+        // 2. THOROTTLE database writes (lastActivityAt)
+        // We only update the DB if the last update was more than 10 minutes ago
+        const profile = await db.userProfile.findUnique({
+            where: { 
+                userId_guildId: {
+                    userId,
+                    guildId: internalId
+                }
+            },
+            select: { id: true, lastActivityAt: true }
         });
 
-        if (!guildConfig) return { success: false };
+        if (!profile) return { success: false };
 
-        // Fetch current profile to detect login vs new_member
-        const profile = await db.userProfile.findFirst({
-            where: { guildId: guildConfig.id, userId, status: "ACTIVE" },
-            select: {
-                id: true,
-                discordNickname: true,
-                pseudoDofus: true,
-                lastActivityAt: true,
-                user: { select: { name: true, image: true } }
-            }
-        });
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const shouldUpdateDB = !profile.lastActivityAt || profile.lastActivityAt < tenMinutesAgo;
 
-        const now = new Date();
-
-        await db.userProfile.updateMany({
-            where: { guildId: guildConfig.id, userId },
-            data: { lastActivityAt: now }
-        });
+        if (shouldUpdateDB) {
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: { lastActivityAt: new Date() }
+            });
+        }
 
         return { success: true };
     } catch (error) {

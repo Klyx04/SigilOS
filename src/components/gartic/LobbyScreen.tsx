@@ -48,7 +48,7 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
             <div className="w-full bg-white/10 backdrop-blur-md border-[8px] border-white/10 rounded-[3.5rem] p-8 md:p-12 shadow-2xl flex flex-col gap-10 relative overflow-visible">
                 
                 {/* Purple Header - Adaptive height and text */}
-                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 relative overflow-hidden shadow-2xl -mt-10 md:-mt-16 border-b-8 border-black/20 text-center shrink-0">
+                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 relative overflow-hidden shadow-2xl -mt-8 md:-mt-12 border-b-8 border-black/20 text-center shrink-0">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 md:h-8 bg-black/20 rounded-b-2xl flex items-center justify-center">
                         <span className="text-white/40 font-black text-[8px] md:text-[10px] tracking-widest uppercase italic">SIGILPHONE LOBBY</span>
                     </div>
@@ -83,15 +83,35 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     {/* LEFT: Players List */}
                     <div className="lg:col-span-8 flex flex-col gap-6">
+                        {/* Spectators Section */}
+                        {room.players.some(p => (p as any).isSpectator) && (
+                            <div className="w-full bg-white/5 backdrop-blur-md rounded-[2rem] p-6 border border-white/10 flex flex-col gap-4">
+                                <div className="flex items-center gap-3 text-white/40 px-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                    <span className="font-black text-[10px] uppercase tracking-[0.2em] italic">Ils nous regardent ({room.players.filter(p => (p as any).isSpectator).length})</span>
+                                </div>
+                                <div className="flex flex-wrap gap-4">
+                                    {room.players.filter(p => (p as any).isSpectator).map((spectator) => (
+                                        <div key={spectator.id} className="flex items-center gap-3 bg-white/5 pr-4 pl-1 py-1 rounded-full border border-white/10 group hover:bg-white/10 transition-all">
+                                            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/10">
+                                                <img src={spectator.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${spectator.username}`} alt="avatar" className="w-full h-full object-cover" />
+                                            </div>
+                                            <span className="text-white/60 font-black text-[10px] uppercase italic truncate max-w-[100px]">{spectator.username}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-4">
                             <UsersIcon className="text-white/60" size={24} />
                             <h3 className="text-white text-2xl font-black uppercase italic tracking-wider">
-                                JOUEURS <span className="text-purple-300">({room.players.length}/{room.maxPlayers})</span>
+                                JOUEURS <span className="text-purple-300">({room.players.filter(p => !(p as any).isSpectator).length}/{room.maxPlayers})</span>
                             </h3>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 p-2 max-h-[450px] overflow-y-auto custom-scrollbar">
-                            {room.players.map((player, i) => {
+                            {room.players.filter(p => !(p as any).isSpectator).map((player, i) => {
                                 const isHostPlayer = (player as any).isHost || i === 0;
                                 return (
                                     <div 

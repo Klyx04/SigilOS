@@ -361,14 +361,12 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
 
     return (
         <div 
-            className="min-h-screen h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-2 md:p-8 overflow-x-hidden"
+            className="min-h-screen h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-2 md:p-8 overflow-x-hidden relative"
             onClick={unlockAudio}
-            style={{ 
-                backgroundImage: `url('https://skribbl.io/res/background.png')`,
-                backgroundRepeat: 'repeat',
-                backgroundSize: 'auto'
-            }}
         >
+            {/* BACKGROUND OVERLAY */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a4e9b] via-[#2c2c54] to-[#1a1a3a] pointer-events-none" />
+            
             {/* STYLED EXIT BUTTON */}
             <button 
                 onClick={handleExitToMenu}
@@ -381,14 +379,6 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
             </button>
 
             <div className="w-full max-w-[95vw] flex flex-col gap-4 md:gap-6 mx-auto animate-in fade-in zoom-in duration-500 py-2 md:py-4 px-1 md:px-2 relative h-[95vh] md:h-[90vh]">
-                <div className="flex justify-center shrink-0">
-                    <img 
-                        src="https://skribbl.io/res/logo.gif" 
-                        alt="skribbl.io" 
-                        className="h-12 md:h-20 drop-shadow-[0_8px_0_rgba(0,0,0,0.15)] filter brightness-110" 
-                    />
-                </div>
-
                 <div className="flex gap-4 items-stretch justify-center w-full grow min-h-0 overflow-hidden">
                     {/* Main Game Area - Fluid */}
                     <div className="flex flex-col flex-1 gap-4 min-w-0 h-full max-w-full">
@@ -517,7 +507,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                                   </button>
                                                               )}
                                                           </div>
-                                                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                                                          <div className="flex flex-wrap gap-2 justify-center">
                                                               {SKRIBBL_CATEGORIES.map((cat: any) => {
                                                                   const allowed = gameState?.allowedCategories || [];
                                                                   const isSelected = allowed.length === 0 || allowed.includes(cat.id);
@@ -549,8 +539,10 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                                                   className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent pointer-events-none" 
                                                                               />
                                                                           )}
-                                                                          <span className="text-sm md:text-base group-hover:scale-110 transition-transform relative z-10">{cat.icon}</span>
-                                                                          <span className="text-[8px] md:text-[10px] font-black uppercase tracking-tight leading-none truncate relative z-10">{cat.label}</span>
+                                                                          <span className="text-sm md:text-base group-hover:scale-110 transition-transform relative z-10 shrink-0">{cat.icon}</span>
+                                                                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-tight leading-[1.1] relative z-10 break-words w-full text-center flex-1 min-w-0">
+                                                                              {cat.label}
+                                                                          </span>
                                                                       </button>
                                                                   );
                                                               })}
@@ -643,6 +635,14 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                             </button>
                                                         ))}
                                                     </div>
+                                                    {!gameState.hasRerolled && (
+                                                        <button
+                                                            onClick={() => socket?.emit("skribbl:word:reroll")}
+                                                            className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-black uppercase text-sm rounded-2xl border-b-4 border-black/20 transition-all hover:scale-105 active:scale-95 shadow-xl flex items-center gap-2"
+                                                        >
+                                                            <RefreshCw size={18} /> Relancer les mots
+                                                        </button>
+                                                    )}
                                                 </motion.div>
                                             )}
 

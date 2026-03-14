@@ -111,9 +111,9 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
     };
 
     return (
-        <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0a0415] shadow-2xl transition-all duration-500">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#09090b] shadow-2xl transition-all duration-500">
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-blue-900/10 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 via-blue-900/5 to-transparent pointer-events-none" />
             <div
                 className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px] opacity-30 pointer-events-none transition-all duration-700"
                 style={{
@@ -221,7 +221,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             {onOpenBossGuide && (
                                 <button
                                     onClick={onOpenBossGuide}
-                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-fuchsia-500/30 bg-fuchsia-600/10 text-fuchsia-200 hover:bg-fuchsia-500/20 hover:text-white hover:border-fuchsia-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(217,70,239,0.2)] transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                                 >
                                     <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform drop-shadow-[0_0_10px_rgba(217,70,239,1)]" />
                                     <span>Guide Boss Songes</span>
@@ -284,7 +284,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                                 Clôturer la Run
                                             </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-[#0f0518] border-purple-500/20 text-white sm:max-w-md">
+                                        <DialogContent className="bg-[#09090b] border-white/10 text-white sm:max-w-md">
                                             <DialogHeader>
                                                 <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                                                     <Trophy className="w-5 h-5 text-amber-500" />

@@ -143,7 +143,13 @@ export async function fetchBotGuilds() {
 
 export async function fetchGuildMember(guildId: string, userId: string) {
     const cacheKey = `member:${guildId}:${userId}`;
-    const cached = getCached<{ user?: { id: string; username: string; global_name?: string }; nick?: string | null; roles: string[]; joined_at?: string } | null>(cacheKey);
+    const cached = getCached<{ 
+        user?: { id: string; username: string; global_name?: string; avatar?: string | null }; 
+        nick?: string | null; 
+        avatar?: string | null;
+        roles: string[]; 
+        joined_at?: string 
+    } | null>(cacheKey);
     if (cached !== null) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -162,8 +168,9 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     }
 
     const data = await res.json() as {
-        user?: { id: string; username: string; global_name?: string };
+        user?: { id: string; username: string; global_name?: string; avatar?: string | null };
         nick?: string | null;
+        avatar?: string | null;
         roles: string[];
         joined_at?: string;
     };
@@ -469,6 +476,43 @@ export async function sendChannelMessage(
 }
 
 /**
+ * Send a direct message to a Discord user
+ */
+export async function sendDirectMessage(
+    userId: string,
+    content: string,
+    options?: SendChannelMessageOptions
+): Promise<string | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+
+    try {
+        // 1. Create DM channel
+        const dmRes = await fetchWithRetry(`https://discord.com/api/v10/users/@me/channels`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ recipient_id: userId }),
+        });
+
+        if (!dmRes.ok) {
+            console.error(`[Discord] Failed to create DM channel: ${dmRes.status}`);
+            return null;
+        }
+
+        const dmChannel = await dmRes.json() as { id: string };
+
+        // 2. Send message to that channel
+        return sendChannelMessage(dmChannel.id, content, options);
+    } catch (error) {
+        console.error("[Discord] Error sending DM:", error);
+        return null;
+    }
+}
+
+/**
  * Update an existing Discord message
  */
 export async function updateChannelMessage(
@@ -658,6 +702,25 @@ export async function addRoleToMember(guildId: string, userId: string, roleId: s
 }
 
 /**
+ * Remove a role from a member in a guild
+ */
+export async function removeRoleFromMember(guildId: string, userId: string, roleId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${token}` },
+        });
+        return res.ok || res.status === 204;
+    } catch (error) {
+        console.error("[Discord] Error removing role from member:", error);
+        return false;
+    }
+}
+
+/**
  * Archive and lock a thread (used when closing a ticket)
  */
 export async function archiveThread(threadId: string): Promise<boolean> {
@@ -718,4 +781,49 @@ export async function verifyDiscordSignature(
         console.error("Signature verification failed:", error);
         return false;
     }
+}
+
+/**
+ * Send a high-priority security alert to the platform's security channel
+ */
+export async function sendSecurityAlert(data: {
+    type: string;
+    description: string;
+    severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    guildName?: string;
+    userName?: string;
+    metadata?: Record<string, any>;
+}) {
+    const channelId = process.env.DISCORD_SECURITY_ALERTS_CHANNEL_ID;
+    if (!channelId) return;
+
+    const colors = {
+        LOW: 0x3b82f6,      // Blue
+        MEDIUM: 0xeab308,   // Yellow
+        HIGH: 0xef4444,     // Red
+        CRITICAL: 0x7f1d1d  // Dark Red
+    };
+
+    const fields = [
+        { name: "Type", value: `\`${data.type}\``, inline: true },
+        { name: "Sévérité", value: `**${data.severity}**`, inline: true },
+    ];
+
+    if (data.guildName) fields.push({ name: "Guilde", value: data.guildName, inline: true });
+    if (data.userName) fields.push({ name: "Auteur", value: data.userName, inline: true });
+
+    // Sanitize metadata for fields
+    if (data.metadata) {
+        Object.entries(data.metadata).slice(0, 5).forEach(([key, value]) => {
+            const strValue = typeof value === 'object' ? JSON.stringify(value).substring(0, 100) : String(value);
+            fields.push({ name: key, value: `\`${strValue}\``, inline: true });
+        });
+    }
+
+    return sendChannelMessage(channelId, data.severity === "CRITICAL" ? "@everyone ALERTE SÉCURITÉ" : "", {
+        embedTitle: `🛡️ INCIDENT DE SÉCURITÉ - ${data.type}`,
+        embedDescription: data.description,
+        embedColor: colors[data.severity],
+        fields
+    });
 }

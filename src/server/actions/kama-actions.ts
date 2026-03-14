@@ -604,21 +604,8 @@ export async function deleteKamaDonation(
         if (isOwner && donation.status !== "PENDING") return { success: false, error: "Vous ne pouvez supprimer qu une donation en attente." };
 
         if (donation.proofUrl) {
-            try {
-                const { unlink } = await import("fs/promises");
-                const { existsSync } = await import("fs");
-                const path = await import("path");
-                const prefix = `/uploads/guilds/${guildConfig.id}/proofs/`;
-                if (donation.proofUrl.startsWith(prefix)) {
-                    const filename = donation.proofUrl.slice(prefix.length);
-                    if (/^[a-f0-9-]{36}\.webp$/.test(filename)) {
-                        const filePath = path.join(process.cwd(), "public", "uploads", "guilds", guildConfig.id, "proofs", filename);
-                        const safe = path.join(process.cwd(), "public", "uploads", "guilds", guildConfig.id, "proofs");
-                        if (path.normalize(filePath).startsWith(path.normalize(safe)) && existsSync(filePath))
-                            await unlink(filePath);
-                    }
-                }
-            } catch (e) { logger.error("deleteKamaDonation proof cleanup", { e }); }
+            const { deleteProofFile } = await import("@/lib/storage-utils");
+            await deleteProofFile(donation.proofUrl);
         }
 
         // Clean up associated imageHash

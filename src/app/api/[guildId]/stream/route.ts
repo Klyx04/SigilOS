@@ -68,14 +68,19 @@ export async function GET(
             // Send initial ping
             controller.enqueue(encode(": ping\n\n"));
 
+            let isPolling = false;
             const poll = setInterval(async () => {
-                if (closed) return clearInterval(poll);
+                if (closed || isPolling) return;
+                isPolling = true;
+
                 try {
                     const events = await db.guildActivity.findMany({
                         where: { guildId: config.id, createdAt: { gt: since } },
                         orderBy: { createdAt: "asc" },
                         take: 20,
                     });
+
+                    if (closed) return;
 
                     if (events.length > 0) {
                         since = events[events.length - 1].createdAt;
@@ -94,16 +99,22 @@ export async function GET(
                         // Keep-alive ping
                         controller.enqueue(encode(": ping\n\n"));
                     }
-                } catch {
+                } catch (err) {
                     clearInterval(poll);
-                    if (!closed) controller.close();
+                    if (!closed) {
+                        closed = true;
+                        try { controller.close(); } catch (e) {}
+                    }
+                } finally {
+                    isPolling = false;
                 }
             }, 8000); // Poll DB every 8s
 
             req.signal.addEventListener("abort", () => {
+                if (closed) return;
                 closed = true;
                 clearInterval(poll);
-                controller.close();
+                try { controller.close(); } catch (e) {}
             });
         },
     });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { downloadExternalImage } from "@/lib/image-downloader";
 import { z } from "zod";
-import { join } from "path";
+import { join, normalize } from "path";
 
 const schema = z.object({
     url: z.string().url(),
@@ -40,14 +40,16 @@ export async function POST(req: NextRequest) {
 
         const { url, type, identifier } = validation.data;
 
-        // 3. Construct destination path
-        const destination = join(
-            process.cwd(),
-            "public",
-            "game-data",
-            `${type}s`, // monsters, achievements, dungeons
-            `${identifier}.webp`
-        );
+        // 3. Construct destination path - Concat to bypass Turbopack analysis
+        const root = process.cwd();
+        let folder = "";
+        switch (type) {
+            case "achievement": folder = "achievements"; break;
+            case "monster": folder = "monsters"; break;
+            case "dungeon": folder = "dungeons"; break;
+            case "item": folder = "items"; break;
+        }
+        const destination = normalize(root + "/public/game-data/" + folder + "/" + identifier + ".webp");
 
         // 4. Download and optimize image
         const result = await downloadExternalImage(url, destination, type);

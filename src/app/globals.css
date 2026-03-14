@@ -306,10 +306,8 @@
 
 .doc-preview-content code {
   font-family: monospace !important;
-  background-color: rgba(99, 102, 241, 0.2) !important;
-  /* indigo-500/20 */
-  color: #818cf8 !important;
-  /* indigo-400 */
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #10b981 !important;
   padding: 0.2rem 0.4rem !important;
   border-radius: 0.25rem !important;
 }

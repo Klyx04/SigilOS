@@ -116,6 +116,18 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                     });
                     
                     await addUserToThread(thread.id, data.creatorDiscordId);
+                    
+                    // Force add all super-admins to the private thread so they can see and answer it
+                    const { getSuperAdminIds } = await import("@/server/actions/super-admin-actions");
+                    const admins = await getSuperAdminIds();
+                    for (const adminId of admins) {
+                        try {
+                            if (adminId !== data.creatorDiscordId) {
+                                await addUserToThread(thread.id, adminId);
+                            }
+                        } catch(e) {}
+                    }
+
                     const categoryLabel = TICKET_CATEGORY_LABELS[data.category] || "📩 Ticket";
                     const embedColor = TICKET_STATUS_COLORS[data.category] || 0x6366f1;
 

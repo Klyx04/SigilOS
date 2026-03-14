@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { getDofusWords, type SkribblWord } from "./words";
 import { logger } from "@/lib/logger";
+import { db } from "@/lib/prisma";
 import type { SkribblManager } from "./SkribblManager";
 
 type GameState = "LOBBY" | "SELECTING_WORD" | "DRAWING" | "ROUND_END" | "GAME_END";
@@ -68,12 +69,14 @@ export class SkribblRoom {
     private currentWordMask: string = "";
     private wordChoices: SkribblWord[] = [];
     private revealedHints: Set<number> = new Set();
+    private revealedHintIndexes: Set<number> = new Set(); // Indice des lettres révélées
     private showIconHint: boolean = false;
     private guessedPlayersCount: number = 0;
     private guessersScoresThisRound: number[] = [];
 
     private roundTimer: NodeJS.Timeout | null = null;
     private timeLeft: number = 0;
+    private hasRerolledThisTurn: boolean = false;
 
     // Canvas history pour les spectateurs qui rejoignent en retard
     private canvasActions: any[] = [];
@@ -213,6 +216,7 @@ export class SkribblRoom {
             currentWord: (this.state === "DRAWING" || this.state === "ROUND_END" || this.state === "GAME_END") ? this.currentWord : "",
             currentWordMask: this.currentWordMask,
             wordChoices: this.wordChoices,
+            hasRerolled: this.hasRerolledThisTurn,
             difficulty: this.difficulty,
             allowedCategories: this.allowedCategories,
             showIconHint: this.showIconHint,
@@ -233,17 +237,19 @@ export class SkribblRoom {
             drawerUserId: this.players.find(p => p.isDrawing)?.userId || null
         };
 
-        // Cache Word for non-drawers
-        const drawingPlayer = this.players.find(p => p.isDrawing);
-        const drawerUserId = drawingPlayer?.userId;
+        // On ne doit pas envoyer currentWord à tout le monde
+        const isRevealPhase = (this.state === "ROUND_END" || this.state === "GAME_END");
 
         this.players.forEach(p => {
             const personalState = { ...publicState };
             
-            // Un joueur est considéré comme "drawer" s'il est le socket désigné OU s'il partage le même userId (multi-comptes/fantômes)
+            // Drawer identification
+            const drawingPlayer = this.players.find(p => p.isDrawing);
+            const drawerUserId = drawingPlayer?.userId;
             const isActuallyDrawing = p.isDrawing || (drawerUserId && p.userId === drawerUserId);
 
-            if (!isActuallyDrawing && (this.state === "DRAWING" || this.state === "SELECTING_WORD")) {
+            // Obfucation du mot et des choix
+            if (!isActuallyDrawing && !isRevealPhase) {
                 personalState.currentWord = "";
                 if (this.state === "SELECTING_WORD") personalState.wordChoices = [];
                 // L'icône n'est révélée qu'aux devineurs si showIconHint est vrai
@@ -333,6 +339,7 @@ export class SkribblRoom {
         this.revealedHints.clear();
         this.showIconHint = false;
         this.guessedPlayersCount = 0;
+        this.hasRerolledThisTurn = false;
         const currentDrawer = this.players[this.drawerIndex];
         currentDrawer.isDrawing = true;
         this.state = "SELECTING_WORD";
@@ -367,8 +374,11 @@ export class SkribblRoom {
         this.currentWord = choice.word;
         this.currentWordIcon = choice.iconUrl;
         this.currentWordCategory = choice.category;
-        this.usedWords.add(this.currentWord); // On retient qu'il a été utilisé
+        console.log(`[SkribblRoom:${this.id}] 📝 Set word: "${this.currentWord}" (Category: ${this.currentWordCategory})`);
+        
+        this.usedWords.add(this.currentWord.toLowerCase()); // On retient qu'il a été utilisé
         this.currentWordMask = this.currentWord.replace(/[a-zA-ZÀ-ÿ0-9]/g, "_");
+        this.revealedHintIndexes.clear();
         this.state = "DRAWING";
 
         this.emitToAll("skribbl:chat:message", { type: "system", text: `${drawer.userName} dessine !` });
@@ -380,6 +390,16 @@ export class SkribblRoom {
         this.startTimer(() => {
             this.endRound();
         });
+    }
+
+    public handleWordReroll(socketId: string) {
+        if (this.state !== "SELECTING_WORD" || this.hasRerolledThisTurn) return;
+        const drawer = this.players[this.drawerIndex];
+        if (!drawer || drawer.id !== socketId) return;
+
+        this.hasRerolledThisTurn = true;
+        this.wordChoices = getDofusWords(3, this.difficulty, this.usedWords, this.allowedCategories);
+        this.syncState();
     }
 
     public handleGuess(socket: Socket, text: string) {
@@ -489,15 +509,67 @@ export class SkribblRoom {
         }, 5000);
     }
 
-    private endGame() {
+    private async endGame() {
         this.state = "GAME_END";
         this.emitToAll("skribbl:chat:message", { type: "system", text: "La partie est terminée !" });
         
         // Trier les joueurs par score
         const winners = [...this.players].sort((a, b) => b.score - a.score);
-        this.emitToAll("skribbl:chat:message", { type: "system", text: `Le vainqueur est ${winners[0].userName} avec ${winners[0].score} kamas !` });
+        if (winners.length > 0) {
+            this.emitToAll("skribbl:chat:message", { type: "system", text: `Le vainqueur est ${winners[0].userName} avec ${winners[0].score} kamas !` });
+        }
         
         this.syncState();
+
+        // --- HALL OF FAME PERSISTENCE ---
+        try {
+            const validPlayers = this.players.filter(p => !p.isSpectator && p.userId);
+            // On ne compte que si il y a au moins 2 joueurs (pas de solo)
+            if (validPlayers.length > 1) {
+                for (const p of validPlayers) {
+                    // 1. Sauvegarder le score individuel
+                    await db.skribblScore.create({
+                        data: {
+                            guildId: this.guildId,
+                            userId: p.userId!,
+                            userName: p.userName,
+                            userAvatar: p.userAvatar,
+                            score: p.score
+                        }
+                    });
+
+                    // 2. Mettre à jour le rang global
+                    const rank = await db.skribblRank.upsert({
+                        where: { guildId_userId: { guildId: this.guildId, userId: p.userId! } },
+                        create: {
+                            guildId: this.guildId,
+                            userId: p.userId!,
+                            userName: p.userName,
+                            userAvatar: p.userAvatar,
+                            bestScore: p.score,
+                            totalPoints: p.score,
+                            gamesPlayed: 1
+                        },
+                        update: {
+                            userName: p.userName,
+                            userAvatar: p.userAvatar,
+                            totalPoints: { increment: p.score },
+                            gamesPlayed: { increment: 1 }
+                        }
+                    });
+
+                    // Update bestScore if needed
+                    if (p.score > rank.bestScore) {
+                        await db.skribblRank.update({
+                            where: { id: rank.id },
+                            data: { bestScore: p.score }
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("[SkribblRoom] Error saving Hall of Fame:", error);
+        }
         
         setTimeout(() => {
             this.state = "LOBBY";
@@ -523,20 +595,22 @@ export class SkribblRoom {
         // Very long words can have an extra hint
         if (ratio >= 0.85 && this.currentWord.length >= 8) shouldRevealCount = 4;
 
-        if (this.revealedHints.size < shouldRevealCount) {
-            const unrevealed = this.currentWord.split("")
+        if (this.revealedHintIndexes.size < shouldRevealCount) {
+            const chars = this.currentWord.split("");
+            const unrevealed = chars
                 .map((c, i) => i)
-                .filter(i => this.currentWord[i] !== " " && !this.revealedHints.has(i));
+                .filter(i => chars[i] !== " " && chars[i] !== "-" && chars[i] !== "'" && !this.revealedHintIndexes.has(i));
             
             if (unrevealed.length > 0) {
                 const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
-                this.revealedHints.add(idx);
+                this.revealedHintIndexes.add(idx);
                 
                 const charArray = this.currentWordMask.split("");
                 charArray[idx] = this.currentWord[idx];
                 this.currentWordMask = charArray.join("");
                 
-                this.syncState(); // Update clients with new hint
+                console.log(`[SkribblRoom:${this.id}] 💡 Revealed hint at index ${idx}: "${this.currentWord[idx]}" -> ${this.currentWordMask}`);
+                this.syncState(); 
             }
         }
 
@@ -591,7 +665,11 @@ export class SkribblRoom {
     public getState(): GameState { return this.state; }
 
     public getConnectedPlayerCount(): number {
-        return this.players.filter(p => p.isConnected).length;
+        return this.players.filter(p => p.isConnected && !p.isSpectator).length;
+    }
+
+    public getSpectatorCount(): number {
+        return this.players.filter(p => p.isConnected && p.isSpectator).length;
     }
 
     public getHostName(): string {
@@ -603,6 +681,7 @@ export class SkribblRoom {
         return {
             roomId,
             playerCount: this.getConnectedPlayerCount(),
+            spectatorCount: this.getSpectatorCount(),
             maxPlayers: 8,
             hostName: this.getHostName(),
             rounds: this.maxRounds,

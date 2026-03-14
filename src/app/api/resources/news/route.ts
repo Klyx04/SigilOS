@@ -261,15 +261,43 @@ export async function GET(req: NextRequest) {
     if (feedKey === "changelog") {
         try {
             const { fetchDofusChangelogs } = await import("@/lib/feed-aggregators");
+            const { getChangelogEntries } = await import("@/server/actions/changelog-actions");
+            
+            // 1. Get Dofus Official Changelogs
             const rawItems = await fetchDofusChangelogs();
-            const items = rawItems.map(item => ({
-                title: item.title,
-                link: item.url,
-                imageUrl: item.thumbnail || undefined,
-                pubDate: item.published.toISOString(),
-                description: item.description || "",
-                category: "Changelog"
+            const dofusItems = rawItems.map(item => {
+                let isoDate = new Date().toISOString();
+                try {
+                    if (item.published && !isNaN(item.published.getTime())) {
+                        isoDate = item.published.toISOString();
+                    }
+                } catch (e) { /* fallback to now */ }
+
+                return {
+                    title: `[DOFUS] ${item.title}`,
+                    link: item.url,
+                    imageUrl: item.thumbnail || undefined,
+                    pubDate: isoDate,
+                    description: item.description || "",
+                    category: "Dofus Update"
+                };
+            });
+
+            // 2. Get SigilOS Internal Changelogs
+            const sigilEntries = await getChangelogEntries(undefined, true);
+            const sigilItems = sigilEntries.slice(0, 5).map(entry => ({
+                title: `[SigilOS] ${entry.title}`,
+                link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/changelog`,
+                imageUrl: "https://i.imgur.com/AfFp7pu.png", // SigilOS Logo/Icon
+                pubDate: entry.publishedAt,
+                description: entry.summary || `Version ${entry.version} de votre plateforme.`,
+                category: "App Update"
             }));
+
+            // 3. Merge and sort
+            const items = [...sigilItems, ...dofusItems].sort((a, b) => 
+                new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+            );
 
             if (items.length > 0) {
                 return NextResponse.json(

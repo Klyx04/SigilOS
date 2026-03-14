@@ -614,10 +614,18 @@ export async function toggleMissionInterest(
 export async function submitMissionProof(
     missionId: string,
     imageData: string, // Base64 image data from client
-    helperIds: string[] = [] // IDs of UserProfile
+    helperIds: string[] = [], // IDs of UserProfile,
+    honeypot?: string // 🍯 Honeypot value
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    // 🍯 HONEYPOT CHECK
+    const { validateHoneypot } = await import("@/lib/honeypot");
+    if (!validateHoneypot({ hp_ignore_field: honeypot })) {
+        logger.warn(`[Security] Honeypot triggered by user ${session.user.id}`);
+        return { success: false, error: "Action interdite : Protection anti-bot activée." };
+    }
 
     // RATE LIMIT: 10 submissions per minute
     const limiter = await rateLimit(`submit_proof:${session.user.id}`, 10, 60 * 1000);
@@ -725,8 +733,8 @@ export async function submitMissionProof(
             .toBuffer();
 
         // 4. Save proof image (Always .webp now)
-        const uploadRelativeDir = `uploads/proofs/${mission.guild.discordGuildId}`;
-        const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+        const storageSubDir = `proofs/${mission.guild.discordGuildId}`;
+        const uploadDir = join(process.cwd(), "private_uploads", storageSubDir);
         await mkdir(uploadDir, { recursive: true });
 
         const { randomUUID } = await import("crypto");
@@ -734,7 +742,7 @@ export async function submitMissionProof(
         const filePath = join(uploadDir, fileName);
 
         await writeFile(filePath, optimizedBuffer);
-        const proofUrl = `/${uploadRelativeDir}/${fileName}`;
+        const proofUrl = `/uploads/${storageSubDir}/${fileName}`;
 
         const submission = await db.submission.create({
             data: {
@@ -1039,49 +1047,55 @@ export async function cancelMySubmission(
 }
 
 
-export async function cleanupExpiredSubmissions(guildId: string) {
-    // 24 hours expiration
-    const EXPIRATION_MS = 24 * 60 * 60 * 1000;
+/**
+ * Cleanup pending mission submissions older than 48h
+ */
+export async function cleanupExpiredSubmissions(discordGuildId: string) {
+    const EXPIRATION_MS = 48 * 60 * 60 * 1000; // 48 hours
     const thresholdDate = new Date(Date.now() - EXPIRATION_MS);
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return;
+        const guild = await db.guildConfig.findUnique({ where: { discordGuildId } });
+        if (!guild) return;
 
-        const expiredSubmissions = await db.submission.findMany({
+        const expired = await db.submission.findMany({
             where: {
-                mission: { guildId: guildConfig.id },
+                mission: { guildId: guild.id },
                 status: "PENDING",
                 createdAt: { lt: thresholdDate }
             }
         });
 
-        if (expiredSubmissions.length > 0) {
-            for (const sub of expiredSubmissions) {
-                // Delete file
-                await deleteProofFile(sub.proofUrl);
-                // Delete submission to reset state for user
+        if (expired.length > 0) {
+            for (const sub of expired) {
+                if (sub.proofUrl) {
+                    await deleteProofFile(sub.proofUrl);
+                }
                 await db.submission.delete({ where: { id: sub.id } });
             }
+            logger.info(`[Cleanup] Deleted ${expired.length} expired mission submissions`, { discordGuildId });
         }
     } catch (error) {
-        console.error("[Cleanup] Error:", error);
+        logger.error("[Cleanup] Mission cleanup error:", { error });
     }
 }
 
-export async function getPendingSubmissions(guildId: string): Promise<ActionResponse<any>> {
+/**
+ * Get pending submissions for validation
+ */
+export async function getPendingSubmissions(discordGuildId: string): Promise<ActionResponse<any>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.MISSIONS_VALIDATE);
     if (!guard.allowed) return { success: false, error: guard.error };
 
-    // Lazy Cleanup
-    await cleanupExpiredSubmissions(guildId);
+    // 🧹 LAZY CLEANUP
+    await cleanupExpiredSubmissions(discordGuildId).catch(err => {
+        logger.error("[Cleanup] Lazy cleanup failed", { err, discordGuildId });
+    });
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
-            where: { discordGuildId: guildId },
+            where: { discordGuildId },
             select: { id: true, rolesMapping: true }
         });
 
@@ -1120,7 +1134,6 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
 
         const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
 
-        // Enrich submissions with isAdmin flag
         const enrichedSubmissions = submissions.map(sub => {
             const isAdmin = sub.profile.discordRoleName === "Administrateur" ||
                 Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && sub.profile.discordRoleName;
@@ -1137,8 +1150,8 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
         return { success: true, data: enrichedSubmissions };
 
     } catch (error) {
-        console.error("Fetch Pending Error:", error);
-        return { success: false, error: "Database error" };
+        logger.error("Fetch Pending Error:", { error, discordGuildId });
+        return { success: false, error: "Erreur serveur" };
     }
 }
 
@@ -1451,7 +1464,6 @@ export async function getGuildMissionXpOverride(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
-        // Cast: $extends type loses new fields - use Record<string,true> pattern
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { missionWeekXpOverride: true } as Record<string, true>

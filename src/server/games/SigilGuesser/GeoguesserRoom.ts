@@ -119,7 +119,8 @@ export class GeoguesserRoom {
             // Notification join
             this.emitToAll("geoguesser:player:joined", { 
                 userName: playerObj.userName, 
-                userId: playerObj.userId 
+                userId: playerObj.userId,
+                isSpectator: !!playerObj.isSpectator
             });
         }
 
@@ -372,6 +373,66 @@ export class GeoguesserRoom {
                         where: { sessionId: this.id, userId: p.userId },
                         data: { totalScore: p.score }
                     });
+                }
+                
+                // --- UPDATE HALL OF FAME ---
+                // Only count players that are not spectators.
+                const validPlayers = this.players.filter(p => !p.isSpectator && p.userId);
+                console.log(`[GeoRoom:${this.id}] 🏆 Fin de partie. Joueurs valides pour le Hall of Fame: ${validPlayers.length} (Total: ${this.players.length})`);
+                
+                // Exclude solo games (must have > 1 valid players)
+                if (validPlayers.length > 1) {
+                    for (const p of validPlayers) {
+                        try {
+                            console.log(`[GeoRoom:${this.id}] 💾 Persistance du score pour ${p.userName} (${p.userId}): ${p.score} pts`);
+                            // 1. Sauvegarder le score de cette partie (Historique)
+                            await db.geoguesserScore.create({
+                                data: {
+                                    guildId: this.guildId,
+                                    userId: p.userId,
+                                    userName: p.userName || "Inconnu",
+                                    userAvatar: p.userAvatar,
+                                    score: p.score,
+                                    distance: p.lastGuess?.distance || 0 
+                                }
+                            });
+
+                            // 2. Mettre à jour le classement global (Hall of Fame)
+                            const rank = await db.geoguesserRank.upsert({
+                                where: {
+                                    guildId_userId: { guildId: this.guildId, userId: p.userId }
+                                },
+                                create: {
+                                    guildId: this.guildId,
+                                    userId: p.userId,
+                                    userName: p.userName || "Inconnu",
+                                    userAvatar: p.userAvatar,
+                                    bestScore: p.score,
+                                    totalPoints: p.score,
+                                    gamesPlayed: 1,
+                                    avgDistance: p.lastGuess?.distance || 0 
+                                },
+                                update: {
+                                    totalPoints: { increment: p.score },
+                                    gamesPlayed: { increment: 1 },
+                                    userName: p.userName || "Inconnu",
+                                    userAvatar: p.userAvatar,
+                                }
+                            });
+                            
+                            // Empêcher la régression du bestScore
+                            if (p.score > rank.bestScore) {
+                                await db.geoguesserRank.update({
+                                    where: { id: rank.id },
+                                    data: { bestScore: p.score }
+                                });
+                            }
+                        } catch (err) {
+                            console.error(`[GeoRoom:${this.id}] ❌ Erreur mise à jour Hall of Fame pour ${p.userName}:`, err);
+                        }
+                    }
+                } else {
+                    console.log(`[GeoRoom:${this.id}] ℹ️ Partie ignorée par le Hall of Fame (Mode Solo ou moins de 2 joueurs).`);
                 }
             } else {
                 console.warn(`[GeoRoom:${this.id}] ⚠️ Session DB introuvable lors de endGame (déjà supprimée?). Scores non persistés.`);

@@ -15,16 +15,17 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
 
     const { guildId } = await params;
 
-    // Fetch user context for Discord info + RBAC
-    const userContext = await getUserContext(guildId);
+    // Fetch all data in parallel to avoid waterfalls
+    const [userContext, profileResponse, statsResponse] = await Promise.all([
+        getUserContext(guildId),
+        getUserProfile(guildId),
+        getProfileStats(guildId)
+    ]);
 
     // RBAC: Must be authenticated member of the guild with profile view permission
     if (!userContext.isAuthenticated || !userContext.isMember || !userContext.canViewProfile) {
         return <AccessDenied />;
     }
-
-    // Fetch profile
-    const profileResponse = await getUserProfile(guildId);
 
     if (!profileResponse.success || !profileResponse.data) {
         return (
@@ -36,9 +37,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     }
 
     const profile = profileResponse.data;
-
-    // Fetch stats
-    const statsResponse = await getProfileStats(guildId);
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,

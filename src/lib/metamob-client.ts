@@ -321,7 +321,7 @@ async function fetchApi<T>(
     try {
         const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
             ...fetchOptions,
-            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+            signal: AbortSignal.timeout(3000), // REDUCED: 3s timeout to avoid blocking layout
         });
 
         // [Robustness] Handle 401/403 gracefully
@@ -407,7 +407,7 @@ async function fetchPaginatedApi<T>(
     try {
         const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
             ...fetchOptions,
-            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
+            signal: AbortSignal.timeout(3000), // REDUCED: 3s timeout to avoid blocking layout
         });
 
         // [Robustness] 401/403 handling for paginated

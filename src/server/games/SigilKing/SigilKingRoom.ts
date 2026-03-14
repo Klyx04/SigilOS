@@ -103,7 +103,11 @@ export class SigilKingRoom {
     }
 
     public getConnectedPlayerCount(): number {
-        return this.players.filter(p => p.isConnected).length;
+        return this.players.filter(p => p.isConnected && !p.isSpectator).length;
+    }
+
+    public getSpectatorCount(): number {
+        return this.players.filter(p => p.isConnected && p.isSpectator).length;
     }
 
     public getHostName(): string {
@@ -115,6 +119,7 @@ export class SigilKingRoom {
         return {
             roomId,
             playerCount: this.getConnectedPlayerCount(),
+            spectatorCount: this.getSpectatorCount(),
             maxPlayers: 6,
             hostName: this.getHostName(),
             rounds: this.settings.maxRounds,
@@ -631,7 +636,7 @@ export class SigilKingRoom {
             roundResults: this.roundResults,
         });
 
-        this.saveGameResults(sortedPlayers);
+        this.saveGameResults();
         this.syncState();
 
         // Return to lobby after podium
@@ -688,9 +693,15 @@ export class SigilKingRoom {
         }
     }
 
-    private async saveGameResults(sortedPlayers: Player[]) {
+    private async saveGameResults() {
         try {
-            // 1. Save individual scores
+            const validPlayers = this.players.filter(p => !p.isSpectator && p.userId);
+            if (validPlayers.length <= 1) {
+                console.log(`[SigilKingRoom:${this.id}] PartIE solo ou uniquement des spectateurs - pas de Hall of Fame.`);
+                return;
+            }
+
+            const sortedPlayers = [...validPlayers].sort((a, b) => b.score - a.score);
             for (let i = 0; i < sortedPlayers.length; i++) {
                 const p = sortedPlayers[i];
                 if (!p.userId) continue;

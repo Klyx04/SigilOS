@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -88,6 +89,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     const [isSoloMode, setIsSoloMode] = useState(false);
     const [showRules, setShowRules] = useState(false);
     const [isLeavingSession, setIsLeavingSession] = useState(false);
+    const [showPerfectCelebration, setShowPerfectCelebration] = useState(false);
 
     // Leaderboard States
     const [ladder, setLadder] = useState<any[]>(initialLadder || []);
@@ -274,6 +276,12 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
         return index;
     }, [activeMaps]);
 
+    const isCurrentUserSpectator = useMemo(() => {
+        if (!activeSession) return false;
+        const me = activeSession.participants?.find((p: any) => String(p.userId) === String(currentUserId));
+        return me?.isSpectator || false;
+    }, [activeSession?.participants, currentUserId]);
+
     // On fait 100% confiance au serveur qui émet `geoguesser:state:sync` chaque seconde.
     // L'UI se mettra à jour automatiquement via setTimeLeft(state.timeLeft) dans le socket.on
 
@@ -406,16 +414,29 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
 
         newSocket.on("geoguesser:player:joined", (data: any) => {
             if (data.userId !== currentUserIdRef.current) {
-                toast.success(`${data.userName} a rejoint le salon !`, {
-                    icon: "👋",
-                    style: {
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid rgba(16, 185, 129, 0.2)',
-                        color: '#10b981',
-                        borderRadius: '1rem',
-                        backdropFilter: 'blur(10px)'
-                    }
-                });
+                if (data.isSpectator) {
+                    toast.info(`${data.userName} regarde la partie`, {
+                        icon: "👀",
+                        style: {
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            color: '#3b82f6',
+                            borderRadius: '1rem',
+                            backdropFilter: 'blur(10px)'
+                        }
+                    });
+                } else {
+                    toast.success(`${data.userName} a rejoint le salon !`, {
+                        icon: "👋",
+                        style: {
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            color: '#10b981',
+                            borderRadius: '1rem',
+                            backdropFilter: 'blur(10px)'
+                        }
+                    });
+                }
                 fetchLobbiesRef.current();
             }
         });
@@ -442,7 +463,12 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
 
             setActiveSession(state);
             const serverTime = state.timeLeft ?? 0;
-            setTimeLeft(prev => Math.abs(prev - serverTime) > 1 ? serverTime : prev);
+            setTimeLeft(prev => {
+                // If it's a short countdown (like 3-2-1), don't smooth it
+                if (serverTime <= 5) return serverTime;
+                // Otherwise, only sync if drift is > 2 seconds to avoid jitter
+                return Math.abs(prev - serverTime) > 2 ? serverTime : prev;
+            });
 
             const newState = state.state;
             const prevPhase = gamePhase;
@@ -497,18 +523,41 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                 const targetId = state.currentMapId || (state.targetMapIds && state.targetMapIds[state.currentRound - 1]);
                 const tMap = allMapsByIdRef.current.get(targetId);
                 if (tMap) {
-                    setGuessResult({
+                    const newResult = {
                         target: { x: tMap.x, y: tMap.y, worldMap: tMap.worldMap, mapId: targetId },
                         guess: (me?.lastGuess && !me.lastGuess.hidden) ? { ...me.lastGuess, x: me.lastGuess.x, y: me.lastGuess.y, worldMap: me.lastGuess.worldId } : null,
                         distance: me?.lastGuess?.distance || 0,
                         score: me?.lastGuess?.score || 0
-                    });
+                    };
+                    setGuessResult(newResult);
+
+                    // --- CELEBRATION TRIGGER ---
+                    if (newResult.distance === 0 && !me.isSpectator && (newState === 'RESULT' || newState === 'FINISHED' || me.hasGuessed)) {
+                        // Check if we already celebrated this round
+                        const celebratedRounds = (window as any)._geoSigilCelebratedRounds || new Set();
+                        const roundKey = `${activeSession?.id}-${state.currentRound}`;
+                        if (!celebratedRounds.has(roundKey)) {
+                            setShowPerfectCelebration(true);
+                            celebratedRounds.add(roundKey);
+                            (window as any)._geoSigilCelebratedRounds = celebratedRounds;
+                            playSoundEffect('success');
+                            setTimeout(() => setShowPerfectCelebration(false), 5000);
+                        }
+                    }
 
                     // If server says we guessed, enforce result phase
                     if (me?.hasGuessed && (newState === 'IN_PROGRESS' || newState === 'RESULT')) {
                         setGamePhase('result');
                     }
                 }
+            }
+        });
+
+        newSocket.on("geoguesser:player:joined", (data) => {
+            if (data.userId !== currentUserIdRef.current && activeTab === 'games') {
+                const msg = data.isSpectator ? `${data.userName} regarde votre partie.` : `${data.userName} a rejoint le salon.`;
+                toast.info(msg, { icon: data.isSpectator ? '👁️' : '🎮' });
+                if (data.isSpectator) playSoundEffect('ding'); // Subtle ping
             }
         });
 
@@ -635,6 +684,21 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
         }
     };
 
+    const handleReplay = async () => {
+        const wasSolo = isSoloMode;
+        if (activeSession) {
+            const roomId = activeSession.id;
+            socket?.emit("geoguesser:room:leave");
+            await leaveGeoguesserSession(roomId);
+        }
+        
+        if (wasSolo) {
+            handleSoloMode();
+        } else {
+            handleCreateRoom();
+        }
+    };
+
     const handleLeaveSession = async () => {
         if (!activeSession) return;
         const roomId = activeSession.id;
@@ -653,7 +717,8 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     };
 
     const handleMapClick = async (pos: any) => {
-        const isSpectator = activeSession?.isSpectator;
+        const me = activeSession?.participants?.find((p: any) => p.userId === currentUserId);
+        const isSpectator = activeSession?.isSpectator || me?.isSpectator;
         if (isSpectator && activeTab === 'games') return;
 
         if (activeTab === 'games' && gamePhase === 'playing' && targetMapId) {
@@ -664,7 +729,9 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     };
 
     const submitPendingGuess = () => {
-        if (!selectedPosition || !targetMapId || activeSession?.isSpectator) return;
+        const me = activeSession?.participants?.find((p: any) => p.userId === currentUserId);
+        const isSpectator = activeSession?.isSpectator || me?.isSpectator;
+        if (!selectedPosition || !targetMapId || isSpectator) return;
         const targetMap = allMapsById.get(targetMapId);
         if (!targetMap) return;
 
@@ -743,12 +810,29 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
             return;
         }
 
+        // Keywords that indicate a subarea is likely an interior or tactical map
+        const excludedKeywords = [
+            "donjon", "tunnel", "souterrain", "cave", "crypt", "labyrinthe", 
+            "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
+            "égout", "cellule", "prison", "temple", "salle", "château",
+            "laboratoire", "secret", "caché"
+        ];
+
         // On pioche dans les maps selon le mode
         const mode = activeSession.gameMode || 'NORMAL';
         const allPlayableMaps = worldMap.maps?.filter(m => {
             const isOutdoor = m.outdoor === true;
             const isValidWorld = m.worldMap !== -1;
             if (!isOutdoor || !isValidWorld) return false;
+
+            // Strict checking for subarea names to avoid "unfindable" maps
+            const subArea = subAreasById.get(m.subAreaId);
+            if (subArea) {
+                const subAreaName = (typeof subArea.name === 'string' ? subArea.name : subArea.name?.fr || "").toLowerCase();
+                if (excludedKeywords.some(key => subAreaName.includes(key))) {
+                    return false;
+                }
+            }
 
             if (mode === 'NORMAL') {
                 return m.worldMap === 1;
@@ -1004,13 +1088,31 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
                                     <h3 className="text-white font-black text-[10px] uppercase tracking-widest italic">Carte Tactique</h3>
                                 </div>
-                                <button
-                                    onClick={() => setMinimapRecenterTrigger(t => t + 1)}
-                                    className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all flex items-center gap-2 active:scale-95"
-                                >
-                                    <Compass size={12} />
-                                    <span className="text-[9px] font-black uppercase italic">Recenter</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 mr-2 border-r border-white/10 pr-3">
+                                        <button
+                                            onClick={() => setMinimapRecenterTrigger(t => t + 999)} // Use specific pattern for zoom in
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all active:scale-95"
+                                            title="Zoomer"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => setMinimapRecenterTrigger(t => t - 999)} // Use specific pattern for zoom out
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all active:scale-95"
+                                            title="Dézoomer"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => setMinimapRecenterTrigger(t => t > 0 && t < 900 ? t + 1 : 1)}
+                                        className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Compass size={12} />
+                                        <span className="text-[9px] font-black uppercase italic">Recentrer</span>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Integrated Map - Fixed flexible container */}
@@ -1034,11 +1136,12 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     minimapRecenterTrigger={minimapRecenterTrigger}
                                     participants={activeSession?.participants}
                                     currentUserId={currentUserId}
+                                    isSpectator={isCurrentUserSpectator}
                                     minZoom={Math.max((true && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                                 />
 
                                 {/* Floating Validation Overlay inside panel */}
-                                {selectedPosition && gamePhase === 'playing' && !activeSession?.isSpectator && (
+                                {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && (
                                     <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-500">
                                         <button
                                             onClick={submitPendingGuess}
@@ -1049,11 +1152,11 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     </div>
                                 )}
 
-                                {activeSession?.isSpectator && gamePhase === 'playing' && (
-                                    <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-500">
-                                        <div className="w-full py-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                            <span className="text-white/40 font-black uppercase text-[10px] tracking-[0.2em] italic">Mode Spectateur — Observation seule</span>
+                                {isCurrentUserSpectator && gamePhase === 'playing' && (
+                                    <div className="absolute top-6 inset-x-6 z-[1000] animate-in slide-in-from-top-6 duration-500">
+                                        <div className="w-full py-4 rounded-2xl bg-[#a78bfa]/10 backdrop-blur-xl border border-[#a78bfa]/20 flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(167,139,250,0.1)]">
+                                            <div className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
+                                            <span className="text-[#a78bfa] font-black uppercase text-[10px] tracking-[0.2em] italic drop-shadow-sm">Mode Spectateur — Observation seule</span>
                                         </div>
                                     </div>
                                 )}
@@ -1082,36 +1185,66 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                             guessResult={guessResult}
                             isMiniMap={false}
                             minimapRecenterTrigger={minimapRecenterTrigger}
-                            participants={activeSession?.participants}
-                            currentUserId={currentUserId}
+                                    participants={activeSession?.participants}
+                                    currentUserId={currentUserId}
+                                    isSpectator={isCurrentUserSpectator}
                             minZoom={Math.max((false && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                         />
                     </div>
                 )}
 
-                {/* Game HUD Overlay */}
+                {/* Game HUD Overlay - Portaled to Header */}
                 {activeTab === 'games' && gamePhase !== 'idle' && activeSession && (
-                    <div className="absolute inset-0 z-[900] pointer-events-none">
-                        <div className="absolute top-4 sm:top-10 left-1/2 -translate-x-1/2 z-[700] pointer-events-none w-full sm:w-auto px-4 sm:px-0">
-                            <GeoguesserHUD
-                                round={activeSession.currentRound || 1}
-                                maxRounds={activeSession.maxRounds || 5}
-                                timeLeft={timeLeft}
-                                score={score}
-                                gamePhase={gamePhase}
-                            />
-                        </div>
-                        {/* QUITTER LA PARTIE BUTTON */}
-                        <div className="absolute top-4 left-8 pointer-events-auto z-[800]">
-                            <button
-                                onClick={handleLeaveSession}
-                                className="px-5 py-3 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-black uppercase text-[10px] italic border-b-4 border-black/20 transition-all flex items-center gap-2 shadow-2xl active:scale-95"
-                            >
-                                <LogOut size={16} />
-                                <span>Quitter</span>
-                            </button>
-                        </div>
-                    </div>
+                    <>
+                        {typeof document !== 'undefined' && document.getElementById('sigil-geoguesser-header-hud') ? (
+                            createPortal(
+                                <GeoguesserHUD
+                                    round={activeSession.currentRound || 1}
+                                    maxRounds={activeSession.maxRounds || 5}
+                                    timeLeft={timeLeft}
+                                    score={score}
+                                    gamePhase={gamePhase}
+                                    spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                />,
+                                document.getElementById('sigil-geoguesser-header-hud')!
+                            )
+                        ) : (
+                            <div className="absolute top-4 sm:top-10 left-1/2 -translate-x-1/2 z-[700] pointer-events-none w-full sm:w-auto px-4 sm:px-0">
+                                <GeoguesserHUD
+                                    round={activeSession.currentRound || 1}
+                                    maxRounds={activeSession.maxRounds || 5}
+                                    timeLeft={timeLeft}
+                                    score={score}
+                                    gamePhase={gamePhase}
+                                    spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                />
+                            </div>
+                        )}
+
+                        {/* QUITTER LA PARTIE BUTTON - Portaled to Header */}
+                        {typeof document !== 'undefined' && document.getElementById('sigil-geoguesser-header-actions') ? (
+                            createPortal(
+                                <button
+                                    onClick={handleLeaveSession}
+                                    className="px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] border-black/20 transition-all flex items-center gap-2 shadow-[0_10px_20px_rgba(255,71,87,0.2)] active:translate-y-1 active:border-b-0 hover:scale-105"
+                                >
+                                    <LogOut size={16} />
+                                    <span>Quitter la partie</span>
+                                </button>,
+                                document.getElementById('sigil-geoguesser-header-actions')!
+                            )
+                        ) : (
+                            <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800]">
+                                <button
+                                    onClick={handleLeaveSession}
+                                    className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 hover:scale-105"
+                                >
+                                    <LogOut size={18} className="sm:w-5 sm:h-5" />
+                                    <span>Quitter la partie</span>
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {/* Result Screen Full Overlay (Inter-round) */}
@@ -1311,12 +1444,12 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                         <div className="flex items-center justify-between mb-5 px-4">
                                             <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
                                             <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
-                                                {activeSession.participants?.length} / 8 JOUEURS
+                                                {activeSession.participants?.filter((p: any) => !p.isSpectator).length} / 8 JOUEURS
                                             </div>
                                         </div>
 
                                         <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
-                                            {activeSession.participants?.sort((a: any, b: any) => (b.lastGuess?.score || 0) - (a.lastGuess?.score || 0)).map((p: any, i: number) => {
+                                            {activeSession.participants?.filter((p: any) => !p.isSpectator).sort((a: any, b: any) => (b.lastGuess?.score || 0) - (a.lastGuess?.score || 0)).map((p: any, i: number) => {
                                                 const dist = p.lastGuess?.distance ? Math.round(p.lastGuess.distance) : null;
                                                 const isMe = p.userId === currentUserId;
                                                 return (
@@ -1414,7 +1547,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                 </div>
 
                                 <div className="w-full space-y-3 mb-12 max-h-60 overflow-y-auto pr-2 scrollbar-hide">
-                                    {activeSession.participants?.sort((a: any, b: any) => b.score - a.score).map((p: any, i: number) => (
+                                    {activeSession.participants?.filter((p: any) => !p.isSpectator).sort((a: any, b: any) => b.score - a.score).map((p: any, i: number) => (
                                         <div key={p.userId} className={`flex items-center gap-4 p-4 rounded-2xl border ${p.userId === currentUserId ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/5'}`}>
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black italic ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-white/10 text-white/40'}`}>
                                                 {i + 1}
@@ -1434,12 +1567,21 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     ))}
                                 </div>
 
-                                <button
-                                    onClick={handleLeaveSession}
-                                    className="px-12 py-5 rounded-2xl bg-indigo-500 text-white font-black uppercase text-sm italic shadow-2xl shadow-indigo-500/20 hover:scale-[1.05] transition-all active:scale-[0.98]"
-                                >
-                                    Retour au Menu
-                                </button>
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={handleReplay}
+                                        className="px-10 py-5 rounded-2xl bg-emerald-500 text-white font-black uppercase text-sm italic shadow-2xl shadow-emerald-500/20 hover:scale-[1.05] transition-all active:scale-[0.98] flex items-center gap-2"
+                                    >
+                                        <RotateCcw size={18} />
+                                        Rejouer
+                                    </button>
+                                    <button
+                                        onClick={handleLeaveSession}
+                                        className="px-10 py-5 rounded-2xl bg-indigo-500 text-white font-black uppercase text-sm italic shadow-2xl shadow-indigo-500/20 hover:scale-[1.05] transition-all active:scale-[0.98]"
+                                    >
+                                        Retour au Menu
+                                    </button>
+                                </div>
                             </motion.div>
                         </motion.div>
                     )}
@@ -1906,10 +2048,10 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="max-w-5xl w-full md:h-[720px] bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)]"
+                            className="max-w-5xl w-full h-[85vh] md:h-auto md:max-h-[85vh] md:aspect-video bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden"
                         >
                             {/* Lobby Sidebar */}
-                            <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/5 p-6 md:p-10 bg-black/40 flex flex-col justify-between relative overflow-hidden shrink-0">
+                            <div className="w-full md:w-80 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-white/5 p-6 md:p-10 bg-black/40 flex flex-col justify-between relative shrink-0">
                                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-8">
@@ -1937,7 +2079,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                         <div className="flex flex-wrap gap-2">
                                             <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-[10px] font-black uppercase italic">
-                                                {isSoloMode ? "Mode Solo" : `${activeSession.participants?.length || 0} / 8 Joueurs`}
+                                                {isSoloMode ? "Mode Solo" : `${activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0} / 8 Joueurs`}
                                             </div>
                                             <div className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-500 text-[10px] font-black uppercase italic flex items-center gap-2">
                                                 {(activeSession.gameMode === 'SPECIAL') ? 'Mode Spécial' : 'Mode Normal'}
@@ -2016,28 +2158,71 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                             </div>
 
                             {/* Player List */}
-                            <div className="flex-1 p-6 md:p-10 flex flex-col relative bg-[#0a0d14] min-h-[400px]">
-                                <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
-                                    <h3 className="text-white/40 font-black uppercase text-[10px] tracking-[0.3em]">Participants connectés</h3>
+                            <div className="flex-1 p-6 md:p-10 flex flex-col relative bg-[#0a0d14] h-1/2 md:h-full overflow-y-auto custom-scrollbar">
+                                <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 sticky top-0 bg-[#0a0d14] z-20 pb-4 border-b border-white/5">
+                                    <div className="flex flex-col">
+                                        <h3 className="text-white/40 font-black uppercase text-[10px] tracking-[0.3em]">Participants connectés</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            <span className="text-emerald-500/60 text-[9px] font-black uppercase tracking-widest italic">
+                                                {activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0} / 8 Places occupées
+                                            </span>
+                                        </div>
+                                    </div>
                                     {((activeSession.hostId === currentUserId) || isSoloMode) && (
                                         <button
                                             onClick={handleStartRoomGame}
-                                            disabled={!isSoloMode && (activeSession.participants?.length || 0) < 2}
+                                            disabled={!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2}
                                             className={cn(
-                                                "w-full md:w-auto px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-2xl text-white font-black uppercase text-xs md:text-sm italic shadow-[0_15px_30px_-5px_rgba(16,185,129,0.5)] transition-all active:scale-95 flex items-center justify-center gap-3",
-                                                (!isSoloMode && (activeSession.participants?.length || 0) < 2)
+                                                "w-full md:w-auto px-8 md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl text-white font-black uppercase text-[10px] md:text-sm italic shadow-[0_15px_30px_-5px_rgba(16,185,129,0.5)] transition-all active:scale-95 flex items-center justify-center gap-3 border shrink-0",
+                                                (!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2)
                                                     ? "bg-zinc-800 border-zinc-700 opacity-50 cursor-not-allowed grayscale"
                                                     : "bg-emerald-500 border-emerald-400 hover:-translate-y-1 hover:shadow-[0_25px_45px_-5px_rgba(16,185,129,0.6)]"
                                             )}
                                         >
-                                            <Play size={18} fill="currentColor" className="shrink-0" />
-                                            <span>{(!isSoloMode && (activeSession.participants?.length || 0) < 2) ? "Attente de joueurs" : "Lancer l'Épreuve"}</span>
+                                            <Play size={16} fill="currentColor" className="shrink-0" />
+                                            <span className="truncate">{(!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2) ? "Attente de joueurs" : "Lancer l'Épreuve"}</span>
                                         </button>
                                     )}
                                 </div>
 
+                                {/* Spectators Section */}
+                                {activeSession.participants?.filter((p: any) => p.isSpectator && p.isConnected).length > 0 && (
+                                    <div className="mb-8 flex items-center gap-4 bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-3xl animate-in fade-in slide-in-from-top-2 duration-700">
+                                        <div className="flex flex-col shrink-0 pr-4 border-r border-emerald-500/10">
+                                            <span className="text-emerald-500 font-black uppercase text-[10px] tracking-widest mb-0.5 mt-0.5">
+                                                En observation
+                                            </span>
+                                            <span className="text-emerald-500/40 text-[8px] font-bold uppercase italic whitespace-nowrap">
+                                                {activeSession.participants?.filter((p: any) => p.isSpectator && p.isConnected).length} spectateur(s)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center -space-x-3 overflow-hidden">
+                                            {activeSession.participants?.filter((p: any) => p.isSpectator && p.isConnected).map((s: any) => (
+                                                <div 
+                                                    key={s.id} 
+                                                    className="relative group shrink-0"
+                                                    title={`${s.userName} regarde la partie`}
+                                                >
+                                                    <div className="w-10 h-10 rounded-2xl border-2 border-[#0a0d14] bg-slate-900 flex items-center justify-center overflow-hidden hover:scale-110 hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
+                                                        {s.userAvatar ? (
+                                                            <img src={s.userAvatar} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-white/40 font-black text-[10px] uppercase italic">{s.userName?.[0] || 'S'}</span>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-emerald-500/10" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex-1 text-right">
+                                            <span className="text-emerald-500/30 text-[9px] font-black uppercase italic tracking-tighter">Ils guettent vos faits et gestes...</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 auto-rows-max pr-4 custom-scrollbar">
-                                    {activeSession.participants?.map((p: any) => (
+                                    {activeSession.participants?.filter((p: any) => !p.isSpectator).map((p: any) => (
                                         <motion.div
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
@@ -2062,7 +2247,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                         </motion.div>
                                     ))}
 
-                                    {!isSoloMode && Array.from({ length: Math.max(0, 8 - (activeSession.participants?.length || 0)) }).map((_, i) => (
+                                    {!isSoloMode && Array.from({ length: Math.max(0, 8 - (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0)) }).map((_, i) => (
                                         <div key={`empty-${i}`} className="p-6 rounded-[2.5rem] bg-white/[0.01] border border-dashed border-white/5 flex items-center gap-5 opacity-40">
                                             <div className="w-14 h-14 rounded-2xl border border-dashed border-white/10 flex items-center justify-center">
                                                 <div className="w-2 h-2 rounded-full bg-white/5" />
@@ -2163,8 +2348,85 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                         guildId={guildId}
                     />
                 )}
+                {/* Perfect Guess Celebration Overlay */}
+                <AnimatePresence>
+                    {showPerfectCelebration && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[2000] pointer-events-none flex items-center justify-center overflow-hidden"
+                        >
+                            {/* Particles/Confetti */}
+                            {[...Array(20)].map((_, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ 
+                                        x: 0, 
+                                        y: 0, 
+                                        opacity: 1, 
+                                        scale: 0 
+                                    }}
+                                    animate={{ 
+                                        x: (Math.random() - 0.5) * 1200, 
+                                        y: (Math.random() - 0.5) * 1200, 
+                                        opacity: 0, 
+                                        scale: Math.random() * 2 + 1,
+                                        rotate: Math.random() * 360
+                                    }}
+                                    transition={{ duration: 3, ease: "easeOut" }}
+                                    className="absolute w-4 h-4 rounded-sm bg-emerald-500 shadow-[0_0_25px_#10b981]"
+                                />
+                            ))}
+
+                            <motion.div
+                                initial={{ scale: 0, rotate: -20, y: 150 }}
+                                animate={{ 
+                                    scale: [0, 1.25, 1], 
+                                    rotate: [20, -5, 0],
+                                    y: 0
+                                }}
+                                exit={{ scale: 0, opacity: 0, y: 100 }}
+                                className="bg-[#0d111a]/95 backdrop-blur-3xl border-4 border-emerald-500/50 rounded-[4rem] px-24 py-20 flex flex-col items-center gap-10 shadow-[0_60px_120px_rgba(16,185,129,0.4)] relative"
+                            >
+                                <motion.div 
+                                    animate={{ 
+                                        scale: [1, 1.15, 1],
+                                        rotate: [0, 8, -8, 0]
+                                    }}
+                                    transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                                    className="w-40 h-40 rounded-full bg-emerald-500 flex items-center justify-center text-black shadow-[0_0_80px_#10b981]"
+                                >
+                                    <Sparkles size={80} />
+                                </motion.div>
+                                
+                                <div className="text-center">
+                                    <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter mb-3 drop-shadow-[0_10px_10px_rgba(0,0,0,1)]">
+                                        MAP EXACTE !
+                                    </h1>
+                                    <p className="text-emerald-400 font-black text-2xl uppercase tracking-[0.3em] animate-pulse">
+                                        +250 PTS BONUS
+                                    </p>
+                                </div>
+
+                                <motion.div
+                                    animate={{ y: [0, -12, 0] }}
+                                    transition={{ repeat: Infinity, duration: 1.5 }}
+                                    className="flex items-center gap-4 bg-white/5 border border-white/10 px-8 py-4 rounded-full shadow-2xl"
+                                >
+                                    <Trophy className="text-amber-500" size={32} />
+                                    <span className="text-white font-black text-2xl italic tracking-tight">LE GÉNIE D'AMAKNA</span>
+                                </motion.div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
 }
+
+const Sparkles = ({ size }: { size: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+);
 

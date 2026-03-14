@@ -57,6 +57,28 @@ export async function createSystemIssue(data: {
     }
 }
 
+export async function updateSystemIssue(id: number, data: {
+    type: SystemIssueType;
+    category: string;
+    priority: string;
+    description: string;
+    forumLink?: string;
+}) {
+    const adminId = await isGod();
+    if (!adminId) return { success: false, error: "Non autorisé" };
+
+    try {
+        await db.systemIssue.update({
+            where: { id },
+            data
+        });
+        revalidatePath("/god/bugs");
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 export async function updateSystemIssueStatus(id: number, status: SystemIssueStatus) {
     const adminId = await isGod();
     if (!adminId) return { success: false, error: "Non autorisÃ©" };

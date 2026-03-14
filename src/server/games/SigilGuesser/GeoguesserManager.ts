@@ -59,7 +59,7 @@ export class GeoguesserManager {
         const guildId = (socket.handshake.query.guildId as string) || "global";
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.getState() === "LOBBY" && room.guildId === guildId) {
+            if (room.guildId === guildId && !room.isEmpty()) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });
@@ -70,7 +70,7 @@ export class GeoguesserManager {
         if (!guildId) return;
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.getState() === "LOBBY" && room.guildId === guildId) {
+            if (room.guildId === guildId && !room.isEmpty()) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });

@@ -57,7 +57,7 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      - uploads-data:/app/public/uploads  # ✅ PARTAGÉ avec Caddy — le même volume pour lire/écrire les uploads
+      - uploads-data:/app/private_uploads  # 🔒 Sécurisé : stocké hors du dossier public, géré par l'API Storage
 
   # -----------------------------------------------------------------------------
   # DISCORD BOT (Gateway Event Handler)
@@ -102,7 +102,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - uploads-data:/app/public/uploads # ✅ Persist uploaded images (missions/achievements)
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
     networks:

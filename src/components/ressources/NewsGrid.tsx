@@ -194,14 +194,16 @@ function FeaturedCard({
                 
                 {/* ACTIONS TOP RIGHT */}
                 <div className="absolute top-4 right-4 z-20">
-                    <NewsActions 
-                        item={item} 
-                        userCtx={userCtx} 
-                        sending={sending} 
-                        handleSendToDiscord={handleSendToDiscord} 
-                        handleBroadcast={handleBroadcast} 
-                        broadcasting={broadcasting}
-                    />
+                    {feedLabel !== "Changelog" && (
+                        <NewsActions 
+                            item={item} 
+                            userCtx={userCtx} 
+                            sending={sending} 
+                            handleSendToDiscord={handleSendToDiscord} 
+                            handleBroadcast={handleBroadcast} 
+                            broadcasting={broadcasting}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -292,17 +294,19 @@ function SideCard({
                 </h4>
             </div>
             
-            <div className="flex flex-col items-end gap-2 h-full justify-between py-1">
-                <NewsActions 
-                    item={item} 
-                    userCtx={userCtx} 
-                    sending={sending} 
-                    handleSendToDiscord={handleSendToDiscord} 
-                    handleBroadcast={handleBroadcast} 
-                    broadcasting={broadcasting}
-                    variant="minimal"
-                />
-            </div>
+            {feedColor !== "#10b981" && ( /* Changelog color */
+                <div className="flex flex-col items-end gap-2 h-full justify-between py-1">
+                    <NewsActions 
+                        item={item} 
+                        userCtx={userCtx} 
+                        sending={sending} 
+                        handleSendToDiscord={handleSendToDiscord} 
+                        handleBroadcast={handleBroadcast} 
+                        broadcasting={broadcasting}
+                        variant="minimal"
+                    />
+                </div>
+            )}
         </a>
     );
 }
@@ -576,14 +580,16 @@ export function NewsGrid({
                                 </h4>
                             </div>
 
-                            <NewsActions 
-                                item={item} 
-                                userCtx={userCtx} 
-                                sending={sending} 
-                                handleSendToDiscord={handleSendToDiscord} 
-                                handleBroadcast={handleBroadcast} 
-                                broadcasting={broadcasting}
-                            />
+                            {activeFeed !== "changelog" && (
+                                <NewsActions 
+                                    item={item} 
+                                    userCtx={userCtx} 
+                                    sending={sending} 
+                                    handleSendToDiscord={handleSendToDiscord} 
+                                    handleBroadcast={handleBroadcast} 
+                                    broadcasting={broadcasting}
+                                />
+                            )}
 
                             <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
                                 Détails

@@ -28,7 +28,8 @@ import {
     Plus,
     Hammer,
     Activity,
-    TrendingUp
+    TrendingUp,
+    Bell
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -95,16 +96,16 @@ export function AppSidebar({
 
     // --- NAVIGATION GROUPS ---
     const NAV_INFO = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-primary", visible: user.isMember && user.canViewDashboard },
         { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewWelcome },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
-        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-primary", visible: user.isMember && user.canViewPresentation && modules.presentation },
+        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-primary", visible: user.isMember && user.canViewStats && modules.stats },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-primary", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
     const NAV_ACTIVITIES_TOP = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "text-emerald-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "text-emerald-400", visible: user.isMember && user.canViewMiniGames && modules.worldmap },
     ];
 
     // Sub-items grouped under the collapsible "Progression" parent
@@ -122,6 +123,7 @@ export function AppSidebar({
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Galerie Stuff", href: `/dashboard/${guildId}/galerie-stuff`, icon: Sparkles, color: "text-cyan-400", visible: user.isMember && user.canViewStuffGallery && modules.profile },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-cyan-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
@@ -130,7 +132,13 @@ export function AppSidebar({
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
     ];
 
-    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };
+    const hasAnyAdminPermission = user.isAdmin || 
+        user.canManageMissions || user.canValidateMissions || user.canManageBonus ||
+        user.canManageMembers || user.canManageCalendar || user.canManageQuests ||
+        user.canManageWorldmap || user.canManageMiniGames || user.canManageResources || 
+        user.canModerateChat || user.canEditPresentation || user.canViewAdminDocs;
+
+    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: hasAnyAdminPermission };
 
     const NAV_ADMIN_SUB = [
         { name: "ADM Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
@@ -139,10 +147,9 @@ export function AppSidebar({
         { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
         { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
         { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
+        { name: "ADM Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin },
         { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
-
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
 
     return (
         <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/5 shadow-[4px_0_24px_rgba(0,0,0,0.5)]", className)}>
@@ -251,9 +258,9 @@ export function AppSidebar({
                     {NAV_INFO.some(i => i.visible !== false) && (
                         <div className="space-y-1.5 peer">
                             <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-400 whitespace-nowrap">Information</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary whitespace-nowrap">Information</h4>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                             </div>
                             {NAV_INFO.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={checkIsActive(item.href, item.exact)} />

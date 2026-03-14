@@ -21,7 +21,7 @@ export default async function MiniJeuxPage({ params }: Props) {
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.canViewWorldmap) return <AccessDenied />;
+    if (!user.canViewMiniGames) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "worldmap");
     if (!enabled) return <AccessDenied />;
@@ -38,6 +38,9 @@ export default async function MiniJeuxPage({ params }: Props) {
                     description="Défiez vos amis sur SigilGuesser, Sigil-Draw et Sigil-Phone"
                     icon={Trophy}
                     backHref={`/dashboard/${guildId}`}
+                    middleContent={<div id="sigil-geoguesser-header-hud" className="w-full flex justify-center" />}
+                    actions={<div id="sigil-geoguesser-header-actions" className="flex items-center gap-4" />}
+                    className="mb-0"
                 />
             </div>
             <div className="flex-1 w-full relative">

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --max-warnings=-1",
+    "lint": "eslint --max-warnings=100",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -24,7 +24,8 @@
     "build:presence": "esbuild src/workers/presence-worker.ts --bundle --platform=node --outfile=dist/presence-worker.js --external:@prisma/client --external:ioredis --external:discord.js",
     "build:ws": "esbuild src/server/websocket/server.ts --bundle --platform=node --outfile=dist/ws-server.js --external:@prisma/client",
     "seed:docs": "npx -y tsx prisma/seed-docs.ts",
-    "export-seeds": "bash scripts/export-seeds.sh local"
+    "export-seeds": "bash scripts/export-seeds.sh local",
+    "migrate:uploads": "node scripts/migrate-uploads.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

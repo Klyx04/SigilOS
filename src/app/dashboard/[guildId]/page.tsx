@@ -59,26 +59,29 @@ export default async function DashboardPage({
         );
     }
 
-    // Parallel data fetching
-    const focusData = await getDashboardFocus(guildId, user);
-    const [presenceData, ladderResult, guildStatsResult, profileResult] = await Promise.all([
+    // Parallel data fetching - Optimized to reduce DB roundtrips and avoid redundant Ocre calls
+    const [presenceData, ladderResult, guildStatsResult, profileResult, ocreProgress] = await Promise.all([
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
         getGuildStats(guildId),
-        getUserProfile(guildId)
+        getUserProfile(guildId),
+        user.canViewArchis 
+            ? getMyOcreProgress(guildId) 
+            : Promise.resolve({ success: false, data: undefined })
     ]);
+
+    // Focus data depends on Ocre result to avoid refetching
+    const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
 
     const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
 
-    const ocreProgress = await getMyOcreProgress(guildId);
-
     return (
         <div className="relative w-full min-h-full pb-20">
             {/* Ambient Background Layer */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
+            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />
+            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-[0.03] saturate-100 blur-3xl scale-125" />
 
             {/* Onboarding Welcome Modal (Admins only) */}
             {user.isAdmin && profile && !profile.hasSeenWelcome && (
@@ -205,9 +208,9 @@ export default async function DashboardPage({
                     {user.canViewStats && (
                         <div className="md:col-span-12 lg:col-span-4 lg:row-span-2">
                             <Card className="glass-premium h-full saturate-boost relative overflow-hidden border-white/10">
-                                <BorderBeam size={150} duration={8} delay={2} colorFrom="#6366f1" colorTo="#a855f7" />
+                                <BorderBeam size={150} duration={8} delay={2} colorFrom="#10b981" colorTo="#34d399" />
                                 <CardHeader className="pb-8 pt-6">
-                                    <CardTitle className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <CardTitle className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] flex items-center gap-2">
                                         <Target className="h-4 w-4" />
                                         Activité Hebdomadaire
                                         <GuidePulse
@@ -220,14 +223,14 @@ export default async function DashboardPage({
                                     {guildStats ? (
                                         <>
                                             <div className="group/stat">
-                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Progression Hebdo</p>
+                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-emerald-400 transition-colors">Progression Hebdo</p>
                                                 <div className="flex items-end gap-2">
                                                     <span className="text-4xl font-black text-white leading-none tracking-tighter">{guildStats.totalMissionsValidated}</span>
                                                     <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">Missions</span>
                                                 </div>
                                             </div>
                                             <div className="group/stat">
-                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Points de Gloire</p>
+                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-emerald-400 transition-colors">Points de Gloire</p>
                                                 <div className="flex items-end gap-2">
                                                     <span className="text-4xl font-black text-yellow-400 leading-none tracking-tighter">+{guildStats.totalXp}</span>
                                                     <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">XP</span>
@@ -236,9 +239,9 @@ export default async function DashboardPage({
                                             <div className="pt-4 border-t border-white/5">
                                                 <div className="flex items-center justify-between text-[10px] text-zinc-500 font-black uppercase">
                                                     <span>Songes actifs</span>
-                                                    <span className="text-purple-400 font-black">{guildStats.totalSongesCompleted} Complétés</span>
+                                                    <span className="text-emerald-400 font-black">{guildStats.totalSongesCompleted} Complétés</span>
                                                 </div>
-                                                <StatProgress value={65} color="bg-purple-500" glowColor="rgba(168,85,247,0.5)" />
+                                                <StatProgress value={65} color="bg-emerald-500" glowColor="rgba(16,185,129,0.5)" />
                                             </div>
                                         </>
                                     ) : (
@@ -255,9 +258,9 @@ export default async function DashboardPage({
                     {user.canViewSonges && (
                         <div className="md:col-span-6 lg:col-span-8 row-span-1">
                             <Link href={`/dashboard/${guildId}/songes`} className="block h-full">
-                                <Card className="glass-premium h-full hover:border-purple-500/50 transition-all cursor-pointer group relative overflow-hidden">
+                                <Card className="glass-premium h-full hover:border-emerald-500/50 transition-all cursor-pointer group relative overflow-hidden">
                                     <CardHeader className="pb-2">
-                                        <CardTitle className="text-zinc-200 group-hover:text-purple-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
+                                        <CardTitle className="text-zinc-200 group-hover:text-emerald-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
                                             <InfinityIcon className="w-5 h-5" />
                                             Songes
                                             <GuidePulse
@@ -268,12 +271,12 @@ export default async function DashboardPage({
                                     </CardHeader>
                                     <CardContent>
                                         <p className="text-zinc-500 font-bold text-[11px] mb-4">Gestion des étages et recrutement.</p>
-                                        <div className="flex items-center text-[10px] text-purple-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center text-[10px] text-emerald-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
                                             Voir les runs <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
                                         </div>
                                     </CardContent>
                                     <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                                        <InfinityIcon className="w-24 h-24 text-purple-500" />
+                                        <InfinityIcon className="w-24 h-24 text-emerald-500" />
                                     </div>
                                 </Card>
                             </Link>

@@ -27,6 +27,11 @@ export type DofusbookPreviewData = {
         air: number;
     };
     items?: Record<string, DofusbookItem | null>;
+    cloths?: {
+        name: string;
+        count: number;
+        total: number;
+    }[];
 };
 
 export function getClassName(id: number): string {
@@ -45,7 +50,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     // ⚔️ 1. Base Stats
     let pa = level >= 100 ? 7 : 6;
     let pm = 3;
-    let po = 0, ini = 0, invoc = 1, vit = 50 + (level * 5);
+    let po = 0, ini = level, invoc = 1, vit = 50 + (level * 5);
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
 
     // 🎒 Initialize
@@ -53,7 +58,29 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     const itemsList: any[] = raw.items || [];
     const itemsMap: Record<string, DofusbookItem | null> = {};
 
-    // 🔍 2. Manual Sum from Items
+    const sumEffect = (e: any) => {
+        const name = (e.name || "").toLowerCase();
+        const val = Number(e.max) || Number(e.value) || 0;
+        
+        if (name === 'pa') pa += val;
+        if (name === 'pm') pm += val;
+        if (name === 'po') po += val;
+        if (name === 'in' || name === 'invoc') invoc += val;
+        if (name === 'vi' || name === 'vit') vit += val;
+        if (name === 'ini') ini += val;
+        
+        // Handling both fixed and percent resists (simplified to fixed as Dofusbook raw often mixes them)
+        if (name === 're_ne' || name === 're_ne_p') resN += val;
+        if (name === 're_te' || name === 're_te_p') resT += val;
+        if (name === 're_fe' || name === 're_fe_p') resF += val;
+        if (name === 're_ea' || name === 're_ea_p') resE += val;
+        if (name === 're_ai' || name === 're_ai_p') resA += val;
+        
+        // Character stats affect initiative
+        if (['fo', 'in', 'ch', 'ag', 'sa'].includes(name)) ini += val;
+    };
+
+    // 🔍 2. Sum from Items
     Object.entries(stuffItemsSlots).forEach(([slot, itemId]) => {
         const item = itemsList.find(i => Number(i.id) === Number(itemId));
         if (item) {
@@ -66,22 +93,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
 
             const effects = item.effects || item.stats || [];
             if (Array.isArray(effects)) {
-                effects.forEach((e: any) => {
-                    const name = (e.name || "").toLowerCase();
-                    const val = Number(e.max) || Number(e.value) || 0;
-                    if (name === 'pa') pa += val;
-                    if (name === 'pm') pm += val;
-                    if (name === 'po') po += val;
-                    if (name === 'in' || name === 'invoc') invoc += val;
-                    if (name === 'vi' || name === 'vit') vit += val;
-                    if (name === 'ini') ini += val;
-                    if (name === 're_ne') resN += val;
-                    if (name === 're_te') resT += val;
-                    if (name === 're_fe') resF += val;
-                    if (name === 're_ea') resE += val;
-                    if (name === 're_ai') resA += val;
-                    if (['fo', 'in', 'ch', 'ag'].includes(name)) ini += val;
-                });
+                effects.forEach(sumEffect);
             }
         } else {
             itemsMap[slot] = null;
@@ -89,38 +101,35 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     });
 
     // 🔗 3. Panoplie Bonuses (Cloths)
+    const activeCloths: { name: string; count: number; total: number }[] = [];
     if (Array.isArray(raw.cloths)) {
         raw.cloths.forEach((cloth: any) => {
             const count = cloth.items?.length || 0;
-            const panStats = cloth.panoplie?.stats || cloth.stats;
-            if (panStats && panStats[count]) {
-                const bonus = panStats[count];
-                if (Array.isArray(bonus)) {
-                    bonus.forEach((b: any) => {
-                        const name = (b.name || "").toLowerCase();
-                        const val = Number(b.value) || 0;
-                        if (name === 'pa') pa += val;
-                        if (name === 'pm') pm += val;
-                        if (name === 'po') po += val;
-                        if (name === 'vi') vit += val;
-                        if (name === 'ini') ini += val;
-                        if (name === 're_ne') resN += val;
-                        if (name === 're_te') resT += val;
-                        if (name === 're_fe') resF += val;
-                        if (name === 're_ea') resE += val;
-                        if (name === 're_ai') resA += val;
-                    });
-                }
+            const pano = cloth.panoplie || {};
+            const total = pano.items?.length || count;
+            const name = pano.name || "Panoplie inconnue";
+            
+            if (count > 1) {
+                activeCloths.push({ name, count, total });
+            }
+
+            // Dofusbook stores pano bonuses in pano.stats[count]
+            const panStatsDict = pano.stats || {};
+            const bonus = panStatsDict[count];
+            if (Array.isArray(bonus)) {
+                bonus.forEach(sumEffect);
             }
         });
     }
 
-    // 👤 4. Character Points
+    // 👤 4. Character Points (Capital/Parchos)
     if (raw.stuffStats && !Array.isArray(raw.stuffStats)) {
         const s = raw.stuffStats;
         const sum = (key: string) => (Number(s[`base_${key}`]) || 0) + (Number(s[`scroll_${key}`]) || 0);
+        
         vit += sum('vi');
-        ini += sum('ini') + (sum('fo') + sum('in') + sum('ch') + sum('ag'));
+        // Initial Initiative is also affected by base stats
+        ini += sum('fo') + sum('in') + sum('ch') + sum('ag') + sum('sa');
     }
 
     return {
@@ -137,7 +146,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             eau: resE,
             air: resA,
         },
-        items: itemsMap
+        items: itemsMap,
+        cloths: activeCloths
     };
 }
 

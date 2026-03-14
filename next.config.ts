@@ -39,6 +39,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  outputFileTracingExcludes: {
+    '*': [
+      '**/node:inspector*',
+      'public/game-data/**/*',
+      'node_modules/@swc/core-linux-x64-gnu',
+      'node_modules/@swc/core-linux-x64-musl',
+      'node_modules/@esbuild/linux-x64',
+    ],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb', // Allow larger uploads for R2

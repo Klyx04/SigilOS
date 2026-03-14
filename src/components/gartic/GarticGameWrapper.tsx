@@ -123,6 +123,9 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                     if (state.phase === "REVEAL") playSoundEffect("success");
                     else if (state.phase !== "LOBBY" && state.phase !== "STARTING") playSoundEffect("ding");
                 }
+                if (state.phase === "STARTING" && prev?.timer !== state.timer && state.timer > 0 && state.timer <= 5) {
+                    playSoundEffect("tick");
+                }
                 return state;
             });
             if (phase !== "game") setPhase("game");
@@ -191,14 +194,6 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
         return (
             <GarticLayout phase="BROWSE" onClose={handleExitToMenu}>
                 <div className="flex flex-col items-center justify-center h-full w-full max-w-4xl mx-auto gap-12 animate-in fade-in zoom-in duration-700">
-                    <button 
-                        onClick={handleExitToMenu}
-                        className="fixed top-6 right-6 z-[200] px-6 py-3 bg-red-500 hover:bg-red-400 text-white rounded-2xl border-b-4 border-black/20 transition-all hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-2 font-black italic uppercase text-xs"
-                    >
-                        <LogOut size={18} />
-                        <span>Quitter</span>
-                    </button>
-
                     {/* Header */}
                     <div className="text-center px-4">
                         <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
@@ -466,7 +461,11 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
     };
 
     return (
-        <GarticLayout phase={gameState?.phase || "LOBBY"} onClose={handleExitToMenu}>
+        <GarticLayout 
+            phase={gameState?.phase || "LOBBY"} 
+            onClose={handleExitToMenu}
+            spectators={gameState?.players?.filter((p: any) => p.isSpectator) || []}
+        >
             {renderPhase()}
         </GarticLayout>
     );

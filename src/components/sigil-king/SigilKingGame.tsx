@@ -315,6 +315,7 @@ function LobbyScreen({ gameState, localPlayerId, socket, onStart, onLeave }: {
 }) {
     const isHost = gameState.hostId === localPlayerId;
     const activePlayers = gameState.players.filter(p => !p.isSpectator);
+    const spectators = gameState.players.filter(p => p.isSpectator);
     return (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
             <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-white/5 p-6 bg-black/30 flex flex-col justify-between relative overflow-hidden shrink-0">
@@ -328,6 +329,18 @@ function LobbyScreen({ gameState, localPlayerId, socket, onStart, onLeave }: {
                         <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-[10px] font-black uppercase italic w-fit">
                             {activePlayers.length} / 6 Joueurs
                         </div>
+                        {spectators.length > 0 && (
+                            <div className="pt-2">
+                                <span className="text-white/20 text-[8px] font-black uppercase tracking-widest block mb-2 px-1">Spectateurs ({spectators.length})</span>
+                                <div className="flex flex-wrap gap-1.5 px-1">
+                                    {spectators.map(s => (
+                                        <div key={s.odKey} className="w-6 h-6 rounded-lg overflow-hidden border border-white/10 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all cursor-help" title={s.userName}>
+                                            <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.userName}`} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {isHost && (
                             <>
                         <div className="pt-4 border-t border-white/10">
@@ -1084,6 +1097,25 @@ export function SigilKingGame({ guildId, userId, userName, userAvatar, initialRo
                             {gameState.phase === "LOBBY" ? "Lobby" : gameState.phase === "BIDDING" ? "Mises en cours..." : gameState.phase === "PLAYING" ? `Manche ${gameState.round}/${gameState.maxRounds}` : gameState.phase === "ROUND_END" ? "Fin de manche" : "Fin de partie"}
                         </span>
                     </div>
+
+                    {/* Spectators bubbles in header */}
+                    {gameState.players.filter(p => p.isSpectator).length > 0 && (
+                        <div className="hidden sm:flex items-center gap-2 ml-4 pl-4 border-l border-white/5">
+                            <span className="text-white/20 text-[8px] font-black uppercase tracking-widest italic">Spectateurs</span>
+                            <div className="flex -space-x-2">
+                                {gameState.players.filter(p => p.isSpectator).slice(0, 5).map(s => (
+                                    <div key={s.odKey} className="w-6 h-6 rounded-lg border border-black/40 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:z-10 transition-all cursor-help" title={s.userName}>
+                                        <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.userName}`} className="w-full h-full object-cover" alt="" />
+                                    </div>
+                                ))}
+                                {gameState.players.filter(p => p.isSpectator).length > 5 && (
+                                    <div className="w-6 h-6 rounded-lg bg-zinc-800 border border-white/5 flex items-center justify-center text-[8px] font-black text-white/40">
+                                        +{gameState.players.filter(p => p.isSpectator).length - 5}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <button onClick={handleLeave} className="flex items-center gap-1.5 text-white/20 hover:text-red-400 transition-colors text-[9px] font-black uppercase">
                     <LogOut size={12} /> Quitter

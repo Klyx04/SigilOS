@@ -71,19 +71,25 @@ export const DrawingScreen = ({
     const BRUSH_SIZES = [4, 8, 14, 24, 40];
 
     return (
-        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] h-full relative py-4 animate-in zoom-in-95 duration-500">
-            {/* Round Counter */}
-            <div className="absolute top-2 left-4 md:left-6 z-50 flex flex-col items-start select-none">
-                <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
-                <span className="text-white font-black text-2xl md:text-6xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
-                    {round}<span className="text-white/30 text-lg md:text-4xl">/{totalRounds}</span>
-                </span>
+        <div className="flex flex-col items-center justify-center w-full max-w-[98vw] relative py-2 md:py-4 animate-in zoom-in-95 duration-500">
+            {/* Top Bar - Round & Timer */}
+            <div className="absolute top-2 md:top-4 inset-x-4 md:inset-x-8 z-50 flex items-center justify-between select-none pointer-events-none">
+                <div className="flex flex-col items-start translate-y-2">
+                    <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
+                    <span className="text-white font-black text-2xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
+                        {round}<span className="text-white/30 text-lg md:text-3xl">/{totalRounds}</span>
+                    </span>
+                </div>
+                
+                <div className="scale-[0.7] md:scale-100 drop-shadow-2xl translate-y-4">
+                    <CircularTimer remaining={timeLeft} total={totalTime} />
+                </div>
             </div>
 
-            <div className="w-full h-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-3 md:p-8 flex flex-col gap-3 md:gap-6 relative shadow-2xl mt-10 md:mt-8 min-h-0">
+            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative shadow-2xl mt-12 md:mt-20 min-h-0">
                 
                 {/* Purple Card Header */}
-                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-3 md:p-8 relative overflow-hidden shadow-2xl -mt-6 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
+                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-2 md:p-6 relative shadow-2xl -mt-8 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
                     <div className="flex flex-col gap-0.5 md:gap-1 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-1 md:gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -91,18 +97,18 @@ export const DrawingScreen = ({
                                 {isSpectator ? "OBSERVEUR" : "TON TOUR DE DESSINER"}
                             </span>
                         </div>
-                        <h2 className="text-white text-lg md:text-6xl font-black uppercase tracking-tighter italic drop-shadow-lg leading-tight">
+                        <h2 className="text-white text-lg md:text-4xl lg:text-5xl font-black uppercase tracking-tighter italic drop-shadow-lg leading-tight">
                             {isSpectator ? "LES ARTISTES SÉVISSENT..." : word}
                         </h2>
                     </div>
 
-                    <div className="flex items-center gap-3 md:gap-8">
+                    <div className="flex items-center gap-3 md:gap-8 relative pr-4">
                          {isDrawer && (
                             <button
                                 onClick={handleValidate}
                                 disabled={submitted}
                                 className={cn(
-                                    "px-4 md:px-12 py-2 md:py-5 rounded-xl md:rounded-3xl font-black text-white text-xs md:text-2xl uppercase tracking-tighter transition-all shadow-2xl group relative overflow-hidden",
+                                    "px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-3xl font-black text-white text-xs md:text-xl uppercase tracking-tighter transition-all shadow-2xl group relative overflow-hidden",
                                     submitted
                                         ? "bg-gray-500 border-b-2 md:border-b-8 border-gray-700 opacity-50 cursor-not-allowed"
                                         : "bg-[#2ed573] hover:bg-[#26af5f] border-b-[4px] md:border-b-[10px] border-[#1e9b53] active:translate-y-1 md:active:translate-y-2 active:border-b-0"
@@ -111,9 +117,6 @@ export const DrawingScreen = ({
                                 <span className="relative z-10">{submitted ? "ENVOYÉ ✓" : "TERMINÉ !"}</span>
                             </button>
                         )}
-                        <div className="scale-75 md:scale-125">
-                            <CircularTimer remaining={timeLeft} total={totalTime} />
-                        </div>
                     </div>
 
                     {/* Spiral effect */}
@@ -166,7 +169,7 @@ export const DrawingScreen = ({
                     </div>
 
                     {/* CENTER: Canvas */}
-                    <div className="flex-1 bg-white rounded-2xl md:rounded-[3rem] shadow-2xl relative overflow-hidden flex items-center justify-center p-2 md:p-8 border-b-[6px] md:border-b-[14px] border-black/10 group min-w-0 h-full min-h-[200px]">
+                    <div className="flex-1 bg-white rounded-2xl md:rounded-[3rem] shadow-2xl relative overflow-hidden flex items-center justify-center p-2 md:p-4 border-b-[6px] md:border-b-[14px] border-black/10 group min-w-0 h-full min-h-[200px]">
                          {/* Spiral decorations */}
                          <div className="absolute top-0 left-0 w-full flex justify-around px-8 md:px-24 opacity-10 pointer-events-none mt-2">
                             {Array.from({length: 12}).map((_, i) => (

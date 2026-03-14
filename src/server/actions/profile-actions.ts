@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
@@ -12,6 +13,45 @@ import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
+
+const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
+const RANKING_CACHE_TTL = 300_000; // 5 minutes
+
+/**
+ * Pre-warm the Redis cache for Dofusbook builds.
+ * Called non-blocking (setTimeout) after a user saves their links.
+ * Extracts the build ID from the URL and hits our own proxy to populate Redis.
+ */
+function warmDofusbookCache(urls: string[]): void {
+    // Run after current request completes
+    setTimeout(async () => {
+        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+        for (const url of urls) {
+            try {
+                const idMatch = url.match(
+                    /(?:equipement\/(?:[a-z]+\/)?(\d+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i
+                );
+                const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
+                if (!buildId) continue;
+
+                // Call our own proxy which handles the caching
+                const res = await fetch(`${baseUrl}/api/dofusbook/proxy/${buildId}`, {
+                    headers: { "x-internal-warm": "1" }
+                });
+                if (res.ok) {
+                    logger.info(`[Dofusbook Cache] Pre-warmed build ${buildId} (${res.headers.get("X-Cache")})`);
+                } else {
+                    logger.warn(`[Dofusbook Cache] Pre-warm failed for ${buildId}: ${res.status}`);
+                }
+                // Small delay between requests to avoid rate-limiting
+                await new Promise(r => setTimeout(r, 500));
+            } catch (e) {
+                // Silently ignore — non-critical background operation
+            }
+        }
+    }, 100);
+}
+
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -669,7 +709,9 @@ const UpdateDofusBookLinksSchema = z.object({
             /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/,
             "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
         ),
-        tags: z.array(z.string()).optional()
+        tags: z.array(z.string()).optional(),
+        classId: z.number().optional(),
+        previewData: z.any().optional(), // Cached build info to bypass 403 later
     })).max(10, "Maximum 10 builds"),
     targetUserId: z.string().optional(),
 });
@@ -700,14 +742,51 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
             return { success: false, error: "Vous n'avez pas la permission de modifier ces builds." };
         }
 
+        // --- PREVIEW BAKING (Server-side) ---
+        // Fetch metadata for any link missing it (new ones or changed ones)
+        const { getDofusbookPreview } = await import("./dofusbook-actions");
+        
+        // Optimization: fetch existing links once
+        const existingProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
+            select: { dofusBookLinks: true }
+        });
+        const existingLinks = (existingProfile?.dofusBookLinks as any[]) || [];
+
+        const bakedLinks = await Promise.all(links.map(async (link) => {
+            // Find if we already have this URL in our DB to avoid re-fetching metadata
+            const matchingOld = existingLinks.find(l => l.id === link.id);
+            
+            if (matchingOld && matchingOld.url === link.url && matchingOld.previewData) {
+                return { ...link, previewData: matchingOld.previewData };
+            }
+
+            // Otherwise, try to fetch it
+            try {
+                const res = await getDofusbookPreview(link.url);
+                if (res.success && res.data) {
+                    return { ...link, previewData: res.data };
+                }
+            } catch (e) {
+                console.error(`[Server Baking] Failed for ${link.url}:`, e);
+            }
+            return link;
+        }));
+
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { dofusBookLinks: links as any }
+            data: { dofusBookLinks: bakedLinks as any }
         });
 
         revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+
+        // Pre-warm Dofusbook cache for all links (background, non-blocking)
+        // This ensures the Redis cache is hot before anyone views the gallery
+        warmDofusbookCache(links.map(l => l.url));
+
         return { success: true };
     } catch (error: unknown) {
         logger.error("Update Builds Error", { error, guildId });
@@ -739,22 +818,22 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     const targetUserId = userId || user.id!;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const profile = await db.userProfile.findUnique({
             where: {
                 userId_guildId: { userId: targetUserId, guildId: guildConfig.id }
             },
-            include: {
-                user: {
-                    include: {
-                        accounts: {
-                            where: { provider: "discord" },
-                            select: { providerAccountId: true }
-                        }
-                    }
-                }
+            select: {
+                id: true,
+                xp: true,
+                guildatons: true,
+                lastActivityAt: true,
+                userId: true
             }
         });
 
@@ -762,86 +841,89 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
 
         // Get Start of Week (Monday)
         const now = new Date();
-        const day = now.getDay(); // 0 (Sun) - 6 (Sat)
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        const startOfWeek = new Date(now.setDate(diff));
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
         startOfWeek.setHours(0, 0, 0, 0);
 
-        // Fetch validated submissions with mission data for XP calculation
-        const allValidatedSubmissions = await db.submission.findMany({
-            where: {
-                profileId: profile.id,
-                status: "VALIDATED"
-            },
-            include: {
-                mission: {
-                    select: { xpReward: true }
+        // Fetch weekly stats and total mission count in parallel
+        const [weeklySubmissions, totalMissionsCount] = await Promise.all([
+            db.submission.findMany({
+                where: {
+                    profileId: profile.id,
+                    status: "VALIDATED",
+                    updatedAt: { gte: startOfWeek }
+                },
+                select: {
+                    mission: {
+                        select: { xpReward: true }
+                    }
                 }
-            }
-        });
-
-        const weeklySubmissions = allValidatedSubmissions.filter((s: { updatedAt: Date }) => s.updatedAt >= startOfWeek);
+            }),
+            db.submission.count({
+                where: {
+                    profileId: profile.id,
+                    status: "VALIDATED"
+                }
+            })
+        ]);
 
         const weeklyMissions = weeklySubmissions.length;
-        const weeklyXp = weeklySubmissions.reduce((acc: number, curr: { mission: { xpReward: number | null } }) => acc + (curr.mission.xpReward || 0), 0);
+        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission?.xpReward || 0), 0);
 
-        // Calculate contributor tier based on monthly XP ranking
-        // Tier thresholds:
-        // - Top 1: Légende (gold)
-        // - Top 2-3: Champion (silver) 
-        // - Top 4-10: Pilier (bronze)
+        // Calculate contributor tier based on XP ranking
         let contributorTier: ContributorTier = null;
         let rank: number | undefined;
 
-        // Get all guild members sorted by XP (descending)
-        const guildRanking = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            orderBy: { xp: "desc" },
-            select: { userId: true, xp: true }
-        });
+        // Ranking Cache Management
+        const cacheKey = `ranking:${guildConfig.id}`;
+        const cachedRanking = rankingCache.get(cacheKey);
+        let guildRanking: { userId: string, xp: number }[];
 
-        // Find user's rank
-        const userRankIndex = guildRanking.findIndex((p: { userId: string }) => p.userId === targetUserId);
-        if (userRankIndex !== -1) {
-            rank = userRankIndex + 1; // 1-indexed rank
-
-            if (rank! === 1) {
-                contributorTier = "LEGENDE";
-            } else if (rank! <= 3) {
-                contributorTier = "CHAMPION";
-            } else if (rank! <= 10) {
-                contributorTier = "PILIER";
-            }
+        if (cachedRanking && Date.now() < cachedRanking.expiresAt) {
+            guildRanking = cachedRanking.data;
+        } else {
+            guildRanking = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                orderBy: { xp: "desc" },
+                select: { userId: true, xp: true }
+            });
+            rankingCache.set(cacheKey, { data: guildRanking, expiresAt: Date.now() + RANKING_CACHE_TTL });
         }
 
-        // Legacy isTopContributor for backwards compatibility
-        const isTopContributor = contributorTier !== null;
-
-        const joinedAt = null; // Default to null for now, handled by UserContext in UI
+        // Find user's rank
+        const userRankIndex = guildRanking.findIndex(p => p.userId === targetUserId);
+        if (userRankIndex !== -1) {
+            rank = userRankIndex + 1;
+            if (rank === 1) contributorTier = "LEGENDE";
+            else if (rank <= 3) contributorTier = "CHAMPION";
+            else if (rank <= 10) contributorTier = "PILIER";
+        }
 
         return {
             success: true,
             data: {
                 xp: profile.xp,
                 guildatons: profile.guildatons,
-                missionsValidated: allValidatedSubmissions.length,
+                missionsValidated: totalMissionsCount,
                 weeklyXp,
                 weeklyMissions,
                 lastActivity: profile.lastActivityAt
                     ? { description: "Dernière activité", date: profile.lastActivityAt.toISOString() }
                     : null,
                 joinedAt: null,
-                isTopContributor,
+                isTopContributor: contributorTier !== null,
                 contributorTier,
                 rank
             }
         };
     } catch (error: unknown) {
-        logger.error("Get Stats Error", { error, guildId });
-        return { success: false, error: "Erreur serveur" };
+        logger.error("Get Profile Stats Error", { error, guildId, targetUserId });
+        return { success: false, error: "Erreur lors du calcul des statistiques." };
     }
 }
 
@@ -1214,14 +1296,14 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             // Save preview image for staff (light resizing is handled by client or we can do it here)
             // For now we use the raw imageData as it's already limited to 4MB
 
-            const uploadRelativeDir = `uploads/proofs/${guildConfig.discordGuildId}`;
-            const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+            const uploadRelativeDir = `proofs/${guildConfig.discordGuildId}`;
+            const uploadDir = join(process.cwd(), "private_uploads", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
             const { randomUUID: genProofUUID } = await import("crypto");
             const fileName = `${genProofUUID()}.webp`;
             const filePath = join(uploadDir, fileName);
 
-            // Buffer already created at line 1100
+            // Buffer already created at line 1183
             const optimizedBuffer = await sharp(buffer)
                 .resize(1920, null, {
                     withoutEnlargement: true,
@@ -1231,7 +1313,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 .toBuffer();
 
             await writeFile(filePath, optimizedBuffer);
-            const proofUrl = `/${uploadRelativeDir}/${fileName}`;
+            const proofUrl = `/uploads/${uploadRelativeDir}/${fileName}`;
 
             const submission = await (db as any).achievementSubmission.create({
                 data: {

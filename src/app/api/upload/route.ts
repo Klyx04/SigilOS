@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden: Super-admin access required" }, { status: 403 });
     }
 
+    // 🛡️ RATE LIMITING: Protect CPU (sharp) and Disk from spam/DoS
+    const { rateLimit } = await import("@/lib/ratelimit");
+    const { success } = await rateLimit(`upload_doc_${session.user.id}`, 10, 60_000); // 10 uploads / min
+    if (!success) {
+        return NextResponse.json({ error: "Trop de requêtes, veuillez patienter." }, { status: 429 });
+    }
+
     try {
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
         // 6. Save File
         // Use a UUID to avoid collisions
         const fileName = `${uuidv4()}.webp`;
-        const uploadDir = join(process.cwd(), "public", "uploads", "docs");
+        const uploadDir = join(process.cwd(), "private_uploads", "docs");
 
         // Ensure directory exists
         await mkdir(uploadDir, { recursive: true });

@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
-type SystemIssueType = "BUG" | "AMELIORATION";
-type SystemIssueStatus = "A_FAIRE" | "A_INVESTIGUER" | "EN_COURS" | "TERMINE" | "IGNORE";
-
 import { createSystemIssue, updateSystemIssueStatus, deleteSystemIssue, updateSystemIssue } from "@/server/actions/god-bugs-actions";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Search, Trash2, Link as LinkIcon, Edit, BugIcon, LightbulbIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +15,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+type SystemIssueType = "BUG" | "AMELIORATION";
+type SystemIssueStatus = "A_FAIRE" | "A_INVESTIGUER" | "EN_COURS" | "TERMINE" | "IGNORE";
 
 type Issue = {
     id: number;
@@ -30,20 +30,68 @@ type Issue = {
     forumLink: string | null;
 };
 
-const STATUS_COLORS: Record<SystemIssueStatus, string> = {
-    "A_FAIRE": "secondary",
-    "A_INVESTIGUER": "destructive",
-    "EN_COURS": "default",
-    "TERMINE": "success",
-    "IGNORE": "outline"
-};
-
 const PRIORITY_COLORS: Record<string, string> = {
     "Très important": "bg-red-500/10 text-red-500 border-red-500/20",
     "Important": "bg-orange-500/10 text-orange-500 border-orange-500/20",
     "Normal": "bg-blue-500/10 text-blue-500 border-blue-500/20",
     "Faible": "bg-slate-500/10 text-slate-500 border-slate-500/20",
 };
+
+const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
+    let sc = "bg-primary text-primary-foreground";
+    if (status === "A_FAIRE") sc = "bg-zinc-800 text-zinc-300 border-zinc-700";
+    if (status === "A_INVESTIGUER") sc = "bg-red-500/20 text-red-500 border-red-500/50";
+    if (status === "EN_COURS") sc = "bg-amber-500/20 text-amber-500 border-amber-500/50";
+    if (status === "TERMINE") sc = "bg-emerald-500/20 text-emerald-500 border-emerald-500/50";
+    if (status === "IGNORE") sc = "bg-transparent text-zinc-600 border border-zinc-800";
+
+    return (
+        <Badge variant="outline" className={`whitespace-nowrap transition-colors ${sc}`}>
+            {status.replace("_", " ")}
+        </Badge>
+    );
+};
+
+const IssueForm = ({ form, setForm }: { form: any, setForm: (f: any) => void }) => (
+    <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label className="text-zinc-400">Type</Label>
+                <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
+                    <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-950 border-zinc-800">
+                        <SelectItem value="BUG" className="focus:bg-zinc-800 cursor-pointer text-red-400"><BugIcon className="inline w-3 h-3 mr-2" />Bug</SelectItem>
+                        <SelectItem value="AMELIORATION" className="focus:bg-zinc-800 cursor-pointer text-blue-400"><LightbulbIcon className="inline w-3 h-3 mr-2" />Amélioration</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2">
+                <Label className="text-zinc-400">Priorité</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                    <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-950 border-zinc-800">
+                        <SelectItem value="Très important" className="focus:bg-zinc-800 cursor-pointer text-red-500">Très important</SelectItem>
+                        <SelectItem value="Important" className="focus:bg-zinc-800 cursor-pointer text-orange-500">Important</SelectItem>
+                        <SelectItem value="Normal" className="focus:bg-zinc-800 cursor-pointer text-blue-500">Normal</SelectItem>
+                        <SelectItem value="Faible" className="focus:bg-zinc-800 cursor-pointer text-zinc-500">Faible</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+        <div className="space-y-2">
+            <Label className="text-zinc-400">Catégorie</Label>
+            <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ex: Combat, Quêtes, Divers" />
+        </div>
+        <div className="space-y-2">
+            <Label className="text-zinc-400">Description</Label>
+            <Textarea className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30 min-h-[120px]" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+            <Label className="text-zinc-400">Lien (optionnel)</Label>
+            <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.forumLink} onChange={e => setForm({ ...form, forumLink: e.target.value })} placeholder="https://..." />
+        </div>
+    </div>
+);
 
 export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
     const [issues, setIssues] = useState<Issue[]>(initialIssues);
@@ -124,68 +172,12 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
         }
     };
 
-    const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
-        let sc = "bg-primary text-primary-foreground";
-        if (status === "A_FAIRE") sc = "bg-zinc-800 text-zinc-300 border-zinc-700";
-        if (status === "A_INVESTIGUER") sc = "bg-red-500/20 text-red-500 border-red-500/50";
-        if (status === "EN_COURS") sc = "bg-amber-500/20 text-amber-500 border-amber-500/50";
-        if (status === "TERMINE") sc = "bg-emerald-500/20 text-emerald-500 border-emerald-500/50";
-        if (status === "IGNORE") sc = "bg-transparent text-zinc-600 border border-zinc-800";
-
-        return (
-            <Badge variant="outline" className={`whitespace-nowrap transition-colors ${sc}`}>
-                {status.replace("_", " ")}
-            </Badge>
-        );
-    };
-
     const filteredIssues = issues.filter(i => {
         const matchesFilter = i.description.toLowerCase().includes(filter.toLowerCase()) || 
                               i.category.toLowerCase().includes(filter.toLowerCase());
         const matchesType = filterType === "ALL" || i.type === filterType;
         return matchesFilter && matchesType;
     });
-
-    const IssueForm = () => (
-        <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label className="text-zinc-400">Type</Label>
-                    <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-zinc-800">
-                            <SelectItem value="BUG" className="focus:bg-zinc-800 cursor-pointer text-red-400"><BugIcon className="inline w-3 h-3 mr-2" />Bug</SelectItem>
-                            <SelectItem value="AMELIORATION" className="focus:bg-zinc-800 cursor-pointer text-blue-400"><LightbulbIcon className="inline w-3 h-3 mr-2" />Amélioration</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label className="text-zinc-400">Priorité</Label>
-                    <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-zinc-800">
-                            <SelectItem value="Très important" className="focus:bg-zinc-800 cursor-pointer text-red-500">Très important</SelectItem>
-                            <SelectItem value="Important" className="focus:bg-zinc-800 cursor-pointer text-orange-500">Important</SelectItem>
-                            <SelectItem value="Normal" className="focus:bg-zinc-800 cursor-pointer text-blue-500">Normal</SelectItem>
-                            <SelectItem value="Faible" className="focus:bg-zinc-800 cursor-pointer text-zinc-500">Faible</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Label className="text-zinc-400">Catégorie</Label>
-                <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ex: Combat, Quêtes, Divers" />
-            </div>
-            <div className="space-y-2">
-                <Label className="text-zinc-400">Description</Label>
-                <Textarea className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30 min-h-[120px]" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-                <Label className="text-zinc-400">Lien (optionnel)</Label>
-                <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.forumLink} onChange={e => setForm({ ...form, forumLink: e.target.value })} placeholder="https://..." />
-            </div>
-        </div>
-    );
 
     return (
         <div className="space-y-6">
@@ -224,7 +216,7 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                     <DialogHeader>
                         <DialogTitle className="text-xl font-medium text-white flex items-center">Nouveau Ticket</DialogTitle>
                     </DialogHeader>
-                    <IssueForm />
+                    <IssueForm form={form} setForm={setForm} />
                     <DialogFooter className="pt-4 border-t border-zinc-800/50">
                         <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-semibold w-full sm:w-auto">Créer le ticket</Button>
                     </DialogFooter>
@@ -239,7 +231,7 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                             Éditer le Ticket #{editingIssueId}
                         </DialogTitle>
                     </DialogHeader>
-                    <IssueForm />
+                    <IssueForm form={form} setForm={setForm} />
                     <DialogFooter className="pt-4 border-t border-zinc-800/50">
                         <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-semibold w-full sm:w-auto">Sauvegarder</Button>
                     </DialogFooter>
@@ -348,4 +340,3 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
         </div>
     );
 }
-

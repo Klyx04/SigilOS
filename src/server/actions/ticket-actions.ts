@@ -131,7 +131,7 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                     const categoryLabel = TICKET_CATEGORY_LABELS[data.category] || "📩 Ticket";
                     const embedColor = TICKET_STATUS_COLORS[data.category] || 0x6366f1;
 
-                    await sendChannelMessage(thread.id, "", {
+                    await sendChannelMessage(thread.id, `<@${data.creatorDiscordId}>`, {
                         embedTitle: `${categoryLabel} — Ticket #${ticket.ticketNumber}`,
                         embedColor,
                         embedDescription: [
@@ -191,14 +191,15 @@ export async function closeSupportTicket(
         if (!ticket) return { success: false, error: "Ticket introuvable." };
         if (ticket.status === "CLOSED") return { success: false, error: "Ticket déjà fermé." };
 
-        // RESTRICTION: Only the dev (Super Admin) or System can close the ticket
+        // RESTRICTION: Only the creator, dev (Super Admin) or System can close the ticket
         const isDev = await isDiscordSuperAdmin(closedByDiscordId);
         const isSystem = closedByDiscordId === "SYSTEM";
+        const isCreator = ticket.creatorDiscordId === closedByDiscordId;
 
-        if (!isDev && !isSystem) {
+        if (!isDev && !isSystem && !isCreator) {
             return { 
                 success: false, 
-                error: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket." 
+                error: "🔒 Seul l'auteur du ticket ou l'équipe technique SigilOS peut fermer ce ticket." 
             };
         }
 
@@ -232,6 +233,76 @@ export async function closeSupportTicket(
     } catch (error) {
         console.error("[Tickets] Close error:", error);
         return { success: false, error: "Erreur lors de la fermeture." };
+    }
+}
+
+// =============================================================================
+// 2.5 DELETE TICKET
+// =============================================================================
+
+export async function deleteSupportTicket(ticketId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Accès refusé" };
+
+    try {
+        const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
+        if (!ticket) return { success: false, error: "Ticket introuvable." };
+
+        // 1. Delete associated thread if it exists
+        if (ticket.discordThreadId) {
+            try {
+                const { deleteChannel } = await import("@/server/discord");
+                await deleteChannel(ticket.discordThreadId);
+            } catch (e) {
+                console.warn("[Tickets] Failed to delete Discord thread, might already be gone:", e);
+            }
+        }
+
+        // 2. Delete from DB
+        await db.supportTicket.delete({ where: { id: ticketId } });
+
+        revalidatePath("/god");
+        return { success: true };
+    } catch (error) {
+        console.error("[Tickets] Delete error:", error);
+        return { success: false, error: "Erreur lors de la suppression." };
+    }
+}
+
+/**
+ * Automatically close tickets waiting for a response for too long (Default: 7 days)
+ */
+export async function autoCloseStaleTickets(daysThreshold = 7) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Accès refusé" };
+
+    try {
+        const thresholdDate = new Date();
+        thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+
+        const staleTickets = await db.supportTicket.findMany({
+            where: {
+                status: "WAITING_RESPONSE",
+                updatedAt: { lt: thresholdDate }
+            }
+        });
+
+        let closedCount = 0;
+        for (const ticket of staleTickets) {
+            await closeSupportTicket(
+                ticket.id, 
+                "SYSTEM", 
+                "Automation SigilOS", 
+                `Fermeture automatique : aucune réponse de l'utilisateur depuis plus de ${daysThreshold} jours.`
+            );
+            closedCount++;
+        }
+
+        revalidatePath("/god");
+        return { success: true, count: closedCount };
+    } catch (error) {
+        console.error("[Tickets] Auto-close error:", error);
+        return { success: false, error: "Erreur lors de la fermeture automatique." };
     }
 }
 

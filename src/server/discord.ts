@@ -617,6 +617,29 @@ export async function deleteChannelMessage(channelId: string, messageId: string)
     }
 }
 
+/**
+ * Delete a Discord channel or thread
+ */
+export async function deleteChannel(channelId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bot ${token}`,
+            },
+        });
+
+        // 200 OK or 204 No Content = success
+        return res.ok || res.status === 204;
+    } catch (error) {
+        console.error("[Discord] Error deleting channel:", error);
+        return false;
+    }
+}
+
 // =============================================================================
 // THREAD MANAGEMENT (for Ticket System)
 // =============================================================================

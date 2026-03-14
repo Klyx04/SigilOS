@@ -1126,7 +1126,7 @@ export async function getGuildKralamoureEvents(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         // PRIORITY 1: Current user's personal key & server
@@ -1231,7 +1231,7 @@ export async function refreshOcreCache(
         // Rate limit refresh
         const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 3, 60);
         if (!rateCheck.success) {
-            return { success: false, error: "Trop de rafraÃ®chissements. Patientez une minute." };
+            return { success: false, error: "Trop de rafraîchissements. Patientez une minute." };
         }
 
         const profile = await db.userProfile.findFirst({
@@ -1249,7 +1249,7 @@ export async function refreshOcreCache(
         });
 
         if (!profile?.metamobPseudo) {
-            return { success: false, error: "Aucun compte Metamob liÃ©" };
+            return { success: false, error: "Aucun compte Metamob lié" };
         }
 
         // Use User Key
@@ -1325,7 +1325,7 @@ export async function refreshOcreCache(
         };
     } catch (error) {
         console.error("[refreshOcreCache] Error:", error);
-        return { success: false, error: "Erreur lors du rafraÃ®chissement" };
+        return { success: false, error: "Erreur lors du rafraîchissement" };
     }
 }
 
@@ -1360,13 +1360,13 @@ export async function forceRefreshOcre(
         });
 
         if (!profile?.metamobPseudo) {
-            return { success: false, error: "Compte Metamob non liÃ©" };
+            return { success: false, error: "Compte Metamob non lié" };
         }
 
         // [RateLimit] Prevent abuse (1 refresh per minute)
         const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60);
         if (!rateCheck.success) {
-            return { success: false, error: "Veuillez attendre une minute avant de rafraÃ®chir Ã  nouveau." };
+            return { success: false, error: "Veuillez attendre une minute avant de rafraîchir à nouveau." };
         }
 
         // 1. Clear internal memory cache
@@ -1432,7 +1432,7 @@ export async function forceRefreshOcre(
 export async function getAvailableOcreQuests(guildId: string, targetUserId?: string): Promise<ActionResponse<UserQuest[]>> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         // DB / RBAC Check
         const user = await getUserContext(guildId);
@@ -1448,7 +1448,7 @@ export async function getAvailableOcreQuests(guildId: string, targetUserId?: str
             select: { metamobPseudo: true, metamobApiKey: true }
         });
 
-        if (!profile?.metamobPseudo) return { success: false, error: "Compte non liÃ©" };
+        if (!profile?.metamobPseudo) return { success: false, error: "Compte non lié" };
 
         const effectiveKey = profile.metamobApiKey || undefined;
 
@@ -1461,14 +1461,14 @@ export async function getAvailableOcreQuests(guildId: string, targetUserId?: str
         return { success: true, data: quests };
     } catch (error) {
         // console.error("[getAvailableOcreQuests] Error:", error);
-        return { success: false, error: "Impossible de rÃ©cupÃ©rer la liste des quÃªtes" };
+        return { success: false, error: "Impossible de récupérer la liste des quêtes" };
     }
 }
 
 export async function switchOcreQuest(guildId: string, questSlug: string, targetUserId?: string): Promise<ActionResponse> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         // DB / RBAC Check
         const user = await getUserContext(guildId);
@@ -1486,7 +1486,7 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
         });
 
         if (!member) return { success: false, error: "Profil introuvable" };
-        if (!member.metamobPseudo) return { success: false, error: "Compte Metamob non liÃ©" };
+        if (!member.metamobPseudo) return { success: false, error: "Compte Metamob non lié" };
 
         const effectiveKey = member.metamobApiKey || undefined;
 
@@ -1497,7 +1497,7 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
         });
 
         const targetQuest = quests.find(q => q.slug === questSlug);
-        if (!targetQuest) return { success: false, error: "QuÃªte introuvable ou vous n'y avez pas accÃ¨s" };
+        if (!targetQuest) return { success: false, error: "Quête introuvable ou vous n'y avez pas accès" };
 
         // Update profile
         await db.userProfile.update({
@@ -1520,7 +1520,7 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
 
     } catch (error) {
         console.error("[switchOcreQuest] Error:", error);
-        return { success: false, error: "Erreur lors du changement de quÃªte" };
+        return { success: false, error: "Erreur lors du changement de quête" };
     }
 }
 
@@ -1538,15 +1538,15 @@ export async function adminForceUnlink(
 ): Promise<ActionResponse> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = AdminForceUnlinkSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, targetPseudo } = parsed.data;
 
         // Security check
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
-        if (!guard.allowed) return { success: false, error: "AccÃ¨s refusÃ©" };
+        if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         // Find the user holding this pseudo
         const userProfile = await db.userProfile.findFirst({
@@ -1559,7 +1559,7 @@ export async function adminForceUnlink(
         });
 
         if (!userProfile) {
-            return { success: false, error: `Aucun utilisateur trouvÃ© avec le compte Metamob "${targetPseudo}"` };
+            return { success: false, error: `Aucun utilisateur trouvé avec le compte Metamob "${targetPseudo}"` };
         }
 
         // Perform unlink
@@ -1571,13 +1571,12 @@ export async function adminForceUnlink(
                 metamobServerId: null,
                 metamobVerified: false,
                 metamobLastSync: null,
-                metamobApiKey: null,
             }
         });
 
         clearCache(targetPseudo.toLowerCase());
 
-        // Revalidate admin page and potential user page (though we don't know which user it was easily without fetching)
+        // Revalidate admin page and potential user page
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         revalidatePath(`/dashboard/${guildId}/members`);
 
@@ -1586,6 +1585,43 @@ export async function adminForceUnlink(
     } catch (error) {
         console.error("Error in adminForceUnlink:", error);
         return { success: false, error: "Erreur serveur interne" };
+    }
+}
+
+/**
+ * ADMIN: Search for linked Metamob pseudos in the guild for the unlocker tool.
+ */
+export async function searchMetamobPseudos(
+    guildId: string,
+    query: string
+): Promise<ActionResponse<string[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+        if (!guard.allowed) return { success: false, error: "Accès refusé" };
+
+        if (query.length < 2) return { success: true, data: [] };
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guild: { discordGuildId: guildId },
+                metamobPseudo: { contains: query, mode: "insensitive" },
+                status: "ACTIVE"
+            },
+            select: { metamobPseudo: true },
+            take: 10
+        });
+
+        const pseudos = profiles
+            .map(p => p.metamobPseudo)
+            .filter((p): p is string => !!p);
+
+        return { success: true, data: pseudos };
+    } catch (error) {
+        console.error("Error searching Metamob pseudos:", error);
+        return { success: false, error: "Erreur serveur" };
     }
 }
 
@@ -1609,11 +1645,11 @@ export async function createTradeRequest(
     try {
 
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
 
         const parsed = CreateTradeSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, targetProfileId, monsterId, monsterName: clientMonsterName, monsterImage: clientMonsterImage, message, sendDiscordPing } = parsed.data;
 
 
@@ -1663,7 +1699,7 @@ export async function createTradeRequest(
         });
 
         if (existingRequest) {
-            return { success: false, error: "Tu as dÃ©jÃ  une demande en attente pour ce monstre" };
+            return { success: false, error: "Tu as déjà une demande en attente pour ce monstre" };
         }
 
         // Anti-spam: max 3 demandes en attente simultanÃ©es (monstres diffÃ©rents)
@@ -1675,7 +1711,7 @@ export async function createTradeRequest(
         });
 
         if (pendingCount >= 3) {
-            return { success: false, error: "Tu as dÃ©jÃ  3 demandes en attente. Attends une rÃ©ponse avant d'en envoyer de nouvelles." };
+            return { success: false, error: "Tu as déjà 3 demandes en attente. Attends une réponse avant d'en envoyer de nouvelles." };
         }
 
 
@@ -1702,8 +1738,8 @@ export async function createTradeRequest(
                 data: {
                     userId: targetProfile.userId,
                     type: "OCRE_TRADE_REQUEST",
-                    title: "Demande d'Ã‰change",
-                    message: `${requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre"} souhaite vous Ã©changer un monstre !`,
+                    title: "Demande d'Échange",
+                    message: `${requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre"} souhaite vous échanger un monstre !`,
                     link: `/dashboard/${guildId}/quete-ocre`,
                 }
             });
@@ -1726,7 +1762,7 @@ export async function createTradeRequest(
                     guildConfig.ocreNotifyChannelId,
                     `<@${targetDiscordAccount.providerAccountId}>`,
                     {
-                        embedTitle: `ðŸ¤ Demande d'Ã©change â€” ${monsterName}`,
+                        embedTitle: `🤝 Demande d'échange — ${monsterName}`,
                         embedColor: 0x10b981,
                         embedThumbnail: monsterImageUrl,
                         embedUrl: `${publicUrl}/dashboard/${guildId}/quete-ocre`,
@@ -1734,7 +1770,7 @@ export async function createTradeRequest(
                             { name: "De", value: requesterName, inline: true },
                             { name: "Archimonstre", value: monsterName, inline: true },
                             ...(message ? [{ name: "Message", value: `*${message}*`, inline: false }] : []),
-                            { name: "RÃ©pondre", value: `[Ouvrir le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`, inline: false },
+                            { name: "Répondre", value: `[Ouvrir le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`, inline: false },
                         ]
                     }
                 );

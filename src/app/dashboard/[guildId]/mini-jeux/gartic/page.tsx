@@ -1,4 +1,8 @@
-import React from "react";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
+import { getUserContext } from "@/server/actions/user-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 import GarticGameWrapper from "@/components/gartic/GarticGameWrapper";
 
 export default async function SigilGarticPage({
@@ -8,8 +12,17 @@ export default async function SigilGarticPage({
     params: Promise<{ guildId: string }>;
     searchParams: Promise<{ room?: string }>
 }) {
+    const session = await auth();
+    if (!session?.user) redirect("/");
+
     const { guildId } = await params;
     const { room: roomId } = await searchParams;
+
+    const user = await getUserContext(guildId);
+    if (!user.canViewMiniGames) return <AccessDenied />;
+
+    const enabled = await isModuleEnabled(guildId, "worldmap");
+    if (!enabled) return <AccessDenied />;
 
     return (
         <div className="fixed top-[64px] md:top-[88px] bottom-0 left-0 md:left-[280px] right-0 bg-[#c83d5a] z-40 overflow-hidden">

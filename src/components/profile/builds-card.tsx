@@ -222,16 +222,17 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
     const handleForceBake = async (link: DofusBookLink) => {
         setIsSubmitting(true);
-        toast.info("Tentative de récupération des données via le serveur...");
+        toast.info(`Synchronisation en cours...`);
         
-        // We clear previewData to force the server action to re-bake
+        // Clear previewData to force re-fetch on next server bake
         const updatedLinks = links.map(l => l.id === link.id ? { ...l, previewData: null } : l);
         
         try {
             const result = await updateDofusBookLinks({ guildId, links: updatedLinks, targetUserId });
             if (result.success) {
                 onSave(updatedLinks); 
-                toast.success("Données récupérées !");
+                // Check if the build actually got baked (previewData will be set by server if successful)
+                toast.success("Synchronisation effectuée");
             } else {
                 toast.error(result.error || "Échec de la synchronisation");
             }

@@ -22,35 +22,9 @@ const RANKING_CACHE_TTL = 300_000; // 5 minutes
  * Called non-blocking (setTimeout) after a user saves their links.
  * Extracts the build ID from the URL and hits our own proxy to populate Redis.
  */
-function warmDofusbookCache(urls: string[]): void {
-    // Run after current request completes
-    setTimeout(async () => {
-        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        for (const url of urls) {
-            try {
-                const idMatch = url.match(
-                    /(?:equipement\/(?:[a-z]+\/)?(\d+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i
-                );
-                const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
-                if (!buildId) continue;
-
-                // Call our own proxy which handles the caching
-                const res = await fetch(`${baseUrl}/api/dofusbook/proxy/${buildId}`, {
-                    headers: { "x-internal-warm": "1" }
-                });
-                if (res.ok) {
-                    logger.info(`[Dofusbook Cache] Pre-warmed build ${buildId} (${res.headers.get("X-Cache")})`);
-                } else {
-                    logger.warn(`[Dofusbook Cache] Pre-warm failed for ${buildId}: ${res.status}`);
-                }
-                // Small delay between requests to avoid rate-limiting
-                await new Promise(r => setTimeout(r, 500));
-            } catch (e) {
-                // Silently ignore — non-critical background operation
-            }
-        }
-    }, 100);
-}
+// warmDofusbookCache is disabled — Dofusbook API blocked by Cloudflare for all server IPs.
+// Cache is warmed via getDofusbookPreview during the bake step in updateDofusBookLinks.
+function warmDofusbookCache(_urls: string[]): void { /* no-op */ }
 
 
 export type ActionResponse<T = null> = {

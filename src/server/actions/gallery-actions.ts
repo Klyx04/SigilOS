@@ -11,7 +11,7 @@ export type GalleryBuild = {
     name: string;
     url: string;
     tags?: string[];
-    classId?: number;
+    classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
     author: {
         id: string;
@@ -42,7 +42,8 @@ export async function getStuffGalleryPage(
     guildId: string,
     page: number = 1,
     searchQuery?: string,
-    tag?: string
+    tag?: string,
+    classId?: string
 ): Promise<ActionResponse<GalleryPage>> {
     if (!guildId) return { success: false, error: "ID de guilde requis" };
 
@@ -121,6 +122,11 @@ export async function getStuffGalleryPage(
         // Apply tag filter server-side
         if (tag) {
             allBuilds = allBuilds.filter(b => b.tags?.includes(tag));
+        }
+
+        // Apply class filter server-side
+        if (classId) {
+            allBuilds = allBuilds.filter(b => String(b.classId) === classId);
         }
 
         const total = allBuilds.length;

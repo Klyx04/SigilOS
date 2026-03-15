@@ -2,12 +2,62 @@
 
 import { useState, useEffect } from "react";
 import { getClassName, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
-import { Loader2, ExternalLink, Users, Link2, Zap, Move, Eye, Heart, Shield, FastForward, Info } from "lucide-react";
+import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { getClassColor } from "@/components/shared/class-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { DofusbookItem } from "@/lib/dofusbook-utils";
+
+// Mini-popover showing a panoplie's equipped items with DofusDB links
+type ClothData = { name: string; count: number; total: number; clothItems?: DofusbookItem[] };
+
+function ClothBadge({ cloth }: { cloth: ClothData }) {
+    const hasItems = cloth.clothItems && cloth.clothItems.length > 0;
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <button className="px-3 py-2 bg-zinc-900 border border-white/5 rounded-xl flex items-center gap-3 group/cloth hover:border-emerald-500/30 hover:bg-zinc-800/50 transition-all cursor-pointer text-left">
+                    <span className="text-[11px] font-bold text-zinc-300 group-hover/cloth:text-emerald-400 transition-colors uppercase">{cloth.name}</span>
+                    <div className="px-1.5 py-0.5 bg-black/40 rounded text-[9px] font-black text-zinc-500">
+                        {cloth.count}<span className="text-zinc-700">/{cloth.total}</span>
+                    </div>
+                </button>
+            </PopoverTrigger>
+            {hasItems && (
+                <PopoverContent className="w-64 bg-zinc-950 border-white/10 rounded-2xl p-3 shadow-2xl" side="top" align="start">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{cloth.name}</p>
+                    <div className="flex flex-col gap-1.5">
+                        {cloth.clothItems!.map(item => (
+                            <a
+                                key={item.id}
+                                href={`https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-white/5 transition-colors group/item"
+                            >
+                                <div className="w-8 h-8 bg-zinc-900 rounded-lg border border-white/5 flex-shrink-0 overflow-hidden">
+                                    <NextImage
+                                        src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `/assets/dofus/placeholder.png`}
+                                        alt={item.name}
+                                        width={32}
+                                        height={32}
+                                        className="object-contain w-full h-full"
+                                        unoptimized
+                                    />
+                                </div>
+                                <span className="text-[11px] font-semibold text-zinc-400 group-hover/item:text-white transition-colors truncate flex-1">{item.name}</span>
+                                <ExternalLink className="w-3 h-3 text-zinc-700 group-hover/item:text-emerald-400 transition-colors flex-shrink-0" />
+                            </a>
+                        ))}
+                    </div>
+                </PopoverContent>
+            )}
+        </Popover>
+    );
+}
 
 interface DofusbookPreviewProps {
     url: string;
@@ -23,52 +73,32 @@ const getIconId = (id: number) => id === 19 ? 20 : id;
 export function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
-    const [error, setError] = useState<string | null>(null);
 
-    const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?(\d+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
+    const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
     useEffect(() => {
-        if (initialData) return; // Skip fetch if we have pre-cached data
+        if (initialData || !buildId) { setLoading(false); return; }
 
-        async function fetchPreview() {
-            if (!buildId) {
-                setError("URL Dofusbook invalide.");
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            setError(null);
-            try {
-                const response = await fetch(`/api/dofusbook/proxy/${buildId}`);
-                if (response.ok) {
-                    const raw = await response.json();
-                    const processed = processDofusbookRawData(buildId, raw);
-                    setData(processed);
-                } else {
-                    const errPayload = await response.json().catch(() => ({}));
-                    setError(errPayload.error || `Erreur Dofusbook (${response.status})`);
-                }
-            } catch (err) {
-                setError("Erreur de connexion.");
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchPreview();
-    }, [buildId]);
+        setLoading(true);
+        fetch(`/api/dofusbook/proxy/${buildId}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(raw => {
+                if (raw) setData(processDofusbookRawData(buildId, raw));
+            })
+            .catch(() => { /* silent — clean fallback shown */ })
+            .finally(() => setLoading(false));
+    }, [buildId, initialData]);
 
     if (loading) {
         return (
-            <div className={cn("flex flex-col items-center justify-center p-8 bg-zinc-900/50 rounded-2xl border border-white/5 min-h-[300px]", className)}>
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-500/50" />
+            <div className={cn("flex items-center justify-center bg-zinc-900/50 rounded-[2.5rem] border border-white/5 min-h-[300px]", className)}>
+                <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
             </div>
         );
     }
 
-    // --- FALLBACK LOGIC FOR CARD ---
-    const isError = error || !data;
-    const is403 = error?.includes("403");
+    const hasData = !!data;
 
     // Robust Class Detection for Fallback
     const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
@@ -152,7 +182,7 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                         )}
                     </div>
 
-                    {!isError && data ? (
+                    {hasData && data ? (
                         <div className="grid grid-cols-6 grid-rows-5 gap-1.5 relative z-10">
                             {[
                                 { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
@@ -186,17 +216,9 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                             })}
                         </div>
                     ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950/20 backdrop-blur-[1px]">
-                            <div className="w-10 h-10 rounded-full bg-zinc-800/80 border border-white/10 flex items-center justify-center mb-2 shadow-2xl">
-                                <Link2 className="w-4 h-4 text-zinc-500" />
-                            </div>
-                            <p className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] drop-shadow-md">Flux Dbook Bloqué</p>
-                            <p className="text-[8px] text-zinc-500 font-bold mt-1 uppercase tracking-tighter">Cliquer pour détails</p>
-                            {is403 && (
-                                <div className="absolute top-3 right-3 px-2 py-0.5 bg-zinc-900/80 backdrop-blur-md rounded border border-white/10 text-[7px] font-black text-zinc-500 uppercase tracking-widest">
-                                    Dbook Protected
-                                </div>
-                            )}
+                        /* No cached data — show class art as clean placeholder, no error message */
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <ExternalLink className="w-5 h-5 text-zinc-600 opacity-60" />
                         </div>
                     )}
                 </div>
@@ -284,9 +306,16 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                     })}
                                 </div>
                             ) : (
-                                <div className="text-center relative z-10 p-8">
-                                    <Info className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Détails des items bloqués localement</p>
+                                /* No item data — show class art as hero visual using guessedClassId */
+                                <div className="absolute inset-0 flex items-center justify-center p-8">
+                                    {guessedClassId > 0 && (
+                                        <NextImage
+                                            src={`/assets/dofus/classes/${getIconId(guessedClassId)}.png`}
+                                            alt="Classe"
+                                            fill
+                                            className="object-contain opacity-20 p-12"
+                                        />
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -363,20 +392,26 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                         </div>
                                     </div>
 
-                                    {/* Secondary Stats */}
-                                    <div className="flex flex-col gap-2 bg-white/5 p-4 rounded-3xl border border-white/5 justify-center">
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
-                                            <span className="flex items-center gap-1.5"><FastForward className="w-3 h-3" /> INI</span>
-                                            <span className="text-white font-black">{data.stats.ini}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
-                                            <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> INVOC</span>
-                                            <span className="text-white font-black">{data.stats.invoc}</span>
-                                        </div>
+                                    {/* Element Stats (Fo / In / Ch / Ag / Sa) */}
+                                    <div className="flex flex-col gap-1.5 bg-white/5 p-4 rounded-3xl border border-white/5 justify-center">
+                                        {data.elements && ([
+                                            { key: 'fo' as const, label: 'Force',        color: 'text-yellow-400' },
+                                            { key: 'in' as const, label: 'Intelligence', color: 'text-orange-400' },
+                                            { key: 'ch' as const, label: 'Chance',       color: 'text-sky-400'    },
+                                            { key: 'ag' as const, label: 'Agilité',      color: 'text-green-400'  },
+                                            { key: 'sa' as const, label: 'Sagesse',      color: 'text-purple-400' },
+                                        ]).map(({ key, label, color }) => (
+                                            data.elements[key] > 0 ? (
+                                                <div key={key} className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
+                                                    <span>{label}</span>
+                                                    <span className={`font-black ${color}`}>{data.elements[key]}</span>
+                                                </div>
+                                            ) : null
+                                        ))}
                                     </div>
                                 </div>
 
-                                {/* Associated Sets */}
+                                {/* Associated Sets — clickable */}
                                 {data.cloths && data.cloths.length > 0 && (
                                     <div className="mt-auto">
                                         <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -384,24 +419,24 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                         </h4>
                                         <div className="flex flex-wrap gap-2">
                                             {data.cloths.map((cloth, i) => (
-                                                <div key={i} className="px-3 py-2 bg-zinc-900 border border-white/5 rounded-xl flex items-center gap-3 group/cloth hover:border-emerald-500/30 transition-all">
-                                                    <span className="text-[11px] font-bold text-zinc-300 group-hover/cloth:text-emerald-400 transition-colors uppercase">{cloth.name}</span>
-                                                    <div className="px-1.5 py-0.5 bg-black/40 rounded text-[9px] font-black text-zinc-500">
-                                                        {cloth.count}<span className="text-zinc-700">/{cloth.total}</span>
-                                                    </div>
-                                                </div>
+                                                <ClothBadge key={i} cloth={cloth} />
                                             ))}
                                         </div>
                                     </div>
                                 )}
                             </>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/5 rounded-[2rem] border border-white/5 text-center">
-                                <Link2 className="w-8 h-8 text-zinc-700 mb-4" />
-                                <h4 className="text-sm font-black text-white uppercase mb-2">Build non synchronisé</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed max-w-[200px] font-bold uppercase">
-                                    Les statistiques détaillées ne sont pas disponibles car la synchronisation avec Dofusbook est bloquée localement.
-                                </p>
+                            /* No stats data — clean external link CTA, no error language */
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/[0.02] rounded-[2rem] border border-white/5 text-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                    <ExternalLink className="w-6 h-6 text-zinc-500" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black text-white uppercase mb-1">Voir le build complet</h4>
+                                    <p className="text-[10px] text-zinc-500 leading-relaxed max-w-[200px]">
+                                        Ouvre ce stuff directement sur Dofusbook pour voir les détails et statistiques.
+                                    </p>
+                                </div>
                             </div>
                         )}
 

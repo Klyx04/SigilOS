@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 import { GalleryClient } from "./gallery-client";
 
 export default async function GalleryStuffPage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -11,7 +12,7 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
         redirect("/login");
     }
 
-    if (!user.canViewStuffGallery) {
+    if (!user.canViewStuffGallery || !await isModuleEnabled(guildId, "gallery")) {
         redirect(`/dashboard/${guildId}`);
     }
 

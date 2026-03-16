@@ -25,7 +25,7 @@ export default async function WelcomePage({
         );
     }
 
-    const posts = await getWelcomePosts(guildId);
+    const { posts, reactorNames } = await getWelcomePosts(guildId);
 
 
     return (
@@ -59,7 +59,8 @@ export default async function WelcomePage({
                     </div>
                 ) : (
                     <WelcomeFeedClient
-                        initialPosts={JSON.parse(JSON.stringify(posts))}
+                        initialPosts={posts}
+                        reactorNames={reactorNames}
                         currentProfileId={user.profileId || ""}
                         guildId={guildId}
                     />

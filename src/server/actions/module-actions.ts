@@ -34,6 +34,7 @@ const UpdateModulesSchema = z.object({
     resources: z.boolean(),
     // Nouveau
     chat: z.boolean(),
+    gallery: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -62,26 +63,28 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             include: { modules: true },
         });
 
-        const data = !guildConfig?.modules ? DEFAULT_MODULES : {
-            presentation: guildConfig.modules.presentation,
-            roster: guildConfig.modules.roster,
-            stats: guildConfig.modules.stats,
-            calendar: guildConfig.modules.calendar,
-            missions: guildConfig.modules.missions,
-            songes: guildConfig.modules.songes,
-            ocre: guildConfig.modules.ocre,
-            ladder: guildConfig.modules.ladder,
-            services: guildConfig.modules.services,
-            donjons: guildConfig.modules.donjons,
-            profile: guildConfig.modules.profile,
-            docs: guildConfig.modules.docs,
-            polls: guildConfig.modules.polls,
-            logs: guildConfig.modules.logs,
-            admin: guildConfig.modules.admin,
-            quests: guildConfig.modules.quests,
-            worldmap: guildConfig.modules.worldmap,
-            resources: guildConfig.modules.resources,
-            chat: guildConfig.modules.chat,
+        const modules = guildConfig?.modules as any;
+        const data = !modules ? DEFAULT_MODULES : {
+            presentation: modules.presentation,
+            roster: modules.roster,
+            stats: modules.stats,
+            calendar: modules.calendar,
+            missions: modules.missions,
+            songes: modules.songes,
+            ocre: modules.ocre,
+            ladder: modules.ladder,
+            services: modules.services,
+            donjons: modules.donjons,
+            profile: modules.profile,
+            docs: modules.docs,
+            polls: modules.polls,
+            logs: modules.logs,
+            admin: modules.admin,
+            quests: modules.quests,
+            worldmap: modules.worldmap,
+            resources: modules.resources,
+            chat: modules.chat,
+            gallery: modules.gallery,
         };
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });

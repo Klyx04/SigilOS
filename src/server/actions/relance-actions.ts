@@ -37,7 +37,7 @@ const RelanceSchema = z.object({
  */
 export async function getRelanceCandidates(
     guildId: string, 
-    criteria: "MISSING_MISSIONS" | "INACTIVE",
+    criteria: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE",
     inactiveDays: number = 7
 ): Promise<ActionResponse<any[]>> {
     const user = await getUserContext(guildId);
@@ -82,6 +82,9 @@ export async function getRelanceCandidates(
                 const lastSeen = p.lastSeen || p.lastActivityAt || p.updatedAt;
                 return lastSeen < threshold;
             });
+        } else if (criteria === "DOFUS_INACTIVE") {
+            // Return all active members for manual selection (no filters)
+            candidates = guildConfig.profiles;
         }
 
         // Format candidates for UI

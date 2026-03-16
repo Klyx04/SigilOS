@@ -17,6 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
 import { hashImage } from "@/lib/llm-ocr";
 import { createAuditLog } from "@/server/actions/audit-actions";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 
 // --- Types & Schemas ---
@@ -73,9 +74,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
                 const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
-                const absoluteImageUrl = proofUrl
-                    ? (proofUrl.startsWith("http") ? proofUrl : `${process.env.NEXT_PUBLIC_APP_URL}${proofUrl}`)
-                    : undefined;
+                const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
 
                 // Compact validation alert with proof screenshot + action buttons
                 const messageId = await sendChannelMessage(discordChannelId, content, {

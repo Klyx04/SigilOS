@@ -358,32 +358,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         } as any;
     }
 
-    // --- AUTO-ARCHIVE ---
+    // --- AUTO-ARCHIVE DETECTION (Legacy) ---
+    // Note: We don't perform DB mutation here anymore to avoid "Mutation during render" errors.
+    // The UI handles !member by blocking access. Actual DB archival happens via admin sync.
     if (guildConfig && !member && profile && profile.status === "ACTIVE") {
-        // If member is null, it means they are not in the guild anymore (404 handled by fetchGuildMember)
-        // Member left or was kicked from Discord -> Auto-archive on platform
-        const scheduledDeletion = new Date();
-        scheduledDeletion.setDate(scheduledDeletion.getDate() + 30); // 30 days retention
-
-        await db.userProfile.update({
-            where: { id: profile.id },
-            data: {
-                status: "ARCHIVED",
-                archivedAt: new Date(),
-                archiveReason: "LEFT_GUILD",
-                scheduledDeletion
-            }
-        });
-
         if (!isGod) return {
             ...baseContext,
             isAuthenticated: true,
             isMember: false,
             isArchived: true,
             guildName: guildConfig?.name || "Serveur Inconnu",
-            scheduledDeletion: scheduledDeletion.toISOString()
+            scheduledDeletion: null // Will be set upon actual archival via sync
         } as any;
     }
+
 
     // --- NON-MEMBER CHECK (Not on Discord and not already handled) ---
     if (!member) {
@@ -519,27 +507,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         } else {
-            // EXISTING ACTIVE member — Performance Optim: Update presence in Redis ALWAYS (fast)
-            // But only update Prisma Discord Cache if it's older than 1 hour or randomly (throttle).
+            // EXISTING ACTIVE member — Performance Optim: Redis presence only (fast)
+            // Note: We moved the Prisma Discord cache update to a dedicated sync action
+            // to maintain getUserContext as a read-only context fetcher during render.
             try {
-                // REDIS HEARTBEAT (New Best Practice)
+                // REDIS HEARTBEAT (Safe in Next.js)
                 await PresenceManager.updatePresence(guildConfig.id, session.user.id);
-
-                // PRISMA THROTTLED UPDATE (Only if cache is older than 1h to save VPS resources)
-                const cacheAge = now.getTime() - (profile.discordCacheUpdatedAt?.getTime() || 0);
-                if (cacheAge > 3600000) {
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: {
-                            discordNickname: displayName,
-                            discordRoleName: roleName,
-                            discordRoleColor: roleColor,
-                            discordCacheUpdatedAt: now,
-                        }
-                    });
-                }
             } catch { }
         }
+
     }
 
     // 3. Permissions

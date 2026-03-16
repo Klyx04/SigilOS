@@ -471,10 +471,41 @@ function parseModelResponse(rawResponse: string): ParsedModelResponse {
 // =============================================================================
 
 /**
- * Generate SHA-256 hash of image buffer for duplicate detection
+ * Generate a Perceptual Hash (dHash) of an image buffer.
+ * This is robust against resizing, compression, and slight color changes.
+ * Returns a 64-bit hex string (16 chars).
  */
-export function hashImage(imageBuffer: Buffer): string {
-    return createHash('sha256').update(imageBuffer).digest('hex');
+export async function hashImage(imageBuffer: Buffer): Promise<string> {
+    try {
+        // 1. Resize to 9x8, grayscale, and raw pixel output
+        const { data, info } = await sharp(imageBuffer)
+            .resize(9, 8, { fit: 'fill' })
+            .grayscale()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+
+        // 2. Compute dHash (Difference Hash)
+        // Compare adjacent pixels in each row (9 pixels -> 8 comparisons)
+        let hash = "";
+        for (let row = 0; row < 8; row++) {
+            let rowBinary = 0;
+            for (let col = 0; col < 8; col++) {
+                const left = data[row * 9 + col];
+                const right = data[row * 9 + col + 1];
+                if (left > right) {
+                    rowBinary |= (1 << (7 - col));
+                }
+            }
+            // Convert byte to hex (2 chars)
+            hash += rowBinary.toString(16).padStart(2, '0');
+        }
+
+        return hash;
+    } catch (error) {
+        logger.error('[LLM-OCR] Perceptual hashing failed, fallback to SHA-256', { error });
+        // Fallback to SHA-256 if sharp fails
+        return createHash('sha256').update(imageBuffer).digest('hex');
+    }
 }
 
 // =============================================================================

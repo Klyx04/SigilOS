@@ -12,13 +12,20 @@ import { logger } from "@/lib/logger";
 export async function deleteProofFile(proofUrl: string) {
     if (!proofUrl) return;
 
-    // Accept any file under /uploads/ — reject anything else
-    if (!proofUrl.startsWith("/uploads/")) return;
+    // Accept both legacy /uploads/ and new /api/storage/ paths
+    let relativePath = "";
+    if (proofUrl.startsWith("/uploads/")) {
+        relativePath = proofUrl.replace(/^\/uploads\//, "");
+    } else if (proofUrl.startsWith("/api/storage/")) {
+        relativePath = proofUrl.replace(/^\/api\/storage\//, "");
+    } else {
+        return; // Ignore any other paths
+    }
 
-    // Normalize to block path traversal (e.g. /../etc/passwd)
-    const relativePath = proofUrl.replace(/^\/uploads\//, "");
-    const absolutePath = normalize(join(process.cwd(), "private_uploads", relativePath));
-    const uploadsRoot = normalize(join(process.cwd(), "private_uploads"));
+    // Normalize and secure path
+    const safePath = normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, "");
+    const absolutePath = join(process.cwd(), "private_uploads", safePath);
+    const uploadsRoot = join(process.cwd(), "private_uploads");
 
     if (!absolutePath.startsWith(uploadsRoot)) {
         logger.warn(`[Storage] Path traversal attempt blocked`, { proofUrl });

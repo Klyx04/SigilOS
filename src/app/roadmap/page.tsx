@@ -1,4 +1,5 @@
 import { getRoadmapItems, getPlatformConfig } from "@/server/actions/god-roadmap-actions";
+import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, Rocket, CheckCircle2, Circle } from "lucide-react";
@@ -22,19 +23,24 @@ export const metadata = {
 
 export default async function PublicRoadmapPage() {
     const session = await auth();
-    const { getUserContext } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext();
     const isAdmin = await isSuperAdmin();
 
-    const [itemsRes, configRes] = await Promise.all([
+    const [itemsRes, configRes, userGuilds] = await Promise.all([
         getRoadmapItems(),
-        getPlatformConfig()
+        getPlatformConfig(),
+        getUserGuilds()
     ]);
 
     const isEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
+    const isInAnyGuild = userGuilds.length > 0;
 
-    // Reject non-admins if roadmap is currently disabled
-    if (!isEnabled && !isAdmin) {
+    // Access condition:
+    // 1. Super Admin bypass
+    // 2. OR (Roadmap is enabled AND user belongs to at least one authorized guild)
+    const hasAccess = isAdmin || (isEnabled && isInAnyGuild);
+
+    if (!hasAccess) {
         redirect("/");
     }
 

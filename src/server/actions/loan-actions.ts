@@ -23,6 +23,17 @@ async function getDiscordId(userId: string): Promise<string | null> {
     return account?.providerAccountId ?? null;
 }
 
+import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
+import { hashImage } from "@/lib/llm-ocr";
+
+const profileSelect = {
+    id: true,
+    pseudoDofus: true,
+    discordNickname: true,
+    userId: true,
+    user: { select: { name: true, image: true } },
+};
+
 // ---------------------------------------------------------------------------
 // TYPES
 // ---------------------------------------------------------------------------
@@ -73,20 +84,6 @@ const createLoanSchema = z.object({
     linkedItemIconUrl: z.string().url().optional().nullable(),
     notifyDiscord: z.boolean().optional().default(false),
 });
-
-// ---------------------------------------------------------------------------
-// HELPERS
-// ---------------------------------------------------------------------------
-
-import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
-
-const profileSelect = {
-    id: true,
-    pseudoDofus: true,
-    discordNickname: true,
-    userId: true,
-    user: { select: { name: true, image: true } },
-};
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -178,11 +175,38 @@ export async function createLoan(
 
         // Handle proof upload
         let proofUrl: string | null = null;
+        let finalImageHash: string | null = null;
+
         if (proofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                proofUrl = uploadResult.url;
+            const file = proofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                finalImageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: finalImageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    proofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: guildConfig.id,
+                            hash: finalImageHash,
+                            sourceType: "LOAN",
+                            sourceId: "PENDING", // Temporary
+                            uploaderId: user.id!
+                        }
+                    });
+                }
             }
         }
 
@@ -201,6 +225,14 @@ export async function createLoan(
                 linkedItemIconUrl: parsed.data.linkedItemIconUrl || null,
             },
         });
+
+        // Update image hash with the real sourceId
+        if (proofUrl && finalImageHash) {
+            await (db as any).imageHash.update({
+                where: { hash: finalImageHash },
+                data: { sourceId: loan.id }
+            });
+        }
 
         // Immutable activity log
         const borrowerProfile = await db.userProfile.findUnique({
@@ -321,10 +353,35 @@ export async function markLoanReturned(
 
         let returnProofUrl: string | null = null;
         if (returnProofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(loan.guildId, returnProofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                returnProofUrl = uploadResult.url;
+            const file = returnProofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const imageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: imageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(loan.guildId, returnProofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    returnProofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: loan.guildId,
+                            hash: imageHash,
+                            sourceType: "LOAN_RETURN",
+                            sourceId: loanId,
+                            uploaderId: user.id!
+                        }
+                    });
+                }
             }
         }
 

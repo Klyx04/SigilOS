@@ -224,10 +224,9 @@ export async function submitKamaDonation(
         const file = proofFormData.get("file") as File | null;
         if (!file) return { success: false, error: "Aucun fichier fourni" };
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const imageHash = hashImage(fileBuffer);
-
-        const existingHash = await (db as any).imageHash.findUnique({
-            where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } },
+        const imageHash = await hashImage(fileBuffer);
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
         if (existingHash) {
             return { success: false, error: "Cette image a déjà été utilisée pour une contribution dans cette guilde." };

@@ -15,6 +15,7 @@ import {
     ExternalLink,
     ShieldCheck,
     Loader2,
+    Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -199,6 +200,23 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                 setSelectedTicket(null);
             } else {
                 toast.error(res.error || "Erreur de fermeture");
+            }
+        });
+    }
+
+    // Delete ticket
+    async function handleDeleteTicket(ticketId: string) {
+        if (!confirm("⚠️ Supprimer ce ticket définitivement ? (Action irréversible, le thread Discord sera supprimé)")) return;
+
+        startTransition(async () => {
+            const { deleteSupportTicket } = await import("@/server/actions/ticket-actions");
+            const res = await deleteSupportTicket(ticketId);
+            if (res.success) {
+                toast.success("Ticket supprimé définitivement.");
+                await refreshTickets();
+                setSelectedTicket(null);
+            } else {
+                toast.error(res.error || "Erreur de suppression");
             }
         });
     }
@@ -494,6 +512,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                     onClose={() => setSelectedTicket(null)}
                     onReply={handleReply}
                     onCloseTicket={handleClose}
+                    onDeleteTicket={handleDeleteTicket}
                     onValidateGuild={handleValidateGuild}
                     onRejectGuild={handleRejectGuild}
                     onStatusChange={handleStatusChange}
@@ -535,6 +554,7 @@ function TicketDetailModal({
     onClose,
     onReply,
     onCloseTicket,
+    onDeleteTicket,
     onValidateGuild,
     onRejectGuild,
     onStatusChange,
@@ -549,6 +569,7 @@ function TicketDetailModal({
     onClose: () => void;
     onReply: (id: string) => void;
     onCloseTicket: (id: string) => void;
+    onDeleteTicket: (id: string) => void;
     onValidateGuild: (ticketId: string, discordGuildId: string) => void;
     onRejectGuild: (ticketId: string) => void;
     onStatusChange: (id: string, status: string) => void;
@@ -712,8 +733,18 @@ function TicketDetailModal({
 
                 {/* Main Action Footer */}
                 {ticket.status !== "CLOSED" && (
-                    <div className="px-10 py-6 border-t border-white/5 bg-zinc-950/50 flex justify-between items-center">
-                        <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">SigilOS Support Engine v2.6</p>
+                    <div className="px-10 py-6 border-t border-white/5 bg-zinc-950/50 flex justify-between items-center group/footer">
+                        <div className="flex items-center gap-6">
+                            <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">SigilOS Support Engine v2.6</p>
+                            <button
+                                onClick={() => onDeleteTicket(ticket.id)}
+                                disabled={isPending}
+                                className="opacity-0 group-hover/footer:opacity-100 transition-opacity flex items-center gap-1.5 text-[9px] font-black text-red-500/50 hover:text-red-500 uppercase tracking-widest"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                                Détruire Définitivement
+                            </button>
+                        </div>
                         <button
                             onClick={() => onCloseTicket(ticket.id)}
                             disabled={isPending}

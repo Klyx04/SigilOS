@@ -16,6 +16,7 @@ import {
 } from "@/lib/kama-constants";
 import { getDofusWeek } from "@/lib/date-utils";
 import { hashImage } from "@/lib/llm-ocr";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 // Le client etendu ($extends) masque les types TS des modeles, on caste vers PrismaClient
 // pour acceder a kamaDonation avec les bons types. En runtime, tout fonctionne correctement.
@@ -280,7 +281,7 @@ export async function submitKamaDonation(
                 });
                 const userName = profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Un membre";
                 const dashUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${input.guildId}/admin/validation`;
-                const absoluteImageUrl = `${process.env.NEXT_PUBLIC_APP_URL}${uploadResult.url}`;
+                const absoluteImageUrl = getDiscordPublicUrl(uploadResult.url);
                 const mentionRole = (guildConfig as any).kamaNotifyRoleId;
                 const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
 

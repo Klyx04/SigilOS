@@ -52,6 +52,7 @@ export const PERMISSIONS = {
     CHAT_VIEW: "chat:view",         // Lire + écrire dans le chat guilde
     CHAT_MODERATE: "chat:moderate", // Muter des membres, vider l'historique
     STUFF_GALLERY_VIEW: "gallery:stuff_view",
+    RELANCE_MANAGE: "admin:relance_manage",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -80,6 +81,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.PROFILE_VIEW]: { label: "Voir Mon Profil", description: "S'autoriser à voir son propre profil.", module: "profile" },
     [PERMISSIONS.PROFILE_VIEW_ALL]: { label: "Voir l'Annuaire", description: "Consulter la liste des membres.", module: "profile" },
     [PERMISSIONS.MEMBER_MANAGE]: { label: "Gérer les Membres", description: "Archiver ou bannir des membres.", module: "admin" },
+    [PERMISSIONS.RELANCE_MANAGE]: { label: "Gérer les Relances", description: "Accès au module de relances et pings membres.", module: "admin" },
 
     // Missions
     [PERMISSIONS.MISSIONS_VIEW]: { label: "Voir les Missions", description: "Consulter les missions hebdo.", module: "missions" },

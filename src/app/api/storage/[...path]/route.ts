@@ -4,6 +4,7 @@ import { join, normalize } from "path";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { getUserContext } from "@/server/actions/user-actions";
+import { verifyStorageToken } from "@/lib/storage-utils";
 
 /**
  * RBAC-Protected Asset Server
@@ -34,18 +35,24 @@ export async function GET(
 
     // 🌟 Identify Public vs Private Assets
     // Pattern: guilds/{guildId}/{filename} -> Presentation Banner/Photo
-    const isPublicPresentationAsset = segment === "guilds" && !!guildId && rest.length === 1;
+    // Pattern: assets/ -> General public assets
+    const isPublicPresentationAsset = (segment === "guilds" && !!guildId && rest.length === 1) || segment === "assets";
 
     // 🛡️ Authentication Check (Bypass for public images)
     let session = null;
     if (!isPublicPresentationAsset) {
         session = await auth();
-        if (!session?.user) {
+        
+        // 🛡️ TOKEN: Check for signed public token (used by Discord)
+        const token = req.nextUrl.searchParams.get("token");
+        const isTokenValid = token ? verifyStorageToken(safePath, token) : false;
+
+        if (!session?.user && !isTokenValid) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        // 🛡️ RBAC: Check permissions for private areas
-        if (segment === "guilds" || segment === "proofs") {
+        // 🛡️ RBAC: Check permissions for private areas (Only if not using a valid token)
+        if (!isTokenValid && (segment === "guilds" || segment === "proofs")) {
             if (!guildId) return new NextResponse("Forbidden", { status: 403 });
             
             // Check membership for any private image in guilds/ or proofs/

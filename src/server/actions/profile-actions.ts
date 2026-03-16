@@ -13,6 +13,7 @@ import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -1317,7 +1318,8 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                     const { sendChannelMessage } = await import("@/server/discord");
                     const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
                     const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
-                    const absoluteImageUrl = `${process.env.NEXT_PUBLIC_APP_URL}${proofUrl}`;
+                    const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
+                    
                     const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;
                     const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
 

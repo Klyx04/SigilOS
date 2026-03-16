@@ -17,7 +17,7 @@ export default async function RelancePage({ params }: { params: Promise<{ guildI
     const { guildId } = await params;
     const user = await getUserContext(guildId);
 
-    if (!user.isAdmin) {
+    if (!user.canManageRelance) {
         return <AccessDenied />;
     }
 

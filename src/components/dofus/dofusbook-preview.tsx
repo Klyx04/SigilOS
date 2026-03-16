@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { getClassName, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield } from "lucide-react";
 import NextImage from "next/image";
@@ -70,7 +70,7 @@ interface DofusbookPreviewProps {
 
 const getIconId = (id: number) => id === 19 ? 20 : id;
 
-export function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
 
@@ -100,32 +100,40 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
 
     const hasData = !!data;
 
-    // Robust Class Detection for Fallback
-    const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
-    const classesMap: Record<string, number> = {
-        "feca": 1, "osamodas": 2, "osa": 2, "enutrof": 3, "enu": 3, "sram": 4, "xelor": 5, "xel": 5,
-        "ecaflip": 6, "eca": 6, "eniripsa": 7, "eni": 7, "iop": 8, "cra": 9, "sadida": 10, "sadi": 10,
-        "sacrieur": 11, "sacri": 11, "pandawa": 12, "panda": 12, "roublard": 13, "roub": 13,
-        "zobal": 14, "steamer": 15, "steam": 15, "eliotrope": 16, "elio": 16,
-        "huppermage": 17, "hupper": 17, "ouginak": 18, "ougi": 18, "forgelance": 19, "forg": 19
-    };
+    // Memoize guessed class and color to avoid recalculating on every scroll/hover
+    const { guessedClassId, glowColor } = useMemo(() => {
+        const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
+        const classesMap: Record<string, number> = {
+            "feca": 1, "osamodas": 2, "osa": 2, "enutrof": 3, "enu": 3, "sram": 4, "xelor": 5, "xel": 5,
+            "ecaflip": 6, "eca": 6, "eniripsa": 7, "eni": 7, "iop": 8, "cra": 9, "sadida": 10, "sadi": 10,
+            "sacrieur": 11, "sacri": 11, "pandawa": 12, "panda": 12, "roublard": 13, "roub": 13,
+            "zobal": 14, "steamer": 15, "steam": 15, "eliotrope": 16, "elio": 16,
+            "huppermage": 17, "hupper": 17, "ouginak": 18, "ougi": 18, "forgelance": 19, "forg": 19
+        };
 
-    let guessedClassId = classId || data?.classId || 0;
-    if (!guessedClassId) {
-        for (const [key, id] of Object.entries(classesMap)) {
-            if (searchString.includes(key)) {
-                guessedClassId = id;
-                break;
+        let gId = classId || data?.classId || 0;
+        if (!gId) {
+            for (const [key, id] of Object.entries(classesMap)) {
+                if (searchString.includes(key)) {
+                    gId = id;
+                    break;
+                }
             }
         }
-    }
 
-    // Guess glow color from tags
-    const tagColors: Record<string, string> = {
-        "feu": "#ef4444", "eau": "#3b82f6", "terre": "#16a34a", "air": "#34d399", "multi": "#d946ef"
-    };
-    const firstElementTag = tags.find(t => tagColors[t]);
-    const glowColor = firstElementTag ? tagColors[firstElementTag] : "#10b981";
+        const tagColors: Record<string, string> = {
+            "feu": "#ef4444", "eau": "#3b82f6", "terre": "#16a34a", "air": "#34d399", "multi": "#d946ef"
+        };
+        const firstElementTag = tags.find(t => tagColors[t]);
+        const gColor = firstElementTag ? tagColors[firstElementTag] : "#10b981";
+
+        return { guessedClassId: gId, glowColor: gColor };
+    }, [title, url, tags, classId, data?.classId]);
+
+    const classArtColor = useMemo(() => {
+        const name = (data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return getClassColor(name);
+    }, [data?.className, guessedClassId]);
 
     const cardContent = (
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-5 sm:p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.1)] cursor-pointer", className)}>
@@ -137,7 +145,7 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                     <div className="relative w-12 h-12 shrink-0 bg-black/40 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
                         <div
                             className="absolute inset-0 opacity-20 blur-md"
-                            style={{ backgroundColor: getClassColor((data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                            style={{ backgroundColor: classArtColor }}
                         />
                         {(data?.classId || guessedClassId) > 0 ? (
                             <NextImage
@@ -250,26 +258,26 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
             <DialogTrigger asChild>
                 {cardContent}
             </DialogTrigger>
-            <DialogContent className="max-w-[1100px] bg-zinc-950 border-white/10 p-0 overflow-hidden rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
-                <div className="relative p-6 sm:p-12 flex flex-col md:flex-row gap-12">
+            <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] bg-zinc-950 border-white/10 p-0 overflow-y-auto custom-scrollbar rounded-[2rem] md:rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                <div className="relative p-5 sm:p-8 lg:p-12 flex flex-col lg:flex-row gap-8 lg:gap-12">
                     {/* Background Class Glow */}
                     <div
                         className="absolute inset-x-0 top-0 h-96 opacity-10 blur-[120px] pointer-events-none transition-all duration-1000"
-                        style={{ backgroundColor: getClassColor((data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")) }}
+                        style={{ backgroundColor: classArtColor }}
                     />
 
-                    {/* Left: Large Visual & Stats */}
-                    <div className="w-full md:w-[360px] flex flex-col gap-8 relative z-10">
-                        <div className="relative aspect-square w-full rounded-[3rem] bg-black/60 border border-white/5 flex items-center justify-center p-8 overflow-hidden shadow-inner">
+                    {/* Left: Large Visual & Resists */}
+                    <div className="w-full lg:w-[360px] flex flex-col gap-6 lg:gap-8 relative z-10">
+                        <div className="relative aspect-square w-full rounded-[2rem] md:rounded-[3rem] bg-black/60 border border-white/5 flex items-center justify-center p-4 sm:p-8 overflow-hidden shadow-inner">
                             <NextImage
                                 src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
                                 alt={data?.className || "Class"}
                                 fill
-                                className="object-contain opacity-5 p-16"
+                                className="object-contain opacity-5 p-8 sm:p-16"
                             />
 
                             {data ? (
-                                <div className="grid grid-cols-6 grid-rows-5 gap-3.5 relative z-10">
+                                <div className="grid grid-cols-6 grid-rows-5 gap-2 sm:gap-3.5 relative z-10">
                                     {[
                                         { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
                                         { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
@@ -285,7 +293,7 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                                 target={item ? "_blank" : undefined}
                                                 rel="noopener noreferrer"
                                                 className={cn(
-                                                    "w-[50px] h-[50px] rounded-2xl flex items-center justify-center p-2 relative transition-all duration-500 group/modal-slot",
+                                                    "w-[40px] h-[40px] sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl flex items-center justify-center p-1.5 sm:p-2 relative transition-all duration-500 group/modal-slot",
                                                     item ? "bg-zinc-800/80 border border-white/20 shadow-2xl hover:border-emerald-500/50 hover:bg-zinc-700 hover:scale-110" : "bg-white/[0.02] border border-white/5 opacity-30 cursor-default"
                                                 )}
                                                 style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
@@ -311,7 +319,6 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                     })}
                                 </div>
                             ) : (
-                                /* No item data — show class art as hero visual using guessedClassId */
                                 <div className="absolute inset-0 flex items-center justify-center p-8">
                                     {guessedClassId > 0 && (
                                         <NextImage
@@ -325,9 +332,8 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                             )}
                         </div>
 
-                        {/* Elements Summary (Resists) - Exact Dofusbook Style */}
                         {data && (
-                            <div className="flex flex-col gap-1.5 mt-4 ml-6">
+                            <div className="flex flex-col gap-2 bg-black/30 p-5 rounded-3xl border border-white/5">
                                 {[
                                     { res: 'neutre', val: data.resists.neutre, label: 'Neutre', icon: (
                                         <svg viewBox="0 0 24 24" fill="none" className="w-[15px] h-[15px] drop-shadow-md">
@@ -358,26 +364,26 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                         </svg>
                                     ) },
                                 ].map(({ res, val, icon, label }) => (
-                                    <div key={res} className="flex items-center gap-2">
-                                        <span className="w-6 text-right font-black text-white text-[15px]" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>{val}</span>
-                                        <span className="flex items-center justify-center w-4 h-4">{icon}</span>
-                                        <span className="text-[#64B5F6] text-[15px] font-medium tracking-wide leading-none" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>% Ré {label}</span>
+                                    <div key={res} className="flex items-center gap-3">
+                                        <span className="w-8 text-right font-black text-white text-[15px]" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>{val}</span>
+                                        <span className="flex items-center justify-center w-5 h-5">{icon}</span>
+                                        <span className="text-blue-300 text-[14px] font-semibold tracking-wide leading-none" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>% Ré {label}</span>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
 
-                    {/* Right: Info & Stats */}
-                    <div className="flex-1 flex flex-col h-full relative z-10">
-                        <DialogHeader className="mb-6">
+                    {/* Right: Info & Stats Grid */}
+                    <div className="flex-1 flex flex-col relative z-10">
+                        <DialogHeader className="mb-6 lg:mb-8 text-left">
                             <div className="flex items-center gap-3 mb-2">
-                                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "1-200"}</span>
+                                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "200"}</span>
                                 <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
                             </div>
-                            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
+                            <DialogTitle className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
                             <DialogDescription asChild>
-                                <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="flex flex-wrap gap-2 mt-3">
                                     {tags.map(tagId => {
                                         const tagDef = DO_TAGS.find(t => t.id === tagId);
                                         return tagDef ? (
@@ -391,87 +397,97 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                         </DialogHeader>
 
                         {data ? (
-                            <>
-                                <div className="grid grid-cols-2 gap-4 mb-8">
-                                    {/* Primary Stats */}
-                                    <div className="bg-[#2B2925] py-5 px-2 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col justify-center items-center">
-                                        <div className="flex gap-4 sm:gap-6 lg:gap-8">
-                                            {/* Column 1 */}
-                                            <div className="flex flex-col gap-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-white text-[15px]">{data.stats.vit}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">❤️</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PdV</span>
+                            <div className="flex flex-col gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    {/* Bloc 1: Stats Primaires */}
+                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col h-full">
+                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Move className="w-3.5 h-3.5"/> Caractéristiques</h4>
+                                        <div className="grid grid-cols-2 gap-2 my-auto">
+                                            {[
+                                                { val: data.stats.vit, icon: "❤️", label: "PdV", color: "text-white" },
+                                                { val: data.stats.pa, icon: "⭐", label: "PA", color: "text-[#008cfc]" },
+                                                { val: data.stats.pm, icon: "🛹", label: "PM", color: "text-[#2cb14b]" },
+                                                { val: data.stats.po, icon: "👁️", label: "PO", color: "text-[#389f81]" },
+                                                { val: data.stats.pp, icon: "🔎", label: "Pros.", color: "text-[#5AC2FF]" },
+                                                { val: data.stats.cc, icon: "🎯", label: "Crit.", color: "text-[#f24254]" },
+                                                { val: data.stats.invo, icon: "🦊", label: "Invo.", color: "text-[#f59f0f]" },
+                                                { val: data.stats.so, icon: "➕", label: "Soin", color: "text-[#ef3f3f]" },
+                                            ].map((s, i) => (
+                                                <div key={i} className="flex items-center justify-between bg-black/30 px-2.5 py-2.5 rounded-xl border border-white/[0.05] gap-1">
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        <span className="text-[12px] opacity-60 shrink-0">{s.icon}</span>
+                                                        <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-tight hidden lg:inline truncate">{s.label}</span>
+                                                    </div>
+                                                    <span className={cn("font-black text-[13px] shrink-0", s.color)}>{s.val}</span>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#008cfc] text-[15px]">{data.stats.pa}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">⭐</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PA</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#2cb14b] text-[15px]">{data.stats.pm}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🛹</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PM</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#389f81] text-[15px]">{data.stats.po}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">👁️</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PO</span>
-                                                </div>
-                                            </div>
-                                            {/* Column 2 */}
-                                            <div className="flex flex-col gap-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#5AC2FF] text-[15px]">{data.stats.pp || 0}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🔎</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Prospection</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#f24254] text-[15px]">{data.stats.cc || 0}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🎯</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Critique</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#f59f0f] text-[15px]">{data.stats.invo || 1}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🦊</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Invocations</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-9 text-right font-black text-[#ef3f3f] text-[15px]">{data.stats.so || 0}</span>
-                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">➕</span>
-                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Soins</span>
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
                                     </div>
 
-                                    {/* Element Stats (Fo / In / Ch / Ag / Sa / Pu) */}
-                                    <div className="bg-[#2B2925] p-5 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col justify-center">
-                                        <div className="flex flex-col gap-2.5">
-                                            {data.elements && ([
+                                    {/* Bloc 2: Éléments */}
+                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col h-full">
+                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Zap className="w-3.5 h-3.5"/> Éléments</h4>
+                                        <div className="flex flex-col gap-2 my-auto">
+                                            {[
                                                 { key: 'fo' as const, label: 'Force',        color: 'text-[#9D753E]' },
                                                 { key: 'in' as const, label: 'Intelligence', color: 'text-[#E33E19]' },
                                                 { key: 'ch' as const, label: 'Chance',       color: 'text-[#5AC2FF]' },
                                                 { key: 'ag' as const, label: 'Agilité',      color: 'text-[#88C72B]' },
                                                 { key: 'sa' as const, label: 'Sagesse',      color: 'text-[#a560df]' },
                                                 { key: 'pu' as const, label: 'Puissance',    color: 'text-[#f59f0f]' },
-                                            ]).map(({ key, label, color }) => (
-                                                data.elements[key] > 0 ? (
-                                                    <div key={key} className="flex justify-between items-center text-sm">
-                                                        <span className="text-[#A09D94] text-[13px] font-medium tracking-wide flex-1">{label}</span>
-                                                        <span className={cn("w-12 text-right font-black text-[15px]", color)}>{data.elements[key]}</span>
-                                                    </div>
-                                                ) : null
+                                            ].map(({ key, label, color }) => (
+                                                <div key={key} className="flex justify-between items-center bg-black/20 px-3 py-2.5 rounded-xl border border-white/[0.02]">
+                                                    <span className="text-zinc-400 text-[13px] font-medium">{label}</span>
+                                                    <span className={cn("font-black text-[16px]", color)}>{data.elements[key] || 0}</span>
+                                                </div>
                                             ))}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Bloc 3: Dommages */}
+                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner md:col-span-2 xl:col-span-1 flex flex-col h-full">
+                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Zap className="w-3.5 h-3.5 fill-current"/> Dommages Fixes & %</h4>
+                                        <div className="flex flex-col gap-4 my-auto">
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+                                                {[
+                                                    { label: 'Neutre', k: "neutre" as const, c: 'text-[#E2E2E2]' },
+                                                    { label: 'Terre', k: "terre" as const, c: 'text-[#9D753E]' },
+                                                    { label: 'Feu', k: "feu" as const, c: 'text-[#E33E19]' },
+                                                    { label: 'Eau', k: "eau" as const, c: 'text-[#5AC2FF]' },
+                                                    { label: 'Air', k: "air" as const, c: 'text-[#88C72B]' },
+                                                    { label: 'Généraux', k: "general" as const, c: 'text-white' },
+                                                    { label: 'Crit.', k: "critique" as const, c: 'text-[#f24254]' },
+                                                    { label: 'Poussée', k: "poussee" as const, c: 'text-zinc-400' },
+                                                ].map(d => (
+                                                    <div key={d.k} className="flex justify-between items-center text-[13px] border-b border-white/5 pb-1.5">
+                                                        <span className="text-zinc-500 font-medium">{d.label}</span>
+                                                        <span className={cn("font-black", d.c)}>{data.damages?.[d.k] || 0}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {/* % Section */}
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {[
+                                                    { label: '% Mêlée', k: "melee" as const },
+                                                    { label: '% Dist.', k: "distance" as const },
+                                                    { label: '% Armes', k: "armes" as const },
+                                                    { label: '% Sorts', k: "sorts" as const },
+                                                ].map(p => (
+                                                    <div key={p.k} className="flex justify-between items-center text-[12px] bg-black/40 px-3 py-2 rounded-xl border border-white/5">
+                                                        <span className="text-zinc-500">{p.label}</span>
+                                                        <span className="font-black text-emerald-400 text-[13px]">{data.damages?.[p.k] || 0}%</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Associated Sets — clickable */}
+                                {/* Panoplies */}
                                 {data.cloths && data.cloths.length > 0 && (
-                                    <div className="mt-auto">
+                                    <div className="pt-4 border-t border-white/5">
                                         <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                            <Shield className="w-3 h-3 text-emerald-500" /> Panoplies Associées
+                                            <Shield className="w-3.5 h-3.5 text-emerald-500" /> Panoplies Associées
                                         </h4>
                                         <div className="flex flex-wrap gap-2">
                                             {data.cloths.map((cloth, i) => (
@@ -480,27 +496,26 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                         </div>
                                     </div>
                                 )}
-                            </>
+                            </div>
                         ) : (
-                            /* No stats data — clean external link CTA, no error language */
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/[0.02] rounded-[2rem] border border-white/5 text-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                                    <ExternalLink className="w-6 h-6 text-zinc-500" />
+                            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/[0.02] rounded-[3rem] border border-white/5 text-center gap-5">
+                                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                    <ExternalLink className="w-8 h-8 text-zinc-500" />
                                 </div>
-                                <div>
-                                    <h4 className="text-sm font-black text-white uppercase mb-1">Voir le build complet</h4>
-                                    <p className="text-[10px] text-zinc-500 leading-relaxed max-w-[200px]">
-                                        Ouvre ce stuff directement sur Dofusbook pour voir les détails et statistiques.
+                                <div className="max-w-xs">
+                                    <h4 className="text-lg font-black text-white uppercase mb-2">Build Dofusbook</h4>
+                                    <p className="text-sm text-zinc-500 leading-relaxed">
+                                        Ce build n'a pas pu être chargé dynamiquement sur le dashboard.
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        <div className="mt-8 flex gap-3">
+                        <div className="mt-8">
                             <a
                                 href={url}
                                 target="_blank"
-                                className="flex-1 px-6 py-3 bg-white text-black rounded-2xl text-center text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto inline-flex px-8 py-4 bg-white text-black rounded-2xl text-center text-[12px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all items-center justify-center gap-3 shadow-xl shadow-white/5"
                             >
                                 Ouvrir sur Dofusbook <ExternalLink className="w-4 h-4" />
                             </a>
@@ -510,4 +525,4 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
             </DialogContent>
         </Dialog>
     );
-}
+});

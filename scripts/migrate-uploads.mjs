@@ -1,4 +1,4 @@
-import { mkdir, rename, access, readdir, stat } from "fs/promises";
+import { mkdir, rename, access, readdir, stat, copyFile, unlink } from "fs/promises";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -6,6 +6,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..");
 const PUBLIC_UPLOADS = join(PROJECT_ROOT, "public", "uploads");
 const PRIVATE_UPLOADS = join(PROJECT_ROOT, "private_uploads");
+
+async function safeRename(src, dest) {
+    try {
+        await rename(src, dest);
+    } catch (err) {
+        if (err.code === "EXDEV") {
+            await copyFile(src, dest);
+            await unlink(src);
+        } else {
+            throw err;
+        }
+    }
+}
 
 async function migrate(dir) {
     try {
@@ -20,7 +33,7 @@ async function migrate(dir) {
                 await migrate(currentPath);
             } else {
                 await mkdir(dirname(targetPath), { recursive: true });
-                await rename(currentPath, targetPath);
+                await safeRename(currentPath, targetPath);
                 console.log(`✅ Migrated: ${relativePath}`);
             }
         }

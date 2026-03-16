@@ -196,7 +196,7 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
     }
 
     const data = await res.json() as Array<{
-        user: { id: string; username: string; global_name?: string };
+        user: { id: string; username: string; global_name?: string; bot?: boolean };
         nick?: string | null;
         roles: string[];
         joined_at?: string;

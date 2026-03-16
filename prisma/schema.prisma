@@ -248,6 +248,7 @@ model GuildModules {
   resources    Boolean     @default(false)
   worldmap     Boolean     @default(false)
   chat         Boolean     @default(false)
+  gallery      Boolean     @default(true)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 

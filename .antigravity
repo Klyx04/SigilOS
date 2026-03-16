@@ -348,13 +348,20 @@ SigilOS/
 
 ---
 
-### Session — Anti-Duplicate & Hachage Perceptuel (2026-03-16)
+### Session — Landing Premium & Cockpit Dashboard (2026-03-16)
 
-- ✅ **Hachage Perceptuel (dHash)** : Remplacement du SHA-256 par un algorithme de *Difference Hash* dans `llm-ocr.ts`. Permet de détecter les doublons visuels même après compression, redimensionnement ou changement de format (PNG/JPG).
-- ✅ **Sécurité Globale (Cross-Module)** : Unification du système de détection de doublons. Un screenshot ne peut plus être utilisé qu'une seule fois dans toute l'application (Missions, Prêts, Coffre, Dons Kamas, Succès), peu importe la guilde.
-- ✅ **Prisma Migration & Indexing** : Migration du modèle `ImageHash` pour utiliser une contrainte `UNIQUE` globale sur le hash. Correction manuelle des index SQL pour aligner la DB locale.
-- ✅ **Dofusbook Build Caching** : Finalisation du stockage DB des builds Dofusbook pour un rendu instantané et résilient aux erreurs 403.
-- ✅ **UX Refactor** : Standardisation des messages d'erreur d'upload et amélioration du logging de sécurité pour le suivi des tentatives de fraude.
+- ✅ **Refonte Landing (Premium UI)** : Agrandissement massif des cartes d'accès guilde au centre du Hero. Effets de survol (glow, translation), icônes 56px, et séparation claire entre accès membres et boutons "Inscrire une guilde".
+- ✅ **Dashboard Cockpit (Drawer)** : Implémentation d'un panneau latéral (Drawer) pour la gestion multi-guilde. Accessible via le header ou le bouton central "Mes Guildes" (si plusieurs guildes).
+- ✅ **Gestion Multi-Guilde Intelligent** : 
+  - Si 1 seule guilde : lien direct pour la rapidité.
+  - Si plusieurs : bouton "Pile d'avatars" stylisé ouvrant le cockpit.
+- ✅ **Server-Side Recovery (Separated Guilds)** : Éradication de la logique dupliquée entre la Landing et le Portail Dashboard. Création d'une Server Action unifiée `getGuildsSeparated` avec gestion fine du cache Discord et de la whitelist GOD.
+- ✅ **Onboarding Admin Polish** : 
+  - Clarification du module "Badge Nouveau" (Badge Temporaire Automatique).
+  - Ajout d'explications détaillées et tooltips pour les variables de messages de bienvenue.
+  - Suppression des éléments superflus (barres de progression redondantes dans les stats guilde).
+- ✅ **UI Cleaning** : Suppression du badge vert "Niveau X" dans le header de l'activité guilde (missions) pour plus d'épure.
+- ✅ **Architecture Files** : Création de `dashboard-drawer.tsx` (Composant cockpit).
 
 ---
 
@@ -433,6 +440,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - **Sondages Premium** : PIM compatible, Progress bars Discord.
 - **Passages & Prêts** : Gestion des preuves par capture d'écran, archivage auto.
 - **Onboarding Premium** : Embeds de bienvenue stylisés guilde-par-guilde.
+- **Landing Cockpit (NEW)** : Gestion multi-guilde via Drawer latéral premium.
 
 ---
 

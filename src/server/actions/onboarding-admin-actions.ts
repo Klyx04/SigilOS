@@ -248,7 +248,9 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
             const content = template
                 .replace(/{member}/g, `**${memberName}**`)
                 .replace(/{user}/g, `**${memberName}**`)
-                .replace(/{guild}/g, `**${guild.name}**`);
+                .replace(/{nickname}/g, `**${memberName}**`)
+                .replace(/{guild}/g, `**${guild.name}**`)
+                .replace(/{server}/g, `**${guild.name}**`);
 
             await db.memberWelcome.create({
                 data: {
@@ -273,7 +275,9 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
             const welcomeDescription = discordTemplate
                 .replace(/{member}/g, memberMention)
                 .replace(/{user}/g, memberMention)
-                .replace(/{guild}/g, `**${guild.name}**`);
+                .replace(/{nickname}/g, memberMention)
+                .replace(/{guild}/g, `**${guild.name}**`)
+                .replace(/{server}/g, `**${guild.name}**`);
 
             // Pings go outside the embed (trigger notification)
             const mentionRoleId = guild.welcomeMentionRoleId;
@@ -361,7 +365,7 @@ export async function getWelcomePosts(guildId: string) {
             where: { discordGuildId: guildId },
             select: { id: true }
         });
-        if (!guild) return [];
+        if (!guild) return { posts: [], reactorNames: {} };
 
         const posts = await db.memberWelcome.findMany({
             where: { guildId: guild.id },
@@ -374,10 +378,37 @@ export async function getWelcomePosts(guildId: string) {
             take: 50
         });
 
-        return JSON.parse(JSON.stringify(posts));
+        // Collect names of all reactors for tooltips
+        const allReactorIds = new Set<string>();
+        posts.forEach(post => {
+            const reactions = (post.reactions as Record<string, string[]>) || {};
+            Object.values(reactions).flat().forEach(id => {
+                if (id) allReactorIds.add(id);
+            });
+        });
+
+        const reactorProfiles = await db.userProfile.findMany({
+            where: { id: { in: Array.from(allReactorIds) } },
+            select: { 
+                id: true, 
+                pseudoDofus: true, 
+                discordNickname: true,
+                user: { select: { name: true } } 
+            }
+        });
+
+        const reactorNames: Record<string, string> = {};
+        reactorProfiles.forEach(p => {
+            reactorNames[p.id] = p.pseudoDofus || p.discordNickname || p.user.name || "Inconnu";
+        });
+
+        return {
+            posts: JSON.parse(JSON.stringify(posts)),
+            reactorNames
+        };
     } catch (e) {
         console.error("Failed to get welcome posts", e);
-        return [];
+        return { posts: [], reactorNames: {} };
     }
 }
 
@@ -433,6 +464,7 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
             data: { reactions }
         });
 
+        revalidatePath(`/dashboard/${welcome.guild.discordGuildId}`);
         revalidatePath(`/dashboard/${welcome.guild.discordGuildId}/welcome`);
         return { success: true };
     } catch (e) {

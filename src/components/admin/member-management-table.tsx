@@ -127,21 +127,6 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         }
     };
 
-    const handleSendWelcome = async (profileId: string) => {
-        setIsUpdating(profileId);
-        try {
-            const res = await sendWelcomeMessage(guildId, profileId);
-            if (res.success) {
-                toast.success("Message de bienvenue envoyé !");
-            } else {
-                toast.error(res.error || "Erreur lors de l'envoi");
-            }
-        } catch (error) {
-            toast.error("Erreur de communication");
-        } finally {
-            setIsUpdating(null);
-        }
-    };
 
     const handleUpdatePseudo = async (profileId: string) => {
         const currentMember = members.find(m => m.id === profileId);
@@ -329,13 +314,6 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 Modifier le Pseudo Dofus
                                             </DropdownMenuItem>
 
-                                            <DropdownMenuItem
-                                                onClick={() => handleSendWelcome(member.id)}
-                                                className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer"
-                                            >
-                                                <Send className="h-3.5 w-3.5 text-emerald-500" />
-                                                Souhaiter la bienvenue
-                                            </DropdownMenuItem>
 
                                             {isSuperAdmin && (
                                                 <>

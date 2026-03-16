@@ -11,6 +11,12 @@ import { toast } from "sonner";
 import { Smile, Heart, PartyPopper, Hand } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface WelcomePost {
     id: string;
@@ -30,6 +36,7 @@ interface WelcomePost {
 
 interface WelcomeFeedClientProps {
     initialPosts: WelcomePost[];
+    reactorNames: Record<string, string>;
     currentProfileId: string;
     guildId: string;
 }
@@ -41,9 +48,8 @@ const EMOJIS = [
     { char: "👋", icon: Hand },
 ];
 
-export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: WelcomeFeedClientProps) {
+export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId, guildId }: WelcomeFeedClientProps) {
     const [posts, setPosts] = useState(initialPosts);
-    // FIX BUG-2: Lock logic (Ref) + Visual status (State)
     const pendingReactions = useRef<Set<string>>(new Set());
     const [processingKeys, setProcessingKeys] = useState<Record<string, boolean>>({});
 
@@ -84,92 +90,122 @@ export function WelcomeFeedClient({ initialPosts, currentProfileId, guildId }: W
     };
 
     return (
-        <div className="space-y-6">
-            {posts.map((post) => (
-                <Card key={post.id} className="p-6 bg-zinc-900/40 border-white/5 relative overflow-hidden group hover:bg-zinc-900/60 transition-all duration-500 rounded-[2rem]">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <TooltipProvider>
+            <div className="space-y-6">
+                {posts.map((post) => (
+                    <Card key={post.id} className="p-6 bg-zinc-900/40 border-white/5 relative overflow-hidden group hover:bg-zinc-900/60 transition-all duration-500 rounded-[2rem]">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                    <div className="flex gap-4 relative">
-                        <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
-                            <Avatar className="h-12 w-12 rounded-xl ring-2 ring-amber-500/10 group-hover:ring-amber-500/40 transition-all duration-500">
-                                <AvatarImage src={post.profile.user.image || ""} />
-                                <AvatarFallback className="bg-zinc-800 text-sm font-black text-zinc-400">
-                                    {post.profile.user.name?.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                        </Link>
+                        <div className="flex gap-4 relative">
+                            <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
+                                <Avatar className="h-12 w-12 rounded-xl ring-2 ring-amber-500/10 group-hover:ring-amber-500/40 transition-all duration-500">
+                                    <AvatarImage src={post.profile.user.image || ""} />
+                                    <AvatarFallback className="bg-zinc-800 text-sm font-black text-zinc-400">
+                                        {post.profile.user.name?.slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </Link>
 
-                        <div className="flex-1 space-y-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                    <Link
-                                        href={`/dashboard/${guildId}/members/${post.profile.id}`}
-                                        className="text-lg font-black text-white hover:text-amber-400 transition-colors"
-                                    >
-                                        {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
-                                    </Link>
-                                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                                        {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: fr })}
-                                    </span>
-                                </div>
-                                {/* BUG-4 FIX: Replace dangerouslySetInnerHTML with safe React rendering */}
-                                <p className="text-zinc-400 text-sm leading-relaxed">
-                                    {post.content.split(/\*\*(.*?)\*\*/g).map((part, i) =>
-                                        i % 2 === 1
-                                            ? <strong key={i} className="text-white">{part}</strong>
-                                            : part
-                                    )}
-                                </p>
-                            </div>
-
-                            {/* Presentation Preview if exists */}
-                            {post.profile.introduction && (
-                                <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                        <Smile className="w-3 h-3 text-amber-500" /> Présentation
-                                    </p>
-                                    <p className="text-xs text-zinc-400 italic line-clamp-3">
-                                        "{post.profile.introduction}"
-                                    </p>
-                                    <Link
-                                        href={`/dashboard/${guildId}/members/${post.profile.id}`}
-                                        className="text-[10px] font-bold text-amber-500 hover:text-amber-400 uppercase tracking-widest"
-                                    >
-                                        Voir son profil complet →
-                                    </Link>
-                                </div>
-                            )}
-
-                            {/* Reactions */}
-                            <div className="flex flex-wrap items-center gap-2">
-                                {EMOJIS.map((emoji) => {
-                                    const count = post.reactions?.[emoji.char]?.length || 0;
-                                    const hasReacted = post.reactions?.[emoji.char]?.includes(currentProfileId);
-
-                                    return (
-                                        <Button
-                                            key={emoji.char}
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleReaction(post.id, emoji.char)}
-                                            disabled={processingKeys[`${post.id}:${emoji.char}`]}
-                                            className={cn(
-                                                "h-8 px-2 rounded-lg transition-all gap-2 border disabled:opacity-50 disabled:cursor-not-allowed",
-                                                hasReacted
-                                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                                                    : "bg-white/5 border-transparent text-zinc-500 hover:border-white/10 hover:text-zinc-300"
-                                            )}
+                            <div className="flex-1 space-y-4">
+                                <div className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <Link
+                                            href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                            className="text-lg font-black text-white hover:text-amber-400 transition-colors"
                                         >
-                                            <span className="text-sm">{emoji.char}</span>
-                                            {count > 0 && <span className="text-xs font-black">{count}</span>}
-                                        </Button>
-                                    );
-                                })}
+                                            {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
+                                        </Link>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                                            {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: fr })}
+                                        </span>
+                                    </div>
+                                    <p className="text-zinc-400 text-sm leading-relaxed">
+                                        {post.content.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+                                            i % 2 === 1
+                                                ? <strong key={i} className="text-white">{part}</strong>
+                                                : part
+                                        )}
+                                    </p>
+                                </div>
+
+                                {/* Presentation Preview if exists */}
+                                {post.profile.introduction && (
+                                    <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                            <Smile className="w-3 h-3 text-amber-500" /> Présentation
+                                        </p>
+                                        <p className="text-xs text-zinc-400 italic line-clamp-3">
+                                            "{post.profile.introduction}"
+                                        </p>
+                                        <Link
+                                            href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                            className="text-[10px] font-bold text-amber-500 hover:text-amber-400 uppercase tracking-widest"
+                                        >
+                                            Voir son profil complet →
+                                        </Link>
+                                    </div>
+                                )}
+
+                                {/* Reactions */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {EMOJIS.map((emoji) => {
+                                        const reactorIds = post.reactions?.[emoji.char] || [];
+                                        const count = reactorIds.length;
+                                        const hasReacted = reactorIds.includes(currentProfileId);
+
+                                        // Prepare the list of names for the tooltip
+                                        const names = reactorIds.map(id => {
+                                            if (id === currentProfileId) return "Toi";
+                                            return reactorNames[id] || "Quelqu'un";
+                                        });
+
+                                        return (
+                                            <Tooltip key={emoji.char} delayDuration={300}>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleReaction(post.id, emoji.char)}
+                                                        disabled={processingKeys[`${post.id}:${emoji.char}`]}
+                                                        className={cn(
+                                                            "h-8 px-2 rounded-lg transition-all gap-2 border disabled:opacity-50 disabled:cursor-not-allowed",
+                                                            hasReacted
+                                                                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                                                : "bg-white/5 border-transparent text-zinc-500 hover:border-white/10 hover:text-zinc-300"
+                                                        )}
+                                                    >
+                                                        <span className="text-sm">{emoji.char}</span>
+                                                        {count > 0 && <span className="text-xs font-black">{count}</span>}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                {count > 0 && (
+                                                    <TooltipContent className="bg-zinc-900 border-white/10 p-3 rounded-xl shadow-2xl">
+                                                        <div className="flex flex-col gap-1">
+                                                            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 border-b border-white/5 pb-1 mb-1">
+                                                                Réactions {emoji.char}
+                                                            </p>
+                                                            {names.slice(0, 8).map((name, i) => (
+                                                                <span key={i} className="text-[11px] font-bold text-zinc-200">
+                                                                    {name}
+                                                                </span>
+                                                            ))}
+                                                            {names.length > 8 && (
+                                                                <span className="text-[10px] text-zinc-500 italic">
+                                                                    + {names.length - 8} autres...
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TooltipContent>
+                                                )}
+                                            </Tooltip>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </Card>
-            ))}
-        </div>
+                    </Card>
+                ))}
+            </div>
+        </TooltipProvider>
     );
 }

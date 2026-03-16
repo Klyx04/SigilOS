@@ -26,7 +26,8 @@ export type ModuleKey =
     | "worldmap"
     | "resources"
     // Nouveau
-    | "chat";
+    | "chat"
+    | "gallery";
 
 export type GuildModulesState = {
     // Général
@@ -44,6 +45,7 @@ export type GuildModulesState = {
     donjons: boolean;
     profile: boolean;
     docs: boolean;
+    gallery: boolean;
     // Admin
     logs: boolean;
     polls: boolean;
@@ -69,6 +71,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
     donjons: true,
     profile: true,
     docs: true,
+    gallery: true,
     logs: false,
     polls: true,
     admin: true,

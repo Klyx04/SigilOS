@@ -149,6 +149,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 bgColor: "bg-cyan-500/10",
                 borderColor: "border-cyan-500/30",
             },
+            {
+                key: "gallery",
+                label: "Galerie Stuff",
+                description: "Partagez et consultez les builds de stuff Dofusbook des membres. Intégration API Dofusbook.",
+                icon: Palette,
+                color: "text-pink-400",
+                bgColor: "bg-pink-500/10",
+                borderColor: "border-pink-500/30",
+            },
         ],
     },
     {

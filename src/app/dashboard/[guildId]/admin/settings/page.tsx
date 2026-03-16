@@ -55,7 +55,6 @@ function buildNavItems(): SettingsSection[] {
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
         { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
         { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
-        { id: "membres", label: "Membres & Sync", icon: Users, description: "Gestion & synchronisation", accent: "violet" },
     ];
 }
 
@@ -96,8 +95,6 @@ export default async function FeatureSettingsPage({
         return <AccessDenied />;
     }
 
-    const memberStats = await getGuildMemberStats(guildId);
-    const members = await getGuildMembers(guildId);
     const onboardingRes = await getOnboardingSettings(guildId);
     const welcomeBadgeName = onboardingRes.success ? (onboardingRes.data as any).welcomeBadgeName : "Nouveau";
 
@@ -181,48 +178,7 @@ export default async function FeatureSettingsPage({
                     {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                     {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
                     {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
-                    {activeTab === "membres" && (
-                        <div className="space-y-8">
-                            <MemberStatsOverview stats={memberStats} />
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                                        <UserCheck className="w-4 h-4 text-violet-400" />
-                                        Gestion Manuelle
-                                    </h3>
-                                    <p className="text-sm text-zinc-500">Contrôle direct sur l&apos;archivage et les bannissements SigilOS.</p>
-                                </div>
-                                <MemberManagementTable
-                                    initialMembers={members as never}
-                                    guildId={guildId}
-                                    welcomeBadgeName={welcomeBadgeName}
-                                    isSuperAdmin={user.isSuperAdmin}
-                                />
-                            </div>
 
-                            <div className="max-w-4xl">
-                                <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                    <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-indigo-400" />
-                                        Synchronisation Discord
-                                    </h3>
-                                    <p className="text-sm text-zinc-500 mb-4">Outil de secours en cas de désynchronisation constatée. La sync automatique tourne chaque nuit à 04:00.</p>
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-                                        <MemberSyncButton guildId={guildId} />
-                                        <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Auto-sync: 04:00 AM</span>
-                                    </div>
-                                    <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-                                        <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                        <p className="text-xs text-zinc-500 leading-relaxed">
-                                            <span className="font-black text-amber-500 uppercase tracking-widest block mb-0.5">Fail-safe</span>
-                                            SigilOS détecte automatiquement les arrivées et départs via les événements Discord. Utilisez ce bouton uniquement en cas de désynchronisation.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                 </div>
             </div>

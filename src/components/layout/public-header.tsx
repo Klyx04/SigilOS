@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
 import { motion, AnimatePresence } from "framer-motion";
+import { DashboardDrawer } from "./dashboard-drawer";
 
 type NavItem = {
     label: string;
@@ -133,13 +134,14 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     exit={{ opacity: 0, x: -20 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <Link
-                                        href={dashboardHref}
-                                        className="group relative flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 shadow-xl"
-                                    >
-                                        Dashboard
-                                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                                    </Link>
+                                    <DashboardDrawer>
+                                        <button
+                                            className="group relative flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 shadow-xl"
+                                        >
+                                            Dashboard
+                                            <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                                        </button>
+                                    </DashboardDrawer>
                                     
                                     <Link
                                         href="/api/auth/signout"

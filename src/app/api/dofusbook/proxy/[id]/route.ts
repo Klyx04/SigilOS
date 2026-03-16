@@ -22,18 +22,20 @@ function getRandomUA() {
  *
  * Set DOFUSBOOK_CF_WORKER_URL in .env to enable.
  */
-async function fetchBuildData(finalId: string): Promise<{ data: any; ok: boolean; status: number }> {
+async function fetchBuildData(finalId: string, force: boolean = false): Promise<{ data: any; ok: boolean; status: number }> {
     const cfWorkerUrl = process.env.DOFUSBOOK_CF_WORKER_URL;
     const cfWorkerSecret = process.env.DOFUSBOOK_WORKER_SECRET;
 
     // --- Strategy 1: CF Worker ---
     if (cfWorkerUrl) {
         try {
-            const workerRes = await fetch(`${cfWorkerUrl}/${finalId}`, {
+            const urlWithForce = force ? `${cfWorkerUrl}/${finalId}?force=true` : `${cfWorkerUrl}/${finalId}`;
+            const workerRes = await fetch(urlWithForce, {
                 headers: {
                     "Accept": "application/json",
                     ...(cfWorkerSecret ? { "X-SigilOS-Key": cfWorkerSecret } : {}),
                 },
+                cache: force ? "no-store" : "default",
                 signal: AbortSignal.timeout(12000),
             });
 
@@ -94,17 +96,22 @@ export async function GET(
 
     const cacheKey = `dofusbook:build:${id}`;
 
+    const force = request.headers.get("cache-control") === "no-cache" || 
+                  request.headers.get("pragma") === "no-cache";
+
     try {
-        // 1. Redis cache — serve first, always
-        try {
-            const cachedData = await redis.get(cacheKey);
-            if (cachedData) {
-                return NextResponse.json(JSON.parse(cachedData as string), {
-                    headers: { "X-Cache": "HIT" }
-                });
+        // 1. Redis cache — serve first, always (skip if force)
+        if (!force) {
+            try {
+                const cachedData = await redis.get(cacheKey);
+                if (cachedData) {
+                    return NextResponse.json(JSON.parse(cachedData as string), {
+                        headers: { "X-Cache": "HIT" }
+                    });
+                }
+            } catch (redisError) {
+                console.warn("[Dofusbook] Redis error:", redisError);
             }
-        } catch (redisError) {
-            console.warn("[Dofusbook] Redis error:", redisError);
         }
 
         // 2. Resolve short URL (d-bk.net) if needed
@@ -127,7 +134,7 @@ export async function GET(
         }
 
         // 3. Fetch (CF Worker → VPS fallback)
-        const { data, ok, status } = await fetchBuildData(finalId);
+        const { data, ok, status } = await fetchBuildData(finalId, force);
 
         if (!ok || !data) {
             // Last resort: stale cache

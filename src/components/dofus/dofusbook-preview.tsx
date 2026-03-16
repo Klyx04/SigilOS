@@ -9,10 +9,14 @@ import { DO_TAGS } from "@/lib/dofus-tags";
 import { getClassColor } from "@/components/shared/class-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import type { DofusbookItem } from "@/lib/dofusbook-utils";
 
 // Mini-popover showing a panoplie's equipped items with DofusDB links
 type ClothData = { name: string; count: number; total: number; clothItems?: DofusbookItem[] };
+
+import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 function ClothBadge({ cloth }: { cloth: ClothData }) {
     const hasItems = cloth.clothItems && cloth.clothItems.length > 0;
@@ -77,17 +81,32 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
+    const fetchBuild = async (force: boolean = false) => {
+        if (!buildId) return;
+        setLoading(true);
+        try {
+            const response = await fetch(`/api/dofusbook/proxy/${buildId}`, {
+                headers: force ? { "Cache-Control": "no-cache" } : {}
+            });
+            if (response.ok) {
+                const raw = await response.json();
+                if (raw) {
+                    setData(processDofusbookRawData(buildId, raw));
+                    if (force) toast.success("Données actualisées");
+                }
+            } else if (force) {
+                toast.error(`Erreur ${response.status} lors de l'actualisation`);
+            }
+        } catch (err) {
+            if (force) toast.error("Erreur réseau");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (initialData || !buildId) { setLoading(false); return; }
-
-        setLoading(true);
-        fetch(`/api/dofusbook/proxy/${buildId}`)
-            .then(res => res.ok ? res.json() : null)
-            .then(raw => {
-                if (raw) setData(processDofusbookRawData(buildId, raw));
-            })
-            .catch(() => { /* silent — clean fallback shown */ })
-            .finally(() => setLoading(false));
+        fetchBuild(false);
     }, [buildId, initialData]);
 
     const hasData = !!data;
@@ -377,11 +396,29 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     {/* Right: Info & Stats Grid */}
                     <div className="flex-1 flex flex-col relative z-10">
                         <DialogHeader className="mb-6 lg:mb-8 text-left">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "200"}</span>
-                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "200"}</span>
+                                        <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
+                                    </div>
+                                    <DialogTitle className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
+                                </div>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        fetchBuild(true);
+                                    }}
+                                    disabled={loading}
+                                    className="bg-zinc-900 border-white/10 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl h-10 px-4"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+                                    Actualiser
+                                </Button>
                             </div>
-                            <DialogTitle className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
                             <DialogDescription asChild>
                                 <div className="flex flex-wrap gap-2 mt-3">
                                     {tags.map(tagId => {

@@ -195,8 +195,8 @@ export async function refreshBuildMetadata(
         const { getDofusbookPreview } = await import("./dofusbook-actions");
         const { revalidatePath } = await import("next/cache");
 
-        // 1. Fetch metadata from Dofusbook
-        const res = await getDofusbookPreview(buildUrl);
+        // 1. Fetch metadata from Dofusbook (Force bypass cache)
+        const res = await getDofusbookPreview(buildUrl, true);
         if (!res.success || !res.data) {
             return { success: false, error: res.error || "Impossible de récupérer les données" };
         }

@@ -45,7 +45,7 @@ export async function getDofusbookId(url: string): Promise<string | null> {
  * Caches processed DofusbookPreviewData in Redis.
  * Cache is invalidated if stored data has no items (was cached during a block).
  */
-export async function getDofusbookPreview(url: string): Promise<{
+export async function getDofusbookPreview(url: string, force: boolean = false): Promise<{
     success: boolean;
     data?: DofusbookPreviewData;
     error?: string;
@@ -58,7 +58,7 @@ export async function getDofusbookPreview(url: string): Promise<{
 
     try {
         // 1. Redis cache — skip if items were empty (cached during a CF block)
-        if (redis && redis.status === "ready") {
+        if (!force && redis && redis.status === "ready") {
             const cached = await redis.get(cacheKey);
             if (cached) {
                 const parsed = JSON.parse(cached as string) as DofusbookPreviewData;
@@ -76,11 +76,13 @@ export async function getDofusbookPreview(url: string): Promise<{
 
         if (cfWorkerUrl) {
             try {
-                const workerRes = await fetch(`${cfWorkerUrl}/${id}`, {
+                const urlWithForce = force ? `${cfWorkerUrl}/${id}?force=true` : `${cfWorkerUrl}/${id}`;
+                const workerRes = await fetch(urlWithForce, {
                     headers: {
                         "Accept": "application/json",
                         ...(cfWorkerSecret ? { "X-SigilOS-Key": cfWorkerSecret } : {}),
                     },
+                    cache: force ? "no-store" : "default",
                     signal: AbortSignal.timeout(12000),
                 });
                 if (workerRes.ok) {
@@ -105,7 +107,7 @@ export async function getDofusbookPreview(url: string): Promise<{
                     "Sec-Fetch-Mode": "cors",
                     "Sec-Fetch-Site": "same-origin",
                 },
-                cache: "no-store",
+                cache: "no-store", // Strategy 2 is always no-store as it's the fallback
             });
 
             if (!response.ok) {

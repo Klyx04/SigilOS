@@ -758,10 +758,6 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
 
-        // Pre-warm Dofusbook cache for all links (background, non-blocking)
-        // This ensures the Redis cache is hot before anyone views the gallery
-        warmDofusbookCache(links.map(l => l.url));
-
         return { success: true };
     } catch (error: unknown) {
         logger.error("Update Builds Error", { error, guildId });

@@ -100,7 +100,27 @@ export async function GET(
                   request.headers.get("pragma") === "no-cache";
 
     try {
-        // 1. Redis cache — serve first, always (skip if force)
+        // 1. Redis cache — serve first, always
+        // If force is TRUE, we check a "rate-limit" key instead of serving cache immediately.
+        if (force) {
+            const limitKey = `dofusbook:limit:force:${id}`;
+            const isLimited = await redis.get(limitKey);
+            
+            if (isLimited) {
+                // Throttled! Serve cache if it exists, otherwise just fall through to normal logic (non-force)
+                const cachedData = await redis.get(cacheKey);
+                if (cachedData) {
+                    return NextResponse.json(JSON.parse(cachedData as string), {
+                        headers: { "X-Cache": "HIT", "X-Throttled": "true" }
+                    });
+                }
+                // If no cache at all, we proceed without force to avoid double-hitting the worker
+            } else {
+                // Not limited, but let's set a 60s cooldown for the next force request
+                await redis.setex(limitKey, 60, "1");
+            }
+        }
+
         if (!force) {
             try {
                 const cachedData = await redis.get(cacheKey);

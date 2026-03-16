@@ -34,7 +34,6 @@ const UpdateModulesSchema = z.object({
     resources: z.boolean(),
     // Nouveau
     chat: z.boolean(),
-    gartic: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -83,7 +82,6 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             worldmap: guildConfig.modules.worldmap,
             resources: guildConfig.modules.resources,
             chat: guildConfig.modules.chat,
-            gartic: guildConfig.modules.gartic,
         };
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });

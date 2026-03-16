@@ -1,4 +1,8 @@
-import React from "react";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import AccessDenied from "@/components/access-denied";
+import { getUserContext } from "@/server/actions/user-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
 import SkribblGame from "@/components/skribbl/SkribblGame";
 
 export default async function SigilSkribblPage({
@@ -8,8 +12,17 @@ export default async function SigilSkribblPage({
     params: Promise<{ guildId: string }>;
     searchParams: Promise<{ room?: string }>
 }) {
+    const session = await auth();
+    if (!session?.user) redirect("/");
+
     const { guildId } = await params;
     const { room: roomId } = await searchParams;
+
+    const user = await getUserContext(guildId);
+    if (!user.canViewMiniGames) return <AccessDenied />;
+
+    const enabled = await isModuleEnabled(guildId, "worldmap");
+    if (!enabled) return <AccessDenied />;
 
     return (
         <div className="fixed inset-0 top-[80px] md:left-[280px] bg-[#1a4e9b] z-40 overflow-hidden">

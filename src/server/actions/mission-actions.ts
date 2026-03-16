@@ -652,7 +652,7 @@ export async function submitMissionProof(
         const existing = await db.submission.findFirst({
             where: { missionId, profileId: profile.id, status: { in: ["PENDING", "VALIDATED"] } }
         });
-        if (existing) return { success: false, error: "Vous avez déjÃ  une soumission pour cette mission." };
+        if (existing) return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
 
         // 1.2 If a REJECTED submission exists, clean it up to allow retry
         const rejectedSubmission = await db.submission.findFirst({
@@ -709,13 +709,13 @@ export async function submitMissionProof(
         }
 
         // Image Hashing (Anti-Duplicate)
-        const imageHash = hashImage(buffer);
-        const existingHash = await (db as any).imageHash.findUnique({
-            where: { guildId_hash: { guildId: mission.guildId, hash: imageHash } }
+        const imageHash = await hashImage(buffer);
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
 
         if (existingHash) {
-            return { success: false, error: "Cette image a déjÃ  été utilisée pour une validation dans cette guilde." };
+            return { success: false, error: "Cette image a déjà été utilisée pour une validation dans cette guilde." };
         }
 
         // NO OCR - All submissions go to admin validation
@@ -742,7 +742,7 @@ export async function submitMissionProof(
         const filePath = join(uploadDir, fileName);
 
         await writeFile(filePath, optimizedBuffer);
-        const proofUrl = `/uploads/${storageSubDir}/${fileName}`;
+        const proofUrl = `/api/storage/${storageSubDir}/${fileName}`;
 
         const submission = await db.submission.create({
             data: {
@@ -875,10 +875,11 @@ export async function validateSubmission(
             }
         });
 
-        // 3. If validated, add XP to user profile
+        // 3. If validated, award rewards (XP & Guildatons)
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
-            await addProfileXp(updatedSubmission.profileId, xpReward);
+            const guildatonsReward = submission.mission.guildatonsReward || 0;
+            await grantRewards(updatedSubmission.profileId, xpReward, guildatonsReward);
 
             // AWARD CONTRIBUTION POINTS TO HELPERS
             if (updatedSubmission.helpers && updatedSubmission.helpers.length > 0) {
@@ -956,23 +957,19 @@ export async function validateSubmission(
 
 // --- Helpers ---
 
-async function addProfileXp(profileId: string, amount: number) {
-    if (amount <= 0) return;
+async function grantRewards(profileId: string, xp: number, guildatons: number = 0) {
+    if (xp <= 0 && guildatons <= 0) return;
 
     try {
-        const profile = await db.userProfile.findUnique({
-            where: { id: profileId },
-            select: { xp: true }
-        });
-
-        if (!profile) return;
-
         await db.userProfile.update({
             where: { id: profileId },
-            data: { xp: (profile.xp || 0) + amount }
+            data: {
+                xp: { increment: xp > 0 ? xp : 0 },
+                guildatons: { increment: guildatons > 0 ? guildatons : 0 }
+            }
         });
     } catch (e) {
-        console.error(`[XP] Failed to add XP to profile ${profileId}:`, e);
+        console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
     }
 }
 

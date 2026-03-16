@@ -26,8 +26,7 @@ export type ModuleKey =
     | "worldmap"
     | "resources"
     // Nouveau
-    | "chat"
-    | "gartic";
+    | "chat";
 
 export type GuildModulesState = {
     // Général
@@ -55,7 +54,6 @@ export type GuildModulesState = {
     resources: boolean;
     // Nouveau
     chat: boolean;
-    gartic: boolean;
 };
 
 export const DEFAULT_MODULES: GuildModulesState = {
@@ -78,5 +76,4 @@ export const DEFAULT_MODULES: GuildModulesState = {
     worldmap: false,
     resources: false,
     chat: false,
-    gartic: false,
 };

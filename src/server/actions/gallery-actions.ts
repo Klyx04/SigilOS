@@ -11,13 +11,15 @@ export type GalleryBuild = {
     name: string;
     url: string;
     tags?: string[];
-    classId?: number;
+    classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
     author: {
         id: string;
         name: string;
         image: string | null;
     };
+    votesCount: number;
+    hasVoted: boolean;
 };
 
 export type GalleryPage = {
@@ -42,7 +44,9 @@ export async function getStuffGalleryPage(
     guildId: string,
     page: number = 1,
     searchQuery?: string,
-    tag?: string
+    tag?: string,
+    classId?: string,
+    sortBy?: "newest" | "votes"
 ): Promise<ActionResponse<GalleryPage>> {
     if (!guildId) return { success: false, error: "ID de guilde requis" };
 
@@ -58,27 +62,44 @@ export async function getStuffGalleryPage(
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        // Optimization: Don't use Prisma.AnyNull for JSON as it can be flaky depending on DB state.
-        // Fetch profiles and filter in memory since guilds are usually < 500 members.
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE",
-            },
-            select: {
-                id: true,
-                pseudoDofus: true,
-                discordNickname: true,
-                dofusBookLinks: true,
-                user: { select: { name: true, image: true } }
-            },
-        });
+        const [profiles, allVotes] = await Promise.all([
+            // Optimization: Fetch profiles and filter in memory
+            db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE",
+                },
+                select: {
+                    id: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
+                    dofusBookLinks: true,
+                    user: { select: { name: true, image: true } }
+                },
+            }),
+            // Fetch all votes for this guild
+            db.buildVote.findMany({
+                where: { guildId: guildConfig.id },
+                select: { buildId: true, userId: true }
+            })
+        ]);
 
         console.log(`[Gallery] Found ${profiles.length} active profiles for guild ${guildConfig.name}`);
 
+        // Create vote maps for quick access
+        const votesCountMap = new Map<string, number>();
+        const userVotesSet = new Set<string>(); // Set of buildIds voted by current user
+
+        allVotes.forEach((vote: { buildId: string, userId: string }) => {
+            votesCountMap.set(vote.buildId, (votesCountMap.get(vote.buildId) || 0) + 1);
+            if (user.id && vote.userId === user.id) {
+                userVotesSet.add(vote.buildId);
+            }
+        });
+
         // Flatten all builds from all profiles into one list
         let allBuilds: GalleryBuild[] = [];
-        profiles.forEach(profile => {
+        profiles.forEach((profile: any) => {
             // Safety check: ensure links is actually an array
             if (!profile.dofusBookLinks || !Array.isArray(profile.dofusBookLinks)) {
                 return;
@@ -87,8 +108,9 @@ export async function getStuffGalleryPage(
             const links = profile.dofusBookLinks as any[];
             links.forEach((link, idx) => {
                 if (link?.url && link?.name) {
+                    const buildId = link.id || `${profile.id}-${idx}`; // Prefer real id if exists
                     allBuilds.push({
-                        id: `${profile.id}-${idx}`,
+                        id: buildId,
                         name: link.name,
                         url: link.url,
                         tags: link.tags || [],
@@ -98,7 +120,9 @@ export async function getStuffGalleryPage(
                             id: profile.id,
                             name: profile.pseudoDofus || profile.discordNickname || profile.user.name || "Membre",
                             image: profile.user.image
-                        }
+                        },
+                        votesCount: votesCountMap.get(buildId) || 0,
+                        hasVoted: userVotesSet.has(buildId)
                     });
                 }
             });
@@ -106,8 +130,13 @@ export async function getStuffGalleryPage(
 
         console.log(`[Gallery] Total builds flattened: ${allBuilds.length}`);
 
-        // Most recently added first (by reverse index since we push them in profile order)
+        // Default logical order
         allBuilds = allBuilds.reverse();
+
+        // Apply sort
+        if (sortBy === "votes") {
+            allBuilds = allBuilds.sort((a, b) => b.votesCount - a.votesCount);
+        }
 
         // Apply search filter server-side
         if (searchQuery) {
@@ -121,6 +150,11 @@ export async function getStuffGalleryPage(
         // Apply tag filter server-side
         if (tag) {
             allBuilds = allBuilds.filter(b => b.tags?.includes(tag));
+        }
+
+        // Apply class filter server-side
+        if (classId) {
+            allBuilds = allBuilds.filter(b => String(b.classId) === classId);
         }
 
         const total = allBuilds.length;

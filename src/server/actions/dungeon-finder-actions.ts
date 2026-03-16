@@ -890,7 +890,9 @@ export async function internalJoinDjPost(
         if (joinGuildId) {
             updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
             await notifyDjUpdate(joinGuildId);
+            revalidatePath(`/dashboard/${joinGuildId}/donjons-et-quetes`);
         }
+
 
         return { success: true };
     } catch (error) {
@@ -942,7 +944,9 @@ export async function internalLeaveDjPost(
         if (embedGuildId) {
             updateDjDiscordEmbed(embedGuildId, postId).catch(() => { });
             await notifyDjUpdate(embedGuildId);
+            revalidatePath(`/dashboard/${embedGuildId}/donjons-et-quetes`);
         }
+
 
         return { success: true };
     } catch (error) {

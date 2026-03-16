@@ -418,7 +418,7 @@ export default function MemberManagement({
                                                     <TableCell className="pr-8 text-right">
                                                         {member.hasDashboardProfile ? (
                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-[10px] font-black uppercase tracking-widest p-0 w-9" asChild>
-                                                                <a href={`/dashboard/${guildId}/profile/${member.profileId}`} target="_blank">
+                                                                <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
                                                                     <ArrowUpRight className="w-4 h-4" />
                                                                 </a>
                                                             </Button>
@@ -520,22 +520,48 @@ export default function MemberManagement({
 
                 {/* --- TAB 2: STATS --- */}
                 <TabsContent value="stats" className="space-y-6">
-                    <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[32px] p-8">
-                        <div className="text-center space-y-6 py-12">
-                            <div className="w-20 h-20 bg-violet-600/20 border border-violet-500/30 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
-                                <LayoutGrid className="w-10 h-10 text-violet-400" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {data?.stats.map(s => {
+                            const percent = s.totalDiscord > 0 ? (s.totalDashboard / s.totalDiscord) * 100 : 0;
+                            return (
+                                <Card key={s.roleId} className="bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[32px] p-6 group hover:border-violet-500/30 transition-all">
+                                    <div className="flex items-start justify-between mb-6">
+                                        <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                                            <Trophy className="w-5 h-5" style={{ color: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : undefined }} />
+                                        </div>
+                                        <Badge variant="outline" className="font-black italic px-3 rounded-lg border-white/5 bg-black/40 text-zinc-400">
+                                            {percent.toFixed(0)}% ACTIFS
+                                        </Badge>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="text-lg font-black text-white italic uppercase tracking-tight truncate">{s.roleName}</h4>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mt-1">Audit de couverture Grade</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600 block">Discord</span>
+                                                <span className="text-xl font-black text-zinc-200">{s.totalDiscord}</span>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-violet-600/10 border border-violet-500/10 space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-violet-500/70 block">SigilOS</span>
+                                                <span className="text-xl font-black text-violet-400">{s.totalDashboard}</span>
+                                            </div>
+                                        </div>
+                                        <Progress value={percent} className="h-2 bg-black/40 border border-white/5" />
+                                    </div>
+                                </Card>
+                            );
+                        })}
+                        
+                        <Card className="bg-zinc-900/20 backdrop-blur-xl border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center text-center space-y-4 opacity-50 grayscale">
+                            <Download className="w-10 h-10 text-zinc-600" />
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-black text-white uppercase italic tracking-widest">Compte Rendu Complet</h4>
+                                <p className="text-[10px] text-zinc-500 font-medium">Exportation PDF bientôt prête.</p>
                             </div>
-                            <div className="max-w-md mx-auto space-y-2">
-                                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Statistiques Détaillées</h3>
-                                <p className="text-zinc-500 font-medium leading-relaxed">
-                                    Analyse complète de la répartition des membres par grade et leur taux d&apos;engagement sur la platforme.
-                                </p>
-                            </div>
-                            <Button className="bg-zinc-800 hover:bg-zinc-700 text-white font-black uppercase tracking-widest px-8 rounded-2xl border border-white/5 h-12">
-                                Générer Rapport PDF
-                            </Button>
-                        </div>
-                    </Card>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 {/* --- TAB 3: MANAGEMENT --- */}

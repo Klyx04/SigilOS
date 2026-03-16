@@ -340,33 +340,45 @@ export async function sendChangelogToDiscord(entryId: string) {
     const entry = await db.changelogEntry.findUnique({ where: { id: entryId } });
     if (!entry) return { success: false, error: 'Entrée introuvable' };
 
-    // HTML → lisible pour Discord
+    // HTML → lisible pour Discord (Amélioré)
     const plainContent = entry.content
         .replace(/<li>/gi, '• ')
         .replace(/<\/li>/gi, '\n')
-        .replace(/<h[1-6][^>]*>/gi, '**')
+        .replace(/<h[1-6][^>]*>/gi, '\n**')
         .replace(/<\/h[1-6]>/gi, '**\n')
+        .replace(/<p>/gi, '')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<strong>/gi, '**')
+        .replace(/<\/strong>/gi, '**')
         .replace(/<[^>]+>/g, '')
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
-        .slice(0, 1024);
+        .slice(0, 1200);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
     const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
 
+    const fullDescription = [
+        entry.summary,
+        '',
+        '**📋 CHANGEMENTS PRINCIPAUX**',
+        '---',
+        plainContent || "_Améliorations diverses._",
+        '',
+        `> [Consulter le changelog complet](${appUrl}/changelog)`
+    ].join('\n');
+
     const embed = {
-        embedTitle: `${emoji} ${entry.version} — ${entry.title}`,
+        embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
         embedUrl: `${appUrl}/changelog`,
-        embedDescription: entry.summary || "",
+        embedDescription: fullDescription.slice(0, 4096),
         embedColor: color,
-        embedFooter: `SigilOS Changelog • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+        embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
         embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
     };
-    
-    const fullDescription = `${entry.summary}\n\n**📋 Changements principaux**\n${plainContent || "Améliorations diverses."}\n\n[Voir le détail complet sur l'application](${appUrl}/changelog)`;
-    embed.embedDescription = fullDescription.slice(0, 4096);
 
     const { sendChannelMessage } = await import("@/server/discord");
 
@@ -404,35 +416,45 @@ export async function broadcastChangelogToGuilds(entryId: string) {
         errors: [] as string[]
     };
 
-    // Prepare Embed
+    // HTML → lisible pour Discord (Amélioré)
     const plainContent = entry.content
         .replace(/<li>/gi, '• ')
         .replace(/<\/li>/gi, '\n')
-        .replace(/<h[1-6][^>]*>/gi, '**')
+        .replace(/<h[1-6][^>]*>/gi, '\n**')
         .replace(/<\/h[1-6]>/gi, '**\n')
+        .replace(/<p>/gi, '')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<strong>/gi, '**')
+        .replace(/<\/strong>/gi, '**')
         .replace(/<[^>]+>/g, '')
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
-        .slice(0, 1024);
+        .slice(0, 1200);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
     const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
 
+    const fullDescription = [
+        entry.summary,
+        '',
+        '**📋 CHANGEMENTS PRINCIPAUX**',
+        '---',
+        plainContent || "_Améliorations diverses._",
+        '',
+        `> [Consulter le changelog complet](${appUrl}/changelog)`
+    ].join('\n');
+
     const embed = {
         embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
         embedUrl: `${appUrl}/changelog`,
-        embedDescription: entry.summary || "",
+        embedDescription: fullDescription.slice(0, 4096),
         embedColor: color,
         embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
         embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
     };
-
-    // If there is details, we can append it as another field, but sendChannelMessage from @/server/discord doesn't support custom fields directly in its current simplified form. 
-    // Wait, createNewsEmbed supported description. We will just put the plain content inside the description or a concatenated string.
-    const fullDescription = `${entry.summary}\n\n**📋 Changements principaux**\n${plainContent || "Améliorations diverses."}\n\n[Voir le détail complet sur l'application](${appUrl}/changelog)`;
-    embed.embedDescription = fullDescription.slice(0, 4096);
 
     const { sendChannelMessage } = await import("@/server/discord");
 

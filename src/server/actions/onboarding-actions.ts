@@ -164,8 +164,22 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
     // Fetch user profile to get Discord ID if needed for pinging
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        select: { userId: true, user: { select: { image: true } } },
+        select: { 
+            userId: true, 
+            user: { 
+                select: { 
+                    image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true },
+                        take: 1
+                    }
+                } 
+            } 
+        },
     });
+
+    const discordUserId = profile?.user?.accounts?.[0]?.providerAccountId;
 
     // 1. Dashboard Welcome Post
     if (guildConfig.welcomeDashboardEnabled) {
@@ -243,7 +257,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const rawTemplate = guildConfig.welcomeDiscordMessageTemplate || guildConfig.welcomeMessageTemplate || "🎉 Bienvenue à {member} !";
         const template = stripHtml(rawTemplate);
 
-        const memberMention = profile?.userId ? `<@${profile.userId}>` : `**${displayName}**`;
+        const memberMention = discordUserId ? `<@${discordUserId}>` : `**${displayName}**`;
 
         const content = template
             .replace(/{member}/g, memberMention)
@@ -259,7 +273,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
 
         try {
             await sendChannelMessage(guildConfig.welcomeNotifyChannelId, mentionContent, {
-                embedTitle: `🌟 Nouvelle Recrue Dashboard !`,
+                embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500
                 embedThumbnail: profile?.user?.image || "https://i.imgur.com/AfFp7pu.png",

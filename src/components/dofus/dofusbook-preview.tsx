@@ -90,14 +90,6 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             .finally(() => setLoading(false));
     }, [buildId, initialData]);
 
-    if (loading) {
-        return (
-            <div className={cn("flex items-center justify-center bg-zinc-900/50 rounded-[2.5rem] border border-white/5 min-h-[300px]", className)}>
-                <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
-            </div>
-        );
-    }
-
     const hasData = !!data;
 
     // Memoize guessed class and color to avoid recalculating on every scroll/hover
@@ -134,6 +126,14 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         const name = (data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         return getClassColor(name);
     }, [data?.className, guessedClassId]);
+
+    if (loading) {
+        return (
+            <div className={cn("flex items-center justify-center bg-zinc-900/50 rounded-[2.5rem] border border-white/5 min-h-[300px]", className)}>
+                <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
+            </div>
+        );
+    }
 
     const cardContent = (
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-5 sm:p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.1)] cursor-pointer", className)}>

@@ -81,18 +81,40 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
+    const [lastRefresh, setLastRefresh] = useState(0);
+
     const fetchBuild = async (force: boolean = false) => {
         if (!buildId) return;
+
+        if (force) {
+            const now = Date.now();
+            const cooldown = 30000; // 30s
+            if (now - lastRefresh < cooldown) {
+                const remaining = Math.ceil((cooldown - (now - lastRefresh)) / 1000);
+                toast.error(`Veuillez attendre ${remaining}s avant de rafraîchir à nouveau`);
+                return;
+            }
+            setLastRefresh(now);
+        }
+
         setLoading(true);
         try {
             const response = await fetch(`/api/dofusbook/proxy/${buildId}`, {
                 headers: force ? { "Cache-Control": "no-cache" } : {}
             });
+            
+            // Check for throttling from server
+            if (response.headers.get("X-Throttled") === "true") {
+                toast.info("Données déjà à jour (cache récent)");
+            }
+
             if (response.ok) {
                 const raw = await response.json();
                 if (raw) {
                     setData(processDofusbookRawData(buildId, raw));
-                    if (force) toast.success("Données actualisées");
+                    if (force && response.headers.get("X-Throttled") !== "true") {
+                        toast.success("Données actualisées");
+                    }
                 }
             } else if (force) {
                 toast.error(`Erreur ${response.status} lors de l'actualisation`);

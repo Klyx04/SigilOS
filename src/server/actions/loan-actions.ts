@@ -25,6 +25,7 @@ async function getDiscordId(userId: string): Promise<string | null> {
 
 import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
 import { hashImage } from "@/lib/llm-ocr";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 const profileSelect = {
     id: true,
@@ -272,10 +273,8 @@ export async function createLoan(
                     if (valid) {
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
-                        // Discord needs an absolute URL for embedImage
-                        const publicProofUrl = proofUrl
-                            ? (proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`)
-                            : undefined;
+                        // Discord needs an absolute URL with access token
+                        const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
                         // Discord mentions
                         const lenderDiscordId = await getDiscordId(lenderProfile?.userId || "").catch(() => null);

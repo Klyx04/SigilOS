@@ -1,6 +1,7 @@
 import { unlink, rmdir } from "fs/promises";
 import { join, dirname, normalize } from "path";
 import { logger } from "@/lib/logger";
+import { createHmac } from "crypto";
 
 /**
  * Deletes a proof file from the filesystem and cleans up empty parent directories.
@@ -53,4 +54,39 @@ export async function deleteProofFile(proofUrl: string) {
         }
         // ENOENT = already deleted, silently ignore
     }
+}
+
+/**
+ * Generates a signature for a storage path to allow public access with a valid token.
+ */
+export function signStorageUrl(path: string): string {
+    const secret = process.env.AUTH_SECRET || "default_internal_secret_change_me_sigil_os_storage";
+    const hmac = createHmac("sha256", secret);
+    hmac.update(path);
+    return hmac.digest("hex");
+}
+
+/**
+ * Verifies if a token is valid for a given storage path.
+ */
+export function verifyStorageToken(path: string, token: string): boolean {
+    const expected = signStorageUrl(path);
+    if (!token || !expected) return false;
+    return token === expected;
+}
+
+/**
+ * Generates an absolute URL with a security token for Discord to access a private asset.
+ */
+export function getDiscordPublicUrl(proofUrl: string | null | undefined): string | undefined {
+    if (!proofUrl) return undefined;
+    
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const baseUrl = proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`;
+    
+    // Extract path for signature (part after /api/storage/)
+    const pathOnly = proofUrl.replace(/^\/api\/storage\//, "");
+    const token = signStorageUrl(pathOnly);
+    
+    return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}token=${token}`;
 }

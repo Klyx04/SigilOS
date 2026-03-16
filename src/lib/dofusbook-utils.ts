@@ -38,6 +38,20 @@ export type DofusbookPreviewData = {
         eau: number;
         air: number;
     };
+    damages?: {
+        neutre: number;
+        terre: number;
+        feu: number;
+        eau: number;
+        air: number;
+        general: number;
+        critique: number;
+        poussee: number;
+        armes: number;
+        sorts: number;
+        melee: number;
+        distance: number;
+    };
     items?: Record<string, DofusbookItem | null>;
     cloths?: {
         name: string;
@@ -73,12 +87,17 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     let so = 0;
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
 
+    // Damages
+    let dn = 0, dt = 0, df = 0, de = 0, da = 0, dom = 0;
+    let dc = 0, dp = 0, do_armes = 0, do_sorts = 0, do_melee = 0, do_dist = 0;
+
     // Element stats from items only (capital/scroll added later)
     let el_fo = 0, el_in = 0, el_ch = 0, el_ag = 0, el_sa = 0, el_pu = 0;
 
     const stuffItemsSlots = raw.stuff?.stuffItem || {};
     const itemsList: any[] = raw.items || [];
     const itemsMap: Record<string, DofusbookItem | null> = {};
+    const stuffFmItem = raw.stuff?.stuffFmItem || raw.stuffFmItem || {};
 
     // Sums item effects into our running stats
     const sumEffect = (e: any) => {
@@ -110,7 +129,9 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'vit': vit += val; break;
             // Element stats (items contribution — for real-stats panel)
             case 'fo':  el_fo += val; break;
-            case 'in':  el_in += val; break;  // 'in' = intelligence, NOT invocations
+            case 'in':
+                if (name === 'in') el_in += val; // 'in' is intel
+                break;
             case 'ch':  el_ch += val; break;
             case 'ag':  el_ag += val; break;
             case 'sa':  el_sa += val; break;
@@ -121,10 +142,21 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'rfp': resF += val; break;  // résistance feu %
             case 'rep': resE += val; break;  // résistance eau %
             case 'rap': resA += val; break;  // résistance air %
+            // Damages
+            case 'dnf': dn += val; break;
+            case 'dtf': dt += val; break;
+            case 'dff': df += val; break;
+            case 'def': de += val; break;
+            case 'daf': da += val; break;
+            case 'df':  dom += val; break;
+            case 'dc':  dc += val; break;
+            case 'dp':  dp += val; break;
+            // % Damages
+            case 'da':  do_armes += val; break;
+            case 'ds':  do_sorts += val; break;
+            case 'dm':  do_melee += val; break;
+            case 'di':  do_dist += val; break;
             // Secondary
-            case 'in':
-                if (name === 'in') el_in += val; // 'in' is intel
-                break;
             case 'ini': ini += val; break;
             case 'cc': cc += val; break;
             case 'pp': pp += val; break;
@@ -143,8 +175,19 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
                 picture: item.picture,
                 official: item.official
             };
+            // Mod: Only add base effect if that stat hasn't been FM'd (overridden in stuffFmItem)
+            const fmItemOverrides = (stuffFmItem && typeof stuffFmItem === 'object') ? (stuffFmItem as any)[slot] : null;
+
             const effects = item.effects || item.stats || [];
-            if (Array.isArray(effects)) effects.forEach(sumEffect);
+            if (Array.isArray(effects)) {
+                effects.forEach(e => {
+                    const name = (e.name || "").toLowerCase();
+                    if (fmItemOverrides && fmItemOverrides[name] !== undefined) {
+                        return; // Ignore this base stat, it's overwritten by FM
+                    }
+                    sumEffect(e);
+                });
+            }
         } else {
             itemsMap[slot] = null;
         }
@@ -208,25 +251,37 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     //      Structure: { "itemId": { pa: 1, pm: 1, ... } } or flat { pa: 1, pm: 1 }
 
     // A. Global FM
-    const stuffFm = raw.stuff?.stuffFm?.fm || raw.stuffFm?.fm || {};
-    pa    += Number(stuffFm.pa)  || 0;
-    pm    += Number(stuffFm.pm)  || 0;
-    po    += Number(stuffFm.po)  || 0;
-    vit   += Number(stuffFm.vi)  || Number(stuffFm.vit) || 0;
-    el_fo += Number(stuffFm.fo)  || 0;
-    el_in += Number(stuffFm.in)  || 0;
-    el_ch += Number(stuffFm.ch)  || 0;
-    el_ag += Number(stuffFm.ag)  || 0;
-    el_pu += Number(stuffFm.pu)  || 0;
-    ini   += Number(stuffFm.ini) || 0;
-    cc    += Number(stuffFm.cc)  || 0;
-    pp    += Number(stuffFm.pp)  || 0;
-    invo  += Number(stuffFm.invo)|| 0;
-    so    += Number(stuffFm.so)  || 0;
+    const fmGlobal = raw.stuff?.stuffFm?.fm || raw.stuffFm?.fm || {};
+    pa    += Number(fmGlobal.pa)  || 0;
+    pm    += Number(fmGlobal.pm)  || 0;
+    po    += Number(fmGlobal.po)  || 0;
+    vit   += Number(fmGlobal.vi)  || Number(fmGlobal.vit) || 0;
+    el_fo += Number(fmGlobal.fo)  || 0;
+    el_in += Number(fmGlobal.in)  || 0;
+    el_ch += Number(fmGlobal.ch)  || 0;
+    el_ag += Number(fmGlobal.ag)  || 0;
+    el_pu += Number(fmGlobal.pu)  || 0;
+    ini   += Number(fmGlobal.ini) || 0;
+    cc    += Number(fmGlobal.cc)  || 0;
+    pp    += Number(fmGlobal.pp)  || 0;
+    invo  += Number(fmGlobal.invo)|| 0;
+    so    += Number(fmGlobal.so)  || 0;
+    dn    += Number(fmGlobal.dnf) || 0;
+    dt    += Number(fmGlobal.dtf) || 0;
+    df    += Number(fmGlobal.dff) || 0;
+    de    += Number(fmGlobal.def) || 0;
+    da    += Number(fmGlobal.daf) || 0;
+    dom   += Number(fmGlobal.df)  || 0;
+    dc    += Number(fmGlobal.dc)  || 0;
+    dp    += Number(fmGlobal.dp)  || 0;
+    do_armes += Number(fmGlobal.da) || 0;
+    do_sorts += Number(fmGlobal.ds) || 0;
+    do_melee += Number(fmGlobal.dm) || 0;
+    do_dist  += Number(fmGlobal.di) || 0;
 
     // B. Per-item exo FM — path: raw.stuff.stuffFmItem (NOT raw.stuff.stuffFm.fmItem!)
-    // Structure: { "slotKey": { pa: 1, pm: 1, ... } } — one entry per slot
-    const stuffFmItem = raw.stuff?.stuffFmItem || raw.stuffFmItem || {};
+    // We already skipped the base values in sumEffect, so now we just blindly ADD every fm value 
+    // exactly as they are defined on the FM item object.
     if (stuffFmItem && typeof stuffFmItem === 'object') {
         Object.values(stuffFmItem).forEach((fmStats: any) => {
             if (!fmStats || typeof fmStats !== 'object') return;
@@ -249,6 +304,18 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             pp    += Number(fmStats.pp)  || 0;
             invo  += Number(fmStats.invo)|| 0;
             so    += Number(fmStats.so)  || 0;
+            dn    += Number(fmStats.dnf) || 0;
+            dt    += Number(fmStats.dtf) || 0;
+            df    += Number(fmStats.dff) || 0;
+            de    += Number(fmStats.def) || 0;
+            da    += Number(fmStats.daf) || 0;
+            dom   += Number(fmStats.df)  || 0;
+            dc    += Number(fmStats.dc)  || 0;
+            dp    += Number(fmStats.dp)  || 0;
+            do_armes += Number(fmStats.da) || 0;
+            do_sorts += Number(fmStats.ds) || 0;
+            do_melee += Number(fmStats.dm) || 0;
+            do_dist  += Number(fmStats.di) || 0;
         });
     }
 
@@ -261,6 +328,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         stats: { pa, pm, po, vit, ini, pp, cc, invo, so },
         elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },
+        damages: { neutre: dn, terre: dt, feu: df, eau: de, air: da, general: dom, critique: dc, poussee: dp, armes: do_armes, sorts: do_sorts, melee: do_melee, distance: do_dist },
         items: itemsMap,
         cloths: activeCloths
     };

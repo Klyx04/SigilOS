@@ -9,6 +9,7 @@ import { z } from "zod";
 import { VaultAction } from "@prisma/client";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { hashImage } from "@/lib/llm-ocr";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -224,10 +225,8 @@ export async function createVaultEntry(
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
-                        // Discord needs an absolute URL for embedImage
-                        const publicProofUrl = proofUrl
-                            ? (proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`)
-                            : undefined;
+                        // Discord needs an absolute URL with access token
+                        const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
                         // Get actor profile + Discord mention
                         const actorProfile = await db.userProfile.findUnique({

@@ -8,7 +8,7 @@ if (!connectionString) throw new Error("DATABASE_URL est requis pour ce script d
 process.env.DATABASE_URL = connectionString;
 
 const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool as any);
 const db = new PrismaClient({ adapter });
 
 async function rescue() {

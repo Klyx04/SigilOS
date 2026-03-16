@@ -736,9 +736,9 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
                 return { ...link, previewData: matchingOld.previewData };
             }
 
-            // Otherwise, try to fetch it
+            // Otherwise, try to fetch it (Force bypass if requested or missing)
             try {
-                const res = await getDofusbookPreview(link.url);
+                const res = await getDofusbookPreview(link.url, true);
                 if (res.success && res.data) {
                     return { ...link, previewData: res.data };
                 }

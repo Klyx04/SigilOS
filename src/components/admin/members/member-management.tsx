@@ -209,13 +209,6 @@ export default function MemberManagement({
                         <RefreshCw className={`w-4 h-4 mr-2 group-hover:text-violet-400 transition-colors ${refreshing ? 'animate-spin' : ''}`} />
                         {refreshing ? "Mise à jour..." : "Actualiser"}
                     </Button>
-                    <Button 
-                        className="bg-violet-600 hover:bg-violet-500 text-white font-black uppercase tracking-widest px-6 h-12 rounded-2xl shadow-xl shadow-violet-600/20 border-t border-white/20"
-                        onClick={() => toast.success("Fonctionnalité en cours de déploiement")}
-                    >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Relancer les manquants
-                    </Button>
                 </div>
             </div>
 
@@ -554,13 +547,6 @@ export default function MemberManagement({
                             );
                         })}
                         
-                        <Card className="bg-zinc-900/20 backdrop-blur-xl border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center text-center space-y-4 opacity-50 grayscale">
-                            <Download className="w-10 h-10 text-zinc-600" />
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-black text-white uppercase italic tracking-widest">Compte Rendu Complet</h4>
-                                <p className="text-[10px] text-zinc-500 font-medium">Exportation PDF bientôt prête.</p>
-                            </div>
-                        </Card>
                     </div>
                 </TabsContent>
 

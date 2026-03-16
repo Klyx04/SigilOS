@@ -709,9 +709,9 @@ export async function submitMissionProof(
         }
 
         // Image Hashing (Anti-Duplicate)
-        const imageHash = hashImage(buffer);
-        const existingHash = await (db as any).imageHash.findUnique({
-            where: { guildId_hash: { guildId: mission.guildId, hash: imageHash } }
+        const imageHash = await hashImage(buffer);
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
 
         if (existingHash) {

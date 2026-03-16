@@ -163,8 +163,8 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                 </div>
 
                 {/* Equipment Grid or Fallback UI */}
-                <div className="relative aspect-square w-full bg-black/40 p-3 rounded-[2.5rem] border border-white/5 flex items-center justify-center shadow-2xl overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                <div className="relative aspect-square w-full bg-black/40 p-3 rounded-[2.5rem] border border-white/5 flex items-center justify-center shadow-2xl">
+                    <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] flex items-center justify-center pointer-events-none z-0">
                         {(data?.classId || guessedClassId) > 0 && (
                             <div className="relative w-full h-full flex items-center justify-center">
                                 <div
@@ -196,20 +196,25 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                                     <div
                                         key={slot.s}
                                         className={cn(
-                                            "w-[34px] h-[34px] rounded-lg flex items-center justify-center p-1 relative",
-                                            item ? "bg-zinc-800 border border-white/10" : "bg-white/[0.03] border border-white/5 opacity-40"
+                                            "w-[34px] h-[34px] rounded-lg flex items-center justify-center p-1 relative group/mini-slot",
+                                            item ? "bg-zinc-800 border border-white/10 hover:bg-zinc-700 hover:border-emerald-500/30 transition-colors" : "bg-white/[0.03] border border-white/5 opacity-40"
                                         )}
                                         style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
                                     >
                                         {item && (
-                                            <NextImage
-                                                src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
-                                                alt={item.name}
-                                                width={32}
-                                                height={32}
-                                                className="object-contain"
-                                                unoptimized
-                                            />
+                                            <>
+                                                <NextImage
+                                                    src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                    alt={item.name}
+                                                    width={32}
+                                                    height={32}
+                                                    className="object-contain"
+                                                    unoptimized
+                                                />
+                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 px-2 py-1 rounded-md text-[9px] font-bold text-white opacity-0 group-hover/mini-slot:opacity-100 transition-all shadow-xl z-50 whitespace-nowrap pointer-events-none">
+                                                    {item.name}
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 );
@@ -245,7 +250,7 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
             <DialogTrigger asChild>
                 {cardContent}
             </DialogTrigger>
-            <DialogContent className="max-w-4xl bg-zinc-950 border-white/10 p-0 overflow-hidden rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+            <DialogContent className="max-w-[1100px] bg-zinc-950 border-white/10 p-0 overflow-hidden rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
                 <div className="relative p-6 sm:p-12 flex flex-col md:flex-row gap-12">
                     {/* Background Class Glow */}
                     <div
@@ -320,19 +325,43 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                             )}
                         </div>
 
-                        {/* Elements Summary */}
+                        {/* Elements Summary (Resists) - Exact Dofusbook Style */}
                         {data && (
-                            <div className="grid grid-cols-5 gap-2 px-2">
-                                {Object.entries(data.resists).map(([res, val]) => (
-                                    <div key={res} className="flex flex-col items-center gap-1">
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", {
-                                            "bg-zinc-400": res === "neutre",
-                                            "bg-green-500": res === "terre",
-                                            "bg-red-500": res === "feu",
-                                            "bg-blue-500": res === "eau",
-                                            "bg-emerald-400": res === "air",
-                                        })} />
-                                        <span className="text-[10px] font-black text-white">{val}%</span>
+                            <div className="flex flex-col gap-1.5 mt-4 ml-6">
+                                {[
+                                    { res: 'neutre', val: data.resists.neutre, label: 'Neutre', icon: (
+                                        <svg viewBox="0 0 24 24" fill="none" className="w-[15px] h-[15px] drop-shadow-md">
+                                            <circle cx="12" cy="12" r="11" fill="#E2E2E2" stroke="#000" strokeWidth="1" />
+                                            <path d="M12 1A11 11 0 0 0 12 23A5.5 5.5 0 0 1 12 12A5.5 5.5 0 0 0 12 1Z" fill="#111" />
+                                            <circle cx="12" cy="6.5" r="2" fill="#111" />
+                                            <circle cx="12" cy="17.5" r="2" fill="#E2E2E2" />
+                                        </svg>
+                                    ) },
+                                    { res: 'terre', val: data.resists.terre, label: 'Terre', icon: (
+                                        <svg viewBox="0 0 24 24" fill="#9D753E" className="w-[15px] h-[15px] drop-shadow-md">
+                                           <path d="M12 24L5 12H9V0H15V12H19L12 24Z" />
+                                        </svg>
+                                    ) },
+                                    { res: 'feu', val: data.resists.feu, label: 'Feu', icon: (
+                                        <svg viewBox="0 0 24 24" fill="#E33E19" className="w-[15px] h-[15px] drop-shadow-md">
+                                           <path d="M12 0C12 0 3 8 3 15C3 20 7 24 12 24C17 24 21 20 21 15C21 8 12 0 12 0ZM12 20C10 20 8 18 8 16C8 14 12 10 12 10C12 10 16 14 16 16C16 18 14 20 12 20Z" />
+                                        </svg>
+                                    ) },
+                                    { res: 'eau', val: data.resists.eau, label: 'Eau', icon: (
+                                        <svg viewBox="0 0 24 24" fill="#5AC2FF" className="w-[15px] h-[15px] drop-shadow-md">
+                                           <path d="M12 0C12 0 4 10 4 16C4 20.418 7.582 24 12 24C16.418 24 20 20.418 20 16C20 10 12 0 12 0Z" />
+                                        </svg>
+                                    ) },
+                                    { res: 'air', val: data.resists.air, label: 'Air', icon: (
+                                        <svg viewBox="0 0 24 24" fill="#88C72B" className="w-[15px] h-[15px] drop-shadow-md">
+                                           <path d="M17 19C19.761 19 22 16.761 22 14C22 11.239 19.761 9 17 9C16.5 6 14 3 11 3C7 3 4 6 4 10C1.79 10 0 11.79 0 14C0 16.21 1.79 18 4 18H17Z" />
+                                        </svg>
+                                    ) },
+                                ].map(({ res, val, icon, label }) => (
+                                    <div key={res} className="flex items-center gap-2">
+                                        <span className="w-6 text-right font-black text-white text-[15px]" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>{val}</span>
+                                        <span className="flex items-center justify-center w-4 h-4">{icon}</span>
+                                        <span className="text-[#64B5F6] text-[15px] font-medium tracking-wide leading-none" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>% Ré {label}</span>
                                     </div>
                                 ))}
                             </div>
@@ -365,49 +394,76 @@ export function DofusbookPreview({ url, title, className, tags = [], classId, in
                             <>
                                 <div className="grid grid-cols-2 gap-4 mb-8">
                                     {/* Primary Stats */}
-                                    <div className="grid grid-cols-2 gap-2 bg-white/5 p-4 rounded-3xl border border-white/5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
-                                                <Zap className="w-3.5 h-3.5 text-blue-400" />
+                                    <div className="bg-[#2B2925] py-5 px-2 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col justify-center items-center">
+                                        <div className="flex gap-4 sm:gap-6 lg:gap-8">
+                                            {/* Column 1 */}
+                                            <div className="flex flex-col gap-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-white text-[15px]">{data.stats.vit}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">❤️</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PdV</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#008cfc] text-[15px]">{data.stats.pa}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">⭐</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PA</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#2cb14b] text-[15px]">{data.stats.pm}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🛹</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PM</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#389f81] text-[15px]">{data.stats.po}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">👁️</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">PO</span>
+                                                </div>
                                             </div>
-                                            <span className="text-sm font-black text-blue-400">{data.stats.pa}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/20">
-                                                <Move className="w-3.5 h-3.5 text-red-400" />
+                                            {/* Column 2 */}
+                                            <div className="flex flex-col gap-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#5AC2FF] text-[15px]">{data.stats.pp || 0}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🔎</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Prospection</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#f24254] text-[15px]">{data.stats.cc || 0}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🎯</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Critique</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#f59f0f] text-[15px]">{data.stats.invo || 1}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">🦊</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Invocations</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-9 text-right font-black text-[#ef3f3f] text-[15px]">{data.stats.so || 0}</span>
+                                                    <span className="w-4 text-center text-[13px] leading-none grayscale brightness-200">➕</span>
+                                                    <span className="text-[#A09D94] text-[13px] font-medium tracking-wide">Soins</span>
+                                                </div>
                                             </div>
-                                            <span className="text-sm font-black text-red-400">{data.stats.pm}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <div className="w-7 h-7 bg-green-500/20 rounded-lg flex items-center justify-center border border-green-500/20">
-                                                <Eye className="w-3.5 h-3.5 text-green-400" />
-                                            </div>
-                                            <span className="text-sm font-black text-green-400">{data.stats.po}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <div className="w-7 h-7 bg-pink-500/20 rounded-lg flex items-center justify-center border border-pink-500/20">
-                                                <Heart className="w-3.5 h-3.5 text-pink-400" />
-                                            </div>
-                                            <span className="text-sm font-black text-pink-400">{data.stats.vit}</span>
                                         </div>
                                     </div>
 
-                                    {/* Element Stats (Fo / In / Ch / Ag / Sa) */}
-                                    <div className="flex flex-col gap-1.5 bg-white/5 p-4 rounded-3xl border border-white/5 justify-center">
-                                        {data.elements && ([
-                                            { key: 'fo' as const, label: 'Force',        color: 'text-yellow-400' },
-                                            { key: 'in' as const, label: 'Intelligence', color: 'text-orange-400' },
-                                            { key: 'ch' as const, label: 'Chance',       color: 'text-sky-400'    },
-                                            { key: 'ag' as const, label: 'Agilité',      color: 'text-green-400'  },
-                                            { key: 'sa' as const, label: 'Sagesse',      color: 'text-purple-400' },
-                                        ]).map(({ key, label, color }) => (
-                                            data.elements[key] > 0 ? (
-                                                <div key={key} className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
-                                                    <span>{label}</span>
-                                                    <span className={`font-black ${color}`}>{data.elements[key]}</span>
-                                                </div>
-                                            ) : null
-                                        ))}
+                                    {/* Element Stats (Fo / In / Ch / Ag / Sa / Pu) */}
+                                    <div className="bg-[#2B2925] p-5 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col justify-center">
+                                        <div className="flex flex-col gap-2.5">
+                                            {data.elements && ([
+                                                { key: 'fo' as const, label: 'Force',        color: 'text-[#9D753E]' },
+                                                { key: 'in' as const, label: 'Intelligence', color: 'text-[#E33E19]' },
+                                                { key: 'ch' as const, label: 'Chance',       color: 'text-[#5AC2FF]' },
+                                                { key: 'ag' as const, label: 'Agilité',      color: 'text-[#88C72B]' },
+                                                { key: 'sa' as const, label: 'Sagesse',      color: 'text-[#a560df]' },
+                                                { key: 'pu' as const, label: 'Puissance',    color: 'text-[#f59f0f]' },
+                                            ]).map(({ key, label, color }) => (
+                                                data.elements[key] > 0 ? (
+                                                    <div key={key} className="flex justify-between items-center text-sm">
+                                                        <span className="text-[#A09D94] text-[13px] font-medium tracking-wide flex-1">{label}</span>
+                                                        <span className={cn("w-12 text-right font-black text-[15px]", color)}>{data.elements[key]}</span>
+                                                    </div>
+                                                ) : null
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 

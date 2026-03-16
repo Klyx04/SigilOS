@@ -79,7 +79,7 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
             server: g.presentationServer,
             isRecruiting: g.presentationRecruiting,
             bannerType: g.presentationBannerType as any,
-            bannerUrl: g.presentationBannerUrl,
+            bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         }));
     } catch (error) {
         console.error("Error fetching public guilds:", error);
@@ -185,8 +185,8 @@ export async function getGuildPresentation(
         recruitmentRequirements: g.presentationRecruitReq,
         server: g.presentationServer,
         bannerType: g.presentationBannerType,
-        bannerUrl: g.presentationBannerUrl,
-        photoUrl: g.presentationPhotoUrl,
+        bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
+        photoUrl: g.presentationPhotoUrl ? g.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         foundedDate: g.presentationFoundedDate ? (g.presentationFoundedDate as Date).toISOString() : null,
         discordRequired: g.presentationDiscordReq,
         minLevel: g.presentationMinLevel,
@@ -557,8 +557,8 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             recruitmentRequirements: d.presentationRecruitReq,
             server: d.presentationServer,
             bannerType: (d.presentationBannerType as "discord" | "custom") || "discord",
-            bannerUrl: d.presentationBannerUrl,
-            photoUrl: d.presentationPhotoUrl,
+            bannerUrl: d.presentationBannerUrl ? d.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
+            photoUrl: d.presentationPhotoUrl ? d.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
             foundedDate: d.presentationFoundedDate,
             discordRequired: d.presentationDiscordReq,
             minLevel: d.presentationMinLevel,

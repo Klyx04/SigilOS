@@ -16,8 +16,11 @@ export type DofusbookPreviewData = {
         pm: number;
         po: number;
         vit: number;
-        // ini removed — unreliable to compute server-side
-        // invoc removed — not from items directly
+        ini: number;
+        pp: number;
+        cc: number;
+        invo: number;
+        so: number;
     };
     /** Character real stats = items + capital + scrolls */
     elements: {
@@ -26,6 +29,7 @@ export type DofusbookPreviewData = {
         ch: number;   // Chance
         ag: number;   // Agilité
         sa: number;   // Sagesse
+        pu: number;   // Puissance
     };
     resists: {
         neutre: number;
@@ -62,10 +66,15 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     let po = 0;
     // Base life: 1050 at level 200 (Dofus 2 formula: 50 + level*5)
     let vit = 50 + (level * 5);
+    let ini = level * 5; // Rough base initiative approximation
+    let pp = 100;
+    let cc = 0;
+    let invo = 1;
+    let so = 0;
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
 
     // Element stats from items only (capital/scroll added later)
-    let el_fo = 0, el_in = 0, el_ch = 0, el_ag = 0, el_sa = 0;
+    let el_fo = 0, el_in = 0, el_ch = 0, el_ag = 0, el_sa = 0, el_pu = 0;
 
     const stuffItemsSlots = raw.stuff?.stuffItem || {};
     const itemsList: any[] = raw.items || [];
@@ -74,9 +83,22 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     // Sums item effects into our running stats
     const sumEffect = (e: any) => {
         const name = (e.name || "").toLowerCase();
-        // Take max of range — Dofusbook displays items at max (fméd) values
-        const val = Number(e.max) || Number(e.min) || Number(e.value) || 0;
-        if (val === 0) return;
+        // Dofusbook items feature both min and max property bounds.
+        // Selecting the best roll means selecting Math.max(min, max).
+        // This naturally accommodates penalties (e.g., -5 to -4% means the best roll is -4%).
+        const minVal = e.min !== undefined && e.min !== null ? Number(e.min) : undefined;
+        const maxVal = e.max !== undefined && e.max !== null ? Number(e.max) : undefined;
+        
+        let val = Number(e.value) || 0;
+        if (minVal !== undefined && maxVal !== undefined) {
+            val = Math.max(minVal, maxVal);
+        } else if (maxVal !== undefined) {
+            val = maxVal;
+        } else if (minVal !== undefined) {
+            val = minVal;
+        }
+
+        if (val === 0 && name !== 'invo' && name !== 'po') return;
 
         switch (name) {
             // Action / movement
@@ -92,12 +114,22 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'ch':  el_ch += val; break;
             case 'ag':  el_ag += val; break;
             case 'sa':  el_sa += val; break;
+            case 'pu':  el_pu += val; break;
             // Resistances % (actual Dofusbook API stat names)
             case 'rnp': resN += val; break;  // résistance neutre %
             case 'rtp': resT += val; break;  // résistance terre %
             case 'rfp': resF += val; break;  // résistance feu %
             case 'rep': resE += val; break;  // résistance eau %
             case 'rap': resA += val; break;  // résistance air %
+            // Secondary
+            case 'in':
+                if (name === 'in') el_in += val; // 'in' is intel
+                break;
+            case 'ini': ini += val; break;
+            case 'cc': cc += val; break;
+            case 'pp': pp += val; break;
+            case 'invo': invo += val; break;
+            case 'so': so += val; break;
         }
     };
 
@@ -163,7 +195,12 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         el_ch += base('ch')  + scroll('ch');
         el_ag += base('ag')  + scroll('ag');
         el_sa += base('sa')  + scroll('sa');
+        el_pu += base('pu')  + scroll('pu');
+        ini   += base('ini') + scroll('ini');
     }
+    
+    // Add Chance / 10 to Prospection
+    pp += Math.floor(el_ch / 10);
 
     // 🔧 5. Forgemagie — two possible sources:
     //   A. stuffFm.fm  = global FM applied to character stats (shown as "+1 PA" next to stat)
@@ -180,6 +217,12 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     el_in += Number(stuffFm.in)  || 0;
     el_ch += Number(stuffFm.ch)  || 0;
     el_ag += Number(stuffFm.ag)  || 0;
+    el_pu += Number(stuffFm.pu)  || 0;
+    ini   += Number(stuffFm.ini) || 0;
+    cc    += Number(stuffFm.cc)  || 0;
+    pp    += Number(stuffFm.pp)  || 0;
+    invo  += Number(stuffFm.invo)|| 0;
+    so    += Number(stuffFm.so)  || 0;
 
     // B. Per-item exo FM — path: raw.stuff.stuffFmItem (NOT raw.stuff.stuffFm.fmItem!)
     // Structure: { "slotKey": { pa: 1, pm: 1, ... } } — one entry per slot
@@ -195,11 +238,17 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             el_in += Number(fmStats.in)  || 0;
             el_ch += Number(fmStats.ch)  || 0;
             el_ag += Number(fmStats.ag)  || 0;
+            el_pu += Number(fmStats.pu)  || 0;
             resN  += Number(fmStats.rnp) || 0;
             resT  += Number(fmStats.rtp) || 0;
             resF  += Number(fmStats.rfp) || 0;
             resE  += Number(fmStats.rep) || 0;
             resA  += Number(fmStats.rap) || 0;
+            ini   += Number(fmStats.ini) || 0;
+            cc    += Number(fmStats.cc)  || 0;
+            pp    += Number(fmStats.pp)  || 0;
+            invo  += Number(fmStats.invo)|| 0;
+            so    += Number(fmStats.so)  || 0;
         });
     }
 
@@ -209,8 +258,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         level,
         classId: raw.stuff?.character_class || 1,
         className: getClassName(raw.stuff?.character_class),
-        stats: { pa, pm, po, vit },
-        elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa },
+        stats: { pa, pm, po, vit, ini, pp, cc, invo, so },
+        elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },
         items: itemsMap,
         cloths: activeCloths

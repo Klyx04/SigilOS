@@ -89,11 +89,14 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                     {/* PRIMARY — Demander l'accès */}
                                     <button
                                         onClick={() => setShowModal(true)}
-                                        className="group relative w-full h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.12em] text-sm shadow-[0_16px_40px_-8px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_50px_-6px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden flex items-center justify-center gap-3"
+                                        className="group relative w-full h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-[0.12em] text-sm shadow-[0_16px_40px_-8px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_50px_-6px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden flex flex-col items-center justify-center"
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                                        <DiscordIcon className="w-5 h-5 flex-shrink-0" />
-                                        Demander l&apos;accès
+                                        <span className="text-[10px] opacity-70 mb-0.5">Chef de Guilde ?</span>
+                                        <div className="flex items-center gap-2">
+                                            <Crown className="w-4 h-4" />
+                                            <span>Inscrire ma Guilde</span>
+                                        </div>
                                     </button>
 
                                     {/* SECONDARY — Changer de compte */}

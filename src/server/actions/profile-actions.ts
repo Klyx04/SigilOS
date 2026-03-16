@@ -686,7 +686,7 @@ const UpdateDofusBookLinksSchema = z.object({
         tags: z.array(z.string()).optional(),
         classId: z.number().optional(),
         previewData: z.any().optional(), // Cached build info to bypass 403 later
-    })).max(10, "Maximum 10 builds"),
+    })).max(20, "Maximum 20 builds"),
     targetUserId: z.string().optional(),
 });
 
@@ -1156,14 +1156,13 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
 
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // --- ANTI-DUPLICATE CHECK ---
-        const imageHash = hashImage(buffer);
+        const imageHash = await hashImage(buffer);
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const existingHash = await db.imageHash.findUnique({
-            where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } }
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
 
 

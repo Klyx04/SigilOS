@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-14)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-16)
 
-**Branche Active** : `dev` (Intégration continue)  
-**Status** : Intégration Dofusbook finalisée, alignements pixel-perfect de la carte interactive, refonte Top Nav, et structuration stricte de la sécurité et des logs.
+**Branche Active** : `feat/suite-dev-batch2` (Deduplication & Security)  
+**Status** : Implémentation du hachage perceptuel (dHash) global pour prévenir les doublons d'images, sécurisation cross-module (Missions/Prêts/Coffre) et mise à jour de l'infra de stockage.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -345,6 +345,16 @@ SigilOS/
   - **Ajustement du Seuil** : `max-warnings` monté à **3000** dans `package.json` pour tolérer la dette technique dans `src/` sans bloquer la CI. Le pipeline est désormais **VERT** (2185 warnings restants).
 - ✅ **Security Alerting** : Système d'alertes Discord haute priorité pour les tentatives de hack (Honeypot, accès God non-autorisés).
 - ✅ **Honeypot** : Protection anti-bot sur les formulaires d'upload de preuves.
+
+---
+
+### Session — Anti-Duplicate & Hachage Perceptuel (2026-03-16)
+
+- ✅ **Hachage Perceptuel (dHash)** : Remplacement du SHA-256 par un algorithme de *Difference Hash* dans `llm-ocr.ts`. Permet de détecter les doublons visuels même après compression, redimensionnement ou changement de format (PNG/JPG).
+- ✅ **Sécurité Globale (Cross-Module)** : Unification du système de détection de doublons. Un screenshot ne peut plus être utilisé qu'une seule fois dans toute l'application (Missions, Prêts, Coffre, Dons Kamas, Succès), peu importe la guilde.
+- ✅ **Prisma Migration & Indexing** : Migration du modèle `ImageHash` pour utiliser une contrainte `UNIQUE` globale sur le hash. Correction manuelle des index SQL pour aligner la DB locale.
+- ✅ **Dofusbook Build Caching** : Finalisation du stockage DB des builds Dofusbook pour un rendu instantané et résilient aux erreurs 403.
+- ✅ **UX Refactor** : Standardisation des messages d'erreur d'upload et amélioration du logging de sécurité pour le suivi des tentatives de fraude.
 
 ---
 

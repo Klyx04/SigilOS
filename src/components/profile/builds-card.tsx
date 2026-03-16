@@ -31,56 +31,77 @@ const ClassSelector = ({
     selectedId: number | null, 
     onSelect: (id: number) => void,
     classes: { id: number, name: string }[]
-}) => (
-    <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
-        {classes.map((cls) => {
-            const colors: Record<number, string> = {
-                1: "#8b5cf6", 2: "#f59e0b", 3: "#10b981", 4: "#6366f1", 5: "#3b82f6",
-                6: "#ef4444", 7: "#ec4899", 8: "#f97316", 9: "#84cc16", 10: "#059669",
-                11: "#dc2626", 12: "#4ade80", 13: "#7c3aed", 14: "#1e40af", 15: "#0ea5e9",
-                16: "#2563eb", 17: "#9333ea", 18: "#ea580c", 19: "#06b6d4"
-            };
-            const color = colors[cls.id] || "#10b981";
-            const isSelected = selectedId === cls.id;
+}) => {
+    const [hoveredClassId, setHoveredClassId] = useState<number | null>(null);
+    const activeClass = classes.find(c => c.id === (hoveredClassId || selectedId));
 
-            return (
-                <button
-                    key={cls.id}
-                    type="button"
-                    onClick={() => onSelect(cls.id)}
-                    className={cn(
-                        "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center group overflow-hidden",
-                        isSelected 
-                            ? "border-white/40 shadow-xl scale-105" 
-                            : "bg-zinc-900/50 border-white/5 hover:border-white/20 hover:scale-105"
-                    )}
-                    style={{ 
-                        backgroundColor: isSelected ? `${color}22` : undefined,
-                        boxShadow: isSelected ? `0 0 20px ${color}33` : undefined
-                    }}
-                    title={cls.name}
-                >
-                    {/* Background Glow on Selection */}
-                    {isSelected && (
-                        <div className="absolute inset-0 opacity-40 blur-xl pointer-events-none" style={{ backgroundColor: color }} />
-                    )}
+    return (
+        <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+                {classes.map((cls) => {
+                    const colors: Record<number, string> = {
+                        1: "#8b5cf6", 2: "#f59e0b", 3: "#10b981", 4: "#6366f1", 5: "#3b82f6",
+                        6: "#ef4444", 7: "#ec4899", 8: "#f97316", 9: "#84cc16", 10: "#059669",
+                        11: "#dc2626", 12: "#4ade80", 13: "#7c3aed", 14: "#1e40af", 15: "#0ea5e9",
+                        16: "#2563eb", 17: "#9333ea", 18: "#ea580c", 19: "#06b6d4"
+                    };
+                    const color = colors[cls.id] || "#10b981";
+                    const isSelected = selectedId === cls.id;
 
-                    <div className={cn(
-                        "relative w-7 h-7 sm:w-9 sm:h-9 transition-all duration-500 z-10",
-                        isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110"
-                    )}>
-                        <NextImage
-                            src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
-                            alt={cls.name}
-                            fill
-                            className="object-contain"
-                        />
-                    </div>
-                </button>
-            );
-        })}
-    </div>
-);
+                    return (
+                        <button
+                            key={cls.id}
+                            type="button"
+                            onClick={() => onSelect(cls.id)}
+                            onMouseEnter={() => setHoveredClassId(cls.id)}
+                            onMouseLeave={() => setHoveredClassId(null)}
+                            className={cn(
+                                "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center group overflow-hidden",
+                                isSelected 
+                                    ? "border-white/40 shadow-xl scale-105" 
+                                    : "bg-zinc-900/50 border-white/5 hover:border-white/20 hover:scale-105"
+                            )}
+                            style={{ 
+                                backgroundColor: isSelected ? `${color}22` : undefined,
+                                boxShadow: isSelected ? `0 0 20px ${color}33` : undefined
+                            }}
+                        >
+                            {/* Background Glow on Selection */}
+                            {isSelected && (
+                                <div className="absolute inset-0 opacity-40 blur-xl pointer-events-none" style={{ backgroundColor: color }} />
+                            )}
+
+                            <div className={cn(
+                                "relative w-7 h-7 sm:w-9 sm:h-9 transition-all duration-500 z-10",
+                                isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110"
+                            )}>
+                                <NextImage
+                                    src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
+                                    alt={cls.name}
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+            
+            {/* Dynamic Class Name Preview */}
+            <div className="flex items-center justify-center h-6">
+                {activeClass ? (
+                    <span className="text-xs font-bold px-3 py-1 bg-white/10 rounded-full text-white tracking-wide shadow-inner animate-in fade-in zoom-in duration-200">
+                        {activeClass.name}
+                    </span>
+                ) : (
+                    <span className="text-xs font-medium text-zinc-600 italic">
+                        Survolez pour voir la nom de la classe
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+};
 
 interface BuildsCardProps {
     links: DofusBookLink[];
@@ -123,8 +144,8 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             return;
         }
 
-        if (links.length >= 10) {
-            toast.error("Limite de 10 builds atteinte");
+        if (links.length >= 20) {
+            toast.error("Limite de 20 builds atteinte");
             return;
         }
 
@@ -257,12 +278,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     <h3 className="text-base font-semibold text-zinc-200">Mes Builds</h3>
                     {!readOnly && (
                         <span className="text-xs text-zinc-500 bg-zinc-950/50 px-2 py-0.5 rounded border border-white/5">
-                            {links.length}/10
+                            {links.length}/20
                         </span>
                     )}
                 </div>
 
-                {!readOnly && links.length < 10 && (
+                {!readOnly && links.length < 20 && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-white">
@@ -356,41 +377,78 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 )}
             </div>
 
-            {/* Tag Filter UI */}
+            {/* Tag Filter UI Premium */}
             {links.length > 0 && (
-                <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar">
-                    <span className="text-xs text-zinc-500 font-medium mr-1 whitespace-nowrap">Filtrer :</span>
-                    <button
-                        onClick={() => setSelectedTagFilter(null)}
-                        className={cn(
-                            "px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap",
-                            selectedTagFilter === null
-                                ? "bg-white/10 text-white border-white/20"
-                                : "bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
-                        )}
-                    >
-                        Tous
-                    </button>
-                    {DO_TAGS.map(tag => {
-                        const hasTag = links.some(l => l.tags?.includes(tag.id));
-                        if (!hasTag) return null;
-
-                        const isSelected = selectedTagFilter === tag.id;
-                        return (
+                <div className="bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] px-5 py-4 shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+                    {/* Left: Filters */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* 1. Primary Elements */}
+                        <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5 flex-wrap">
                             <button
-                                key={tag.id}
-                                onClick={() => setSelectedTagFilter(isSelected ? null : tag.id)}
+                                onClick={() => setSelectedTagFilter(null)}
                                 className={cn(
-                                    "px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap opacity-90 hover:opacity-100",
-                                    isSelected
-                                        ? tag.className
-                                        : "bg-transparent text-zinc-400 border-white/5 hover:border-white/10 hover:bg-white/5"
+                                    "h-8 px-4 rounded-xl text-[11px] font-black transition-all shrink-0",
+                                    !selectedTagFilter ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
                                 )}
                             >
-                                {tag.text}
+                                Tous
                             </button>
-                        );
-                    })}
+
+                            {["eau","feu","terre","air","multi"].map(id => {
+                                const tag = DO_TAGS.find(t => t.id === id)!;
+                                const hasTag = links.some(l => l.tags?.includes(id));
+                                if (!hasTag) return null;
+
+                                return (
+                                    <button
+                                        key={id}
+                                        onClick={() => setSelectedTagFilter(selectedTagFilter === id ? null : id)}
+                                        className={cn(
+                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                            selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                        )}
+                                    >
+                                        {tag.text}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* 2. Advanced / Specialities (only if user has links with these) */}
+                        {links.some(l => l.tags?.some(tagId => !["eau","feu","terre","air","multi"].includes(tagId))) && (
+                            <>
+                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
+                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5 flex-wrap">
+                                    {DO_TAGS.filter(t => !["eau","feu","terre","air","multi"].includes(t.id)).map(tag => {
+                                        const hasTag = links.some(l => l.tags?.includes(tag.id));
+                                        if (!hasTag) return null;
+
+                                        return (
+                                            <button
+                                                key={tag.id}
+                                                onClick={() => setSelectedTagFilter(selectedTagFilter === tag.id ? null : tag.id)}
+                                                className={cn(
+                                                    "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                                    selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                                )}
+                                            >
+                                                {tag.text}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Right: Count */}
+                    <div className="flex items-center gap-4 shrink-0 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
+                        <p className="text-[11px] text-zinc-500 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse" />
+                            <span className="text-white font-black">{filteredLinks.length}</span>
+                            <span> sur {links.length} build{links.length !== 1 ? "s" : ""}</span>
+                        </p>
+                    </div>
                 </div>
             )}
 

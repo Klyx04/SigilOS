@@ -102,7 +102,7 @@ export async function uploadGuildImage(
         }
 
         await writeFile(filePath, optimizedBuffer);
-        const publicUrl = `/uploads/guilds/${guildId}/${safeFilename}`;
+        const publicUrl = `/api/storage/guilds/${guildId}/${safeFilename}`;
 
         return { success: true, url: publicUrl };
 
@@ -121,7 +121,7 @@ export async function deleteGuildImage(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         // Extract filename from URL
-        const expectedPrefix = `/uploads/guilds/${guildId}/`;
+        const expectedPrefix = `/api/storage/guilds/${guildId}/`;
         if (!imageUrl.startsWith(expectedPrefix)) {
             return { success: false, error: "URL invalide" };
         }
@@ -207,7 +207,7 @@ export async function uploadProofImage(
         }
 
         await writeFile(filePath, optimizedBuffer);
-        const publicUrl = `/uploads/guilds/${internalGuildId}/proofs/${safeFilename}`;
+        const publicUrl = `/api/storage/guilds/${internalGuildId}/proofs/${safeFilename}`;
 
         return { success: true, url: publicUrl };
     } catch (error) {

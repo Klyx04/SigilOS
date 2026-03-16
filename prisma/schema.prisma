@@ -765,13 +765,12 @@ model EventParticipant {
 model ImageHash {
   id         String   @id @default(cuid())
   guildId    String
-  hash       String
+  hash       String   @unique
   sourceType String
   sourceId   String
   uploaderId String
   createdAt  DateTime @default(now())
 
-  @@unique([guildId, hash])
   @@index([guildId])
   @@index([hash])
   @@index([uploaderId])
@@ -1554,6 +1553,18 @@ model Relance {
 
   @@index([guildId])
   @@index([adminId])
+}
+
+model BuildVote {
+  id        String   @id @default(cuid())
+  buildId   String
+  userId    String
+  guildId   String
+  createdAt DateTime @default(now())
+
+  @@unique([buildId, userId])
+  @@index([buildId])
+  @@index([guildId])
 }
 
 enum ProfileStatus {

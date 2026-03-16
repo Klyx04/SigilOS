@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { logServiceActivity } from "./activity-log-actions";
@@ -7,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { VaultAction } from "@prisma/client";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { hashImage } from "@/lib/llm-ocr";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -132,13 +134,42 @@ export async function createVaultEntry(
             return { success: false, error: "Le coffre de guilde est actuellement en maintenance." };
         }
 
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
         // Handle proof upload
         let proofUrl: string | null = null;
+        let finalImageHash: string | null = null;
         if (proofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                proofUrl = uploadResult.url;
+            const file = proofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                finalImageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: finalImageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    proofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: guildConfig.id,
+                            hash: finalImageHash,
+                            sourceType: "VAULT",
+                            sourceId: "PENDING", // Temporary
+                            uploaderId: session.user.id
+                        }
+                    });
+                }
             }
         }
 
@@ -154,6 +185,14 @@ export async function createVaultEntry(
                 linkedItemIconUrl: parsed.data.linkedItemIconUrl || null,
             },
         });
+
+        // Update image hash with the real sourceId
+        if (proofUrl && finalImageHash) {
+            await (db as any).imageHash.update({
+                where: { hash: finalImageHash },
+                data: { sourceId: entry.id }
+            });
+        }
 
         // Immutable activity log
         await logServiceActivity({

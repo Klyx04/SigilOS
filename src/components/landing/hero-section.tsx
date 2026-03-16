@@ -6,7 +6,7 @@ import { AccessRequestModal } from "./AccessRequestModal";
 import Image from "next/image";
 import { User } from "next-auth";
 import Link from "next/link";
-import { ChevronRight, LayoutDashboard, Users, Zap } from "lucide-react";
+import { ChevronRight, LayoutDashboard, Users, Zap, Crown } from "lucide-react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -130,25 +130,46 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                 </div>
                             )}
 
-                            {/* Main CTA: Request Access (Always visible for conversion) */}
-                            <button
-                                onClick={() => setShowAccessModal(true)}
-                                className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                                <span className="text-lg">Demander l&apos;accès</span>
-                                <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                            </button>
+                            {/* Main CTA: Only show 'Ajouter SigilOS' if they already have guilds (the cards handle the access) */}
+                            {userGuilds.length > 0 ? (
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="group relative inline-flex items-center gap-4 px-8 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-500/30 text-white/50 hover:text-white transition-all duration-300"
+                                >
+                                    <div className="flex flex-col items-start leading-none gap-0.5 text-left">
+                                        <span className="text-[9px] font-black opacity-40 uppercase tracking-widest">Chef de Guilde ?</span>
+                                        <div className="flex items-center gap-2">
+                                            <Crown className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-sm font-bold">Inscrire une Guilde</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="group relative inline-flex items-center gap-4 px-12 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+                                    <span className="flex flex-col items-start leading-none gap-1 text-left">
+                                        <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Chef de Guilde ?</span>
+                                        <span className="text-lg">Demander l&apos;accès</span>
+                                    </span>
+                                    <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                                </button>
+                            )}
                         </div>
                     ) : (
                         /* Logged Out View */
                         <button
                             onClick={() => setShowAccessModal(true)}
-                            className="group relative inline-flex items-center gap-4 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
+                            className="group relative inline-flex items-center gap-5 px-12 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                            <DiscordIcon className="w-7 h-7 flex-shrink-0" />
-                            <span className="text-lg">Demander l&apos;accès</span>
+                            <DiscordIcon className="w-8 h-8 flex-shrink-0 text-[#000]" />
+                            <span className="flex flex-col items-start leading-none gap-1 text-left">
+                                <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Chef de Guilde ?</span>
+                                <span className="text-lg">Demander l&apos;accès</span>
+                            </span>
                             <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                         </button>
                     )}

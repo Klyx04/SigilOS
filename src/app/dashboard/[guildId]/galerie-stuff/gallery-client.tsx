@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useEffect } from "react";
-import { Link2, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight } from "lucide-react";
+import { Link2, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,13 @@ import { DO_TAGS } from "@/lib/dofus-tags";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getStuffGalleryPage, refreshBuildMetadata, type GalleryBuild } from "@/server/actions/gallery-actions";
+import { toggleBuildVote } from "@/server/actions/vote-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NextImage from "next/image";
 
-const BI_ELEMENT_IDS = ["terrefeu","terreeau","terreair","feueau","feuair","eauair","multinocrit","sagesse","leveling","songes"];
+const ADVANCED_TAG_IDS = ["tank","soin","pp","dopou","docrit","ini","retpa","retpm","terrefeu","terreeau","terreair","feueau","feuair","eauair","multinocrit","sagesse","leveling","songes"];
 
 // Extract numeric icon ID from icon path (e.g. "/assets/dofus/classes/9.png" → 9)
 function getNumericClassId(cls: typeof DOFUS_CLASSES[number]): number | null {
@@ -23,27 +24,27 @@ function getNumericClassId(cls: typeof DOFUS_CLASSES[number]): number | null {
     return match ? parseInt(match[1]) : null;
 }
 
-function BiElementFilter({
+function AdvancedTagFilter({
     selectedTag, onSelectTag
 }: { selectedTag: string | null; onSelectTag: (id: string | null) => void }) {
-    const biTags = DO_TAGS.filter(t => BI_ELEMENT_IDS.includes(t.id));
-    const activeInBi = biTags.find(t => t.id === selectedTag);
+    const advancedTags = DO_TAGS.filter(t => ADVANCED_TAG_IDS.includes(t.id));
+    const activeInAdvanced = advancedTags.find(t => t.id === selectedTag);
 
     return (
         <Popover>
             <PopoverTrigger asChild>
                 <button className={cn(
                     "h-8 px-3 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0",
-                    activeInBi ? activeInBi.className : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
+                    activeInAdvanced ? activeInAdvanced.className : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
                 )}>
-                    {activeInBi ? activeInBi.text : "Bi-éléments"}
-                    <ChevronRight className="w-3 h-3 opacity-60" />
+                    {activeInAdvanced ? activeInAdvanced.text : "Spécialités & Bi-éléments"}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-52 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-2xl" align="start" side="bottom">
-                <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest px-2 pt-1 pb-2">Bi-éléments & spéciaux</p>
-                <div className="flex flex-col gap-0.5">
-                    {biTags.map(tag => (
+            <PopoverContent className="w-56 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-2xl" align="start" side="bottom">
+                <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest px-2 pt-1 pb-2">Tags avancés</p>
+                <div className="grid grid-cols-2 gap-1 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                    {advancedTags.map(tag => (
                         <button
                             key={tag.id}
                             onClick={() => onSelectTag(selectedTag === tag.id ? null : tag.id)}
@@ -78,7 +79,7 @@ function ClassFilter({
                             {active.name}
                         </>
                     ) : "Classe"}
-                    <ChevronRight className="w-3 h-3 opacity-60" />
+                    <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
             <PopoverContent className="w-64 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-2xl" align="start" side="bottom">
@@ -124,17 +125,19 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [selectedClass, setSelectedClass] = useState<number | null>(null);
+    const [sortBy, setSortBy] = useState<"newest" | "votes">("newest");
     const [isPending, startTransition] = useTransition();
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+    const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
 
     // Debounced search - triggers server-side re-fetch after 300ms
     const debouncedSearch = useDebounce(searchQuery, 300);
 
     // Reset and re-fetch from page 1 when filters change
-    const applyFilters = useCallback((query: string, tag: string | null, classId?: string | number | null) => {
+    const applyFilters = useCallback((query: string, tag: string | null, classId?: string | number | null, sortKey?: "newest" | "votes") => {
         const classIdStr = classId !== null && classId !== undefined ? String(classId) : undefined;
         startTransition(async () => {
-            const res = await getStuffGalleryPage(guildId, 1, query || undefined, tag || undefined, classIdStr);
+            const res = await getStuffGalleryPage(guildId, 1, query || undefined, tag || undefined, classIdStr, sortKey || sortBy);
             if (res.success && res.data) {
                 setBuilds(res.data.builds);
                 setTotal(res.data.total);
@@ -151,18 +154,23 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
     // Use debounced search to trigger filtering
     useEffect(() => {
         if (debouncedSearch !== undefined) {
-            applyFilters(debouncedSearch, selectedTag, selectedClass);
+            applyFilters(debouncedSearch, selectedTag, selectedClass, sortBy);
         }
-    }, [debouncedSearch, selectedTag, selectedClass, applyFilters]);
+    }, [debouncedSearch, selectedTag, selectedClass, sortBy, applyFilters]);
 
     const handleTagChange = (tag: string | null) => {
         setSelectedTag(tag);
-        applyFilters(searchQuery, tag, selectedClass);
+        applyFilters(searchQuery, tag, selectedClass, sortBy);
     };
 
     const handleClassChange = (classId: number | null) => {
         setSelectedClass(classId);
-        applyFilters(searchQuery, selectedTag, classId !== null ? String(classId) : null);
+        applyFilters(searchQuery, selectedTag, classId !== null ? String(classId) : null, sortBy);
+    };
+    
+    const handleSortChange = (newSort: "newest" | "votes") => {
+        setSortBy(newSort);
+        applyFilters(searchQuery, selectedTag, selectedClass, newSort);
     };
 
     // Infinite scroll: load next page
@@ -174,7 +182,8 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                 nextPage, 
                 searchQuery || undefined, 
                 selectedTag || undefined,
-                selectedClass !== null ? String(selectedClass) : undefined
+                selectedClass !== null ? String(selectedClass) : undefined,
+                sortBy
             );
             if (res.success && res.data) {
                 setBuilds(prev => [...prev, ...res.data!.builds]);
@@ -196,7 +205,7 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                 toast.success("Build mis à jour !");
                 // The page will revalidate and refresh data automatically via revalidatePath
                 // But we can also trigger a local refresh of current builds list if needed
-                applyFilters(searchQuery, selectedTag, selectedClass);
+                applyFilters(searchQuery, selectedTag, selectedClass, sortBy);
             } else {
                 toast.error(res.error || "Échec du rafraîchissement");
             }
@@ -204,6 +213,48 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
             toast.error("Erreur serveur");
         } finally {
             setRefreshingIds(prev => {
+                const next = new Set(prev);
+                next.delete(build.id);
+                return next;
+            });
+        }
+    };
+
+    const handleVote = async (build: GalleryBuild) => {
+        if (votingIds.has(build.id)) return;
+
+        setVotingIds(prev => new Set(prev).add(build.id));
+
+        // Optimistic update
+        const originalVoted = build.hasVoted;
+        const offset = originalVoted ? -1 : 1;
+        setBuilds(current => current.map(b =>
+            b.id === build.id
+                ? { ...b, hasVoted: !originalVoted, votesCount: Math.max(0, b.votesCount + offset) }
+                : b
+        ));
+
+        try {
+            const res = await toggleBuildVote(guildId, build.id);
+            if (!res.success) {
+                // Revert
+                setBuilds(current => current.map(b =>
+                    b.id === build.id
+                        ? { ...b, hasVoted: originalVoted, votesCount: build.votesCount }
+                        : b
+                ));
+                toast.error(res.error || "Erreur lors du vote");
+            }
+        } catch (error) {
+            // Revert
+            setBuilds(current => current.map(b =>
+                b.id === build.id
+                    ? { ...b, hasVoted: originalVoted, votesCount: build.votesCount }
+                    : b
+            ));
+            toast.error("Erreur réseau");
+        } finally {
+            setVotingIds(prev => {
                 const next = new Set(prev);
                 next.delete(build.id);
                 return next;
@@ -220,9 +271,15 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
 
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-3">
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            Communauté SigilOS 2026
+                        <div className="flex flex-wrap items-center gap-3 mb-3">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                Communauté SigilOS 2026
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium" title="Statistiques, équipements et forgemagie mis à jour dynamiquement via le proxy Dofusbook">
+                                <RefreshCw className="w-3 h-3" />
+                                Synchro Temps Réel Dofusbook
+                            </div>
                         </div>
                         <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight mb-2">
                             Galerie <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-indigo-400">Stuff</span>
@@ -248,89 +305,97 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                 </div>
             </div>
 
-            {/* Filter Bar — primary + advanced popover */}
-            <div className="sticky top-0 z-30">
-                <div className="bg-zinc-950/95 backdrop-blur-xl border border-white/8 rounded-2xl px-4 py-3 shadow-xl flex flex-col gap-3">
-                    {/* Primary row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {/* ALL */}
-                        <button
-                            onClick={() => handleTagChange(null)}
-                            className={cn(
-                                "h-8 px-4 rounded-xl text-[11px] font-black transition-all shrink-0",
-                                !selectedTag ? "bg-white text-black" : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
-                            )}
-                        >
-                            Tous · <span className={!selectedTag ? "text-zinc-500" : "text-zinc-600"}>{total}</span>
-                        </button>
+            {/* Premium Filter Bar */}
+            <div className="sticky top-0 z-30 pt-2">
+                <div className="bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] px-5 py-4 shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                    {/* Left: Filters */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* 1. Class Filter */}
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
+                            <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
+                        </div>
 
-                        <div className="w-px h-5 bg-white/8 shrink-0" />
+                        <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
 
-                        {/* Pure elements */}
-                        {["eau","feu","terre","air","multi"].map(id => {
-                            const tag = DO_TAGS.find(t => t.id === id)!;
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={() => handleTagChange(selectedTag === id ? null : id)}
-                                    className={cn(
-                                        "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                        selectedTag === id ? tag.className : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
-                                    )}
-                                >
-                                    {tag.text}
-                                </button>
-                            );
-                        })}
+                        {/* 2. Primary Elements */}
+                        <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5">
+                            <button
+                                onClick={() => handleTagChange(null)}
+                                className={cn(
+                                    "h-8 px-4 rounded-xl text-[11px] font-black transition-all shrink-0",
+                                    !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                )}
+                            >
+                                Tous
+                            </button>
 
-                        <div className="w-px h-5 bg-white/8 shrink-0" />
+                            {["eau","feu","terre","air","multi"].map(id => {
+                                const tag = DO_TAGS.find(t => t.id === id)!;
+                                return (
+                                    <button
+                                        key={id}
+                                        onClick={() => handleTagChange(selectedTag === id ? null : id)}
+                                        className={cn(
+                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                            selectedTag === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                        )}
+                                    >
+                                        {tag.text}
+                                    </button>
+                                );
+                            })}
+                        </div>
 
-                        {/* Style tags */}
-                        {["tank","soin","pp","dopou","docrit","ini","retpa","retpm"].map(id => {
-                            const tag = DO_TAGS.find(t => t.id === id)!;
-                            if (!tag) return null;
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={() => handleTagChange(selectedTag === id ? null : id)}
-                                    className={cn(
-                                        "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                        selectedTag === id ? tag.className : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
-                                    )}
-                                >
-                                    {tag.text}
-                                </button>
-                            );
-                        })}
+                        <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
 
-                        <div className="w-px h-5 bg-white/8 shrink-0" />
-
-                        {/* Class filter */}
-                        <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
-
-                        <div className="w-px h-5 bg-white/8 shrink-0" />
-
-                        {/* Bi-element dropdown */}
-                        <BiElementFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
+                        {/* 3. Advanced / Specialities */}
+                        <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/5">
+                            <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
+                        </div>
                     </div>
 
-                    {/* Count + reset */}
-                    <div className="flex items-center justify-between">
-                        <p className="text-[11px] text-zinc-600">
-                            <span className="text-zinc-400 font-bold">{builds.length}</span>
-                            <span> / {total} build{total !== 1 ? "s" : ""}</span>
-                            {selectedClass && <span className="text-blue-400 ml-2">· {DOFUS_CLASSES.find(c => getNumericClassId(c) === selectedClass)?.name}</span>}
-                            {selectedTag && <span className="text-emerald-600 ml-2">· {DO_TAGS.find(t => t.id === selectedTag)?.label}</span>}
-                            {searchQuery && <span className="text-zinc-500 ml-2">· "{searchQuery}"</span>}
-                        </p>
-                        {(searchQuery || selectedTag || selectedClass) && (
+                    {/* Right: Count & Reset & Sort */}
+                    <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-white/5 pt-4 xl:border-0 xl:pt-0 flex-wrap">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5 mr-2">
                             <button
-                                onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); applyFilters("", null, null); }}
-                                className="text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors font-medium underline underline-offset-2"
+                                onClick={() => handleSortChange("newest")}
+                                className={cn(
+                                    "flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                    sortBy === "newest" ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                )}
                             >
-                                Réinitialiser
+                                <RefreshCw className="w-3.5 h-3.5" /> Récents
                             </button>
-                        )}
+                            <button
+                                onClick={() => handleSortChange("votes")}
+                                className={cn(
+                                    "flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                    sortBy === "votes" ? "bg-yellow-500 text-black shadow-md shadow-yellow-500/20" : "text-zinc-500 hover:text-yellow-400 hover:bg-white/10"
+                                )}
+                            >
+                                <Star className={cn("w-3.5 h-3.5", sortBy === "votes" && "fill-black")} /> Favoris
+                            </button>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            <p className="text-[11px] text-zinc-500 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse shrink-0" />
+                                <span className="text-white font-black">{builds.length}</span>
+                                <span> sur {total} build{total !== 1 ? "s" : ""}</span>
+                                {selectedClass && <span className="text-blue-400 font-bold ml-1 hidden sm:inline">· {DOFUS_CLASSES.find(c => getNumericClassId(c) === selectedClass)?.name}</span>}
+                            </p>
+                            {(searchQuery || selectedTag || selectedClass) ? (
+                                <>
+                                    <div className="w-px h-4 bg-white/10 shrink-0" />
+                                    <button
+                                        onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); applyFilters("", null, null); }}
+                                        className="text-[10px] text-zinc-400 hover:text-white transition-colors font-bold uppercase tracking-widest flex items-center gap-1 shrink-0"
+                                    >
+                                        <RefreshCw className="w-3 h-3" /> Reset
+                                    </button>
+                                </>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -346,15 +411,45 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                             <div className="relative">
                                 <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
                                 
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-all duration-300 rounded-2xl flex flex-col justify-end p-4 z-10 pointer-events-none">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-all duration-300 rounded-2xl flex flex-col justify-end p-4 z-10 pointer-events-none">
                                     <div className="flex items-center justify-end gap-2">
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                             disabled={refreshingIds.has(build.id)}
                                             className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto disabled:opacity-50"
-                                            title="Recacher les données"
+                                            title="Actualiser depuis Dofusbook"
                                         >
                                             <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleVote(build);
+                                            }}
+                                            disabled={votingIds.has(build.id)}
+                                            className={cn(
+                                                "p-1.5 rounded-lg transition-colors shadow-lg pointer-events-auto disabled:opacity-50 flex items-center justify-center gap-1.5",
+                                                build.hasVoted 
+                                                    ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30" 
+                                                    : "bg-zinc-800/90 text-zinc-400 hover:text-yellow-400 hover:bg-zinc-700"
+                                            )}
+                                            title={build.hasVoted ? "Retirer mon vote" : "Voter pour mettre en avant ce stuff !"}
+                                        >
+                                            <Star className={cn("w-3.5 h-3.5", build.hasVoted && "fill-current")} />
+                                            {build.votesCount > 0 && (
+                                                <span className="text-[10px] font-bold">{build.votesCount}</span>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigator.clipboard.writeText(build.url);
+                                                toast.success("Lien Dofusbook copié !");
+                                            }}
+                                            className="p-1.5 bg-zinc-800/90 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto"
+                                            title="Copier le lien"
+                                        >
+                                            <Copy className="w-3.5 h-3.5" />
                                         </button>
                                         <a 
                                             href={build.url} 
@@ -368,20 +463,17 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                                 </div>
                             </div>
                             
-                            <div className="flex items-center justify-between px-1">
-                                <div className="flex items-center gap-2">
-                                    <Avatar className="w-5 h-5 border border-white/5 opacity-60 group-hover/card:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-between px-2">
+                                <div className="flex items-center gap-2.5">
+                                    <Avatar className="w-6 h-6 border border-white/10 opacity-70 group-hover/card:opacity-100 transition-opacity">
                                         <AvatarImage src={build.author.image || undefined} />
-                                        <AvatarFallback className="text-[8px] bg-zinc-900 border-white/5 text-zinc-500 font-bold">
+                                        <AvatarFallback className="text-[9px] bg-zinc-900 border-white/5 text-zinc-500 font-bold">
                                             {build.author.name.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-[10px] text-zinc-500 font-medium group-hover/card:text-zinc-300 transition-colors">
-                                        Par <span className="text-zinc-400">{build.author.name}</span>
+                                    <span className="text-[11px] text-zinc-500 font-medium group-hover/card:text-zinc-300 transition-colors">
+                                        Par <span className="text-zinc-300 font-bold text-[12px]">{build.author.name}</span>
                                     </span>
-                                </div>
-                                <div className="text-[10px] text-zinc-600 font-mono">
-                                    REF-{String(idx + 1).padStart(3, '0')}
                                 </div>
                             </div>
                         </div>

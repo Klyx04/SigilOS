@@ -13,6 +13,7 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/auth") || 
         nextUrl.pathname.startsWith("/api/health") ||
         nextUrl.pathname.startsWith("/api/discord/interactions") || // Discord webhooks use signatures
+        nextUrl.pathname.startsWith("/api/storage") || // Fine-grained RBAC handled in route
         nextUrl.pathname.startsWith("/api/og"); // Social previews
 
     // 1.5. Seamless Storage Protection

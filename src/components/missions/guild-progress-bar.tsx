@@ -126,11 +126,6 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                             </h3>
                             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
                                 <span>Objectif : Palier {targetTier}</span>
-                                {currentAchievedTier > 0 && (
-                                    <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                                        Niveau {currentAchievedTier}
-                                    </span>
-                                )}
                             </div>
                         </div>
                     </div>

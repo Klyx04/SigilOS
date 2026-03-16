@@ -698,6 +698,119 @@ export async function getUserGuilds() {
     }
 }
 
+import { unstable_cache } from "next/cache";
+
+const getCachedDiscordGuilds = unstable_cache(
+    async (accessToken: string) => {
+        try {
+            const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                next: { revalidate: 300 }
+            });
+            if (!res.ok) return { error: true, status: res.status, data: [] };
+            const data = await res.json();
+            return { error: false, status: 200, data };
+        } catch (e) {
+            return { error: true, status: 500, data: [] };
+        }
+    },
+    ['discord-user-guilds-v1'],
+    { revalidate: 300 }
+);
+
+export async function getGuildsSeparated() {
+    const session = await auth();
+    if (!session?.user?.id) return { active: [], pending: [], rateLimited: false };
+
+    const userId = session.user.id;
+
+    // 1. Get all guilds where the Bot is active (from DB)
+    const activeConfigs = await db.guildConfig.findMany({
+        where: { isActive: true },
+        select: { discordGuildId: true, name: true, iconUrl: true }
+    });
+
+    const { verifyGuildAccessibility } = await import("@/server/discord");
+    const allowedGuildsDB = await db.allowedGuild.findMany({
+        where: { isActive: true },
+        select: { discordGuildId: true }
+    });
+    const allowedIdsWhitelist = new Set(allowedGuildsDB.map(g => g.discordGuildId));
+
+    const isAllowedForDeployment = (guildId: string) => allowedIdsWhitelist.has(guildId);
+
+    const validatedActive = await Promise.all(
+        activeConfigs.map(async (g) => {
+            const isAccessible = await verifyGuildAccessibility(g.discordGuildId);
+            return { ...g, isAccessible };
+        })
+    ).then(results => results.filter(r => r.isAccessible));
+
+    const activeIds = new Set(validatedActive.map(g => g.discordGuildId));
+
+    const account = await db.account.findFirst({
+        where: { userId, provider: "discord" },
+        select: { access_token: true }
+    });
+
+    if (!account?.access_token) return { active: [], pending: [], rateLimited: false };
+
+    const { error, status, data: userGuildsData } = await getCachedDiscordGuilds(account.access_token);
+
+    if (error) {
+        const dbProfiles = await db.userProfile.findMany({
+            where: { userId, status: "ACTIVE" },
+            include: { guild: true }
+        });
+        const activeFromDb = dbProfiles
+            .filter(p => allowedIdsWhitelist.has(p.guild.discordGuildId))
+            .map(p => ({
+                id: p.guild.discordGuildId,
+                name: p.guild.name,
+                icon: p.guild.iconUrl,
+                isAdmin: false
+            }));
+        return { active: activeFromDb, pending: [], rateLimited: status === 429 };
+    }
+
+    const pendingCandidates: any[] = [];
+    const userGuilds = userGuildsData as any[];
+
+    for (const guild of userGuilds) {
+        if (activeIds.has(guild.id)) continue;
+        const perms = BigInt(guild.permissions);
+        const isAdmin = (perms & 0x8n) === 0x8n;
+        if ((isAdmin || guild.owner) && isAllowedForDeployment(guild.id)) {
+            pendingCandidates.push({
+                id: guild.id,
+                name: guild.name,
+                icon: guild.icon ? `https://discord.com/api/v10/icons/${guild.id}/${guild.icon}.png` : null
+            });
+        }
+    }
+
+    const pending = await Promise.all(pendingCandidates.map(async (g) => {
+        const isBotPresent = await verifyGuildAccessibility(g.id);
+        return { ...g, isBotPresent };
+    }));
+
+    const userGuildIds = new Set(userGuilds.map(ug => ug.id));
+    const active = validatedActive
+        .filter(g => userGuildIds.has(g.discordGuildId) && allowedIdsWhitelist.has(g.discordGuildId))
+        .map(g => {
+            const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);
+            const perms = userGuild ? BigInt(userGuild.permissions) : 0n;
+            return {
+                id: g.discordGuildId,
+                name: g.name,
+                icon: g.iconUrl,
+                isAdmin: userGuild?.owner || (perms & 0x8n) === 0x8n
+            };
+        });
+
+    return { active, pending, rateLimited: false };
+}
+
 export async function searchGuildMembers(
     discordGuildId: string,
     query: string

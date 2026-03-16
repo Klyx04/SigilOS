@@ -1,0 +1,590 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { 
+    Users, 
+    ShieldCheck, 
+    ShieldAlert, 
+    Search, 
+    Filter, 
+    Mail, 
+    ExternalLink,
+    RefreshCw,
+    Info,
+    LayoutGrid,
+    Settings2,
+    UserCircle,
+    Download,
+    UserX,
+    CheckCircle2,
+    Calendar,
+    ChevronRight,
+    ArrowUpRight,
+    Trophy
+} from "lucide-react";
+import { 
+    Card, 
+    CardContent, 
+    CardDescription, 
+    CardHeader, 
+    CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+    Table, 
+    TableBody, 
+    TableCell, 
+    TableHead, 
+    TableHeader, 
+    TableRow 
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { 
+    Tabs, 
+    TabsContent, 
+    TabsList, 
+    TabsTrigger 
+} from "@/components/ui/tabs";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+    getMemberReconciliation, 
+    type MemberReconciliationData, 
+    type RoleStats 
+} from "@/server/actions/member-actions";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { 
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
+import { MemberManagementTable } from "@/components/admin/member-management-table";
+import { MemberSyncButton } from "@/components/admin/member-sync-button";
+
+interface Member {
+    id: string;
+    userId: string;
+    status: "ACTIVE" | "ARCHIVED" | "BANNED";
+    createdAt: string;
+    updatedAt: string;
+    archivedAt: string | null;
+    archiveReason: string | null;
+    pseudoDofus: string | null;
+    discordNickname: string | null;
+    user: {
+        name: string | null;
+        image: string | null;
+        accounts: Array<{ providerAccountId: string }>;
+    };
+}
+
+interface MemberManagementProps {
+    guildId: string;
+    initialStats: {
+        active: number;
+        archived: number;
+        banned: number;
+        total: number;
+        maxMembers: number;
+    };
+    initialMembers: Member[];
+    welcomeBadgeName: string;
+    isSuperAdmin: boolean;
+}
+
+export default function MemberManagement({ 
+    guildId, 
+    initialStats, 
+    initialMembers, 
+    welcomeBadgeName, 
+    isSuperAdmin 
+}: MemberManagementProps) {
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState("audit");
+    const [data, setData] = useState<{
+        members: MemberReconciliationData[];
+        stats: RoleStats[];
+        authorizedRoles: string[];
+    } | null>(null);
+
+    // Filters for Audit Tab
+    const [search, setSearch] = useState("");
+    const [roleFilter, setRoleFilter] = useState<string>("all");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+
+    const fetchData = async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+
+        try {
+            const res = await getMemberReconciliation(guildId);
+            if (res.success && res.data) {
+                setData(res.data);
+                if (isRefresh) toast.success("Données synchronisées avec Discord");
+            } else {
+                toast.error(res.error || "Erreur de synchronisation");
+            }
+        } catch (error) {
+            toast.error("Le service Discord est temporairement indisponible");
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [guildId]);
+
+    const filteredAuditMembers = useMemo(() => {
+        if (!data) return [];
+        return data.members.filter(m => {
+            const matchesSearch = 
+                m.displayName.toLowerCase().includes(search.toLowerCase()) || 
+                m.username.toLowerCase().includes(search.toLowerCase()) ||
+                m.discordId.includes(search);
+            
+            const matchesRole = roleFilter === "all" || m.roles.includes(roleFilter);
+            
+            const matchesStatus = 
+                statusFilter === "all" || 
+                (statusFilter === "dashboard" && m.hasDashboardProfile) ||
+                (statusFilter === "missing" && !m.hasDashboardProfile);
+
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+    }, [data, search, roleFilter, statusFilter]);
+
+    const missingMebersCount = useMemo(() => {
+        if (!data) return 0;
+        return data.members.filter(m => !m.hasDashboardProfile).length;
+    }, [data]);
+
+    return (
+        <div className="relative min-h-[800px] space-y-8 pb-20">
+            {/* Background Decorative Elements */}
+            <div className="absolute inset-0 -z-10 bg-[#030303] overflow-hidden pointer-events-none rounded-3xl">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full" />
+                <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-emerald-600/5 blur-[80px] rounded-full" />
+            </div>
+
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-violet-600/20 border border-violet-500/30 rounded-2xl backdrop-blur-xl shadow-lg shadow-violet-500/10">
+                            <Users className="w-8 h-8 text-violet-400" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white italic uppercase leading-none">
+                                Gestion <span className="text-violet-500">Membres</span>
+                            </h1>
+                            <p className="text-zinc-400 font-medium mt-1 flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                                Audit et réconciliation entre Discord et le Dashboard.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => fetchData(true)}
+                        disabled={refreshing || loading}
+                        className="bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 transition-all rounded-2xl px-6 h-12 backdrop-blur-xl group"
+                    >
+                        <RefreshCw className={`w-4 h-4 mr-2 group-hover:text-violet-400 transition-colors ${refreshing ? 'animate-spin' : ''}`} />
+                        {refreshing ? "Mise à jour..." : "Actualiser"}
+                    </Button>
+                    <Button 
+                        className="bg-violet-600 hover:bg-violet-500 text-white font-black uppercase tracking-widest px-6 h-12 rounded-2xl shadow-xl shadow-violet-600/20 border-t border-white/20"
+                        onClick={() => toast.success("Fonctionnalité en cours de déploiement")}
+                    >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Relancer les manquants
+                    </Button>
+                </div>
+            </div>
+
+            {/* Unified Summary Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, color: "blue" },
+                    { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${data ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
+                    { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, color: "amber" },
+                    { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, color: "purple" }
+                ].map((stat, i) => (
+                    <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
+                        <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-500/10 blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
+                        <CardHeader className="pb-3">
+                            <CardDescription className={`flex items-center gap-2 text-${stat.color}-400 font-bold uppercase text-[10px] tracking-[0.2em]`}>
+                                <stat.icon className="w-3 h-3" />
+                                {stat.label}
+                            </CardDescription>
+                            <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {stat.progress ? (
+                                <div className="space-y-1.5">
+                                    <Progress 
+                                        value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
+                                        className="h-1.5 bg-white/5"
+                                        indicatorClassName={`bg-${stat.color}-500`}
+                                    />
+                                    <p className={`text-[10px] text-${stat.color}-500/70 font-black uppercase tracking-widest`}>{stat.sub}</p>
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                <TabsList className="bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl w-fit">
+                    {[
+                        { id: "audit", label: "Audit Complet", icon: ShieldCheck },
+                        { id: "stats", label: "Stats par Rôle", icon: LayoutGrid },
+                        { id: "management", label: "Liste Profils", icon: UserCircle },
+                        { id: "sync", label: "Outils & Sync", icon: Settings2 },
+                    ].map(tab => (
+                        <TabsTrigger 
+                            key={tab.id}
+                            value={tab.id} 
+                            className="rounded-[16px] px-6 py-2.5 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/20 data-[state=active]:border-t data-[state=active]:border-white/20 transition-all text-[11px] font-black uppercase tracking-widest gap-2"
+                        >
+                            <tab.icon className="w-4 h-4" />
+                            {tab.label}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+
+                {/* --- TAB 1: AUDIT --- */}
+                <TabsContent value="audit" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                        <div className="xl:col-span-3 space-y-4">
+                            {/* Filter Bar */}
+                            <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-xl">
+                                <div className="relative flex-1 group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-violet-400 transition-colors" />
+                                    <Input 
+                                        placeholder="Rechercher par pseudo ou ID..." 
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="pl-12 h-12 bg-black/40 border-white/5 text-white rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 font-medium"
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-white/5 rounded-2xl text-xs font-black text-zinc-300 uppercase tracking-widest">
+                                            <SelectValue placeholder="Tous les rôles" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
+                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest">Tous les rôles</SelectItem>
+                                            {data?.stats.map(s => (
+                                                <SelectItem key={s.roleId} value={s.roleId} className="text-[10px] font-black uppercase tracking-widest">
+                                                    {s.roleName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="w-[180px] h-12 bg-black/40 border-white/5 rounded-2xl text-xs font-black text-zinc-300 uppercase tracking-widest">
+                                            <SelectValue placeholder="Tous les inscrits" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
+                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest text">Tous</SelectItem>
+                                            <SelectItem value="dashboard" className="uppercase text-[10px] font-black tracking-widest">Inscrits</SelectItem>
+                                            <SelectItem value="missing" className="uppercase text-[10px] font-black tracking-widest">Absents</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <div className="rounded-[32px] border border-white/5 bg-zinc-900/20 backdrop-blur-xl overflow-hidden shadow-2xl relative">
+                                <Table>
+                                    <TableHeader className="bg-white/[0.02] border-b border-white/5">
+                                        <TableRow className="hover:bg-transparent border-none">
+                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] pl-8 py-6">Membre Discord</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Rôles Principaux</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Rejoint le</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Dashboard</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="h-96 text-center">
+                                                    <div className="flex flex-col items-center gap-6">
+                                                        <div className="relative">
+                                                            <RefreshCw className="w-12 h-12 text-violet-500 animate-spin" />
+                                                            <div className="absolute inset-0 blur-xl bg-violet-500/20 animate-pulse" />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <span className="text-sm font-black uppercase tracking-[0.3em] text-white">Calcul du différentiel</span>
+                                                            <p className="text-xs text-zinc-500">Récupération des profils Discord autorisés...</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : filteredAuditMembers.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="h-48 text-center">
+                                                    <div className="flex flex-col items-center gap-2 opacity-40">
+                                                        <Search className="w-8 h-8 text-zinc-500 mb-2" />
+                                                        <p className="text-sm font-bold text-zinc-400 uppercase italic">Aucun membre autorisé trouvé</p>
+                                                        <p className="text-xs text-zinc-600">Vérifiez vos filtres ou la configuration des rôles.</p>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            filteredAuditMembers.map(member => (
+                                                <TableRow key={member.discordId} className="group border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                                    <TableCell className="pl-8 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="relative">
+                                                                <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-white/5 flex items-center justify-center font-black text-lg text-zinc-400 group-hover:border-violet-500/50 transition-all uppercase italic rotate-3 group-hover:rotate-0">
+                                                                    {member.displayName.charAt(0)}
+                                                                </div>
+                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center shadow-lg ${member.hasDashboardProfile ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}>
+                                                                    {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-white" /> : <ShieldAlert className="w-3 h-3 text-white" />}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col leading-tight">
+                                                                <span className="font-black text-base text-zinc-200 group-hover:text-white transition-colors">{member.displayName}</span>
+                                                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">@{member.username}</span>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {member.roles.slice(0, 2).map(rId => {
+                                                                const roleInfo = data?.stats.find(s => s.roleId === rId);
+                                                                if (!roleInfo) return null;
+                                                                return (
+                                                                    <Badge 
+                                                                        key={rId} 
+                                                                        variant="outline" 
+                                                                        className="text-[9px] h-5 font-black border-white/5 uppercase tracking-tighter rounded-md px-1.5"
+                                                                        style={{ 
+                                                                            color: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}` : undefined,
+                                                                            backgroundColor: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}15` : undefined
+                                                                        }}
+                                                                    >
+                                                                        {roleInfo.roleName}
+                                                                    </Badge>
+                                                                );
+                                                            })}
+                                                            {member.roles.length > 2 && (
+                                                                <Badge variant="outline" className="text-[8px] h-5 font-bold border-white/5 text-zinc-500">
+                                                                    +{member.roles.length - 2}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs font-medium text-zinc-400 tabular-nums">
+                                                        {member.joinedAt ? format(new Date(member.joinedAt), "dd MMM yyyy", { locale: fr }) : "Inconnu"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {member.hasDashboardProfile ? (
+                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                                Inscrit
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 text-amber-500 font-black text-[10px] uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                                Absent
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="pr-8 text-right">
+                                                        {member.hasDashboardProfile ? (
+                                                            <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-[10px] font-black uppercase tracking-widest p-0 w-9" asChild>
+                                                                <a href={`/dashboard/${guildId}/profile/${member.profileId}`} target="_blank">
+                                                                    <ArrowUpRight className="w-4 h-4" />
+                                                                </a>
+                                                            </Button>
+                                                        ) : (
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-500/5 border-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all px-4"
+                                                                onClick={() => toast.info(`Relance envoyée à ${member.displayName}`)}
+                                                            >
+                                                                Relancer
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+
+                        {/* Sidebar Stats */}
+                        <div className="space-y-6">
+                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
+                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center">
+                                            <Trophy className="w-4 h-4 text-violet-400" />
+                                        </div>
+                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Rôles Dashboard</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-6">
+                                    {data?.stats.length === 0 ? (
+                                        <div className="text-center py-6 space-y-2">
+                                            <Settings2 className="w-8 h-8 text-zinc-600 mx-auto" />
+                                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aucun rôle mappé</p>
+                                            <p className="text-[10px] text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
+                                        </div>
+                                    ) : (
+                                        data?.stats.map(s => {
+                                            const percent = s.totalDiscord > 0 ? (s.totalDashboard / s.totalDiscord) * 100 : 0;
+                                            return (
+                                                <div key={s.roleId} className="space-y-3 group/role cursor-default">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 max-w-[140px]">
+                                                            <div 
+                                                                className="w-1.5 h-1.5 rounded-full shrink-0 shadow-lg"
+                                                                style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
+                                                            />
+                                                            <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
+                                                            {s.totalDashboard}/{s.totalDiscord}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                                                            <div 
+                                                                className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
+                                                                    percent === 100 ? 'bg-emerald-500' : 
+                                                                    percent > 70 ? 'bg-violet-500' : 
+                                                                    percent > 30 ? 'bg-indigo-500' : 'bg-amber-600'
+                                                                }`}
+                                                                style={{ width: `${percent}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[11px] font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <div className="p-8 rounded-[32px] bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 shadow-2xl relative overflow-hidden group">
+                                <div className="absolute -top-4 -right-4 w-20 h-20 bg-violet-500/20 blur-2xl rounded-full" />
+                                <div className="space-y-4 relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/40">
+                                            <Info className="w-5 h-5 text-white" />
+                                        </div>
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-white italic">Comment ça marche ?</h4>
+                                    </div>
+                                    <p className="text-[11px] leading-relaxed text-zinc-400 font-medium italic">
+                                        Cet outil croise la liste des membres Discord avec les profils SigilOS. 
+                                        <span className="text-violet-400 font-bold block mt-2 underline decoration-violet-400/30">Seuls les membres possédant un rôle autorisé à se connecter au Dashboard sont inclus dans cet audit.</span>
+                                    </p>
+                                    <Button variant="ghost" className="w-full h-11 bg-white/5 group-hover:bg-violet-600 transition-all rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-white mt-4 border border-white/5">
+                                        Documentation Audit
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* --- TAB 2: STATS --- */}
+                <TabsContent value="stats" className="space-y-6">
+                    <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[32px] p-8">
+                        <div className="text-center space-y-6 py-12">
+                            <div className="w-20 h-20 bg-violet-600/20 border border-violet-500/30 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
+                                <LayoutGrid className="w-10 h-10 text-violet-400" />
+                            </div>
+                            <div className="max-w-md mx-auto space-y-2">
+                                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Statistiques Détaillées</h3>
+                                <p className="text-zinc-500 font-medium leading-relaxed">
+                                    Analyse complète de la répartition des membres par grade et leur taux d&apos;engagement sur la platforme.
+                                </p>
+                            </div>
+                            <Button className="bg-zinc-800 hover:bg-zinc-700 text-white font-black uppercase tracking-widest px-8 rounded-2xl border border-white/5 h-12">
+                                Générer Rapport PDF
+                            </Button>
+                        </div>
+                    </Card>
+                </TabsContent>
+
+                {/* --- TAB 3: MANAGEMENT --- */}
+                <TabsContent value="management" className="space-y-6">
+                    <MemberStatsOverview stats={initialStats} />
+                    <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
+                        <MemberManagementTable 
+                            initialMembers={initialMembers}
+                            guildId={guildId}
+                            welcomeBadgeName={welcomeBadgeName}
+                            isSuperAdmin={isSuperAdmin}
+                        />
+                    </div>
+                </TabsContent>
+
+                {/* --- TAB 4: SYNC --- */}
+                <TabsContent value="sync" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card className="bg-zinc-900/60 border-white/5 rounded-3xl overflow-hidden relative group p-8 space-y-6 backdrop-blur-xl shadow-2xl">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="p-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/30">
+                                    <RefreshCw className="w-6 h-6 text-indigo-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-white italic uppercase">Synchronisation Manuelle</h3>
+                                    <p className="text-zinc-500 text-sm font-medium">Rafraîchir les statuts à partir de la présence Discord.</p>
+                                </div>
+                            </div>
+                            <div className="p-6 rounded-2xl bg-black/40 border border-white/5 relative z-10 space-y-6 box-shadow-inner">
+                                <MemberSyncButton guildId={guildId} />
+                                <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                    <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
+                                    <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">QUOTIDIEN 04:00 AM</Badge>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card className="bg-zinc-900/40 border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl flex flex-col justify-center items-center text-center space-y-4 opacity-50 grayscale hover:grayscale-0 transition-all border-dashed">
+                           <LayoutGrid className="w-12 h-12 text-zinc-600" />
+                           <div className="space-y-1">
+                                <h4 className="text-lg font-black text-white uppercase italic tracking-widest">Purge Automatique</h4>
+                                <p className="text-xs text-zinc-500 font-medium">Bientôt disponible pour libérer les places inactives.</p>
+                           </div>
+                           <Badge variant="outline" className="rounded-full px-4 border-white/10 text-zinc-500 font-black tracking-widest">COMING SOON</Badge>
+                        </Card>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

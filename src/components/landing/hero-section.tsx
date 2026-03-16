@@ -7,6 +7,8 @@ import Image from "next/image";
 import { User } from "next-auth";
 import Link from "next/link";
 import { ChevronRight, LayoutDashboard, Users, Zap, Crown } from "lucide-react";
+import { DashboardDrawer } from "@/components/layout/dashboard-drawer";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -30,7 +32,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                 <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px]" />
                 <div className="absolute inset-0 bg-[url(/noise.svg)] opacity-[0.03] mix-blend-overlay" />
-                
+
                 {/* Grid Accent */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
             </div>
@@ -59,7 +61,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                 >
                     {user ? (
                         <span>
-                            Prenez les commandes <br /> 
+                            Prenez les commandes <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">
                                 de votre empire Dofus.
                             </span>
@@ -78,7 +80,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                     transition={{ duration: 0.7, delay: 0.5 }}
                     className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto leading-relaxed font-medium"
                 >
-                    {user 
+                    {user
                         ? "Centralisez la gestion de vos membres, automatisez vos missions et coordonnez vos sorties depuis un cockpit unique."
                         : "Le premier véritable système d'exploitation conçu pour la gestion haute performance de guildes sur Dofus Unity."
                     }
@@ -96,37 +98,81 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                         <div className="w-full max-w-3xl flex flex-col items-center gap-8">
                             {/* Guild Quick Links - Dashboard specialized */}
                             {userGuilds.length > 0 && (
-                                <div className="flex flex-wrap justify-center gap-4 w-full">
-                                    {userGuilds.slice(0, 3).map((guild, i) => (
-                                        <motion.div
-                                            key={guild.id}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.7 + (i * 0.1) }}
-                                        >
-                                            <Link 
-                                                href={`/dashboard/${guild.id}`}
-                                                className="flex items-center gap-3 p-2 pr-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-500/30 transition-all hover:-translate-y-1 group"
+                                <div className="space-y-6 w-full flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <h3 className="text-sm font-black text-emerald-400 uppercase tracking-[0.3em]">
+                                            {userGuilds.length > 1 ? "Mes Guildes" : "Mon Accès Guilde"}
+                                        </h3>
+                                        <div className="h-px w-12 bg-emerald-500/30" />
+                                    </div>
+
+                                    <div className="flex flex-wrap justify-center gap-6 w-full">
+                                        {userGuilds.length === 1 ? (
+                                            /* Single Guild: Direct Link stay for speed */
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="w-full sm:w-[320px]"
                                             >
-                                                {guild.iconUrl ? (
-                                                    <Image src={guild.iconUrl} alt={guild.name} width={40} height={40} className="rounded-xl" />
-                                                ) : (
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-amber-500 flex items-center justify-center text-xs font-black">
-                                                        {guild.name[0]}
+                                                <Link
+                                                    href={`/dashboard/${userGuilds[0].id}`}
+                                                    className="relative flex items-center gap-5 p-5 rounded-[2rem] bg-zinc-900/60 border border-white/10 hover:bg-zinc-900 hover:border-emerald-500/50 transition-all group overflow-hidden shadow-2xl hover:-translate-y-2 h-[100px]"
+                                                >
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    {userGuilds[0].iconUrl ? (
+                                                        <Image src={userGuilds[0].iconUrl} alt={userGuilds[0].name} width={56} height={56} className="rounded-2xl relative z-10 border border-white/10" />
+                                                    ) : (
+                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-amber-500 flex items-center justify-center text-xl font-black shrink-0 shadow-lg">
+                                                            {userGuilds[0].name[0]}
+                                                        </div>
+                                                    )}
+                                                    <div className="text-left relative z-10 flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            <div className="text-[10px] font-black text-emerald-400/80 uppercase tracking-widest leading-none">Entrée Directe</div>
+                                                        </div>
+                                                        <div className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors truncate tracking-tighter uppercase italic">{userGuilds[0].name}</div>
                                                     </div>
-                                                )}
-                                                <div className="text-left">
-                                                    <div className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none mb-1 text-emerald-400/50">Explorer</div>
-                                                    <div className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">{guild.name}</div>
-                                                </div>
-                                            </Link>
-                                        </motion.div>
-                                    ))}
-                                    {userGuilds.length > 3 && (
-                                        <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 text-xs font-bold" title="Voir toutes mes guildes">
-                                            +{userGuilds.length - 3}
-                                        </Link>
-                                    )}
+                                                    <ChevronRight className="w-5 h-5 text-zinc-700 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                                                </Link>
+                                            </motion.div>
+                                        ) : (
+                                            /* Multiple Guilds: Combined Stylé Cockpit Access */
+                                            <DashboardDrawer>
+                                                <motion.button
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="group relative flex items-center gap-6 p-6 rounded-[2.5rem] bg-zinc-900/80 border border-white/10 hover:border-emerald-500/50 transition-all shadow-2xl hover:-translate-y-2 w-full sm:w-auto min-w-[340px]"
+                                                >
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]" />
+
+                                                    <div className="flex -space-x-4 relative z-10">
+                                                        {userGuilds.slice(0, 3).map((g, idx) => (
+                                                            <div key={g.id} className="relative transition-transform group-hover:scale-110" style={{ zIndex: 10 - idx }}>
+                                                                <Avatar className="w-14 h-14 border-[3px] border-zinc-900 rounded-2xl shadow-2xl">
+                                                                    <AvatarImage src={g.iconUrl || ""} />
+                                                                    <AvatarFallback className="bg-zinc-800 text-zinc-500 font-black">{g.name[0]}</AvatarFallback>
+                                                                </Avatar>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="text-left relative z-10">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] leading-none">Gestion Multi-Guilde</div>
+                                                        </div>
+                                                        <div className="text-xl font-black text-white group-hover:text-emerald-400 transition-colors tracking-tighter uppercase italic">
+                                                            Mes {userGuilds.length} Guildes
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="ml-auto w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-700 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-inner">
+                                                        <LayoutDashboard className="w-6 h-6" />
+                                                    </div>
+                                                </motion.button>
+                                            </DashboardDrawer>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -140,7 +186,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                         <span className="text-[9px] font-black opacity-40 uppercase tracking-widest">Chef de Guilde ?</span>
                                         <div className="flex items-center gap-2">
                                             <Crown className="w-3.5 h-3.5 text-emerald-400" />
-                                            <span className="text-sm font-bold">Inscrire une Guilde</span>
+                                            <span className="text-sm font-bold">Inscrire Ma Guilde</span>
                                         </div>
                                     </div>
                                 </button>

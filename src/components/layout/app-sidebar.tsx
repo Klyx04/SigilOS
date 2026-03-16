@@ -123,7 +123,7 @@ export function AppSidebar({
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
-        { name: "Galerie Stuff", href: `/dashboard/${guildId}/galerie-stuff`, icon: Sparkles, color: "text-cyan-400", visible: user.isMember && user.canViewStuffGallery && modules.profile },
+        { name: "Galerie Stuff", href: `/dashboard/${guildId}/galerie-stuff`, icon: Sparkles, color: "text-cyan-400", visible: user.isMember && user.canViewStuffGallery && modules.gallery },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-cyan-400", visible: user.isMember && user.canViewResources && modules.resources },
     ];
@@ -145,6 +145,7 @@ export function AppSidebar({
         { name: "ADM Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
         { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
         { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
+        { name: "ADM Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers },
         { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
         { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
         { name: "ADM Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin },

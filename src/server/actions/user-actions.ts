@@ -68,6 +68,7 @@ export type UserContext = {
     canViewStuffGallery: boolean;
     canViewResources: boolean;
     canManageResources: boolean;
+    canManageRelance: boolean;
     isAdmin: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
@@ -165,6 +166,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: false,
         canViewResources: false,
         canManageResources: false,
+        canManageRelance: false,
         canViewChat: false,
         canModerateChat: false,
         roles: [],
@@ -421,6 +423,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canViewStuffGallery: true,
                 canViewResources: true,
                 canManageResources: true,
+                canManageRelance: true,
                 canViewChat: true,
                 canModerateChat: true,
                 roleName: "Administrateur",
@@ -574,6 +577,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewStuffGallery = myPerms.has(PERMISSIONS.STUFF_GALLERY_VIEW) || isAdmin;
     const canViewResources = myPerms.has(PERMISSIONS.RESOURCES_VIEW) || isAdmin;
     const canManageResources = myPerms.has(PERMISSIONS.RESOURCES_MANAGE) || isAdmin;
+    const canManageRelance = myPerms.has(PERMISSIONS.RELANCE_MANAGE) || isAdmin;
     const canViewChat = myPerms.has(PERMISSIONS.CHAT_VIEW) || isAdmin;
     const canModerateChat = myPerms.has(PERMISSIONS.CHAT_MODERATE) || isAdmin;
 
@@ -635,6 +639,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: applyModule(mod?.profile, canViewStuffGallery || isGod), // Part of profile module toggle
         canViewResources: applyModule(mod?.resources, canViewResources || isGod),
         canManageResources: applyModule(mod?.resources, canManageResources || isGod),
+        canManageRelance: canManageRelance || isGod,
         canViewChat: applyModule(mod?.chat, canViewChat || isGod),
         canModerateChat: applyModule(mod?.chat, canModerateChat || isGod),
         isAdmin: isAdminFinal,
@@ -906,7 +911,7 @@ export async function getGuildMembers(guildId: string) {
                     image: true,
                     accounts: {
                         where: { provider: "discord" },
-                        select: { providerAccountId: true }
+                        select: { providerAccountId: true, provider: true }
                     }
                 }
             }

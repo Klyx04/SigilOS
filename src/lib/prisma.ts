@@ -34,7 +34,7 @@ const createPrismaClient = () => {
         connectionTimeoutMillis: 10000, // Increased timeout to 10s to prevent 'timed out' errors on heavy parallel loads
     })
 
-    const adapter = new PrismaPg(pool)
+    const adapter = new PrismaPg(pool as any)
     const basePrisma = new PrismaClient({
         adapter,
         log: isDev ? ["error"] : ["error", "warn"]

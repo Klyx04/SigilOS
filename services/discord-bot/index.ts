@@ -123,17 +123,22 @@ client.on(Events.GuildCreate, async (guild) => {
             if (targetChannel && targetChannel.isTextBased()) {
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
-                    .setDescription('Le bot est installé. Voici les étapes pour démarrer.')
+                    .setDescription('Le bot est installé. Suivez ces étapes pour activer votre guilde.')
                     .setColor(0x10b981)
                     .addFields(
                         {
                             name: 'Étape 1 — Se connecter',
-                            value: 'Rendez-vous sur **[beta.sigilos.fr](https://beta.sigilos.fr)** et connectez-vous avec votre compte Discord.',
+                            value: 'Rendez-vous sur **[beta.sigilos.fr](https://beta.sigilos.fr)** et connectez-vous avec votre compte Discord (le compte administrateur du serveur).',
                             inline: false,
                         },
                         {
                             name: 'Étape 2 — Déployer',
-                            value: 'Sur votre Dashboard, trouvez la carte de votre guilde et cliquez sur **"Déployer"**. \nCela installe les salons, rôles et commandes sur ce serveur.',
+                            value: 'Sur le Dashboard, trouvez la carte de votre serveur et cliquez sur **"Déployer"**.\nCela enregistre votre guilde dans SigilOS et déverrouille toutes les fonctionnalités.',
+                            inline: false,
+                        },
+                        {
+                            name: 'Étape 3 — Configurer les permissions',
+                            value: 'Depuis les **Paramètres** de votre guilde sur le Dashboard, associez vos rôles Discord aux permissions SigilOS (qui peut valider des missions, accéder au ladder, etc.).',
                             inline: false,
                         }
                     )

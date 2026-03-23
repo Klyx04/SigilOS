@@ -67,23 +67,38 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
         setNotifyDiscord(false);
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { toast.error("Fichier trop volumineux (max 5MB)."); return; }
+    const processFile = async (file: File) => {
+        if (!file.type.startsWith("image/")) { 
+            toast.error("Seules les images sont acceptées."); 
+            return; 
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Fichier trop volumineux (max 5MB).");
+            return;
+        }
+
+        // 🛡️ NSFW Safety Check
+        const { analyzeImageSafety } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(file);
+        if (!safety.isSafe) {
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
+            return;
+        }
+
         setProofFile(file);
         setProofPreview(URL.createObjectURL(file));
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processFile(file);
     };
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const file = e.dataTransfer.files?.[0];
-        if (!file) return;
-        if (!file.type.startsWith("image/")) { toast.error("Seules les images sont acceptées."); return; }
-        if (file.size > 5 * 1024 * 1024) { toast.error("Fichier trop volumineux (max 5MB)."); return; }
-        setProofFile(file);
-        setProofPreview(URL.createObjectURL(file));
+        if (file) processFile(file);
     }, []);
 
     const handleSubmit = async () => {

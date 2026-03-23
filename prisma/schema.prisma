@@ -107,6 +107,7 @@ model PlatformConfig {
   statusMode             String   @default("living") // 'living' | 'notification'
   statusMention          String   @default("none")    // 'none' | '@everyone' | '@here'
   statusFrequency        Int      @default(15)      // minutes
+  nsfwFilterEnabled      Boolean  @default(true)
 }
 
 model RoadmapItem {

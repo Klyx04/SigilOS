@@ -379,7 +379,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     {ACTION_LABELS[log.action] || log.action}
                                                 </Badge>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-1">
+                                            <div className="text-sm text-muted-foreground mt-1">
                                                 {log.targetType === "PERMISSION" && "Modification des permissions RBAC"}
                                                 {log.targetType === "ROLE" && "Modification d'un rôle Discord"}
                                                 {log.targetType === "CONFIG" && "Modification de la configuration"}
@@ -444,7 +444,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                             )}
                                                         </div>
                                                         
-                                                        {status === "VALIDATED" && (
+                                                        {log.action === "MISSION_VALIDATED" && (
                                                             <div className="flex items-center gap-3">
                                                                 {(metadata as any).xpReward > 0 && (
                                                                     <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
@@ -509,7 +509,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         )}
                                                     </span>
                                                 )}
-                                            </p>
+                                            </div>
 
                                             {log.action === "RBAC_UPDATE" && metadata.changes && (
                                                 <PermissionChangesDisplay metadata={metadata} roleNames={roleNames} />

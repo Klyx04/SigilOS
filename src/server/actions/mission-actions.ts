@@ -39,7 +39,7 @@ const MissionSchema = z.object({
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
     payload: z.record(z.any()),
-}).strict();
+}); // No .strict() — extra fields from DB are ignored safely
 
 const CreateWeekSchema = z.object({
     guildId: z.string(),
@@ -156,7 +156,10 @@ export async function createWeekMissions(
 
     // 1. Validation
     const validation = CreateWeekSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Invalid Data" };
+    if (!validation.success) {
+        logger.error("createWeekMissions - Zod validation failed", { errors: validation.error.flatten() });
+        return { success: false, error: "Invalid Data: " + JSON.stringify(validation.error.flatten().fieldErrors) };
+    }
     const data = validation.data;
 
     // 2. Auth & Permission
@@ -534,7 +537,11 @@ export async function getWeekMissions(
 
         // FINAL SAFEGUARD: Force pure JSON object to strip any remaining hidden properties/symbols
         // This is necessary because Prisma JSON fields or hidden symbols can cause "Not a plain object" errors in Client Components
-        return { success: true, data: JSON.parse(JSON.stringify(enrichedMissions)) };
+        // We use a custom replacer to handle BigInt serialization securely
+        const safeData = JSON.parse(JSON.stringify(enrichedMissions, (key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+        ));
+        return { success: true, data: safeData };
     } catch (error) {
         logger.error("Fetch Missions Error", { error, guildId, weekNumber, year });
         return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };

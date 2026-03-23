@@ -337,27 +337,32 @@ async function OcrStatsServer() {
 }
 
 async function GhostUsersServer() {
-    const { getGhostUsers } = await import("@/server/actions/super-admin-actions");
-    const ghostUsers = await getGhostUsers();
+    try {
+        const { getGhostUsers } = await import("@/server/actions/super-admin-actions");
+        const ghostUsers = await getGhostUsers();
 
-    return (
-        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
-            <h3 className="text-sm font-black text-zinc-500 mb-8 uppercase tracking-[0.3em] flex items-center justify-between">
-                <span className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    Cibles de Purge
-                </span>
-                <span className="text-xs bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full text-red-400 font-black tracking-widest">
-                    {ghostUsers.length}
-                </span>
-            </h3>
-            <UserList users={JSON.parse(JSON.stringify(ghostUsers))} />
-            <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-bold text-zinc-700 uppercase tracking-widest">
-                Comptes orphelins détectés
+        return (
+            <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
+                <h3 className="text-sm font-black text-zinc-500 mb-8 uppercase tracking-[0.3em] flex items-center justify-between">
+                    <span className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        Cibles de Purge
+                    </span>
+                    <span className="text-xs bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full text-red-400 font-black tracking-widest">
+                        {ghostUsers.length}
+                    </span>
+                </h3>
+                <UserList users={JSON.parse(JSON.stringify(ghostUsers))} />
+                <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-bold text-zinc-700 uppercase tracking-widest">
+                    Comptes orphelins détectés
+                </div>
             </div>
-        </div>
-    );
+        );
+    } catch (err) {
+        console.error("[GhostUsersServer] Error:", err);
+        return <div className="bg-zinc-900/40 border border-red-500/10 rounded-3xl p-8 text-red-500/50 text-xs font-mono">⚠ Ghost Users — Erreur de chargement</div>;
+    }
 }
 
 async function GuildsServer() {
@@ -491,40 +496,55 @@ async function AnnouncementServer() {
 }
 
 async function TicketsServer() {
-    const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
-    const [ticketData, stats] = await Promise.all([
-        getSupportTickets({ perPage: 50 }),
-        getTicketStats(),
-    ]);
+    try {
+        const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
+        const [ticketData, stats] = await Promise.all([
+            getSupportTickets({ perPage: 50 }),
+            getTicketStats(),
+        ]);
 
-    return (
-        <TicketDashboard
-            initialTickets={JSON.parse(JSON.stringify(ticketData.tickets))}
-            initialTotal={ticketData.total}
-            initialStats={stats}
-        />
-    );
+        return (
+            <TicketDashboard
+                initialTickets={JSON.parse(JSON.stringify(ticketData.tickets))}
+                initialTotal={ticketData.total}
+                initialStats={stats}
+            />
+        );
+    } catch (err) {
+        console.error("[TicketsServer] Error:", err);
+        return <div className="bg-zinc-900/30 border border-red-500/10 rounded-3xl p-12 text-center text-red-500/50 text-xs font-mono">⚠ Tickets — Erreur de chargement. Vérifiez les logs serveur.</div>;
+    }
 }
 async function PlatformConfigServer() {
-    const { getPlatformConfig } = await import("@/server/actions/changelog-actions");
-    const { fetchBotGuilds, fetchGuildRoles } = await import("@/server/discord");
-    const { PlatformConfigPanel } = await import("./components/platform-config-panel");
+    try {
+        const { getPlatformConfig } = await import("@/server/actions/changelog-actions");
+        const { fetchBotGuilds, fetchGuildRoles } = await import("@/server/discord");
+        const { PlatformConfigPanel } = await import("./components/platform-config-panel");
 
-    const [configRes, guilds] = await Promise.all([
-        getPlatformConfig(),
-        fetchBotGuilds()
-    ]);
+        const [configRes, guilds] = await Promise.allSettled([
+            getPlatformConfig(),
+            fetchBotGuilds()
+        ]);
 
-    let roles: any[] = [];
-    if (configRes.success && configRes.config?.ticketSupportGuildId) {
-        roles = await fetchGuildRoles(configRes.config.ticketSupportGuildId);
+        const configResult = configRes.status === "fulfilled" ? configRes.value : { success: false, config: null };
+        const guildsList = guilds.status === "fulfilled" ? guilds.value : [];
+
+        let roles: any[] = [];
+        if (configResult.success && (configResult as any).config?.ticketSupportGuildId) {
+            try {
+                roles = await fetchGuildRoles((configResult as any).config.ticketSupportGuildId);
+            } catch { /* silent */ }
+        }
+
+        return (
+            <PlatformConfigPanel 
+                config={configResult.success ? (configResult as any).config as any : null} 
+                availableGuilds={guildsList.map((g: any) => ({ id: g.id, name: g.name }))}
+                availableRoles={roles.map(r => ({ id: r.id, name: r.name }))}
+            />
+        );
+    } catch (err) {
+        console.error("[PlatformConfigServer] Error:", err);
+        return <div className="bg-zinc-900/30 border border-red-500/10 rounded-3xl p-8 text-red-500/50 text-xs font-mono">⚠ Platform Config — Erreur de chargement (Discord API ?)</div>;
     }
-
-    return (
-        <PlatformConfigPanel 
-            config={configRes.success ? configRes.config as any : null} 
-            availableGuilds={guilds.map(g => ({ id: g.id, name: g.name }))}
-            availableRoles={roles.map(r => ({ id: r.id, name: r.name }))}
-        />
-    );
 }

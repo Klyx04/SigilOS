@@ -168,18 +168,18 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
     // Fetch user profile to get Discord ID if needed for pinging
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        select: { 
-            userId: true, 
-            user: { 
-                select: { 
+        select: {
+            userId: true,
+            user: {
+                select: {
                     image: true,
                     accounts: {
                         where: { provider: "discord" },
                         select: { providerAccountId: true },
                         take: 1
                     }
-                } 
-            } 
+                }
+            }
         },
     });
 
@@ -191,7 +191,9 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const content = template
             .replace(/{member}/g, `**${displayName}**`)
             .replace(/{user}/g, `**${displayName}**`)
-            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
+            .replace(/{nickname}/g, `**${displayName}**`)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`)
+            .replace(/{server}/g, `**${guildConfig.name || "la guilde"}**`);
 
         try {
             await Promise.all([
@@ -266,8 +268,11 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const content = template
             .replace(/{member}/g, memberMention)
             .replace(/{user}/g, memberMention)
-            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
+            .replace(/{nickname}/g, memberMention)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`)
+            .replace(/{server}/g, `**${guildConfig.name || "la guilde"}**`);
 
+        // Pings go outside the embed (trigger notification)
         let mentionContent = "";
         if (guildConfig.welcomeMentionRoleId) {
             mentionContent = guildConfig.welcomeMentionRoleId === "everyone"
@@ -275,12 +280,15 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 : `<@&${guildConfig.welcomeMentionRoleId}>`;
         }
 
+        // Combine role ping and user ping for maximum attention
+        const pings = [mentionContent, memberMention].filter(Boolean).join(" ");
+
         try {
-            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, mentionContent, {
+            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, pings, {
                 embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500
-                embedThumbnail: profile?.user?.image || "https://sigilos.fr/assets/ui/logo-v2.png",
+                embedThumbnail: profile?.user?.image || "https://beta.sigilos.fr/assets/ui/logo-v2.png",
                 embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {

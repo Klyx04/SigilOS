@@ -100,6 +100,18 @@ SigilOS/
 | `dev` | 🟠 Beta (`beta.sigilos.fr`) — **SYNC** |
 | `bug-fixes-modif` | 👨‍💻 Branche courante — Préparation RELEASE |
 
+### ⚠️ Règle Anti-Crash CI (Dependabot)
+Toujours synchroniser une feat branch avec `dev` **avant** de push si elle a plus de 24h ou si des PRs Dependabot ont été mergées entre-temps. Sans ça, le robot CI crashe avec `EUSAGE` (`npm ci` détecte un `package-lock.json` désynchronisé).
+
+```bash
+git fetch origin dev
+git merge origin/dev --no-edit
+npm install --package-lock-only  # force résolution complète des sous-dépendances (ex: @prisma/debug)
+git push origin feat/ma-branche
+```
+
+> Voir le workflow `/git-push` pour la checklist complète.
+
 ---
 
 ## ✅ Historique des Sessions (Complètes)

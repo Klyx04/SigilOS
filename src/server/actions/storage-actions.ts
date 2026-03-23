@@ -97,7 +97,10 @@ async function dirList(dirPath: string, urlBase: string): Promise<{ count: numbe
         // Sort newest first
         files.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
         return { count: files.length, bytes, files };
-    } catch { return { count: 0, bytes: 0, files: [] }; }
+    } catch (err) { 
+        logger.error(`[StorageScan] Error readdir ${dirPath}`, { error: String(err) });
+        return { count: 0, bytes: 0, files: [] }; 
+    }
 }
 
 async function getPendingFilesForGuild(
@@ -318,12 +321,18 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
         const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.achievementCount, 0);
         
         const orphanFiles: DiskFile[] = [];
+        const now = Date.now();
+        const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+
         entries.forEach(e => {
             const diskFiles = [...e.missionsFiles, ...e.kamaFiles, ...e.achievementFiles];
             diskFiles.forEach(df => {
                 const isPending = e.pendingFiles.some(pf => pf.filename === df.filename);
+                // ONLY count as orphans if no DB reference, not pending, AND older than 4 hours (safety margin)
                 if (!allValidUrls.has(df.filename) && !isPending) {
-                    orphanFiles.push(df);
+                    if (now - df.modifiedAt.getTime() > FOUR_HOURS_MS) {
+                        orphanFiles.push(df);
+                    }
                 }
             });
         });
@@ -379,8 +388,9 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
                 if (!validFilenames.has(file.filename) && !pendingFilenames.has(file.filename)) {
                     // Safety check: Only delete if older than 4 hours (grace period for uploads in progress)
                     if (now - file.modifiedAt.getTime() > FOUR_HOURS_MS) {
-                        const fileUrl = file.url.replace(/^\/uploads/, "");
-                        const physicalPath = normalize(join(process.cwd(), "private_uploads", fileUrl));
+                        // Normalize path join to avoid any leading slash issues
+                        const relativeFileUrl = file.url.replace(/^\/uploads\//, "");
+                        const physicalPath = normalize(join(process.cwd(), "private_uploads", relativeFileUrl));
                         
                         try {
                             if (existsSync(physicalPath)) {

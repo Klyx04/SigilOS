@@ -39,7 +39,7 @@ const GuildEventSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
     description: z.string().max(2000).optional(),
     type: z.enum(GUILD_EVENT_TYPES),
-    status: z.enum(EVENT_STATUSES).optional().default("DRAFT"),
+    status: z.enum(EVENT_STATUSES).optional().default("PUBLISHED"),
     startDate: z.date(),
     endDate: z.date(),
     recurrence: z.enum(RECURRENCE_TYPES).optional().default("UNIQUE"),

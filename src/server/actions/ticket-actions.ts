@@ -376,7 +376,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                     `> ${notes || "Votre serveur a été ajouté à la whitelist. Bon jeu !"}`
                 ].join("\n"),
                 embedFooter: `Validé par ${session?.user?.name || "L'Équipe SigilOS"}`,
-                embedThumbnail: "https://i.imgur.com/AfFp7pu.png" // Logo SigilOS
+                embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png" // Logo SigilOS
             });
         }
 

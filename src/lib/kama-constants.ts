@@ -18,3 +18,6 @@ export const REWARDS_PER_TRANCHE = {
     guildatons: 10, // Guildatons
     guild_kamas: 10, // Kamas de guilde
 } as const;
+
+/** Maximum de guildatons par semaine par personne */
+export const GUILDATONS_MAX_PER_WEEK = 250;

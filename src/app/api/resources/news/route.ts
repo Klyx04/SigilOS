@@ -284,11 +284,13 @@ export async function GET(req: NextRequest) {
             });
 
             // 2. Get SigilOS Internal Changelogs
+            const { getAppBaseUrl } = await import("@/lib/utils");
+            const baseUrl = getAppBaseUrl();
             const sigilEntries = await getChangelogEntries(undefined, true);
             const sigilItems = sigilEntries.slice(0, 5).map(entry => ({
                 title: `[SigilOS] ${entry.title}`,
-                link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/changelog`,
-                imageUrl: "https://i.imgur.com/AfFp7pu.png", // SigilOS Logo/Icon
+                link: `${baseUrl}/changelog`,
+                imageUrl: `${baseUrl}/assets/ui/logo-v2.png`, // SigilOS Logo
                 pubDate: entry.publishedAt,
                 description: entry.summary || `Version ${entry.version} de votre plateforme.`,
                 category: "App Update"

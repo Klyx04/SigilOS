@@ -35,6 +35,7 @@ const UpdateModulesSchema = z.object({
     // Nouveau
     chat: z.boolean(),
     gallery: z.boolean(),
+    ladderSync: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -85,6 +86,7 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             resources: modules.resources,
             chat: modules.chat,
             gallery: modules.gallery,
+            ladderSync: modules.ladderSync,
         };
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });

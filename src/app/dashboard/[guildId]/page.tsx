@@ -59,15 +59,15 @@ export default async function DashboardPage({
         );
     }
 
-    // Parallel data fetching - Optimized to reduce DB roundtrips and avoid redundant Ocre calls
-    const [presenceData, ladderResult, guildStatsResult, profileResult, ocreProgress] = await Promise.all([
+    // All data fetches run concurrently — none depend on each other’s results
+    const [presenceData, ladderResult, profileResult, ocreProgress, guildStatsResult] = await Promise.all([
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
-        getGuildStats(guildId),
         getUserProfile(guildId),
         user.canViewArchis 
             ? getMyOcreProgress(guildId) 
-            : Promise.resolve({ success: false, data: undefined })
+            : Promise.resolve({ success: false, data: undefined }),
+        getGuildStats(guildId),
     ]);
 
     // Focus data depends on Ocre result to avoid refetching

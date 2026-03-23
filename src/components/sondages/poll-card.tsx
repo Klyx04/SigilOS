@@ -98,118 +98,119 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
         >
             <Link href={`/dashboard/${guildId}/sondages/${poll.id}`}>
                 <div className={cn(
-                    "group relative overflow-hidden rounded-3xl border transition-all duration-500",
-                    "bg-[#030303]/60 backdrop-blur-md hover:bg-[#050505]/80",
-                    "hover:scale-[1.02] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] cursor-pointer",
+                    "group relative overflow-hidden rounded-[2rem] border transition-all duration-500",
+                    "bg-[#030303]/40 backdrop-blur-md hover:bg-[#050505]/60",
+                    "hover:scale-[1.01] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] cursor-pointer",
                     isActive ? cat.borderColor : "border-white/5",
                 )}>
                     {/* Category glow */}
                     <div
-                        className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-30 transition-opacity duration-1000"
+                        className="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-1000 pointer-events-none"
                         style={{ backgroundColor: cat.glowColor }}
                     />
 
                     {/* Header bar */}
                     <div className={cn(
-                        "flex items-center justify-between px-4 py-2.5 border-b relative z-10",
+                        "flex items-center justify-between px-6 py-3.5 border-b relative z-10",
                         isActive ? "border-white/5" : "border-white/[0.03]",
                     )}>
-                        <div className="flex items-center gap-2">
-                            <span className="text-base">{cat.emoji}</span>
-                            <span className={cn("text-xs font-black uppercase tracking-[0.1em]", cat.color)}>{cat.label}</span>
+                        <div className="flex items-center gap-2.5">
+                            <span className="text-lg drop-shadow-lg">{cat.emoji}</span>
+                            <span className={cn("text-[10px] font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             {poll.isAnonymous && (
                                 <TooltipProvider>
                                     <Tooltip>
-                                        <TooltipTrigger>
-                                            <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                                        <TooltipTrigger asChild>
+                                            <Lock className="w-4 h-4 text-zinc-600 hover:text-zinc-400 transition-colors" />
                                         </TooltipTrigger>
-                                        <TooltipContent>Votes anonymes</TooltipContent>
+                                        <TooltipContent side="bottom" className="bg-zinc-900 border-white/10 text-[10px] uppercase font-bold tracking-widest">
+                                            Votes anonymes
+                                        </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             )}
-                            <div className={cn("flex items-center gap-2 text-sm font-bold", status.color)}>
-                                <StatusIcon className="w-4 h-4" />
+                            <div className={cn("flex items-center gap-2 text-[10px] font-black uppercase tracking-widest", status.color)}>
+                                <StatusIcon className="w-3.5 h-3.5" />
                                 {status.label}
                             </div>
                         </div>
                     </div>
 
                     {/* Body */}
-                    <div className="px-5 py-5 space-y-6 relative z-10">
+                    <div className="px-6 py-7 space-y-7 relative z-10">
                         {/* Background category image with mask */}
-                        <div className="absolute inset-0 z-[-1] opacity-70 transition-opacity duration-500 pointer-events-none">
+                        <div className="absolute inset-0 z-[-1] opacity-40 group-hover:opacity-50 transition-opacity duration-700 pointer-events-none">
                             <img
                                 src={`/assets/sondages/${poll.category === 'EVENT' ? 'evenement' :
                                     poll.category === 'AUTRE' ? 'autres' :
                                         poll.category.toLowerCase()
                                     }.png`}
                                 alt=""
-                                className="w-full h-full object-cover grayscale-[0.6] brightness-[0.4] contrast-[1.1]"
+                                className="w-full h-full object-cover grayscale brightness-[0.3] contrast-[1.2] scale-105 group-hover:scale-110 transition-transform duration-[2s]"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/40 to-[#030303]/20" />
-                            <div className="absolute inset-0 bg-[#030303]/10" />
-
-                            {poll.outcome && (
-                                <div className="absolute top-4 left-4 z-20">
-                                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-md shadow-[0_0_15px_-5px_rgba(16,185,129,0.5)]">
-                                        <Crown className="w-3 h-3 text-emerald-400" />
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Décision prise</span>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
                         </div>
 
+                        {poll.outcome && (
+                            <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
+                                <Crown className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Décision validée</span>
+                            </div>
+                        )}
+
                         <div>
-                            <h3 className="text-white font-black text-2xl tracking-tighter group-hover:text-cyan-400 transition-colors line-clamp-2 leading-[1.1]">
+                            <h3 className="text-white font-black text-2xl sm:text-3xl tracking-tighter group-hover:text-cyan-400 transition-colors line-clamp-2 leading-[1.05]">
                                 {poll.title}
                             </h3>
                             {poll.description && (
-                                <p className="text-zinc-400 text-sm mt-3 line-clamp-2 leading-relaxed font-medium">{poll.description}</p>
+                                <p className="text-zinc-500 text-sm mt-4 line-clamp-2 leading-relaxed font-medium max-w-[90%]">
+                                    {poll.description}
+                                </p>
                             )}
                         </div>
 
                         {/* Mini result bars */}
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {poll.options.slice(0, 3).map((option) => {
                                 const percent = totalVotes > 0 ? (option._count.votes / totalVotes) * 100 : 0;
                                 const isWinning = option._count.votes === maxVotes && totalVotes > 0;
                                 return (
-                                    <div key={option.id} className="relative">
-                                        <div className="flex items-center justify-between text-xs uppercase tracking-widest font-black mb-2 px-0.5">
+                                    <div key={option.id} className="relative group/option">
+                                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] font-black mb-2.5 px-0.5">
                                             <span className={cn(
-                                                "truncate max-w-[80%] transition-colors",
-                                                isWinning ? "text-white" : "text-zinc-500"
+                                                "truncate max-w-[80%] transition-all",
+                                                isWinning ? "text-white scale-105 origin-left" : "text-zinc-600 group-hover/option:text-zinc-400"
                                             )}>
-                                                {option.emoji && <span className="mr-2 opacity-80">{option.emoji}</span>}
+                                                {option.emoji && <span className="mr-2 text-sm opacity-80">{option.emoji}</span>}
                                                 {option.label}
                                             </span>
-                                            <span className={cn("tabular-nums", isWinning ? cat.color : "text-zinc-600")}>
+                                            <span className={cn("tabular-nums font-black", isWinning ? cat.color : "text-zinc-700")}>
                                                 {Math.round(percent)}%
                                             </span>
                                         </div>
-                                        <div className="h-2 rounded-full bg-white/[0.03] overflow-hidden p-[1px]">
+                                        <div className="h-1.5 rounded-full bg-white/[0.02] border border-white/5 overflow-hidden">
                                             <motion.div
                                                 className={cn(
-                                                    "h-full rounded-full transition-all duration-700",
-                                                    isWinning ? "shadow-[0_0_10px_rgba(255,255,255,0.1)]" : "opacity-30"
+                                                    "h-full rounded-full relative",
+                                                    isWinning ? "shadow-[0_0_15px_rgba(255,255,255,0.05)]" : "opacity-20"
                                                 )}
                                                 style={{
                                                     background: isWinning
-                                                        ? `linear-gradient(90deg, ${cat.glowColor.replace("0.4", "0.8")}, ${cat.glowColor.replace("0.4", "1")})`
-                                                        : cat.glowColor.replace("0.4", "0.5")
+                                                        ? `linear-gradient(90deg, ${cat.glowColor.replace("0.4", "1")}, ${cat.glowColor.replace("0.4", "0.6")})`
+                                                        : cat.glowColor.replace("0.4", "0.3")
                                                 }}
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${percent}%` }}
-                                                transition={{ delay: index * 0.06 + 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                                                transition={{ delay: index * 0.06 + 0.3, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                                             />
                                         </div>
                                     </div>
                                 );
                             })}
                             {poll.options.length > 3 && (
-                                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.3em] text-center pt-2">
+                                <p className="text-zinc-700 text-[9px] font-black uppercase tracking-[0.4em] text-center pt-2 italic opacity-60 group-hover:opacity-100 transition-opacity">
                                     + {poll.options.length - 3} options supplémentaires
                                 </p>
                             )}
@@ -218,31 +219,28 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
 
                     {/* Footer */}
                     <div className={cn(
-                        "flex items-center justify-between px-4 py-2.5 border-t relative z-10",
-                        "border-white/[0.03] bg-white/[0.015]",
+                        "flex items-center justify-between px-6 py-4 border-t relative z-10",
+                        "border-white/[0.03] bg-white/[0.01]",
                     )}>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-zinc-500">
-                            <span className="text-[10px] font-black uppercase text-zinc-600">
-                                par <span className="text-zinc-400 group-hover:text-cyan-400 transition-colors underline underline-offset-2">{poll.creatorName}</span>
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                            <span className="flex items-center gap-2">
+                                <span className="opacity-40">Par</span>
+                                <span className="text-zinc-400 group-hover:text-cyan-400 transition-colors decoration-cyan-500/30 underline-offset-4 decoration-dotted underline">{poll.creatorName}</span>
                             </span>
-                            <div className="flex items-center gap-4">
-                                <span className="flex items-center gap-1.5 border-l border-white/5 pl-4 first:border-0 first:pl-0">
-                                    <Users className="w-3.5 h-3.5" />
-                                    {totalVotes}
+                            <div className="flex items-center gap-5">
+                                <span className="flex items-center gap-2 text-zinc-500 border-l border-white/5 pl-5 first:border-0 first:pl-0">
+                                    <Users className="w-3.5 h-3.5 opacity-50" />
+                                    {totalVotes} <span className="opacity-40 font-bold">votes</span>
                                 </span>
-                                <span className="flex items-center gap-1.5">
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    {poll._count.options} options
-                                </span>
+                                {timeLeft && isActive && (
+                                    <span className="flex items-center gap-2 text-amber-500/60 border-l border-white/5 pl-5">
+                                        <Clock className="w-3.5 h-3.5 opacity-50" />
+                                        {timeLeft}
+                                    </span>
+                                )}
                             </div>
-                            {timeLeft && isActive && (
-                                <span className="flex items-center gap-1.5 text-amber-500/80">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    {timeLeft}
-                                </span>
-                            )}
                         </div>
-                        <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-1 transition-all" />
+                        <ChevronRight className="w-5 h-5 text-zinc-800 group-hover:text-cyan-500 group-hover:translate-x-1.5 transition-all duration-300" />
                     </div>
                 </div>
             </Link>

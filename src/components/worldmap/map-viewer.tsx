@@ -17,7 +17,27 @@ const MapWithNoSSR = dynamic<any>(
     }
 );
 
-export function MapViewer({ initialLadder, initialKingLadder, initialTab, gameStatuses }: { initialLadder?: any[], initialKingLadder?: any[], initialTab?: 'map' | 'games', gameStatuses?: any[] }) {
+export function MapViewer({ 
+    initialLadder, 
+    initialKingLadder, 
+    initialTab, 
+    gameStatuses,
+    initialX,
+    initialY,
+    initialZoom,
+    initialWorldId,
+    hideUI
+}: { 
+    initialLadder?: any[], 
+    initialKingLadder?: any[], 
+    initialTab?: 'map' | 'games', 
+    gameStatuses?: any[],
+    initialX?: number,
+    initialY?: number,
+    initialZoom?: number,
+    initialWorldId?: number,
+    hideUI?: boolean
+}) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -72,6 +92,11 @@ export function MapViewer({ initialLadder, initialKingLadder, initialTab, gameSt
             initialKingLadder={initialKingLadder}
             initialTab={initialTab} 
             gameStatuses={gameStatuses} 
+            initialX={initialX}
+            initialY={initialY}
+            initialZoom={initialZoom}
+            initialWorldId={initialWorldId}
+            hideUI={hideUI}
         />
     );
 }

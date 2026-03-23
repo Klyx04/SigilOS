@@ -29,7 +29,7 @@ export function AltPseudos({
     altPseudos = [],
     onSave,
     readOnly = false,
-    maxPseudos = 5,
+    maxPseudos = 10,
 }: AltPseudosProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [localPseudos, setLocalPseudos] = useState<Mule[]>([]);
@@ -56,8 +56,8 @@ export function AltPseudos({
     }, [altPseudos]);
 
     const formatPseudo = (value: string) => {
-        // Supprimer les caractères spéciaux non autorisés (autorise lettres, chiffres, tirets)
-        const cleaned = value.replace(/[^a-zA-Z0-9\u00C0-\u017F\u00DF\u00FF\u0100-\u017F-]/g, "");
+        // Supprimer les chiffres et caractères spéciaux (autorise UNIQUEMENT lettres et tirets)
+        const cleaned = value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F-]/g, "");
         if (!cleaned) return "";
         
         // Formater : 1ère lettre majuscule, reste minuscule. Si '-', 1ère lettre après '-' majuscule.

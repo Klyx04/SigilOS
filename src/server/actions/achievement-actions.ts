@@ -8,6 +8,7 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkGuildPermission } from "@/server/actions/user-actions";
 import { deleteProofFile } from "@/lib/storage-utils";
+import { createAuditLog } from "@/server/actions/audit-actions";
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -92,13 +93,31 @@ export async function validateAchievementSubmission(
         });
 
         // Update submission status
-        await (db as any).achievementSubmission.update({
+        const updated = await (db as any).achievementSubmission.update({
             where: { id: submissionId },
             data: {
                 status,
                 validatorId: session.user.id,
                 validatedAt: new Date(),
                 proofUrl: "" // Clear URL after deletion
+            },
+            include: { profile: { include: { user: true } } }
+        });
+
+        // Audit Log
+        await createAuditLog({
+            guildId: submission.guild.discordGuildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: (status === "VALIDATED" ? "SUCCESS_SYNC" : "MISSION_REJECTED") as any,
+            targetType: "PROFILE" as any,
+            targetId: submission.profileId,
+            metadata: {
+                points: submission.points,
+                submitterName: updated.profile.pseudoDofus || updated.profile.discordNickname || updated.profile.user.name,
+                status,
+                source: "dashboard",
+                description: `Mise à jour Ladder (${submission.points} pts)`
             }
         });
 

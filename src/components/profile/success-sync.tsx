@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Upload, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from "lucide-react";
-import { syncMemberSuccessPoints } from "@/server/actions/profile-actions";
+import { syncMemberSuccessPoints, refreshUserSuccessPoints } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -27,10 +27,13 @@ interface SuccessSyncProps {
     } | null;
     onCancel?: () => void;
     targetUserId?: string;
+    canSyncLadder?: boolean;
+    isSuperAdmin?: boolean;
+    isAdmin?: boolean;
 }
 
 import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
-import { ExternalLink, Info, MapPin, MousePointer2, UserSearch } from "lucide-react";
+import { ExternalLink, Info, MapPin, MousePointer2, UserSearch, RefreshCw } from "lucide-react";
 
 export function SuccessSync({
     guildId,
@@ -43,7 +46,10 @@ export function SuccessSync({
     onSuccess,
     pendingSubmission,
     onCancel,
-    targetUserId
+    targetUserId,
+    canSyncLadder = false,
+    isSuperAdmin = false,
+    isAdmin = false
 }: SuccessSyncProps) {
     const [isUploading, setIsUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
@@ -67,6 +73,26 @@ export function SuccessSync({
             onCancel?.();
         } else {
             toast.error(res.error || "Erreur lors de l'annulation");
+        }
+    };
+
+    const handleLadderSync = async () => {
+        if (isUploading || lastScanResult?.pending) return;
+
+        setIsUploading(true);
+        try {
+            const res = await refreshUserSuccessPoints(guildId);
+            if (res.success && res.data) {
+                toast.success(`Succès synchronisés via Ladder : ${res.data.points} points ! (Niv. ${res.data.level})`);
+                setLastScanResult({ points: res.data.points });
+                onSuccess?.(res.data.points);
+            } else {
+                toast.error(res.error || "Échec de la synchronisation via Ladder.");
+            }
+        } catch (err) {
+            toast.error("Une erreur est survenue lors de la synchronisation.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -218,7 +244,7 @@ export function SuccessSync({
                             ) : isUploading ? (
                                 <div className="flex flex-col items-center gap-2 animate-pulse">
                                     <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-                                    <span className="text-sm font-medium text-amber-200">Analyse de l'image en cours...</span>
+                                    <span className="text-sm font-medium text-amber-200">Synchronisation en cours...</span>
                                 </div>
                             ) : (
                                 <>

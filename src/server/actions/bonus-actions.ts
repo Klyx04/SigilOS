@@ -387,8 +387,8 @@ export async function purchaseBonus(
             const { sendChannelMessage } = await import("@/server/discord");
 
             let mentionText = "";
-            if (validated.mentionType === MentionType.EVERYONE) mentionText = "@everyone";
-            else if (validated.mentionType === MentionType.ROLE && validated.roleId) mentionText = `<@&${validated.roleId}>`;
+            if (validated.mentionType === MentionType.EVERYONE) mentionText = "Bonjour @everyone !";
+            else if (validated.mentionType === MentionType.ROLE && validated.roleId) mentionText = `Bonjour <@&${validated.roleId}> !`;
 
             const discordTimestamp = Math.floor(activatesAt.getTime() / 1000);
 

@@ -40,6 +40,16 @@ export default async function QueteOcrePage({
     // Fetch user's Quête Ocre data
     const ocreResponse = await getMyOcreProgress(guildId);
 
+    // Fetch user profile for Metamob info (required for linking state)
+    const profile = await db.userProfile.findFirst({
+        where: { userId: session.user.id, guildId: user.id }, // user.id here is the internal guildConfig.id from getUserContext
+        select: {
+            metamobPseudo: true,
+            metamobVerified: true,
+            metamobLastSync: true
+        }
+    });
+
     // Fetch if guild has Ocre discord channel
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
@@ -68,7 +78,13 @@ export default async function QueteOcrePage({
                         {ocreResponse.success && ocreResponse.data ? (
                             <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
                         ) : (
-                            <NotLinkedState guildId={guildId} error={ocreResponse.error} />
+                            <NotLinkedState 
+                                guildId={guildId} 
+                                error={ocreResponse.error}
+                                metamobPseudo={profile?.metamobPseudo}
+                                metamobVerified={profile?.metamobVerified}
+                                metamobLastSync={profile?.metamobLastSync}
+                            />
                         )}
                     </div>
 

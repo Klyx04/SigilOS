@@ -61,6 +61,18 @@ export async function GET(
     let since = new Date();
     let closed = false;
 
+    // Max stream lifetime: 3 minutes. After this the client's EventSource
+    // auto-reconnects, keeping connections fresh and avoiding pool exhaustion.
+    const MAX_STREAM_LIFETIME_MS = 3 * 60 * 1000;
+
+    const closeStream = (controller: ReadableStreamDefaultController, poll: ReturnType<typeof setInterval>, maxLifetime: ReturnType<typeof setTimeout>) => {
+        if (closed) return;
+        closed = true;
+        clearInterval(poll);
+        clearTimeout(maxLifetime);
+        try { controller.close(); } catch { }
+    };
+
     const stream = new ReadableStream({
         async start(controller) {
             const encode = (data: string) => new TextEncoder().encode(data);
@@ -99,22 +111,20 @@ export async function GET(
                         // Keep-alive ping
                         controller.enqueue(encode(": ping\n\n"));
                     }
-                } catch (err) {
-                    clearInterval(poll);
-                    if (!closed) {
-                        closed = true;
-                        try { controller.close(); } catch (e) {}
-                    }
+                } catch {
+                    closeStream(controller, poll, maxLifetime);
                 } finally {
                     isPolling = false;
                 }
             }, 8000); // Poll DB every 8s
 
+            // Auto-close after max lifetime — client EventSource reconnects automatically
+            const maxLifetime = setTimeout(() => {
+                closeStream(controller, poll, maxLifetime);
+            }, MAX_STREAM_LIFETIME_MS);
+
             req.signal.addEventListener("abort", () => {
-                if (closed) return;
-                closed = true;
-                clearInterval(poll);
-                try { controller.close(); } catch (e) {}
+                closeStream(controller, poll, maxLifetime);
             });
         },
     });

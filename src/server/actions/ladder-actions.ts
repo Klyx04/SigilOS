@@ -24,6 +24,8 @@ export type LadderEntry = {
     pseudoDofus: string | null;
     classe: string | null;
     value: number;
+    dofusLevel?: number;
+    totalXpBigInt?: string;
     isCurrentUser: boolean;
     isAdmin: boolean;
 };
@@ -68,19 +70,18 @@ export async function getActivityLadder(
             let startDate: Date;
 
             if (view === "weekly") {
-                // Reset every Monday at 08:00 (Paris time is UTC+1/+2, but we work in server time)
-                // Find last Monday at 08:00
+                // Reset every Tuesday at 07:00 (Dofus Maintenance / Week start)
                 const now = new Date();
-                const day = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-                const daysSinceMonday = day === 0 ? 6 : day - 1;
-                const monday = new Date(now);
-                monday.setDate(now.getDate() - daysSinceMonday);
-                monday.setHours(8, 0, 0, 0);
-                // If we're Monday but before 8am, use previous Monday
-                if (now < monday) {
-                    monday.setDate(monday.getDate() - 7);
+                const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue ... 6=Sat
+                const daysSinceTuesday = (day + 7 - 2) % 7;
+                const tuesday = new Date(now);
+                tuesday.setDate(now.getDate() - daysSinceTuesday);
+                tuesday.setHours(7, 0, 0, 0);
+                // If we're Tuesday but before 7am, use previous Tuesday
+                if (now < tuesday) {
+                    tuesday.setDate(tuesday.getDate() - 7);
                 }
-                startDate = monday;
+                startDate = tuesday;
             } else {
                 // Monthly: first day of current month at 00:00
                 const now = new Date();
@@ -384,6 +385,88 @@ export async function getSuccessLadder(
     } catch (error) {
         console.error("[getSuccessLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement des succès" };
+    }
+}
+
+/**
+ * Get General Ladder (Total XP ranking)
+ */
+export async function getGeneralLadder(
+    guildId: string
+): Promise<ActionResponse<LadderEntry[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id }
+        });
+
+        // We only show characters that have totalXp indexed
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                totalXp: { not: null }
+            },
+            select: {
+                id: true,
+                discordNickname: true,
+                discordRoleColor: true,
+                discordRoleName: true,
+                discordJoinedAt: true,
+                pseudoDofus: true,
+                classe: true,
+                dofusLevel: true,
+                totalXp: true,
+                user: {
+                    select: { image: true }
+                }
+            },
+            orderBy: [
+                { totalXp: "desc" },
+                { discordJoinedAt: "asc" } 
+            ]
+        });
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
+
+        const ladder: LadderEntry[] = profiles.map((p, idx) => {
+            return {
+                rank: idx + 1,
+                profileId: p.id,
+                discordNickname: p.discordNickname,
+                discordRoleColor: p.discordRoleColor,
+                discordImage: p.user.image,
+                pseudoDofus: p.pseudoDofus,
+                classe: p.classe,
+                dofusLevel: p.dofusLevel || undefined,
+                totalXpBigInt: p.totalXp?.toString() || "0",
+                value: 0, // We use bigInt payload for UI
+                isCurrentUser: p.id === currentProfile?.id,
+                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
+            };
+        });
+
+        return { success: true, data: ladder };
+    } catch (error) {
+        console.error("[getGeneralLadder] Error:", error);
+        return { success: false, error: "Erreur lors du chargement du classement général" };
     }
 }
 

@@ -8,8 +8,8 @@
         "dev": "node --loader ts-node/esm --watch index.ts"
     },
     "dependencies": {
-        "discord.js": "^14.16.3",
-        "@prisma/client": "^7.4.2"
+        "@prisma/client": "^7.5.0",
+        "discord.js": "^14.16.3"
     },
     "devDependencies": {
         "@types/node": "^22.10.5",

@@ -182,26 +182,32 @@ async function processLadderSync(job: Job) {
     logger.info(`[LadderSync] ⚔️ Démarrage (Job ${job.id})...`);
     await job.updateProgress(0);
 
+    const isForced = job.data?.force === true;
+    
     // ── 1. Fetch eligible profiles ────────────────────────────────────────────
     // Only sync guilds with ladderSync module enabled AND dofusServerId configured
-    // Use lastLadderUpdate (existing field) to skip profiles synced < 22h ago
+    // Use lastLadderUpdate (existing field) to skip profiles synced < 22h ago unless forced
     const cutoff = new Date(Date.now() - MIN_HOURS_BETWEEN_SYNC * 60 * 60 * 1000);
 
-    const profiles = await db.userProfile.findMany({
-        where: {
-            status: "ACTIVE",
-            pseudoDofus: { not: null },
-            guild: {
-                dofusServerId: { not: null },
-                // Only sync guilds that have explicitly enabled the ladderSync module
-                modules: { ladderSync: true },
-            },
-            // Skip profiles synced less than 22h ago
-            OR: [
-                { lastLadderUpdate: null },
-                { lastLadderUpdate: { lt: cutoff } },
-            ],
+    const whereClause: any = {
+        status: "ACTIVE",
+        pseudoDofus: { not: null },
+        guild: {
+            dofusServerId: { not: null },
+            // Only sync guilds that have explicitly enabled the ladderSync module
+            modules: { ladderSync: true },
         },
+    };
+
+    if (!isForced) {
+        whereClause.OR = [
+            { lastLadderUpdate: null },
+            { lastLadderUpdate: { lt: cutoff } },
+        ];
+    }
+
+    const profiles = await db.userProfile.findMany({
+        where: whereClause,
         select: {
             id: true,
             pseudoDofus: true,

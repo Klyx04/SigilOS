@@ -584,7 +584,7 @@ export async function triggerGlobalLadderSync() {
 
     try {
         const { ladderQueue } = await import("@/workers/ladder-sync-worker");
-        const job = await ladderQueue.add("manual-ladder-sync", {});
+        const job = await ladderQueue.add("manual-ladder-sync", { force: true });
         
         return { success: true, message: `Tâche Ladder (Job ${job.id}) envoyée dans la file.` };
     } catch (err: any) {

@@ -106,6 +106,14 @@ export function SuccessSync({
             return;
         }
 
+        // 🛡️ NSFW Safety Check
+        const { analyzeImageSafety } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(file);
+        if (!safety.isSafe) {
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
+            return;
+        }
+
         setIsUploading(true);
         const reader = new FileReader();
         reader.readAsDataURL(file);

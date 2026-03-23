@@ -48,12 +48,24 @@ export default async function AdminLogsPage({ params }: Props) {
         console.error("[AdminLogs] Failed to fetch role names:", error);
     }
 
-    // Convert dates to strings for client component
-    const serializedLogs = logs.map(log => ({
-        ...log,
-        createdAt: log.createdAt.toISOString(),
-        metadata: log.metadata as any,
-    }));
+    // Convert dates and BigInts for client component
+    const serializedLogs = logs.map(log => {
+        // Handle BigInts in metadata/oldValue/newValue (Prisma Json fields)
+        const stringify = (val: any) => {
+            if (!val) return val;
+            return JSON.parse(JSON.stringify(val, (_, v) => 
+                typeof v === 'bigint' ? v.toString() : v
+            ));
+        };
+
+        return {
+            ...log,
+            createdAt: log.createdAt.toISOString(),
+            metadata: stringify(log.metadata),
+            oldValue: stringify(log.oldValue),
+            newValue: stringify(log.newValue),
+        };
+    });
 
     return (
         <div className="space-y-6 pb-12">

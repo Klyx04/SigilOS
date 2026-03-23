@@ -25,9 +25,20 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
 
     const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
-    const handleFile = (f: File) => {
+    const handleFile = async (f: File) => {
         if (!ALLOWED.includes(f.type)) { toast.error("Format invalide. JPEG, PNG ou WebP uniquement."); return; }
         if (f.size > 5 * 1024 * 1024) { toast.error("Fichier trop lourd (max 5 MB)."); return; }
+        
+        // 🛡️ NSFW Safety Check
+        const { analyzeImageSafety } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(f);
+        if (!safety.isSafe) {
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.", {
+                description: "Cette action a été signalée aux administrateurs."
+            });
+            return;
+        }
+
         setFile(f);
         setPreview(URL.createObjectURL(f));
     };

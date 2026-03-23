@@ -292,6 +292,14 @@ export function PresentationForm({ guildId }: Props) {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // 🛡️ NSFW Safety Check
+        const { analyzeImageSafety } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(file);
+        if (!safety.isSafe) {
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
+            return;
+        }
+
         const formData = new FormData();
         formData.append("file", file);
 

@@ -19,6 +19,7 @@ interface PlatformConfigPanelProps {
         statusMode: string;
         statusMention: string;
         statusFrequency: number;
+        nsfwFilterEnabled: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -34,7 +35,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         statusIsLite: config?.statusIsLite || false,
         statusMode: config?.statusMode || "living",
         statusMention: config?.statusMention || "none",
-        statusFrequency: config?.statusFrequency || 15
+        statusFrequency: config?.statusFrequency || 15,
+        nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true
     });
 
     const handleSave = () => {
@@ -190,7 +192,33 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 </Select>
                             </div>
                          </div>
-                    </div>
+                     </div>
+ 
+                     {/* NSFW Safety Section */}
+                     <div className="space-y-4 pt-4 border-t border-white/5">
+                        <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                            <Shield className="w-3.5 h-3.5" /> Sécurité des Contenus (IA)
+                        </h4>
+                        
+                        <div className="flex items-center justify-between p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl group/toggle">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest block">Filtre NSFW Client-Side</label>
+                                <p className="text-[10px] text-zinc-600 font-medium max-w-[200px] leading-relaxed">Analyse les images via TensorFlow.js avant l'upload sur le VPS.</p>
+                            </div>
+                            <Select 
+                                value={formData.nsfwFilterEnabled ? "ENABLED" : "DISABLED"} 
+                                onValueChange={(val) => setFormData(prev => ({ ...prev, nsfwFilterEnabled: val === "ENABLED" }))}
+                            >
+                                <SelectTrigger className="w-32 bg-black/40 border-white/5 rounded-xl text-zinc-400 h-10 hover:border-rose-500/30 transition-all">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    <SelectItem value="ENABLED">🛡️ Activé</SelectItem>
+                                    <SelectItem value="DISABLED">🔓 Désactivé</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                     </div>
                 </div>
 
                 {/* Section Ticket System */}

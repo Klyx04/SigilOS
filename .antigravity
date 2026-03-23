@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-16)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-23)
 
-**Branche Active** : `feat/suite-dev-batch2` (Deduplication & Security)  
-**Status** : Implémentation du hachage perceptuel (dHash) global pour prévenir les doublons d'images, sécurisation cross-module (Missions/Prêts/Coffre) et mise à jour de l'infra de stockage.
+**Branche Active** : `feat/dofus-ladder-sync` (Ladder Worker & God Robustness)  
+**Status** : Fix du synchronisateur de ladder (Worker Secrets), sécurisation du GOD Dashboard (Error Boundaries) et automatisation de l'onboarding Discord.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -377,6 +377,19 @@ git push origin feat/ma-branche
 
 ---
 
+### Session — Ladder Sync, God Robustness & Onboarding (2026-03-23)
+
+- ✅ **Ladder Sync Worker (Fix)** : Résolution des erreurs `401 Unauthorized` via synchronisation des secrets Cloudflare (`WORKER_SECRET`) et correction des variables d'environnement (`DOFUS_LADDER_WORKER_KEY`).
+- ✅ **Manual Trigger Bypass** : Ajout du paramètre `force: true` dans la file d'attente BullMQ pour ignorer le cache Cloudflare lors d'une demande manuelle.
+- ✅ **God Dashboard Robustness** :
+  - Création de `error.tsx` (Error Boundary) pour isoler les crashs de composants.
+  - Sécurisation de tous les Server Components (`PlatformConfigServer`, `TicketsServer`, `GhostUsersServer`) avec des `try/catch` et fallbacks visuels en cas d'échec de l'API Discord ou de la DB.
+- ✅ **Ticket Validation Workflow** : Fix du bug critique d'Audit Log (FK constraint `PLATFORM` inexistante). La validation de guilde est désormais atomique et résiliente aux erreurs de notification.
+- ✅ **Bot Welcome Onboarding** : Automatisation de l'envoi d'un embed de bienvenue lors de l'arrivée du bot (Gateway). Guide en 3 étapes (Login Beta, Déployer, RBAC) pour une expérience client "pro".
+- ✅ **Sync Game Data** : Fix des assets d'épreuves de songes et nettoyage des logs de production.
+
+---
+
 ## 🔒 Sécurité & Standards (Aligné avec RULES.md & SECURITY.md)
 
 ### 1. Patterns Applicatifs (Server Actions & Stocks)
@@ -471,7 +484,10 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - **Sondages Premium** : PIM compatible, Progress bars Discord.
 - **Passages & Prêts** : Gestion des preuves par capture d'écran, archivage auto.
 - **Onboarding Premium** : Embeds de bienvenue stylisés guilde-par-guilde.
-- **Landing Cockpit (NEW)** : Gestion multi-guilde via Drawer latéral premium.
+- **Landing Cockpit** : Gestion multi-guilde via Drawer latéral premium.
+- **Ladder Sync Worker** : Mise à jour auto XP/Succès Ankama via Cloudflare Worker.
+- **God Resilience** : Dashboard super-admin protégé contre les crashs API tiers.
+- **Auto-Onboarding Bot** : Message de bienvenue automatique avec instructions Beta.
 
 ---
 

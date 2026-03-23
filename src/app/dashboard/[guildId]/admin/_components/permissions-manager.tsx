@@ -7,7 +7,7 @@ import { updateRBACMapping } from "@/server/actions/admin-actions";
 import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
 import { cn } from "@/lib/utils";
-import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert } from "lucide-react";
+import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 type Role = {
@@ -166,195 +166,107 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     }, [permState]);
 
     const totalConfigured = useMemo(() => Object.values(permState).filter(r => r.length > 0).length, [permState]);
+    return (
+        <div className="space-y-8 relative">
+            {/* Background Ambient Glow */}
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] radial-gradient blur-[160px] rounded-full pointer-events-none" />
 
-    return (
-        <div className="space-y-4">
-            {/* Sticky save bar */}
-            <div className="flex justify-between items-center bg-zinc-900/80 backdrop-blur-sm px-4 py-3 rounded-xl border border-white/8 sticky top-4 z-10">
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-white">Gestion des Droits</span>
-                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                        {totalConfigured}/{Object.values(PERMISSIONS).length} configurés
-                    </span>
+            {/* Sticky Action Bar — Sigma 2026 Style */}
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-zinc-800/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-white/20 sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
+                <div className="flex items-center gap-5">
+                    <div className="p-3 bg-primary/20 rounded-2xl border border-primary/40 shadow-[0_0_20px_rgba(var(--primary),0.3)]">
+                        <ShieldAlert className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-black text-white leading-none tracking-tight uppercase">Matrice des Droits</h2>
+                        <div className="flex items-center gap-3 mt-2">
+                            <div className="h-2 w-48 bg-white/10 rounded-full overflow-hidden border border-white/5">
+                                <div 
+                                    className="h-full bg-primary transition-all duration-700"
+                                    style={{ 
+                                        width: `${(totalConfigured / Object.values(PERMISSIONS).length) * 100}%`,
+                                        boxShadow: `0 0 15px var(--primary)`
+                                    }}
+                                />
+                            </div>
+                            <span className="text-[10px] font-black text-white tracking-widest uppercase">
+                                {totalConfigured} / {Object.values(PERMISSIONS).length} Activés
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={isPending}
-                    size="sm"
-                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
+                
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-72">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                        <Input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search nodes..."
+                            className="pl-11 bg-black/40 border-white/10 h-12 rounded-2xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-zinc-500 text-white"
+                        />
+                    </div>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isPending}
+                        className="bg-white hover:bg-primary text-black font-black rounded-2xl h-12 px-8 transition-all hover:scale-[1.05] active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                    >
+                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 mr-3" />}
+                        {isPending ? "SYNCHRONIZING..." : "SAUVEGARDER"}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Module Filter Island */}
+            <div className="flex flex-wrap gap-2.5 p-2.5 bg-zinc-800/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar shadow-xl">
+                <button
+                    onClick={() => setActiveModule("all")}
+                    className={cn(
+                        "px-5 py-2.5 rounded-xl text-[11px] font-black tracking-widest uppercase transition-all whitespace-nowrap border",
+                        activeModule === "all"
+                            ? "bg-white text-black border-white shadow-[0_0_25px_rgba(255,255,255,0.25)]"
+                            : "bg-transparent text-zinc-400 border-transparent hover:text-white hover:bg-white/10"
+                    )}
                 >
-                    <Save className="w-3.5 h-3.5 mr-1.5" />
-                    {isPending ? "Sauvegarde..." : "Sauvegarder"}
-                </Button>
+                    ALL MODULES
+                </button>
+                {MODULE_ORDER.map(moduleKey => {
+                    const module = PERMISSION_MODULES[moduleKey];
+                    const isActive = activeModule === moduleKey;
+                    return (
+                        <button
+                            key={moduleKey}
+                            onClick={() => setActiveModule(moduleKey)}
+                            className={cn(
+                                "px-5 py-2.5 rounded-xl text-[11px] font-black tracking-widest uppercase transition-all whitespace-nowrap flex items-center gap-2.5 border",
+                                isActive
+                                    ? "text-white shadow-lg border-white/20"
+                                    : "text-zinc-400 border-transparent hover:text-white hover:bg-white/10"
+                            )}
+                            style={{ 
+                                backgroundColor: isActive ? `${module.color}40` : undefined,
+                                borderColor: isActive ? `${module.color}80` : undefined,
+                                boxShadow: isActive ? `0 0 25px ${module.color}30` : undefined
+                            }}
+                        >
+                            <span className="text-sm">{module.icon}</span>
+                            <span>{module.label}</span>
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Search bar */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-                <Input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Rechercher une permission, une description ou un rôle assigné..."
-                    className="pl-9 pr-9 bg-zinc-900/60 border-white/8 h-10 text-sm placeholder:text-zinc-600 focus-visible:ring-primary/40"
-                />
-                {searchQuery && (
-                    <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                )}
-                {isSearchActive && (
-                    <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                        {visiblePermissions.length} résultat{visiblePermissions.length !== 1 ? "s" : ""}
-                    </span>
-                )}
-            </div>
-
-            {/* Module filter chips */}
-            <div className="bg-zinc-900/60 rounded-xl border border-white/5 px-4 py-3">
-                <div className="flex items-center gap-2 mb-2.5">
-                    <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Filtrer par module</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                    <button
-                        onClick={() => setActiveModule("all")}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                            activeModule === "all"
-                                ? "bg-white/10 text-white border border-white/20"
-                                : "bg-zinc-800/50 text-muted-foreground hover:bg-zinc-800 hover:text-white border border-transparent"
-                        )}
-                    >
-                        Tous ({Object.values(PERMISSIONS).length})
-                    </button>
-                    {MODULE_ORDER.map(moduleKey => {
-                        const module = PERMISSION_MODULES[moduleKey];
-                        const count = permissionsByModule[moduleKey].length;
-                        const configured = moduleStats[moduleKey];
-                        return (
-                            <button
-                                key={moduleKey}
-                                onClick={() => setActiveModule(moduleKey)}
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
-                                    activeModule === moduleKey
-                                        ? "text-white border"
-                                        : "bg-zinc-800/50 text-muted-foreground hover:bg-zinc-800 hover:text-white border border-transparent"
-                                )}
-                                style={{
-                                    backgroundColor: activeModule === moduleKey ? `${module.color}20` : undefined,
-                                    borderColor: activeModule === moduleKey ? `${module.color}50` : undefined,
-                                }}
-                            >
-                                <span>{module.icon}</span>
-                                <span>{module.label}</span>
-                                <span className={cn(
-                                    "text-[10px] px-1 py-0 rounded",
-                                    configured > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-400"
-                                )}>
-                                    {configured}/{count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Permissions list */}
+            {/* Content Area */}
             {isSearchActive ? (
-                // Search results — flat list, no module grouping
-                <div className="rounded-xl border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {visiblePermissions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <Search className="w-8 h-8 text-zinc-700 mb-3" />
-                            <p className="text-sm font-bold text-zinc-500">Aucune permission trouvée</p>
-                            <p className="text-xs text-zinc-600 mt-1">Essaie un autre mot-clé ou nom de rôle</p>
+                        <div className="col-span-full py-32 text-center bg-zinc-800/20 rounded-[2rem] border border-dashed border-white/20">
+                            <Search className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                            <p className="text-zinc-400 font-extrabold uppercase tracking-widest text-sm">No assignments found for "{searchQuery}"</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                            {visiblePermissions.map((permId) => {
-                                const moduleColor = PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color;
-                                return (
-                                    <PermissionCard
-                                        key={permId}
-                                        permissionId={permId}
-                                        allRoles={roleOptions}
-                                        allUsers={memberOptions}
-                                        selectedRoleIds={permState[permId] || []}
-                                        selectedUserIds={userState[permId] || []}
-                                        onRolesChange={(ids) => handlePermChange(permId, ids)}
-                                        onUsersChange={(ids) => handleUserChange(permId, ids)}
-                                        onSave={handleSave}
-                                        moduleColor={moduleColor}
-                                    />
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            ) : activeModule === "all" ? (
-                <div className="space-y-3">
-                    {MODULE_ORDER.map(moduleKey => {
-                        const module = PERMISSION_MODULES[moduleKey];
-                        const modulePerms = permissionsByModule[moduleKey];
-                        if (modulePerms.length === 0) return null;
-                        const isCollapsed = collapsed[moduleKey];
-
-                        return (
-                            <div key={moduleKey} className="rounded-xl border border-white/5 overflow-hidden">
-                                {/* Module header */}
-                                <button
-                                    onClick={() => toggleCollapse(moduleKey)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-900/60 hover:bg-zinc-900/80 transition-colors text-left"
-                                >
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="text-base">{module.icon}</span>
-                                        <span className="text-sm font-bold" style={{ color: module.color }}>
-                                            {module.label}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-500">({modulePerms.length} droits)</span>
-                                        {moduleStats[moduleKey] > 0 && (
-                                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-                                                {moduleStats[moduleKey]} configuré{moduleStats[moduleKey] > 1 ? "s" : ""}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {isCollapsed
-                                        ? <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-                                        : <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />}
-                                </button>
-
-                                {/* Permission rows */}
-                                {!isCollapsed && (
-                                    <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                                        {modulePerms.map((permId) => (
-                                            <PermissionCard
-                                                key={permId}
-                                                permissionId={permId}
-                                                allRoles={roleOptions}
-                                                allUsers={memberOptions}
-                                                selectedRoleIds={permState[permId] || []}
-                                                selectedUserIds={userState[permId] || []}
-                                                onRolesChange={(ids: string[]) => handlePermChange(permId, ids)}
-                                                onUsersChange={(ids: string[]) => handleUserChange(permId, ids)}
-                                                onSave={handleSave}
-                                                moduleColor={module.color}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                // Filtered by specific module
-                <div className="rounded-xl border border-white/5 overflow-hidden">
-                    <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                        {visiblePermissions.map((permId) => (
+                        visiblePermissions.map(permId => (
                             <PermissionCard
                                 key={permId}
                                 permissionId={permId}
@@ -362,13 +274,105 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 allUsers={memberOptions}
                                 selectedRoleIds={permState[permId] || []}
                                 selectedUserIds={userState[permId] || []}
-                                onRolesChange={(ids: string[]) => handlePermChange(permId, ids)}
-                                onUsersChange={(ids: string[]) => handleUserChange(permId, ids)}
+                                onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                onUsersChange={(ids) => handleUserChange(permId, ids)}
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                             />
-                        ))}
-                    </div>
+                        ))
+                    )}
+                </div>
+            ) : activeModule === "all" ? (
+                <div className="space-y-20">
+                    {MODULE_ORDER.map(moduleKey => {
+                        const module = PERMISSION_MODULES[moduleKey];
+                        const modulePerms = permissionsByModule[moduleKey];
+                        if (modulePerms.length === 0) return null;
+                        const configuredCount = moduleStats[moduleKey];
+
+                        return (
+                            <section key={moduleKey} className="space-y-8">
+                                <div className="flex items-center justify-between px-4">
+                                    <div className="flex items-center gap-4">
+                                        <div 
+                                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-2xl relative overflow-hidden group"
+                                            style={{ backgroundColor: `${module.color}20`, border: `1px solid ${module.color}40` }}
+                                        >
+                                            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform" />
+                                            <span className="relative z-10">{module.icon}</span>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-black tracking-tighter uppercase italic" style={{ color: module.color }}>
+                                                {module.label}
+                                            </h2>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 text-[9px] font-black rounded uppercase tracking-tighter border border-white/10">
+                                                    {modulePerms.length} NODES
+                                                </span>
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                                    Protocol Matrix Ready
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="hidden md:flex flex-col items-end gap-2">
+                                        <div className="text-[10px] font-black text-white tracking-[0.2em] uppercase opacity-40">Validation Status</div>
+                                        <div className="flex gap-2">
+                                            {Array.from({ length: modulePerms.length }).map((_, i) => (
+                                                <div 
+                                                    key={i}
+                                                    className="h-2 w-7 rounded-[2px] transition-all duration-500 border border-white/5"
+                                                    style={{ 
+                                                        backgroundColor: i < configuredCount ? module.color : 'rgba(255,255,255,0.08)',
+                                                        boxShadow: i < configuredCount ? `0 0 12px ${module.color}50` : 'none'
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {modulePerms.map(permId => (
+                                        <PermissionCard
+                                            key={permId}
+                                            permissionId={permId}
+                                            allRoles={roleOptions}
+                                            allUsers={memberOptions}
+                                            selectedRoleIds={permState[permId] || []}
+                                            selectedUserIds={userState[permId] || []}
+                                            onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                            onUsersChange={(ids) => handleUserChange(permId, ids)}
+                                            onSave={handleSave}
+                                            moduleColor={module.color}
+                                        />
+                                    ))}
+                                </div>
+                                
+                                {moduleKey !== MODULE_ORDER[MODULE_ORDER.length - 1] && (
+                                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent pt-12" />
+                                )}
+                            </section>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visiblePermissions.map(permId => (
+                        <PermissionCard
+                            key={permId}
+                            permissionId={permId}
+                            allRoles={roleOptions}
+                            allUsers={memberOptions}
+                            selectedRoleIds={permState[permId] || []}
+                            selectedUserIds={userState[permId] || []}
+                            onRolesChange={(ids) => handlePermChange(permId, ids)}
+                            onUsersChange={(ids) => handleUserChange(permId, ids)}
+                            onSave={handleSave}
+                            moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
+                        />
+                    ))}
                 </div>
             )}
         </div>

@@ -320,7 +320,7 @@ export async function updateGuildPresentation(
 
     if (!user.isAdmin && !user.canEditPresentation) {
         // Log unauthorized access
-        await logAdminAccessDenied(guildId, "/admin/presentation");
+        await logAdminAccessDenied(guildId, "Modification de la Présentation");
         return { success: false, error: "Permission insuffisante" };
     }
 
@@ -395,7 +395,7 @@ export async function uploadPresentationImage(
     const user = await getUserContext(guildId);
 
     if (!user.isAuthenticated || (!user.isAdmin && !user.canEditPresentation)) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/upload");
+        await logAdminAccessDenied(guildId, "Upload d'image de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 
@@ -452,7 +452,7 @@ export async function deletePresentationImage(
     const user = await getUserContext(guildId);
 
     if (!user.isAuthenticated || (!user.isAdmin && !user.canEditPresentation)) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/delete-image");
+        await logAdminAccessDenied(guildId, "Suppression d'image de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 
@@ -508,7 +508,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
     }
 
     if (!user.isAdmin && !user.canEditPresentation) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/data");
+        await logAdminAccessDenied(guildId, "Lecture des données de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 

@@ -15,9 +15,10 @@ export type GuardResult = {
  * Checks: Owner OR Discord permission bit 0x8 (ADMINISTRATOR).
  * 
  * @param guildId - Discord Guild ID
+ * @param context - Human-readable name of the action/page being accessed (for logging)
  * @returns GuardResult with authorization status
  */
-export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
+export async function requireGuildAdmin(guildId: string, context: string = "Accès Dashboard Admin"): Promise<GuardResult> {
     const session = await auth();
     if (!session?.user?.id) {
         return { isAuthorized: false, error: "Unauthorized" };
@@ -70,13 +71,13 @@ export async function requireGuildAdmin(guildId: string): Promise<GuardResult> {
 
         if (!isAdmin) {
             const { logAdminAccessDenied } = await import("./audit-actions");
-            await logAdminAccessDenied(guildId, "ADMIN_GUARD_FAILURE");
+            await logAdminAccessDenied(guildId, context); // 🛡️ LOGGING WITH CONTEXT
             return { isAuthorized: false, error: "Admin permission required" };
         }
 
         return { isAuthorized: true, discordUserId };
     } catch (error) {
-        console.error("[Guard] Admin check failed:", error);
+        console.error(`[Guard] Admin check failed for ${context}:`, error);
         return { isAuthorized: false, error: "Permission check failed" };
     }
 }

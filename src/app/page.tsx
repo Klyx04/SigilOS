@@ -20,7 +20,7 @@ const jsonLd = {
   "applicationCategory": "GameApplication",
   "operatingSystem": "Web",
   "url": "https://sigilos.fr",
-  "description": "Plateforme de gestion de guilde Dofus tout-en-un : quêtes, Songes Infinis, Dungeon Finder, Ladder XP, bot Discord et outils communautaires.",
+  "description": "Le meilleur outil de gestion de guilde Dofus : quêtes, Songes Infinis, Dungeon Finder, Ladder XP et bot Discord.",
   "offers": {
     "@type": "Offer",
     "price": "0",

@@ -16,6 +16,21 @@ const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
 const CACHE_TTL = 30_000; // 30 seconds
 
+/**
+ * Invalidate cache for a specific user in a specific guild
+ */
+export async function invalidateUserContextCache(userId: string, guildId?: string) {
+    const profileCacheKey = `profile:${userId}:${guildId || ""}`;
+    profileCache.delete(profileCacheKey);
+}
+
+/**
+ * Invalidate cache for a whole guild configuration
+ */
+export async function invalidateGuildCache(guildId: string) {
+    configCache.delete(`config:${guildId}`);
+}
+
 export type UserContext = {
     isAuthenticated: boolean;
     id?: string;

@@ -45,7 +45,7 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const guard = await requireGuildAdmin(guildId, "Lecture des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -77,7 +77,7 @@ export async function updatePollSettings(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const guard = await requireGuildAdmin(guildId, "Mise à jour des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -495,6 +495,12 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         });
 
         if (!poll) return { success: false, error: "Sondage introuvable" };
+        
+        // 🔒 SECURITY: Multi-tenant isolation check
+        if (poll.guildId !== guildConfig.id) {
+            logger.error(`[Security] Cross-guild poll update attempt! User ${session.user.id} tried to update poll ${poll.id} from Guild ${guildConfig.id} but poll belongs to ${poll.guildId}`);
+            return { success: false, error: "Accès refusé" };
+        }
 
         const ctx = await getUserContext(data.guildId);
         const profile = await db.userProfile.findUnique({

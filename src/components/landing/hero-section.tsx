@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ChevronRight, LayoutDashboard, Users, Zap, Crown } from "lucide-react";
 import { DashboardDrawer } from "@/components/layout/dashboard-drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { loginWithDiscord } from "@/server/actions/auth-actions";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -68,7 +69,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                         </span>
                     ) : (
                         <span>
-                            L&apos;OS ultime <br /><span className="italic">pour les guildes d&apos;élite.</span>
+                            L&apos;outil de gestion n°1 <br /><span className="italic text-emerald-400">pour votre guilde Dofus.</span>
                         </span>
                     )}
                 </motion.h1>
@@ -82,7 +83,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                 >
                     {user
                         ? "Centralisez la gestion de vos membres, automatisez vos missions et coordonnez vos sorties depuis un cockpit unique."
-                        : "Le premier véritable système d'exploitation conçu pour la gestion haute performance de guildes sur Dofus Unity."
+                        : "Le tableau de bord le plus complet pour piloter votre guilde : quêtes, missions, Songes, sorties et ladder."
                     }
                 </motion.p>
 
@@ -206,18 +207,33 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                         </div>
                     ) : (
                         /* Logged Out View */
-                        <button
-                            onClick={() => setShowAccessModal(true)}
-                            className="group relative inline-flex items-center gap-5 px-12 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-base shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                            <DiscordIcon className="w-8 h-8 flex-shrink-0 text-[#000]" />
-                            <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Chef de Guilde ?</span>
-                                <span className="text-lg">Demander l&apos;accès</span>
-                            </span>
-                            <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                        </button>
+                        <div className="flex flex-col items-center gap-6">
+                            {/* Main Connection Button */}
+                            <form action={loginWithDiscord}>
+                                <button
+                                    type="submit"
+                                    className="group relative inline-flex items-center gap-5 px-14 py-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.15em] text-lg shadow-[0_24px_60px_-8px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] overflow-hidden"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+                                    <DiscordIcon className="w-8 h-8 flex-shrink-0 text-[#000]" />
+                                    <span className="flex flex-col items-start leading-none gap-1 text-left">
+                                        <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Accès Membre</span>
+                                        <span className="text-xl">Se Connecter</span>
+                                    </span>
+                                    <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                                </button>
+                            </form>
+
+                            {/* Secondary Request Access for Admins */}
+                            <button
+                                onClick={() => setShowAccessModal(true)}
+                                className="group inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-widest"
+                            >
+                                <span className="opacity-60">Chef de Guilde ?</span>
+                                <span>Demander l&apos;accès</span>
+                                <ChevronRight className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                            </button>
+                        </div>
                     )}
                 </motion.div>
             </div>

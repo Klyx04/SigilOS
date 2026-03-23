@@ -7,29 +7,20 @@ import { cn } from "@/lib/utils";
 function getTimeUntilReset() {
     const now = new Date();
 
-    // Create date for the next reset (Monday 08:00)
+    // Create date for the next reset (Tuesday 07:00)
     const reset = new Date(now);
 
-    const day = now.getDay(); // 0 is Sunday, 1 is Monday
-    const daysUntilMonday = (1 + 7 - day) % 7;
+    const day = now.getDay(); // 0 is Sunday, 1 is Monday, 2 is Tuesday
+    // (targetDay + 7 - currentDay) % 7. Tuesday is 2.
+    let daysUntilTuesday = (2 + 7 - day) % 7;
 
-    reset.setDate(now.getDate() + daysUntilMonday);
-    reset.setHours(8, 0, 0, 0);
-
-    // If today is Monday and it's already past 8am, next reset is next week
-    if (day === 1 && now.getHours() >= 8) {
-        reset.setDate(reset.getDate() + 7);
+    // If today is Tuesday and it's already past 7am, next reset is next week
+    if (day === 2 && now.getHours() >= 7) {
+        daysUntilTuesday = 7;
     }
-    // If today is NOT Monday, but the logic above landed on today (e.g. Sunday -> Monday is tomorrow), it's correct.
-    // However, if we are e.g. Tuesday, (1+7-2)%7 = 6 days. Correct.
 
-    // Edge case correction: If logic above sets reset to 'today' (because daysUntilMonday is 0, i.e. it is Monday)
-    // but time is past 8am, we already handled it.
-    // If it is Monday BEFORE 8am, daysUntilMonday is 0, reset is today 8am. Calculated correctly.
-    // Check if reset is in the past (which shouldn't happen with above logic, but safety first)
-    if (reset.getTime() <= now.getTime()) {
-        reset.setDate(reset.getDate() + 7);
-    }
+    reset.setDate(now.getDate() + daysUntilTuesday);
+    reset.setHours(7, 0, 0, 0);
 
     const diff = reset.getTime() - now.getTime();
 

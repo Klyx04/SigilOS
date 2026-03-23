@@ -46,6 +46,7 @@ const GeoguesserHUD = dynamic<any>(() => import('./GeoguesserHUD'), { ssr: false
 const MapDetailsPanel = dynamic<any>(() => import('./MapDetailsPanel'), { ssr: false });
 const DungeonDetailModal = dynamic<any>(() => import('./DungeonDetailModal').then(mod => mod.DungeonDetailModal), { ssr: false });
 const ZoneDetailModal = dynamic<any>(() => import('./ZoneDetailModal').then(mod => mod.ZoneDetailModal), { ssr: false });
+const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.MapHelpCard), { ssr: false });
 
 interface InteractiveMapProps {
     worldMap: WorldData;
@@ -53,12 +54,28 @@ interface InteractiveMapProps {
     initialKingLadder?: any[];
     initialTab?: 'map' | 'games';
     gameStatuses?: any[];
+    initialX?: number;
+    initialY?: number;
+    initialZoom?: number;
+    initialWorldId?: number;
+    hideUI?: boolean;
 }
 
-export default function InteractiveMapV2({ worldMap, initialLadder, initialKingLadder, initialTab, gameStatuses }: InteractiveMapProps) {
+export default function InteractiveMapV2({ 
+    worldMap, 
+    initialLadder, 
+    initialKingLadder, 
+    initialTab, 
+    gameStatuses,
+    initialX,
+    initialY,
+    initialZoom,
+    initialWorldId,
+    hideUI
+}: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const currentUserId = sessionData?.user?.id;
-    const [selectedWorldId, setSelectedWorldId] = useState(1);
+    const [selectedWorldId, setSelectedWorldId] = useState(initialWorldId || 1);
     const [activeTab, setActiveTab] = useState<'map' | 'games'>(initialTab || 'map');
     const searchParams = useSearchParams();
     const spectateRoomId = searchParams.get('spectateRoom');
@@ -69,11 +86,14 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     const [showDebugGrid, setShowDebugGrid] = useState(true);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
-    const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(null);
+    const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(
+        initialX !== undefined && initialY !== undefined ? { x: initialX, y: initialY } : null
+    );
     const [isMinimapExpanded, setIsMinimapExpanded] = useState(false);
     const [isMinimapHidden, setIsMinimapHidden] = useState(false);
     const [minimapRecenterTrigger, setMinimapRecenterTrigger] = useState(0);
     const [showZoneDetail, setShowZoneDetail] = useState(false);
+    const [showMapHelp, setShowMapHelp] = useState(!hideUI);
 
     // Mini-Jeux States
     const [gamePhase, setGamePhase] = useState<'idle' | 'countdown' | 'playing' | 'result' | 'summary'>('idle');
@@ -101,6 +121,14 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     const guildId = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '';
 
     const [socket, setSocket] = useState<Socket | null>(null);
+    
+    // Auto-sync state if initial props change (essential for embedded usage like Dungeon Finder)
+    useEffect(() => {
+        if (initialWorldId !== undefined) setSelectedWorldId(initialWorldId);
+        if (initialX !== undefined && initialY !== undefined) {
+            setTriggerCenterPosition({ x: initialX, y: initialY });
+        }
+    }, [initialWorldId, initialX, initialY]);
 
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
@@ -723,7 +751,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
 
         if (activeTab === 'games' && gamePhase === 'playing' && targetMapId) {
             setSelectedPosition(pos);
-        } else if (activeTab === 'map') {
+        } else if (activeTab === 'map' && !hideUI) {
             setSelectedPosition(pos);
         }
     };
@@ -899,7 +927,7 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
     return (
         <div className="w-full h-full flex flex-col bg-[#080b12] relative overflow-hidden">
             {/* Header & Controls (Hidden in focused games mode) */}
-            {(activeTab === 'map' || !initialTab) && (
+            {!hideUI && (activeTab === 'map' || !initialTab) && (
                 <div className="flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between h-[64px] z-[600]">
                     {/* Left: Navigation Tabs (Only if not in focused mode) */}
                     {!initialTab ? (
@@ -956,6 +984,18 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
                                 >
                                     {showDebugGrid ? <Eye size={14} /> : <EyeOff size={14} />}
+                                </button>
+
+                                {/* Help Toggle */}
+                                <button
+                                    onClick={() => setShowMapHelp(true)}
+                                    className={cn(
+                                        "p-2 rounded-xl border transition-all",
+                                        showMapHelp ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                    )}
+                                    title="Aide du Monde"
+                                >
+                                    <HelpCircle size={14} />
                                 </button>
 
                                 {/* Zone Search */}
@@ -1134,9 +1174,11 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     guessResult={guessResult}
                                     isMiniMap={true}
                                     minimapRecenterTrigger={minimapRecenterTrigger}
+                                    minimapZoomLevel={initialZoom}
                                     participants={activeSession?.participants}
                                     currentUserId={currentUserId}
                                     isSpectator={isCurrentUserSpectator}
+                                    hideUI={hideUI}
                                     minZoom={Math.max((true && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                                 />
 
@@ -1168,6 +1210,15 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                 {/* 🗺️ MODE NAVIGATION CARTE CLASSIQUE */}
                 {activeTab === 'map' && (
                     <div className="relative w-full h-full">
+                        <AnimatePresence>
+                            {showMapHelp && (
+                                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-4xl px-4 pointer-events-none">
+                                    <div className="pointer-events-auto">
+                                        <MapHelpCard onClose={() => setShowMapHelp(false)} />
+                                    </div>
+                                </div>
+                            )}
+                        </AnimatePresence>
                         <LeafletMapCore
                             activeWorld={activeWorld}
                             selectedWorldId={selectedWorldId}
@@ -1188,7 +1239,8 @@ export default function InteractiveMapV2({ worldMap, initialLadder, initialKingL
                                     participants={activeSession?.participants}
                                     currentUserId={currentUserId}
                                     isSpectator={isCurrentUserSpectator}
-                            minZoom={Math.max((false && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
+                                    hideUI={hideUI}
+                                    minZoom={Math.max((false && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                         />
                     </div>
                 )}

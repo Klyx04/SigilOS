@@ -143,6 +143,7 @@ interface EventDetail {
         image: string | null;
     };
     participants: Participant[];
+    discordMessageId?: string | null;
 }
 
 interface DiscordRole {
@@ -511,14 +512,14 @@ export function EventDetailModal({
                                             onClick={() => setShowRegistration(true)}
                                             disabled={isLoading}
                                             className={cn(
-                                                "h-14 rounded-2xl font-black text-base uppercase tracking-[0.1em] transition-all duration-500 shadow-xl relative group overflow-hidden border-t border-white/10 px-8",
+                                                "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-white/10 px-8",
                                                 isFull
                                                     ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30 text-white"
                                                     : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 text-white"
                                             )}
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            {isFull ? <Users className="h-5 w-5 mr-3" /> : <Check className="h-5 w-5 mr-3" />}
+                                            {isFull ? <Users className="h-4 w-4 mr-2.5" /> : <Check className="h-4 w-4 mr-2.5" />}
                                             {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}
                                         </Button>
                                     )}
@@ -529,9 +530,9 @@ export function EventDetailModal({
                                             variant="outline"
                                             onClick={() => handleAction(onUnregister)}
                                             disabled={isLoading}
-                                            className="h-14 rounded-2xl font-black text-base uppercase tracking-[0.1em] border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-300 px-8"
+                                            className="h-12 rounded-xl font-bold text-sm border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-300 px-6"
                                         >
-                                            <X className="h-5 w-5 mr-3" />
+                                            <X className="h-4 w-4 mr-2" />
                                             Se désinscrire
                                         </Button>
                                     )}
@@ -568,47 +569,48 @@ export function EventDetailModal({
                                     </Button>
                                 )}
 
-                                {event.status === "DRAFT" && onPublish && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleAction(onPublish)}
-                                        disabled={isLoading}
-                                        className="bg-green-600 hover:bg-green-500"
-                                    >
-                                        Publier
-                                    </Button>
+                                {canManage && !event.discordMessageId && onPublish && (
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleAction(onPublish)}
+                                            disabled={isLoading}
+                                            className="bg-green-600 hover:bg-green-500 font-bold"
+                                        >
+                                            <Share2 className="w-3.5 h-3.5 mr-2" />
+                                            Publier sur Discord
+                                        </Button>
                                 )}
 
                                 {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && (
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        disabled={isLoading}
-                                        onClick={() => {
-                                            setDiscordDialogMode("REMINDER");
-                                            setDiscordDialogOpen(true);
-                                        }}
-                                        className="text-amber-400 hover:bg-amber-500/10 rounded-full font-bold px-4"
-                                    >
-                                        <Bell className="h-4 w-4 mr-2" />
-                                        Rappel
-                                    </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={isLoading}
+                                            onClick={() => {
+                                                setDiscordDialogMode("REMINDER");
+                                                setDiscordDialogOpen(true);
+                                            }}
+                                            className="text-amber-400 hover:bg-amber-500/10 rounded-full font-bold px-4 h-9"
+                                        >
+                                            <Bell className="h-4 w-4 mr-2" />
+                                            Rappel inscrits
+                                        </Button>
                                 )}
 
                                 {event.status === "PUBLISHED" && onShareDiscord && (
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        disabled={isLoading}
-                                        onClick={() => {
-                                            setDiscordDialogMode("SHARE");
-                                            setDiscordDialogOpen(true);
-                                        }}
-                                        className="text-indigo-400 hover:bg-indigo-500/10 rounded-full font-bold px-4"
-                                    >
-                                        <Share2 className="h-4 w-4 mr-2" />
-                                        Annonce Discord
-                                    </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={isLoading}
+                                            onClick={() => {
+                                                setDiscordDialogMode("SHARE");
+                                                setDiscordDialogOpen(true);
+                                            }}
+                                            className="text-indigo-400 hover:bg-indigo-500/10 rounded-full font-bold px-4 h-9"
+                                        >
+                                            <Share2 className="h-4 w-4 mr-2" />
+                                            Reposter l'annonce
+                                        </Button>
                                 )}
 
                                 {onEdit && (

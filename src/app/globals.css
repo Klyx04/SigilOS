@@ -88,19 +88,19 @@
   }
 
   .glass-premium {
-    @apply backdrop-blur-xl;
-    background: linear-gradient(135deg, rgba(19, 23, 26, 0.7), rgba(14, 17, 16, 0.5));
+    @apply backdrop-blur-[32px] backdrop-saturate-[180%];
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0.4));
     border: 1px solid rgba(255, 255, 255, 0.05);
     position: relative;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .glass-premium:hover {
-    border-color: rgba(200, 146, 42, 0.3);
-    /* Gold border on hover */
-    background: linear-gradient(135deg, rgba(26, 30, 34, 0.8), rgba(19, 23, 26, 0.6));
-    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.9), rgba(10, 10, 10, 0.5));
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+    transform: translateY(-2px);
   }
 
   .gold-glow {
@@ -284,14 +284,14 @@
 }
 
 /* Hide Scrollbar Utility */
-.scrollbar-hide {
+.scrollbar-hide, .no-scrollbar {
   -ms-overflow-style: none;
   /* IE and Edge */
   scrollbar-width: none;
   /* Firefox */
 }
 
-.scrollbar-hide::-webkit-scrollbar {
+.scrollbar-hide::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
@@ -583,4 +583,40 @@
 
 .geoguesser-image-container img {
   transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1), filter 1.5s ease-out;
-}
+}
+
+/* --- MODE PERFORMANCE (Reduce Motion) --- */
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .backdrop-blur-md,
+.reduce-motion .backdrop-blur-lg,
+.reduce-motion .backdrop-blur-xl,
+.reduce-motion .backdrop-blur-2xl,
+.reduce-motion .backdrop-blur-3xl,
+.reduce-motion .glass-premium,
+.reduce-motion [class*="backdrop-blur-"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: rgba(15, 15, 15, 0.95) !important;
+}
+
+.reduce-motion .noise-overlay {
+  display: none !important;
+}
+
+.reduce-motion .animate-scan,
+.reduce-motion .animate-pulse-slow,
+.reduce-motion .animate-bounce-subtle,
+.reduce-motion .mission-card-ring::before {
+  animation: none !important;
+}
+
+.reduce-motion .magic-glow::after {
+  display: none !important;
+}
+

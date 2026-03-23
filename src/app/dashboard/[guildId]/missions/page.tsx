@@ -1,10 +1,10 @@
 import { auth } from "@/auth";
-import { getWeekMissions, getGuildMissionXpOverride } from "@/server/actions/mission-actions";
+import { getWeekMissions, getGuildMissionXpOverride, getWeeklyGuildatons } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
-import { ScrollText } from "lucide-react";
+import { ScrollText, Info } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
@@ -12,6 +12,7 @@ import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { getDofusWeek } from "@/lib/date-utils";
+import { WeeklyGuildatonCounter } from "@/components/missions/weekly-guildaton-counter";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,12 +35,20 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     const { week, year } = getDofusWeek();
 
     // Fetch all data in parallel
-    const [response, overrideRes, kamaRes, kamaStatsRes] = await Promise.all([
+    const [response, overrideRes, kamaRes, kamaStatsRes, weeklyGuildatons] = await Promise.all([
         getWeekMissions(guildId, week, year),
         getGuildMissionXpOverride(guildId),
         getMyWeeklyKamaStatus(guildId),
         getKamaStats(guildId), // Fetch total guild stats for kama XP calculation
+        getWeeklyGuildatons(user.profileId!, week, year),
     ]);
+
+    // 24h Restriction Check
+    const HOURS_RESIDENCY = 24;
+    const profileCreatedAt = user.createdAt ? new Date(user.createdAt) : new Date();
+    const diffMs = Date.now() - profileCreatedAt.getTime();
+    const isRestricted = (diffMs / (1000 * 60 * 60)) < HOURS_RESIDENCY && !user.isAdmin;
+    const availableAt = new Date(profileCreatedAt.getTime() + (HOURS_RESIDENCY * 60 * 60 * 1000)).toISOString();
 
     if (!response.success) {
         if (response.error?.includes("Member not found") || response.error?.includes("Insufficient Permissions")) {
@@ -67,7 +76,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     }
 
     const dynamicXP = missionXP + kamaXP;
-    const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
+    const currentXP = xpOverride !== null ? Math.max(xpOverride, dynamicXP) : dynamicXP;
 
 
     // [MIS-1 FIX] targetTier from published missions, fallback 3
@@ -88,20 +97,40 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 backHref={`/dashboard/${guildId}`}
             />
 
-            {/* Guild Progress Bar with kama widget integrated */}
-            <div className="px-1">
-                <GuildProgressBar
-                    currentXP={currentXP}
-                    targetTier={targetTier}
-                    guildId={guildId}
-                    kamaStatus={kamaStatus}
-                />
+            {/* Dashboard Row 1: XP Progress & Weekly Rewards */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-1">
+                <div className="xl:col-span-2">
+                    <GuildProgressBar
+                        currentXP={currentXP}
+                        targetTier={targetTier}
+                        guildId={guildId}
+                        kamaStatus={kamaStatus}
+                    />
+                </div>
+                <div className="space-y-6">
+                    <WeeklyGuildatonCounter current={weeklyGuildatons || 0} />
+                    
+                    {/* Placeholder for other stats/widgets if needed */}
+                    <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 flex flex-col items-center justify-center gap-3 text-center">
+                         <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                             <Info className="w-5 h-5 text-indigo-400" />
+                         </div>
+                         <div>
+                             <p className="text-xs font-bold text-white uppercase tracking-tighter">Information</p>
+                             <p className="text-[10px] text-zinc-500 leading-relaxed mt-1">
+                                Pensez à lier vos stuffs Dofusbook dans votre Profil (onglet Stuff) pour plus de visibilité.
+                             </p>
+                         </div>
+                    </div>
+                </div>
             </div>
 
             <MissionBoard
                 missions={missions}
                 currentUserId={session.user.id!}
                 guildId={guildId}
+                isRestricted={isRestricted}
+                availableAt={availableAt}
             />
         </div>
     );

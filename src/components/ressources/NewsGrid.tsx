@@ -179,14 +179,12 @@ function FeaturedCard({
                             <circle cx="200" cy="120" r="60" fill="none" stroke={feedColor} strokeWidth="0.5" />
                             <circle cx="200" cy="120" r="100" fill="none" stroke={feedColor} strokeWidth="0.3" />
                         </svg>
-                        {/* Center icon */}
+                        {/* Center icon / Logo */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                                style={{ background: `${feedColor}15`, border: `1px solid ${feedColor}30` }}>
-                                <Newspaper className="h-8 w-8" style={{ color: feedColor }} />
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden bg-black/40 border border-white/10 group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+                                <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-12 h-12 object-contain" />
                             </div>
-                            <span className="text-xs font-bold uppercase tracking-widest opacity-60"
-                                style={{ color: feedColor }}>{feedLabel}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">{feedLabel}</span>
                         </div>
                     </div>
                 )}
@@ -279,7 +277,7 @@ function SideCard({
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <Newspaper className="h-5 w-5" style={{ color: grad.accent, opacity: 0.5 }} />
+                    <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-8 h-8 object-contain opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
                 )}
             </div>
 

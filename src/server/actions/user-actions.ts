@@ -37,6 +37,7 @@ export type UserContext = {
     // Module Permissions
     canViewArchis: boolean;
     canViewLadder: boolean;
+    canSyncLadder: boolean;
     // Presentation Permission
     canEditPresentation: boolean;
     // Calendar Permissions
@@ -80,6 +81,7 @@ export type UserContext = {
     roles: string[];
     isCapacityFull?: boolean;
     scheduledDeletion?: string | null;
+    createdAt?: string;
 };
 
 export type ActionResponse<T = any> = {
@@ -143,6 +145,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: false,
         canManagePolls: false,
         canViewLadder: false,
+        canSyncLadder: false,
         canEditPresentation: false,
         canViewCalendar: false,
         canManageCalendar: false,
@@ -184,7 +187,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     };
 
     const effectiveGuildId = targetGuildId || process.env.DISCORD_GUILD_ID;
-    if (!effectiveGuildId) return { ...baseContext, ...authPartial };
+    if (!effectiveGuildId || !/^\d+$/.test(effectiveGuildId)) return { ...baseContext, ...authPartial };
 
     // --- SECURITY: SUPER ADMIN BYPASS ---
     const isGod = await isSuperAdmin();
@@ -236,6 +239,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         worldmap: true,
                         resources: true,
                         chat: true,
+                        ladderSync: true,
                     }
                 }
             }
@@ -254,18 +258,19 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         return { ...baseContext, isAuthenticated: false };
     }
 
-    // 2. Fetch User's Roles from Discord
-    const account = await db.account.findFirst({
-        where: {
-            userId: session.user.id,
-            provider: "discord"
-        },
-        select: { providerAccountId: true }
-    });
+    // 2. Get Discord ID — already stored in JWT token by auth.ts jwt() callback
+    // This avoids a db.account.findFirst() on every single page load.
+    let discordUserId = (session as any).user?.discordId as string | undefined;
+    if (!discordUserId) {
+        // Fallback: fetch from DB for old sessions created before discordId was stored in JWT
+        const account = await db.account.findFirst({
+            where: { userId: session.user.id, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+        if (!account) return { ...baseContext, ...authPartial };
+        discordUserId = account.providerAccountId;
+    }
 
-    if (!account) return { ...baseContext, ...authPartial };
-
-    const discordUserId = account.providerAccountId;
 
     // --- PLATFORM SECURITY: BAN CHECK ---
     const platformBan = await db.platformBan.findUnique({
@@ -401,6 +406,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canViewPolls: true,
                 canManagePolls: true,
                 canViewLadder: true,
+                canSyncLadder: true,
                 canEditPresentation: true,
                 canViewCalendar: true,
                 canManageCalendar: true,
@@ -616,6 +622,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: applyModule(mod?.polls, canViewPolls || isGod),
         canManagePolls: applyModule(mod?.polls, canManagePolls || isGod),
         canViewLadder: applyModule(mod?.ladder, canViewLadder || isGod),
+        canSyncLadder: applyModule(mod?.ladderSync, canViewLadder || isGod),
         canEditPresentation: applyModule(mod?.presentation, canEditPresentation || isGod),
         canViewCalendar: applyModule(mod?.calendar, canViewCalendar || isGod),
         canManageCalendar: applyModule(mod?.calendar, canManageCalendar || isGod),
@@ -653,7 +660,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         guildName: guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
         joinedAt: member?.joined_at ? new Date(member.joined_at).toISOString() : null,
-        guildId: effectiveGuildId
+        guildId: effectiveGuildId,
+        createdAt: profile?.createdAt?.toISOString()
     };
 }
 
@@ -1044,6 +1052,9 @@ export async function getGuildMembers(guildId: string) {
         archiveReason: m.archiveReason,
         pseudoDofus: m.pseudoDofus,
         discordNickname: m.discordNickname,
+        discordRoleName: m.discordRoleName,
+        discordRoleColor: m.discordRoleColor,
+        ankamaId: m.ankamaId,
         user: {
             name: m.user.name,
             image: m.user.image,
@@ -1174,6 +1185,58 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
                 targetId: profileId,
                 oldValue: { pseudo: profile.pseudoDofus } as any,
                 newValue: { pseudo: pseudoDofus } as any,
+            }
+        });
+    }
+
+    revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
+    return { success: true, data: updated };
+}
+
+/**
+ * Update a member's Ankama ID (Admin only)
+ * Format: Name#1234 (max 50 chars before #, exactly 4 digits after #)
+ */
+export async function updateMemberAnkamaId(profileId: string, ankamaId: string) {
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
+    const profile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        include: { guild: { select: { discordGuildId: true } } }
+    });
+
+    if (!profile) throw new Error("Profile not found");
+
+    const actor = await getUserContext(profile.guild.discordGuildId);
+    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual ID override");
+
+    // Validation
+    const ankamaIdRegex = /^[a-zA-Z0-9\-]{1,50}#[0-9]{4}$/;
+    if (!ankamaIdRegex.test(ankamaId)) {
+        throw new Error("Format ID Dofus invalide. Exemple : Nom#1234 (max 50 caractères avant le #, tiret autorisé, et exactement 4 chiffres après)");
+    }
+
+    const updated = await db.userProfile.update({
+        where: { id: profileId },
+        data: { ankamaId }
+    });
+
+    // Audit log
+    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const isGod = await isSuperAdmin();
+
+    if (!isGod) {
+        await db.auditLog.create({
+            data: {
+                guildId: profile.guildId,
+                actorUserId: session.user.id as string,
+                actorName: session.user.name || "Admin",
+                action: "MEMBER_ANKAMA_ID_UPDATE",
+                targetType: "PROFILE",
+                targetId: profileId,
+                oldValue: { ankamaId: profile.ankamaId } as any,
+                newValue: { ankamaId: ankamaId } as any,
             }
         });
     }

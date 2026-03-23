@@ -484,19 +484,30 @@ export function GalleryClient({ initialBuilds, initialTotal, initialHasMore, gui
                             <Search className="w-8 h-8 text-zinc-700" />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-zinc-300 font-semibold">Aucun build trouvé</h3>
-                            <p className="text-zinc-500 text-sm">Ajustez vos filtres ou lancez une nouvelle recherche.</p>
+                            <h3 className="text-zinc-300 font-semibold text-lg">Aucun build trouvé</h3>
+                            <p className="text-zinc-500 text-sm max-w-md mx-auto">
+                                S'il s'agit de votre première visite, vous devez importer vos stuffs DofusBook depuis l'onglet "Stuffs" de <strong>votre Profil</strong> pour qu'ils s'affichent ici.
+                            </p>
                         </div>
-                        {(searchQuery || selectedTag) && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => { setSearchQuery(""); handleTagChange(null); }}
-                                className="border-white/10 hover:bg-white/5"
-                            >
-                                Réinitialiser
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                            {(searchQuery || selectedTag || selectedClass) && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => { setSearchQuery(""); handleTagChange(null); handleClassChange(null); }}
+                                    className="border-white/10 hover:bg-white/5 text-zinc-400"
+                                >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Réinitialiser les filtres
+                                </Button>
+                            )}
+                            <a href={`/dashboard/${guildId}/profile?tab=combat`}>
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+                                    Aller sur mon profil
+                                    <ChevronRight className="w-4 h-4 ml-1" />
+                                </Button>
+                            </a>
+                        </div>
                     </div>
                 ) : null}
             </div>

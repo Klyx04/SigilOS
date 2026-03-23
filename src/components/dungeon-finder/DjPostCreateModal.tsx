@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map,
-    Users, CheckCircle2, X
+    Users, CheckCircle2, X, Trophy
 } from "lucide-react";
 import { createDjPost } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
@@ -240,12 +240,20 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="w-[95vw] max-w-2xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 custom-scrollbar">
-                <div className="p-6 pb-4 border-b border-white/5 bg-slate-900/30">
-                    <DialogTitle className="text-xl font-black flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shadow-inner">
-                            <Plus className="w-4 h-4 text-indigo-400" />
+                <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
+                    <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-900/10">
+                            <Plus className="w-5 h-5 text-amber-500" />
                         </div>
-                        {mode === "DONJON" ? "Nouveau Groupe de Donjon" : "Nouveau Groupe de Quête"}
+                        <div className="flex flex-col">
+                            <span className="text-xl tracking-tight text-white leading-none">
+                                {mode === "DONJON" ? "Nouveau Groupe Donjon" : "Nouveau Groupe Quête"}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                                Planifier une session de guilde
+                            </span>
+                        </div>
                     </DialogTitle>
                 </div>
 
@@ -254,20 +262,21 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                     <AnimatePresence mode="wait">
                         {step === 1 && (
                             <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-6">
-                                {/* Type Selector */}
-                                <div className="flex bg-slate-900/80 border border-white/5 p-1 rounded-2xl w-full shadow-inner">
+                                {/* Mode Selector - Refined */}
+                                <div className="grid grid-cols-2 bg-zinc-900/80 border border-white/5 p-1 rounded-2xl w-full shadow-inner relative overflow-hidden">
+                                    <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-zinc-800 border border-white/10 rounded-xl transition-all duration-500 ease-out z-0 ${mode === "QUETE" ? "translate-x-full" : "translate-x-0"}`} />
                                     <button
                                         onClick={() => setMode("DONJON")}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${mode === "DONJON" ? "bg-indigo-500/20 text-indigo-300 shadow-sm border border-indigo-500/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mode === "DONJON" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                                     >
-                                        <Swords className="w-4 h-4" />
+                                        <Swords className={`w-4 h-4 transition-colors ${mode === "DONJON" ? "text-amber-500" : ""}`} />
                                         Mode Donjons
                                     </button>
                                     <button
                                         onClick={() => setMode("QUETE")}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${mode === "QUETE" ? "bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mode === "QUETE" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                                     >
-                                        <Map className="w-4 h-4" />
+                                        <Map className={`w-4 h-4 transition-colors ${mode === "QUETE" ? "text-emerald-500" : ""}`} />
                                         Mode Quêtes
                                     </button>
                                 </div>
@@ -275,42 +284,50 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                 {/* Donjon Search */}
                                 {mode === "DONJON" && (
                                     <div className="space-y-4">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                        <div className="relative group">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-amber-500 transition-colors" />
                                             <input
                                                 autoFocus
                                                 type="text"
                                                 value={dungeonSearch}
                                                 onChange={(e) => setDungeonSearch(e.target.value)}
-                                                placeholder="Rechercher un donjon par nom ou boss..."
-                                                className="w-full bg-slate-900 border border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+                                                placeholder="Rechercher un donjon ou un boss..."
+                                                className="w-full bg-zinc-900 border border-white/5 rounded-2xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/5 transition-all placeholder:text-zinc-600 shadow-xl"
                                             />
                                         </div>
 
                                         {loadingDungeons ? (
-                                            <div className="py-12 text-center text-slate-500 animate-pulse">Consultation du bestiaire...</div>
+                                            <div className="py-16 text-center text-zinc-500 animate-pulse bg-zinc-900/30 rounded-3xl border border-white/5">
+                                                Consultation du bestiaire...
+                                            </div>
                                         ) : (
-                                            <div className="h-64 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar border border-slate-800/50 rounded-xl p-1 bg-slate-900/20">
+                                            <div className="h-72 overflow-y-auto space-y-2 pr-2 custom-scrollbar p-1">
                                                 {filteredDungeons.length === 0 ? (
-                                                    <p className="text-center text-slate-600 py-12">Aucun donjon trouvé pour "{dungeonSearch}"</p>
+                                                    <div className="text-center py-20 bg-zinc-900/30 rounded-3xl border border-white/5 border-dashed">
+                                                        <Search className="w-8 h-8 mx-auto mb-3 text-zinc-700 opacity-50" />
+                                                        <p className="text-zinc-500 text-sm">Aucun donjon trouvé pour "{dungeonSearch}"</p>
+                                                    </div>
                                                 ) : filteredDungeons.map((d) => (
                                                     <button
                                                         key={d.id}
                                                         onClick={() => { setSelectedDungeon(d); setStep(2); }}
-                                                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800/80 bg-slate-900/50 focus:bg-slate-800 border border-transparent hover:border-indigo-500/30 focus:border-indigo-500/40 transition-all group text-left"
+                                                        className="w-full flex items-center gap-4 p-3 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-amber-500/30 hover:bg-zinc-800 transition-all group text-left relative overflow-hidden"
                                                     >
-                                                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-800/50 border border-white/5 shrink-0">
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-950 border border-white/10 shrink-0 relative z-10">
                                                             {d.imageUrl
-                                                                ? <img src={d.imageUrl} alt={d.bossName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                : <Swords className="w-5 h-5 m-2.5 text-slate-500" />}
+                                                                ? <img src={d.imageUrl} alt={d.bossName} className="w-full h-full object-contain p-1 group-hover:scale-110 transition-transform duration-500" />
+                                                                : <div className="w-full h-full flex items-center justify-center text-zinc-600"><Swords className="w-6 h-6" /></div>}
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors truncate">{d.name}</p>
-                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className="text-[11px] text-slate-500 truncate">{d.bossName}</span>
-                                                                <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                                                <span className="text-[11px] font-mono text-slate-400">Niv. {d.level}</span>
+                                                        <div className="flex-1 min-w-0 relative z-10">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-black text-zinc-200 group-hover:text-white transition-colors truncate">{d.name}</p>
+                                                                <span className="text-[9px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">Lvl {d.level}</span>
                                                             </div>
+                                                            <p className="text-xs text-zinc-500 mt-0.5 truncate group-hover:text-zinc-400">{d.bossName}</p>
+                                                        </div>
+                                                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0 translate-x-4 relative z-10 border border-white/10">
+                                                            <Plus className="w-4 h-4 text-white" />
                                                         </div>
                                                     </button>
                                                 ))}
@@ -398,64 +415,77 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
 
                         {step === 2 && (
                             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                                {/* Header Recap */}
-                                <div className="flex items-center gap-4 bg-slate-900/40 rounded-2xl p-4 border border-white/5 shadow-inner">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${mode === "DONJON" ? "bg-slate-800/80 border-white/10" : "bg-cyan-950/80 border-cyan-500/30"}`}>
+                                {/* Header Recap - Refined */}
+                                <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-zinc-950 border-white/10" : "bg-emerald-950/30 border-emerald-500/20"}`}>
                                         {mode === "DONJON" && selectedDungeon?.imageUrl ? (
-                                            <img src={selectedDungeon.imageUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                                            <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-500" />
                                         ) : mode === "DONJON" ? (
-                                            <Swords className="w-6 h-6 text-slate-400" />
+                                            <Swords className="w-6 h-6 text-zinc-500" />
                                         ) : (
-                                            <Map className="w-6 h-6 text-cyan-400" />
+                                            <Map className="w-6 h-6 text-emerald-500" />
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-black text-white text-base truncate">
+                                    <div className="flex-1 min-w-0 relative z-10">
+                                        <p className="font-black text-white text-lg tracking-tight truncate leading-tight">
                                             {mode === "DONJON" ? selectedDungeon?.name : selectedQuest?.name}
                                         </p>
-                                        <p className="text-xs font-medium text-slate-400 mt-0.5">
-                                            {mode === "DONJON" ? `Niv. ${selectedDungeon?.level} — ${selectedDungeon?.bossName}` : "Mode Quête"}
-                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {mode === "DONJON" ? (
+                                                <>
+                                                    <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">NIVEAU {selectedDungeon?.level}</span>
+                                                    <span className="text-[11px] font-medium text-zinc-500 truncate">{selectedDungeon?.bossName}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">GROUPE QUÊTE</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="text-xs font-bold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 shrink-0">
-                                        Changer
+                                    <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 shrink-0 relative z-10">
+                                        RETOUR
                                     </Button>
                                 </div>
 
                                 {/* Dynamic Fields depending on Mode */}
                                 {mode === "DONJON" && selectedDungeon?.achievements.length ? (
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-bold text-slate-300">Succès visés (optionnel)</p>
-                                        <div className="flex flex-wrap gap-2">
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Succès visés (optionnel)</p>
+                                        <div className="grid grid-cols-2 gap-2">
                                             {selectedDungeon.achievements.map((a) => {
                                                 const selected = selectedAchievements.includes(a.id);
                                                 return (
                                                     <button
                                                         key={a.id}
                                                         onClick={() => toggleAchievement(a.id)}
-                                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold transition-all ${selected
-                                                            ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                                                            : "border-white/5 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-slate-300"
+                                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-[11px] font-bold transition-all ${selected
+                                                            ? "border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg shadow-amber-900/5"
+                                                            : "border-white/5 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
                                                             }`}
                                                     >
-                                                        {a.challenge.iconUrl && <img src={a.challenge.iconUrl} alt="" className="w-5 h-5 object-contain" />}
-                                                        {a.challenge.name}
-                                                        {selected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 ml-1" />}
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${selected ? "bg-amber-500/20 border-amber-500/20" : "bg-zinc-950 border-white/5"}`}>
+                                                            {a.challenge.iconUrl ? <img src={a.challenge.iconUrl} alt="" className="w-5 h-5 object-contain" /> : <Trophy className="w-4 h-4" />}
+                                                        </div>
+                                                        <span className="flex-1 text-left truncate">{a.challenge.name}</span>
+                                                        {selected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                     </div>
                                 ) : mode === "QUETE" && (
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-bold text-slate-300">Lien vers un Tutoriel (Optionnel)</p>
-                                        <input
-                                            type="url"
-                                            value={questUrl}
-                                            onChange={(e) => setQuestUrl(e.target.value)}
-                                            placeholder="Ex: https://www.dofuspourlesnoobs.com/..."
-                                            className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner"
-                                        />
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Lien vers un Tutoriel (Optionnel)</p>
+                                        <div className="relative group">
+                                            <Map className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
+                                            <input
+                                                type="url"
+                                                value={questUrl}
+                                                onChange={(e) => setQuestUrl(e.target.value)}
+                                                placeholder="Ex: https://www.dofuspourlesnoobs.com/..."
+                                                className="w-full bg-zinc-900 border border-white/5 rounded-xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder:text-zinc-700 shadow-xl"
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
@@ -510,13 +540,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-6">
-                                    {/* Date */}
-                                    <div className="space-y-2 flex flex-col justify-end">
-                                        <p className="text-sm font-bold text-slate-300">
-                                            Date prévue <span className="text-rose-500">*</span>
-                                            <span className="text-slate-500 font-normal text-xs ml-1">(heure optionnelle)</span>
-                                        </p>
+                                {/* Date & Membres */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Date & Heure prévue</p>
                                         <DateTimePicker
                                             value={targetDate}
                                             onChange={setTargetDate}
@@ -525,15 +552,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                             timeOptional={true}
                                         />
                                     </div>
-                                    {/* Membres */}
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-bold text-slate-300">Places dispo</p>
-                                        <div className="flex bg-slate-900/80 border border-white/5 rounded-xl p-1 shadow-inner h-11 items-center">
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Taille du groupe</p>
+                                        <div className="flex bg-zinc-900 border border-white/5 rounded-2xl p-1 shadow-inner h-[52px] items-center">
                                             {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                                                 <button
                                                     key={n}
                                                     onClick={() => setMaxMembers(n)}
-                                                    className={`flex-1 flex justify-center items-center h-full text-[13px] font-bold transition-all rounded-lg ${maxMembers === n ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 shadow-sm" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+                                                    className={`flex-1 flex justify-center items-center h-full text-xs font-black transition-all rounded-xl ${maxMembers === n ? "bg-zinc-800 text-white border border-white/10 shadow-lg" : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5"}`}
                                                 >
                                                     {n}
                                                 </button>
@@ -542,13 +568,13 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                     </div>
                                 </div>
 
-                                {/* Classes Requises (Optionnel) */}
-                                <div className="space-y-2">
-                                    <p className="text-sm font-bold text-slate-300 flex justify-between">
-                                        Classes demandées (Optionnel)
-                                        <span className="text-xs text-slate-500 font-normal">{requiredClasses.length} sélec.</span>
-                                    </p>
-                                    <div className="grid grid-cols-9 sm:grid-cols-10 gap-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                                {/* Classes Requises */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between ml-1">
+                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Besoin spécifique (Options)</p>
+                                        <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter bg-zinc-900 px-2 py-0.5 rounded border border-white/5">{requiredClasses.length} SÉLECTIONNÉES</span>
+                                    </div>
+                                    <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 p-4 rounded-3xl bg-zinc-900/40 border border-white/5 backdrop-blur-sm">
                                         {DOFUS_CLASSES.map((c) => {
                                             const isSelected = requiredClasses.includes(c.name);
                                             return (
@@ -556,9 +582,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                     key={c.id}
                                                     title={c.name}
                                                     onClick={() => toggleClass(c.name)}
-                                                    className={`aspect-square rounded-lg flex items-center justify-center transition-all border ${isSelected ? "border-indigo-500/40 bg-indigo-500/20 shadow-inner" : "border-transparent opacity-40 hover:opacity-100 hover:bg-white/5"}`}
+                                                    className={`aspect-square rounded-xl flex items-center justify-center transition-all border group/class ${isSelected 
+                                                        ? "border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_-5px_var(--color-amber-500)] scale-105" 
+                                                        : "border-transparent opacity-30 hover:opacity-100 hover:bg-zinc-800 hover:border-white/10"}`}
                                                 >
-                                                    <img src={c.icon} alt={c.name} className="w-6 h-6 object-contain drop-shadow-md" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                    <img src={c.icon} alt={c.name} className="w-7 h-7 object-contain drop-shadow-lg group-hover/class:scale-110 transition-transform" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </button>
                                             );
                                         })}
@@ -566,20 +594,20 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                 </div>
 
                                 {/* Message */}
-                                <div className="space-y-2">
-                                    <p className="text-sm font-bold text-slate-300">Contexte / Message (Optionnel)</p>
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Note pour la guilde</p>
                                     <textarea
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        rows={2}
-                                        placeholder="Je cherche des gens stuff pour clean vite, vocal exigé..."
-                                        className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none shadow-inner"
+                                        rows={3}
+                                        placeholder="Ex: On cherche un tank pour clean les succès du premier coup..."
+                                        className="w-full bg-zinc-900 border border-white/5 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/5 transition-all resize-none shadow-xl placeholder:text-zinc-700"
                                     />
                                 </div>
 
-                                {/* Footer Action */}
-                                <div className="pt-4 flex items-center justify-between border-t border-slate-800">
-                                    <div className="flex items-center gap-3">
+                                {/* Footer Action - Refined */}
+                                <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-white/5 mt-4 relative">
+                                    <div className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-2xl border border-white/5 shadow-inner">
                                         <Switch
                                             checked={isDiscordPublished}
                                             onCheckedChange={setIsDiscordPublished}
@@ -587,22 +615,31 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                             className="data-[state=checked]:bg-indigo-500"
                                         />
                                         <div className="flex flex-col">
-                                            <span className={`text-sm font-medium ${isDiscordConfigured ? 'text-slate-300' : 'text-slate-500'}`}>Publier sur Discord</span>
+                                            <span className={`text-xs font-black uppercase tracking-widest ${isDiscordConfigured ? 'text-zinc-300' : 'text-zinc-600'}`}>Synchro Discord</span>
                                             {!isDiscordConfigured && (
-                                                <span className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic">
-                                                    ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
-                                                </span>
+                                                <span className="text-[8px] text-amber-500/70 font-black uppercase tracking-tighter">⚠️ Non configuré</span>
                                             )}
                                         </div>
                                     </div>
 
                                     <Button
-                                        className={`h-11 px-6 font-black ${mode === "DONJON" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/20" : "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20"} text-white disabled:opacity-40 shadow-md`}
+                                        className={`h-14 px-10 rounded-2xl font-black text-sm tracking-tight transition-all active:scale-95 shadow-2xl relative group overflow-hidden ${
+                                            mode === "DONJON" 
+                                                ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
+                                                : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
+                                        }`}
                                         onClick={handleSubmit}
                                         disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest)}
                                     >
-                                        <Users className="w-4 h-4 mr-2" />
-                                        {isPending ? "Création..." : "Lancer le groupe"}
+                                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                        <div className="flex items-center gap-3 relative z-10">
+                                            {isPending ? (
+                                                <div className="w-5 h-5 border-3 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+                                            ) : (
+                                                <Users className="w-5 h-5" />
+                                            )}
+                                            {isPending ? "PUBLICATION..." : "LANCER LA SESSION"}
+                                        </div>
                                     </Button>
                                 </div>
                             </motion.div>

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
 import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles, RefreshCcw, SearchX } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ResidencyCountdown } from "./residency-countdown";
 
 interface MissionBoardProps {
     missions: (Mission & {
@@ -22,6 +23,8 @@ interface MissionBoardProps {
     })[];
     currentUserId: string;
     guildId: string; // Discord Guild ID for uploads
+    isRestricted?: boolean;
+    availableAt?: string;
 }
 
 const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
@@ -43,7 +46,7 @@ const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.Co
 type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 
-export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardProps) {
+export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt }: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
     const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
@@ -99,6 +102,9 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
 
     return (
         <div className="space-y-6">
+            {isRestricted && availableAt && (
+                <ResidencyCountdown availableAt={availableAt} className="mb-6" />
+            )}
             {/* 🛠️ Simplified Toolbar */}
             <div className="flex flex-col gap-4 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-sm">
 
@@ -226,6 +232,7 @@ export function MissionBoard({ missions, currentUserId, guildId }: MissionBoardP
                             currentUserId={currentUserId}
                             guildId={guildId}
                             onInterestClick={handleInterestClick}
+                            isRestricted={isRestricted}
                         />
                     </div>
                 ))}

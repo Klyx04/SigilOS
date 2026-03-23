@@ -73,6 +73,14 @@ async function fetchWithRetry(url: string, options: RequestInit): Promise<Respon
 }
 
 export async function fetchGuildRoles(guildId: string, options: { excludeManaged?: boolean } = { excludeManaged: true }) {
+    // In-memory cache — next: { revalidate } is ignored in Server Actions context
+    const cacheKey = `roles:${guildId}`;
+    const cached = getCached<Array<{ id: string; name: string; color: number; position: number; managed: boolean; permissions: string }>>(cacheKey);
+    if (cached !== null) {
+        const result = options.excludeManaged ? cached.filter(r => !r.managed) : cached;
+        return result;
+    }
+
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
@@ -80,7 +88,6 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
         headers: {
             Authorization: `Bot ${token}`,
         },
-        next: { revalidate: 30 }, // Cache for 30s
     });
 
     if (!res.ok) {
@@ -90,7 +97,7 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
         throw new Error(`Failed to fetch roles: ${res.statusText}`);
     }
 
-    let roles = (await res.json()) as Array<{
+    const roles = (await res.json()) as Array<{
         id: string;
         name: string;
         color: number;
@@ -99,33 +106,39 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
         permissions: string;
     }>;
 
-    // Filter out Managed roles if requested
-    if (options.excludeManaged) {
-        roles = roles.filter(role => !role.managed);
-    }
+    // Cache the raw (unfiltered) list so both managed/unmanaged callers benefit
+    setCached(cacheKey, roles, 5 * 60 * 1000); // TTL: 5 minutes
 
-    return roles.sort((a, b) => b.position - a.position);
+    const result = options.excludeManaged ? roles.filter(r => !r.managed) : roles;
+    return result.sort((a, b) => b.position - a.position);
 }
 
 export async function fetchGuild(guildId: string) {
+    // In-memory cache — next: { revalidate } is ignored in Server Actions context
+    const cacheKey = `guild:${guildId}`;
+    const cached = getCached<{ id: string; name: string; icon: string | null; owner_id?: string }>(cacheKey);
+    if (cached !== null) return cached;
+
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${token}` },
-        next: { revalidate: 3600 }, // Cache for 1h
     });
 
     if (!res.ok) {
         throw new Error(`Failed to fetch guild: ${res.statusText}`);
     }
 
-    return (await res.json()) as {
+    const data = (await res.json()) as {
         id: string;
         name: string;
         icon: string | null;
         owner_id?: string;
     };
+
+    setCached(cacheKey, data, 10 * 60 * 1000); // TTL: 10 minutes
+    return data;
 }
 
 export async function fetchBotGuilds() {
@@ -370,13 +383,20 @@ export async function sendChannelMessage(
             timestamp: new Date().toISOString(),
         };
 
-        const isMention = content.startsWith("@") || content.startsWith("<@");
+        // Discord mentions regex: @everyone, @here, or <@ID>, <@!ID>, <@&ID>
+        const hasMentions = /(@everyone|@here|<@(!|&)?\d+>)/.test(content);
 
-        // Add description
+        // Add description: only if no explicit description AND content doesn't contain a ping
         if (options.embedDescription) {
             embed.description = options.embedDescription;
-        } else if (content && !isMention) {
+        } else if (content && !hasMentions) {
             embed.description = content;
+        }
+
+        // Add mention content to trigger pings (must be in body.content)
+        // If content has mentions, or mentionContent is provided, it goes to body.content
+        if (content && hasMentions) {
+            body.content = content;
         }
 
         // Clickable title URL
@@ -386,8 +406,7 @@ export async function sendChannelMessage(
 
         // Footer — default universal CTA if none provided
         const footerText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
-        embed.footer = { text: footerText, icon_url: "https://i.imgur.com/AfFp7pu.png" };
-
+        embed.footer = { text: footerText, icon_url: "https://sigilos.fr/assets/ui/logo-v2.png" };
 
         // Author section
         if (options.embedAuthor) {
@@ -418,12 +437,7 @@ export async function sendChannelMessage(
 
         body.embeds = [embed];
 
-        // Add mention content to trigger pings (must be in body.content)
-        if (content && isMention) {
-            body.content = content;
-        }
-
-        // Add mentionContent option if provided
+        // Add mentionContent option if provided (highest priority)
         if (options.mentionContent) {
             body.content = options.mentionContent;
         }
@@ -546,7 +560,7 @@ export async function updateChannelMessage(
         if (options.embedUrl) embed.url = options.embedUrl;
         // Universal footer fallback
         const updateFooterText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
-        embed.footer = { text: updateFooterText, icon_url: "https://i.imgur.com/AfFp7pu.png" };
+        embed.footer = { text: updateFooterText, icon_url: "https://sigilos.fr/assets/ui/logo-v2.png" };
 
         if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
         if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };

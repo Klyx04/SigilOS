@@ -1,54 +1,53 @@
 "use client";
 
 import { FocusCardData } from "@/server/actions/intelligence-actions";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Target, InfinityIcon, ScrollText, ArrowRight, Zap } from "lucide-react";
+import { motion } from "framer-motion";
+import { Sparkles, InfinityIcon, ArrowRight, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export function EchoDuSigil({ data }: { data: FocusCardData }) {
     if (!data) return null;
 
     return (
-        <div className="relative group">
-            {/* Ambient Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-emerald-500/30 rounded-2xl blur-2xl opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+        <div className="relative group perspective-1000">
+            {/* Ambient Background Glow (Subtle) */}
+            <div className="absolute -inset-10 bg-indigo-500/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-1000" />
 
-            <div className="relative glass-premium p-6 md:p-8 rounded-2xl border border-white/15 overflow-hidden backdrop-blur-3xl">
-                {/* Micro-texture Noise Overlay */}
-                <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
-
-                {/* Decorative SVG Pattern (Subtle) */}
-                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" className="animate-spin-slow">
-                        <circle cx="60" cy="60" r="58" stroke="currentColor" strokeWidth="0.5" strokeDasharray="4 4" />
-                        <circle cx="60" cy="60" r="40" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 8" />
+            <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-white/5 overflow-hidden group-hover:border-white/10 transition-all duration-500">
+                {/* Decorative Pattern Layer */}
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-700">
+                    <svg width="240" height="240" viewBox="0 0 120 120" fill="none" className="animate-spin-slow">
+                        <circle cx="60" cy="60" r="58" stroke="white" strokeWidth="0.2" strokeDasharray="4 4" />
+                        <circle cx="60" cy="60" r="40" stroke="white" strokeWidth="0.2" strokeDasharray="2 8" />
+                        <path d="M60 2L62 58L118 60L62 62L60 118L58 62L2 60L58 58Z" stroke="white" strokeWidth="0.1" />
                     </svg>
                 </div>
 
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-4 max-w-2xl">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-white/5 border border-white/10">
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                    <div className="space-y-6 max-w-3xl">
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.2)]">
                                 <Sparkles className="w-5 h-5 text-indigo-400" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80">Recommandation</span>
-                                <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white">
+                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Intelligence Focus</span>
+                                <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-tight">
                                     {data.title}
                                 </h2>
                             </div>
                         </div>
 
-                        <p className="text-zinc-400 font-medium leading-loose max-w-lg pt-1">
+                        <p className="text-zinc-400 text-base md:text-lg font-medium leading-relaxed max-w-2xl pt-2">
                             {data.description}
                         </p>
 
-                        <div className="flex items-center gap-4 pt-2">
-                            <Button asChild className="bg-white text-black hover:bg-zinc-200 font-black px-6 group/btn relative overflow-hidden">
+                        <div className="flex items-center gap-6 pt-4">
+                            <Button asChild className="h-12 bg-white text-black hover:bg-zinc-100 font-bold px-8 rounded-2xl group/btn transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
                                 <Link href={data.actionHref}>
-                                    <span className="relative z-10 flex items-center gap-2">
+                                    <span className="flex items-center gap-3">
                                         {data.actionLabel}
                                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                                     </span>
@@ -56,58 +55,63 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                             </Button>
 
                             {data.priority > 80 && (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black uppercase tracking-widest text-[10px] py-1 animate-pulse">
-                                    Recommandé
+                                <Badge variant="outline" className="border-indigo-500/30 bg-indigo-500/5 text-indigo-400/80 font-black uppercase tracking-widest text-[9px] py-1 px-3 h-8 shadow-[inset_0_0_12px_rgba(99,102,241,0.1)]">
+                                    Priorité Critique
                                 </Badge>
                             )}
                         </div>
                     </div>
 
-                    {/* Visual Progress/Scoring Indicator */}
-                    <div className="hidden lg:flex flex-col items-center gap-2">
+                    {/* High-Fidelity Indicator */}
+                    <div className="flex shrink-0">
                         {data.type === "OCRE_STEP" ? (
-                            <div className="relative w-32 h-32">
+                            <div className="relative w-40 h-40 group/progress">
                                 <svg className="w-full h-full transform -rotate-90">
+                                    {/* Track */}
                                     <circle
-                                        cx="64"
-                                        cy="64"
-                                        r="60"
+                                        cx="80"
+                                        cy="80"
+                                        r="74"
                                         fill="transparent"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        className="text-white/5"
+                                        stroke="white"
+                                        strokeWidth="1"
+                                        className="opacity-[0.03]"
                                     />
+                                    {/* Fill */}
                                     <motion.circle
-                                        cx="64"
-                                        cy="64"
-                                        r="60"
+                                        cx="80"
+                                        cy="80"
+                                        r="74"
                                         fill="transparent"
                                         stroke="currentColor"
                                         strokeWidth="4"
-                                        strokeDasharray="377"
-                                        initial={{ strokeDashoffset: 377 }}
-                                        animate={{ strokeDashoffset: 377 - (377 * (data.priority / 100)) }}
-                                        transition={{ duration: 1.5, ease: "easeOut" }}
-                                        className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                        strokeDasharray="465"
+                                        initial={{ strokeDashoffset: 465 }}
+                                        animate={{ strokeDashoffset: 465 - (465 * (data.priority / 100)) }}
+                                        transition={{ duration: 2, ease: "circOut" }}
+                                        className="text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                                         strokeLinecap="round"
                                     />
                                 </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-[10px] font-black text-zinc-500 uppercase">Progression</span>
-                                    <span className="text-2xl font-black text-white">{Math.round(data.priority)}%</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-500 group-hover/progress:scale-110">
+                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Score</span>
+                                    <span className="text-4xl font-black text-white tracking-tighter">{Math.round(data.priority)}</span>
                                 </div>
                             </div>
                         ) : (
-                            <div className="w-32 h-32 flex items-center justify-center opacity-20">
-                                {data.type === "SONGES_RECRUIT" && <InfinityIcon className="w-16 h-16 text-purple-400" />}
-                                {data.type === "WELCOME" && <Zap className="w-16 h-16 text-yellow-400" />}
+                            <div className="w-40 h-40 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-white/5 rounded-full blur-3xl opacity-20 scale-50" />
+                                {data.type === "SONGES_RECRUIT" && <InfinityIcon className="w-24 h-24 text-indigo-300 drop-shadow-[0_0_20px_#818cf8] opacity-30" />}
+                                {data.type === "WELCOME" && <Zap className="w-24 h-24 text-amber-300 drop-shadow-[0_0_20px_#fbbf24] opacity-30" />}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Bottom Decorative Bar */}
-                <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent w-full opacity-50" />
+                {/* Subtle Decorative Line */}
+                <div className="absolute bottom-0 left-0 h-1 w-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent w-full" />
+                </div>
             </div>
         </div>
     );

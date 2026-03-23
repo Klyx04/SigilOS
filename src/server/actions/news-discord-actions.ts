@@ -6,6 +6,7 @@ import { isSuperAdmin } from "./super-admin-actions";
 import { getUserContext } from "./user-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export type DiscordNewsItem = {
     title: string;
@@ -27,7 +28,7 @@ function createNewsEmbed(item: DiscordNewsItem) {
         embedUrl: item.url,
         embedColor: isChangelog ? 0x10b981 : 0x3b82f6, // Emerald for changelog, Blue for news
         embedDescription: item.description || "Consulter le détail de la mise à jour sur le site officiel de Dofus.",
-        embedThumbnail: "https://i.imgur.com/AfFp7pu.png", // SigilOS Logo
+        embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`, // SigilOS Logo
         embedImage: item.imageUrl,
         embedFooter: `SigilOS · Actualités Dofus · ${new Date(item.pubDate).toLocaleDateString('fr-FR')}`,
         embedAuthor: {

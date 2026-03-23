@@ -2,6 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import fs from 'fs';
+import path from 'path';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -349,5 +351,305 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
     } catch (error) {
         console.error('[getBountiesForZone] Error:', error);
         return { success: false, error: 'Erreur lors de la récupération des avis' };
+    }
+}
+export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
+    let coordinates = null;
+    
+    // Attempt local coordinate lookup first (very fast and reliable)
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        if (fs.existsSync(filePath)) {
+            const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            
+            // 1. Try to find the dungeon by name if provided
+            let dungeonInfo = null;
+            if (dungeonName) {
+                const searchName = dungeonName.toLowerCase().replace("défi du ", "").trim();
+                dungeonInfo = worldMapData.dungeons?.find((d: any) => 
+                    d.name.toLowerCase().includes(searchName) || 
+                    searchName.includes(d.name.toLowerCase())
+                );
+            }
+            
+            // 2. If no dungeon match, try to find monster subarea coordinate from file
+            const entranceMapId = dungeonInfo?.entranceMapId || dungeonInfo?.mapId;
+            if (entranceMapId) {
+                const mapNode = worldMapData.maps?.find((m: any) => m.id === entranceMapId);
+                if (mapNode) {
+                    coordinates = { 
+                        x: mapNode.x, 
+                        y: mapNode.y, 
+                        worldMapId: mapNode.worldMap === -1 ? 1 : mapNode.worldMap 
+                    };
+                }
+            }
+        }
+    } catch (err) {
+        console.error("[getMonsterStats] Local coordinate fetch error:", err);
+    }
+
+    try {
+        // Search for the monster - search by name.fr
+        const searchRes = await fetch(
+            `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
+            { cache: 'no-store' }
+        );
+        if (!searchRes.ok) throw new Error("DofusDB search failed");
+        
+        const searchData = await searchRes.json();
+        // Try to find exact match or take first
+        const monsterHeader = searchData.data?.find((m: any) => m.name.fr.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
+        
+        if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
+
+        // Fetch FULL details
+        const fullRes = await fetch(
+            `https://api.dofusdb.fr/monsters/${monsterHeader.id}?lang=fr`,
+            { cache: 'no-store' }
+        );
+        if (!fullRes.ok) throw new Error("DofusDB details failed");
+        const monster = await fullRes.json();
+
+        // Get items and spells mappings in parallel
+        const rawDropObjectIds = monster.drops?.map((d: any) => d.objectId) || [];
+        const dropObjectIds = Array.from(new Set(rawDropObjectIds)); // Deduplicate
+        
+        const allSpellIds = [...(monster.spells || [])];
+        monster.grades?.forEach((g: any) => {
+            if (g.startingSpellId) allSpellIds.push(g.startingSpellId);
+        });
+        const spellIds = Array.from(new Set(allSpellIds));
+        
+        const itemsMap: Record<number, any> = {};
+        let spellsArr: any[] = [];
+        
+        const fetchPromises = [];
+        
+        // Chunk items fetch by 40 to prevent any URI length limits or DofusDB $limit=50 truncations
+        for (let i = 0; i < dropObjectIds.length; i += 40) {
+            const chunk = dropObjectIds.slice(i, i + 40);
+            const queryQuery = chunk.map((id: unknown) => `id[$in][]=${id}`).join('&');
+            fetchPromises.push(
+                fetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && Array.isArray(data.data)) {
+                            data.data.forEach((it: any) => { itemsMap[it.id] = it; });
+                        }
+                    })
+                    .catch(console.error)
+            );
+        }
+        
+        if (spellIds.length > 0) {
+            const spellQuery = spellIds.map((id: unknown) => `id[$in][]=${id}`).join('&');
+            fetchPromises.push(
+                fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
+                    .then(res => res.json())
+                    .then(data => { 
+                        if (data && Array.isArray(data.data)) {
+                            spellsArr = data.data; 
+                        }
+                    })
+                    .catch(console.error)
+            );
+        }
+
+        await Promise.all(fetchPromises);
+        
+        // Fetch spell levels details AFTER we have spells data
+        const spellLevelsMap: Record<number, any> = {};
+        if (spellsArr.length > 0) {
+            const requestedLevels = spellsArr.flatMap(s => {
+                const levels = s.spellLevels || [];
+                // Use the last level for bosses as they are high level
+                return levels.length > 0 ? levels[levels.length - 1] : null;
+            }).filter(Boolean);
+            
+            if (requestedLevels.length > 0) {
+                const levelQuery = requestedLevels.map((id: unknown) => `id[$in][]=${id}`).join('&');
+                const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                if (levelRes.ok) {
+                    const levelData = await levelRes.json();
+                    if (levelData && Array.isArray(levelData.data)) {
+                        levelData.data.forEach((l: any) => { 
+                            spellLevelsMap[l.id] = l;
+                        });
+                    }
+                }
+            }
+        }
+
+        // Final monster grade for scaling calculations
+        const g5 = monster.grades?.[monster.grades.length - 1] || {};
+        const monsterStats = {
+            earth: g5.strength || 0,
+            water: g5.chance || 0,
+            fire: g5.intelligence || 0,
+            air: g5.agility || 0,
+            neutral: g5.strength || 0
+        };
+
+        // Mapping effect types for description with Stat Scaling
+        const parseEffects = (effects: any[]) => {
+            if (!effects || effects.length === 0) return null;
+            return effects.map(eff => {
+                const id = eff.effectId;
+                const min = eff.diceNum || 0;
+                const max = eff.diceSide || 0;
+                let text = "";
+                
+                // Helper to scale damage
+                const scale = (val: number, stat: number) => Math.floor(val * (1 + stat / 100));
+                
+                // Real Dofus Damage & Utility IDs mapping
+                if (id === 100) {
+                    text = `⚪ Dommages Neutre : ${scale(min, monsterStats.neutral)}-${scale(max, monsterStats.neutral)}`;
+                } else if (id === 97) {
+                    text = `🌿 Dommages Terre : ${scale(min, monsterStats.earth)}-${scale(max, monsterStats.earth)}`;
+                } else if (id === 96) {
+                    text = `💧 Dommages Eau : ${scale(min, monsterStats.water)}-${scale(max, monsterStats.water)}`;
+                } else if (id === 99) {
+                    text = `🔥 Dommages Feu : ${scale(min, monsterStats.fire)}-${scale(max, monsterStats.fire)}`;
+                } else if (id === 98) {
+                    text = `🍃 Dommages Air : ${scale(min, monsterStats.air)}-${scale(max, monsterStats.air)}`;
+                } else if (id === 6 || id === 8) {
+                    text = `🧲 Attire de ${min} case${min > 1 ? "s" : ""}`;
+                } else if (id === 5 || id === 4) {
+                    text = `💥 Repousse de ${min} case${min > 1 ? "s" : ""}`;
+                } else if (id === 293 || id === 294) {
+                    text = `✨ +${eff.diceSide || eff.value || 5} dégâts de base (Buff)`;
+                } else if (id === 138 || id === 114) {
+                    text = `💪 +${min} Puissance`;
+                } else if (id === 1160 || id === 2160 || id === 2161) {
+                    const triggeredId = eff.diceNum || eff.value;
+                    // Specialized mapping for famous bosses like Vortex (5063)
+                    if (triggeredId === 5063) {
+                        text = `⚡ Applique la Contamination (Vortex)`;
+                    } else if (triggeredId === 6797) {
+                        text = `⚡ Applique Appel des Fonds Marins`;
+                    } else if (triggeredId === 3585) {
+                        text = `⚡ Fraction de molaire : repousse les ennemis`;
+                    } else if (triggeredId === 3587) {
+                        text = `⚡ Liqueur de Fée Ling : soin ou malus tactique`;
+                    } else {
+                        text = `⚡ Déclenche un effet secondaire (Sort ID:${triggeredId})`;
+                    }
+                } else if (id === 623) {
+                    text = `➕ Invoque une entité`;
+                } else if (id === 82) {
+                    text = `💖 Soigne : ${min}-${max} PV`;
+                } else if (id === 1) {
+                    text = `🏃 Transpose de ${min} cases`;
+                } else if (id === 140) {
+                    text = `💀 Retrait PV directs : ${min}`;
+                } else if (id === 126) {
+                    text = `💀 Retrait PV directs : ${min}`;
+                } else if (id === 950 || id === 951 || id === 952) {
+                    text = `🌀 Applique un État (Mécanique Boss)`;
+                } else if (id === 168) {
+                    text = `📉 Retrait PA : ${min}`;
+                } else if (id === 169) {
+                    text = `📉 Retrait PM : ${min}`;
+                } else if (id === 174) {
+                    text = `📉 Retrait Portée : ${min}`;
+                } else if (id === 160) {
+                    text = `🏃 Téléporte la cible`;
+                } else if (id === 121) {
+                    text = `📉 Dommages subis : +${min}%`;
+                }
+                
+                return text;
+            }).filter(Boolean).join(" | ");
+        };
+        
+        // Fallback to subarea lookup via local file if coordinates is still null
+        if (!coordinates && monster.subareas?.length > 0) {
+            try {
+                const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+                if (fs.existsSync(filePath)) {
+                    const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                    const firstMapInSubarea = worldMapData.maps?.find((m: any) => 
+                        m.subAreaId === monster.subareas[0]
+                    );
+                    if (firstMapInSubarea) {
+                        coordinates = { 
+                            x: firstMapInSubarea.x, 
+                            y: firstMapInSubarea.y, 
+                            worldMapId: firstMapInSubarea.worldMap === -1 ? 1 : firstMapInSubarea.worldMap 
+                        };
+                    }
+                }
+            } catch (err) { console.error("Fallback coordinate fetch error:", err); }
+        }
+        
+        return {
+            success: true,
+            data: {
+                id: monster.id,
+                name: monster.name.fr,
+                imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
+                coordinates,
+                grades: monster.grades.map((g: any, idx: number) => ({
+                    level: g.level,
+                    lifePoints: g.lifePoints,
+                    actionPoints: g.pa || g.actionPoints,
+                    movementPoints: g.pm || g.movementPoints,
+                    resists: {
+                        neutral: g.neutralResistance,
+                        earth: g.earthResistance,
+                        fire: g.fireResistance,
+                        water: g.waterResistance,
+                        air: g.airResistance
+                    }
+                })),
+                drops: monster.drops?.map((d: any) => {
+                    const item = itemsMap[d.objectId];
+                    const iconId = item?.iconId || d.objectId;
+                    const rawPercent = d.percentDropForGrade5 || d.percentDropForGrade1 || d.minPercentDrop || d.percent || 0;
+                    const formattedPercent = parseFloat(rawPercent.toFixed(3));
+                    return {
+                        objectId: d.objectId,
+                        name: item?.name?.fr || "Objet",
+                        imageUrl: `https://api.dofusdb.fr/img/items/${iconId}.png`,
+                        percent: formattedPercent
+                    };
+                }) || [],
+                spells: spellsArr.map(s => {
+                    const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
+                    const level = spellLevelsMap[levelId] || {};
+                    const effectDesc = parseEffects(level.effects);
+                    
+                    // Priority for images: 
+                    // 1. s.img (sometimes relative)
+                    // 2. static.ankama.com
+                    // 3. dofusdb.fr/img/spells/sort_{iconId}.png (last resort usually works)
+                    let spellImg = s.img;
+                    if (!spellImg && s.iconId) {
+                        spellImg = `https://api.dofusdb.fr/img/spells/sort_${s.iconId}.png`;
+                    }
+                    if (spellImg && spellImg.startsWith('/')) {
+                        spellImg = `https://api.dofusdb.fr${spellImg}`;
+                    }
+
+                    return {
+                        id: s.id,
+                        name: s.name?.fr || "Sort",
+                        imageUrl: spellImg,
+                        description: s.description?.fr || effectDesc || "Ce sort possède des mécaniques tactiques spécifiques au boss.",
+                        apCost: level.apCost || level.paCost || 0,
+                        minRange: level.minRange || 0,
+                        range: level.range || level.maxRange || 0,
+                        castTestLos: level.castTestLos ?? true,
+                        castInLine: level.castInLine ?? false,
+                        castInDiagonal: level.castInDiagonal ?? false
+                    };
+                })
+            }
+        };
+    } catch (error) {
+        console.error('[getMonsterStats] Error:', error);
+        return { success: false, error: 'Erreur DofusDB' };
     }
 }

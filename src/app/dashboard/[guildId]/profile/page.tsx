@@ -51,6 +51,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
             lastActivity: null as { description: string; date: string | Date } | null,
             joinedAt: (userContext.joinedAt || null) as string | null,
             isTopContributor: false,
+            weeklyActivity: [],
+            missionsByCategory: [],
         };
 
     return (
@@ -106,6 +108,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         canViewArchis: userContext.canViewArchis,
                         canViewSonges: userContext.canViewSonges,
                         canViewLadder: userContext.canViewLadder,
+                        canSyncLadder: userContext.canSyncLadder,
                         canViewMissions: userContext.canViewMissions,
                     }}
                     roleName={userContext.roleName}

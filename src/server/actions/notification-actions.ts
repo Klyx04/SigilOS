@@ -30,7 +30,8 @@ function inferCategory(type: NotificationType, title: string): NotificationCateg
     if (type === "SONGES_JOIN_REQUEST" || title.toLowerCase().includes("songes")) return "SONGES";
     if (type === "EVENT_REMINDER" || title.toLowerCase().includes("rappel") || title.toLowerCase().includes("event")) return "EVENT";
     if (type === "POLL_CREATED" || type === "POLL_CLOSED" || title.toLowerCase().includes("sondage")) return "POLL";
-    if (type === "SYSTEM_INFO") return "SYSTEM";
+    if (type.startsWith("OCRE_") || title.toLowerCase().includes("ocre")) return "OCRE";
+    if (type.startsWith("FINDER_") || title.toLowerCase().includes("donjon")) return "DONJONS";
     return "SYSTEM";
 }
 
@@ -121,10 +122,12 @@ export async function createNotification(
 
                 // Stop if preference is explicitly false
                 if (finalCategory === "MISSION" && prefs.missions === false) return;
-                if (finalCategory === "SUCCESS" && prefs.success === false) return;
+                if (finalCategory === "SUCCESS" && prefs.ladder === false) return; 
                 if (finalCategory === "SONGES" && prefs.songes === false) return;
                 if (finalCategory === "EVENT" && prefs.events === false) return;
                 if (finalCategory === "POLL" && prefs.polls === false) return;
+                if (finalCategory === "OCRE" && prefs.ocre === false) return;
+                if (finalCategory === "DONJONS" && prefs.donjons === false) return;
                 if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
             }
         }

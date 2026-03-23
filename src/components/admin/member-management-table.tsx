@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Search,
     MoreVertical,
     UserX,
@@ -15,7 +22,9 @@ import {
     Sparkles,
     Send,
     Edit,
-    ArrowUpDown
+    ArrowUpDown,
+    Copy,
+    Check
 } from "lucide-react";
 import {
     Table,
@@ -35,8 +44,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogDescription, 
+    DialogFooter 
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { updateMemberProfileStatus, updateMemberPseudo } from "@/server/actions/user-actions";
+import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
 import { deleteProfileByAdmin } from "@/server/actions/lifecycle-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,7 +71,10 @@ interface Member {
     archivedAt: string | null; // ISO string from server
     archiveReason: string | null;
     pseudoDofus: string | null;
+    ankamaId?: string | null;
     discordNickname: string | null;
+    discordRoleName?: string | null;
+    discordRoleColor?: number | null;
     user: {
         name: string | null;
         image: string | null;
@@ -75,9 +95,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc"); // desc = newer first
+    const [roleFilter, setRoleFilter] = useState("all");
+    const [joinedFilter, setJoinedFilter] = useState("all");
 
     // Dialog state
     const [badgeTarget, setBadgeTarget] = useState<{ id: string, name: string } | null>(null);
+    const [idTarget, setIdTarget] = useState<{ id: string, name: string, currentId?: string | null } | null>(null);
+    const [namePart, setNamePart] = useState("");
+    const [digitsPart, setDigitsPart] = useState("");
 
     const filteredMembers = members
         .filter((member: Member) =>
@@ -85,13 +110,30 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         )
         .filter((member: Member) =>
             member.user.name?.toLowerCase().includes(search.toLowerCase()) ||
-            member.user.accounts[0]?.providerAccountId.includes(search)
+            member.user.accounts[0]?.providerAccountId.includes(search) ||
+            member.pseudoDofus?.toLowerCase().includes(search.toLowerCase()) ||
+            member.ankamaId?.toLowerCase().includes(search.toLowerCase())
         )
+        .filter((member: Member) => 
+            roleFilter === "all" || member.discordRoleName === roleFilter
+        )
+        .filter((member: Member) => {
+            if (joinedFilter === "all") return true;
+            const createdDate = new Date(member.createdAt);
+            const now = new Date();
+            const diffDays = Math.ceil(Math.abs(now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (joinedFilter === "week") return diffDays <= 7;
+            if (joinedFilter === "month") return diffDays <= 30;
+            if (joinedFilter === "old") return diffDays > 180;
+            return true;
+        })
         .sort((a, b) => {
             const dateA = new Date(a.createdAt).getTime();
             const dateB = new Date(b.createdAt).getTime();
             return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
         });
+
+    const uniqueRoles = [...new Set(members.map(m => m.discordRoleName).filter(Boolean))];
 
     const handleStatusUpdate = async (profileId: string, status: "ACTIVE" | "ARCHIVED" | "BANNED") => {
         setIsUpdating(profileId);
@@ -150,6 +192,46 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         }
     };
 
+    const openIdDialog = (member: Member) => {
+        setIdTarget({ id: member.id, name: member.pseudoDofus || member.user.name || "Membre", currentId: member.ankamaId });
+        if (member.ankamaId && member.ankamaId.includes('#')) {
+            const [n, d] = member.ankamaId.split('#');
+            setNamePart(n || "");
+            setDigitsPart(d || "");
+        } else {
+            setNamePart("");
+            setDigitsPart("");
+        }
+    };
+
+    const handleSaveAnkamaId = async () => {
+        if (!idTarget) return;
+        
+        const fullId = `${namePart}#${digitsPart}`;
+        setIsUpdating(idTarget.id);
+        try {
+            const res = await updateMemberAnkamaId(idTarget.id, fullId);
+            if (res.success) {
+                setMembers(prev => prev.map(m =>
+                    m.id === idTarget.id ? { ...m, ankamaId: fullId } : m
+                ));
+                toast.success("ID Dofus mis à jour !");
+                setIdTarget(null);
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
+    const isIdValid = /^[a-zA-Z0-9\-]{1,50}$/.test(namePart) && /^[0-9]{4}$/.test(digitsPart);
+
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copié !`);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -158,8 +240,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab
-                                ? "bg-violet-500 text-white shadow-lg"
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === tab
+                                ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20 border-t border-white/20"
                                 : "text-zinc-500 hover:text-zinc-300"
                                 }`}
                         >
@@ -168,41 +250,70 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     ))}
                 </div>
 
-                <div className="relative w-full md:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                    <Input
-                        placeholder="Rechercher..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10 bg-zinc-900/50 border-white/10 h-9 text-sm"
-                    />
+                <div className="flex flex-wrap items-center gap-2">
+                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                        <SelectTrigger className="w-[170px] h-9 bg-zinc-900/50 border-white/10 text-[10px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8">
+                            <SelectValue placeholder="Rôle" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-white/10">
+                            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Tous les rôles</SelectItem>
+                            {uniqueRoles.map(role => (
+                                <SelectItem key={role} value={role!} className="text-[10px] font-black uppercase tracking-widest">
+                                    {role}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={joinedFilter} onValueChange={setJoinedFilter}>
+                        <SelectTrigger className="w-[170px] h-9 bg-zinc-900/50 border-white/10 text-[10px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8">
+                            <SelectValue placeholder="Arrivée" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-white/10">
+                            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Toutes époques</SelectItem>
+                            <SelectItem value="week" className="text-[10px] font-black uppercase tracking-widest">{"< 1 semaine"}</SelectItem>
+                            <SelectItem value="month" className="text-[10px] font-black uppercase tracking-widest">{"< 1 mois"}</SelectItem>
+                            <SelectItem value="old" className="text-[10px] font-black uppercase tracking-widest">{"> 6 mois"}</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Input
+                            placeholder="Rechercher..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-10 bg-zinc-900/50 border-white/10 h-9 text-sm rounded-xl"
+                        />
+                    </div>
                 </div>
             </div>
 
             <div className="rounded-xl border border-white/5 bg-zinc-900/20 overflow-hidden">
                 <Table>
-                    <TableHeader className="bg-white/5">
-                        <TableRow className="hover:bg-transparent">
-                            <TableHead>Membre</TableHead>
-                            <TableHead>ID Discord</TableHead>
-                            <TableHead>Statut</TableHead>
-                            <TableHead>
+                    <TableHeader className="bg-white/5 border-b border-white/5">
+                        <TableRow className="hover:bg-transparent border-none">
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Membre</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Statut</TableHead>
+                            <TableHead className="py-4">
                                 <button
                                     onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : "desc")}
-                                    className="flex items-center gap-2 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
                                 >
                                     Arrivée
                                     <ArrowUpDown className="w-3 h-3" />
                                 </button>
                             </TableHead>
-                            <TableHead>Dernière activité</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Activité</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Discord ID</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Ankama ID</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4 pr-8">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredMembers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-32 text-center text-zinc-500">
+                                <TableCell colSpan={7} className="h-32 text-center text-zinc-500">
                                     Aucun membre trouvé.
                                 </TableCell>
                             </TableRow>
@@ -232,14 +343,9 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <code className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400 font-mono">
-                                        {member.user.accounts[0]?.providerAccountId || "Unknown"}
-                                    </code>
-                                </TableCell>
-                                <TableCell>
                                     <Badge
                                         variant="outline"
-                                        className={`capitalize text-[10px] font-black tracking-widest ${member.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                                        className={`capitalize text-[9px] font-black tracking-[0.1em] px-2 py-0.5 rounded-md ${member.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]" :
                                             member.status === "ARCHIVED" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                                                 "bg-red-500/10 text-red-400 border-red-500/20"
                                             }`}
@@ -255,6 +361,38 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 </TableCell>
                                 <TableCell className="text-xs text-zinc-500">
                                     {formatDistanceToNow(new Date(member.updatedAt ?? member.archivedAt ?? new Date()), { addSuffix: true, locale: fr })}
+                                </TableCell>
+                                <TableCell>
+                                    <div 
+                                        onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
+                                        className="flex items-center gap-2 group/copy cursor-pointer w-fit"
+                                    >
+                                        <code className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-300 font-mono border border-white/5 group-hover/copy:border-white/20 transition-all">
+                                            {member.user.accounts[0]?.providerAccountId || "Unknown"}
+                                        </code>
+                                        <Copy className="w-3 h-3 text-zinc-600 group-hover/copy:text-zinc-400 opacity-0 group-hover/copy:opacity-100 transition-all" />
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    {member.ankamaId ? (
+                                        <div 
+                                            onClick={() => copyToClipboard(member.ankamaId!, "ID Dofus")}
+                                            className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
+                                        >
+                                            <div className="px-2 py-1 rounded bg-indigo-500/20 border border-indigo-500/40 group-hover/id:border-indigo-400 transition-all">
+                                                <span className="text-[10px] font-black text-indigo-400 font-mono tracking-tight uppercase">{member.ankamaId}</span>
+                                            </div>
+                                            <Copy className="w-3 h-3 text-indigo-600 group-hover/id:text-indigo-400 opacity-0 group-hover/id:opacity-100 transition-all" />
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={() => openIdDialog(member)}
+                                            className="text-[9px] font-black uppercase text-zinc-600 hover:text-zinc-400 transition-colors italic flex items-center gap-1"
+                                        >
+                                            <Edit className="w-3 h-3" />
+                                            Ajouter ID
+                                        </button>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
@@ -307,8 +445,16 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
-                                                onClick={() => handleUpdatePseudo(member.id)}
+                                                onClick={() => openIdDialog(member)}
                                                 className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer"
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-indigo-400" />
+                                                Modifier l'ID Dofus
+                                            </DropdownMenuItem>
+                                            
+                                            <DropdownMenuItem
+                                                onClick={() => handleUpdatePseudo(member.id)}
+                                                className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer"
                                             >
                                                 <Edit className="h-3.5 w-3.5" />
                                                 Modifier le Pseudo Dofus
@@ -346,6 +492,70 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     onOpenChange={(open) => !open && setBadgeTarget(null)}
                 />
             )}
+
+            <Dialog open={!!idTarget} onOpenChange={(open) => !open && setIdTarget(null)}>
+                <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-white/10 text-white p-0 overflow-hidden rounded-[24px]">
+                    <div className="p-6 pb-2">
+                        <DialogHeader>
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+                                <Edit className="w-6 h-6 text-indigo-400" />
+                            </div>
+                            <DialogTitle className="text-xl font-black tracking-tight">ID Dofus (Ankama)</DialogTitle>
+                            <DialogDescription className="text-zinc-500 italic">
+                                Mise à jour de l'ID pour <span className="text-white font-bold">{idTarget?.name}</span>. Respectez le format Nom#0000.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    <div className="px-6 py-6 space-y-6">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
+                            <div className="flex-1 space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-1">Nom / Pseudo</label>
+                                <Input 
+                                    placeholder="Nom"
+                                    value={namePart}
+                                    onChange={(e) => setNamePart(e.target.value)}
+                                    className="bg-zinc-900/50 border-white/10 text-sm font-bold h-11 focus:ring-indigo-500/30"
+                                    maxLength={50}
+                                />
+                            </div>
+                            <div className="pt-6 font-black text-xl text-zinc-700">#</div>
+                            <div className="w-24 space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-1">4 Chiffres</label>
+                                <Input 
+                                    placeholder="0000"
+                                    value={digitsPart}
+                                    onChange={(e) => setDigitsPart(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                    className="bg-zinc-900/50 border-white/10 text-sm font-bold text-center h-11 focus:ring-indigo-500/30"
+                                    maxLength={4}
+                                />
+                            </div>
+                        </div>
+
+                        {!isIdValid && (namePart || digitsPart) && (
+                            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 flex items-start gap-3">
+                                <ShieldAlert className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+                                    Format invalide : Le nom doit faire max 50 caractères et il faut exactement 4 chiffres après le #.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="px-6 py-4 bg-white/5 flex justify-end gap-3 lg:gap-2">
+                        <Button variant="ghost" onClick={() => setIdTarget(null)} className="font-bold text-zinc-500 hover:text-white uppercase text-[10px] tracking-widest">
+                            Annuler
+                        </Button>
+                        <Button 
+                            onClick={handleSaveAnkamaId}
+                            disabled={!isIdValid || isUpdating === idTarget?.id}
+                            className={`bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-2 rounded-xl transition-all ${isIdValid ? 'shadow-lg shadow-indigo-600/20' : 'opacity-50'}`}
+                        >
+                            {isUpdating === idTarget?.id ? "Mise à jour..." : "Enregistrer"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

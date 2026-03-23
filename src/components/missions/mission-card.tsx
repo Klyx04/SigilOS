@@ -50,6 +50,7 @@ interface MissionCardProps {
     currentUserId: string;
     guildId: string; // Discord Guild ID for upload
     onInterestClick?: (missionId: string) => void; // For modal trigger
+    isRestricted?: boolean;
 }
 
 // --- Category Config ---
@@ -142,7 +143,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, guildId, onInterestClick }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [showValidators, setShowValidators] = useState(false);
@@ -423,13 +424,15 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                 : "bg-white text-black hover:bg-emerald-400 hover:text-black hover:scale-105 active:scale-95 border-none"
                         )}
                         onClick={handleToggleInterest}
-                        disabled={isPending}
+                        disabled={isPending || isRestricted}
                     >
                         {isInterested ? (
                             <>
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>Inscrit</span>
                             </>
+                        ) : isRestricted ? (
+                            <span>Verrouillé</span>
                         ) : (
                             <span>S'inscrire</span>
                         )}
@@ -492,6 +495,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick }
                                             : "bg-zinc-800 text-zinc-300 hover:bg-white hover:text-black border-white/10"
                                     )}
                                     onClick={() => setShowUploadDialog(true)}
+                                    disabled={isRestricted}
                                 >
                                     <Upload className="w-3.5 h-3.5 mr-2" />
                                     {isRejected ? "RÉESSAYER" : "PREUVE"}

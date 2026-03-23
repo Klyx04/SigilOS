@@ -27,7 +27,8 @@ export type ModuleKey =
     | "resources"
     // Nouveau
     | "chat"
-    | "gallery";
+    | "gallery"
+    | "ladderSync";
 
 export type GuildModulesState = {
     // Général
@@ -56,6 +57,7 @@ export type GuildModulesState = {
     resources: boolean;
     // Nouveau
     chat: boolean;
+    ladderSync: boolean;
 };
 
 export const DEFAULT_MODULES: GuildModulesState = {
@@ -79,4 +81,5 @@ export const DEFAULT_MODULES: GuildModulesState = {
     worldmap: false,
     resources: false,
     chat: false,
+    ladderSync: false,
 };

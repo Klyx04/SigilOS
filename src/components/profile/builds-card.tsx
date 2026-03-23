@@ -286,11 +286,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {!readOnly && links.length < 20 && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-white">
+                            <Button variant="default" size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all font-black uppercase tracking-widest text-[10px] h-9 rounded-xl border border-emerald-400/20">
                                 <Plus className="w-4 h-4" />
+                                <span className="hidden sm:inline">Ajouter un Build</span>
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl">
+                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>Ajouter un Build DofusBook</DialogTitle>
                                 <DialogDescription className="text-zinc-400">
@@ -491,18 +492,45 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         </div>
                     ))
                 ) : (
-                    <div className="text-center py-12 bg-zinc-950/20 rounded-2xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-zinc-900/50 flex items-center justify-center border border-white/5">
-                            <Link2 className="w-6 h-6 text-zinc-700" />
+                    <div className="text-center py-16 bg-zinc-950/40 rounded-[2rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
+                        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-700" />
+                        
+                        <div className="relative">
+                            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 rotate-3 group-hover/empty:rotate-6 transition-all duration-500 shadow-2xl">
+                                <Link2 className="w-10 h-10 text-emerald-400 group-hover/empty:scale-110 transition-all" />
+                            </div>
+                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center animate-bounce shadow-xl">
+                                <Plus className="w-4 h-4 text-emerald-400" />
+                            </div>
                         </div>
-                        <p className="text-zinc-600 text-sm italic">Aucun build enregistré</p>
+
+                        <div className="space-y-2 relative px-6">
+                            <h4 className="text-white font-black uppercase tracking-widest text-sm">Aucun build Dofusbook</h4>
+                            <p className="text-zinc-500 text-xs leading-relaxed max-w-sm mx-auto font-medium">
+                                Partagez vos stuffs pour que les autres membres puissent s'en inspirer ou vous aider à les optimiser.
+                                <br />
+                                <span className="text-zinc-600 italic">C'est ici que vous lorgnez le stuff des autres !</span>
+                            </p>
+                        </div>
+
+                        {!readOnly && (
+                            <Button 
+                                variant="default" 
+                                size="lg" 
+                                onClick={() => setIsOpen(true)}
+                                className="relative bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[11px] h-12 px-8 rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:shadow-[0_0_35px_rgba(16,185,129,0.4)] transition-all border border-emerald-400/20"
+                            >
+                                <Plus className="w-5 h-5 mr-3" />
+                                Importer mon premier stuff
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>
 
             {/* Edit Dialog */}
             <Dialog open={!!editingLink} onOpenChange={(open) => !open && setEditingLink(null)}>
-                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl">
+                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Modifier le Build</DialogTitle>
                         <DialogDescription className="text-zinc-400">

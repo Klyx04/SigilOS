@@ -5,6 +5,10 @@ import { db } from "../lib/prisma";
 import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
+import { sendGlobalStatusPing } from "../server/actions/status-actions";
+import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
+// ── Ladder Sync ──────────────────────────────────────────────────────────────
+import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
 
 interface ExchangeJobData {
     guildId: string;
@@ -333,12 +337,82 @@ cleanupWorker.on("failed", (job, err) => {
     logger.error(`[Cleanup] ❌ Job ${job?.id} a échoué: ${err.message}`);
 });
 
+// =============================================================================
+// 🛰️ CRON WORKER: Status Ping & Daily Summary
+// =============================================================================
+
+const CRON_QUEUE_NAME = "sigilos-cron-tasks";
+const cronQueue = new Queue(CRON_QUEUE_NAME, defaultQueueOptions);
+
+// 1. Status Ping (Every 15 minutes)
+cronQueue.add(
+    "status-ping",
+    {},
+    {
+        repeat: { pattern: "*/15 * * * *" }, // Every 15 mins
+        jobId: "status-ping-repeat",
+        removeOnComplete: 10,
+        removeOnFail: 5,
+    }
+);
+
+// 2. Daily Summary (Every morning at 08:30)
+cronQueue.add(
+    "daily-summary",
+    {},
+    {
+        repeat: { pattern: "30 8 * * *" }, // Daily at 08:30
+        jobId: "daily-summary-repeat",
+        removeOnComplete: 5,
+        removeOnFail: 3,
+    }
+);
+
+const cronWorker = new Worker(
+    CRON_QUEUE_NAME,
+    async (job) => {
+        if (job.name === "status-ping") {
+            logger.info("[Cron] Execution du Status Ping GLOBAL...");
+            const res = await sendGlobalStatusPing(false);
+            if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+        }
+
+        if (job.name === "daily-summary") {
+            logger.info("[Cron] Execution du Daily Summary pour toutes les guildes...");
+            
+            const guilds = await db.guildConfig.findMany({
+                where: { systemNotifyChannelId: { not: null } },
+                select: { discordGuildId: true, name: true }
+            });
+
+            logger.info(`[Cron] Envoi du rapport à ${guilds.length} guildes...`);
+            
+            for (const guild of guilds) {
+                try {
+                    await sendDailySummaryReport(guild.discordGuildId, false);
+                    logger.info(`[Cron] ✅ Rapport envoyé pour ${guild.name}`);
+                } catch (e) {
+                    logger.error(`[Cron] ❌ Échec rapport pour ${guild.name}`, { error: String(e) });
+                }
+            }
+        }
+    },
+    {
+        ...defaultQueueOptions,
+        concurrency: 1,
+    }
+);
+
 // Graceful shutdown
 const shutdown = async () => {
     logger.info("[Worker] Extinction du Background Worker...");
     await worker.close();
     await cleanupWorker.close();
     await cleanupQueue.close();
+    await cronWorker.close();
+    await cronQueue.close();
+    await ladderSyncWorker.close();
+    await ladderQueue.close();
     process.exit(0);
 };
 

@@ -10,7 +10,18 @@
  * - GUILD_MEMBER_REMOVE: Member left/kicked → Archive UserProfile
  */
 
-import { Client, GatewayIntentBits, Events } from 'discord.js';
+import { 
+    Client, 
+    GatewayIntentBits, 
+    Events, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle,
+    PermissionFlagsBits,
+    ChannelType
+} from 'discord.js';
+
 import { PrismaClient } from '@prisma/client';
 
 // Build connection URL from individual env vars (handles special chars in password)
@@ -98,6 +109,51 @@ client.on(Events.GuildCreate, async (guild) => {
         }
 
         console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name}`);
+
+        // ========================
+        // WELCOME ONBOARDING EMBED
+        // ========================
+        try {
+            // 1. Find the best channel (System channel or first chatty channel)
+            const targetChannel = guild.systemChannel || guild.channels.cache.find(c => 
+                c.type === ChannelType.GuildText && 
+                guild.members.me?.permissionsIn(c).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
+            );
+
+            if (targetChannel && targetChannel.isTextBased()) {
+                const welcomeEmbed = new EmbedBuilder()
+                    .setTitle('🏰 SigilOS est arrivé sur votre serveur')
+                    .setDescription('Le bot est installé. Voici les étapes pour démarrer.')
+                    .setColor(0x10b981)
+                    .addFields(
+                        {
+                            name: 'Étape 1 — Se connecter',
+                            value: 'Rendez-vous sur **[beta.sigilos.fr](https://beta.sigilos.fr)** et connectez-vous avec votre compte Discord.',
+                            inline: false,
+                        },
+                        {
+                            name: 'Étape 2 — Déployer',
+                            value: 'Sur votre Dashboard, trouvez la carte de votre guilde et cliquez sur **"Déployer"**. \nCela installe les salons, rôles et commandes sur ce serveur.',
+                            inline: false,
+                        }
+                    )
+                    .setFooter({ text: 'SigilOS · Beta — Si problème, contactez le développeur.' })
+                    .setTimestamp();
+
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setLabel('Ouvrir le Dashboard')
+                            .setURL('https://beta.sigilos.fr/dashboard')
+                            .setStyle(ButtonStyle.Link)
+                    );
+
+                await targetChannel.send({ embeds: [welcomeEmbed], components: [row as any] });
+                console.log(`[Discord Bot] ✉️ Welcome message sent to ${targetChannel.name} in ${guild.name}`);
+            }
+        } catch (msgErr) {
+            console.error(`[Discord Bot] Failed to send welcome message:`, msgErr);
+        }
     } catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_CREATE:`, error);
     }

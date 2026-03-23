@@ -284,7 +284,7 @@ export async function getPolls(
             orderBy: { createdAt: "desc" },
         });
 
-        return { success: true, data: JSON.parse(JSON.stringify(polls)) };
+        return { success: true, data: JSON.parse(JSON.stringify(polls, (_, v) => typeof v === 'bigint' ? v.toString() : v)) };
     } catch (error) {
         logger.error("[Polls] getPolls error", { error, discordGuildId });
         return { success: false, error: "Failed to fetch polls" };
@@ -357,7 +357,7 @@ export async function getPoll(
             totalVotes: poll.options.reduce((sum: number, o: any) => sum + o._count.votes, 0),
         };
 
-        return { success: true, data: JSON.parse(JSON.stringify(sanitizedPoll)) };
+        return { success: true, data: JSON.parse(JSON.stringify(sanitizedPoll, (_, v) => typeof v === 'bigint' ? v.toString() : v)) };
     } catch (error) {
         logger.error("[Polls] getPoll error", { error, pollId });
         return { success: false, error: "Failed to fetch poll" };

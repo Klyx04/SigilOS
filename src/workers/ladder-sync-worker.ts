@@ -349,18 +349,4 @@ ladderSyncWorker.on("failed", (job, err) => {
 export { ladderSyncWorker, ladderQueue };
 
 // ─── Direct Execution for Testing ─────────────────────────────────────────────
-if (require.main === module) {
-    logger.info("[LadderSync] Exécution manuelle forcée via CLI...");
-    processLadderSync({ 
-        id: "manual-cli", 
-        updateProgress: async () => {},
-    } as any)
-        .then(() => {
-            logger.info("[LadderSync] Terminé. Processus arrêté.");
-            process.exit(0);
-        })
-        .catch((err) => {
-            logger.error(`[LadderSync] Erreur fatale: ${err.message}`);
-            process.exit(1);
-        });
-}
+// Removed to prevent bundle issue where require.main === module evaluates to true in the worker's esbuild output.

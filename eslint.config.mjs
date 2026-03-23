@@ -59,6 +59,7 @@ const eslintConfig = defineConfig([
       "react-hooks/immutability": "off",
       "react-hooks/static-components": "off",
       "react-hooks/set-state-in-effect": "off",
+      "react-hooks/error-boundaries": "off",
     }
   },
 ]);

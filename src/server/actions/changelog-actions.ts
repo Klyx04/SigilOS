@@ -273,7 +273,8 @@ export async function updatePlatformConfig(data: {
     statusIsLite?: boolean,
     statusMode?: string,
     statusMention?: string,
-    statusFrequency?: number
+    statusFrequency?: number,
+    nsfwFilterEnabled?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -289,7 +290,8 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusIsLite !== undefined && { statusIsLite: data.statusIsLite }),
                 ...(data.statusMode !== undefined && { statusMode: data.statusMode }),
                 ...(data.statusMention !== undefined && { statusMention: data.statusMention }),
-                ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency })
+                ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
+                ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled })
             },
             create: { 
                 id: "singleton", 
@@ -300,7 +302,8 @@ export async function updatePlatformConfig(data: {
                 statusIsLite: data.statusIsLite || false,
                 statusMode: data.statusMode || "living",
                 statusMention: data.statusMention || "none",
-                statusFrequency: data.statusFrequency || 15
+                statusFrequency: data.statusFrequency || 15,
+                nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true
             }
         });
         return { success: true, config };

@@ -18,6 +18,7 @@ import {
     Users,
     BookOpen,
     ArrowRight,
+    Activity,
 } from "lucide-react";
 
 // ============================================================================
@@ -132,6 +133,14 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Gérer les membres, archiver des comptes et synchroniser Discord.",
                     accent: "cyan",
                     permission: (u) => u.canManageMembers,
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/workers`,
+                    icon: Activity,
+                    title: "Workers & Sync",
+                    description: "Déclencher manuellement les tâches de fond (Dofusbook, Ladder).",
+                    accent: "amber",
+                    permission: (u) => u.isSuperAdmin,
                 },
             ],
         },

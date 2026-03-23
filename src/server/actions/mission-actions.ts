@@ -18,6 +18,7 @@ import { withCache, invalidateCache } from "@/lib/cache";
 import { hashImage } from "@/lib/llm-ocr";
 import { createAuditLog } from "@/server/actions/audit-actions";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { getDofusWeek } from "@/lib/date-utils";
 
 
 // --- Types & Schemas ---
@@ -67,7 +68,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         // Priority: validation channel > notification channel
         const discordChannelId = guild.missionValidationChannelId || guild.missionNotifyChannelId;
         const mentionRole = guild.missionValidationNotifyRoleId;
-        const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+        const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
 
         let resultDiscordId: string | undefined = undefined;
         if (discordChannelId) {
@@ -647,6 +648,23 @@ export async function submitMissionProof(
         });
         if (!profile) return { success: false, error: "Profil introuvable" };
 
+        // 24h Restriction Check
+        const HOURS_RESIDENCY = 24;
+        const createdAt = profile.createdAt;
+        const diffMs = Date.now() - createdAt.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        const userCtx = await getUserContext(mission.guild.discordGuildId);
+        if (diffHours < HOURS_RESIDENCY && !userCtx.isAdmin) {
+            const remainingMs = (HOURS_RESIDENCY * 60 * 60 * 1000) - diffMs;
+            const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+            const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+            return { 
+                success: false, 
+                error: `Accès restreint. Vous devez avoir rejoint le Dashboard depuis au moins 24h pour participer aux missions. Disponible dans ${remainingHours}h ${remainingMins}m.` 
+            };
+        }
+
         // 1. Double check for existing submission
         const existing = await db.submission.findFirst({
             where: { missionId, profileId: profile.id, status: { in: ["PENDING", "VALIDATED"] } }
@@ -662,6 +680,11 @@ export async function submitMissionProof(
             await (db as any).imageHash.deleteMany({
                 where: { guildId: mission.guildId, sourceType: "MISSION", sourceId: rejectedSubmission.id }
             });
+            // Delete the physical rejected proof to prevent orphan files on VPS
+            if (rejectedSubmission.proofUrl) {
+                const { deletePhysicalProof } = await import("@/server/actions/upload-actions");
+                await deletePhysicalProof(rejectedSubmission.proofUrl);
+            }
             // Delete the stale REJECTED submission row to allow new submission
             await db.submission.delete({ where: { id: rejectedSubmission.id } });
         }
@@ -943,7 +966,12 @@ export async function validateSubmission(
             metadata: {
                 missionTitle: submission.mission.title,
                 submitterId: updatedSubmission.profileId,
-                status
+                submitterName: updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.discordNickname || updatedSubmission.profile.user.name,
+                status,
+                source: "dashboard",
+                xpReward: status === "VALIDATED" ? (submission.mission.xpReward || 0) : 0,
+                guildatonsReward: status === "VALIDATED" ? (submission.mission.guildatonsReward || 0) : 0,
+                helpersCount: updatedSubmission.helpers?.length || 0
             }
         });
 
@@ -956,17 +984,73 @@ export async function validateSubmission(
 
 // --- Helpers ---
 
-async function grantRewards(profileId: string, xp: number, guildatons: number = 0) {
+/**
+ * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
+ */
+export async function getWeeklyGuildatons(profileId: string, week: number, year: number): Promise<number> {
+    const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+
+    const [missions, kamas] = await Promise.all([
+        db.submission.findMany({
+            where: {
+                profileId,
+                status: "VALIDATED",
+                mission: { weekNumber: week, year: year }
+            },
+            include: { mission: { select: { guildatonsReward: true } } }
+        }),
+        db.kamaDonation.findMany({
+            where: {
+                profileId,
+                status: "VALIDATED",
+                weekNumber: week,
+                yearNumber: year
+            },
+            select: { amount: true }
+        })
+    ]);
+
+    const fromMissions = missions.reduce((acc, sub) => acc + (sub.mission.guildatonsReward || 0), 0);
+    const fromKamas = kamas.reduce((acc, don) => {
+        const tranches = Math.floor(don.amount / KAMA_TRANCHE);
+        return acc + (tranches * REWARDS_PER_TRANCHE.guildatons);
+    }, 0);
+
+    return fromMissions + fromKamas;
+}
+
+export async function grantRewards(profileId: string, xp: number, guildatons: number = 0, week?: number, year?: number) {
     if (xp <= 0 && guildatons <= 0) return;
 
     try {
-        await db.userProfile.update({
-            where: { id: profileId },
-            data: {
-                xp: { increment: xp > 0 ? xp : 0 },
-                guildatons: { increment: guildatons > 0 ? guildatons : 0 }
+        let finalGuildatons = guildatons;
+        if (guildatons > 0) {
+            const { week: currentWeek, year: currentYear } = getDofusWeek();
+            const w = week ?? currentWeek;
+            const y = year ?? currentYear;
+
+            const currentWeekly = await getWeeklyGuildatons(profileId, w, y);
+            const { GUILDATONS_MAX_PER_WEEK } = await import("@/lib/kama-constants");
+
+            if (currentWeekly >= GUILDATONS_MAX_PER_WEEK) {
+                finalGuildatons = 0;
+            } else if (currentWeekly + guildatons > GUILDATONS_MAX_PER_WEEK) {
+                finalGuildatons = GUILDATONS_MAX_PER_WEEK - currentWeekly;
             }
+        }
+
+        // Invalidate Ladder Cache (since XP/Guildatons changed)
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { guild: { select: { discordGuildId: true } } }
         });
+
+        if (profile?.guild?.discordGuildId) {
+            const { clearCachePattern } = await import("@/lib/cache");
+            await clearCachePattern(`ladder:activity:${profile.guild.discordGuildId}:*`);
+            await clearCachePattern(`ladder:guildatons:${profile.guild.discordGuildId}:*`);
+            revalidatePath(`/dashboard/${profile.guild.discordGuildId}/ladder`);
+        }
     } catch (e) {
         console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
     }
@@ -1330,21 +1414,19 @@ export async function publishMissionsToDiscord(
         }
 
         // Build mention content
-        let mention = "";
-        if (pingType === "EVERYONE") mention = "@everyone";
+        let mentionContent = "Bonjour à tous !";
+        if (pingType === "EVERYONE") mentionContent = "Bonjour @everyone !";
         else if (pingType === "ROLE") {
             const idToMention = specificRoleId || guild.missionNotifyRoleId;
-            if (idToMention) mention = `<@&${idToMention}>`;
+            if (idToMention) mentionContent = `Bonjour <@&${idToMention}> !`;
         }
 
         const { getAppBaseUrl } = await import("@/lib/utils");
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions`;
 
-        // We use lazy import to avoid circular dependencies if any, 
-        // though server-to-server usually is fine.
         const { sendChannelMessage } = await import("@/server/discord");
 
-        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mention, {
+        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mentionContent, {
             embedTitle: "🎯 Nouvel objectif hebdomadaire",
             embedColor: 0x7c3aed, // Violet SigilOS
             embedUrl: dashboardUrl,
@@ -1357,12 +1439,12 @@ export async function publishMissionsToDiscord(
                 },
                 {
                     name: "🖥️ Dashboard de Guilde",
-                    value: `[Voir les missions, soumettre une preuve et suivre ta progression](${dashboardUrl})`,
+                    value: `[Consulter les missions et soumettre tes preuves](${dashboardUrl})`,
                     inline: false
                 },
                 {
                     name: "\u200b",
-                    value: "*Tu n'as pas encore de compte ? Rejoins le Dashboard de guilde sur **sigilos.fr** !*",
+                    value: "*Prêts pour une nouvelle semaine de défis ? Le destin de la guilde est entre vos mains !*",
                     inline: false
                 }
             ]

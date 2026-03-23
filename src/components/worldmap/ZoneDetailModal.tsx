@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Swords, ShieldAlert, CheckCircle2, XCircle, ChevronDown, Loader2, MapPin, Ghost, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { getZoneMonsters, getBountiesForZone } from '@/server/actions/game-data-actions';
+import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
 import { getZoneArchmonsters } from '@/server/actions/ocre-actions';
 
 interface ZoneDetailModalProps {
@@ -20,6 +20,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
     const [monsters, setMonsters] = useState<any>(null);
     const [archis, setArchis] = useState<any[]>([]);
     const [bounties, setBounties] = useState<any[]>([]);
+    const [dungeons, setDungeons] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -28,8 +29,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
             Promise.all([
                 getZoneMonsters(zoneName),
                 getZoneArchmonsters(guildId, zoneName),
-                getBountiesForZone(zoneName)
-            ]).then(([mRes, aRes, bRes]) => {
+                getBountiesForZone(zoneName),
+                searchDungeonsAdvanced({ query: zoneName }) // Basic way to find dungeons in zone by name match
+            ]).then(([mRes, aRes, bRes, dRes]) => {
                 const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
                 const dbAvis = bRes.success ? bRes.data || [] : [];
                 
@@ -56,6 +58,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                     setArchis([]);
                 }
                 setBounties(mergedAvis);
+                if (dRes.success) setDungeons(dRes.data || []);
                 setLoading(false);
             }).catch(() => {
                 setError("Erreur de connexion");
@@ -219,6 +222,40 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId }
                                             </div>
                                         )}
                                     </section>
+                                    
+                                    {/* Donjons de la Zone */}
+                                    {dungeons.length > 0 && (
+                                        <section className="space-y-6">
+                                            <div className="flex items-center justify-between sticky top-0 bg-[#080a10] py-4 z-10 border-b border-white/5 mb-4">
+                                                <h3 className="text-amber-500 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
+                                                    <Swords size={20} /> Donjons de la Zone
+                                                </h3>
+                                            </div>
+                                            <div className="grid gap-3">
+                                                {dungeons.map((dj) => (
+                                                    <div 
+                                                        key={dj.id} 
+                                                        className="group relative flex items-center gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:border-amber-500/40 transition-all shadow-lg shadow-amber-500/5 cursor-default"
+                                                    >
+                                                        <div className="w-12 h-12 rounded-xl bg-[#020408] border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
+                                                            {dj.imageUrl ? (
+                                                                <img src={dj.imageUrl} alt="" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-500" />
+                                                            ) : (
+                                                                <Swords size={20} className="text-amber-500/40" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-black text-white truncate leading-none mb-1 uppercase italic tracking-tight">{dj.name}</p>
+                                                            <p className="text-[10px] font-bold text-amber-500/60 uppercase tracking-[0.1em] italic">Niveau {dj.level}</p>
+                                                        </div>
+                                                        <div className="shrink-0 flex items-center gap-2">
+                                                            <span className="text-[9px] font-black text-white/30 uppercase tracking-widest italic">{dj.bossName}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
 
                                     {/* Bestiaire Standard */}
                                     {monsters?.normalMonsters?.length > 0 && (

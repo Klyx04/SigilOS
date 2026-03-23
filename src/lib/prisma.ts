@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { encrypt, decrypt } from './encryption'
 
-// Récupération et nettoyage strict - v3.0.1 (Force Rebuild)
+// Récupération et nettoyage strict - v3.0.3 (Force Rebuild for Schema Changes)
 const getEnv = (key: string, fallback: string) => {
     const val = process.env[key];
     if (!val) return fallback;
@@ -20,8 +20,9 @@ const defaultHost = isBeta ? 'db-beta' : 'db-prod';
 const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? defaultHost : 'localhost');
 
 const dbUrl = getEnv('DATABASE_URL', '');
+const port = process.env.DB_PORT || (process.env.NODE_ENV === 'production' ? '5432' : '5433');
 const protocol = 'postgres' + 'ql://';
-const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 const connectionString = dbUrl || safeFromComponents;
 
 const createPrismaClient = () => {
@@ -29,10 +30,16 @@ const createPrismaClient = () => {
     
     const pool = new Pool({
         connectionString,
-        max: isDev ? 20 : 30,         // Increased to handle complex parallel dashboard queries in Dev
-        idleTimeoutMillis: 30000, 
-        connectionTimeoutMillis: 10000, // Increased timeout to 10s to prevent 'timed out' errors on heavy parallel loads
+        max: isDev ? 10 : 30,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 15000,
+        // Windows + Docker Desktop (WSL2): the bridge network silently drops idle
+        // TCP connections after ~30-60s. TCP keepalives prevent this.
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000, // Start probing after 10s of inactivity
     })
+
+
 
     const adapter = new PrismaPg(pool as any)
     const basePrisma = new PrismaClient({

@@ -3,10 +3,9 @@ import { auth } from "@/auth";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
-import { getUserContext } from "@/server/actions/user-actions";
+import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
-import { getUserGuilds } from "@/server/actions/user-actions";
-import { isGuildAllowed } from "@/server/actions/super-admin-actions";
+
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { Suspense } from "react";
@@ -35,20 +34,6 @@ export default async function DashboardLayout({
     const session = await auth();
     if (!session?.user) redirect("/");
 
-    // --- SECURITY: GUILD WHITELIST (Database-based) ---
-    const allowed = await isGuildAllowed(guildId);
-    if (!allowed) {
-        return (
-            <AccessDenied
-                title="Bêta Fermée"
-                message="L'accès à SigilOS est actuellement limité aux serveurs partenaires. Ce serveur n'est pas encore autorisé."
-                variant="lock"
-                action={<SignOutButton />}
-            />
-        );
-    }
-
-
     const [user, guildData, userGuilds, events, modules, configRes] = await Promise.all([
         getUserContext(guildId),
         getGuildHeaderData(guildId),
@@ -59,6 +44,18 @@ export default async function DashboardLayout({
     ]);
 
     const roadmapEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
+
+    // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
+    if (!user.isAuthenticated) {
+        return (
+            <AccessDenied
+                title="Bêta Fermée"
+                message="L'accès à SigilOS est actuellement limité aux serveurs partenaires. Ce serveur n'est pas encore autorisé."
+                variant="lock"
+                action={<SignOutButton />}
+            />
+        );
+    }
 
     // ── ARCHIVED: specific message to contact staff ──
     if ((user as any).isArchived) {
@@ -97,6 +94,7 @@ export default async function DashboardLayout({
             />
         );
     }
+
 
     // ── NO DASHBOARD ACCESS (role-based) ──
     if (!user.canViewDashboard) {

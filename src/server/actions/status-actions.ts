@@ -11,7 +11,7 @@ const REDIS_STATUS_MSG_KEY = "sigilos:discord_status_message_id";
  * 🛰️ Envoie un ping d'état des services sur Discord
  * Version "Premium" avec Living Status (mis à jour du même message si possible).
  */
-export async function sendGlobalStatusPing(isTestRequest = false) {
+export async function sendGlobalStatusPing(isTestRequest = false, mode?: 'living' | 'notification', isLite?: boolean) {
     if (isTestRequest) {
         const isAdmin = await isSuperAdmin();
         if (!isAdmin) throw new Error("Accès refusé : Super-admin requis");
@@ -20,12 +20,20 @@ export async function sendGlobalStatusPing(isTestRequest = false) {
     try {
         const config = await db.platformConfig.findUnique({ 
             where: { id: "singleton" },
-            select: { serviceStatusChannelId: true }
+            select: { 
+                serviceStatusChannelId: true,
+                statusIsLite: true,
+                statusMode: true,
+                statusMention: true
+            }
         });
 
         if (!config?.serviceStatusChannelId) {
             return { success: false, error: "Salon d'état des services non configuré." };
         }
+
+        const effectiveMode = mode || (config.statusMode as 'living' | 'notification') || 'living';
+        const effectiveLite = isLite !== undefined ? isLite : (config.statusIsLite || false);
 
         // 1. Health Checks
         const startDb = performance.now();
@@ -56,42 +64,58 @@ export async function sendGlobalStatusPing(isTestRequest = false) {
         const statusColor = systemStatus === "OPERATIONAL" ? 0x10b981 : (systemStatus === "DEGRADED" ? 0xf59e0b : 0xef4444);
         const statusEmoji = systemStatus === "OPERATIONAL" ? "🟩" : (systemStatus === "DEGRADED" ? "🟧" : "🟥");
 
-        // 2. Build the Premium Embed
+        // 2. Build the Embed
+        const fields = effectiveLite ? [
+            {
+                name: "Systèmes",
+                value: `État: **${systemStatus === "OPERATIONAL" ? "Opérationnel" : "Perturbé"}**`,
+                inline: true
+            },
+            {
+                name: "Uptime",
+                value: `**99.9%**`,
+                inline: true
+            }
+        ] : [
+            {
+                name: "🗄️ Base de données",
+                value: `Statut: **${isDbOk ? "En ligne" : "Erreur"}**\nLatence: \`${dbLatency}ms\`\nSurcharge: \`Bas\``,
+                inline: true
+            },
+            {
+                name: "⚡ Cache & Real-time",
+                value: `Statut: **${isRedisOk ? "Optimal" : "Erreur"}**\nLatence: \`${redisLatency}ms\`\nWS: 🟩 **Actifs**`,
+                inline: true
+            },
+            {
+                name: "🌐 API & Dashboard",
+                value: `Version: \`${process.env.npm_package_version || "0.1.0"}\`\nUptime: \`99.9%\`\nEnvironnement: \`Production\``,
+                inline: false
+            }
+        ];
+
         const embed = {
             embedTitle: `🛰️ SigilOS — État des Systèmes`,
             embedUrl: statusUrl,
-            embedDescription: systemStatus === "OPERATIONAL" 
-                ? "Tous les systèmes sont au vert. L'infrastructure est surveillée en temps réel pour garantir une performance optimale."
-                : "Certains services rencontrent des perturbations. Nos équipes (enfin, le robot) sont sur le coup.",
+            embedDescription: effectiveLite 
+                ? (systemStatus === "OPERATIONAL" ? "Tous les systèmes fonctionnent normalement." : "Des perturbations ont été détectées.")
+                : (systemStatus === "OPERATIONAL" 
+                    ? "Tous les systèmes sont au vert. L'infrastructure est surveillée en temps réel pour garantir une performance optimale."
+                    : "Certains services rencontrent des perturbations. Nos équipes (enfin, le robot) sont sur le coup."),
             embedColor: statusColor,
-            embedThumbnail: "https://i.imgur.com/AfFp7pu.png",
-            fields: [
-                {
-                    name: "🗄️ Base de données",
-                    value: `Statut: **${isDbOk ? "En ligne" : "Erreur"}**\nLatence: \`${dbLatency}ms\`\nSurcharge: \`Bas\``,
-                    inline: true
-                },
-                {
-                    name: "⚡ Cache & Real-time",
-                    value: `Statut: **${isRedisOk ? "Optimal" : "Erreur"}**\nLatence: \`${redisLatency}ms\`\nWS: 🟩 **Actifs**`,
-                    inline: true
-                },
-                {
-                    name: "🌐 API & Dashboard",
-                    value: `Version: \`${process.env.npm_package_version || "0.1.0"}\`\nUptime: \`99.9%\`\nEnvironnement: \`Production\``,
-                    inline: false
-                }
-            ],
-            embedFooter: `Dernière synchronisation • <t:${Math.floor(Date.now() / 1000)}:R>`,
+            embedThumbnail: effectiveLite ? undefined : "https://sigilos.fr/assets/ui/logo-v2.png",
+            fields,
+            embedFooter: `SigilOS Service Monitoring • <t:${Math.floor(Date.now() / 1000)}:R>`,
         };
 
-        // 3. Living Status Logic (Consolidated)
+        // 3. Dispatch Logic
         const channelId = config.serviceStatusChannelId;
         const previousMessageId = await redis.get(REDIS_STATUS_MSG_KEY);
         let actionTaken = "created";
         let finalMessageId: string | null = null;
 
-        if (previousMessageId) {
+        // Mode 'living': try to update the old message
+        if (effectiveMode === 'living' && previousMessageId) {
             const updated = await updateChannelMessage(channelId, previousMessageId, "", embed);
             if (updated) {
                 finalMessageId = previousMessageId;
@@ -99,10 +123,12 @@ export async function sendGlobalStatusPing(isTestRequest = false) {
             }
         }
 
+        // Mode 'notification' OR update failed: send a new message
         if (!finalMessageId) {
-            finalMessageId = await sendChannelMessage(channelId, "", embed);
-            if (finalMessageId) {
-                // Persist the new ID (expires in 30 days)
+            const mentionContent = config.statusMention === 'none' ? "" : config.statusMention;
+            finalMessageId = await sendChannelMessage(channelId, mentionContent, embed);
+            if (finalMessageId && effectiveMode === 'living') {
+                // Only save specifically for living status
                 await redis.set(REDIS_STATUS_MSG_KEY, finalMessageId, "EX", 60 * 60 * 24 * 30);
             }
         }

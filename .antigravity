@@ -398,6 +398,25 @@ if (!isAdmin) return { success: false, error: "Unauthorized" };
 
 ---
 
+## 💎 Sigma 2026 Standards (Design & Security)
+
+### 📱 1. Responsive "Fluid-Adaptive"
+- **Fluid Typography**: Toujours utiliser `clamp(min, preferred, max)` pour garantir que le texte s'adapte parfaitement de l'Apple Watch aux écrans Ultra-Wide 49".
+- **Container Queries**: Privilégier `@container` sur `@media` pour les composants réutilisables (cards, inputs) pour qu'ils soient intelligents quel que soit leur conteneur.
+- **Adaptive Navigation**: Les barres latérales DOIVENT se transformer en **Bottom Dock** ou **Floating Islands** sur Mobile. Pas de burger menu caché si possible.
+
+### 🛡️ 2. Security "Edge-Shield (Isolation)"
+- **Infrastructure Proxying**: L'IP du VPS de Production ne doit **JAMAIS** être exposée aux APIs externes (Ankama, Dofusbook, etc.). 
+- **Worker Obligatoire**: Tout scraping ou appel API complexe vers un tiers doit transiter par un **Cloudflare Worker Proxy** avec authentification `X-SigilOS-Key`.
+- **RBAC Client-Server**: Séparation stricte — Les secrets ne sortent JAMAIS du serveur. Les variables `NEXT_PUBLIC_*` ne doivent contenir aucune info de configuration d'infra ou clés API.
+
+### ✨ 3. Premium Aesthetics "Deep-Glass"
+- **Z-Axis Depth**: Utilisation systématique de `backdrop-blur-md` et `bg-black/40` pour détacher les éléments flottants.
+- **Micro-Gradients**: Éviter les aplats de noir pur (#000). Préférer des dégradés profonds `from-zinc-950 to-black` avec une légère texture de grain/bruit numérique.
+- **Neon Indicators**: Les états actifs doivent être signalés par des barres de lumière (Box shadow + accent color) plutôt que par de simples changements de couleur de fond.
+
+---
+
 ## 🏗️ Infrastructure VPS
 
 | Env | URL | Branche | Container | Volume / Stockage |

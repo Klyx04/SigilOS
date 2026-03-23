@@ -213,13 +213,13 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
-        const dateStr = new Date(event.startDate).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
-        const timeStr = new Date(event.startDate).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-        const endTimeStr = new Date(event.endDate).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
+        // Fixed Timezone Handling via Discord Dynamic Timestamps
+        const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
+        const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
 
         const fields = [
-            { name: "📅 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
-            { name: "⏰ Horaire", value: `${timeStr} - ${endTimeStr}`, inline: true },
+            { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
+            { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
             { name: "👥 Places", value: `0/${event.maxParticipants || "∞"}`, inline: true },
             { name: "🔗 Lien", value: `[Voir l'événement](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
             { name: "📝 Description", value: event.description || "*Pas de description*", inline: false },
@@ -303,14 +303,9 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
 
         if (!event || !event.discordMessageId || !event.discordChannelId) return;
 
-        // Visual Config matches createLogic...
+        // Visual Config
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
-
-        // Use a publicly accessible URL for the image (assuming we host them)
-        // For now, let's assume we have a base URL. If we don't, we might need to skip image valid url.
-        // We will assume 'https://sigilos.app/assets/calendar/' + imageName
-        // Replace with your actual domain
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
@@ -333,14 +328,13 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
             ? reserve.map(formatParticipant).join("\n")
             : "*Personne en file d'attente*";
 
-        // Date formatting (simple)
-        const dateStr = new Date(event.startDate).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
-        const timeStr = new Date(event.startDate).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-        const endTimeStr = new Date(event.endDate).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
+        // Fixed Timezone Handling via Discord Dynamic Timestamps
+        const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
+        const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
 
         const fields = [
-            { name: "📅 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
-            { name: "⏰ Horaire", value: `${timeStr} - ${endTimeStr}`, inline: true },
+            { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
+            { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
             { name: "👥 Places", value: `${registered.length}/${event.maxParticipants || "∞"}`, inline: true },
             { name: "🔗 Lien", value: `[Voir l'événement](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
             { name: "📝 Description", value: event.description || "*Pas de description*", inline: false },

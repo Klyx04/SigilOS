@@ -103,6 +103,10 @@ model PlatformConfig {
   ticketAutoRoleId       String?
   ticketSupportGuildId   String?
   roadmapEnabled         Boolean  @default(false)
+  statusIsLite           Boolean  @default(false)
+  statusMode             String   @default("living") // 'living' | 'notification'
+  statusMention          String   @default("none")    // 'none' | '@everyone' | '@here'
+  statusFrequency        Int      @default(15)      // minutes
 }
 
 model RoadmapItem {
@@ -249,6 +253,7 @@ model GuildModules {
   worldmap     Boolean     @default(false)
   chat         Boolean     @default(false)
   gallery      Boolean     @default(true)
+  ladderSync   Boolean     @default(false)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -307,6 +312,7 @@ model UserProfile {
   discordNickname         String?
   discordRoleColor        Int?
   discordRoleName         String?
+  ankamaId                String?
   dofusBookLinks          Json?
   dofusPseudo             String?
   entraidePoints          Int                      @default(0)
@@ -322,6 +328,8 @@ model UserProfile {
   metamobPseudo           String?
   metamobVerified         Boolean                  @default(false)
   successPoints           Int?                     @default(0)
+  totalXp                 BigInt?                  @default(0)
+  dofusLevel              Int?                     @default(0)
   vacationEnd             DateTime?
   vacationNotify          Boolean                  @default(false)
   vacationStart           DateTime?
@@ -1646,6 +1654,7 @@ enum NotificationCategory {
   ADMIN_ALERT
   SYSTEM
   DONJONS
+  OCRE
 }
 
 enum DreamDifficulty {

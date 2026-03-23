@@ -1,0 +1,7 @@
+name = "dofus-ladder-proxy"
+main = "worker.js"
+compatibility_date = "2024-03-14"
+
+[vars]
+# Used for local dev auth
+WORKER_SECRET = "k2P8z5M9r4Q2x7N6v3W9p5q8H7y2v6p4"

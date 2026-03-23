@@ -37,6 +37,7 @@ import { TicketDashboard } from "./components/ticket-dashboard";
 import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
+import { WorkerTester } from "./components/worker-tester";
 
 export default async function SuperAdminPage() {
     const isAdmin = await isSuperAdmin();
@@ -47,29 +48,44 @@ export default async function SuperAdminPage() {
     }
 
     return (
-        <div className="space-y-12 py-8">
-            {/* Header - Imposing Scale */}
-            <div className="pb-4">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="min-h-screen bg-[#050505] relative overflow-hidden">
+            {/* Background Sophistication */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
+            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
+
+            <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 space-y-12 relative z-10">
+                {/* Header - Enterprise Clean */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
                     <div className="space-y-4">
-                        <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs font-black text-violet-400 uppercase tracking-[0.3em]">
-                            <Shield className="w-4 h-4" />
-                            <span>Contrôle Maître</span>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                                <Shield className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+                                SigilOS • God Mode
+                            </span>
                         </div>
-                        <h1 className="text-6xl md:text-8xl font-black tracking-tighter bg-gradient-to-r from-violet-200 via-violet-400 to-violet-600 bg-clip-text text-transparent leading-none drop-shadow-[0_0_30px_rgba(168,85,247,0.2)]">
-                            Platform <br />
-                            Engine
-                        </h1>
+                        
+                        <div className="space-y-2">
+                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">
+                                Administration
+                            </h1>
+                            <p className="text-zinc-400 text-lg md:text-xl font-medium max-w-3xl leading-relaxed">
+                                Superviser l'infrastructure globale, administrer les instances de guildes et piloter les services système en temps réel.
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3 px-6 py-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl shadow-lg shadow-emerald-500/5">
-                            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                            <span className="text-sm text-emerald-400 font-black uppercase tracking-[0.2em]">Live Engine</span>
+                    <div className="flex flex-col items-end gap-3">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/50 rounded-full border border-white/5 backdrop-blur-md">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                            <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Services Online</span>
                         </div>
+                        <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mr-2">
+                            v1.2.4-stable
+                        </span>
                     </div>
                 </div>
-            </div>
 
             <GodDashboardClient
                 overview={
@@ -124,7 +140,7 @@ export default async function SuperAdminPage() {
                                 <OcrStatsServer />
                             </Suspense>
 
-                            {/* Database Links */}
+                            {/* Database Links & Config */}
                             <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
                                 <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em]">Resources</h3>
                                 <div className="grid gap-3">
@@ -158,6 +174,9 @@ export default async function SuperAdminPage() {
                                     </Link>
                                 </div>
                             </div>
+
+                            {/* Worker Testing */}
+                            <WorkerTester />
                         </div>
 
                         {/* Janitor (Rebranded as Maintenance Service) */}
@@ -216,12 +235,20 @@ export default async function SuperAdminPage() {
                     </Suspense>
                 }
             />
+            </div>
         </div>
     );
 }
 
 async function GlobalLogsServer() {
-    const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+    const { getGlobalAuditLogs, cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+
+    // [ADM-10] Platform-wide Lazy Cleanup (Retention policy enforcement)
+    // Runs on each visit to the global logs to ensure database health.
+    await cleanupGlobalAuditLogs().catch(err => {
+        console.error("[GlobalLogsServer] Global cleanup error:", err);
+    });
+
     const result = await getGlobalAuditLogs({ limit: 100 });
 
     // For now we'll just show the raw count or a simple list until a full component is built

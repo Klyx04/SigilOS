@@ -16,24 +16,10 @@ import { NotificationType, PrismaClient } from "@prisma/client";
 import { createNotification } from "@/server/actions/notification-actions";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { createAuditLog } from "@/server/actions/audit-actions";
+import { grantRewards } from "@/server/actions/mission-actions";
 
 const kamaDb = db as unknown as PrismaClient;
 
-// Inline XP helper (addProfileXp is not exported from mission-actions)
-async function grantRewards(profileId: string, xp: number, guildatons: number = 0) {
-    if (xp <= 0 && guildatons <= 0) return;
-    try {
-        await db.userProfile.update({
-            where: { id: profileId },
-            data: {
-                xp: { increment: xp > 0 ? xp : 0 },
-                guildatons: { increment: guildatons > 0 ? guildatons : 0 }
-            }
-        });
-    } catch (e) {
-        console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
-    }
-}
 
 // ============================================================================
 // HELPER — Permission check sans session (via Discord User ID)
@@ -114,7 +100,9 @@ export async function internalValidateMissionSubmission(
         if (status === "VALIDATED") {
             const xpReward = (submission.mission as any).xpReward || 0;
             const guildatonsReward = (submission.mission as any).guildatonsReward || 0;
-            await grantRewards(updated.profileId, xpReward, guildatonsReward);
+            const { getDofusWeek } = await import("@/lib/date-utils");
+            const { week, year } = getDofusWeek();
+            await grantRewards(updated.profileId, xpReward, guildatonsReward, submission.mission.weekNumber || week, (submission.mission as any).year || year);
 
             // Award helpers contribution points
             if (updated.helpers.length > 0) {
@@ -147,10 +135,20 @@ export async function internalValidateMissionSubmission(
             action: (status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED") as any,
             targetType: "MISSION" as any,
             targetId: submissionId,
-            metadata: { missionTitle: submission.mission.title ?? undefined, source: "discord_button" },
+            metadata: {
+                missionTitle: submission.mission.title ?? undefined,
+                submitterId: updated.profileId,
+                submitterName: updated.profile.pseudoDofus || updated.profile.discordNickname || updated.profile.user?.name || "Membre",
+                status,
+                source: "discord_button",
+                xpReward: status === "VALIDATED" ? ((submission.mission as any).xpReward || 0) : 0,
+                guildatonsReward: status === "VALIDATED" ? ((submission.mission as any).guildatonsReward || 0) : 0,
+                helpersCount: updated.helpers.length
+            },
         });
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
+        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
         revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
 
         const memberName = updated.profile.discordNickname || updated.profile.pseudoDofus || updated.profile.user?.name || "Membre";
@@ -224,6 +222,23 @@ export async function internalValidateAchievementSubmission(
         await (db as any).imageHash.deleteMany({
             where: { guildId: submission.guildId, sourceType: "ACHIEVEMENT", sourceId: submissionId },
         });
+        
+        // Audit Log
+        await createAuditLog({
+            guildId: discordGuildId,
+            actorUserId: guard.internalUserId,
+            actorName: guard.adminName,
+            action: (status === "VALIDATED" ? "SUCCESS_SYNC" : "MISSION_REJECTED") as any,
+            targetType: "PROFILE" as any,
+            targetId: submission.profileId,
+            metadata: {
+                points: submission.points,
+                submitterName: submission.profile.discordNickname || submission.profile.pseudoDofus || submission.profile.user?.name || "Membre",
+                status,
+                source: "discord_button",
+                description: `Mise à jour Ladder (${submission.points} pts)`
+            }
+        });
 
         revalidatePath(`/dashboard/${discordGuildId}/ladder`);
         revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
@@ -290,7 +305,10 @@ export async function internalReviewKamaDonation(
             const addedGuildatons = tranches * REWARDS_PER_TRANCHE.guildatons;
 
             if (addedXp > 0 || addedGuildatons > 0) {
-                await grantRewards(donation.profileId, addedXp, addedGuildatons);
+                // Use consistent reward function
+                const { getDofusWeek } = await import("@/lib/date-utils");
+                const { week, year } = getDofusWeek();
+                await grantRewards(donation.profileId, addedXp, addedGuildatons, donation.weekNumber || week, donation.yearNumber || year);
             }
         }
 
@@ -316,6 +334,7 @@ export async function internalReviewKamaDonation(
         }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
+        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
         revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
 
         const memberName = donation.profile?.discordNickname || donation.profile?.pseudoDofus || donation.profile?.user?.name || "Membre";

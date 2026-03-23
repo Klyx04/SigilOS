@@ -60,28 +60,31 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-[72px] px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_30px_rgba(0,0,0,0.6)]">
+        <header className="sticky top-0 z-40 bg-[#060606]/80 backdrop-blur-2xl border-b border-white/5 h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
 
             {/* LEFT: Mobile Trigger & Breadcrumbs */}
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-6 shrink-0">
 
                 {/* Mobile Sidebar Trigger */}
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-300 hover:text-white">
+                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl">
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[280px] border-r border-white/10 bg-zinc-950">
+                    <SheetContent side="left" className="p-0 w-[260px] border-r border-white/5 bg-[#050505]">
                         <AppSidebar {...sidebarProps} />
                     </SheetContent>
                 </Sheet>
 
                 {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-sm font-black text-zinc-300">
-                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-white transition-all hover:scale-110 active:scale-95 flex items-center gap-1">
-                        <Home className="w-4 h-4" />
+                <nav className="hidden sm:flex items-center text-[11px] font-bold tracking-tight text-white/50">
+                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-emerald-400 transition-all flex items-center gap-1.5 group">
+                        <Home className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">Dashboard</span>
                     </Link>
+
+                    {breadcrumbSegments.length > 0 && <ChevronRight className="h-3 w-3 mx-2 text-zinc-800" />}
 
                     {breadcrumbSegments.map((segment, index) => {
                         const href = `/dashboard/${sidebarProps.guildId}/${breadcrumbSegments.slice(0, index + 1).join("/")}`;
@@ -89,155 +92,120 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
 
                         return (
                             <div key={href} className="flex items-center">
-                                <ChevronRight className="h-4 w-4 mx-1 text-zinc-600" />
-                                <Link
+                                 <Link
                                     href={href}
                                     className={cn(
-                                        "transition-colors truncate max-w-[120px] lg:max-w-[200px]",
-                                        isLast ? "text-zinc-100 font-semibold" : "hover:text-zinc-300"
+                                        "transition-all truncate max-w-[100px] lg:max-w-[180px] hover:text-white",
+                                        isLast ? "text-white font-black uppercase tracking-[0.2em] text-[10px]" : "text-white/40"
                                     )}
                                 >
                                     {formatSegment(segment)}
                                 </Link>
+                                {!isLast && <ChevronRight className="h-3 w-3 mx-1.5 text-white/10" />}
                             </div>
                         );
                     })}
                 </nav>
             </div>
 
-            {/* CENTER: Event Ticker & Live Badge */}
-            <div className="flex-1 flex justify-center items-center gap-4 px-2 min-w-0 overflow-hidden">
-                <div className="flex-1 max-w-2xl flex justify-center">
+            {/* CENTER: Event Ticker & Live Badge (Experimental) */}
+            <div className="flex-1 flex justify-center items-center gap-4 px-2 min-w-0">
+                <div className="flex-1 max-w-xl flex justify-center">
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
-                </div>
-
-                {/* LIVE Badge (Conditional) */}
-                <div className="hidden lg:block shrink-0">
-                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
             </div>
 
             {/* RIGHT: Super Island (Integrated Command Center) */}
-            <div className="flex items-center border border-white/10 rounded-xl bg-zinc-950/20 backdrop-blur-md relative group/island shrink-0 shadow-lg">
-                {/* 1. Smart Bar (Time/Members/Almanax) */}
-                <div className="relative z-10 border-r border-white/10 px-1">
-                    <SmartBar
-                        memberCount={sidebarProps.guildData?.memberCount}
-                        onlineCount={sidebarProps.guildData?.activeCount}
-                    />
-                </div>
-
-                {/* 1.25. Roadmap (Global Toggle) */}
-                {roadmapEnabled && (
-                    <div className="relative z-10 border-r border-white/10 flex">
-                        <Link
-                            href="/roadmap"
-                            className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/roadmap active:scale-95"
-                            title="Roadmap SigilOS"
-                        >
-                            <Rocket className="w-4 h-4 text-amber-500/70 group-hover/roadmap:text-amber-400 transition-colors" />
-                        </Link>
+            <div className="flex items-center gap-2">
+                <div className="flex items-center h-9 border border-white/5 rounded-xl bg-white/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
+                    {/* 1. Smart Bar */}
+                    <div className="border-r border-white/5">
+                        <SmartBar
+                            memberCount={sidebarProps.guildData?.memberCount}
+                            onlineCount={sidebarProps.guildData?.activeCount}
+                        />
                     </div>
-                )}
 
-                {/* 1.5. Changelog */}
-                <div className="relative z-10 border-r border-white/10 flex">
-                    <Link
-                        href="/changelog"
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/changelog active:scale-95"
-                        title="Changelog SigilOS"
-                    >
-                        <ScrollText className="w-4 h-4 text-zinc-400 group-hover/changelog:text-amber-400 transition-colors" />
-                    </Link>
-                </div>
+                    {/* 2. Interactive Tools */}
+                    <div className="flex items-center px-1">
+                        {roadmapEnabled && (
+                            <Link href="/roadmap" className="p-2.5 text-zinc-500 hover:text-amber-400 transition-colors" title="Roadmap">
+                                <Rocket className="w-4 h-4" />
+                            </Link>
+                        )}
+                        <Link href="/changelog" className="p-2.5 text-zinc-500 hover:text-white transition-colors" title="Changelog">
+                            <ScrollText className="w-4 h-4" />
+                        </Link>
+                        <div className="w-px h-4 bg-white/5 mx-1" />
+                        <FeedBell
+                            guildId={sidebarProps.guildId}
+                            className="h-9 w-9 bg-transparent hover:bg-white/5 text-zinc-500 hover:text-white rounded-xl transition-all"
+                        />
+                        <NotificationBell
+                            userId={userId}
+                            guildId={sidebarProps.guildId}
+                            className="h-9 w-9 bg-transparent hover:bg-white/5 text-zinc-500 hover:text-white rounded-xl transition-all"
+                        />
+                    </div>
 
-                {/* 3. Feed Bell (Creator News) */}
-                <div className="relative z-10 border-r border-white/10">
-                    <FeedBell
-                        guildId={sidebarProps.guildId}
-                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
-                    />
-                </div>
-
-                {/* 4. Notification Bell — standalone, left of profile */}
-                <div className="relative z-10 border-r border-white/10">
-                    <NotificationBell
-                        userId={userId}
-                        guildId={sidebarProps.guildId}
-                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
-                    />
-                </div>
-
-                {/* Arcade Button & GamesLiveWidget */}
-                <div className="relative z-10 border-r border-white/10 flex">
+                    {/* 3. Arcade (Live Games) */}
                     {roomCount > 0 && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => setIsArcadeOpen(!isArcadeOpen)}
-                            className={cn(
-                                "h-10 px-4 bg-transparent hover:bg-emerald-500/10 text-emerald-500 rounded-none transition-all flex items-center gap-2 group",
-                                isArcadeOpen && "bg-emerald-500/20 text-emerald-400"
-                            )}
-                        >
-                            <Loader2 className="w-4 h-4 animate-spin-slow" />
-                            <span className="text-[10px] font-black uppercase italic tracking-widest hidden sm:inline">Parties Live</span>
-                            <span className="bg-emerald-500 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
-                                {roomCount}
-                            </span>
-                        </Button>
+                        <div className="border-l border-white/5 flex items-center">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setIsArcadeOpen(!isArcadeOpen)}
+                                className={cn(
+                                    "h-10 px-4 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500 rounded-none transition-all flex items-center gap-2",
+                                    isArcadeOpen && "bg-emerald-500/20"
+                                )}
+                            >
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-tighter hidden xl:inline">Live</span>
+                                <span className="bg-emerald-500 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                                    {roomCount}
+                                </span>
+                            </Button>
+                            <GamesLiveWidget 
+                                isOpen={isArcadeOpen} 
+                                onOpenChange={setIsArcadeOpen} 
+                                onRoomCountChange={setRoomCount}
+                                guildId={sidebarProps.guildId}
+                            />
+                        </div>
                     )}
-                    <GamesLiveWidget 
-                        isOpen={isArcadeOpen} 
-                        onOpenChange={setIsArcadeOpen} 
-                        onRoomCountChange={setRoomCount}
-                        guildId={sidebarProps.guildId}
-                    />
                 </div>
 
-                {/* 5. User Profile */}
-                <div className="relative z-10 flex bg-zinc-950/20 items-center">
+                {/* 4. User Profile (Standalone) */}
+                <div className="flex items-center ml-2">
                     {sidebarProps.user.canViewProfile ? (
                         <Link
                             href={`/dashboard/${sidebarProps.guildId}/profile`}
-                            className="flex items-center gap-3 pr-5 pl-4 py-2 hover:bg-white/[0.05] transition-all group/profile"
+                            className="flex items-center gap-3 pl-3 pr-1 py-1 rounded-2xl hover:bg-white/5 transition-all group"
                         >
-                            <div className="flex flex-col items-end leading-none hidden xl:flex">
-                                <span className="text-[12px] font-black text-zinc-300 group-hover/profile:text-white transition-colors tracking-tight">
+                            <div className="flex flex-col items-end leading-tight hidden lg:flex">
+                                <span className="text-[11px] font-black text-white/90 group-hover:text-white transition-colors">
                                     {sidebarProps.user.name}
                                 </span>
-                                <span className="text-[9px] uppercase tracking-widest text-emerald-500 font-bold">
+                                <span className="text-[9px] uppercase tracking-tighter text-zinc-500 font-bold">
                                     {sidebarProps.user.roleName || "Membre"}
                                 </span>
                             </div>
-                            <div className="relative group-hover/profile:scale-105 transition-transform duration-300">
-                                <Avatar className="h-10 w-10 border border-white/10 ring-2 ring-transparent group-hover/profile:ring-emerald-500/30 transition-all shadow-xl">
-                                    <AvatarImage src={sidebarProps.user.image || ""} />
-                                    <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
-                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#09090b] shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            </div>
+                            <Avatar className="h-9 w-9 border border-white/10 ring-4 ring-transparent group-hover:ring-emerald-500/10 transition-all rounded-xl shadow-xl flex-shrink-0">
+                                <AvatarImage src={sidebarProps.user.image || ""} />
+                                <AvatarFallback className="text-[10px] bg-zinc-900 text-zinc-500 font-bold">
+                                    {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
                         </Link>
                     ) : (
-                        <div className="flex items-center gap-3 pr-5 pl-4 py-1.5 opacity-50 cursor-not-allowed">
-                            <div className="flex flex-col items-end leading-none hidden xl:flex">
-                                <span className="text-[12px] font-black text-zinc-500 tracking-tight">
-                                    {sidebarProps.user.name}
-                                </span>
-                                <span className="text-[9px] uppercase tracking-widest text-zinc-600 font-bold">
-                                    {sidebarProps.user.roleName || "Membre"}
-                                </span>
-                            </div>
-                            <div className="relative">
-                                <Avatar className="h-9 w-9 border border-white/10 opacity-80">
-                                    <AvatarImage src={sidebarProps.user.image || ""} />
-                                    <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
-                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-[#09090b]" />
-                            </div>
+                        <div className="h-9 w-9 rounded-xl bg-zinc-900/50 border border-white/5 flex items-center justify-center opacity-40">
+                             <Avatar className="h-7 w-7 opacity-50 grayscale">
+                                <AvatarImage src={sidebarProps.user.image || ""} />
+                                <AvatarFallback>?</AvatarFallback>
+                            </Avatar>
                         </div>
                     )}
                 </div>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 // Action type to color mapping
 const ACTION_COLORS: Record<string, string> = {
@@ -421,28 +422,82 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     </div>
                                                 )}
                                                 {log.targetType === "MISSION" && (
-                                                    <span className="space-x-2">
-                                                        {(metadata as any).missionTitle && (
-                                                            <span className="font-medium text-foreground">{(metadata as any).missionTitle}</span>
-                                                        )}
-                                                        {(metadata as any).weekNumber && (
-                                                            <span className="text-xs opacity-70">S{(metadata as any).weekNumber}/{(metadata as any).year}</span>
-                                                        )}
-                                                        {(metadata as any).slotsCount && (
-                                                            <span className="text-xs opacity-70">{(metadata as any).slotsCount} slots</span>
-                                                        )}
-                                                        {(metadata as any).scope === "FULL_WEEK" && (
-                                                            <span className="text-xs text-rose-400">Semaine entière réinitialisée</span>
-                                                        )}
-                                                        {(metadata as any).status && (
-                                                            <span className={`text-xs font-medium ${(metadata as any).status === "VALIDATED" ? "text-emerald-400" : "text-red-400"}`}>
-                                                                → {(metadata as any).status === "VALIDATED" ? "Validée" : "Refusée"}
+                                                    <div className="space-y-1.5 mt-1">
+                                                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                                                            <span className="font-bold text-zinc-100 italic">
+                                                                {(metadata as any).missionTitle || "Mission"}
                                                             </span>
+                                                            <span className="text-zinc-500">pour</span>
+                                                            <span className="font-bold text-zinc-300">
+                                                                {(metadata as any).submitterName || "un membre"}
+                                                            </span>
+                                                            
+                                                            {(metadata as any).source && (
+                                                                <Badge variant="outline" className={cn(
+                                                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase tracking-widest",
+                                                                    (metadata as any).source === "discord_button" 
+                                                                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
+                                                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                                )}>
+                                                                    {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {status === "VALIDATED" && (
+                                                            <div className="flex items-center gap-3">
+                                                                {(metadata as any).xpReward > 0 && (
+                                                                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                                                                        <Plus className="w-2.5 h-2.5" /> {(metadata as any).xpReward} XP
+                                                                    </span>
+                                                                )}
+                                                                {(metadata as any).guildatonsReward > 0 && (
+                                                                    <span className="text-[10px] font-black text-amber-500 flex items-center gap-1">
+                                                                        <Plus className="w-2.5 h-2.5" /> {(metadata as any).guildatonsReward} Guildatons
+                                                                    </span>
+                                                                )}
+                                                                {(metadata as any).helpersCount > 0 && (
+                                                                    <span className="text-[10px] font-black text-indigo-400 flex items-center gap-1">
+                                                                        <Plus className="w-2.5 h-2.5" /> {(metadata as any).helpersCount} Helpers
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         )}
-                                                    </span>
+                                                    </div>
                                                 )}
+
+                                                {log.targetType === "PROFILE" && (
+                                                    <div className="space-y-1.5 mt-1">
+                                                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                                                            <span className="text-zinc-500">Mise à jour pour</span>
+                                                            <span className="font-bold text-zinc-300">
+                                                                {(metadata as any).submitterName || metadata.description || log.targetId}
+                                                            </span>
+                                                            
+                                                            {(metadata as any).source && (
+                                                                <Badge variant="outline" className={cn(
+                                                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase tracking-widest",
+                                                                    (metadata as any).source === "discord_button" 
+                                                                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
+                                                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                                )}>
+                                                                    {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {(metadata as any).points !== undefined && (
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                                                                    <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 {log.targetType === "GUILD" && (
-                                                    <span>
+                                                    <span className="text-sm">
                                                         {(metadata as any).bonusName && (
                                                             <span className="font-medium text-cyan-300">{(metadata as any).bonusName}</span>
                                                         )}

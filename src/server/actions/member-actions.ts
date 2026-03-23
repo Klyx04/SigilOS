@@ -15,6 +15,7 @@ export type MemberReconciliationData = {
     isBot: boolean;
     hasDashboardProfile: boolean;
     profileId?: string;
+    ankamaId?: string | null;
 };
 
 export type RoleStats = {
@@ -53,7 +54,19 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
             fetchGuildRoles(guildId, { excludeManaged: false }),
             db.userProfile.findMany({
                 where: { guildId: guild.id, status: "ACTIVE" },
-                select: { userId: true, id: true, user: { select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } } } }
+                select: { 
+                    userId: true, 
+                    id: true, 
+                    ankamaId: true,
+                    user: { 
+                        select: { 
+                            accounts: { 
+                                where: { provider: "discord" }, 
+                                select: { providerAccountId: true } 
+                            } 
+                        } 
+                    } 
+                }
             })
         ]);
 
@@ -66,10 +79,10 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
         );
 
         // Map profiles by Discord ID
-        const profileByDiscordId = new Map<string, string>();
+        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null }>();
         dbProfiles.forEach(p => {
             const discordId = p.user.accounts[0]?.providerAccountId;
-            if (discordId) profileByDiscordId.set(discordId, p.id);
+            if (discordId) profileByDiscordId.set(discordId, { id: p.id, ankamaId: p.ankamaId });
         });
 
         const reconciliation: MemberReconciliationData[] = discordMembers
@@ -83,7 +96,8 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                 joinedAt: m.joined_at || null,
                 isBot: !!m.user.bot,
                 hasDashboardProfile: profileByDiscordId.has(m.user.id),
-                profileId: profileByDiscordId.get(m.user.id)
+                profileId: profileByDiscordId.get(m.user.id)?.id,
+                ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId
             }));
 
         // Calculate Stats

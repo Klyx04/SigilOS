@@ -84,7 +84,7 @@ export async function getStuffGalleryPage(
             })
         ]);
 
-        console.log(`[Gallery] Found ${profiles.length} active profiles for guild ${guildConfig.name}`);
+
 
         // Create vote maps for quick access
         const votesCountMap = new Map<string, number>();
@@ -128,7 +128,7 @@ export async function getStuffGalleryPage(
             });
         });
 
-        console.log(`[Gallery] Total builds flattened: ${allBuilds.length}`);
+
 
         // Default logical order
         allBuilds = allBuilds.reverse();

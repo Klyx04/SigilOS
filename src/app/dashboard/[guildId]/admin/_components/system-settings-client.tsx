@@ -79,7 +79,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         )}
                     </div>
                     <CardDescription className="max-w-2xl">
-                        Définissez où vous souhaitez recevoir les annonces importantes de SigilOS (mises à jour, maintenances, actus plateforme).
+                        Définissez où vous souhaitez recevoir les **Rapports Quotidiens** (activités, missions en cours, succès de guilde) et les annonces de maintenance SigilOS.
                     </CardDescription>
                 </CardHeader>
 
@@ -88,23 +88,23 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         <div className="flex items-center justify-between">
                             <Label className="text-zinc-400 flex items-center gap-2 font-bold uppercase tracking-tight text-[11px]">
                                 <Hash className="w-3.5 h-3.5 text-indigo-400" />
-                                Salon pour les annonces SigilOS
+                                Salon pour les Rapports & Annonces
                             </Label>
                         </div>
                         <Input
                             value={channelId}
                             onChange={(e) => setChannelId(e.target.value)}
-                            placeholder="ID du salon Discord (laisser vide pour le premier salon dispo)"
+                            placeholder="ID du salon Discord (Daily Report & Alerts)"
                             className="font-mono bg-black/40 border-white/5 focus:border-indigo-500/50 transition-all h-11"
                         />
                         <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4 flex gap-3">
                             <AlertTriangle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                             <div className="space-y-1">
                                 <p className="text-xs text-indigo-200/90 leading-tight font-medium">
-                                    Si laissé vide, SigilOS utilisera le premier salon de notifications trouvé (Missions, Songes, etc.).
+                                    Si laissé vide, SigilOS utilisera le premier salon de notifications trouvé (Missions, Songes, etc.) pour le rapport du matin (08h30).
                                 </p>
                                 <p className="text-[10px] text-zinc-500 italic">
-                                    Il est recommandé de créer un salon dédié aux annonces automatiques pour ne pas polluer vos salons de jeu.
+                                    Il est recommandé de créer un salon <strong>📋┊𝐬𝐢𝐠𝐢𝐥𝐨𝐬-𝐥𝐨𝐠𝐬</strong> dédié pour ne pas polluer vos salons de discussion.
                                 </p>
                             </div>
                         </div>

@@ -583,7 +583,7 @@ export async function triggerGlobalLadderSync() {
     if (!isAdmin) return { success: false, error: "Unauthorized" };
 
     try {
-        const { ladderQueue } = await import("@/workers/ladder-sync-worker");
+        const { ladderQueue } = await import("@/lib/queue/ladder-queue");
         const job = await ladderQueue.add("manual-ladder-sync", { force: true });
         
         return { success: true, message: `Tâche Ladder (Job ${job.id}) envoyée dans la file.` };

@@ -263,7 +263,7 @@ async function GlobalLogsServer() {
             </div>
 
             <div className="space-y-3 font-mono text-[11px]">
-                {result.data?.logs.map((log: any) => (
+                {result.data?.logs?.map((log: any) => (
                     <div key={log.id} className="flex gap-4 p-3 rounded-lg bg-zinc-950/50 border border-white/5 hover:border-blue-500/20 transition-colors">
                         <span className="text-zinc-600 whitespace-nowrap">{new Date(log.createdAt).toLocaleTimeString()}</span>
                         <span className="text-blue-400 font-bold w-32 truncate">{log.action}</span>
@@ -273,7 +273,16 @@ async function GlobalLogsServer() {
                         </span>
                         {log.metadata && (
                             <span className="text-zinc-800 italic">
-                                {JSON.stringify(log.metadata).length > 50 ? "..." : JSON.stringify(log.metadata)}
+                                {(() => {
+                                    try {
+                                        const str = JSON.stringify(log.metadata, (key, value) =>
+                                            typeof value === 'bigint' ? value.toString() : value
+                                        );
+                                        return str.length > 50 ? "..." : str;
+                                    } catch {
+                                        return "[Metadata Error]";
+                                    }
+                                })()}
                             </span>
                         )}
                     </div>

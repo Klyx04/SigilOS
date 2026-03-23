@@ -597,7 +597,7 @@ export async function testLadderFetch(pseudo: string, serverId: string) {
     if (!isAdmin) return { success: false, error: "Unauthorized" };
 
     const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
-    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_SECRET;
+    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
     
     if (!WORKER_URL) return { success: false, error: "La variable DOFUS_LADDER_WORKER_URL est absente." };
 
@@ -613,7 +613,11 @@ export async function testLadderFetch(pseudo: string, serverId: string) {
         const resGeneral = await fetch(urlGeneral, { headers });
         const generalData = await resGeneral.json().catch(() => null);
 
-        const isFunctionalSuccess = resSucces.status === 200 && resGeneral.status === 200 && succesData?.success && generalData?.success;
+        // API might return success: true or found: true
+        const succesOk = succesData?.success || succesData?.found;
+        const generalOk = generalData?.success || generalData?.found;
+
+        const isFunctionalSuccess = resSucces.status === 200 && resGeneral.status === 200 && succesOk && generalOk;
 
         return { 
             success: isFunctionalSuccess,

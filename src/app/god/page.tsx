@@ -241,6 +241,7 @@ export default async function SuperAdminPage() {
 }
 
 async function GlobalLogsServer() {
+    try {
     const { getGlobalAuditLogs, cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
 
     // [ADM-10] Platform-wide Lazy Cleanup (Retention policy enforcement)
@@ -290,59 +291,82 @@ async function GlobalLogsServer() {
             </div>
         </div>
     );
+    } catch (err) {
+        console.error("[GlobalLogsServer] Fatal error:", err);
+        return <div className="bg-zinc-900/20 border border-red-500/10 rounded-3xl p-8 text-red-500/50 text-xs font-mono">⚠ Global Audit Logs — Erreur de chargement. Vérifiez les logs serveur.</div>;
+    }
 }
 
 async function LiveStatsServer() {
-    const stats = await getPlatformStats();
-    return (
-        <LiveStats
-            initialStats={{
-                guilds: stats.allowedGuilds,
-                guildsTrend: stats.guildsTrend,
-                activeGuilds: stats.activeGuilds,
-                users: stats.totalUsers,
-                usersTrend: stats.usersTrend,
-                profiles: stats.totalProfiles,
-                activeProfiles: stats.activeProfiles,
-                missions: stats.totalMissions,
-                missionsTrend: stats.missionsTrend,
-                weeklyActiveUsers: stats.weeklyActiveUsers,
-                retentionRate: stats.retentionRate,
-                density: stats.density
-            }}
-        />
-    );
+    try {
+        const stats = await getPlatformStats();
+        return (
+            <LiveStats
+                initialStats={{
+                    guilds: stats.allowedGuilds,
+                    guildsTrend: stats.guildsTrend,
+                    activeGuilds: stats.activeGuilds,
+                    users: stats.totalUsers,
+                    usersTrend: stats.usersTrend,
+                    profiles: stats.totalProfiles,
+                    activeProfiles: stats.activeProfiles,
+                    missions: stats.totalMissions,
+                    missionsTrend: stats.missionsTrend,
+                    weeklyActiveUsers: stats.weeklyActiveUsers,
+                    retentionRate: stats.retentionRate,
+                    density: stats.density
+                }}
+            />
+        );
+    } catch (err) {
+        console.error("[LiveStatsServer] Error:", err);
+        return <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-zinc-900/40 border border-red-500/10 rounded-xl p-5 text-red-500/50 text-[10px] uppercase font-mono">⚠ Erreur de stats</div>
+            ))}
+        </div>;
+    }
 }
 
 async function ChartServer() {
-    const chartData = await getPlatformActivityStats();
-    return <ActivityChart data={chartData} />;
+    try {
+        const chartData = await getPlatformActivityStats();
+        return <ActivityChart data={chartData} />;
+    } catch (err) {
+        console.error("[ChartServer] Error:", err);
+        return <div className="h-64 flex items-center justify-center bg-zinc-900/40 border border-red-500/10 rounded-3xl text-red-500/50 text-xs font-mono">⚠ Graphique indisponible</div>;
+    }
 }
 
 async function OcrStatsServer() {
-    const ocrStats = await getOcrApiStats();
-    return (
-        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
-            <h3 className="text-sm font-black text-zinc-500 mb-8 uppercase tracking-[0.3em] flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-                OCR Core Engine
-            </h3>
-            <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-1">
-                    <div className="text-4xl font-black text-cyan-400 tracking-tighter">{ocrStats.todayTotal}</div>
-                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Cycle 24h</div>
+    try {
+        const ocrStats = await getOcrApiStats();
+        return (
+            <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
+                <h3 className="text-sm font-black text-zinc-500 mb-8 uppercase tracking-[0.3em] flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                    OCR Core Engine
+                </h3>
+                <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-1">
+                        <div className="text-4xl font-black text-cyan-400 tracking-tighter">{ocrStats.todayTotal}</div>
+                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Cycle 24h</div>
+                    </div>
+                    <div className="space-y-1">
+                        <div className="text-4xl font-black text-white tracking-tighter">{ocrStats.monthlyTotal}</div>
+                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Archive Mensuelle</div>
+                    </div>
                 </div>
-                <div className="space-y-1">
-                    <div className="text-4xl font-black text-white tracking-tighter">{ocrStats.monthlyTotal}</div>
-                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Archive Mensuelle</div>
+                <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-bold text-zinc-700 uppercase tracking-widest">
+                    Protocoles de tracking actifs
                 </div>
             </div>
-            <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-bold text-zinc-700 uppercase tracking-widest">
-                Protocoles de tracking actifs
-            </div>
-        </div>
-    );
+        );
+    } catch (err) {
+        console.error("[OcrStatsServer] Error:", err);
+        return <div className="bg-zinc-900/40 border border-red-500/10 rounded-3xl p-8 text-red-500/50 text-xs font-mono">⚠ OCR Stats — Erreur de chargement</div>;
+    }
 }
 
 async function GhostUsersServer() {

@@ -276,7 +276,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500
-                embedThumbnail: profile?.user?.image || "https://i.imgur.com/AfFp7pu.png",
+                embedThumbnail: profile?.user?.image || "https://sigilos.fr/assets/ui/logo-v2.png",
                 embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {

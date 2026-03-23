@@ -13,6 +13,7 @@ import { isSuperAdmin } from './super-admin-actions';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { ChangelogCategory } from '@prisma/client';
+import { getAppBaseUrl } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -268,7 +269,11 @@ export async function updatePlatformConfig(data: {
     hubChannelId?: string, 
     serviceStatusChannelId?: string,
     ticketAutoRoleId?: string,
-    ticketSupportGuildId?: string
+    ticketSupportGuildId?: string,
+    statusIsLite?: boolean,
+    statusMode?: string,
+    statusMention?: string,
+    statusFrequency?: number
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -280,14 +285,22 @@ export async function updatePlatformConfig(data: {
                 ...(data.hubChannelId !== undefined && { hubChannelId: data.hubChannelId || null }),
                 ...(data.serviceStatusChannelId !== undefined && { serviceStatusChannelId: data.serviceStatusChannelId || null }),
                 ...(data.ticketAutoRoleId !== undefined && { ticketAutoRoleId: data.ticketAutoRoleId || null }),
-                ...(data.ticketSupportGuildId !== undefined && { ticketSupportGuildId: data.ticketSupportGuildId || null })
+                ...(data.ticketSupportGuildId !== undefined && { ticketSupportGuildId: data.ticketSupportGuildId || null }),
+                ...(data.statusIsLite !== undefined && { statusIsLite: data.statusIsLite }),
+                ...(data.statusMode !== undefined && { statusMode: data.statusMode }),
+                ...(data.statusMention !== undefined && { statusMention: data.statusMention }),
+                ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency })
             },
             create: { 
                 id: "singleton", 
                 hubChannelId: data.hubChannelId || null,
                 serviceStatusChannelId: data.serviceStatusChannelId || null,
                 ticketAutoRoleId: data.ticketAutoRoleId || null,
-                ticketSupportGuildId: data.ticketSupportGuildId || null
+                ticketSupportGuildId: data.ticketSupportGuildId || null,
+                statusIsLite: data.statusIsLite || false,
+                statusMode: data.statusMode || "living",
+                statusMention: data.statusMention || "none",
+                statusFrequency: data.statusFrequency || 15
             }
         });
         return { success: true, config };
@@ -377,7 +390,7 @@ export async function sendChangelogToDiscord(entryId: string) {
         embedDescription: fullDescription.slice(0, 4096),
         embedColor: color,
         embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
-        embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
+        embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
     };
 
     const { sendChannelMessage } = await import("@/server/discord");
@@ -453,7 +466,7 @@ export async function broadcastChangelogToGuilds(entryId: string) {
         embedDescription: fullDescription.slice(0, 4096),
         embedColor: color,
         embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
-        embedThumbnail: "https://i.imgur.com/AfFp7pu.png"
+        embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
     };
 
     const { sendChannelMessage } = await import("@/server/discord");

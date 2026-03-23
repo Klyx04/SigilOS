@@ -38,13 +38,16 @@ export default async function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await auth();
-  const info = await searchParams;
-  const guilds = await getPublicGuilds();
+  const [session, info] = await Promise.all([auth(), searchParams]);
 
   const { getUserContext, getUserGuilds } = await import("@/server/actions/user-actions");
-  const userContext = await getUserContext();
-  const userGuilds = session?.user ? await getUserGuilds() : [];
+
+  // All three are independent \u2014 run concurrently
+  const [guilds, userContext, userGuilds] = await Promise.all([
+    getPublicGuilds(),
+    getUserContext(),
+    session?.user ? getUserGuilds() : Promise.resolve([]),
+  ]);
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);

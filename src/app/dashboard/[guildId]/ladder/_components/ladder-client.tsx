@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -11,6 +11,7 @@ import {
     getSuccessLadder,
     getContributionLadder,
     getGuildatonsLadder,
+    getGeneralLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -24,7 +25,7 @@ type Props = {
 };
 
 export function LadderClient({ guildId, canValidate }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "guildatons">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +47,9 @@ export function LadderClient({ guildId, canValidate }: Props) {
                     break;
                 case "success":
                     result = await getSuccessLadder(guildId);
+                    break;
+                case "general":
+                    result = await getGeneralLadder(guildId);
                     break;
                 case "guildatons":
                     result = await getGuildatonsLadder(guildId);
@@ -73,6 +77,8 @@ export function LadderClient({ guildId, canValidate }: Props) {
                 return formatSeniority(entry.value);
             case "success":
                 return `${entry.value.toLocaleString()} pts`;
+            case "general":
+                return `${Number(entry.totalXpBigInt || 0).toLocaleString()} XP`;
             case "guildatons":
                 return `${entry.value.toLocaleString()} 💰`;
             default:
@@ -81,109 +87,130 @@ export function LadderClient({ guildId, canValidate }: Props) {
     };
 
     const categories = [
-        {
-            id: "activity",
-            label: "Activité",
-            icon: TrendingUp,
-            description: "XP gagnée via les missions",
-            color: "purple",
-            activeClass: "bg-purple-500/20 border-purple-500/40 text-purple-200 shadow-lg shadow-purple-500/10",
-            idleClass: "bg-purple-500/5 border-purple-500/10 text-purple-400/60 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-300"
-        },
-        {
-            id: "contribution",
-            label: "Contribution",
-            icon: HandHeart,
-            description: "Entraide & collaboration",
-            color: "emerald",
-            activeClass: "bg-emerald-500/20 border-emerald-500/40 text-emerald-200 shadow-lg shadow-emerald-500/10",
-            idleClass: "bg-emerald-500/5 border-emerald-500/10 text-emerald-400/60 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-300"
-        },
-        {
-            id: "seniority",
-            label: "Ancienneté",
-            icon: Clock,
-            description: "Les piliers de la guilde",
-            color: "cyan",
-            activeClass: "bg-cyan-500/20 border-cyan-500/40 text-cyan-200 shadow-lg shadow-cyan-500/10",
-            idleClass: "bg-cyan-500/5 border-cyan-500/10 text-cyan-400/60 hover:bg-cyan-500/10 hover:border-cyan-500/20 hover:text-cyan-300"
-        },
-        {
-            id: "success",
-            label: "Succès",
-            icon: Trophy,
-            description: "Le prestige en jeu",
-            color: "amber",
-            activeClass: "bg-amber-500/20 border-amber-500/40 text-amber-200 shadow-lg shadow-amber-500/10",
-            idleClass: "bg-amber-500/5 border-amber-500/10 text-amber-400/60 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-300"
-        },
-        {
-            id: "guildatons",
-            label: "Guildatons",
-            icon: TrendingUp,
-            description: "La fortune de la guilde",
-            color: "yellow",
-            activeClass: "bg-yellow-500/20 border-yellow-500/40 text-yellow-200 shadow-lg shadow-yellow-500/10",
-            idleClass: "bg-yellow-500/5 border-yellow-500/10 text-yellow-400/60 hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-300"
-        }
+        { id: "activity", label: "Activité", icon: TrendingUp, color: "#10b981" },
+        { id: "contribution", label: "Contribution", icon: HandHeart, color: "#a855f7" },
+        { id: "seniority", label: "Ancienneté", icon: Clock, color: "#06b6d4" },
+        { id: "success", label: "Succès", icon: Trophy, color: "#f59e0b" },
+        { id: "general", label: "Général", icon: TrendingUp, color: "#3b82f6" },
+        { id: "guildatons", label: "Guildatons", icon: Zap, color: "#eab308" },
     ] as const;
 
     return (
-        <div className="space-y-8">
-            {/* Interactive Tab Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {categories.map((cat) => {
-                    const Icon = cat.icon;
-                    const isActive = activeTab === cat.id;
-                    return (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveTab(cat.id)}
-                            className={cn(
-                                "relative overflow-hidden p-2 rounded-lg border backdrop-blur-sm transition-all duration-300 text-left group",
-                                isActive ? cat.activeClass : cat.idleClass
-                            )}
-                        >
-                            <div className="flex items-center justify-between mb-1.5">
-                                <div className={cn(
-                                    "p-1 rounded-md border transition-colors",
-                                    isActive ? "bg-white/10 border-white/20" : "bg-black/20 border-white/5 group-hover:border-white/10"
-                                )}>
-                                    <Icon className="h-3.5 w-3.5" />
-                                </div>
-                                {isActive && (
-                                    <div className="flex items-center gap-1 px-1 py-0.5 rounded-full bg-white/10 border border-white/10 text-[7px] font-black uppercase tracking-widest text-white/70">
-                                        Actif
-                                    </div>
-                                )}
-                            </div>
-                            <div className="space-y-0.5">
-                                <span className="text-[9px] font-black uppercase tracking-widest block truncate">{cat.label}</span>
-                                <p className="text-[8px] opacity-60 font-medium leading-tight truncate">{cat.description}</p>
-                            </div>
+        <div className="space-y-12">
+            {/* Modern Tab Navigation (Glassmorphism 2026) */}
+            <div className="relative sticky top-0 z-50 py-4 -mt-4 bg-black/20 backdrop-blur-xl border-b border-white/5">
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="flex items-center justify-between gap-8">
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-[1px]">
+                            {categories.map((cat) => {
+                                const Icon = cat.icon;
+                                const isActive = activeTab === cat.id;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setActiveTab(cat.id)}
+                                        className={cn(
+                                            "relative z-10 flex items-center gap-2.5 px-6 py-4 border-b-2 transition-all duration-500 group whitespace-nowrap",
+                                            isActive 
+                                              ? "text-white" 
+                                              : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-800"
+                                        )}
+                                        style={isActive ? { borderColor: cat.color } : {}}
+                                    >
+                                        <Icon 
+                                            className={cn(
+                                                "w-4 h-4 transition-all duration-500 group-hover:scale-110", 
+                                                isActive ? "scale-110" : "text-zinc-600"
+                                            )} 
+                                            style={isActive ? { 
+                                                color: cat.color,
+                                                filter: `drop-shadow(0 0 8px ${cat.color}80)` 
+                                            } : {}}
+                                        />
+                                        <span className={cn(
+                                            "text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500",
+                                            isActive ? "opacity-100" : "group-hover:text-white"
+                                        )}
+                                        style={isActive ? { 
+                                            color: cat.color,
+                                            textShadow: `0 0 15px ${cat.color}40`
+                                        } : {}}
+                                        >
+                                            {cat.label}
+                                        </span>
 
-                            {/* Decorative Background Element (The "Halo") */}
-                            <div className={cn(
-                                "absolute -bottom-4 -right-4 w-16 h-16 rounded-full blur-[30px] opacity-20 pointer-events-none transition-transform duration-700",
-                                isActive ? "scale-150 rotate-12" : "scale-0"
-                            )}
-                                style={{ backgroundColor: cat.color === 'purple' ? '#a855f7' : cat.color === 'emerald' ? '#10b981' : cat.color === 'cyan' ? '#06b6d4' : cat.color === 'yellow' ? '#eab308' : '#f59e0b' }}
-                            />
-                        </button>
-                    );
-                })}
+                                        {/* Active Background Glow */}
+                                        {isActive && (
+                                            <div 
+                                                className="absolute inset-0 -z-10 opacity-20 blur-xl animate-pulse"
+                                                style={{ background: `radial-gradient(circle, ${cat.color} 0%, transparent 70%)` }}
+                                            />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {activeTab === "activity" && (
+                            <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
+                                <SelectTrigger className="w-[200px] h-11 bg-white/[0.02] border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.05] transition-all">
+                                    <SelectValue placeholder="Période" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950/95 backdrop-blur-2xl border-white/10">
+                                    <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest">📅 Cette semaine</SelectItem>
+                                    <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest">📅 Ce mois-ci</SelectItem>
+                                    <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest text-amber-400">🏆 Global (All-Time)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Content Control Header */}
+            <div className="max-w-7xl mx-auto px-4 space-y-8">
+                {/* Explicative Card (2026 Style) */}
+                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-zinc-900/40 p-8 backdrop-blur-xl">
+                    <div 
+                        className="absolute top-0 right-0 w-64 h-64 blur-[100px] opacity-20 pointer-events-none"
+                        style={{ background: categories.find(c => c.id === activeTab)?.color || "#10b981" }}
+                    />
+                    
+                    <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <div 
+                            className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border border-white/10"
+                            style={{ backgroundColor: `${categories.find(c => c.id === activeTab)?.color}15` }}
+                        >
+                            {(() => {
+                                const Icon = categories.find(c => c.id === activeTab)?.icon || Trophy;
+                                return <Icon className="w-8 h-8" style={{ color: categories.find(c => c.id === activeTab)?.color }} />;
+                            })()}
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase">
+                                {categories.find(c => c.id === activeTab)?.label}
+                            </h2>
+                            <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl">
+                                {activeTab === 'activity' && "Ce classement mesure votre engagement direct dans la guilde via la validation de missions et les dons de kamas. Seul l'XP gagné sur la période sélectionnée est comptabilisé."}
+                                {activeTab === 'contribution' && "Récompense les membres qui s'impliquent dans la vie de la guilde (aide aux succès, présence aux événements, parrainage). Ces points sont attribués manuellement par les officiers."}
+                                {activeTab === 'seniority' && "L'ordre de prestige basé sur votre date d'intégration au serveur de guilde. Plus vous êtes fidèle, plus vous montez dans ce panthéon d'honneur."}
+                                {activeTab === 'success' && "Le score de prestige Dofus par excellence. Ce ladder synchronise vos points de succès réels directement depuis les serveurs officiels d'Ankama."}
+                                {activeTab === 'general' && "L'expérience totale (XP) accumulée par votre personnage sur Dofus. Une mesure brute de puissance et de temps passé à parcourir le Monde des Douze."}
+                                {activeTab === 'guildatons' && "La richesse monétaire interne de la guilde. Le Guildaton est la monnaie virtuelle utilisée pour les échanges, les récompenses et la boutique exclusive."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-2 h-2 rounded-full animate-pulse",
-                            activeTab === 'activity' ? 'bg-purple-400' : activeTab === 'contribution' ? 'bg-emerald-400' : activeTab === 'seniority' ? 'bg-cyan-400' : activeTab === 'guildatons' ? 'bg-yellow-400' : 'bg-amber-400'
+                            activeTab === 'activity' ? 'bg-emerald-400' : activeTab === 'contribution' ? 'bg-purple-400' : activeTab === 'seniority' ? 'bg-cyan-400' : activeTab === 'guildatons' ? 'bg-yellow-400' : 'bg-amber-400'
                         )} />
                         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400">
-                            RANGS {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : activeTab === 'guildatons' ? 'DE RICHESSE' : 'DE PRESTIGE'}
+                             CLASSEMENT {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : activeTab === 'guildatons' ? 'DE RICHESSE' : (activeTab === 'general' ? 'D\'XP GÉNÉRALE' : 'DE PRESTIGE')}
                         </h2>
                     </div>
 
@@ -201,19 +228,6 @@ export function LadderClient({ guildId, canValidate }: Props) {
                         </Button>
                     )}
                 </div>
-
-                {activeTab === "activity" && (
-                    <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                        <SelectTrigger className="w-[180px] h-9 bg-zinc-900/50 border-white/10 text-xs font-bold uppercase tracking-wider text-zinc-300">
-                            <SelectValue placeholder="Période" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-white/10">
-                            <SelectItem value="weekly" className="text-xs uppercase font-bold tracking-wider">📅 Cette semaine</SelectItem>
-                            <SelectItem value="monthly" className="text-xs uppercase font-bold tracking-wider">📅 Ce mois-ci</SelectItem>
-                            <SelectItem value="alltime" className="text-xs uppercase font-bold tracking-wider text-amber-400">🏆 Global (All-Time)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                )}
             </div>
 
             {/* Ladder Results */}
@@ -234,12 +248,13 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 key={entry.profileId}
                                 entry={entry}
                                 valueLabel={getValueLabel(entry)}
-                                accentColor={activeTab === 'activity' ? 'purple' : activeTab === 'contribution' ? 'emerald' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : 'amber'}
+                                accentColor={activeTab === 'activity' ? 'emerald' : activeTab === 'contribution' ? 'purple' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : (activeTab === 'general' ? 'blue' : 'amber')}
                             />
                         ))}
                     </div>
                 )}
             </div>
         </div>
+    </div>
     );
 }

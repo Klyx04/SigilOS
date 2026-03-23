@@ -40,7 +40,7 @@ function useCountdown(expiresAt: Date) {
 
 const TYPE_CFG = {
     MISSION: { label: "Mission", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", dot: "bg-rose-500", barColor: "bg-rose-500" },
-    KAMA: { label: "Kama", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500", barColor: "bg-amber-500" },
+    KAMA: { label: "Kamas & Coffres", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500", barColor: "bg-amber-500" },
     ACHIEVEMENT: { label: "Succès", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", dot: "bg-purple-500", barColor: "bg-purple-500" },
     LOAN_PROOF: { label: "Prêt/Coffre", color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", dot: "bg-cyan-500", barColor: "bg-cyan-500" },
     ICON: { label: "Icône", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", dot: "bg-sky-500", barColor: "bg-sky-500" },
@@ -329,16 +329,17 @@ function CategoryBlock({
                     <div className="flex items-center gap-1.5">
                         {myPending.length > 0 && (
                             <button onClick={() => toggle("pending")}
-                                className={cn("flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded border transition-all",
-                                    section === "pending" ? "bg-yellow-400 text-black border-yellow-400" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20")}>
-                                <Clock className="w-2.5 h-2.5" />{myPending.length} att.
+                                className={cn("flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-md border shadow-sm transition-all hover:-translate-y-0.5",
+                                    section === "pending" ? "bg-yellow-400 text-black border-yellow-400" : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30")}>
+                                <Clock className="w-3 h-3" /> {myPending.length} En attente
                             </button>
                         )}
                         {count > 0 && (
                             <button onClick={() => toggle("files")}
-                                className={cn("text-[8px] font-black px-1.5 py-0.5 rounded border transition-all",
+                                className={cn("flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-md border shadow-sm transition-all hover:-translate-y-0.5",
                                     section === "files" ? "bg-white text-black border-white" : `${cfg.bg} ${cfg.color} ${cfg.border} hover:opacity-80`)}>
-                                {count} fichier{count > 1 ? "s" : ""}
+                                <FolderOpen className="w-3 h-3" />
+                                {section === "files" ? "Masquer" : `Voir ${count} fichier${count > 1 ? "s" : ""}`}
                             </button>
                         )}
                     </div>
@@ -349,10 +350,10 @@ function CategoryBlock({
                     <span>{formatBytes(bytes)}</span>
                 </div>
                 {pending > 0 && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 font-black">{pending} en attente BDD</Badge>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 font-black self-start w-fit">{pending} record(s) BDD en délai d'attente</Badge>
                 )}
-                {type === "LOAN_PROOF" && activeLoanProofs !== undefined && activeLoanProofs > 0 && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black">{activeLoanProofs} prêts/coffre actifs</Badge>
+                {type === "KAMA" && activeLoanProofs !== undefined && activeLoanProofs > 0 && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black self-start w-fit">{activeLoanProofs} prêts/coffre actifs enregistrés</Badge>
                 )}
                 <PathDisplay path={dir} colorClass={cfg.color} />
             </div>
@@ -417,7 +418,7 @@ function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEnt
                 {/* Global bar */}
                 <StorageBar value={totalBytes} max={maxBytes} color="bg-indigo-500" />
 
-                {/* 3 category blocks: missions, kamas, succès */}
+                {/* 3 category blocks: missions, kamas/vault, succès */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <CategoryBlock type="MISSION" dir={guild.missionsDir}
                         count={guild.missionsCount} bytes={guild.missionsBytes} totalBytes={totalBytes}
@@ -426,19 +427,12 @@ function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEnt
                     <CategoryBlock type="KAMA" dir={guild.kamaDir}
                         count={guild.kamaCount} bytes={guild.kamaBytes} totalBytes={totalBytes}
                         files={guild.kamaFiles} pending={guild.pendingKamas}
-                        pendingFiles={guild.pendingFiles} onReload={onReload} />
+                        pendingFiles={guild.pendingFiles} activeLoanProofs={guild.activeLoanProofs} onReload={onReload} />
                     <CategoryBlock type="ACHIEVEMENT" dir={guild.achievementDir}
                         count={guild.achievementCount} bytes={guild.achievementBytes} totalBytes={totalBytes}
                         files={guild.achievementFiles} pending={0}
                         pendingFiles={guild.pendingFiles} onReload={onReload} />
                 </div>
-
-                {/* 4th category: Prêts & Coffre (same /proofs/ dir as Kama) */}
-                <CategoryBlock type="LOAN_PROOF" dir={guild.loansProofsDir}
-                    count={guild.loansProofsCount} bytes={guild.loansProofsBytes} totalBytes={totalBytes}
-                    files={guild.loansProofsFiles} pending={0}
-                    pendingFiles={[]} activeLoanProofs={guild.activeLoanProofs}
-                    onReload={onReload} />
 
                 {/* Assets (only if any) */}
                 {guild.assets.length > 0 && showAssets && (
@@ -503,7 +497,7 @@ export function StorageOverviewPanel() {
                     {[
                         { label: "Total utilisé", value: formatBytes(data.totalBytes), accent: false },
                         { label: "Fichiers totaux", value: String(data.totalFiles), accent: false },
-                        { label: "Fichiers orphelins", value: String(data.orphanFiles), accent: data.orphanFiles > 0 },
+                        { label: "Fichiers orphelins", value: String(data.orphanFiles.length), accent: data.orphanFiles.length > 0 },
                     ].map(({ label, value, accent }) => (
                         <div key={label} className={cn("p-4 rounded-2xl border text-center", accent ? "border-amber-500/20 bg-amber-500/5" : "border-white/5 bg-zinc-900/30")}>
                             <p className={cn("text-2xl font-black font-mono", accent ? "text-amber-400" : "text-white")}>{value}</p>
@@ -534,14 +528,48 @@ export function StorageOverviewPanel() {
             )}
 
             {/* Orphan warning */}
-            {data && data.orphanFiles > 0 && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <p className="text-xs text-amber-300">
-                        <span className="font-black">{data.orphanFiles} fichier(s)</span> sur le disque sans soumission BDD correspondante.
-                    </p>
+            {data && data.orphanFiles.length > 0 && (
+                <div className="flex flex-col gap-3 px-4 py-3 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <p className="text-xs text-amber-300">
+                                <span className="font-black">{data.orphanFiles.length} fichier(s) abandonné(s)</span> sur le disque sans correspondances BDD après 4h.
+                            </p>
+                        </div>
+                        <Button 
+                            size="sm"
+                            disabled={loading}
+                            onClick={async () => {
+                                setLoading(true);
+                                const { cleanOrphanStorage } = await import("@/server/actions/storage-actions");
+                                const res = await cleanOrphanStorage();
+                                if (res.success) {
+                                    toast.success(`${res.deletedCount} fichier(s) orphelin(s) supprimé(s).`);
+                                    load();
+                                } else {
+                                    toast.error(res.error || "Erreur de nettoyage.");
+                                    setLoading(false);
+                                }
+                            }}
+                            className="bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black font-black uppercase text-[10px] h-8 px-3"
+                        >
+                            Purger {data.orphanFiles.length} fichier{data.orphanFiles.length > 1 ? "s" : ""}
+                        </Button>
+                    </div>
+
+                    <div className="mt-2 border-t border-amber-500/20 pt-3">
+                        <div className="flex items-center gap-2 mb-2 text-amber-500/80">
+                            <FolderOpen className="w-3.5 h-3.5" />
+                            <p className="text-[10px] uppercase font-black tracking-widest text-inherit">Aperçu avant purge :</p>
+                        </div>
+                        {/* We use 'MISSION' type to render standard image previews */}
+                        <DiskFilesGallery files={data.orphanFiles} type="MISSION" onReload={load} />
+                    </div>
                 </div>
             )}
+
+            {/* Existing pending and assets... */}
 
             {/* Guild list */}
             {loading ? (

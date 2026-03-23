@@ -72,7 +72,7 @@ export type StorageOverview = {
     guilds: StorageGuildEntry[];
     totalBytes: number;
     totalFiles: number;
-    orphanFiles: number;
+    orphanFiles: DiskFile[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -295,16 +295,115 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
         );
 
 
+        // Calculate true orphan files
+        // First get all valid DB references
+        const dbProofsArray = await Promise.all([
+            db.submission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
+            (db as any).achievementSubmission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
+            (kamaDb as any).kamaDonation ? (kamaDb as any).kamaDonation.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }).catch(() => []) : Promise.resolve([]),
+            db.guildLoan.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } }),
+            db.vaultEntry.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } })
+        ]);
+
+        const allValidUrls = new Set<string>();
+        dbProofsArray.flat().forEach((entry: any) => {
+            if (entry.proofUrl) {
+                // Keep only the filename for easy cross-referencing to avoid path discrepancies
+                const filename = entry.proofUrl.split(/[/\\]/).pop();
+                if (filename) allValidUrls.add(filename);
+            }
+        });
+
         const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes + e.achievementBytes, 0);
         const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.achievementCount, 0);
-        const dbProofFiles = await db.submission.count({ where: { proofUrl: { not: "" } } });
-        const diskMissionFiles = entries.reduce((s, e) => s + e.missionsCount, 0);
-        const orphanFiles = Math.max(0, diskMissionFiles - dbProofFiles);
+        
+        const orphanFiles: DiskFile[] = [];
+        entries.forEach(e => {
+            const diskFiles = [...e.missionsFiles, ...e.kamaFiles, ...e.achievementFiles];
+            diskFiles.forEach(df => {
+                const isPending = e.pendingFiles.some(pf => pf.filename === df.filename);
+                if (!allValidUrls.has(df.filename) && !isPending) {
+                    orphanFiles.push(df);
+                }
+            });
+        });
 
         return { success: true, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
     } catch (error) {
         logger.error("[getStorageOverview]", { error });
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ─── Auto-Deletion / Garbage Collection ──────────────────────────────────────
+
+/**
+ * Triggers a global garbage collection of all uploaded files.
+ * Scans the physical disk and safely removes any files older than 4 hours 
+ * that have no corresponding record in the database.
+ */
+export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedCount?: number; freedBytes?: number; error?: string }> {
+    if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    try {
+        const overviewRes = await getStorageOverview();
+        if (!overviewRes.success || !overviewRes.data) throw new Error("Could not fetch storage overview");
+
+        const data = overviewRes.data;
+
+        // Fetch valid DB references again to be 100% sure before deletion
+        const dbProofsArray = await Promise.all([
+            db.submission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
+            (db as any).achievementSubmission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
+            (kamaDb as any).kamaDonation ? (kamaDb as any).kamaDonation.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }).catch(() => []) : Promise.resolve([]),
+            db.guildLoan.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } }),
+            db.vaultEntry.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } })
+        ]);
+
+        const validFilenames = new Set<string>();
+        dbProofsArray.flat().forEach((entry: any) => {
+            if (entry.proofUrl) validFilenames.add(entry.proofUrl.split(/[/\\]/).pop());
+        });
+
+        let deletedCount = 0;
+        let freedBytes = 0;
+        const now = Date.now();
+        const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+
+        for (const guild of data.guilds) {
+            const allDiskFiles = [...guild.missionsFiles, ...guild.kamaFiles, ...guild.achievementFiles];
+            const pendingFilenames = new Set(guild.pendingFiles.map(f => f.filename));
+
+            for (const file of allDiskFiles) {
+                // Ensure the file is not actively attached to a DB record and not pending
+                if (!validFilenames.has(file.filename) && !pendingFilenames.has(file.filename)) {
+                    // Safety check: Only delete if older than 4 hours (grace period for uploads in progress)
+                    if (now - file.modifiedAt.getTime() > FOUR_HOURS_MS) {
+                        const fileUrl = file.url.replace(/^\/uploads/, "");
+                        const physicalPath = normalize(join(process.cwd(), "private_uploads", fileUrl));
+                        
+                        try {
+                            if (existsSync(physicalPath)) {
+                                await unlink(physicalPath);
+                                deletedCount++;
+                                freedBytes += file.sizeBytes;
+                            }
+                        } catch (err) {
+                            logger.error(`[StorageCleanup] Failed to unlink ${physicalPath}`, { error: String(err) });
+                        }
+                    }
+                }
+            }
+        }
+
+        if (deletedCount > 0) {
+            logger.info(`[StorageCleanup] Cleaned ${deletedCount} orphan files (${(freedBytes/1024/1024).toFixed(2)} MB freed).`);
+        }
+
+        return { success: true, deletedCount, freedBytes };
+    } catch (error) {
+        logger.error("[cleanOrphanStorage]", { error: String(error) });
+        return { success: false, error: "Erreur lors du nettoyage" };
     }
 }
 

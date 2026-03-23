@@ -155,6 +155,45 @@ export async function deleteGuildImage(
 }
 
 /**
+ * Safely delete a proof image from the VPS when a submission is deleted/rejected
+ */
+export async function deletePhysicalProof(proofUrl: string | null | undefined): Promise<boolean> {
+    if (!proofUrl) return false;
+    
+    try {
+        // e.g., /api/storage/guilds/123/proofs/abc.webp
+        // mapped to private_uploads/guilds/123/proofs/abc.webp
+        // Or /api/storage/proofs/discordId/abc.webp 
+        // mapped to private_uploads/proofs/discordId/abc.webp
+        
+        let physicalPath = "";
+        if (proofUrl.startsWith("/api/storage/")) {
+            physicalPath = proofUrl.replace("/api/storage/", "");
+        } else if (proofUrl.startsWith("/uploads/")) {
+            physicalPath = proofUrl.replace("/uploads/", "");
+        } else {
+            return false;
+        }
+
+        const absolutePath = path.normalize(path.join(process.cwd(), "private_uploads", physicalPath));
+        const storageRoot = path.normalize(path.join(process.cwd(), "private_uploads"));
+
+        // Path traversal protection
+        if (!absolutePath.startsWith(storageRoot)) {
+            return false;
+        }
+
+        if (existsSync(absolutePath)) {
+            await unlink(absolutePath);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        logger.error("Error deleting physical proof", { error, proofUrl });
+        return false;
+    }
+}
+/**
  * Upload a proof screenshot (for loans, vault entries, etc.)
  * Aggressively compressed (1280px max, 65% quality WebP)
  * Same OWASP security as uploadGuildImage

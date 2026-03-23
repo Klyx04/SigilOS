@@ -27,7 +27,7 @@ export default async function AdminLogsPage({ params }: Props) {
     }
 
     // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)
-    // retention policy is now 7 days
+    // Retention policy is exactly 30 days (consistent with UI notice)
     cleanupOldAuditLogs(guildId).catch(err =>
         console.error("[LazyCleanup] Failed to clean old logs:", err)
     );

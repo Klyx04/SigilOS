@@ -136,7 +136,10 @@ export async function getGuildStats(guildId: string): Promise<{
     const internalGuildId = guildConfig.id;
 
     try {
-        // ===== PARALLEL QUERIES =====
+        // ===== BATCHED PARALLEL QUERIES =====
+        // Split into 3 primary batches to avoid exhausting the DB connection pool.
+
+        // --- BATCH 1: Core KPIs & Member data ---
         const [
             activeMembers,
             xpAgg,
@@ -144,30 +147,9 @@ export async function getGuildStats(guildId: string): Promise<{
             totalSubmissions,
             validatedSubmissions,
             entraideAgg,
-            missionCategories,
             songesAll,
             songesFloorAvg,
             candidaturesByStatus,
-            allEvents,
-            eventParticipants,
-            helpCreditsAgg,
-            contributionAgg,
-            ocreAccepted,
-            pollsCreated,
-            pollVoters,
-            bonusesByStatus,
-            topXpMember,
-            oldestMember,
-            loansByStatus,
-            loansByLender,
-            vaultDeposits,
-            vaultWithdrawals,
-            vaultByProfile,
-            vaultTopItem,
-            validatedKamaDonations,
-            validatedMissionsWithRewards,
-            kamaDonorsAgg,
-            topAchieversProfiles,
         ] = await Promise.all([
             db.userProfile.count({
                 where: { guildId: internalGuildId, status: "ACTIVE" },
@@ -190,11 +172,6 @@ export async function getGuildStats(guildId: string): Promise<{
                 where: { guildId: internalGuildId },
                 _sum: { points: true },
             }),
-            db.mission.groupBy({
-                by: ["category"],
-                where: { guildId: internalGuildId },
-                _count: true,
-            }),
             db.dreamRun.findMany({
                 where: { guildId },
                 select: { status: true, leaderId: true, currentFloor: true },
@@ -208,6 +185,21 @@ export async function getGuildStats(guildId: string): Promise<{
                 where: { run: { guildId } },
                 _count: true,
             }),
+        ]);
+
+        // --- BATCH 2: Events, Community & Leaderboards ---
+        const [
+            allEvents,
+            eventParticipants,
+            helpCreditsAgg,
+            contributionAgg,
+            ocreAccepted,
+            pollsCreated,
+            pollVoters,
+            bonusesByStatus,
+            topXpMember,
+            oldestMember,
+        ] = await Promise.all([
             db.guildEvent.findMany({
                 where: { guildId: internalGuildId },
                 select: { id: true, type: true, creatorId: true, startDate: true },
@@ -254,7 +246,24 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { discordJoinedAt: "asc" },
                 select: { discordNickname: true, pseudoDofus: true, discordJoinedAt: true, user: { select: { name: true } } },
             }),
-            // -- Services (loans + vault) --
+        ]);
+
+        // --- BATCH 3: Services, Kama & Top Achievers ---
+        // NOTE: missionsWithValidatedSubs replaces the old validatedMissionsWithRewards findMany.
+        // Instead of loading one row per submission (potentially thousands), we load one row
+        // per mission and multiply reward × validated_count. Much more efficient.
+        const [
+            loansByStatus,
+            loansByLender,
+            vaultDeposits,
+            vaultWithdrawals,
+            vaultByProfile,
+            vaultTopItem,
+            validatedKamaDonations,
+            missionsWithValidatedSubs,
+            kamaDonorsAgg,
+            topAchieversProfiles,
+        ] = await Promise.all([
             db.guildLoan.groupBy({
                 by: ["status"],
                 where: { guildId: internalGuildId },
@@ -283,16 +292,18 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { _count: { itemName: "desc" } },
                 take: 1,
             }),
-            // -- Kama & Guildatons Earned --
             db.kamaDonation.findMany({
                 where: { guildId: internalGuildId, status: "VALIDATED" },
                 select: { amount: true },
             }),
-            db.submission.findMany({
-                where: { mission: { guildId: internalGuildId }, status: "VALIDATED" },
-                select: { mission: { select: { guildatonsReward: true } } },
+            // One row per mission with count of validated submissions — replaces full submission scan
+            db.mission.findMany({
+                where: { guildId: internalGuildId },
+                select: {
+                    guildatonsReward: true,
+                    _count: { select: { submissions: { where: { status: "VALIDATED" } } } },
+                },
             }),
-            // -- Top Leaders --
             db.kamaDonation.groupBy({
                 by: ["profileId"],
                 where: { guildId: internalGuildId, status: "VALIDATED" },
@@ -308,81 +319,109 @@ export async function getGuildStats(guildId: string): Promise<{
             }),
         ]);
 
-        // ===== PROCESS RESULTS =====
+        // ===== PRE-PROCESS IN-MEMORY (no DB calls) =====
 
-        // -- Guildatons & Kama calculations --
         const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
         const totalKamasCollected = validatedKamaDonations.reduce((acc, d) => acc + d.amount, 0);
-        const guildatonsFromKamas = validatedKamaDonations.reduce((acc, d) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons), 0);
-        const guildatonsFromMissions = validatedMissionsWithRewards.reduce((acc, s) => acc + (s.mission.guildatonsReward || 0), 0);
+        const guildatonsFromKamas = validatedKamaDonations.reduce(
+            (acc, d) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons),
+            0
+        );
+        // Compute guildatons from missions: reward × count of validated subs per mission
+        const guildatonsFromMissions = missionsWithValidatedSubs.reduce(
+            (acc, m) => acc + (m.guildatonsReward || 0) * m._count.submissions,
+            0
+        );
         const totalGuildatonsEarned = guildatonsFromKamas + guildatonsFromMissions;
 
         const validationRate = totalSubmissions > 0 ? Math.round((validatedSubmissions / totalSubmissions) * 100) : 0;
 
-        const weeklyActivity = await getWeeklyActivity(internalGuildId);
-        const missionsByCategory = await getMissionCategoryStats(internalGuildId, missionCategories);
-        const topValidators = await getTopValidators(internalGuildId);
-        const topDonors = await resolveLeaderboard(
-            kamaDonorsAgg.map(d => [d.profileId, d._sum.amount || 0] as [string, number]),
-            internalGuildId,
-            "profileId"
-        );
-        const topAchievers = topAchieversProfiles.map(p => ({
-            name: getName(p),
-            value: p.successPoints || 0
-        }));
-
-        // -- Songes --
-        const songesCompleted = songesAll.filter(r => r.status === "COMPLETED").length;
-        const songesFailed = songesAll.filter(r => r.status === "FAILED").length;
-        const songesAbandoned = songesAll.filter(r => r.status === "ABANDONED").length;
-
+        // Pre-compute leader/organizer counts (pure JS, instant)
         const leaderCounts: Record<string, number> = {};
         songesAll.filter(r => r.status === "COMPLETED").forEach(r => {
             leaderCounts[r.leaderId] = (leaderCounts[r.leaderId] || 0) + 1;
         });
-        const topLeaders = await resolveLeaderboard(
-            Object.entries(leaderCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
-            internalGuildId,
-            "userId"
-        );
 
-        const candidaturesTotal = candidaturesByStatus.reduce((acc, c) => acc + c._count, 0);
-        const candidaturesAccepted = candidaturesByStatus.find(c => c.status === "ACCEPTED")?._count || 0;
-
-        // -- Events --
         const eventsByType: Record<string, number> = {};
         const organizerCounts: Record<string, number> = {};
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         let eventsThisMonth = 0;
-
         allEvents.forEach(e => {
             eventsByType[e.type] = (eventsByType[e.type] || 0) + 1;
             organizerCounts[e.creatorId] = (organizerCounts[e.creatorId] || 0) + 1;
             if (e.startDate >= startOfMonth) eventsThisMonth++;
         });
 
+        // --- BATCH 4: All leaderboard resolvers + helpers in parallel ---
+        // Previously these were 9 sequential DB calls. Now they run concurrently.
+        const [
+            weeklyActivity,
+            missionsByCategory,
+            topValidators,
+            topDonors,
+            topSongeLeaders,
+            topOrganizers,
+            topHelpers,
+            topLenders,
+            topVaultContributors,
+        ] = await Promise.all([
+            getWeeklyActivity(internalGuildId),
+            getMissionCategoryStats(internalGuildId),
+            getTopValidators(internalGuildId),
+            resolveLeaderboard(
+                kamaDonorsAgg.map(d => [d.profileId, d._sum.amount || 0] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+            resolveLeaderboard(
+                Object.entries(leaderCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                Object.entries(organizerCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                helpCreditsAgg.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                loansByLender.map(l => [l.lenderId, l._count] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+            resolveLeaderboard(
+                vaultByProfile.map(v => [v.profileId, v._count] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+        ]);
+
+        // ===== PROCESS REMAINING RESULTS =====
+
+        const songesCompleted = songesAll.filter(r => r.status === "COMPLETED").length;
+        const songesFailed = songesAll.filter(r => r.status === "FAILED").length;
+        const songesAbandoned = songesAll.filter(r => r.status === "ABANDONED").length;
+
+        const candidaturesTotal = candidaturesByStatus.reduce((acc, c) => acc + c._count, 0);
+        const candidaturesAccepted = candidaturesByStatus.find(c => c.status === "ACCEPTED")?._count || 0;
+
         const avgParticipation = eventParticipants.length > 0
             ? Math.round(eventParticipants.reduce((acc, p) => acc + p._count, 0) / eventParticipants.length)
             : 0;
 
-        const topOrganizers = await resolveLeaderboard(
-            Object.entries(organizerCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
-            internalGuildId,
-            "userId"
-        );
-
-        // -- Community --
-        const topHelpers = await resolveLeaderboard(
-            helpCreditsAgg.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
-            internalGuildId,
-            "userId"
-        );
-
         const pollParticipationRate = activeMembers > 0
             ? Math.round((pollVoters.length / activeMembers) * 100)
             : 0;
+
+        const topAchievers = topAchieversProfiles.map(p => ({
+            name: getName(p),
+            value: p.successPoints || 0
+        }));
 
         // -- Records --
         const records: GuildRecord[] = [];
@@ -423,18 +462,6 @@ export async function getGuildStats(guildId: string): Promise<{
         const loansReturned = loansByStatus.find(s => s.status === "RETURNED")?._count ?? 0;
         const loansCancelled = loansByStatus.find(s => s.status === "CANCELLED")?._count ?? 0;
 
-        const topLenders = await resolveLeaderboard(
-            loansByLender.map(l => [l.lenderId, l._count] as [string, number]),
-            internalGuildId,
-            "profileId"
-        );
-
-        const topVaultContributors = await resolveLeaderboard(
-            vaultByProfile.map(v => [v.profileId, v._count] as [string, number]),
-            internalGuildId,
-            "profileId"
-        );
-
         const stats: GuildStats = {
             activeMembers,
             totalXp: xpAgg._sum.xp || 0,
@@ -458,7 +485,7 @@ export async function getGuildStats(guildId: string): Promise<{
                 abandoned: songesAbandoned,
                 successRate: songesAll.length > 0 ? Math.round((songesCompleted / songesAll.length) * 100) : 0,
                 avgFloor: Math.round(songesFloorAvg._avg.currentFloor || 0),
-                topLeaders,
+                topLeaders: topSongeLeaders,
                 totalCandidatures: candidaturesTotal,
                 acceptedCandidatures: candidaturesAccepted,
             },
@@ -581,53 +608,28 @@ async function getWeeklyActivity(internalGuildId: string): Promise<WeeklyActivit
     return Object.entries(weeks).map(([week, data]) => ({ week, ...data }));
 }
 
-async function getMissionCategoryStats(
-    internalGuildId: string,
-    categories: { category: string; _count: number }[]
-): Promise<CategoryBreakdown[]> {
-    // 1. Get all validated counts in a single query
-    const validatedCounts = await db.submission.groupBy({
-        by: ["missionId"],
-        where: {
-            mission: { 
-                guildId: internalGuildId,
-                category: { in: categories.map(c => c.category) as any }
-            },
-            status: "VALIDATED"
-        },
-        _count: true
-    });
-
-    // 2. We need to sum them by category since groupBy by mission doesn't give category directly easily with current schema path
-    // Actually, mission.category is available if we use mission: { select: { category: true } } but groupBy doesn't support nested select.
-    // Better: Query missions with their category and count validated submissions.
-    
-    // Alternative: Just query all validated submissions for these categories in this guild
-    const submissions = await db.submission.findMany({
-        where: {
-            mission: {
-                guildId: internalGuildId,
-                category: { in: categories.map(c => c.category) as any }
-            },
-            status: "VALIDATED"
-        },
+// Rewritten: one query per mission (not per submission).
+// Loads missions with their validated submission count — O(missions) instead of O(submissions).
+async function getMissionCategoryStats(internalGuildId: string): Promise<CategoryBreakdown[]> {
+    const missions = await db.mission.findMany({
+        where: { guildId: internalGuildId },
         select: {
-            mission: {
-                select: { category: true }
-            }
-        }
+            category: true,
+            _count: { select: { submissions: { where: { status: "VALIDATED" } } } },
+        },
     });
 
-    const categoryMap: Record<string, number> = {};
-    submissions.forEach(s => {
-        const cat = s.mission.category;
-        categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+    const categoryMap: Record<string, { total: number; validated: number }> = {};
+    missions.forEach(m => {
+        if (!categoryMap[m.category]) categoryMap[m.category] = { total: 0, validated: 0 };
+        categoryMap[m.category].total++;
+        categoryMap[m.category].validated += m._count.submissions;
     });
 
-    return categories.map(cat => ({
-        category: cat.category,
-        count: cat._count,
-        validated: categoryMap[cat.category] || 0
+    return Object.entries(categoryMap).map(([category, data]) => ({
+        category,
+        count: data.total,
+        validated: data.validated,
     }));
 }
 

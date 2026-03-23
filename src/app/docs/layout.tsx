@@ -17,23 +17,28 @@ export default async function DocsLayout({
 }) {
     const session = await auth();
 
-    // 🔒 Security: Require Auth & Guild Membership
+    // 🔒 Security: Require Auth
     if (!session?.user?.id) {
         redirect("/api/auth/signin?callbackUrl=/docs");
     }
 
     // Fetch user's guilds to establish context for documentation
-    const { getUserGuilds } = await import("@/server/actions/user-actions");
+    const { getUserGuilds, getUserContext } = await import("@/server/actions/user-actions");
     const userGuilds = await getUserGuilds();
 
-    // Use first guild as context (shows global docs + that guild's specific docs)
-    // If user has no guilds, guildId will be undefined (shows only global docs)
+    // Use first guild as context for the sidebar/navbar
     const guildId = userGuilds[0]?.id;
 
-    const { getUserContext } = await import("@/server/actions/user-actions");
-    const user = await getUserContext(guildId);
+    const [user, allDocsResult, configRes] = await Promise.all([
+        getUserContext(guildId),
+        import("@/server/actions/doc-actions").then(mod => mod.getAllDocs(guildId)),
+        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
+    ]);
 
-    // Check if user is authenticated and member of at least one guild
+    const allDocs = allDocsResult;
+    const roadmapEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
+
+    // Check if user is member of at least one guild
     if (!user.isAuthenticated || userGuilds.length === 0) {
         return (
             <div className="relative min-h-screen landing-theme bg-background selection:bg-accent-teal/30 font-sans flex flex-col overflow-hidden">
@@ -80,105 +85,104 @@ export default async function DocsLayout({
         );
     }
 
+    // --- DASHBOARD-LIKE WRAPPER FOR DOCS ---
+    const { getGuildHeaderData } = await import("@/server/actions/guild-actions");
+    const { getGuildModules } = await import("@/server/actions/module-actions");
+    const { TopNav } = await import("@/components/layout/top-nav");
+    const { AppSidebar } = await import("@/components/layout/app-sidebar");
+    const { GalacticFooter: DashboardFooter } = await import("@/components/layout/galactic-footer");
 
-    const { getAllDocs } = await import("@/server/actions/doc-actions");
-    const allDocs = await getAllDocs(guildId);
+    const [guildData, modules, events] = await Promise.all([
+        getGuildHeaderData(guildId!),
+        getGuildModules(guildId!),
+        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId!))
+    ]);
 
-    // Group docs by category
+    // Group docs by category for the sidebar
     const groupedDocs: Record<string, typeof allDocs> = {};
     allDocs.forEach(doc => {
         const cat = doc.category || "Autres";
         if (!groupedDocs[cat]) groupedDocs[cat] = [];
         groupedDocs[cat].push(doc);
     });
-
     const categories = Object.keys(groupedDocs).sort();
 
     return (
-        <div className="relative min-h-screen bg-zinc-950 font-sans selection:bg-accent-teal/30 flex flex-col landing-theme">
-            <PublicHeader
-                user={session?.user ? { ...session.user, emailVerified: null } as any : undefined}
-                isMember={user.isMember}
-                dashboardHref={guildId ? `/dashboard/${guildId}` : "/dashboard"}
-            />
-
-            <div className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-32 flex flex-col lg:flex-row gap-8">
-                {/* Sidebar Navigation */}
-                <ResizableSidebar className="hidden lg:block w-72 shrink-0">
-                    <div className="sticky top-24 pr-4">
-                        <div className="pb-8 border-b border-white/5 mb-8 flex flex-col gap-4">
-                            <Link
-                                href={guildId ? `/dashboard/${guildId}` : "/dashboard"}
-                                className="flex items-center gap-3 text-sm font-black text-zinc-400 hover:text-teal-400 transition-colors group uppercase tracking-[0.15em] px-2"
-                            >
-                                <Layout className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                Dashboard
-                            </Link>
-
-                            {/* Dedicated Docs Search */}
-                            <DocsSearch />
-                        </div>
-
-                        <nav className="space-y-12">
-                            {/* Dynamic Categories */}
-                            {categories.map(category => (
-                                <div key={category}>
-                                    <h4 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-500 mb-6 px-2 flex items-center gap-2">
-                                        <div className="w-1.5 h-4 bg-teal-500/50 rounded-full" />
-                                        {category}
-                                    </h4>
-                                    <ul className="space-y-3">
-                                        {groupedDocs[category].map(doc => {
-                                            const isSubPage = doc.slug.includes("/");
-                                            return (
-                                                <li key={doc.id}>
-                                                    <Link
-                                                        href={`/docs/${doc.slug}`}
-                                                        className={cn(
-                                                            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:text-white hover:bg-white/5 transition-all truncate group border border-transparent hover:border-white/5",
-                                                            isSubPage && "ml-4 border-l border-white/10 rounded-l-none pl-4"
-                                                        )}
-                                                        title={doc.title}
-                                                    >
-                                                        <FileText className="w-4 h-4 text-zinc-500 group-hover:text-amber-400 transition-colors shrink-0" />
-                                                        <span className="truncate tracking-tight">{doc.title}</span>
-                                                    </Link>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            ))}
-
-
-
-                            {categories.length === 0 && (
-                                <div className="px-2 py-4 bg-zinc-900/50 rounded border border-white/5 text-xs text-zinc-500 text-center italic">
-                                    Aucune page publiée.
-                                </div>
-                            )}
-                        </nav>
-                    </div>
-                </ResizableSidebar>
-
-                {/* Mobile Fallback (Simple Stack) */}
-                <aside className="lg:hidden w-full space-y-8">
-                    <div className="pb-6 border-b border-white/5 mb-6">
-                        <Link href="/docs" className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors">
-                            <Home className="w-4 h-4" />
-                            Centre de Documentation
-                        </Link>
-                    </div>
-                    {/* Shortened Nav for Mobile could go here or just full list */}
-                </aside>
-
-                {/* Main Content Area */}
-                <main className="flex-1 min-w-0">
-                    {children}
-                </main>
+        <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-teal-500/30 text-zinc-100 fixed inset-0 landing-theme">
+            {/* 1. DESKTOP SIDEBAR */}
+            <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <AppSidebar
+                    guildId={guildId!}
+                    user={user}
+                    guildData={guildData}
+                    userGuilds={userGuilds}
+                    modules={modules}
+                    className="h-full border-r border-white/5"
+                />
             </div>
 
-            <GalacticFooter isMember={true} />
+            {/* 2. MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black/40 backdrop-blur-3xl">
+                
+                {/* Top Navigation */}
+                <div className="flex-shrink-0 z-50">
+                    <TopNav
+                        userId={user.id || ""}
+                        sidebarProps={{ guildId: guildId!, user, guildData, userGuilds, modules }}
+                        events={events}
+                        roadmapEnabled={roadmapEnabled}
+                    />
+                </div>
+
+                {/* Scrollable Content */}
+                <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className="container max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col lg:flex-row gap-12 relative items-start">
+                        
+                        {/* Docs Category Sidebar (Fixed relative to main) */}
+                        <aside className="hidden lg:block w-64 shrink-0 sticky top-4">
+                            <DocsSearch />
+                            <nav className="mt-8 space-y-8">
+                                {categories.map(category => (
+                                    <div key={category}>
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-4 px-2 flex items-center gap-2">
+                                            <div className="w-1.5 h-3 bg-teal-500/50 rounded-full" />
+                                            {category}
+                                        </h4>
+                                        <ul className="space-y-1.5">
+                                            {groupedDocs[category].map(doc => {
+                                                const isSubPage = doc.slug.includes("/");
+                                                return (
+                                                    <li key={doc.id}>
+                                                        <Link
+                                                            href={`/docs/${doc.slug}`}
+                                                            className={cn(
+                                                                "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all truncate group border border-transparent",
+                                                                isSubPage && "ml-4 border-l border-white/10 rounded-l-none pl-4"
+                                                            )}
+                                                            title={doc.title}
+                                                        >
+                                                            <FileText className="w-3.5 h-3.5 text-zinc-600 group-hover:text-amber-400 transition-colors shrink-0" />
+                                                            <span className="truncate">{doc.title}</span>
+                                                        </Link>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </nav>
+                        </aside>
+
+                        <div className="flex-1 min-w-0">
+                            {children}
+                        </div>
+                    </div>
+
+                    <div className="mt-12 md:mt-24 pb-32">
+                        <DashboardFooter variant="compact" />
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }

@@ -13,11 +13,12 @@ import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
 import { IntroductionCard } from "./introduction-card";
-import { DreamRunHistory } from "./dream-run-history";
+import { MemberStats } from "./member-stats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { Settings } from "lucide-react";
+import { UserCircle, LayoutDashboard, Shield, Users, Calendar, Trophy, BarChart3, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 
 interface ProfileBentoGridProps {
@@ -68,6 +69,7 @@ interface ProfileBentoGridProps {
     stats: {
         xp: number;
         weeklyXp: number;
+        guildatons: number;
         missionsValidated: number;
         weeklyMissions: number;
         joinedAt: string | Date | null;
@@ -75,6 +77,8 @@ interface ProfileBentoGridProps {
         isTopContributor: boolean;
         contributorTier?: ContributorTier;
         rank?: number;
+        weeklyActivity: { week: string; submissions: number; validated: number }[];
+        missionsByCategory: { category: string; count: number; validated: number }[];
     };
     guildId: string;
     discordNickname?: string | null;
@@ -84,6 +88,7 @@ interface ProfileBentoGridProps {
         canViewArchis?: boolean;
         canViewSonges?: boolean;
         canViewLadder?: boolean;
+        canSyncLadder?: boolean;
         canViewMissions?: boolean;
     };
     guildName?: string;
@@ -116,7 +121,13 @@ export function ProfileBentoGrid({
     const [activeTab, setActiveTab] = useState(initialTab);
 
     // Default permissions to true if not provided (internal consistency)
-    const { canViewArchis = true, canViewSonges = true, canViewLadder = true, canViewMissions = true } = permissions;
+    const { 
+        canViewArchis = true, 
+        canViewSonges: canViewStats = true, 
+        canViewLadder = true, 
+        canViewMissions = true,
+        canSyncLadder = false
+    } = permissions;
 
     // Sync state if URL param changes (optional but good for UX)
     useEffect(() => {
@@ -294,10 +305,6 @@ export function ProfileBentoGrid({
                     vacationStart={startDate}
                     vacationEnd={endDate}
                     joinedAt={stats.joinedAt}
-                    xp={stats.xp}
-                    weeklyXp={stats.weeklyXp}
-                    missionsValidated={stats.missionsValidated}
-                    weeklyMissions={stats.weeklyMissions}
                     canViewMissions={permissions.canViewMissions}
                     canViewLadder={canViewLadder}
                     guildName={guildName}
@@ -308,67 +315,62 @@ export function ProfileBentoGrid({
                 />
             </div>
 
-            {/* Tabs Navigation */}
+            {/* Sigma 2026 Adaptive Layout */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-zinc-900/60 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full text-zinc-400">
-                        <TabsTrigger
-                            value="overview"
-                            className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
-                        >
-                            Général
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="intro"
-                            className="rounded-full px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
-                        >
-                            Ma Présentation
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="combat"
-                            className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
-                        >
-                            Stuffs
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="mules"
-                            className="rounded-full px-6 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
-                        >
-                            Mules
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="planning"
-                            className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
-                        >
-                            Planning
-                        </TabsTrigger>
-                        {canViewLadder && (
+                <div className="grid lg:grid-cols-[280px_1fr] grid-cols-1 gap-8 items-start">
+                
+                {/* Sidebar Navigation (Sticky on Desktop, Scrollable on Mobile) */}
+                <aside className="lg:sticky lg:top-24 z-20">
+                    <TabsList className="bg-transparent flex lg:flex-col flex-row flex-nowrap overflow-x-auto lg:overflow-visible gap-2 p-0 h-auto justify-start border-none">
+                        {[
+                            { id: "overview", label: "Général", icon: UserCircle, color: "emerald" },
+                            { id: "intro", label: "Présentation", icon: LayoutDashboard, color: "emerald" },
+                            { id: "combat", label: "Stuffs", icon: Shield, color: "indigo" },
+                            { id: "mules", icon: Users, label: "Mules", color: "indigo" },
+                            { id: "planning", label: "Planning", icon: Calendar, color: "amber" },
+                            ...(canViewLadder ? [{ id: "achievements", label: "Succès", icon: Trophy, color: "amber" }] : []),
+                            ...(canViewStats ? [{ id: "stats", label: "Statistiques", icon: BarChart3, color: "cyan" }] : []),
+                            ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, color: "zinc" }] : []),
+                        ].map((tab) => (
                             <TabsTrigger
-                                value="achievements"
-                                className="rounded-full px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                                key={tab.id}
+                                value={tab.id}
+                                className={cn(
+                                    "relative flex items-center justify-start gap-3 w-full px-4 py-3 rounded-2xl transition-all duration-300 group",
+                                    "bg-zinc-900/40 backdrop-blur-md border border-white/5",
+                                    "data-[state=active]:bg-white/5 data-[state=active]:border-white/10",
+                                    "hover:bg-white/10"
+                                )}
                             >
-                                Succès
+                                <div className={cn(
+                                    "p-2 rounded-xl transition-all duration-300",
+                                    "bg-zinc-800/50 group-data-[state=active]:scale-110",
+                                    activeTab === tab.id ? `text-${tab.color}-400 shadow-[0_0_15px_rgba(0,0,0,0.5)]` : "text-zinc-500"
+                                )}>
+                                    <tab.icon className="w-5 h-5" />
+                                </div>
+                                
+                                <span className={cn(
+                                    "text-sm font-medium transition-colors",
+                                    activeTab === tab.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
+                                )}>
+                                    {tab.label}
+                                </span>
+
+                                {/* Neon Indicator (Sigma 2026 Core) */}
+                                {activeTab === tab.id && (
+                                    <div className={cn(
+                                        "absolute left-0 w-1 h-6 rounded-full",
+                                        `bg-${tab.color}-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] shadow-${tab.color}-500/50`
+                                    )} />
+                                )}
                             </TabsTrigger>
-                        )}
-                        {canViewSonges && (
-                            <TabsTrigger
-                                value="songes"
-                                className="rounded-full px-6 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 border border-transparent transition-all"
-                            >
-                                Songes
-                            </TabsTrigger>
-                        )}
-                        {canEdit && (
-                            <TabsTrigger
-                                value="settings"
-                                className="rounded-full px-6 data-[state=active]:bg-zinc-500/20 data-[state=active]:text-zinc-300 data-[state=active]:border-white/10 border border-transparent transition-all gap-2"
-                            >
-                                <Settings className="w-4 h-4" />
-                                Paramètres
-                            </TabsTrigger>
-                        )}
+                        ))}
                     </TabsList>
-                </div>
+                </aside>
+
+                {/* Main Content Area */}
+                <div className="min-w-0 space-y-8">
 
                 {/* OVERVIEW TAB */}
                 <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -510,14 +512,17 @@ export function ProfileBentoGrid({
                                 }));
                             }}
                             targetUserId={targetUserId}
+                            canSyncLadder={canSyncLadder}
+                            isSuperAdmin={isSuperAdmin}
+                            isAdmin={isAdmin}
                         />
                     )}
                 </TabsContent>
 
-                {/* SONGES TAB */}
-                <TabsContent value="songes" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {visitedTabs.has("songes") && (
-                        <DreamRunHistory guildId={guildId} userId={profile.userId} />
+                {/* STATS TAB */}
+                <TabsContent value="stats" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {visitedTabs.has("stats") && (
+                        <MemberStats stats={stats} />
                     )}
                 </TabsContent>
 
@@ -539,6 +544,8 @@ export function ProfileBentoGrid({
                         )}
                     </TabsContent>
                 )}
+                </div>
+            </div>
             </Tabs>
         </div>
     );

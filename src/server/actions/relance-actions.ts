@@ -146,10 +146,10 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
                 if (msgId) results.sent++; else results.failed++;
             }
         } else if (type === "CHANNEL") {
-            if (!channelId) return { success: false, error: "Salon requis pour ce type de relance" };
+            if (!channelId) return { success: false, error: "Salon requis for ce type de relance" };
             
             const mentions = targetUserIds.map(id => `<@${id}>`).join(" ");
-            const msgId = await sendChannelMessage(channelId, mentions, {
+            const msgId = await sendChannelMessage(channelId, `Bonjour ${mentions} !`, {
                 embedTitle: "🔔 Rappel de Guilde",
                 embedDescription: message,
                 embedColor: 0xffa500,
@@ -159,7 +159,7 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
         } else if (type === "BULK") {
             if (!channelId) return { success: false, error: "Salon requis" };
             const mentions = targetUserIds.map(id => `<@${id}>`).join(" ");
-            const msgId = await sendChannelMessage(channelId, `⚠️ **RELANCE GÉNÉRALE**\n${mentions}`, {
+            const msgId = await sendChannelMessage(channelId, `⚠️ **RELANCE GÉNÉRALE**\nBonjour ${mentions} !`, {
                 embedTitle: "🎯 Objectifs de Guilde",
                 embedDescription: message,
                 embedColor: 0xef4444, // Red

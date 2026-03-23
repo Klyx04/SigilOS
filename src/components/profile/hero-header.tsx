@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Palmtree, TrendingUp, Target, Award, Medal, Star, ShieldCheck, Sparkles, UserCircle } from "lucide-react";
+import { Crown, Palmtree, Award, Medal, Star, ShieldCheck, Sparkles, UserCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -50,10 +50,6 @@ interface HeroHeaderProps {
     vacationStart?: Date | null;
     vacationEnd?: Date | null;
     joinedAt?: string | Date | null;
-    xp: number;
-    weeklyXp: number;
-    missionsValidated: number;
-    weeklyMissions: number;
     isAdmin?: boolean;
     canViewMissions?: boolean;
     canViewLadder?: boolean;
@@ -75,10 +71,6 @@ export function HeroHeader({
     vacationStart,
     vacationEnd,
     joinedAt,
-    xp,
-    weeklyXp,
-    missionsValidated,
-    weeklyMissions,
     isAdmin = false,
     canViewMissions = true,
     canViewLadder = true,
@@ -241,52 +233,7 @@ export function HeroHeader({
                             )}
                         </div>
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                            {/* Total XP */}
-                            {canViewLadder && (
-                                <div className="px-4 py-3 rounded-lg bg-purple-500/10 border border-purple-500/20 backdrop-blur-sm">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <TrendingUp className="w-4 h-4 text-purple-400" />
-                                        <span className="text-xs text-purple-300 font-medium">XP Total</span>
-                                    </div>
-                                    <p className="text-xl font-bold text-white">{xp.toLocaleString()}</p>
-                                </div>
-                            )}
-
-                            {/* Weekly XP */}
-                            {canViewLadder && (
-                                <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 backdrop-blur-sm">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <TrendingUp className="w-4 h-4 text-green-400" />
-                                        <span className="text-xs text-green-300 font-medium">XP Semaine</span>
-                                    </div>
-                                    <p className="text-xl font-bold text-white">+{weeklyXp.toLocaleString()}</p>
-                                </div>
-                            )}
-
-                            {/* Total Missions */}
-                            {canViewMissions && (
-                                <div className="px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20 backdrop-blur-sm">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Target className="w-4 h-4 text-blue-400" />
-                                        <span className="text-xs text-blue-300 font-medium">Missions Totales</span>
-                                    </div>
-                                    <p className="text-xl font-bold text-white">{missionsValidated}</p>
-                                </div>
-                            )}
-
-                            {/* Weekly Missions */}
-                            {canViewMissions && (
-                                <div className="px-4 py-3 rounded-lg bg-orange-500/10 border border-orange-500/20 backdrop-blur-sm">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Target className="w-4 h-4 text-orange-400" />
-                                        <span className="text-xs text-orange-300 font-medium">Missions Semaine</span>
-                                    </div>
-                                    <p className="text-xl font-bold text-white">{weeklyMissions}</p>
-                                </div>
-                            )}
-                        </div>
+                        {/* Stats Grid Removed - Redundant with Stats Tab */}
                     </div>
                 </div>
             </div>

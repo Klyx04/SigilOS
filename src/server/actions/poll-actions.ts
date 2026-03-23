@@ -928,9 +928,9 @@ async function publishPollToDiscord(
         let mentionContent: string | undefined;
         if (!isUpdate) {
             if (mentionEveryone) {
-                mentionContent = "@everyone";
+                mentionContent = "Bonjour @everyone !";
             } else if (mentionRoleId) {
-                mentionContent = `<@&${mentionRoleId}>`;
+                mentionContent = `Bonjour <@&${mentionRoleId}> !`;
             }
         }
 

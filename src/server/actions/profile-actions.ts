@@ -604,14 +604,14 @@ const AltPseudoObjectSchema = z.object({
     pseudo: z.string()
         .min(2, "Pseudo trop court")
         .max(20, "Pseudo trop long")
-        .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)"),
+        .regex(/^[A-Z\u00C0-\u017F][a-zA-Z\u00C0-\u017F]*(-[a-zA-Z\u00C0-\u017F]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule - Pas de chiffres ni caractères spéciaux)"),
     classe: z.string().optional(),
     level: z.number().min(0).max(200).optional()
 });
 
 const UpdateAltPseudosSchema = z.object({
     guildId: z.string(),
-    altPseudos: z.array(AltPseudoObjectSchema).max(5, "Maximum 5 personnages"),
+    altPseudos: z.array(AltPseudoObjectSchema).max(10, "Maximum 10 personnages"),
     targetUserId: z.string().optional(),
 });
 
@@ -635,7 +635,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const cleanedPseudos = altPseudos.slice(0, 5).map(p => ({
+        const cleanedPseudos = altPseudos.slice(0, 10).map(p => ({
             ...p,
             pseudo: formatDofusPseudo(p.pseudo)
         }));
@@ -782,6 +782,8 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     isTopContributor: boolean;
     contributorTier: ContributorTier;
     rank?: number;
+    weeklyActivity: { week: string; submissions: number; validated: number }[];
+    missionsByCategory: { category: string; count: number; validated: number }[];
 }>> {
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -819,7 +821,7 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
         startOfWeek.setHours(0, 0, 0, 0);
 
         // Fetch weekly stats and total mission count in parallel
-        const [weeklySubmissions, totalMissionsCount] = await Promise.all([
+        const [weeklySubmissions, totalMissionsCount, memberSubmissions] = await Promise.all([
             db.submission.findMany({
                 where: {
                     profileId: profile.id,
@@ -837,11 +839,54 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                     profileId: profile.id,
                     status: "VALIDATED"
                 }
+            }),
+            db.submission.findMany({
+                where: { profileId: profile.id },
+                include: { mission: { select: { category: true } } }
             })
         ]);
 
-        const weeklyMissions = weeklySubmissions.length;
+        const weeklyMissionsCount = weeklySubmissions.length;
         const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission?.xpReward || 0), 0);
+
+        // Calculate Weekly Activity (Last 12 weeks)
+        const twelveWeeksAgo = new Date();
+        twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+        
+        const weeks: Record<string, { submissions: number; validated: number }> = {};
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i * 7);
+            const key = `S${getISOWeek(d)}`;
+            weeks[key] = { submissions: 0, validated: 0 };
+        }
+
+        memberSubmissions.forEach(s => {
+            if (s.createdAt >= twelveWeeksAgo) {
+                const key = `S${getISOWeek(s.createdAt)}`;
+                if (weeks[key]) {
+                    weeks[key].submissions++;
+                    if (s.status === "VALIDATED") weeks[key].validated++;
+                }
+            }
+        });
+
+        const weeklyActivity = Object.entries(weeks).map(([week, data]) => ({ week, ...data }));
+
+        // Category Breakdown
+        const categoryMap: Record<string, { total: number; validated: number }> = {};
+        memberSubmissions.forEach(s => {
+            const cat = s.mission.category;
+            if (!categoryMap[cat]) categoryMap[cat] = { total: 0, validated: 0 };
+            categoryMap[cat].total++;
+            if (s.status === "VALIDATED") categoryMap[cat].validated++;
+        });
+
+        const missionsByCategory = Object.entries(categoryMap).map(([category, data]) => ({
+            category,
+            count: data.total,
+            validated: data.validated,
+        }));
 
         // Calculate contributor tier based on XP ranking
         let contributorTier: ContributorTier = null;
@@ -882,14 +927,16 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
                 guildatons: profile.guildatons,
                 missionsValidated: totalMissionsCount,
                 weeklyXp,
-                weeklyMissions,
+                weeklyMissions: weeklyMissionsCount,
                 lastActivity: profile.lastActivityAt
                     ? { description: "Dernière activité", date: profile.lastActivityAt.toISOString() }
                     : null,
                 joinedAt: null,
                 isTopContributor: contributorTier !== null,
                 contributorTier,
-                rank
+                rank,
+                weeklyActivity,
+                missionsByCategory
             }
         };
     } catch (error: unknown) {
@@ -1317,7 +1364,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                     const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
                     
                     const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;
-                    const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+                    const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
 
                     const discordMsgId = await sendChannelMessage(achievementChannel, content, {
                         embedTitle: `🏆 [Validation] ${userName} - Succès`,
@@ -1367,4 +1414,105 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             error: "Erreur lors du traitement de l'image (OLLAMA/OCR)"
         };
     }
+}
+
+/**
+ * Refresh user success points via official Dofus ladder proxy (Cloudflare Worker)
+ * Strategies: CF Worker (Scraping) -> Database Update
+ */
+export async function refreshUserSuccessPoints(guildId: string): Promise<ActionResponse<{ points: number, level: number }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.canSyncLadder) return { success: false, error: "Ce module est désactivé sur ce serveur." };
+
+    try {
+        // 1. Get profile and server config
+        const profile = await db.userProfile.findFirst({
+            where: {
+                userId: session.user.id,
+                guild: { discordGuildId: guildId }
+            },
+            include: { guild: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+        if (!profile.pseudoDofus) return { success: false, error: "Veuillez renseigner votre pseudo Dofus dans l'onglet Général." };
+
+        // 2. Rate limiting (once every 30 minutes per user)
+        const limiter = await rateLimit(`ladder_sync:${session.user.id}`, 1, 30 * 60 * 1000);
+        if (!limiter.success) {
+            return { success: false, error: "Veuillez patienter 30 minutes entre deux synchronisations ladder." };
+        }
+
+        // 3. Call CF Worker Scraper
+        const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_SECRET;
+
+        if (!workerUrl) {
+            return { success: false, error: "Service de synchronisation non configuré." };
+        }
+
+        const serverId = profile.guild.dofusServerId || "295"; // Draconiros by default
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+
+        const response = await fetch(targetUrl, {
+            headers: {
+                "Accept": "application/json",
+                ...(workerSecret ? { "X-SigilOS-Key": workerSecret } : {}),
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            logger.error("[LadderSync] Worker error", { status: response.status, error });
+            return { success: false, error: "Le ladder de Dofus est actuellement inaccessible." };
+        }
+
+        const result = await response.json();
+
+        if (!result.success || !result.found) {
+            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur le ladder (${serverId}).` };
+        }
+
+        // 4. Update Database
+        const updatedPoints = result.points;
+        const updatedLevel = result.level;
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: {
+                successPoints: updatedPoints,
+                lastLadderUpdate: new Date(),
+                // Optionally update level if we have a field for it, SigilOS usually focuses on pseudo/points
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/ladder`);
+        revalidatePath(`/dashboard/${guildId}/profile`);
+
+        return {
+            success: true,
+            data: {
+                points: updatedPoints,
+                level: updatedLevel
+            }
+        };
+
+    } catch (error) {
+        logger.error("[LadderSync] Server Error", { error, guildId, userId: session.user.id });
+        return { success: false, error: "Erreur lors de la synchronisation (Serveur)." };
+    }
+}
+
+function getISOWeek(date: Date): number {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
 }

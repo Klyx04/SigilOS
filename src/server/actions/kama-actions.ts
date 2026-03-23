@@ -15,6 +15,7 @@ import {
     REWARDS_PER_TRANCHE
 } from "@/lib/kama-constants";
 import { getDofusWeek } from "@/lib/date-utils";
+import { grantRewards } from "./mission-actions";
 import { hashImage } from "@/lib/llm-ocr";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
@@ -269,6 +270,7 @@ export async function submitKamaDonation(
         });
 
         revalidatePath(`/dashboard/${input.guildId}/missions`);
+        revalidatePath(`/dashboard/${input.guildId}/ladder`);
         logger.info("KamaDonation submitted", { donationId: donation.id, guildId: input.guildId, amount: requestedAmount });
 
         // Discord notification
@@ -283,21 +285,21 @@ export async function submitKamaDonation(
                 const dashUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${input.guildId}/admin/validation`;
                 const absoluteImageUrl = getDiscordPublicUrl(uploadResult.url);
                 const mentionRole = (guildConfig as any).kamaNotifyRoleId;
-                const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+                const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
 
                 const discordMsgId = await sendChannelMessage(guildConfig.kamaNotifyChannelId, content, {
-                    embedTitle: "\uD83D\uDCB0 Nouvelle Contribution Kamas",
+                    embedTitle: "💰 Nouvelle Contribution Kamas",
                     embedDescription: `**${userName}** a soumis un don de **${requestedAmount.toLocaleString("fr-FR")} kamas** (${parsed.data.tranches} tranche${parsed.data.tranches > 1 ? "s" : ""}).`,
                     embedColor: 0xeab308,
                     embedUrl: dashUrl,
                     embedImage: absoluteImageUrl,
-                    embedFooter: "SigilOS \u2022 Contributions Kamas",
+                    embedFooter: "SigilOS • Contributions Kamas",
                     components: [
                         {
                             type: 1,
                             components: [
-                                { type: 2, style: 3, label: "\u2705 Valider", custom_id: `validate:kama:${donation.id}:${input.guildId}` },
-                                { type: 2, style: 4, label: "\u274c Rejeter", custom_id: `validate:kama_reject:${donation.id}:${input.guildId}` },
+                                { type: 2, style: 3, label: "✅ Valider", custom_id: `validate:kama:${donation.id}:${input.guildId}` },
+                                { type: 2, style: 4, label: "❌ Rejeter", custom_id: `validate:kama_reject:${donation.id}:${input.guildId}` },
                             ],
                         },
                     ],
@@ -390,9 +392,10 @@ export async function reviewKamaDonation(
         const user = await getUserContext(input.guildId);
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
+        const { week, year } = getDofusWeek();
         const donation = await kamaDb.kamaDonation.findFirst({
             where: { id: input.donationId, guildId: guildConfig.id },
-            select: { id: true, status: true, discordMessageId: true, proofUrl: true, amount: true, profileId: true },
+            select: { id: true, status: true, discordMessageId: true, proofUrl: true, amount: true, profileId: true, weekNumber: true, yearNumber: true },
         });
         if (!donation) return { success: false, error: "Donation introuvable" };
         if (donation.status !== "PENDING") return { success: false, error: "Cette donation a deja ete traitee" };
@@ -415,14 +418,7 @@ export async function reviewKamaDonation(
             const tranches = Math.floor(donation.amount / KAMA_TRANCHE);
             const addedXp = tranches * REWARDS_PER_TRANCHE.xp;
             const addedGuildatons = tranches * REWARDS_PER_TRANCHE.guildatons;
-
-            await db.userProfile.update({
-                where: { id: donation.profileId },
-                data: {
-                    xp: { increment: addedXp },
-                    guildatons: { increment: addedGuildatons }
-                }
-            });
+            await grantRewards(donation.profileId, addedXp, addedGuildatons, donation.weekNumber || week, donation.yearNumber || year);
         }
 
         // Delete Discord embed (dashboard validation path)
@@ -448,6 +444,7 @@ export async function reviewKamaDonation(
         }
 
         revalidatePath(`/dashboard/${input.guildId}/missions`);
+        revalidatePath(`/dashboard/${input.guildId}/ladder`);
         return { success: true };
     } catch (error) {
         logger.error("reviewKamaDonation error", { error, guildId: input.guildId });
@@ -617,6 +614,7 @@ export async function deleteKamaDonation(
 
         await kamaDb.kamaDonation.delete({ where: { id: donation.id } });
         revalidatePath(`/dashboard/${guildId}/missions`);
+        revalidatePath(`/dashboard/${guildId}/ladder`);
         return { success: true };
     } catch (error) {
         logger.error("deleteKamaDonation error", { error, guildId });

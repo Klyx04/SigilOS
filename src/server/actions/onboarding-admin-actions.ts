@@ -403,7 +403,8 @@ export async function getWelcomePosts(guildId: string) {
         });
 
         return {
-            posts: JSON.parse(JSON.stringify(posts)),
+            posts: JSON.parse(JSON.stringify(posts, (_, v) => typeof v === "bigint" ? v.toString() : v)),
+
             reactorNames
         };
     } catch (e) {

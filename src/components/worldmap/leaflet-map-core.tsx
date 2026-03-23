@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -466,7 +467,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI }: any) {
     const map = useMap();
     const tooltipRef = useRef<L.Tooltip | null>(null);
     const lastTooltipTime = useRef(0);
@@ -510,7 +511,7 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             }
         },
         click: (e) => {
-            if (isSpectator) return; // Block interactions for spectators
+            if (isSpectator || hideUI) return; 
 
             const world = activeWorld;
             if (!world) return;
@@ -521,6 +522,20 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const foundMap = mapsByCoords.get(`${gameX},${gameY}`);
 
             setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
+
+            // ── Clipboard Copy Logic ──
+            const command = `/travel ${gameX} ${gameY}`;
+            navigator.clipboard.writeText(command)
+                .then(() => {
+                    toast.success(`${command} copié !`, {
+                        icon: <Copy className="w-4 h-4 text-emerald-400" />,
+                        description: "Collez la commande en jeu pour voyager.",
+                        duration: 2000
+                    });
+                })
+                .catch(() => {
+                    toast.error("Échec de la copie au presse-papier.");
+                });
         }
     });
 
@@ -617,6 +632,7 @@ interface LeafletMapCoreProps {
     participants?: any[];
     currentUserId?: string;
     isSpectator?: boolean;
+    hideUI?: boolean;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const {
@@ -624,7 +640,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
-        participants, currentUserId, isSpectator
+        participants, currentUserId, isSpectator, hideUI
     } = props;
 
     // Correction Alignement : Décalage manuel de +2 cases à droite spécifique au Monde des Douze
@@ -746,6 +762,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     setSelectedPosition={setSelectedPosition}
                     isMiniMap={isMiniMap}
                     isSpectator={isSpectator}
+                    hideUI={hideUI}
                 />
 
                 {/* 5. Highlight overlay (click selection) */}

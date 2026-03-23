@@ -43,6 +43,7 @@ export default async function MemberProfilePage({
     const stats = {
         xp: profile.xp || 0,
         weeklyXp: profile.weeklyXp || 0,
+        guildatons: 0,
         missionsValidated: profile.validatedMissionsCount || 0,
         weeklyMissions: profile.weeklyMissions || 0,
         joinedAt: profile.discordInfo?.joinedAt ? new Date(profile.discordInfo.joinedAt) : null,
@@ -50,6 +51,8 @@ export default async function MemberProfilePage({
             ? { description: "Activité", date: new Date(profile.lastActivityAt) }
             : null,
         isTopContributor: (profile.xp || 0) >= 1000,
+        weeklyActivity: [] as { week: string; submissions: number; validated: number }[],
+        missionsByCategory: [] as { category: string; count: number; validated: number }[],
     };
 
     // Role color from Discord

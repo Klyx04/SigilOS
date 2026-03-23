@@ -158,6 +158,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 bgColor: "bg-pink-500/10",
                 borderColor: "border-pink-500/30",
             },
+            {
+                key: "ladderSync",
+                label: "Succès 2.0",
+                description: "Synchronisation automatique des points de succès via le ladder officiel (Cloudflare Worker).",
+                icon: Trophy,
+                color: "text-amber-400",
+                bgColor: "bg-amber-500/10",
+                borderColor: "border-amber-500/30",
+            },
         ],
     },
     {

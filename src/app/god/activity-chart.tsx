@@ -101,7 +101,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
                         yAxisId="left"
                         type="monotone"
                         dataKey="pulse"
-                        name="Engagement Pulse"
+                        name="Activité Dashboard"
                         stroke="#8b5cf6"
                         strokeWidth={4}
                         fillOpacity={1}

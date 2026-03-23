@@ -486,24 +486,22 @@ export async function getMyOcreProgress(
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
-              // Use queryRaw for profile to bypass intermittent Prisma field validation issues in dev
-        const profileRaw: any[] = await db.$queryRawUnsafe(`
-            SELECT
-                up.id,
-                up."metamobPseudo",
-                up."metamobQuestSlug",
-                up."metamobApiKey",
-                up."ocreProgressSnapshot",
-                up."metamobLastSync"
-            FROM "UserProfile" AS up
-            JOIN "GuildConfig" AS g ON up."guildId" = g.id
-            WHERE up."userId" = $1
-            AND g."discordGuildId" = $2
-            AND up."status" = 'ACTIVE'
-            LIMIT 1
-        `, userId, guildId);
-        
-        const profile = profileRaw[0];
+        // Use Prisma ORM — $queryRawUnsafe is forbidden by project rules
+        const profile = await db.userProfile.findFirst({
+            where: {
+                userId,
+                guild: { discordGuildId: guildId },
+                status: "ACTIVE",
+            },
+            select: {
+                id: true,
+                metamobPseudo: true,
+                metamobQuestSlug: true,
+                metamobApiKey: true,
+                ocreProgressSnapshot: true,
+                metamobLastSync: true,
+            },
+        });
 
         if (!profile?.metamobPseudo) return { success: false, error: "Compte non lié" };
 
@@ -634,19 +632,18 @@ export async function getMyOcreProgress(
     } catch (err: any) {
         console.error("[CRITICAL OCRE ERROR]", err);
         try {
-            const pLast: any[] = await db.$queryRawUnsafe(`
-                SELECT
-                    up."ocreProgressSnapshot",
-                    up."metamobLastSync"
-                FROM "UserProfile" AS up
-                JOIN "GuildConfig" AS g ON up."guildId" = g.id
-                WHERE up."userId" = $1
-                AND g."discordGuildId" = $2
-                LIMIT 1
-            `, userId, guildId);
-            
-            if (pLast[0]?.ocreProgressSnapshot) {
-                return { success: true, data: { ...(pLast[0].ocreProgressSnapshot as any), lastSync: pLast[0].metamobLastSync, isOffline: true } };
+            const pLast = await db.userProfile.findFirst({
+                where: {
+                    userId,
+                    guild: { discordGuildId: guildId },
+                },
+                select: {
+                    ocreProgressSnapshot: true,
+                    metamobLastSync: true,
+                },
+            });
+            if (pLast?.ocreProgressSnapshot) {
+                return { success: true, data: { ...(pLast.ocreProgressSnapshot as any), lastSync: pLast.metamobLastSync, isOffline: true } };
             }
         } catch (rawErr) {
             console.error("[CRITICAL RAW FALLBACK FAILED]", rawErr);

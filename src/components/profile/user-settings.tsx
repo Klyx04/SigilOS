@@ -18,6 +18,12 @@ import {
     PieChart,
     ShieldCheck
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -225,145 +231,210 @@ export function UserSettings({
                     </div>
 
                     <div className="pt-4 border-t border-white/5">
+                        <TooltipProvider delayDuration={0}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-blue-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                                        <Target className="w-4 h-4 text-blue-400" />
+                            {/* MISSIONS */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-blue-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                                <Target className="w-4 h-4 text-blue-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Missions</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Nouvelles & validations</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.missions}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ missions: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Missions</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Nouvelles & validations</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.missions}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ missions: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Missions
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                                        <Flame className="w-4 h-4 text-emerald-400" />
+                            {/* SONGES */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                                <Flame className="w-4 h-4 text-emerald-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Songes</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Invitations & candidatures</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.songes}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ songes: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Songes</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Invitations & candidatures</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.songes}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ songes: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Songes
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-indigo-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                        <Swords className="w-4 h-4 text-indigo-400" />
+                            {/* DONJONS */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-indigo-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                                <Swords className="w-4 h-4 text-indigo-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Donjons & Quêtes</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Entrée en groupe</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.donjons}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ donjons: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Donjons & Quêtes</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Entrée en groupe</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.donjons}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ donjons: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Donjons
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-purple-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
-                                        <Calendar className="w-4 h-4 text-purple-400" />
+                            {/* EVENTS */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-purple-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                                                <Calendar className="w-4 h-4 text-purple-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Événements</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Rappels de guilde</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.events}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ events: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Événements</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Rappels de guilde</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.events}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ events: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Événements
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-red-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                                        <Trophy className="w-4 h-4 text-red-400" />
+                            {/* LADDER */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-red-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                                                <Trophy className="w-4 h-4 text-red-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Succès & Ladder</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Validations & rangs</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.ladder}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ ladder: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Succès & Ladder</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Validations & rangs</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.ladder}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ ladder: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Classement
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-orange-500/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                                        <PieChart className="w-4 h-4 text-orange-400" />
+                            {/* POLLS */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-orange-500/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                                                <PieChart className="w-4 h-4 text-orange-400" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Sondages</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Nouveaux votes</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.polls}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ polls: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Sondages</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Nouveaux votes</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.polls}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ polls: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Sondages
+                                </TooltipContent>
+                            </Tooltip>
 
-                            <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-700/30 transition-all">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-700/10 flex items-center justify-center shrink-0">
-                                        <Trophy className="w-4 h-4 text-emerald-500" />
+                            {/* OCRE */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-white/5 group hover:border-emerald-700/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-700/10 flex items-center justify-center shrink-0">
+                                                <Trophy className="w-4 h-4 text-emerald-500" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Quête Ocre</p>
+                                                <p className="text-[9px] text-zinc-500 truncate">Échanges</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.ocre}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ ocre: checked })}
+                                            disabled={loading}
+                                        />
                                     </div>
-                                    <div className="min-w-0 pr-2">
-                                        <p className="text-[11px] font-semibold text-zinc-200 truncate">Quête Ocre</p>
-                                        <p className="text-[9px] text-zinc-500 truncate">Échanges</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={prefs.ocre}
-                                    onCheckedChange={(checked) => handleUpdatePrefs({ ocre: checked })}
-                                    disabled={loading}
-                                />
-                            </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    Notifications Échanges Ocre
+                                </TooltipContent>
+                            </Tooltip>
 
                             {isAdmin && (
-                                <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-zinc-400/5 group hover:border-zinc-300/30 transition-all">
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <div className="w-8 h-8 rounded-lg bg-zinc-400/10 flex items-center justify-center shrink-0">
-                                            <ShieldCheck className="w-4 h-4 text-zinc-400" />
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center justify-between p-2.5 border border-white/5 rounded-2xl bg-zinc-400/5 group hover:border-zinc-300/30 transition-all cursor-default">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <div className="w-8 h-8 rounded-lg bg-zinc-400/10 flex items-center justify-center shrink-0">
+                                                    <ShieldCheck className="w-4 h-4 text-zinc-400" />
+                                                </div>
+                                                <div className="min-w-0 pr-2">
+                                                    <p className="text-[11px] font-semibold text-zinc-200 truncate">Alertes Admin</p>
+                                                    <p className="text-[9px] text-zinc-500 truncate">Missions en attente</p>
+                                                </div>
+                                            </div>
+                                            <Switch
+                                                checked={prefs.admin_validations}
+                                                onCheckedChange={(checked) => handleUpdatePrefs({ admin_validations: checked })}
+                                                disabled={loading}
+                                            />
                                         </div>
-                                        <div className="min-w-0 pr-2">
-                                            <p className="text-[11px] font-semibold text-zinc-200 truncate">Alertes Admin</p>
-                                            <p className="text-[9px] text-zinc-500 truncate">Missions en attente</p>
-                                        </div>
-                                    </div>
-                                    <Switch
-                                        checked={prefs.admin_validations}
-                                        onCheckedChange={(checked) => handleUpdatePrefs({ admin_validations: checked })}
-                                        disabled={loading}
-                                    />
-                                </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                        Notifications Administration
+                                    </TooltipContent>
+                                </Tooltip>
                             )}
                         </div>
+                        </TooltipProvider>
                     </div>
                 </div>
 

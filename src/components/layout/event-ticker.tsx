@@ -76,14 +76,24 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
         .slice(0, 5);
 
     useEffect(() => {
-        if (upcoming.length <= 1) return;
+        if (upcoming.length <= 1) {
+            if (currentIndex !== 0) setCurrentIndex(0);
+            return;
+        }
 
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % upcoming.length);
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [upcoming.length]);
+    }, [upcoming.length, currentIndex]);
+
+    // Safety: Reset index if out of bounds (e.g. after a deletion)
+    useEffect(() => {
+        if (currentIndex >= upcoming.length && upcoming.length > 0) {
+            setCurrentIndex(0);
+        }
+    }, [upcoming.length, currentIndex]);
 
     if (upcoming.length === 0) {
         if (!canViewCalendar) return (
@@ -113,6 +123,8 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
     }
 
     const event = upcoming[currentIndex];
+    if (!event) return null;
+
     // @ts-ignore - Handle type mismatch gracefully
     const typeConfig = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
     const startDate = new Date(event.startDate);

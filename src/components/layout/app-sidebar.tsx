@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
@@ -68,9 +68,9 @@ export function AppSidebar({
     const [mounted, setMounted] = useState(false);
     const pathname = usePathname();
 
-    useState(() => {
-        if (typeof window !== "undefined") setMounted(true);
-    });
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const checkIsActive = (href: string, exact = false, aliases?: string[]) => {
         if (exact) return pathname === href;
@@ -92,44 +92,63 @@ export function AppSidebar({
         () => progressionRoutes.some(r => pathname.startsWith(r))
     );
 
+    const toolsRoutes = [
+        `/dashboard/${guildId}/calendar`,
+        `/dashboard/${guildId}/mini-jeux`,
+        `/dashboard/${guildId}/donjons-et-quetes`,
+        `/dashboard/${guildId}/passages`,
+        `/dashboard/${guildId}/sondages`,
+        `/dashboard/${guildId}/members`,
+        `/dashboard/${guildId}/galerie-stuff`,
+        `/dashboard/${guildId}/worldmap`,
+    ];
+    const [toolsOpen, setToolsOpen] = useState(
+        () => toolsRoutes.some(r => pathname.startsWith(r))
+    );
+
+    // Auto-expand "Supervision" if any admin route is active
+    const adminRoutes = [
+        `/dashboard/${guildId}/admin`,
+        `/dashboard/${guildId}/missions/manage`,
+    ];
+    const [adminOpen, setAdminOpen] = useState(
+        () => adminRoutes.some(r => pathname.startsWith(r))
+    );
+
     // --- NAVIGATION GROUPS ---
 
     // --- NAVIGATION GROUPS ---
     const NAV_INFO = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-primary", visible: user.isMember && user.canViewDashboard },
-        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewWelcome },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-primary", visible: user.isMember && user.canViewPresentation && modules.presentation },
-        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-primary", visible: user.isMember && user.canViewStats && modules.stats },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-primary", visible: user.isMember && user.canViewDocs && modules.docs },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "emerald", visible: user.isMember && user.canViewDashboard },
+        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "emerald", visible: user.canViewWelcome },
+        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewPresentation && modules.presentation },
+        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewResources && modules.resources },
+        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "emerald", visible: user.isMember && user.canViewStats && modules.stats },
+        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
-    const NAV_ACTIVITIES_TOP = [
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "text-emerald-400", visible: user.isMember && user.canViewMiniGames && modules.worldmap },
-    ];
-
-    // Sub-items grouped under the collapsible "Progression" parent
     const NAV_PROGRESSION = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "amber", visible: user.canViewSonges && modules.songes },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "amber", visible: user.canViewArchis && modules.ocre },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
     ];
 
     const showProgressionGroup = NAV_PROGRESSION.some(i => i.visible !== false);
 
     const NAV_TOOLS = [
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewFinder && modules.donjons },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
-        { name: "Galerie Stuff", href: `/dashboard/${guildId}/galerie-stuff`, icon: Sparkles, color: "text-cyan-400", visible: user.isMember && user.canViewStuffGallery && modules.gallery },
-        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
-        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-cyan-400", visible: user.isMember && user.canViewResources && modules.resources },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.isMember && user.canViewCalendar && modules.calendar },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.isMember && user.canViewMiniGames && modules.worldmap },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewFinder && modules.donjons },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "indigo", visible: user.isMember && user.canViewServices && modules.services },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "indigo", visible: user.isMember && user.canViewPolls && modules.polls },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "indigo", visible: user.isMember && user.canViewRoster && modules.roster },
+        { name: "Galerie Stuff", href: `/dashboard/${guildId}/galerie-stuff`, icon: Sparkles, color: "indigo", visible: user.isMember && user.canViewStuffGallery && modules.gallery },
+        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
     ];
 
     const NAV_COMING_SOON = [
-        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
+        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
     ];
 
     const hasAnyAdminPermission = user.isAdmin || 
@@ -138,37 +157,37 @@ export function AppSidebar({
         user.canManageWorldmap || user.canManageMiniGames || user.canManageResources || 
         user.canModerateChat || user.canEditPresentation || user.canViewAdminDocs;
 
-    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: hasAnyAdminPermission };
+    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "rose", visible: hasAnyAdminPermission };
 
     const NAV_ADMIN_SUB = [
-        { name: "ADM Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
-        { name: "ADM Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
-        { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
-        { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
-        { name: "ADM Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers },
-        { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
-        { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
-        { name: "ADM Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin },
-        { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
+        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
+        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
+        { name: "Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
+        { name: "Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
+        { name: "Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers },
+        { name: "Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "Chat Admin", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
+        { name: "Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin },
+        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
 
     return (
-        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/5 shadow-[4px_0_24px_rgba(0,0,0,0.5)]", className)}>
+        <div className={cn("flex flex-col h-full bg-[#0a0a0b] border-r border-white/5", className)}>
 
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 px-2 group/brand hover:opacity-80 transition-opacity">
-                    <div className="relative h-8 w-8">
+                <Link href="/" className="flex items-center gap-3 px-1 group transition-all">
+                    <div className="relative h-7 w-7 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_white]">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
                             fill
-                            className="object-contain"
+                            className="object-contain transition-all"
                         />
                     </div>
-                    <span className="text-lg font-black tracking-[0.2em] text-white leading-none font-heading">
-                        SIGIL<span className="text-primary">OS</span>
+                    <span className="text-sm font-black tracking-[0.4em] text-white/90 uppercase transition-all group-hover:text-white">
+                        SIGIL<span className="text-primary tracking-[0.3em]">OS</span>
                     </span>
                 </Link>
 
@@ -179,26 +198,21 @@ export function AppSidebar({
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
-                                variant="outline"
-                                className="w-full justify-between h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-left px-3 group"
+                                variant="ghost"
+                                className="w-full justify-between h-10 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 text-left px-2 rounded-xl group transition-all"
                             >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <Avatar className="h-6 w-6 rounded-md border border-white/10">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Avatar className="h-6 w-6 rounded-lg border border-white/10 shrink-0">
                                         <AvatarImage src={guildData.iconUrl || undefined} />
-                                        <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-400">
+                                        <AvatarFallback className="text-[8px] bg-zinc-900 text-zinc-400">
                                             {guildData.name?.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
-                                            {guildData.name}
-                                        </span>
-                                        <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">
-                                            Guilde Active
-                                        </span>
-                                    </div>
+                                    <span className="text-[11px] font-bold text-zinc-300 truncate w-[130px]">
+                                        {guildData.name}
+                                    </span>
                                 </div>
-                                <ChevronsUpDown className="h-4 w-4 text-zinc-500 shrink-0" />
+                                <ChevronsUpDown className="h-3 w-3 text-zinc-500 shrink-0" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
@@ -251,206 +265,121 @@ export function AppSidebar({
                 )}
             </div>
 
-            {/* 2. SCROLLABLE NAVIGATION */}
-            <ScrollArea className="flex-1 px-3 py-4 overflow-hidden">
-                <nav className="space-y-8">
+            {/* 2. SCROLLABLE NAVIGATION — Fixed for responsiveness */}
+            <div className="flex-1 relative min-h-0 overflow-hidden">
+                <ScrollArea className="h-full px-2.5 py-4">
+                    <nav className="space-y-4">
 
-                    {/* INFORMATION */}
-                    {NAV_INFO.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5 peer">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary whitespace-nowrap">Information</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                            </div>
+                        {/* SECTION: GENERAL */}
+                        <div className="space-y-0.5">
+                            <SectionTitle label="Information" />
                             {NAV_INFO.filter(i => i.visible !== false).map((item) => (
                                 <NavItem key={item.href} item={item} isActive={checkIsActive(item.href, item.exact)} />
                             ))}
                         </div>
-                    )}
 
-                    {/* ACTIVITES */}
-                    {(NAV_ACTIVITIES_TOP.some(i => i.visible !== false) || showProgressionGroup) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Activités</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                            </div>
-
-                            {/* Calendrier (standalone) */}
-                            {NAV_ACTIVITIES_TOP.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
-                            ))}
-
-                            {/* Progression group — collapsible */}
-                            {showProgressionGroup && (
-                                <div>
-                                    {/* Parent trigger */}
-                                    <button
-                                        onClick={() => setProgressionOpen(o => !o)}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
-                                            progressionOpen
-                                                ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
-                                                : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
-                                        )}
-                                    >
-                                        {progressionOpen && (
-                                            <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full animate-pulse bg-emerald-400 shadow-[0_0_12px_currentColor]" />
-                                        )}
-                                        <TrendingUp className={cn(
-                                            "h-4 w-4 shrink-0 transition-all duration-300",
-                                            progressionOpen
-                                                ? "text-emerald-400 scale-110 drop-shadow-[0_0_8px_currentColor]"
-                                                : "text-emerald-400 opacity-70 group-hover:opacity-100 group-hover:scale-110"
-                                        )} />
-                                        <span className={cn(
-                                            "text-sm flex-1 text-left transition-all duration-300",
-                                            progressionOpen ? "font-black tracking-tight" : "font-bold"
-                                        )}>Progression</span>
-                                        {progressionOpen
-                                            ? <ChevronDown className="h-3.5 w-3.5 text-emerald-400/70 transition-transform duration-300" />
-                                            : <ChevronRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 transition-transform duration-300" />
-                                        }
-                                    </button>
-
-                                    {/* Sub-items with smooth collapse */}
-                                    <div
-                                        className="overflow-hidden transition-all duration-300 ease-in-out"
-                                        style={{ maxHeight: progressionOpen ? `${NAV_PROGRESSION.filter(i => i.visible !== false).length * 56}px` : "0px" }}
-                                    >
-                                        <div className="ml-3 mt-1 pl-3 border-l border-emerald-500/20 space-y-0.5 pb-1">
-                                            {NAV_PROGRESSION.filter(i => i.visible !== false).map((item) => (
-                                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* OUTILS */}
-                    {NAV_TOOLS.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 whitespace-nowrap">Outils</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
-                            </div>
-                            {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* BIENTÔT (Coming Soon) */}
-                    {NAV_COMING_SOON.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/60 flex items-center gap-2 whitespace-nowrap">
-                                    <Sparkles className="w-3 h-3" />
-                                    Bientôt
-                                </h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                            </div>
-                            {NAV_COMING_SOON.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ADMIN */}
-                    {hasAnyAdminPermission && (
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-center gap-2 px-2 mb-2">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 flex items-center gap-2 whitespace-nowrap">
-                                    <Shield className="w-3 h-3" />
-                                    Admin
-                                </h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
-                            </div>
-
-                            {/* Centre Admin — item principal */}
-                            {NAV_ADMIN_TOP.visible && (
-                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={checkIsActive(NAV_ADMIN_TOP.href, true)} />
-                            )}
-
-                            {/* Sous-items ADM */}
-                            {NAV_ADMIN_SUB.some(i => i.visible) && (
-                                <div className="ml-2 mt-1 pl-3 border-l-2 border-rose-500/40 shadow-[inset_2px_0_8px_rgba(239,68,68,0.1)] space-y-0.5">
-                                    {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
-                                        <AdminSubItem
-                                            key={item.href}
-                                            item={item}
-                                            isActive={checkIsActive(item.href)}
-                                        />
+                        {/* SECTION: PROGRESSION */}
+                        <div className="space-y-0.5">
+                            <SectionTitle 
+                                label="Progression" 
+                                collapsible 
+                                isOpen={progressionOpen} 
+                                onToggle={() => setProgressionOpen(!progressionOpen)} 
+                            />
+                            {progressionOpen && (
+                                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-0.5">
+                                    {NAV_PROGRESSION.filter(i => i.visible !== false).map((item) => (
+                                        <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
                                     ))}
                                 </div>
                             )}
                         </div>
-                    )}
 
-                </nav>
-            </ScrollArea>
+                        {/* SECTION: TOOLS */}
+                        <div className="space-y-0.5">
+                            <SectionTitle 
+                                label="Outils" 
+                                collapsible 
+                                isOpen={toolsOpen} 
+                                onToggle={() => setToolsOpen(!toolsOpen)} 
+                            />
+                            {toolsOpen && (
+                                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-0.5">
+                                    {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
+                                        <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
-            {/* 3. FOOTER: USER ISLAND */}
-            <div className="p-4 mt-auto">
+                        {/* SECTION: ADMIN */}
+                        {hasAnyAdminPermission && (
+                            <div className="space-y-0.5">
+                                <SectionTitle 
+                                    label="Supervision" 
+                                    collapsible 
+                                    isOpen={adminOpen} 
+                                    onToggle={() => setAdminOpen(!adminOpen)} 
+                                />
+                                {adminOpen && (
+                                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                        <NavItem item={NAV_ADMIN_TOP} isActive={checkIsActive(NAV_ADMIN_TOP.href, true)} />
+                                        <div className="space-y-0.5 pt-1">
+                                            {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
+                                                <AdminSubItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                    </nav>
+                </ScrollArea>
+            </div>
+
+            {/* 3. FOOTER: SYSTEM STATUS & USER */}
+            <div className="p-4 bg-white/[0.02] border-t border-white/5">
                 {!mounted ? (
-                    <div className="w-full h-14 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+                    <div className="w-full h-12 bg-white/5 rounded-2xl animate-pulse" />
                 ) : (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
-                            >
-                                <div className="flex items-center gap-3 w-full">
-                                    <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
-                                        <AvatarImage src={user.image || ""} />
-                                        <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                        <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
-                                            {user.name || "Compte"}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
-                                            {user.roleName || "Membre"}
-                                        </span>
-                                    </div>
-                                    <ChevronsUpDown className="h-4 w-4 text-zinc-500 group-hover/island:text-white transition-all shrink-0" />
+                            <button className="flex items-center gap-3 w-full p-2 rounded-2xl hover:bg-white/5 transition-all group">
+                                <Avatar className="h-9 w-9 rounded-xl border border-white/10 shadow-lg group-hover:border-primary/50 transition-all">
+                                    <AvatarImage src={user.image || ""} />
+                                    <AvatarFallback className="bg-zinc-800 text-zinc-500 text-[10px] font-black">
+                                        {(user.name || "U").slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col items-start min-w-0 flex-1">
+                                    <span className="text-xs font-black text-white/90 group-hover:text-white truncate">
+                                        {user.name}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
+                                        {user.roleName || "Membre"}
+                                    </span>
                                 </div>
-                            </Button>
+                                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />
+                            </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl" align="end" side="right" sideOffset={12}>
-                            <div className="px-2 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-white/5 rounded-md mb-1 mx-1 mt-1">
-                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span>Session Active</span>
-                            </div>
-                            <DropdownMenuSeparator className="bg-white/10" />
-                            {user.canViewProfile && (
-                                <>
-                                    <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                        <Link href={`/dashboard/${guildId}/profile`}>
-                                            <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
-                                            <span className="font-bold">Mon Profil</span>
-                                        </Link>
-                                    </DropdownMenuItem>
-
-                                    <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                        <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
-                                            <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                                            <span className="font-bold">Paramètres</span>
-                                        </Link>
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-
-                            <DropdownMenuSeparator className="bg-white/10" />
-                            <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
+                        <DropdownMenuContent className="w-56 bg-zinc-950/98 border-white/10 text-zinc-200 shadow-2xl rounded-2xl" align="end" side="right" sideOffset={12}>
+                            <DropdownMenuLabel className="p-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">User Control</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/5" />
+                            <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-xl m-1 py-1.5 px-3">
+                                <Link href={`/dashboard/${guildId}/profile`} className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-zinc-500" />
+                                    <span className="font-bold">Mon Profil</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-xl m-1 py-1.5 px-3">
+                                <Link href={`/dashboard/${guildId}/profile?tab=settings`} className="flex items-center gap-2">
+                                    <Settings className="w-4 h-4 text-zinc-500" />
+                                    <span className="font-bold">Réglages</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-white/5" />
+                            <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer rounded-xl m-1 py-1.5 px-3">
                                 <LogOut className="mr-2 h-4 w-4" />
                                 <span className="font-black">Déconnexion</span>
                             </DropdownMenuItem>
@@ -462,95 +391,104 @@ export function AppSidebar({
     );
 }
 
-function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
+function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string; collapsible?: boolean; isOpen?: boolean; onToggle?: () => void }) {
+    return (
+        <div 
+            className={cn(
+                "flex items-center gap-3 px-3 mt-8 mb-3 first:mt-2 group/title select-none",
+                collapsible && "cursor-pointer"
+            )}
+            onClick={onToggle}
+        >
+            <div className={cn(
+                "h-[2px] w-2 rounded-full transition-all duration-300",
+                label === "Supervision" ? "bg-rose-500 shadow-[0_0_8px_#f43f5e]" : 
+                label.includes("Info") ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" :
+                label.includes("Outil") ? "bg-indigo-500 shadow-[0_0_8px_#6366f1]" :
+                "bg-amber-500 shadow-[0_0_8px_#f59e0b]"
+            )} />
+            <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white/55 group-hover/title:text-white/80 transition-colors whitespace-nowrap">
+                {label}
+            </h4>
+            <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+            {collapsible && (
+                <ChevronRight className={cn("w-3 h-3 text-white/20 transition-all duration-300 group-hover/title:text-white/40", isOpen && "rotate-90 text-primary")} />
+            )}
+        </div>
+    );
+}
+
+function NavItem({ item, isActive, isSubItem }: { item: any; isActive: boolean; isSubItem?: boolean }) {
+    const colorMap: Record<string, { text: string, bg: string, border: string, glow: string, muted: string }> = {
+        emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "shadow-[0_0_20px_rgba(16,185,129,0.15)]", muted: "text-emerald-400/40" },
+        amber: { text: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", glow: "shadow-[0_0_20px_rgba(245,158,11,0.15)]", muted: "text-amber-400/40" },
+        indigo: { text: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", glow: "shadow-[0_0_20px_rgba(99,102,241,0.15)]", muted: "text-indigo-400/40" },
+        rose: { text: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", glow: "shadow-[0_0_20px_rgba(244,63,94,0.15)]", muted: "text-rose-400/40" },
+        cyan: { text: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", glow: "shadow-[0_0_20px_rgba(6,182,212,0.15)]", muted: "text-cyan-400/40" },
+        zinc: { text: "text-zinc-300", bg: "bg-white/10", border: "border-white/10", glow: "shadow-[0_0_20px_rgba(255,255,255,0.05)]", muted: "text-zinc-500" },
+    };
+
+    const scheme = colorMap[item.color || "emerald"];
+
     return (
         <Link
             href={item.href}
             className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
-                isActive
-                    ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
-                    : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
+                "group relative flex items-center gap-3 transition-all duration-300 px-3 py-2 rounded-xl",
+                isActive 
+                    ? cn("bg-white/[0.08] backdrop-blur-md border border-white/10", scheme.glow)
+                    : "text-white/60 hover:text-white hover:bg-white/[0.04]"
             )}
         >
-            {/* Active Glow Indicator */}
+            {/* Color Indicator (Bar) */}
             {isActive && (
                 <div className={cn(
-                    "absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full animate-pulse shadow-[0_0_12px_currentColor]",
-                    item.color ? item.color.replace("text-", "bg-") : "bg-primary"
+                    "absolute left-0 w-1 h-3/5 rounded-full transition-all duration-500 -translate-x-1.5",
+                    item.color === "rose" ? "bg-rose-500 shadow-[0_0_12px_#f43f5e]" : "bg-emerald-400 shadow-[0_0_12px_#10b981]"
                 )} />
             )}
 
-            <item.icon
-                className={cn(
-                    "h-4 w-4 shrink-0 transition-all duration-300",
-                    isActive
-                        ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
-                        : cn(item.color ? `${item.color} opacity-70 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3 group-hover:drop-shadow-[0_0_8px_currentColor]")
-                )}
-            />
+            <div className={cn(
+                "transition-all duration-300 shrink-0 flex items-center justify-center p-1.5 rounded-lg border border-transparent",
+                isActive ? cn(scheme.bg, scheme.text, scheme.border) : cn(scheme.muted, "group-hover:text-white group-hover:bg-white/5 group-hover:border-white/5")
+            )}>
+                <item.icon className={cn("h-3.5 w-3.5")} />
+            </div>
+
             <span className={cn(
-                "text-sm transition-all duration-300",
-                isActive ? "font-black tracking-tight" : "font-bold"
+                "tracking-tight transition-all truncate leading-none text-[12.5px]",
+                isActive ? "font-bold text-white" : "font-medium text-white/75"
             )}>
                 {item.name}
             </span>
 
-            {/* Subtle glow behind text on active */}
             {isActive && (
-                <div className={cn(
-                    "absolute inset-0 opacity-[0.03] pointer-events-none bg-gradient-to-r from-transparent via-current to-transparent",
-                    item.color ? item.color : "text-primary"
-                )} />
-            )}
-
-            {/* Subtle light effect on hover */}
-            {!isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                <div className="ml-auto">
+                    <div className={cn("h-1.5 w-1.5 rounded-full", item.color === "rose" ? "bg-rose-500 shadow-[0_0_10px_#f43f5e]" : "bg-emerald-500 shadow-[0_0_10px_#10b981]")} />
+                </div>
             )}
         </Link>
     );
 }
 
 function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
-    // Split "ADM Permissions" → prefix "ADM" + label "Permissions"
-    const [prefix, ...rest] = item.name.split(" ");
-    const label = rest.join(" ");
-
     return (
         <Link
             href={item.href}
             className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group relative overflow-hidden",
-                isActive
-                    ? "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/20"
-                    : "text-zinc-300 hover:text-white hover:bg-rose-500/5"
+                "group flex items-center gap-3 px-3 py-2 rounded-xl transition-all",
+                isActive ? "text-rose-300 bg-white/5" : "text-zinc-500 hover:text-rose-400 hover:bg-white/[0.02]"
             )}
         >
-            {/* Active dot */}
-            {isActive && (
-                <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-            )}
-
-            <item.icon className={cn(
-                "h-3 w-3 shrink-0 transition-all duration-200",
-                isActive ? "text-rose-400" : "text-rose-500/50 group-hover:text-rose-400"
+            <div className={cn(
+                "w-1.5 h-1.5 rounded-full border border-rose-500/30 transition-all",
+                isActive ? "bg-rose-500 shadow-[0_0_8px_#ef4444]" : "bg-zinc-700 group-hover:bg-rose-400 group-hover:border-rose-500"
             )} />
-
             <span className={cn(
-                "font-mono text-[10px] font-black tracking-widest px-1 py-0.5 rounded shrink-0",
-                isActive
-                    ? "text-rose-400 bg-rose-500/15"
-                    : "text-rose-500/60 bg-rose-500/10 group-hover:text-rose-400 group-hover:bg-rose-500/15"
+                "text-[11px] font-bold uppercase tracking-widest",
+                isActive ? "text-rose-200" : "text-zinc-500 group-hover:text-rose-300"
             )}>
-                {prefix}
-            </span>
-
-            <span className={cn(
-                "text-xs transition-all duration-200 truncate",
-                isActive ? "font-black text-rose-200" : "font-medium group-hover:font-bold"
-            )}>
-                {label}
+                {item.name}
             </span>
         </Link>
     );

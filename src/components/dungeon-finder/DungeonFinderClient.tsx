@@ -119,35 +119,88 @@ export function DungeonFinderClient({
     const myActivePosts = posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN");
     const canCreate = myActivePosts.length < 3;
 
-    const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-        { id: "posts", label: "Recherche DJ", icon: Search },
-        { id: "tracker", label: "Mes Succès", icon: Trophy },
-        { id: "directory", label: "Succès DJ en commun", icon: Users },
+    const TABS: { id: Tab; label: string; sub: string; icon: React.ElementType; color: string }[] = [
+        { id: "posts", label: "Recherche DJ", sub: "Trouver un groupe", icon: Search, color: "indigo" },
+        { id: "tracker", label: "Mes Succès", sub: "Ma progression", icon: Trophy, color: "amber" },
+        { id: "directory", label: "Succès Commun", sub: "La guilde", icon: Users, color: "emerald" },
     ];
 
     return (
-        <div className="space-y-6">
-            {/* Gamified Tabs */}
-            <div className="relative flex bg-zinc-950 border border-white/10 rounded-2xl p-1.5 w-max shadow-2xl">
+        <div className="space-y-8">
+            {/* Dissociated Professional Tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
+                    const colorVariants = {
+                        indigo: {
+                            border: "border-indigo-500/40",
+                            icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
+                            sub: "text-indigo-400/80",
+                            glow: "bg-indigo-500",
+                            shadow: "shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                        },
+                        amber: {
+                            border: "border-amber-500/40",
+                            icon: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                            sub: "text-amber-400/80",
+                            glow: "bg-amber-500",
+                            shadow: "shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+                        },
+                        emerald: {
+                            border: "border-emerald-500/40",
+                            icon: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+                            sub: "text-emerald-400/80",
+                            glow: "bg-emerald-500",
+                            shadow: "shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                        }
+                    }[tab.color] || {
+                        border: "border-indigo-500/40",
+                        icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
+                        sub: "text-indigo-400/80",
+                        glow: "bg-indigo-500",
+                        shadow: "shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                    };
+
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-colors ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+                            className={`relative group overflow-hidden flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 ${isActive
+                                ? `bg-zinc-900 ${colorVariants.border} shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)]`
+                                : "bg-zinc-950/40 border-white/5 hover:border-white/10 hover:bg-zinc-900/60"
                                 }`}
                         >
+                            {/* Accent Glow */}
+                            {isActive && (
+                                <div className={`absolute -bottom-px inset-x-4 h-px bg-gradient-to-r from-transparent via-${tab.color}-500 to-transparent ${colorVariants.shadow}`} />
+                            )}
+
+                            {/* Icon Box */}
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300 ${isActive
+                                ? colorVariants.icon
+                                : "bg-white/5 border-white/5 text-slate-500 group-hover:text-slate-300"
+                                }`}>
+                                <Icon className="w-6 h-6" />
+                            </div>
+
+                            {/* Labels */}
+                            <div className="text-left">
+                                <p className={`font-black text-sm uppercase tracking-wider transition-colors ${isActive ? "text-white" : "text-slate-500"}`}>
+                                    {tab.label}
+                                </p>
+                                <p className={`text-[10px] font-medium transition-colors ${isActive ? colorVariants.sub : "text-slate-600"}`}>
+                                    {tab.sub}
+                                </p>
+                            </div>
+
+                            {/* Active Indicator */}
                             {isActive && (
                                 <motion.div
-                                    layoutId="main-tab-indicator"
-                                    className="absolute inset-0 -z-10 bg-indigo-500/20 rounded-xl border border-indigo-500/30 shadow-inner"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                                    layoutId="tab-glow"
+                                    className={`absolute inset-0 ${colorVariants.glow}/5 opacity-20 pointer-events-none`}
                                 />
                             )}
-                            <Icon className="w-4 h-4" />
-                            <span className="hidden sm:inline">{tab.label}</span>
                         </button>
                     );
                 })}

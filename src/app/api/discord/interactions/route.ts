@@ -617,18 +617,10 @@ export async function POST(request: NextRequest) {
                     const isDev = await isDiscordSuperAdmin(member.user.id);
                     
                     if (!isDev) {
-                        // Check if the caller is the ticket creator
-                        const ticket = await db.supportTicket.findUnique({
-                            where: { id: entityId },
-                            select: { creatorDiscordId: true }
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket.", flags: 64 },
                         });
-                        
-                        if (!ticket || ticket.creatorDiscordId !== member.user.id) {
-                            return NextResponse.json({
-                                type: 4,
-                                data: { content: "🔒 Seule l'équipe technique SigilOS ou l'auteur peuvent fermer ce ticket.", flags: 64 },
-                            });
-                        }
                     }
 
                     // ACK immediately (Deferred update)

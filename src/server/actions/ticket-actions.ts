@@ -599,6 +599,11 @@ export async function postTicketPanel(channelId: string, guildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Accès refusé" };
 
+    // SECURITY: Validate that the channel belongs to the specified guild
+    const { validateChannelBelongsToGuild } = await import("@/server/discord");
+    const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+    if (!isValid) return { success: false, error: "Le salon Discord n'appartient pas au serveur spécifié." };
+
     const messageId = await sendChannelMessage(channelId, "", {
         embedTitle: "📬 Support SigilOS",
         embedColor: 0x10b981,

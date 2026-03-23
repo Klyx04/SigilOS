@@ -416,6 +416,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/members`);
         return { success: true };
@@ -461,6 +465,10 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
             data: { availability: availability as any }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+
         return { success: true };
     } catch (error) {
         logger.error("Update Availability Error", { error });
@@ -503,6 +511,10 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
                 vacationNotify: vacationNotify ?? false,
             }
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -552,6 +564,10 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
             data: { notificationPrefs: newPrefs }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
@@ -591,6 +607,10 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
             },
             data: { forgemagieStatus: status }
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
 
         return { success: true };
     } catch (error) {
@@ -660,6 +680,10 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         });
 
         logger.info(`[Dofusbook] Successfully updated database for ${user.id}`);
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -754,6 +778,10 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
             },
             data: { dofusBookLinks: bakedLinks as any }
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/galerie-stuff`);

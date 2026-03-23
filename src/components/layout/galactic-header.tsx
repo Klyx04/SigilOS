@@ -130,6 +130,7 @@ export function GalacticHeader({
                                 src="/assets/ui/logo-v2.png"
                                 alt="SigilOS"
                                 fill
+                                sizes="40px"
                                 className="object-contain"
                             />
                         </div>

@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
-    default: "SigilOS — Le système d'exploitation pour guildes Dofus",
+    default: "SigilOS — Le meilleur outil de gestion pour guilde Dofus",
     template: "%s | SigilOS",
   },
   description: "SigilOS est la plateforme de gestion de guilde Dofus la plus complète en 2026. Bot Discord, suivi de quêtes (Ocre, Almanax, Songes Infinis), annuaire de guildes, ladder XP, Dungeon Finder et outils communautaires. Gratuit et open-source.",
@@ -56,8 +56,8 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     url: getAppBaseUrl(),
     siteName: "SigilOS",
-    title: "SigilOS — Gestion de Guilde Dofus",
-    description: "La plateforme tout-en-un pour les guildes Dofus : quêtes, Songes Infinis, Dungeon Finder, ladder XP et outils communautaires.",
+    title: "SigilOS — Gestion de Guilde Dofus n°1",
+    description: "Le tableau de bord ultime pour les guildes Dofus : quêtes, missions, Songes, Dungeon Finder et ladder XP.",
     images: [
       {
         url: new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString(),

@@ -101,6 +101,10 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
             }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(data.guildId);
+
         revalidatePath(`/dashboard/${data.guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
@@ -140,6 +144,10 @@ export async function updateWelcomeBadgeName(data: z.infer<typeof WelcomeBadgeSc
                 }
             });
         }
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(data.guildId);
 
         revalidatePath(`/dashboard/${data.guildId}/admin/settings`);
         revalidatePath(`/dashboard/${data.guildId}/profile`);

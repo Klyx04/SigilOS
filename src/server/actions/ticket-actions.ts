@@ -191,15 +191,15 @@ export async function closeSupportTicket(
         if (!ticket) return { success: false, error: "Ticket introuvable." };
         if (ticket.status === "CLOSED") return { success: false, error: "Ticket déjà fermé." };
 
-        // RESTRICTION: Only the creator, dev (Super Admin) or System can close the ticket
-        const isDev = await isDiscordSuperAdmin(closedByDiscordId);
+        // RESTRICTION: Only dev (Super Admin from web), Discord dev, or System can close
+        const isWebAdmin = await isSuperAdmin();
+        const isDiscordDev = await isDiscordSuperAdmin(closedByDiscordId);
         const isSystem = closedByDiscordId === "SYSTEM";
-        const isCreator = ticket.creatorDiscordId === closedByDiscordId;
 
-        if (!isDev && !isSystem && !isCreator) {
+        if (!isWebAdmin && !isDiscordDev && !isSystem) {
             return { 
                 success: false, 
-                error: "🔒 Seul l'auteur du ticket ou l'équipe technique SigilOS peut fermer ce ticket." 
+                error: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket." 
             };
         }
 
@@ -320,7 +320,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
 
         const session = await auth();
 
-        // 1. Refresh ticket data & get platform config (for default role)
+        // 1. Get fresh ticket data & platform config (for default role)
         const [freshTicket, platformConfig] = await Promise.all([
             db.supportTicket.findUnique({ where: { id: ticketId } }),
             db.platformConfig.findUnique({ where: { id: "singleton" } })
@@ -329,11 +329,12 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
         if (!freshTicket) throw new Error("Ticket introuvable");
         const threadId = freshTicket.discordThreadId;
 
-        // 2. Create/Update AllowedGuild record (Whitelist)
+        // 2. Create/Update AllowedGuild record (Whitelist) - PROMOTE PENDING → ACTIVE
         await db.allowedGuild.upsert({
             where: { discordGuildId },
             update: { 
-                isActive: true, 
+                isActive: true,
+                tier: "VIP",
                 notes: notes || `Validé via ticket #${freshTicket.ticketNumber} — ${freshTicket.targetGuildName || "Anonyme"}` 
             },
             create: {
@@ -347,60 +348,91 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
         });
 
         // 3. [ROLE ASSIGNMENT] Use provided role or platform default
+        // Note: role is added on the SUPPORT Discord server (freshTicket.discordGuildId)
         const effectiveRoleId = (roleId && roleId !== "SKIP") 
             ? roleId 
             : (roleId !== "SKIP" ? platformConfig?.ticketAutoRoleId : null);
 
         if (effectiveRoleId) {
-            await addRoleToMember(freshTicket.discordGuildId, freshTicket.creatorDiscordId, effectiveRoleId);
+            try {
+                await addRoleToMember(freshTicket.discordGuildId, freshTicket.creatorDiscordId, effectiveRoleId);
+            } catch (roleErr) {
+                console.error("[Tickets] Role assignment failed (non-blocking):", roleErr);
+                // Non-blocking: validation continues even if role fails
+            }
         }
 
         // 4. Notify on Discord with PING + Mini-Tutorial
         if (threadId) {
-            await sendChannelMessage(threadId, `<@${freshTicket.creatorDiscordId}>`, {
-                embedTitle: "🚀 Accès Approuvé — Bienvenue sur SigilOS",
-                embedColor: 0x10b981,
-                embedDescription: [
-                    `Bonjour <@${ticket.creatorDiscordId}>,`,
-                    "",
-                    "Bonne nouvelle ! Votre demande d'accès à **SigilOS** a été validée par notre équipe technique.",
-                    "",
-                    "**📖 Mini-Guide d'Activation :**",
-                    "1️⃣ Connectez-vous sur [sigilos.fr](https://sigilos.fr) via Discord.",
-                    "2️⃣ Sur ton Dashboard, clique sur **'Inviter le Bot'** (sur la carte de ta guilde).",
-                    "3️⃣ Une fois le bot sur ton serveur, clique sur **'Déployer'** pour installer l'architecture.",
-                    "",
-                    "💡 *Astuce : Si le bot est déjà présent mais inactif, 'Déployer' suffira à l'allumer.*",
-                    "",
-                    `**Note de l'administrateur :**`,
-                    `> ${notes || "Votre serveur a été ajouté à la whitelist. Bon jeu !"}`
-                ].join("\n"),
-                embedFooter: `Validé par ${session?.user?.name || "L'Équipe SigilOS"}`,
-                embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png" // Logo SigilOS
-            });
+            try {
+                await sendChannelMessage(threadId, `<@${freshTicket.creatorDiscordId}>`, {
+                    embedTitle: "🚀 Accès Approuvé — Bienvenue sur SigilOS",
+                    embedColor: 0x10b981,
+                    embedDescription: [
+                        `Bonjour <@${ticket.creatorDiscordId}>,`,
+                        "",
+                        "Bonne nouvelle ! Votre demande d'accès à **SigilOS** a été validée par notre équipe technique.",
+                        "",
+                        "**📖 Mini-Guide d'Activation :**",
+                        "1️⃣ Connectez-vous sur [sigilos.fr](https://sigilos.fr) via Discord.",
+                        "2️⃣ Sur ton Dashboard, clique sur **'Inviter le Bot'** (sur la carte de ta guilde).",
+                        "3️⃣ Une fois le bot sur ton serveur, clique sur **'Déployer'** pour installer l'architecture.",
+                        "",
+                        "💡 *Astuce : Si le bot est déjà présent mais inactif, 'Déployer' suffira à l'allumer.*",
+                        "",
+                        `**Note de l'administrateur :**`,
+                        `> ${notes || "Votre serveur a été ajouté à la whitelist. Bon jeu !"}`
+                    ].join("\n"),
+                    embedFooter: `Validé par ${session?.user?.name || "L'Équipe SigilOS"}`,
+                    embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png"
+                });
+            } catch (discordErr) {
+                console.error("[Tickets] Discord notification failed (non-blocking):", discordErr);
+            }
         }
 
-        // 4. [AUDIT] Log for traceability
-        await (db as any).auditLog.create({
-            data: {
-                guildId: "PLATFORM", // Global action
-                actorUserId: session?.user?.id || "SYSTEM",
-                actorName: session?.user?.name || "System",
-                action: "GUILD_VALIDATE",
-                targetType: "GUILD",
-                targetId: discordGuildId,
-                metadata: {
-                    ticketId,
-                    ticketNumber: ticket.ticketNumber,
-                    requesterDiscord: ticket.creatorDiscordName,
-                    requesterId: ticket.creatorDiscordId,
-                    roleAdded: roleId
-                }
-            }
-        });
+        // 5. [AUDIT] Log for traceability — isolated: must NOT crash the validation
+        try {
+            const auditGuildConfig = await db.guildConfig.findFirst({
+                where: { discordGuildId: freshTicket.discordGuildId },
+                select: { id: true }
+            });
+            const auditGuildId = auditGuildConfig?.id || null;
 
-        // 5. Mark ticket as CLOSED
-        await closeSupportTicket(ticketId, "SYSTEM", "Automation SigilOS", "Accès validé et whiteliste créée.");
+            if (auditGuildId) {
+                await db.auditLog.create({
+                    data: {
+                        guildId: auditGuildId,
+                        actorUserId: session?.user?.id || "SYSTEM",
+                        actorName: session?.user?.name || "System",
+                        action: "GUILD_VALIDATE",
+                        targetType: "GUILD",
+                        targetId: discordGuildId,
+                        metadata: {
+                            ticketId,
+                            ticketNumber: ticket.ticketNumber,
+                            requesterDiscord: ticket.creatorDiscordName,
+                            requesterId: ticket.creatorDiscordId,
+                            roleAdded: roleId || null
+                        }
+                    }
+                });
+            }
+        } catch (auditErr) {
+            // Audit failure MUST NOT block ticket validation
+            console.error("[Tickets] Audit log failed (non-blocking):", auditErr);
+        }
+
+        // 6. Mark ticket as CLOSED
+        await db.supportTicket.update({
+            where: { id: ticketId },
+            data: {
+                status: "CLOSED",
+                closedAt: new Date(),
+                closedBy: session?.user?.id || "SYSTEM",
+                closedReason: "Accès validé et whitelist créée.",
+            },
+        });
 
         revalidatePath("/god");
         return { success: true };
@@ -566,6 +598,11 @@ export async function getTicketStats() {
 export async function postTicketPanel(channelId: string, guildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Accès refusé" };
+
+    // SECURITY: Validate that the channel belongs to the specified guild
+    const { validateChannelBelongsToGuild } = await import("@/server/discord");
+    const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+    if (!isValid) return { success: false, error: "Le salon Discord n'appartient pas au serveur spécifié." };
 
     const messageId = await sendChannelMessage(channelId, "", {
         embedTitle: "📬 Support SigilOS",

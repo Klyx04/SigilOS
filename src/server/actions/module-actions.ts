@@ -50,6 +50,13 @@ import { cache } from "react";
 const moduleCache = new Map<string, { data: GuildModulesState, expiresAt: number }>();
 const MODULE_CACHE_TTL = 30_000;
 
+/**
+ * Invalidate modules cache for a guild
+ */
+export async function invalidateModuleCache(discordGuildId: string) {
+    moduleCache.delete(discordGuildId);
+}
+
 export const getGuildModules = cache(async (discordGuildId: string): Promise<GuildModulesState> => {
     const now = Date.now();
     const cached = moduleCache.get(discordGuildId);
@@ -143,6 +150,11 @@ export async function updateGuildModules(
                 updatedBy: session.user.id,
             },
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory caches
+        await invalidateModuleCache(discordGuildId);
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
 
         await createAuditLog({
             guildId: discordGuildId,

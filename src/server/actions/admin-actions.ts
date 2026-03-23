@@ -35,7 +35,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
 
         // 2. SECURITY CHECK: Verify User is Admin of this Guild
         const { requireGuildAdmin } = await import("./guards");
-        const guard = await requireGuildAdmin(guildId);
+        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde");
 
         if (!guard.isAuthorized) {
             return { success: false, error: guard.error || "Insufficient permissions" };
@@ -54,7 +54,11 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             } as any
         });
 
-        revalidatePath("/dashboard");
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(guildId);
+
+        revalidatePath(`/dashboard/${guildId}`);
         return { success: true };
     } catch (error) {
         console.error("Failed to onboard guild:", error);
@@ -78,7 +82,7 @@ export async function updateRBACMapping(
 
     // SECURITY: Verify user is admin of this guild
     const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const guard = await requireGuildAdmin(guildId, "Modification des Permissions (RBAC)");
     if (!guard.isAuthorized) {
         console.warn(`[Security] updateRoleMapping blocked: ${guard.error} for user ${session.user.id}`);
         return { success: false, error: guard.error };
@@ -125,6 +129,10 @@ export async function updateRBACMapping(
             }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(guildId);
+
         // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");
 
@@ -141,7 +149,7 @@ export async function updateRBACMapping(
             }
         });
 
-        revalidatePath("/dashboard/admin");
+        revalidatePath(`/dashboard/${guildId}/admin`);
         return { success: true };
     } catch (error) {
         console.error("Failed to update role mapping:", error);

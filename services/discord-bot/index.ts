@@ -39,9 +39,8 @@ if (!pgUser || !pgPassword || !pgDb) {
 const protocol = 'post' + 'gresql://'; // split to avoid secret-scanner false positive
 const datasourceUrl = `${protocol}${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword!)}@${pgHost}:5432/${pgDb}`;
 
-const db = new PrismaClient({
-    datasourceUrl,
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = new PrismaClient({ datasources: { db: { url: datasourceUrl } } } as any);
 
 
 const client = new Client({

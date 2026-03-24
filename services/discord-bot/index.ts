@@ -23,6 +23,7 @@ import {
 } from 'discord.js';
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 // Build connection URL from individual env vars (handles special chars in password)
 const pgUser = process.env.POSTGRES_USER;
@@ -39,8 +40,9 @@ if (!pgUser || !pgPassword || !pgDb) {
 const protocol = 'post' + 'gresql://'; // split to avoid secret-scanner false positive
 const datasourceUrl = `${protocol}${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword!)}@${pgHost}:5432/${pgDb}`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = new PrismaClient({ datasources: { db: { url: datasourceUrl } } } as any);
+// Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
+const adapter = new PrismaPg({ connectionString: datasourceUrl });
+const db = new PrismaClient({ adapter });
 
 
 const client = new Client({

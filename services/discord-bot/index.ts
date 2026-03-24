@@ -35,11 +35,14 @@ if (!pgUser || !pgPassword || !pgDb) {
     process.exit(1);
 }
 
-// Inject DATABASE_URL so PrismaClient can connect
+// Build DATABASE_URL and pass directly to PrismaClient (Prisma 7.x requirement)
 const protocol = 'post' + 'gresql://'; // split to avoid secret-scanner false positive
-process.env.DATABASE_URL = `${protocol}${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword!)}@${pgHost}:5432/${pgDb}`;
+const datasourceUrl = `${protocol}${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword!)}@${pgHost}:5432/${pgDb}`;
 
-const db = new PrismaClient();
+const db = new PrismaClient({
+    datasourceUrl,
+});
+
 
 const client = new Client({
     intents: [

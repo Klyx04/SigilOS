@@ -27,6 +27,9 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
         setTimeLeft(gameState.timeLeft);
     }, [gameState.timeLeft]);
 
+    const drawerPlayer = gameState.players?.find((p: any) => p.isDrawing);
+    const drawerName = drawerPlayer ? drawerPlayer.userName : "L'artiste";
+
     return (
         <div className="flex items-center w-full grow relative h-full gap-2 md:gap-4">
             {/* ROUND & TIMER LEFT */}
@@ -92,32 +95,14 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* HINT IMAGE FOR GUESSERS - Server controlled visibility */}
-                                {gameState.currentWordIcon && (
-                                    <div className="flex flex-col items-center gap-1 animate-in zoom-in slide-in-from-top-4 duration-700 shrink-0">
-                                        <div className="w-12 h-12 md:w-20 md:h-20 bg-white rounded-xl md:rounded-[2rem] border-b-[4px] border-emerald-500/30 p-1.5 md:p-2.5 flex items-center justify-center shadow-xl ring-4 ring-emerald-500/10 transform rotate-3 hover:scale-125 transition-all cursor-pointer group/hint relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-transparent pointer-events-none" />
-                                            <img 
-                                                src={gameState.currentWordIcon} 
-                                                alt="Indice" 
-                                                className="w-full h-full object-contain relative z-10"
-                                                onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }}
-                                            />
-                                            {/* Pulse effect to notify user */}
-                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full animate-ping" />
-                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         )}
                     </div>
                 ) : gameState.state === "SELECTING_WORD" ? (
-                    <div className="flex items-center gap-4 bg-white/40 px-6 md:px-10 py-3 md:py-4 rounded-full animate-pulse min-w-0">
+                    <div className="flex items-center gap-4 bg-white/40 px-6 md:px-10 py-3 md:py-4 rounded-full animate-pulse min-w-0 shadow-lg">
                         <RefreshCw className="w-4 h-4 md:w-6 md:h-6 text-[#5d3fd3] animate-spin shrink-0" />
                         <span className="font-black text-[#5d3fd3] uppercase tracking-widest text-xs md:text-sm italic truncate">
-                            L'artiste choisit...
+                            {drawerName} choisit un mot...
                         </span>
                     </div>
                 ) : null}

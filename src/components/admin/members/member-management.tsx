@@ -659,8 +659,7 @@ export default function MemberManagement({
 
                 {/* --- TAB 4: SYNC --- */}
                 <TabsContent value="sync" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className="bg-zinc-900/60 border-white/5 rounded-3xl overflow-hidden relative group p-8 space-y-6 backdrop-blur-xl shadow-2xl">
+                        <Card className="max-w-2xl bg-zinc-900/60 border-white/5 rounded-3xl overflow-hidden relative group p-8 space-y-6 backdrop-blur-xl shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <div className="flex items-center gap-4 relative z-10">
                                 <div className="p-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/30">
@@ -682,16 +681,6 @@ export default function MemberManagement({
                                 </div>
                             </div>
                         </Card>
-
-                        <Card className="bg-zinc-900/40 border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl flex flex-col justify-center items-center text-center space-y-4 opacity-50 grayscale hover:grayscale-0 transition-all border-dashed">
-                           <LayoutGrid className="w-12 h-12 text-zinc-600" />
-                           <div className="space-y-1">
-                                <h4 className="text-lg font-black text-white uppercase italic tracking-widest">Purge Automatique</h4>
-                                <p className="text-xs text-zinc-500 font-medium">Bientôt disponible pour libérer les places inactives.</p>
-                           </div>
-                           <Badge variant="outline" className="rounded-full px-4 border-white/10 text-zinc-500 font-black tracking-widest">COMING SOON</Badge>
-                        </Card>
-                    </div>
                 </TabsContent>
             </Tabs>
         </div>

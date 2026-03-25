@@ -54,7 +54,7 @@ export function WorkerTester() {
                     <p className="text-xs text-zinc-500 mb-4">
                         Test direct de l'API Cloudflare (Ladder). Aucune DB impactée, aucun job créé. Permet de vérifier la validité du Token et du format Dofus.com en live.
                     </p>
-                    <div className="flex gap-4 items-end">
+                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
                         <div className="space-y-2 flex-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Pseudo Dofus</label>
                             <Input 
@@ -64,7 +64,7 @@ export function WorkerTester() {
                                 className="bg-black/50 border-white/10 text-white"
                             />
                         </div>
-                        <div className="space-y-2 w-32">
+                        <div className="space-y-2 w-full md:w-32">
                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Server ID</label>
                             <Input 
                                 placeholder="295" 
@@ -76,7 +76,7 @@ export function WorkerTester() {
                         <Button 
                             onClick={handleTestLadder} 
                             disabled={isTestLoading}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide transition-all"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide transition-all w-full md:w-auto"
                         >
                             {isTestLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
                             LANCER TEST

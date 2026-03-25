@@ -122,14 +122,41 @@ export async function GET(req: Request) {
             }
         }
 
+        const summary = `Synchronisation effectuée sur ${profiles.length} profils.\n- Réussis : ${results.filter(r => r.success).length}\n- Échecs : ${results.filter(r => !r.success).length}`;
+
+        // SEND NOTIFICATION TO GOD DASHBOARD & DISCORD
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Ladder General/Succès Sync",
+            message: summary,
+            type: "WORKER_SYNC",
+            success: results.some(r => r.success) || profiles.length === 0, // Success if at least one worked or nothing to do
+            metadata: { 
+                batch_size: profiles.length,
+                success_count: results.filter(r => r.success).length,
+                fail_count: results.filter(r => !r.success).length
+            }
+        });
+
         return NextResponse.json({
             message: "Batch completed",
             count: profiles.length,
             results
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Cron Ladder Sync Error:", error);
+        
+        // Notify of fatal failure
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "CRITICAL: Ladder Sync Failed",
+            message: `Erreur fatale dans le cron ladder sync : ${error.message || String(error)}`,
+            type: "WORKER_SYNC",
+            success: false,
+            ping: true // Fatal failure should ping discord
+        });
+
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

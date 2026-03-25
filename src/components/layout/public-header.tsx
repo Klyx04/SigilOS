@@ -1,4 +1,5 @@
 "use client";
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 import Link from "next/link";
@@ -71,50 +72,51 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
         <motion.header 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 ${
-                scrolled ? "px-4" : "px-0"
-            }`}
+            className={cn(
+                "fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 px-4 sm:px-6 lg:px-8",
+                scrolled ? "py-2" : "py-6"
+            )}
         >
-            <div className={`mx-auto transition-all duration-500 ${
+            <div className={cn(
+                "mx-auto transition-all duration-500",
                 scrolled 
-                ? "max-w-5xl rounded-2xl bg-zinc-950/60 backdrop-blur-2xl border border-white/10 shadow-2xl px-6" 
-                : "max-w-7xl bg-transparent border-b border-white/5 px-6"
-            }`}>
-                <div className="flex items-center justify-between h-16">
+                ? "max-w-5xl rounded-3xl bg-zinc-950/60 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-6" 
+                : "max-w-[1400px] bg-transparent border-b border-white/5 px-4"
+            )}>
+                <div className="flex items-center justify-between h-16 sm:h-20">
 
                     {/* Left: Brand */}
-                    <div className="flex items-center gap-10">
+                    <div className="flex items-center gap-12">
                         <Link href="/" className="flex items-center gap-3 group shrink-0">
-                            <div className="relative w-8 h-8 transition-transform duration-500 group-hover:rotate-6">
-                                <div className="absolute inset-0 bg-emerald-500/30 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 transition-all duration-500 group-hover:scale-110">
+                                <div className="absolute inset-0 bg-emerald-500/40 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                                 <Image
                                     src="/assets/ui/logo-v2.png"
                                     alt="SigilOS"
                                     fill
-                                    className="object-contain relative z-10"
+                                    className="object-contain relative z-10 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                                     priority
                                 />
                             </div>
-                            <span className="text-xl font-heading tracking-tight text-white transition-colors group-hover:text-emerald-400">
-                                SigilOS
+                            <span className="text-xl sm:text-2xl font-black tracking-tighter text-white transition-all group-hover:text-emerald-400 group-hover:italic uppercase leading-none">
+                                Sigil<span className="text-emerald-500 group-hover:text-white">OS</span>
                             </span>
                         </Link>
 
-                        {/* Desktop Nav */}
-                        <nav className="hidden md:flex items-center gap-1">
+                        {/* Desktop Nav (Standard 2026) */}
+                        <nav className="hidden lg:flex items-center gap-1 bg-white/[0.03] border border-white/5 rounded-full p-1 leading-none">
                             {NAV_ITEMS.map((item) => {
                                 const isActive = activePage === item.id;
                                 return (
                                     <Link
                                         key={item.id}
                                         href={item.href}
-                                        className={`
-                                            px-4 py-1.5 rounded-full text-[13px] font-bold transition-all uppercase tracking-wider
-                                            ${isActive
-                                                ? "text-emerald-400 bg-emerald-400/10"
-                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
-                                            }
-                                        `}
+                                        className={cn(
+                                            "px-5 py-2 rounded-full text-[11px] font-black transition-all uppercase tracking-widest leading-none",
+                                            isActive
+                                                ? "text-white bg-white/10 shadow-lg"
+                                                : "text-zinc-500 hover:text-white hover:bg-white/5"
+                                        )}
                                     >
                                         {item.label}
                                     </Link>
@@ -123,53 +125,51 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                         </nav>
                     </div>
 
-                    {/* Right: Auth / CTA */}
-                    <div className="flex items-center gap-4">
+                    {/* Right: Auth / CTA / Mobile Toggle */}
+                    <div className="flex items-center gap-3 sm:gap-5">
                         <AnimatePresence mode="wait">
                             {user ? (
                                 <motion.div 
                                     key="logged-in"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
                                     className="flex items-center gap-3"
                                 >
                                     <DashboardDrawer>
-                                        <button
-                                            className="group relative flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 shadow-xl"
-                                        >
+                                        <button className="group relative flex items-center gap-3 px-6 py-3 rounded-2xl bg-white text-black text-[12px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-0.5 active:scale-95 shadow-2xl">
                                             Dashboard
-                                            <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                                         </button>
                                     </DashboardDrawer>
-                                    
-                                    <Link
-                                        href="/api/auth/signout"
-                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30 transition-all"
-                                        title="Déconnexion"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                    </Link>
                                 </motion.div>
                             ) : (
                                 <motion.div
                                     key="logged-out"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="hidden sm:block"
                                 >
                                     <form action={loginWithDiscord}>
-                                        <button
-                                            type="submit"
-                                            className="group relative flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(88,101,242,0.4)]"
-                                        >
-                                            <DiscordIcon className="w-4 h-4" />
+                                        <button className="group relative flex items-center gap-3 px-8 py-3 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] hover:-translate-y-0.5">
+                                            <DiscordIcon className="w-4.5 h-4.5" />
                                             Connexion
                                         </button>
                                     </form>
                                 </motion.div>
                             )}
                         </AnimatePresence>
+
+                        {/* Mobile Menu Button - PREMIUM 2026 */}
+                        <div className="lg:hidden">
+                             {/* Simple burger menu toggle button - would be connected to a mobile sheet in production */}
+                             <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+                                 <div className="space-y-1.5">
+                                     <div className="w-5 h-0.5 bg-white rounded-full" />
+                                     <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
+                                     <div className="w-5 h-0.5 bg-white rounded-full" />
+                                 </div>
+                             </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -8,7 +8,7 @@ import { getClass } from "@/lib/dofus-assets";
 
 type Props = {
     entry: LadderEntry;
-    valueLabel: string;
+    valueLabel: React.ReactNode;
     accentColor: "purple" | "cyan" | "amber" | "emerald" | "yellow" | "blue";
 };
 

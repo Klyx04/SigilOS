@@ -116,12 +116,11 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                 )}
             </div>
 
-            {/* Info banner */}
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
                 <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-blue-200/70 leading-relaxed">
                     La barre d'activité calcule l'XP automatiquement depuis les soumissions validées.
-                    Cet override <b>remplace</b> temporairement ce calcul sans modifier les soumissions.
+                    Cet override <b>s'ajoute</b> comme bonus manuel au calcul automatique (pratique pour corriger un décalage ou un don ignoré).
                     {currentOverride === null && <span className="text-zinc-500"> Aucun override actif — calcul automatique.</span>}
                 </p>
             </div>

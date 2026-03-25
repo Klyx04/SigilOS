@@ -30,6 +30,30 @@ DATE=$(date +%Y-%m-%d_%H-%M-%S)
 FILENAME_RAW="sigilos_${DATE}.sql.gz"
 FILENAME_ENC="${FILENAME_RAW}.gpg"
 
+# Nova API God Notify (Cloudflare proxy URL or internal if app is up)
+GOD_NOTIFY_URL="https://sigilos.fr/api/god/notify"
+
+send_god_notif() {
+    local title=$1
+    local message=$2
+    local type=$3
+    local success=$4
+    local metadata=$5
+
+    if [ ! -z "$CRON_SECRET" ]; then
+        curl -s -X POST "$GOD_NOTIFY_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"title\": \"$title\",
+                \"message\": \"$message\",
+                \"type\": \"$type\",
+                \"success\": $success,
+                \"metadata\": $metadata
+            }" > /dev/null
+    fi
+}
+
 # GPG Passphrase for backup encryption (Must be in .env)
 # If not set, we cannot secure the backup.
 if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
@@ -46,6 +70,7 @@ docker exec $DB_CONTAINER pg_dumpall -c -U $DB_USER | gzip > "$BACKUP_DIR/$FILEN
 
 if [ $? -ne 0 ]; then
     echo "❌ Dump failed!"
+    send_god_notif "[Backup] ÉCHOUÉ" "Le dump PostgreSQL a échoué." "BACKUP" "false" "{ \"step\": \"dump\", \"filename\": \"$FILENAME_RAW\" }"
     exit 1
 fi
 
@@ -78,8 +103,10 @@ if [ -n "$R2_BUCKET_NAME" ] && [ -n "$AWS_ENDPOINT_URL" ]; then
 
     if [ $? -eq 0 ]; then
         echo "✅ Upload successful!"
+        send_god_notif "[Backup] Réussi" "Sauvegarde chiffrée transférée vers Cloudflare R2." "BACKUP" "true" "{ \"filename\": \"$FILENAME_ENC\", \"status\": \"uploaded\" }"
     else
         echo "❌ Upload failed. Local copy kept."
+        send_god_notif "[Backup] Alerte Upload" "Le dump est fait mais le transfert vers R2 a échoué." "BACKUP" "false" "{ \"filename\": \"$FILENAME_ENC\", \"status\": \"local_only\" }"
     fi
 else
     echo "⚠️ R2 credentials missing. Skipping upload."

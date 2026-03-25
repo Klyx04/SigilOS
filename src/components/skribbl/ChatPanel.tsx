@@ -78,6 +78,10 @@ export default function ChatPanel({ socket, messages, gameState, isDrawer, isSpe
                         );
                     }
 
+                    if (!msg.type && gameState.state === "DRAWING" && !isSpectator && !isDrawer) {
+                        return null; // Hide guesses during DRAWING phase
+                    }
+
                     return (
                         <div key={i} className="flex flex-col gap-0.5 md:gap-1 items-start group">
                             <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest italic ml-1.5 md:ml-3">

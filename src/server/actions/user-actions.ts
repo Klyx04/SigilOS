@@ -14,7 +14,7 @@ import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actio
 // In-memory cache for user context paths that don't change often
 const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
-const CACHE_TTL = 30_000; // 30 seconds
+const CACHE_TTL = 10_000; // 10 seconds (reduced from 30s for better responsiveness during onboarding)
 
 /**
  * Invalidate cache for a specific user in a specific guild
@@ -29,6 +29,30 @@ export async function invalidateUserContextCache(userId: string, guildId?: strin
  */
 export async function invalidateGuildCache(guildId: string) {
     configCache.delete(`config:${guildId}`);
+}
+
+/**
+ * Force a manual revalidation of the user context (clears caches)
+ * Useful when a user just joined a Discord server.
+ */
+export async function revalidateUserContext(guildId?: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const userId = session.user.id;
+    
+    // 1. Clear In-memory caches
+    const profileCacheKey = `profile:${userId}:${guildId || ""}`;
+    profileCache.delete(profileCacheKey);
+    
+    // 2. Clear Discord cache (pattern based)
+    const { invalidateDiscordCache } = await import("@/server/discord");
+    invalidateDiscordCache(`member:${guildId || ""}:${userId}`);
+
+    // 3. Clear Next.js tag-based cache (if any)
+    revalidatePath(`/dashboard/${guildId || ""}`);
+    
+    return { success: true };
 }
 
 export type UserContext = {
@@ -87,6 +111,10 @@ export type UserContext = {
     canManageRelance: boolean;
     isAdmin: boolean;
     isSuperAdmin: boolean;
+    // Ladder Sync detection
+    hasPseudoIssue: boolean;
+    pseudoDofus?: string | null;
+    ankamaId?: string | null;
     isMember: boolean;
     profileId?: string;
     guildName?: string;
@@ -97,6 +125,7 @@ export type UserContext = {
     isCapacityFull?: boolean;
     scheduledDeletion?: string | null;
     createdAt?: string;
+    newsBroadcastEnabled: boolean;
 };
 
 export type ActionResponse<T = any> = {
@@ -187,8 +216,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageRelance: false,
         canViewChat: false,
         canModerateChat: false,
+        hasPseudoIssue: false,
         roles: [],
-        roleNames: []
+        roleNames: [],
+        newsBroadcastEnabled: false,
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -234,6 +265,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 welcomeNotifyChannelId: true,
                 welcomeMentionRoleId: true,
                 welcomeMessageTemplate: true,
+                newsBroadcastEnabled: true,
                 modules: {
                     select: {
                         missions: true,
@@ -494,9 +526,45 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     }
                 });
 
+                // 📝 AUDIT LOG Arrival
+                try {
+                    const { createAuditLog } = await import("./audit-actions");
+                    await createAuditLog({
+                        guildId: actualDiscordGuildId,
+                        actorUserId: "SYSTEM",
+                        actorName: "Platform System",
+                        action: "PLATFORM_ARRIVAL",
+                        targetType: "USER_PROFILE",
+                        targetId: profile.id,
+                        newValue: { displayName, roleName, discordJoinedAt: joinedAt }
+                    });
+                } catch (e) {
+                    console.error("[UserContext] Failed to log platform arrival", e);
+                }
+
                 // ---- NEW MEMBER WELCOME LOGIC ----
                 Promise.resolve().then(async () => {
                     if (!guildConfig.welcomeEnabled) return;
+
+                    // FIX: Ensure user actually has rights to view the dashboard before welcoming them
+                    const mapping = (guildConfig.rolesMapping as Record<string, PermissionId[]>) || {};
+                    const userMapping = (guildConfig.usersMapping as Record<string, PermissionId[]>) || {};
+                    let hasAccess = false;
+
+                    memberRoles.forEach(rId => {
+                        if (mapping[rId]?.includes(PERMISSIONS.DASHBOARD_VIEW) || mapping[rId]?.includes(PERMISSIONS.ADMIN_ACCESS)) hasAccess = true;
+                    });
+                    if (discordUserId && (userMapping[discordUserId]?.includes(PERMISSIONS.DASHBOARD_VIEW) || userMapping[discordUserId]?.includes(PERMISSIONS.ADMIN_ACCESS))) {
+                        hasAccess = true;
+                    }
+                    const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+                    const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
+                    if (hasDiscordAdminRole || isOwner) hasAccess = true;
+
+                    if (!hasAccess && !isGod) {
+                        logger.warn(`[Welcome] Skipped welcome notification for ${displayName} because they lack dashboard permissions.`);
+                        return;
+                    }
 
                     try {
                         const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
@@ -670,12 +738,16 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         roles: memberRoles,
         roleNames: myRoles.map(r => r.name),
         pseudo: profile?.discordNickname || profile?.pseudoDofus || displayName,
+        pseudoDofus: profile?.pseudoDofus,
+        ankamaId: profile?.ankamaId,
+        hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         isCapacityFull: false,
         profileId: profile?.id,
         guildName: guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
         joinedAt: member?.joined_at ? new Date(member.joined_at).toISOString() : null,
         guildId: effectiveGuildId,
+        newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
         createdAt: profile?.createdAt?.toISOString()
     };
 }
@@ -738,7 +810,7 @@ const getCachedDiscordGuilds = unstable_cache(
         }
     },
     ['discord-user-guilds-v1'],
-    { revalidate: 300 }
+    { revalidate: 30 } // 30 seconds (reduced from 300s to avoid Ctrl+F5 issues when joining/creating guilds)
 );
 
 export async function getGuildsSeparated() {

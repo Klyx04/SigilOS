@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -121,6 +121,7 @@ export default function InteractiveMapV2({
     const guildId = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '';
 
     const [socket, setSocket] = useState<Socket | null>(null);
+    const reportedMapsRef = useRef<Set<number>>(new Set());
     
     // Auto-sync state if initial props change (essential for embedded usage like Dungeon Finder)
     useEffect(() => {
@@ -560,7 +561,7 @@ export default function InteractiveMapV2({
                     setGuessResult(newResult);
 
                     // --- CELEBRATION TRIGGER ---
-                    if (newResult.distance === 0 && !me.isSpectator && (newState === 'RESULT' || newState === 'FINISHED' || me.hasGuessed)) {
+                    if (me && me.hasGuessed && !me.isSpectator && newResult.distance === 0 && (newState === 'RESULT' || newState === 'FINISHED')) {
                         // Check if we already celebrated this round
                         const celebratedRounds = (window as any)._geoSigilCelebratedRounds || new Set();
                         const roundKey = `${activeSession?.id}-${state.currentRound}`;
@@ -743,6 +744,24 @@ export default function InteractiveMapV2({
         // Reset the leave flag after a delay to allow future joins
         setTimeout(() => setIsLeavingSession(false), 2000);
     };
+
+    const handleReportMap = useCallback(() => {
+        if (!socket || !activeSession) {
+            toast.error("Impossible de signaler la carte pour le moment.");
+            return;
+        }
+        
+        const cRound = activeSession.currentRound || 1;
+        const mapId = activeSession.currentMapId || (activeSession.targetMapIds && activeSession.targetMapIds[cRound - 1]);
+        
+        if (!mapId) {
+            toast.error("Données de la carte introuvables.");
+            return;
+        }
+
+        socket.emit("geoguesser:map:report", { mapId });
+        toast.info(`Signalement envoyé pour la carte #${mapId} ! Les administrateurs l'examineront.`);
+    }, [socket, activeSession]);
 
     const handleMapClick = async (pos: any) => {
         const me = activeSession?.participants?.find((p: any) => p.userId === currentUserId);
@@ -1257,6 +1276,7 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                    onReportMap={handleReportMap}
                                 />,
                                 document.getElementById('sigil-geoguesser-header-hud')!
                             )
@@ -1269,6 +1289,7 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                    onReportMap={handleReportMap}
                                 />
                             </div>
                         )}
@@ -1311,7 +1332,7 @@ export default function InteractiveMapV2({
                             <motion.div
                                 initial={{ y: 50, opacity: 0, scale: 0.95 }}
                                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                                className="w-full max-w-6xl bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[3rem] md:rounded-[4rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-6 md:p-10 pointer-events-auto relative overflow-hidden flex flex-col"
+                                className="w-[95vw] h-[90vh] max-w-[1600px] max-h-[1000px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-y-auto overflow-x-hidden flex flex-col"
                             >
                                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
 
@@ -1351,44 +1372,44 @@ export default function InteractiveMapV2({
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col lg:flex-row gap-10 flex-1 min-h-0 relative z-10">
+                                <div className="flex flex-col xl:flex-row gap-6 md:gap-10 min-h-0 relative z-10 shrink-0">
                                     {/* Left Side: Result Analysis & Comparison */}
-                                    <div className="flex-1 flex flex-col gap-6">
+                                    <div className="flex-1 flex flex-col gap-6 shrink-0">
                                         {guessResult && (
                                             <>
-                                                <div className="p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-between overflow-hidden relative group">
-                                                    <div className="flex items-center gap-6 relative z-10">
-                                                        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-inner">
-                                                            <Target className="text-emerald-400 w-8 h-8" />
+                                                <div className="p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between overflow-hidden relative group shrink-0">
+                                                    <div className="flex items-center gap-4 sm:gap-6 relative z-10">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-inner shrink-0">
+                                                            <Target className="text-emerald-400 w-6 h-6 sm:w-8 sm:h-8" />
                                                         </div>
                                                         <div>
-                                                            <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
-                                                            <div className="text-white font-black text-3xl italic flex items-center gap-3">
+                                                            <div className="text-white/20 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
+                                                            <div className="text-white font-black text-2xl sm:text-3xl italic flex items-baseline gap-2 sm:gap-3">
                                                                 {Math.round(guessResult.distance)} Maps
-                                                                <span className="text-emerald-500/40 text-[14px] font-bold uppercase tracking-widest">de distance</span>
+                                                                <span className="text-emerald-500/40 text-[10px] sm:text-[14px] font-bold uppercase tracking-widest break-words leading-tight">de distance</span>
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     {/* Progress Track */}
-                                                    <div className="flex-1 max-w-[200px] hidden xl:block">
-                                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden relative">
+                                                    <div className="w-full sm:flex-1 sm:max-w-[200px] mt-2 sm:mt-0 xl:block hidden">
+                                                        <div className="h-2 sm:h-2.5 bg-slate-950 rounded-full overflow-hidden relative border border-white/10">
                                                             <motion.div
                                                                 initial={{ width: "100%" }}
-                                                                animate={{ width: `${Math.max(0, 100 - (guessResult.distance / 20) * 100)}%` }}
-                                                                className="absolute inset-y-0 left-0 bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                                                                animate={{ width: `${Math.max(0, 100 - (guessResult.distance / 100) * 100)}%` }}
+                                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
                                                             />
                                                         </div>
-                                                        <div className="flex justify-between mt-2">
-                                                            <span className="text-[8px] font-black text-white/10 uppercase italic">0 km</span>
-                                                            <span className="text-[8px] font-black text-white/10 uppercase italic">Maximum</span>
+                                                        <div className="flex justify-between mt-1 px-1">
+                                                            <span className="text-[7px] sm:text-[8px] font-black text-emerald-500 uppercase italic opacity-80">Précision Max</span>
+                                                            <span className="text-[7px] sm:text-[8px] font-black text-white/40 uppercase italic">100+ Maps</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-6 flex-1">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 shrink-0">
                                                     {/* Your Choice */}
-                                                    <div className="flex flex-col gap-3 h-full">
+                                                    <div className="flex flex-col gap-2 sm:gap-3 h-full">
                                                         <div className="flex items-center justify-between px-2">
                                                             <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] italic flex items-center gap-2">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -1402,16 +1423,19 @@ export default function InteractiveMapV2({
                                                                 const bestGuess = guessResult?.guess || me?.lastGuess;
                                                                 const mId = bestGuess?.mapId;
                                                                 if (mId) {
+                                                                    const mObj = allMapsById.get(Number(mId));
+                                                                    const sa = subAreasById.get(mObj?.subAreaId);
+                                                                    const saName = sa ? (typeof sa.name === 'string' ? sa.name : sa.name?.fr || sa.name?.en || "") : "";
                                                                     return (
-                                                                        <span className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest italic truncate max-w-[150px]">
-                                                                            {subAreasById.get(allMapsById.get(mId)?.subAreaId)?.name?.fr || 'Zone Inconnue'}
+                                                                        <span className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest italic truncate max-w-[150px]">
+                                                                            {saName ? `${saName} · ` : ""} [{mObj?.x || 0}, {mObj?.y || 0}]
                                                                         </span>
                                                                     );
                                                                 }
                                                                 return null;
                                                             })()}
                                                         </div>
-                                                        <div className="flex-1 bg-slate-900 rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl relative group ring-1 ring-white/5">
+                                                        <div className="flex-1 min-h-[120px] sm:min-h-[200px] bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl relative group ring-1 ring-white/5">
                                                             {(() => {
                                                                 const me = activeSession.participants?.find((p: any) =>
                                                                     String(p.userId) === String(currentUserId) ||
@@ -1460,13 +1484,50 @@ export default function InteractiveMapV2({
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]" />
                                                                 La Solution
                                                             </div>
-                                                            <span className="text-[8px] font-black text-rose-500/30 uppercase tracking-widest italic">
-                                                                {subAreasById.get(allMapsById.get(targetMapId)?.subAreaId)?.name?.fr || 'Cible du Round'}
-                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                {(() => {
+                                                                    const cRound = activeSession.currentRound || 1;
+                                                                    const tId = activeSession.currentMapId || (activeSession.targetMapIds && activeSession.targetMapIds[cRound - 1]);
+                                                                    const targetMapObj = allMapsById.get(Number(tId));
+                                                                    const subArea = targetMapObj ? subAreasById.get(targetMapObj.subAreaId) : null;
+                                                                    const subAreaName = subArea ? (typeof subArea.name === 'string' ? subArea.name : subArea.name?.fr || subArea.name?.en || "") : "Zone Inconnue";
+                                                                    
+                                                                    return (
+                                                                        <>
+                                                                            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest italic bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                                                                                [{targetMapObj?.x || 0}, {targetMapObj?.y || 0}]
+                                                                            </span>
+                                                                            <span className="text-[8px] font-black text-rose-500/60 uppercase tracking-widest italic">
+                                                                                {subAreaName}
+                                                                            </span>
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
                                                         </div>
-                                                        <div className="flex-1 bg-slate-900 rounded-[2rem] border border-rose-500/20 overflow-hidden shadow-2xl relative group ring-1 ring-rose-500/10">
+                                                        <div className="flex-1 min-h-[120px] sm:min-h-[200px] bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] border border-rose-500/20 overflow-hidden shadow-2xl relative group ring-1 ring-rose-500/10">
                                                             {activeSession.state !== 'IN_PROGRESS' ? (
                                                                 <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const cRound = activeSession.currentRound || 1;
+                                                                            const mId = activeSession.currentMapId || (activeSession.targetMapIds && activeSession.targetMapIds[cRound - 1]);
+                                                                            if (socket && mId) {
+                                                                                const numId = Number(mId);
+                                                                                if (reportedMapsRef.current.has(numId)) {
+                                                                                    toast.error("Cette carte a déjà été signalée.");
+                                                                                    return;
+                                                                                }
+                                                                                reportedMapsRef.current.add(numId);
+                                                                                socket.emit('geoguesser:map:report', { mapId: numId });
+                                                                                toast.success("Carte signalée !");
+                                                                            }
+                                                                        }}
+                                                                        className="absolute top-4 right-4 z-[500] flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black uppercase tracking-widest italic text-[9px] border border-rose-400/50 shadow-[0_10px_30px_rgba(244,63,94,0.3)] transition-all active:scale-95 group"
+                                                                    >
+                                                                        <Flag size={12} className="group-hover:rotate-12 transition-transform" />
+                                                                        Signaler cette Map
+                                                                    </button>
                                                                     <img
                                                                         src={`/game-data/hd_maps/${targetMapId}.webp`}
                                                                         className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-700"
@@ -1491,16 +1552,78 @@ export default function InteractiveMapV2({
                                         )}
                                     </div>
 
-                                    {/* Right Side: Leaderboard */}
-                                    <div className="w-full lg:w-[400px] flex flex-col pt-2 lg:pt-0">
-                                        <div className="flex items-center justify-between mb-5 px-4">
-                                            <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
-                                            <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
-                                                {activeSession.participants?.filter((p: any) => !p.isSpectator).length} / 8 JOUEURS
-                                            </div>
-                                        </div>
+                                    {/* Right Side: Leaderboard & Geographic Analysis */}
+                                    <div className="w-full lg:w-[450px] xl:w-[550px] flex flex-col pt-2 lg:pt-0 gap-6">
+                                        {(() => {
+                                            const currentRound = activeSession.currentRound || 1;
+                                            const targetId = activeSession.currentMapId || (activeSession.targetMapIds && activeSession.targetMapIds[currentRound - 1]);
+                                            const targetMap = allMapsById.get(Number(targetId));
+                                            const targetWorldId = targetMap?.worldMap || 1;
+                                            const targetWorld = worldMap.worlds?.find(w => w.id === targetWorldId);
+                                            const worldMaps = worldMap.maps?.filter(m => m.worldMap === targetWorldId) || [];
+                                            
+                                            // Get me for the personal line drawing
+                                            const me = activeSession.participants?.find((p: any) => String(p.userId) === String(currentUserId));
+                                            const myGuess = guessResult?.guess || me?.lastGuess;
 
-                                        <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
+                                            return (
+                                                <div className="h-[350px] xl:h-[450px] shrink-0 bg-slate-900 rounded-[2.5rem] border border-white/10 overflow-hidden relative group shadow-2xl ring-1 ring-white/5">
+                                                    {targetWorld && (
+                                                        <LeafletMapCore
+                                                            activeWorld={targetWorld}
+                                                            selectedWorldId={targetWorldId}
+                                                            activeMaps={worldMaps}
+                                                            mapsByCoords={new Map()} 
+                                                            subAreasById={subAreasById}
+                                                            dungeonsByMapId={dungeonsByMapId}
+                                                            groupedDungeons={[]}
+                                                            showDebugGrid={false}
+                                                            selectedPosition={null}
+                                                            setSelectedPosition={() => {}}
+                                                            setSelectedDungeon={() => {}}
+                                                            isMiniMap={true}
+                                                            guessResult={{ 
+                                                                target: targetMap,
+                                                                guess: myGuess
+                                                            }}
+                                                            participants={activeSession.participants}
+                                                            currentUserId={currentUserId}
+                                                            isSpectator={true}
+                                                            hideUI={true}
+                                                            interactive={false}
+                                                        />
+                                                    )}
+                                                    
+                                                    {/* Legend Overlay for the map */}
+                                                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                                                    <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                        <span className="text-[10px] font-black text-white/50 uppercase italic tracking-widest">Analyse Géographique</span>
+                                                    </div>
+                                                    
+                                                    <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-3">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                                            <span className="text-[8px] font-black text-white/40 uppercase italic">Solution</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="text-[8px] font-black text-white/40 uppercase italic">Ton Choix</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className="flex flex-col flex-1 min-h-0">
+                                            <div className="flex items-center justify-between mb-5 px-4 shrink-0">
+                                                <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
+                                                <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
+                                                    {activeSession.participants?.filter((p: any) => !p.isSpectator).length} / 8 JOUEURS
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                                             {activeSession.participants?.filter((p: any) => !p.isSpectator).sort((a: any, b: any) => (b.lastGuess?.score || 0) - (a.lastGuess?.score || 0)).map((p: any, i: number) => {
                                                 const dist = p.lastGuess?.distance ? Math.round(p.lastGuess.distance) : null;
                                                 const isMe = p.userId === currentUserId;
@@ -1561,6 +1684,7 @@ export default function InteractiveMapV2({
                                         </div>
                                     </div>
                                 </div>
+                            </div>
                             </motion.div>
                         </motion.div>
                     )}

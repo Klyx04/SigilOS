@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -22,9 +23,11 @@ import { Button } from "@/components/ui/button";
 type Props = {
     guildId: string;
     canValidate?: boolean;
+    hasPseudoIssue?: boolean;
+    pseudoDofus?: string | null;
 };
 
-export function LadderClient({ guildId, canValidate }: Props) {
+export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus }: Props) {
     const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
@@ -67,10 +70,15 @@ export function LadderClient({ guildId, canValidate }: Props) {
         loadLadder();
     }, [guildId, activeTab, activityView]);
 
-    const getValueLabel = (entry: LadderEntry): string => {
+    const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
             case "activity":
-                return `${entry.value.toLocaleString()} XP`;
+                return (
+                    <div className="flex items-center gap-1.5 font-black">
+                        <span>{entry.value.toLocaleString()}</span>
+                        <Image src="/PA.png" alt="PA" width={16} height={16} className="object-contain" />
+                    </div>
+                );
             case "contribution":
                 return `${entry.value.toLocaleString()} pts`;
             case "seniority":
@@ -78,90 +86,122 @@ export function LadderClient({ guildId, canValidate }: Props) {
             case "success":
                 return `${entry.value.toLocaleString()} pts`;
             case "general":
-                return `${Number(entry.totalXpBigInt || 0).toLocaleString()} XP`;
+                return (
+                    <div className="flex items-center gap-1.5 font-black">
+                        <span>{Number(entry.totalXpBigInt || 0).toLocaleString()}</span>
+                        <Image src="/PA.png" alt="PA" width={16} height={16} className="object-contain" />
+                    </div>
+                );
             case "guildatons":
-                return `${entry.value.toLocaleString()} 💰`;
+                return (
+                    <div className="flex items-center gap-1.5 font-black">
+                        <span>{entry.value.toLocaleString()}</span>
+                        <Image src="/guildaton.png" alt="G" width={16} height={16} className="object-contain" />
+                    </div>
+                );
             default:
                 return entry.value.toString();
         }
     };
 
     const categories = [
-        { id: "activity", label: "Activité", icon: TrendingUp, color: "#10b981" },
-        { id: "contribution", label: "Contribution", icon: HandHeart, color: "#a855f7" },
-        { id: "seniority", label: "Ancienneté", icon: Clock, color: "#06b6d4" },
-        { id: "success", label: "Succès", icon: Trophy, color: "#f59e0b" },
-        { id: "general", label: "Général", icon: TrendingUp, color: "#3b82f6" },
-        { id: "guildatons", label: "Guildatons", icon: Zap, color: "#eab308" },
+        { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
+        { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
+        { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
+        { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
+        { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
+        { id: "guildatons", label: "Guildatons", icon: "/guildaton.png", isImage: true, color: "#eab308" },
     ] as const;
 
     return (
         <div className="space-y-12">
             {/* Modern Tab Navigation (Glassmorphism 2026) */}
-            <div className="relative sticky top-0 z-50 py-4 -mt-4 bg-black/20 backdrop-blur-xl border-b border-white/5">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center justify-between gap-8">
-                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-[1px]">
-                            {categories.map((cat) => {
-                                const Icon = cat.icon;
-                                const isActive = activeTab === cat.id;
-                                return (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => setActiveTab(cat.id)}
-                                        className={cn(
-                                            "relative z-10 flex items-center gap-2.5 px-6 py-4 border-b-2 transition-all duration-500 group whitespace-nowrap",
-                                            isActive 
-                                              ? "text-white" 
-                                              : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-800"
-                                        )}
-                                        style={isActive ? { borderColor: cat.color } : {}}
-                                    >
-                                        <Icon 
+            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/40 backdrop-blur-3xl border-b border-white/5 shadow-2xl transition-all duration-500">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8">
+                        {/* Tab Container with Scroll Mask */}
+                        <div className="relative flex-1 min-w-0">
+                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mask-horizontal-scroll premium-scrollbar lg:mask-none -mb-[1px] pb-1">
+                                {categories.map((cat) => {
+                                    const isActive = activeTab === cat.id;
+                                    return (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActiveTab(cat.id)}
                                             className={cn(
-                                                "w-4 h-4 transition-all duration-500 group-hover:scale-110", 
-                                                isActive ? "scale-110" : "text-zinc-600"
-                                            )} 
+                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-all duration-500 group whitespace-nowrap",
+                                                isActive 
+                                                  ? "text-white" 
+                                                  : "border-transparent text-zinc-500 hover:text-zinc-300"
+                                            )}
+                                            style={isActive ? { borderColor: cat.color } : {}}
+                                        >
+                                            {cat.isImage ? (
+                                                <div 
+                                                    className={cn(
+                                                        "w-5 h-5 transition-all duration-500 group-hover:scale-110 relative",
+                                                        isActive ? "scale-110" : "opacity-40 grayscale group-hover:opacity-100 group-hover:grayscale-0"
+                                                    )}
+                                                    style={isActive ? { 
+                                                        filter: `drop-shadow(0 0 8px ${cat.color}80)` 
+                                                    } : {}}
+                                                >
+                                                    <Image src={cat.icon as string} fill alt="" className="object-contain" />
+                                                </div>
+                                            ) : (
+                                                <cat.icon 
+                                                    className={cn(
+                                                        "w-4 h-4 transition-all duration-500 group-hover:scale-110", 
+                                                        isActive ? "scale-110" : "text-zinc-600 group-hover:text-zinc-400"
+                                                    )} 
+                                                    style={isActive ? { 
+                                                        color: cat.color,
+                                                        filter: `drop-shadow(0 0 10px ${cat.color}60)` 
+                                                    } : {}}
+                                                />
+                                            )}
+                                            <span className={cn(
+                                                "text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500",
+                                                isActive ? "opacity-100" : "group-hover:text-white"
+                                            )}
                                             style={isActive ? { 
                                                 color: cat.color,
-                                                filter: `drop-shadow(0 0 8px ${cat.color}80)` 
+                                                textShadow: `0 0 20px ${cat.color}40`
                                             } : {}}
-                                        />
-                                        <span className={cn(
-                                            "text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500",
-                                            isActive ? "opacity-100" : "group-hover:text-white"
-                                        )}
-                                        style={isActive ? { 
-                                            color: cat.color,
-                                            textShadow: `0 0 15px ${cat.color}40`
-                                        } : {}}
-                                        >
-                                            {cat.label}
-                                        </span>
+                                            >
+                                                {cat.label}
+                                            </span>
 
-                                        {/* Active Background Glow */}
-                                        {isActive && (
-                                            <div 
-                                                className="absolute inset-0 -z-10 opacity-20 blur-xl animate-pulse"
-                                                style={{ background: `radial-gradient(circle, ${cat.color} 0%, transparent 70%)` }}
-                                            />
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                            {/* Active Hover Background */}
+                                            {isActive && (
+                                                <div 
+                                                    className="absolute inset-0 -z-10 opacity-30 blur-2xl animate-pulse"
+                                                    style={{ background: `radial-gradient(circle, ${cat.color} 0%, transparent 80%)` }}
+                                                />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
+                        {/* Period Selector - Full width on mobile */}
                         {activeTab === "activity" && (
-                            <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                <SelectTrigger className="w-[200px] h-11 bg-white/[0.02] border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.05] transition-all">
-                                    <SelectValue placeholder="Période" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-zinc-950/95 backdrop-blur-2xl border-white/10">
-                                    <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest">📅 Cette semaine</SelectItem>
-                                    <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest">📅 Ce mois-ci</SelectItem>
-                                    <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest text-amber-400">🏆 Global (All-Time)</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="w-full md:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
+                                <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
+                                    <SelectTrigger className="w-full md:w-[220px] h-10 sm:h-11 bg-white/[0.03] border-white/5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                                            <SelectValue placeholder="Période" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
+                                        <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Cette semaine</SelectItem>
+                                        <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Ce mois-ci</SelectItem>
+                                        <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-500">🏆 Global (All-Time)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -181,12 +221,21 @@ export function LadderClient({ guildId, canValidate }: Props) {
                             style={{ backgroundColor: `${categories.find(c => c.id === activeTab)?.color}15` }}
                         >
                             {(() => {
-                                const Icon = categories.find(c => c.id === activeTab)?.icon || Trophy;
-                                return <Icon className="w-8 h-8" style={{ color: categories.find(c => c.id === activeTab)?.color }} />;
+                                const cat = categories.find(c => c.id === activeTab);
+                                if (!cat) return <Trophy className="w-8 h-8" />;
+                                if (cat.isImage) {
+                                    return (
+                                        <div className="relative w-8 h-8">
+                                            <Image src={cat.icon as string} fill alt="" className="object-contain" />
+                                        </div>
+                                    );
+                                }
+                                const Icon = cat.icon as any;
+                                return <Icon className="w-8 h-8" style={{ color: cat.color }} />;
                             })()}
                         </div>
                         
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex-1">
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase">
                                 {categories.find(c => c.id === activeTab)?.label}
                             </h2>
@@ -198,6 +247,17 @@ export function LadderClient({ guildId, canValidate }: Props) {
                                 {activeTab === 'general' && "L'expérience totale (XP) accumulée par votre personnage sur Dofus. Une mesure brute de puissance et de temps passé à parcourir le Monde des Douze."}
                                 {activeTab === 'guildatons' && "La richesse monétaire interne de la guilde. Le Guildaton est la monnaie virtuelle utilisée pour les échanges, les récompenses et la boutique exclusive."}
                             </p>
+                            
+                            {(activeTab === 'success' || activeTab === 'general') && hasPseudoIssue && (
+                                <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-medium flex items-center gap-3 animate-in fade-in slide-in-from-left-4">
+                                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                                    <span>
+                                        Vous n'apparaissez peut-être pas dans ce classement car votre 
+                                        <strong> pseudo Dofus</strong> {!pseudoDofus ? "n'est pas renseigné" : `("${pseudoDofus}") est invalide`}.
+                                        Rendez-vous sur <Link href={`/dashboard/${guildId}/profile`} className="underline font-black hover:text-amber-400">votre profil</Link> pour le corriger.
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

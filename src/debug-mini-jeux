@@ -1,0 +1,24 @@
+bugs et amélio mini jeux : 
+
+SIGIL PHONE : 
+Obliger de dézoomer pour voir les résultats finaux, ca ne scroll pas tout seul - pb de cadrage du mini jeu
+Premier dessin : tout le monde dessine sa propre phrase (on ne devrait pas)
+Chargement infini du dessin lorsqu'il faut donner une phrase descriptive
+Impossible de dessiner sur la phase 2
+45 secondes un peu short pour les dessins peut-être doubler ou tripler
+
+SIGIL DRAW : 
+On ne voit pas la personne dessiné
+L'indice qui montre la photo est trop facile, à enlever
+Cacher les réponses juste lorsque qqun trouve
+les pnjs sont a enlevés du jeu (impossible a reconnaitre)
+peut etre mettre des mots obligatoires a placer
+
+SIGIL GUESSER
+Les Map tactique compliqué quand elles apparaissent, 
+la réponse ne donne pas les coordonnées de la map
+SOLUTION AU PB MAP TACTIQUE : permettre aux joueurs (nous) de signaler les maps pour qu'elles soient retirer au fur et a mesure
+Pout SIGIL GUESSER : pouvoir voir ou on est placé par rapport à la solution : tirer un trait
+
+
+Ajoute des effets de particules d'ambiance dans les jeux draw et phone

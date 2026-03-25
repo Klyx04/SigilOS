@@ -13,6 +13,9 @@ interface PlatformConfigPanelProps {
         id: string;
         hubChannelId: string | null;
         serviceStatusChannelId: string | null;
+        godNotifyChannelId: string | null;
+        godNotifyRoleId: string | null;
+        godNotifyWebEnabled: boolean;
         ticketAutoRoleId: string | null;
         ticketSupportGuildId: string | null;
         statusIsLite: boolean;
@@ -30,6 +33,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
     const [formData, setFormData] = useState({
         hubChannelId: config?.hubChannelId || "",
         serviceStatusChannelId: config?.serviceStatusChannelId || "",
+        godNotifyChannelId: config?.godNotifyChannelId || "",
+        godNotifyRoleId: config?.godNotifyRoleId || "",
+        godNotifyWebEnabled: config?.godNotifyWebEnabled !== undefined ? config?.godNotifyWebEnabled : true,
         ticketAutoRoleId: config?.ticketAutoRoleId || "",
         ticketSupportGuildId: config?.ticketSupportGuildId || "",
         statusIsLite: config?.statusIsLite || false,
@@ -221,6 +227,55 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                      </div>
                 </div>
 
+                 {/* Section God Notifications */}
+                <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5" /> Notifications Administrateur (PINGS)
+                    </h4>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Canal Notifications God (Discord)</label>
+                            <input 
+                                type="text"
+                                value={formData.godNotifyChannelId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyChannelId: e.target.value }))}
+                                placeholder="ID du salon pour les notifs Platform..."
+                                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Rôle à Pinger (Optionnel)</label>
+                            <input 
+                                type="text"
+                                value={formData.godNotifyRoleId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyRoleId: e.target.value }))}
+                                placeholder="ID du rôle (ex: 123456789...)"
+                                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl group/toggle mt-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">Notifications Web (God Dashboard)</label>
+                                <p className="text-[10px] text-zinc-600 font-medium leading-relaxed">Affiche les alertes en temps réel sur l'interface d'administration.</p>
+                            </div>
+                            <Select 
+                                value={formData.godNotifyWebEnabled ? "ENABLED" : "DISABLED"} 
+                                onValueChange={(val) => setFormData(prev => ({ ...prev, godNotifyWebEnabled: val === "ENABLED" }))}
+                            >
+                                <SelectTrigger className="w-32 bg-black/40 border-white/5 rounded-xl text-zinc-400 h-10 hover:border-indigo-500/30 transition-all">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    <SelectItem value="ENABLED">🛡️ Activé</SelectItem>
+                                    <SelectItem value="DISABLED">🔓 Désactivé</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Section Ticket System */}
                 <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-2">
@@ -237,7 +292,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
                                     <SelectValue placeholder="Choisir le serveur..." />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent side="top">
                                     {availableGuilds.map(g => (
                                         <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                                     ))}
@@ -254,7 +309,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
                                     <SelectValue placeholder="Choisir le rôle par défaut..." />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent side="top">
                                     <SelectItem value="SKIP">Aucun (Manuel uniquement)</SelectItem>
                                     {availableRoles.map(r => (
                                         <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>

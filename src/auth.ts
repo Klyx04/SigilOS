@@ -18,6 +18,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: PrismaAdapter(prisma),
     callbacks: {
         ...authConfig.callbacks,
+        async signIn({ user, account, profile }) {
+            if (account?.provider === "discord") {
+                const discordId = account.providerAccountId;
+
+                // 1. Check SuperAdmin bypass
+                const superAdminIds = (process.env.SUPER_ADMIN_IDS || "")
+                    .split(",")
+                    .map(id => id.trim())
+                    .filter(Boolean);
+                if (discordId && superAdminIds.includes(discordId)) return true;
+
+                // 2. Fetch User Guilds from Discord API
+                try {
+                    const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+                        headers: { Authorization: `Bearer ${account.access_token}` }
+                    });
+                    if (!res.ok) {
+                        console.error("[Auth Security] Failed to fetch user guilds from Discord:", res.status);
+                        // If rate limited or error, we might want to either block or allow.
+                        // Better block for security if we can't verify membership.
+                        return false;
+                    }
+                    const userGuilds = await res.json() as { id: string }[];
+                    const userGuildIds = userGuilds.map(g => g.id);
+
+                    // 3. Check if any guild is registered in SigilOS
+                    const registeredCount = await prisma.guildConfig.count({
+                        where: { discordGuildId: { in: userGuildIds } }
+                    });
+
+                    if (registeredCount > 0) return true;
+
+                    // 4. Fallback search in AllowedGuild (whitelist) 
+                    // To allow owners of new guilds to sign in before the bot is added
+                    const allowedCount = await prisma.allowedGuild.count({
+                        where: { discordGuildId: { in: userGuildIds }, isActive: true }
+                    });
+
+                    if (allowedCount > 0) return true;
+
+                    console.warn(`[Auth Security] Blocked sign-in for user ${discordId}: Not a member of any managed guild.`);
+                    return "/auth/error?error=NoManagedGuild"; // Redirect to specific error page
+                } catch (e) {
+                    console.error("[Auth Security] Critical error during sign-in check:", e);
+                    return false;
+                }
+            }
+            return true;
+        },
         // SECURITY FIX: Validate callbackUrl to prevent Open Redirect (Google Safe Browsing flag)
         async redirect({ url, baseUrl }) {
             // Allow relative URLs (e.g. /dashboard/...)

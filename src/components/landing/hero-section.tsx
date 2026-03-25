@@ -53,12 +53,11 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                     </span>
                 </motion.div>
 
-                {/* Hero Title */}
                 <motion.h1
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.4 }}
-                    className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white font-heading leading-[1.05]"
+                    className="text-[clamp(2.25rem,10vw,5rem)] font-black tracking-tighter text-white font-heading leading-[0.95] md:leading-[1.05]"
                 >
                     {user ? (
                         <span>

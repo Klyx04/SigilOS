@@ -25,6 +25,13 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
     const entries = album.entries || [];
 
     const [visibleCount, setVisibleCount] = useState(0);
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [visibleCount]);
 
     useEffect(() => {
         setVisibleCount(0);
@@ -136,7 +143,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                         <div className="h-1.5 w-16 bg-[#2ed573] mx-auto rounded-full mt-1" />
                     </div>
 
-                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar shadow-2xl relative">
+                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar shadow-2xl relative" ref={scrollRef}>
                         {entries.slice(0, visibleCount).map((entry, idx) => {
                             const author = typeof entry.author === "string" ? entry.author : (entry.author as any)?.username || "?";
                             const isOdd = idx % 2 !== 0; // Drawing is usually odd indices if we start with text

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, Trophy, Target } from 'lucide-react';
+import { Clock, Trophy, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeoguesserHUDProps {
@@ -11,9 +11,10 @@ interface GeoguesserHUDProps {
     score: number;
     gamePhase: 'playing' | 'result' | 'summary';
     spectators?: any[];
+    onReportMap?: () => void;
 }
 
-export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gamePhase, spectators = [] }: GeoguesserHUDProps) {
+export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gamePhase, spectators = [], onReportMap }: GeoguesserHUDProps) {
     return (
         <div className="flex items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-top-10 duration-700 pointer-events-auto">
             {/* Spectators - Floating on the left */}
@@ -70,6 +71,8 @@ export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gameP
                     <span className="text-white font-black text-lg sm:text-xl italic tracking-tighter leading-none">{score}</span>
                 </div>
             </div>
+
+            {/* Report Button removed from playing phase per user request. Available in result phase only. */}
         </div>
     );
 }

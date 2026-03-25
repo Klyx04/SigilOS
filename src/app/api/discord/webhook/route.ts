@@ -82,6 +82,29 @@ async function handleGuildCreate(guildId: string, guildName: string) {
             notes: "Auto-added via webhook (bot invited)"
         }
     });
+
+    // --- NEW: Send Welcome Embed to the Guild ---
+    try {
+        const { sendGuildWelcomeEmbed, fetchGuild } = await import("@/server/discord");
+        const guild = await fetchGuild(guildId) as any;
+        
+        // Try system channel first, then general-ish channels
+        const targetChannelId = guild.system_channel_id;
+        
+        if (targetChannelId) {
+            await sendGuildWelcomeEmbed(targetChannelId, guildName);
+        } else {
+            // Fallback: Find the first text channel the bot can write to
+            const { fetchGuildChannels } = await import("@/server/discord");
+            const channels = await fetchGuildChannels(guildId);
+            const firstTextChannel = channels.find(c => c.type === 0); // 0 = GUILD_TEXT
+            if (firstTextChannel) {
+                await sendGuildWelcomeEmbed(firstTextChannel.id, guildName);
+            }
+        }
+    } catch (err) {
+        console.error("[handleGuildCreate] Failed to send welcome embed:", err);
+    }
 }
 
 // Soft-delete a guild when bot is removed
@@ -180,12 +203,12 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
                 guildId: guild.id,
                 actorUserId: "SYSTEM",
                 actorName: "Discord Webhook",
-                action: "WEBHOOK_MEMBER_REMOVE",
+                action: "PLATFORM_DEPARTURE", // Platform-wide departure log
                 targetType: "PROFILE",
                 targetId: userId,
                 oldValue: { status: "ACTIVE" },
                 newValue: { status: "ARCHIVED", archiveReason: reason },
-                metadata: { discordUserId: userId, reason }
+                metadata: { discordUserId: userId, reason, originalAction: "WEBHOOK_MEMBER_REMOVE" }
             }
         });
     }

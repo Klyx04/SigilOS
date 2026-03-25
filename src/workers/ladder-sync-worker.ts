@@ -336,12 +336,31 @@ const ladderSyncWorker = new Worker(
     }
 );
 
-ladderSyncWorker.on("completed", (job) => {
+ladderSyncWorker.on("completed", async (job) => {
     logger.info(`[LadderSync] ✅ Job ${job.id} terminé.`);
+
+    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    await notifyGod({
+        title: "Ladder Background Sync Réussie",
+        message: `La synchronisation périodique du ladder s'est terminée avec succès.`,
+        type: "WORKER_SYNC",
+        success: true,
+        metadata: { jobId: job.id, timestamp: new Date().toISOString() }
+    });
 });
 
-ladderSyncWorker.on("failed", (job, err) => {
+ladderSyncWorker.on("failed", async (job, err) => {
     logger.error(`[LadderSync] ❌ Job ${job?.id} a échoué: ${err.message}`);
+
+    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    await notifyGod({
+        title: "Ladder Background Sync ÉCHOUÉE",
+        message: `Le job de synchronisation ladder ${job?.id} a échoué : ${err.message}`,
+        type: "WORKER_SYNC",
+        success: false,
+        ping: true,
+        metadata: { jobId: job?.id, error: err.message }
+    });
 });
 
 // ─── Exports ──────────────────────────────────────────────────────────────────

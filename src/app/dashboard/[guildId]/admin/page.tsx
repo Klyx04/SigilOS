@@ -200,6 +200,14 @@ export default async function AdminPage({
             />
 
             {sections.map((section) => {
+                const visibleCards = section.cards.filter(card => {
+                    if (user.isSuperAdmin) return true;
+                    if (typeof card.permission === 'function') return card.permission(user);
+                    return user.isAdmin;
+                });
+
+                if (visibleCards.length === 0) return null;
+
                 const SectionIcon = section.icon;
                 return (
                     <div key={section.label} className="space-y-4">
@@ -215,11 +223,7 @@ export default async function AdminPage({
 
                         {/* Cards grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {section.cards.filter(card => {
-                                if (user.isSuperAdmin) return true;
-                                if (typeof card.permission === 'function') return card.permission(user);
-                                return user.isAdmin;
-                            }).map((card) => {
+                            {visibleCards.map((card) => {
                                 const Icon = card.icon;
                                 const a = ACCENT[card.accent] ?? ACCENT.slate;
                                 return (

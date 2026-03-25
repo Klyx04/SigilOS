@@ -13,6 +13,7 @@ export class WorldMapService {
     private static instance: WorldMapService;
     private maps = new Map<number, MapData>();
     private playableMaps: MapData[] = [];
+    private blacklist = new Set<number>();
     private isLoaded = false;
 
     private constructor() {}
@@ -108,6 +109,12 @@ export class WorldMapService {
 
     public getRandomMaps(count: number, mode: 'NORMAL' | 'SPECIAL' = 'NORMAL'): number[] {
         let filtered = this.playableMaps;
+        
+        // Apply blacklist filtering
+        if (this.blacklist.size > 0) {
+            filtered = filtered.filter(m => !this.blacklist.has(m.id));
+        }
+
         if (mode === 'NORMAL') {
             // Normal mode is World of Twelve (Amakna)
             filtered = filtered.filter(m => m.worldMap === 1);
@@ -155,5 +162,10 @@ export class WorldMapService {
         }
 
         return { distance, score };
+    }
+
+    public setBlacklist(ids: number[]) {
+        this.blacklist = new Set(ids);
+        console.log(`[WorldMapService] 🚫 Blacklist updated with ${ids.length} maps.`);
     }
 }

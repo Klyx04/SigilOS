@@ -70,7 +70,9 @@ function NewsActions({
     broadcasting: boolean;
     variant?: "default" | "minimal"
 }) {
+    // Only show to admins if enabled, or if SuperAdmin
     if (!userCtx?.isAdmin) return null;
+    if (!userCtx.newsBroadcastEnabled && !userCtx.isSuperAdmin) return null;
 
     const isSending = sending === item.link;
 

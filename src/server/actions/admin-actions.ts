@@ -189,42 +189,11 @@ export async function updateAbsenceChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateAbsenceChannel");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
-        // Security: Verify user is admin of this guild
-        const account = await db.account.findFirst({
-            where: { userId: session.user.id, provider: "discord" },
-            select: { providerAccountId: true }
-        });
-
-        if (!account) return { success: false, error: "No Discord account linked" };
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        // Check admin permission
-        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-        const member = await fetchGuildMember(guildId, account.providerAccountId);
-
-        if (!member) return { success: false, error: "Not a member of this guild" };
-
-        let isAdmin = guildInfo.owner_id === account.providerAccountId;
-
-        if (!isAdmin) {
-            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
-            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
-            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-        }
-
-        if (!isAdmin) {
-            return { success: false, error: "Permission refusée: Admin requis" };
-        }
-
         // SECURITY: Validate channel belongs to this guild (if provided)
         if (channelId) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -234,7 +203,6 @@ export async function updateAbsenceChannel(
             }
         }
 
-        // Update channel ID
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { absenceChannelId: channelId }
@@ -280,40 +248,11 @@ export async function updateOcreChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateOcreChannel");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
-        const account = await db.account.findFirst({
-            where: { userId: session.user.id, provider: "discord" },
-            select: { providerAccountId: true }
-        });
-
-        if (!account) return { success: false, error: "No Discord account linked" };
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-        const member = await fetchGuildMember(guildId, account.providerAccountId);
-
-        if (!member) return { success: false, error: "Not a member of this guild" };
-
-        let isAdmin = guildInfo.owner_id === account.providerAccountId;
-
-        if (!isAdmin) {
-            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
-            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
-            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-        }
-
-        if (!isAdmin) {
-            return { success: false, error: "Permission refusée: Admin requis" };
-        }
-
         if (channelId) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
             const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
@@ -327,8 +266,7 @@ export async function updateOcreChannel(
             data: { ocreNotifyChannelId: channelId } as any
         });
 
-        const { revalidatePath } = await import("next/cache");
-        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/admin/quete-ocre`);
         return { success: true };
     } catch (error) {
         console.error("Update Ocre Channel Error:", error);
@@ -368,42 +306,11 @@ export async function updateSongesChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateSongesChannel");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
-        // Security: Verify user is admin of this guild
-        const account = await db.account.findFirst({
-            where: { userId: session.user.id, provider: "discord" },
-            select: { providerAccountId: true }
-        });
-
-        if (!account) return { success: false, error: "No Discord account linked" };
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        // Check admin permission
-        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-        const member = await fetchGuildMember(guildId, account.providerAccountId);
-
-        if (!member) return { success: false, error: "Not a member of this guild" };
-
-        let isAdmin = guildInfo.owner_id === account.providerAccountId;
-
-        if (!isAdmin) {
-            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
-            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
-            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-        }
-
-        if (!isAdmin) {
-            return { success: false, error: "Permission refusée: Admin requis" };
-        }
-
         // SECURITY: Validate channel belongs to this guild (if provided)
         if (channelId) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -413,7 +320,6 @@ export async function updateSongesChannel(
             }
         }
 
-        // Update channel ID
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { songesNotifyChannelId: channelId }
@@ -459,42 +365,11 @@ export async function updateCalendarChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateCalendarChannel");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
-        // Security: Verify user is admin of this guild
-        const account = await db.account.findFirst({
-            where: { userId: session.user.id, provider: "discord" },
-            select: { providerAccountId: true }
-        });
-
-        if (!account) return { success: false, error: "No Discord account linked" };
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        // Check admin permission
-        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const guildInfo = await fetchGuild(guildId);
-        const member = await fetchGuildMember(guildId, account.providerAccountId);
-
-        if (!member) return { success: false, error: "Not a member of this guild" };
-
-        let isAdmin = guildInfo.owner_id === account.providerAccountId;
-
-        if (!isAdmin) {
-            const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
-            const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
-            isAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-        }
-
-        if (!isAdmin) {
-            return { success: false, error: "Permission refusée: Admin requis" };
-        }
-
         // Validate channel ID format (18-19 digits)
         if (channelId && !/^\d{17,19}$/.test(channelId)) {
             return { success: false, error: "Format d'ID invalide" };
@@ -509,7 +384,6 @@ export async function updateCalendarChannel(
             }
         }
 
-        // Update channel ID
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { calendarNotifyChannelId: channelId }
@@ -686,6 +560,9 @@ export async function getMissionConfig(guildId: string): Promise<{
         kamaNotifyRoleId: string | null;
         achievementNotifyChannelId: string | null;
         achievementNotifyRoleId: string | null;
+        missionManagementNotifyChannelId: string | null;
+        missionManagementNotifyRoleId: string | null;
+        newsBroadcastEnabled: boolean;
     }
 }> {
     const session = await auth();
@@ -704,8 +581,13 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionValidationChannelId: true,
                 missionValidationNotifyRoleId: true,
                 kamaNotifyChannelId: true,
+                kamaNotifyRoleId: true,
                 achievementNotifyChannelId: true,
-            } as Record<string, true>
+                achievementNotifyRoleId: true,
+                missionManagementNotifyChannelId: true,
+                missionManagementNotifyRoleId: true,
+                newsBroadcastEnabled: true,
+            }
         }) as {
             missionNotifyChannelId: string | null;
             missionNotifyRoleId: string | null;
@@ -715,6 +597,9 @@ export async function getMissionConfig(guildId: string): Promise<{
             kamaNotifyRoleId: string | null;
             achievementNotifyChannelId: string | null;
             achievementNotifyRoleId: string | null;
+            missionManagementNotifyChannelId: string | null;
+            missionManagementNotifyRoleId: string | null;
+            newsBroadcastEnabled: boolean;
         } | null;
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -730,6 +615,9 @@ export async function getMissionConfig(guildId: string): Promise<{
                 kamaNotifyRoleId: config.kamaNotifyRoleId ?? null,
                 achievementNotifyChannelId: config.achievementNotifyChannelId,
                 achievementNotifyRoleId: config.achievementNotifyRoleId ?? null,
+                missionManagementNotifyChannelId: config.missionManagementNotifyChannelId ?? null,
+                missionManagementNotifyRoleId: config.missionManagementNotifyRoleId ?? null,
+                newsBroadcastEnabled: config.newsBroadcastEnabled,
             }
         };
     } catch (error) {
@@ -749,6 +637,9 @@ export async function updateMissionNotifySettings(
         kamaNotifyRoleId?: string | null;
         achievementNotifyChannelId?: string | null;
         achievementNotifyRoleId?: string | null;
+        missionManagementNotifyChannelId?: string | null;
+        missionManagementNotifyRoleId?: string | null;
+        newsBroadcastEnabled?: boolean;
     }
 ): Promise<ActionResponse> {
     const session = await auth();
@@ -760,7 +651,13 @@ export async function updateMissionNotifySettings(
 
     try {
         // SECURITY: Validate channels (if provided)
-        const channelsToValidate = [data.channelId, data.validationChannelId, data.kamaNotifyChannelId, data.achievementNotifyChannelId].filter(Boolean) as string[];
+        const channelsToValidate = [
+            data.channelId, 
+            data.validationChannelId, 
+            data.kamaNotifyChannelId, 
+            data.achievementNotifyChannelId,
+            data.missionManagementNotifyChannelId
+        ].filter(Boolean) as string[];
 
         if (channelsToValidate.length > 0) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -783,7 +680,10 @@ export async function updateMissionNotifySettings(
                 kamaNotifyRoleId: data.kamaNotifyRoleId,
                 achievementNotifyChannelId: data.achievementNotifyChannelId,
                 achievementNotifyRoleId: data.achievementNotifyRoleId,
-            } as Record<string, string | null | undefined>
+                missionManagementNotifyChannelId: data.missionManagementNotifyChannelId,
+                missionManagementNotifyRoleId: data.missionManagementNotifyRoleId,
+                newsBroadcastEnabled: data.newsBroadcastEnabled,
+            } as Record<string, string | null | undefined | boolean>
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);

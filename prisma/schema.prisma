@@ -104,10 +104,26 @@ model PlatformConfig {
   ticketSupportGuildId   String?
   roadmapEnabled         Boolean  @default(false)
   statusIsLite           Boolean  @default(false)
-  statusMode             String   @default("living") // 'living' | 'notification'
-  statusMention          String   @default("none")    // 'none' | '@everyone' | '@here'
-  statusFrequency        Int      @default(15)      // minutes
+  statusMode             String   @default("living")
+  statusFrequency        Int      @default(15)
+  statusMention          String   @default("none")
   nsfwFilterEnabled      Boolean  @default(true)
+  geoguesserBlacklist    Int[]    @default([])
+  geoguesserReportedMaps Int[]    @default([])
+  godNotifyChannelId     String?
+  godNotifyRoleId        String?
+  godNotifyWebEnabled    Boolean  @default(true)
+}
+
+model GodNotification {
+  id        String        @id @default(cuid())
+  title     String
+  message   String
+  type      GodNotifyType
+  success   Boolean       @default(true)
+  metadata  Json?
+  isRead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
 }
 
 model RoadmapItem {
@@ -133,100 +149,103 @@ model MiniGameStatus {
 }
 
 model GuildConfig {
-  id                            String                  @id @default(cuid())
-  discordGuildId                String                  @unique
-  name                          String
-  iconUrl                       String?
-  isActive                      Boolean                 @default(true)
-  rolesMapping                  Json                    @default("{}")
-  createdAt                     DateTime                @default(now())
-  updatedAt                     DateTime                @updatedAt
-  absenceChannelId              String?
-  calendarNotifyChannelId       String?
-  dofusServerId                 String?
-  dofusServerName               String?
-  presentationActivities        Json?
-  presentationBannerType        String?                 @default("discord")
-  presentationBannerUrl         String?
-  presentationCoLeaders         Json?
-  presentationDiscord           String?
-  presentationDiscordReq        Boolean                 @default(false)
-  presentationEnabled           Boolean                 @default(false)
-  presentationFoundedDate       DateTime?
-  presentationFounder           String?
-  presentationHistory           String?
-  presentationMinLevel          Int?
-  presentationMinSuccesses      Int?
-  presentationPhotoUrl          String?
-  presentationRecruitReq        String?
-  presentationRecruiting        Boolean                 @default(false)
-  presentationServer            String?
-  presentationTeam              Json?
-  songesNotifyChannelId         String?
-  missionRanks                  Json?
-  missionTier                   Int?                    @default(3)
-  bonusNotifyChannelId          String?
-  deletedAt                     DateTime?
-  deletionReason                String?
-  scheduledDeletion             DateTime?
-  maxMembers                    Int                     @default(350)
-  ownerId                       String?
-  missionNotifyChannelId        String?
-  missionNotifyRoleId           String?
-  pollsNotifyChannelId          String?
-  pollsNotifyRoleId             String?
-  ocreNotifyChannelId           String?
-  djNotifyChannelId             String?
-  servicesNotifyChannelId       String?
-  loansNotifyChannelId          String?
-  systemNotifyChannelId         String?
-  welcomeEnabled                Boolean                 @default(false)
-  welcomeNotifyChannelId        String?
-  welcomeDashboardEnabled       Boolean                 @default(true)
-  welcomeDiscordEnabled         Boolean                 @default(false)
-  welcomeMessageTemplate        String?
-  welcomeMentionRoleId          String?
-  missionValidationChannelId    String?
-  missionValidationNotifyRoleId String?
-  welcomeBadgeName              String                  @default("Nouveau")
-  welcomeDiscordMessageTemplate String?
-  chatBlocklist                 Json                    @default("[]")
-  chatMotd                      String?
-  chatMentionRules              Json                    @default("{}")
-  missionWeekXpOverride         Int?
-  kamaNotifyChannelId           String?
-  achievementNotifyChannelId    String?
-  achievementNotifyRoleId       String?
-  kamaNotifyRoleId              String?
-  usersMapping                  Json                    @default("{}")
-  serviceLoansEnabled           Boolean                 @default(true)
-  serviceLoansMessage           String?
-  serviceMarketplaceEnabled     Boolean                 @default(true)
-  serviceMarketplaceMessage     String?
-  serviceVaultEnabled           Boolean                 @default(true)
-  serviceVaultMessage           String?
-  achievementSubmissions        AchievementSubmission[]
-  auditLogs                     AuditLog[]
-  contentCreators               ContentCreator[]
-  djSearchPosts                 DjSearchPost[]
-  garticRooms                   GarticRoom[]
-  guildActivities               GuildActivity[]
-  guildBonuses                  GuildBonus[]
-  guildEvents                   GuildEvent[]
-  guildLoans                    GuildLoan[]
-  modules                       GuildModules?
-  kamaDonations                 KamaDonation[]
-  welcomePosts                  MemberWelcome[]
-  missions                      Mission[]
-  ocreTradeRequests             OcreTradeRequest[]
-  polls                         Poll[]
-  relances                      Relance[]
-  resourceCategories            ResourceCategory[]
-  serviceActivityLogs           ServiceActivityLog[]
-  serviceListings               ServiceListing[]
-  sigilRoles                    SigilRole[]
-  profiles                      UserProfile[]
-  vaultEntries                  VaultEntry[]
+  id                               String                  @id @default(cuid())
+  discordGuildId                   String                  @unique
+  name                             String
+  iconUrl                          String?
+  isActive                         Boolean                 @default(true)
+  rolesMapping                     Json                    @default("{}")
+  createdAt                        DateTime                @default(now())
+  updatedAt                        DateTime                @updatedAt
+  absenceChannelId                 String?
+  calendarNotifyChannelId          String?
+  dofusServerId                    String?
+  dofusServerName                  String?
+  presentationActivities           Json?
+  presentationBannerType           String?                 @default("discord")
+  presentationBannerUrl            String?
+  presentationCoLeaders            Json?
+  presentationDiscord              String?
+  presentationDiscordReq           Boolean                 @default(false)
+  presentationEnabled              Boolean                 @default(false)
+  presentationFoundedDate          DateTime?
+  presentationFounder              String?
+  presentationHistory              String?
+  presentationMinLevel             Int?
+  presentationMinSuccesses         Int?
+  presentationPhotoUrl             String?
+  presentationRecruitReq           String?
+  presentationRecruiting           Boolean                 @default(false)
+  presentationServer               String?
+  presentationTeam                 Json?
+  songesNotifyChannelId            String?
+  missionRanks                     Json?
+  missionTier                      Int?                    @default(3)
+  bonusNotifyChannelId             String?
+  deletedAt                        DateTime?
+  deletionReason                   String?
+  scheduledDeletion                DateTime?
+  maxMembers                       Int                     @default(350)
+  ownerId                          String?
+  missionNotifyChannelId           String?
+  missionNotifyRoleId              String?
+  pollsNotifyChannelId             String?
+  pollsNotifyRoleId                String?
+  ocreNotifyChannelId              String?
+  djNotifyChannelId                String?
+  servicesNotifyChannelId          String?
+  loansNotifyChannelId             String?
+  systemNotifyChannelId            String?
+  newsBroadcastEnabled             Boolean                 @default(false)
+  welcomeEnabled                   Boolean                 @default(false)
+  welcomeNotifyChannelId           String?
+  welcomeDashboardEnabled          Boolean                 @default(true)
+  welcomeDiscordEnabled            Boolean                 @default(false)
+  welcomeMessageTemplate           String?
+  welcomeMentionRoleId             String?
+  missionValidationChannelId       String?
+  missionValidationNotifyRoleId    String?
+  welcomeBadgeName                 String                  @default("Nouveau")
+  welcomeDiscordMessageTemplate    String?
+  chatBlocklist                    Json                    @default("[]")
+  chatMotd                         String?
+  chatMentionRules                 Json                    @default("{}")
+  missionWeekXpOverride            Int?
+  kamaNotifyChannelId              String?
+  achievementNotifyChannelId       String?
+  achievementNotifyRoleId          String?
+  kamaNotifyRoleId                 String?
+  usersMapping                     Json                    @default("{}")
+  serviceLoansEnabled              Boolean                 @default(true)
+  serviceLoansMessage              String?
+  serviceMarketplaceEnabled        Boolean                 @default(true)
+  serviceMarketplaceMessage        String?
+  serviceVaultEnabled              Boolean                 @default(true)
+  serviceVaultMessage              String?
+  missionManagementNotifyChannelId String?
+  missionManagementNotifyRoleId    String?
+  achievementSubmissions           AchievementSubmission[]
+  auditLogs                        AuditLog[]
+  contentCreators                  ContentCreator[]
+  djSearchPosts                    DjSearchPost[]
+  garticRooms                      GarticRoom[]
+  guildActivities                  GuildActivity[]
+  guildBonuses                     GuildBonus[]
+  guildEvents                      GuildEvent[]
+  guildLoans                       GuildLoan[]
+  modules                          GuildModules?
+  kamaDonations                    KamaDonation[]
+  welcomePosts                     MemberWelcome[]
+  missions                         Mission[]
+  ocreTradeRequests                OcreTradeRequest[]
+  polls                            Poll[]
+  relances                         Relance[]
+  resourceCategories               ResourceCategory[]
+  serviceActivityLogs              ServiceActivityLog[]
+  serviceListings                  ServiceListing[]
+  sigilRoles                       SigilRole[]
+  profiles                         UserProfile[]
+  vaultEntries                     VaultEntry[]
 }
 
 model GuildModules {
@@ -313,7 +332,6 @@ model UserProfile {
   discordNickname         String?
   discordRoleColor        Int?
   discordRoleName         String?
-  ankamaId                String?
   dofusBookLinks          Json?
   dofusPseudo             String?
   entraidePoints          Int                      @default(0)
@@ -329,8 +347,6 @@ model UserProfile {
   metamobPseudo           String?
   metamobVerified         Boolean                  @default(false)
   successPoints           Int?                     @default(0)
-  totalXp                 BigInt?                  @default(0)
-  dofusLevel              Int?                     @default(0)
   vacationEnd             DateTime?
   vacationNotify          Boolean                  @default(false)
   vacationStart           DateTime?
@@ -347,6 +363,9 @@ model UserProfile {
   lastSeen                DateTime?                @default(now())
   showPresence            Boolean                  @default(true)
   ocreProgressSnapshot    Json?
+  dofusLevel              Int?                     @default(0)
+  totalXp                 BigInt?                  @default(0)
+  ankamaId                String?
   achievementSubmissions  AchievementSubmission[]
   djParticipations        DjSearchParticipant[]
   djSearchPosts           DjSearchPost[]
@@ -1575,6 +1594,16 @@ model BuildVote {
   @@unique([buildId, userId])
   @@index([buildId])
   @@index([guildId])
+}
+
+enum GodNotifyType {
+  VPS_MAINTENANCE
+  BACKUP
+  WORKER_SYNC
+  TICKET
+  GEOGUESSER_REPORT
+  SECURITY_ALERT
+  SYSTEM
 }
 
 enum ProfileStatus {

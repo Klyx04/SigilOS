@@ -43,7 +43,9 @@ export type AuditAction =
     | "CHAT_CLEAR"                 // Admin cleared guild chat history
     | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
     | "CHAT_MOTD_UPDATE"           // Admin updated the MOTD
-    | "MEMBER_RELANCE";            // Admin sent pings/changed roles for absents
+    | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
+    | "PLATFORM_ARRIVAL"          // User first registered on platform
+    | "PLATFORM_DEPARTURE";       // User left or was deleted from platform
 
 export type AuditTargetType =
     | "PERMISSION"

@@ -66,6 +66,13 @@ export class GeoguesserRoom {
         return player ? this.hostId === player.userId : false;
     }
 
+    public getCurrentMapId() {
+        if (this.currentRound > 0 && this.currentRound <= this.targetMapIds.length) {
+            return this.targetMapIds[this.currentRound - 1];
+        }
+        return null;
+    }
+
 
     public setMaxRounds(rounds: number) {
         this.maxRounds = rounds;

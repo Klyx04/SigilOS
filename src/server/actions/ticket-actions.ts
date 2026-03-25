@@ -159,6 +159,25 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                             },
                         ],
                     });
+
+                    // [NEW] GLOBAL GOD NOTIFICATION
+                    const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
+                    if ((platformConfig as any)?.godNotifyChannelId) {
+                        const ping = (platformConfig as any).godNotifyRoleId ? `<@&${(platformConfig as any).godNotifyRoleId}>` : "";
+                        await sendChannelMessage((platformConfig as any).godNotifyChannelId, ping, {
+                            embedTitle: `🎫 Nouveau Ticket #${ticket.ticketNumber}`,
+                            embedColor,
+                            embedUrl: `${getAppBaseUrl()}/god`, // Link to God dashboard
+                            embedDescription: [
+                                `**Auteur :** ${data.creatorDiscordName} (<@${data.creatorDiscordId}>)`,
+                                `**Catégorie :** ${categoryLabel}`,
+                                `**Sujet :** ${data.subject}`,
+                                "",
+                                `[Voir le fil de discussion](https://discord.com/channels/${data.discordGuildId}/${thread.id})`,
+                            ].join("\n"),
+                            embedFooter: "SigilOS Administration",
+                        });
+                    }
                 }
             } catch (e) {
                 console.error("[Tickets] Async Discord setup failed:", e);

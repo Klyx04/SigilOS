@@ -114,6 +114,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [prefilledDate, setPrefilledDate] = useState<Date | null>(null);
     const [editingEvent, setEditingEvent] = useState<any>(null);
 
     // Event detail modal
@@ -333,7 +334,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     };
 
     const handleDayClick = (date: Date) => {
-        // Future: ouvrir le formulaire pré-rempli avec cette date
+        if (!canManage) return;
+        setPrefilledDate(date);
+        setIsCreateOpen(true);
     };
 
     return (
@@ -565,8 +568,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                 </div>
             )}
 
-            {/* ============ CREATE DIALOG ============ */}
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <Dialog 
+                open={isCreateOpen} 
+                onOpenChange={(open) => {
+                    setIsCreateOpen(open);
+                    if (!open) setPrefilledDate(null);
+                }}
+            >
                 <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogTitle className="text-xl font-bold text-zinc-100">
                         Créer un événement
@@ -574,7 +582,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     <DialogDescription className="text-zinc-400">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
-                    <EventForm onSubmit={handleCreate} isDiscordConfigured={isDiscordConfigured} />
+                    <EventForm 
+                        onSubmit={handleCreate} 
+                        isDiscordConfigured={isDiscordConfigured}
+                        initialData={prefilledDate ? { startDate: prefilledDate } : undefined}
+                    />
                 </DialogContent>
             </Dialog>
 

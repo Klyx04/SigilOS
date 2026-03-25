@@ -326,7 +326,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 </div>
 
                 {/* ----------------- CONTENT BODY (Two Columns) ----------------- */}
-                <div className="relative z-10 flex h-[135px] overflow-hidden bg-gradient-to-b from-[#1a1c20] to-[#121417]">
+                <div className="relative z-10 flex min-h-[135px] overflow-hidden bg-gradient-to-b from-[#1a1c20] to-[#121417]">
 
                     {/* Sub-Atmosphere Glow */}
                     <div className={cn(
@@ -335,7 +335,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     )} />
 
                     {/* Left Column: Image Cutout */}
-                    <div className="w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5 p-4 bg-black/20">
+                    <div className="w-[80px] sm:w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5 p-4 bg-black/20">
                         {/* Background Light behind Creature */}
                         <div className={cn(
                             "absolute inset-0 opacity-20 blur-2xl rounded-full scale-110",
@@ -382,7 +382,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                     <span className="text-sm font-black text-white">{(mission as any).rank || 1}</span>
                                 </div>
                                 <div className="h-4 w-[1px] bg-white/10" />
-                                <span className="text-zinc-300 font-bold italic text-sm tracking-tight">
+                                <span className="text-zinc-300 font-bold italic text-sm tracking-tight truncate">
                                     Niv. {displayLevel}
                                 </span>
                             </div>
@@ -394,17 +394,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                         </div>
 
                         {/* Rewards Row */}
-                        <div className="flex items-center justify-between mt-auto pt-4">
-                            <div className="flex gap-2.5">
+                        <div className="flex items-center justify-between mt-auto pt-4 shrink-0">
+                            <div className="flex flex-wrap gap-2.5">
                                 {mission.xpReward && (
-                                    <div className="flex items-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md">
-                                        <span className="text-white font-mono text-sm font-black">{mission.xpReward}</span>
+                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md min-w-[70px] sm:min-w-[85px]">
+                                        <span className="text-white font-mono text-xs sm:text-sm font-black">{mission.xpReward}</span>
                                         <Image src="/PA.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
                                 {mission.guildatonsReward && (
-                                    <div className="flex items-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md">
-                                        <span className="text-white font-mono text-sm font-black">{mission.guildatonsReward}</span>
+                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md min-w-[70px] sm:min-w-[85px]">
+                                        <span className="text-white font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
                                         <Image src="/guildaton.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}

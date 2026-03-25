@@ -93,6 +93,10 @@ export async function getActivityLadder(
                 const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
                 
                 // PERF-01: Single aggregation query — Combine Mission XP and Kama XP
+                // RAW SQL EXCEPTION: This CTE (Common Table Expression) combines two
+                // aggregated sources in a single DB round-trip. Prisma ORM cannot
+                // express UNION ALL + GROUP BY across relations without N+1 queries.
+                // Inputs are internal UUIDs from guildConfig.id — no user-controlled values.
                 const xpByProfile = await db.$queryRaw<{ profileId: string; totalXp: number }[]>`
                     WITH MissionXP AS (
                         SELECT s."profileId", COALESCE(SUM(m."xpReward"), 0)::int AS xp

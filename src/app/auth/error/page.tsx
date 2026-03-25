@@ -22,6 +22,9 @@ function ErrorContent() {
     } else if (error === "AccessDenied") {
         title = "Accès Refusé";
         message = "Désolé, mais vous n'avez pas les accréditaitons pour entrer ici. Il faut montrer patte blanche !";
+    } else if (error === "NoManagedGuild") {
+        title = "Accès Restreint";
+        message = "Votre compte Discord n'est associé à aucune guilde utilisant SigilOS. Pour accéder au QG, vous devez être membre d'une guilde partenaire.";
     } else if (error === "Verification") {
         title = "Lien expiré";
         message = "Ce lien de vérification a déjà été utilisé ou est trop vieux.";

@@ -1046,6 +1046,16 @@ export async function grantRewards(profileId: string, xp: number, guildatons: nu
             }
         }
 
+        // 🛡️ CRITICAL UPDATE: Apply the rewards to the database profile
+        // Without this, the ladder and profile stats remain stale.
+        await db.userProfile.update({
+            where: { id: profileId },
+            data: {
+                xp: { increment: xp },
+                guildatons: { increment: finalGuildatons }
+            }
+        });
+
         // Invalidate Ladder Cache (since XP/Guildatons changed)
         const profile = await db.userProfile.findUnique({
             where: { id: profileId },
@@ -1057,6 +1067,7 @@ export async function grantRewards(profileId: string, xp: number, guildatons: nu
             await clearCachePattern(`ladder:activity:${profile.guild.discordGuildId}:*`);
             await clearCachePattern(`ladder:guildatons:${profile.guild.discordGuildId}:*`);
             revalidatePath(`/dashboard/${profile.guild.discordGuildId}/ladder`);
+            revalidatePath(`/dashboard/${profile.guild.discordGuildId}/stats`); // Recalculate stats too
         }
     } catch (e) {
         console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);

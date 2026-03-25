@@ -14,7 +14,8 @@ import {
     Plus,
     Minus,
     CircleHelp,
-    Rocket
+    Rocket,
+    Search as SearchIcon
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -68,7 +69,7 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 {/* Mobile Sidebar Trigger */}
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl">
+                        <Button variant="ghost" size="icon" className="lg:hidden -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl">
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
@@ -108,8 +109,30 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 </nav>
             </div>
 
-            {/* CENTER: Event Ticker & Live Badge (Experimental) */}
-            <div className="flex-1 flex justify-center items-center gap-4 px-2 min-w-0">
+            {/* CENTER: Integrated Ticker & Search (2026 Standard) */}
+            <div className="flex-1 flex items-center justify-center gap-4 px-2 min-w-0">
+                {/* Search Trigger (Hidden on small mobile, shows kbd on desktop) */}
+                <div className="hidden xl:flex flex-1 max-w-[240px] relative group">
+                    <SearchIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                    <input 
+                        type="text"
+                        placeholder="Rechercher..."
+                        onFocus={() => {
+                            document.dispatchEvent(new CustomEvent('open-command-menu'));
+                            // Blur the input mostly so if they close the modal, they can refocus the input directly
+                            setTimeout(() => {
+                                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                            }, 50);
+                        }}
+                        className="w-full pl-9 pr-12 h-9 rounded-xl border border-white/5 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/10 focus:bg-white/[0.05] focus:border-indigo-500/50 transition-all text-xs text-zinc-300 placeholder:text-zinc-500 outline-none cursor-text"
+                    />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                        <kbd className="px-1 py-0.5 rounded-md bg-white/5 border border-white/10 text-[8px] font-black font-mono">⌘</kbd>
+                        <kbd className="px-1 py-0.5 rounded-md bg-white/5 border border-white/10 text-[8px] font-black font-mono">K</kbd>
+                    </div>
+                </div>
+
+                {/* Event Ticker (Primary visibility) */}
                 <div className="flex-1 max-w-xl flex justify-center">
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
                 </div>

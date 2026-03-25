@@ -43,7 +43,12 @@ export default async function LadderPage({ params }: Props) {
 
                 {/* Main Client Module */}
                 <Suspense fallback={<LadderSkeleton />}>
-                    <LadderClient guildId={guildId} canValidate={user.canValidateMissions} />
+                    <LadderClient 
+                        guildId={guildId} 
+                        canValidate={user.canValidateMissions} 
+                        hasPseudoIssue={user.hasPseudoIssue}
+                        pseudoDofus={user.pseudoDofus}
+                    />
                 </Suspense>
             </div>
         </div>

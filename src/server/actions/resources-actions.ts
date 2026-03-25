@@ -49,24 +49,23 @@ export async function getUpcomingAlmanax(): Promise<AlmanaxItem[]> {
     }
 
     // 2. Proxy Fallback (AllOrigins)
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl, {
+        const pRes = await fetch(proxyUrl, {
             headers: { "User-Agent": "SigilOS/1.0" },
             next: { revalidate: 3600 * 6 },
         });
 
-        if (res.ok) {
-            const json = await res.json();
+        if (pRes.ok) {
+            const text = await pRes.text();
+            const json = JSON.parse(text);
             if (json.contents) {
                 const parsed = JSON.parse(json.contents);
                 if (Array.isArray(parsed)) return parsed as AlmanaxItem[];
-                logger.warn("Proxy fetch for Almanax returned non-array data");
-                return [];
             }
         }
     } catch (e: unknown) {
-        logger.error("Proxy fetch for Almanax error", { error: (e as Error).message });
+        logger.warn("Proxy fetch for Almanax error", { error: (e as Error).message });
     }
 
     return [];

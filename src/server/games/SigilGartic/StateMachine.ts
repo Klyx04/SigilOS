@@ -168,7 +168,7 @@ export const garticMachine = createMachine({
             entry: assign({
                 currentRound: ({ context }) => context.currentRound + 1,
                 submittedThisRound: new Set(),
-                assignments: ({ context }) => computeAssignments(Array.from(context.players.values()), context.currentRound)
+                assignments: ({ context }) => computeAssignments(Array.from(context.players.values()), context.currentRound + 1)
             }),
             always: [
                 { target: "DRAWING", guard: ({ context }) => context.currentRound % 2 !== 0 },

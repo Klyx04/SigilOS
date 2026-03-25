@@ -270,6 +270,9 @@ export async function updatePlatformConfig(data: {
     serviceStatusChannelId?: string,
     ticketAutoRoleId?: string,
     ticketSupportGuildId?: string,
+    godNotifyChannelId?: string,
+    godNotifyRoleId?: string,
+    godNotifyWebEnabled?: boolean,
     statusIsLite?: boolean,
     statusMode?: string,
     statusMention?: string,
@@ -287,6 +290,9 @@ export async function updatePlatformConfig(data: {
                 ...(data.serviceStatusChannelId !== undefined && { serviceStatusChannelId: data.serviceStatusChannelId || null }),
                 ...(data.ticketAutoRoleId !== undefined && { ticketAutoRoleId: data.ticketAutoRoleId || null }),
                 ...(data.ticketSupportGuildId !== undefined && { ticketSupportGuildId: data.ticketSupportGuildId || null }),
+                ...(data.godNotifyChannelId !== undefined && { godNotifyChannelId: data.godNotifyChannelId || null }),
+                ...(data.godNotifyRoleId !== undefined && { godNotifyRoleId: data.godNotifyRoleId || null }),
+                ...(data.godNotifyWebEnabled !== undefined && { godNotifyWebEnabled: data.godNotifyWebEnabled }),
                 ...(data.statusIsLite !== undefined && { statusIsLite: data.statusIsLite }),
                 ...(data.statusMode !== undefined && { statusMode: data.statusMode }),
                 ...(data.statusMention !== undefined && { statusMention: data.statusMention }),
@@ -299,6 +305,9 @@ export async function updatePlatformConfig(data: {
                 serviceStatusChannelId: data.serviceStatusChannelId || null,
                 ticketAutoRoleId: data.ticketAutoRoleId || null,
                 ticketSupportGuildId: data.ticketSupportGuildId || null,
+                godNotifyChannelId: data.godNotifyChannelId || null,
+                godNotifyRoleId: data.godNotifyRoleId || null,
+                godNotifyWebEnabled: data.godNotifyWebEnabled ?? true,
                 statusIsLite: data.statusIsLite || false,
                 statusMode: data.statusMode || "living",
                 statusMention: data.statusMention || "none",
@@ -356,35 +365,15 @@ export async function sendChangelogToDiscord(entryId: string) {
     const entry = await db.changelogEntry.findUnique({ where: { id: entryId } });
     if (!entry) return { success: false, error: 'Entrée introuvable' };
 
-    // HTML → lisible pour Discord (Amélioré)
-    const plainContent = entry.content
-        .replace(/<li>/gi, '• ')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<h[1-6][^>]*>/gi, '\n**')
-        .replace(/<\/h[1-6]>/gi, '**\n')
-        .replace(/<p>/gi, '')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<strong>/gi, '**')
-        .replace(/<\/strong>/gi, '**')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-        .slice(0, 1200);
-
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
     const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
 
+    // SLIM FORMAT
     const fullDescription = [
-        entry.summary,
+        entry.summary || "_Améliorations et corrections de bugs._",
         '',
-        '**📋 CHANGEMENTS PRINCIPAUX**',
-        '---',
-        plainContent || "_Améliorations diverses._",
-        '',
-        `> [Consulter le changelog complet](${appUrl}/changelog)`
+        `> 🔗 **[Consulter le changelog complet v${entry.version}](${appUrl}/changelog)**`
     ].join('\n');
 
     const embed = {
@@ -432,35 +421,15 @@ export async function broadcastChangelogToGuilds(entryId: string) {
         errors: [] as string[]
     };
 
-    // HTML → lisible pour Discord (Amélioré)
-    const plainContent = entry.content
-        .replace(/<li>/gi, '• ')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<h[1-6][^>]*>/gi, '\n**')
-        .replace(/<\/h[1-6]>/gi, '**\n')
-        .replace(/<p>/gi, '')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<strong>/gi, '**')
-        .replace(/<\/strong>/gi, '**')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-        .slice(0, 1200);
-
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
     const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
 
+    // SLIM FORMAT
     const fullDescription = [
-        entry.summary,
+        entry.summary || "_Améliorations et corrections de bugs._",
         '',
-        '**📋 CHANGEMENTS PRINCIPAUX**',
-        '---',
-        plainContent || "_Améliorations diverses._",
-        '',
-        `> [Consulter le changelog complet](${appUrl}/changelog)`
+        `> 🔗 **[Découvrir les nouveautés v${entry.version} sur SigilOS](${appUrl}/changelog)**`
     ].join('\n');
 
     const embed = {

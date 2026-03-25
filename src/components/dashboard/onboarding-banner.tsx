@@ -1,11 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users, AlertCircle, Rocket } from "lucide-react";
+import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users, AlertCircle, Rocket, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { useEffect, useState } from "react";
 
 interface OnboardingStep {
     id: string;
@@ -23,7 +24,9 @@ export function OnboardingBanner({
     subtitle = "Configuration",
     checklistLabel = "Checklist de configuration",
     guideHref,
-    variant = "admin"
+    variant = "admin",
+    dismissible = false,
+    storageKey
 }: {
     guildId: string,
     steps: OnboardingStep[],
@@ -31,8 +34,28 @@ export function OnboardingBanner({
     subtitle?: string,
     checklistLabel?: string,
     guideHref?: string,
-    variant?: "admin" | "user"
+    variant?: "admin" | "user",
+    dismissible?: boolean,
+    storageKey?: string
 }) {
+    const [isDismissed, setIsDismissed] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        if (storageKey) {
+            const dismissed = localStorage.getItem(`sigilos-dismiss-${storageKey}`);
+            if (dismissed === "true") setIsDismissed(true);
+        }
+    }, [storageKey]);
+
+    const handleDismiss = () => {
+        setIsDismissed(true);
+        if (storageKey) {
+            localStorage.setItem(`sigilos-dismiss-${storageKey}`, "true");
+        }
+    };
+
     const completedSteps = steps.filter(s => s.completed).length;
     const progress = (completedSteps / steps.length) * 100;
     const isFinished = completedSteps === steps.length;
@@ -48,6 +71,8 @@ export function OnboardingBanner({
         rocket: Rocket
     };
 
+    if (isDismissed || !mounted) return null;
+
     return (
         <div className="relative group/onboarding w-full">
             {/* Animated Glow when incomplete */}
@@ -59,10 +84,19 @@ export function OnboardingBanner({
             )}
 
             <div className={cn(
-                "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-500",
+                "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-500 group-hover/onboarding:border-white/20",
                 variant === "user" ? "ring-1 ring-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]" : "ring-1 ring-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]",
                 !isFinished ? "opacity-100" : "opacity-90"
             )}>
+                {dismissible && (
+                    <button
+                        onClick={handleDismiss}
+                        className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-500 hover:text-white transition-all z-20 group/close"
+                    >
+                        <X className="w-4 h-4 group-hover/close:rotate-90 transition-transform" />
+                    </button>
+                )}
+                
                 {!isFinished && (
                     <BorderBeam
                         size={200}

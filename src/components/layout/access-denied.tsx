@@ -6,6 +6,11 @@ import { ShieldAlert, Lock, ArrowLeft, MessageSquare, Archive } from "lucide-rea
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { useSession } from "next-auth/react";
+import { RefreshCcw } from "lucide-react";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { revalidateUserContext } from "@/server/actions/user-actions";
+import { toast } from "sonner";
 
 interface AccessDeniedProps {
     title?: string;
@@ -13,6 +18,7 @@ interface AccessDeniedProps {
     variant?: "lock" | "ban" | "archive";
     action?: React.ReactNode;
     countdownDate?: string | null;
+    guildId?: string; // Optional, to help re-sync specific guild
 }
 
 import { useState, useEffect } from "react";
@@ -66,9 +72,25 @@ export function AccessDenied({
     message = "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
     variant = "lock",
     action,
-    countdownDate
+    countdownDate,
+    guildId
 }: AccessDeniedProps) {
     const { data: session } = useSession();
+    const [isPending, startTransition] = useTransition();
+    const router = useRouter();
+
+    const handleSync = () => {
+        startTransition(async () => {
+            const res = await revalidateUserContext(guildId);
+            if (res.success) {
+                toast.success("Synchronisation effectuée. Vérification en cours...");
+                // Reload the current page to pick up fresh data
+                window.location.reload();
+            } else {
+                toast.error(res.error || "Échec de la synchronisation");
+            }
+        });
+    };
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-center relative overflow-hidden">
@@ -132,6 +154,18 @@ export function AccessDenied({
                             Contacter le Support
                         </Link>
                     </Button>
+
+                    {variant === "lock" && (
+                        <Button 
+                            variant="ghost" 
+                            disabled={isPending}
+                            onClick={handleSync}
+                            className="h-12 rounded-xl border border-white/5 hover:bg-white/5 text-zinc-500 hover:text-white font-bold uppercase tracking-wider text-[10px]"
+                        >
+                            <RefreshCcw className={`w-3 h-3 mr-2 ${isPending ? 'animate-spin' : ''}`} />
+                            {isPending ? "Synchronisation en cours..." : "Je viens de rejoindre (Synchroniser)"}
+                        </Button>
+                    )}
                 </div>
 
                 <div className="pt-8 border-t border-white/5 w-full">

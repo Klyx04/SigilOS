@@ -229,46 +229,80 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
         }
 
         // ── 3. Guess Results (Multiple participants if in result phase) ──
-        if (participants && participants.length > 0 && guessResult?.target && guessResult.target.worldMap === world.id) {
+        if (guessResult?.target && guessResult.target.worldMap === world.id) {
             const t = guessResult.target;
-            const p1 = map.latLngToContainerPoint(L.latLng(-(oy + t.y * mh + mh / 2), ox + t.x * mw + mw / 2));
+            const targetTL = map.latLngToContainerPoint(L.latLng(-(oy + t.y * mh), ox + t.x * mw));
+            const targetBR = map.latLngToContainerPoint(L.latLng(-(oy + (t.y + 1) * mh), ox + (t.x + 1) * mw));
+            const p1 = { x: (targetTL.x + targetBR.x) / 2, y: (targetTL.y + targetBR.y) / 2 };
+
+            // Draw Target Map Marker (Red Cross or Circle)
+            const markerSize = isMiniMap ? 12 : 2; 
             
-            // Draw Target (Red Flag/Target Circle) - Always drawn
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
-            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 8, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
-
-            participants.forEach((p: any) => {
-                const g = p.lastGuess;
-                if (!g || g.hidden) return;
-                if (g.worldId !== world.id && g.worldId !== undefined) return; // Skip if wrong world
-
-                const p2 = map.latLngToContainerPoint(L.latLng(-(oy + g.y * mh + mh / 2), ox + g.x * mw + mw / 2));
-                const isMe = p.userId === currentUserId;
-
-                // Path Line
-                ctx.shadowBlur = isMe ? 15 : 5;
-                ctx.shadowColor = isMe ? 'rgba(16, 185, 129, 0.6)' : 'rgba(255, 255, 255, 0.2)';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = isMiniMap ? 4 : 2;
+            
+            if (isMiniMap) {
+                // Pulse effect for the target 
+                const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
+                const size = markerSize + (pulse * 4);
                 
                 ctx.beginPath();
-                ctx.setLineDash(isMe ? [] : [10, 10]);
-                ctx.strokeStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.6)';
-                ctx.lineWidth = isMe ? 4 : 2;
-                ctx.lineCap = 'round';
+                ctx.moveTo(p1.x - size, p1.y); ctx.lineTo(p1.x + size, p1.y);
+                ctx.moveTo(p1.x, p1.y - size); ctx.lineTo(p1.x, p1.y + size);
+                ctx.stroke();
+                
+                // Outer ring
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(p1.x, p1.y, size * 0.7, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                ctx.strokeRect(Math.round(targetTL.x), Math.round(targetTL.y), Math.round(targetBR.x - targetTL.x), Math.round(targetBR.y - targetTL.y));
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                ctx.fillRect(Math.round(targetTL.x), Math.round(targetTL.y), Math.round(targetBR.x - targetTL.x), Math.round(targetBR.y - targetTL.y));
+            }
+
+            const drawGuessLine = (g: any, isMe: boolean) => {
+                // Lenient check: if g.worldId or g.worldMap is present, it must match. Otherwise we assume same world as target.
+                const guessWorldId = g.worldId || g.worldMap;
+                if (guessWorldId !== undefined && guessWorldId !== world.id && guessWorldId !== world.worldMap) return;
+
+                const guessTL = map.latLngToContainerPoint(L.latLng(-(oy + g.y * mh), ox + g.x * mw));
+                const guessBR = map.latLngToContainerPoint(L.latLng(-(oy + (g.y + 1) * mh), ox + (g.x + 1) * mw));
+                const p2 = { x: (guessTL.x + guessBR.x) / 2, y: (guessTL.y + guessBR.y) / 2 };
+
+                // Path Line (Dashed Orange/Green)
+                ctx.save();
+                ctx.shadowBlur = isMe ? 25 : 15;
+                ctx.shadowColor = isMe ? 'rgba(251, 191, 36, 0.9)' : 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.setLineDash([6, 4]); // Smaller dash for better visibility on short traits
+                ctx.strokeStyle = isMe ? '#fbbf24' : 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = isMe ? 5 : 3;
                 ctx.moveTo(p1.x, p1.y);
                 ctx.lineTo(p2.x, p2.y);
                 ctx.stroke();
+                ctx.restore();
 
-                // Guess Point
-                ctx.setLineDash([]);
-                ctx.shadowBlur = isMe ? 15 : 0;
-                ctx.shadowColor = 'rgba(16, 185, 129, 0.8)';
-                ctx.fillStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.8)';
-                ctx.beginPath(); ctx.arc(p2.x, p2.y, isMe ? 6 : 4, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke();
+                // Guess Map Marker
+                if (isMiniMap) {
+                    ctx.fillStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.8)';
+                    ctx.beginPath(); ctx.arc(p2.x, p2.y, 6, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+                } else {
+                    ctx.strokeStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(Math.round(guessTL.x), Math.round(guessTL.y), Math.round(guessBR.x - guessTL.x), Math.round(guessBR.y - guessTL.y));
+                    ctx.fillStyle = isMe ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+                    ctx.fillRect(Math.round(guessTL.x), Math.round(guessTL.y), Math.round(guessBR.x - guessTL.x), Math.round(guessBR.y - guessTL.y));
+                }
 
-                // Label for ME or winner
+                // Center Dots (Small white indicators at junctions)
+                ctx.fillStyle = 'white';
+                ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2); ctx.fill();
+
+                // Label for ME
                 if (isMe) {
                     const dist = Math.round(g.distance || 0);
                     const label = `${dist} maps`;
@@ -284,23 +318,17 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
                     ctx.fillStyle = '#fbbf24'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText(label, mx, my + 1);
                 }
-            });
-        }
-        else if (guessResult?.target && guessResult?.guess && guessResult.target.worldMap === world.id) {
-            // Fallback for single guess (non-room or quick sync)
-            const t = guessResult.target;
-            const g = guessResult.guess;
-            if (g.worldMap !== world.id && g.worldMap !== undefined) return;
-            
-            const p1 = map.latLngToContainerPoint(L.latLng(-(oy + t.y * mh + mh / 2), ox + t.x * mw + mw / 2));
-            const p2 = map.latLngToContainerPoint(L.latLng(-(oy + g.y * mh + mh / 2), ox + g.x * mw + mw / 2));
-            
-            ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
-            ctx.beginPath(); ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            };
 
-            ctx.shadowColor = '#ef4444'; ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 8, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowColor = '#10b981'; ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(p2.x, p2.y, 8, 0, Math.PI * 2); ctx.fill();
+            if (participants && participants.length > 0) {
+                participants.forEach((p: any) => {
+                    if (p.lastGuess && !p.lastGuess.hidden) {
+                        drawGuessLine(p.lastGuess, p.userId === currentUserId);
+                    }
+                });
+            } else if (guessResult.guess) {
+                drawGuessLine(guessResult.guess, true);
+            }
         }
 
         if (!showDebugGrid || isMiniMap) return;
@@ -340,6 +368,14 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
     }, [map, activeWorld, mapsBySubAreaId, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId]);
 
     // Redraw on every map movement, zoom and toggle (rAF-throttled)
+    // Redraw on map view changes (critical for flyToBounds animation)
+    useMapEvents({
+        move: () => drawGrid(),
+        zoom: () => drawGrid(),
+        resize: () => drawGrid(),
+        moveend: () => drawGrid(),
+    });
+
     useEffect(() => {
         drawGrid();
     }, [showDebugGrid, drawGrid, selectedPosition, guessResult, participants, currentUserId]);
@@ -457,7 +493,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
             setTimeout(() => {
-                map.flyToBounds(bounds, { padding: [100, 100], duration: 1.5, easeLinearity: 0.25 });
+                map.flyToBounds(bounds, { padding: [120, 120], duration: 1.5, easeLinearity: 0.25, maxZoom: -1 });
             }, 100);
         }
     }, [guessResult, isMiniMap, map, activeWorld, participants]);
@@ -467,12 +503,12 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true }: any) {
     const map = useMap();
     const tooltipRef = useRef<L.Tooltip | null>(null);
     const lastTooltipTime = useRef(0);
 
-    useMapEvents({
+    useMapEvents(!interactive ? {} : {
         mousemove: (e) => {
             if (!activeWorld || isMiniMap) return; // Hide tooltip on minimap (no spoilers!)
 
@@ -523,19 +559,21 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
 
             setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
 
-            // ── Clipboard Copy Logic ──
-            const command = `/travel ${gameX} ${gameY}`;
-            navigator.clipboard.writeText(command)
-                .then(() => {
-                    toast.success(`${command} copié !`, {
-                        icon: <Copy className="w-4 h-4 text-emerald-400" />,
-                        description: "Collez la commande en jeu pour voyager.",
-                        duration: 2000
+            // ── Clipboard Copy Logic (Exploration map only) ──
+            if (!isMiniMap) {
+                const command = `/travel ${gameX} ${gameY}`;
+                navigator.clipboard.writeText(command)
+                    .then(() => {
+                        toast.success(`${command} copié !`, {
+                            icon: <Copy className="w-4 h-4 text-emerald-400" />,
+                            description: "Collez la commande en jeu pour voyager.",
+                            duration: 2000
+                        });
+                    })
+                    .catch(() => {
+                        toast.error("Échec de la copie au presse-papier.");
                     });
-                })
-                .catch(() => {
-                    toast.error("Échec de la copie au presse-papier.");
-                });
+            }
         }
     });
 
@@ -633,6 +671,7 @@ interface LeafletMapCoreProps {
     currentUserId?: string;
     isSpectator?: boolean;
     hideUI?: boolean;
+    interactive?: boolean;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const {
@@ -640,7 +679,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
-        participants, currentUserId, isSpectator, hideUI
+        participants, currentUserId, isSpectator, hideUI, interactive = true
     } = props;
 
     // Correction Alignement : Décalage manuel de +2 cases à droite spécifique au Monde des Douze
@@ -721,12 +760,18 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 zoomControl={false}
                 attributionControl={false}
-                minZoom={Math.max((isMiniMap && selectedWorldId !== 1) ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
+                minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
                 maxBoundsViscosity={0.8}
                 zoomSnap={0.1}
                 zoomDelta={1}
                 preferCanvas={true}
+                dragging={interactive}
+                touchZoom={interactive}
+                doubleClickZoom={interactive}
+                scrollWheelZoom={interactive}
+                boxZoom={interactive}
+                keyboard={interactive}
             >
                 <MapViewHandler
                     isMiniMap={isMiniMap}
@@ -763,6 +808,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     isMiniMap={isMiniMap}
                     isSpectator={isSpectator}
                     hideUI={hideUI}
+                    interactive={interactive}
                 />
 
                 {/* 5. Highlight overlay (click selection) */}
@@ -811,7 +857,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 />
                 
                 {/* 7. Contrôles de zoom premium */}
-                {!isMiniMap && <ZoomControls />}
+                {interactive && !isMiniMap && <ZoomControls />}
             </MapContainer>
         </div>
     );

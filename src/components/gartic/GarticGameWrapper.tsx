@@ -9,6 +9,7 @@ import { LobbyScreen } from "./LobbyScreen";
 import { DrawingScreen } from "./DrawingScreen";
 import { GuessingScreen } from "./GuessingScreen";
 import { RevealScreen } from "./RevealScreen";
+import { AtmosphericParticles } from "../ui/AtmosphericParticles";
 import { Loader2, Plus, Users, ArrowRight, RefreshCw, Phone, Sparkles, X, ArrowRightCircle, Trophy, Crown, Home, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { playSoundEffect } from "@/lib/sounds";
@@ -193,7 +194,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
     if (phase === "browse" || !gameState) {
         return (
             <GarticLayout phase="BROWSE" onClose={handleExitToMenu}>
-                <div className="flex flex-col items-center justify-center h-full w-full max-w-4xl mx-auto gap-12 animate-in fade-in zoom-in duration-700">
+                <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-4xl mx-auto gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0">
                     {/* Header */}
                     <div className="text-center px-4">
                         <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
@@ -350,6 +351,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
             case "DRAWING":
                 return (
                     <DrawingScreen
+                        key={gameState.round || 1}
                         isDrawer={isDrawer}
                         word={gameState.task?.content}
                         wordHint="C'est ton tour de dessiner !"
@@ -368,6 +370,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
             case "GUESSING":
                 return (
                     <GuessingScreen
+                        key={gameState.round || 1}
                         isDrawer={false}
                         wordHint="Devine ce qu'il a dessiné !"
                         wordCategory="Devinette"
@@ -395,7 +398,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                 );
             case "SCORES":
                 return (
-                    <div className="flex flex-col items-center justify-center h-full w-full max-w-5xl mx-auto gap-12 animate-in fade-in zoom-in duration-700">
+                    <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-5xl mx-auto gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0">
                         <div className="text-center px-4">
                             <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
                                 <Sparkles size={18} className="text-yellow-400 animate-pulse" />
@@ -461,12 +464,15 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
     };
 
     return (
-        <GarticLayout 
-            phase={gameState?.phase || "LOBBY"} 
-            onClose={handleExitToMenu}
-            spectators={gameState?.players?.filter((p: any) => p.isSpectator) || []}
-        >
-            {renderPhase()}
-        </GarticLayout>
+        <div className="relative">
+            <GarticLayout 
+                phase={gameState?.phase || "LOBBY"} 
+                onClose={handleExitToMenu}
+                spectators={gameState?.players?.filter((p: any) => p.isSpectator) || []}
+            >
+                {renderPhase()}
+            </GarticLayout>
+            <AtmosphericParticles />
+        </div>
     );
 }

@@ -1,7 +1,9 @@
 import { Server, Socket } from "socket.io";
 import { redis } from "@/lib/redis";
 import { GeoguesserRoom } from "./GeoguesserRoom";
+import { WorldMapService } from "./WorldMapService";
 import { GeoguesserGuessSchema } from "../../websocket/schemas";
+import { db } from "@/lib/prisma";
 
 // Simple random ID generator (or reuse DB ID)
 function generateShortId() {
@@ -10,8 +12,11 @@ function generateShortId() {
 
 export class GeoguesserManager {
     private rooms = new Map<string, GeoguesserRoom>();
+    private syncInterval: NodeJS.Timeout | null = null;
 
-    constructor(private io: Server) { }
+    constructor(private io: Server) { 
+        this.startBlacklistSync();
+    }
 
     public registerSocket(socket: Socket) {
         socket.on("geoguesser:room:join", (data) => this.joinRoom(socket, data));
@@ -21,6 +26,7 @@ export class GeoguesserManager {
         socket.on("geoguesser:room:settings", (data) => this.updateSettings(socket, data));
         socket.on("geoguesser:game:next-round", () => this.triggerNextRound(socket));
         socket.on("geoguesser:room:list", () => this.handleRoomList(socket));
+        socket.on("geoguesser:map:report", (data) => this.reportMap(socket, data));
     }
 
     private async updateSettings(socket: Socket, data: any) {
@@ -207,5 +213,92 @@ export class GeoguesserManager {
         } else {
             await this.delSocketRoom(socket.id);
         }
+    }
+
+    private async reportMap(socket: Socket, data: any) {
+        let mapId = data?.mapId;
+        
+        // If mapId is missing from data, try to find it from the room state (more secure)
+        if (!mapId) {
+            const roomId = await this.getSocketRoom(socket.id);
+            if (roomId) {
+                const room = this.rooms.get(roomId);
+                if (room) {
+                    mapId = room.getCurrentMapId();
+                }
+            }
+        }
+
+        if (mapId) mapId = Number(mapId);
+        
+        if (!mapId || isNaN(mapId)) {
+            console.warn(`[GeoguesserManager] 🚩 Report ignored: No valid mapId provided and no active room found for ${socket.id}`);
+            return;
+        }
+
+        try {
+            // Use upsert to ensure the singleton exists even if god hasn't visited the dashboard yet
+            const config = await db.platformConfig.upsert({
+                where: { id: "singleton" },
+                update: {},
+                create: { id: "singleton" }
+            });
+            
+            const reported = (config.geoguesserReportedMaps as number[]) || [];
+            if (!reported.includes(mapId)) {
+                reported.push(mapId);
+                await db.platformConfig.update({
+                    where: { id: "singleton" },
+                    data: { geoguesserReportedMaps: reported }
+                });
+                console.log(`[GeoguesserManager] 🚩 Map ${mapId} reported by ${socket.id}`);
+                
+                // Trigger revalidation for the God Dashboard - REMOVED: Since we use auto-polling, we don't need this, and it crashes the WebSocket server process.
+
+                // [NEW] GLOBAL GOD NOTIFICATION
+                if ((config as any).godNotifyChannelId) {
+                    const { sendChannelMessage } = await import("@/server/discord");
+                    const ping = (config as any).godNotifyRoleId ? `<@&${(config as any).godNotifyRoleId}>` : "";
+                    
+                    await sendChannelMessage((config as any).godNotifyChannelId, ping, {
+                        embedTitle: "🚩 Signalement Map SigilGuesser",
+                        embedColor: 0xef4444,
+                        embedDescription: [
+                            `Une map a été signalée comme étant buggée ou mal placée.`,
+                            "",
+                            `**Map ID :** \`${data.mapId}\``,
+                            `**Signalé par :** \`${socket.id}\``,
+                            "",
+                            `▸ [Gérer les maps sur Dashboard](https://sigilos.fr/god/mini-games?game=SigilGuesser)`,
+                        ].join("\n"),
+                        embedFooter: "SigilOS Administration · SigilGuesser",
+                        embedThumbnail: "https://sigilos.fr/assets/ui/icons/geoguesser.png"
+                    });
+                }
+            }
+        } catch (e) {
+            console.error(`[GeoguesserManager] ❌ Error reporting map:`, e);
+        }
+    }
+
+    private async startBlacklistSync() {
+        const sync = async () => {
+            try {
+                const config = await db.platformConfig.findUnique({
+                    where: { id: "singleton" },
+                    select: { geoguesserBlacklist: true }
+                });
+                if (config) {
+                    WorldMapService.getInstance().setBlacklist(config.geoguesserBlacklist);
+                }
+            } catch (e) {
+                console.error("[GeoguesserManager] ❌ Blacklist sync failed:", e);
+            }
+        };
+
+        // Initial sync
+        await sync();
+        // Periodically sync (every 5 mins)
+        this.syncInterval = setInterval(sync, 5 * 60 * 1000);
     }
 }

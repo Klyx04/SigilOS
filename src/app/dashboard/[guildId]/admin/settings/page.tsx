@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
+import { cn } from "@/lib/utils";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
@@ -15,6 +16,7 @@ import { SongesSettingsClient } from "../songes/_components/songes-settings-clie
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
 import { OnboardingSettingsClient } from "../_components/onboarding-settings-client";
+import { DiscordSettingsClient } from "../_components/discord-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
@@ -54,6 +56,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
         { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
+        { id: "discord", label: "Discord Notifications", icon: Hash, description: "Salons & Pings Reset", accent: "indigo" },
         { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
     ];
 }
@@ -111,9 +114,15 @@ export default async function FeatureSettingsPage({
                 backHref={`/dashboard/${guildId}/admin`}
             />
 
-            <div className="flex gap-6 items-start">
-                {/* ── SIDEBAR ── */}
-                <nav className="w-64 shrink-0 sticky top-4 space-y-1 rounded-2xl border border-white/8 bg-zinc-900/60 p-2">
+            <div className="flex flex-col lg:flex-row gap-8 items-start relative">
+                {/* ── SIDEBAR NAVIGATION ── */}
+                <nav className={cn(
+                    "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-zinc-900/40 backdrop-blur-xl",
+                    "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
+                )}>
+                    {/* Shadow indicators for mobile horizontal scroll (Standard 2026) */}
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950/50 to-transparent pointer-events-none lg:hidden z-30" />
+                    
                     {navItems.map((item) => {
                         const isActive = item.id === activeTab;
                         const ac = ACCENT[item.accent] ?? ACCENT.slate;
@@ -122,35 +131,65 @@ export default async function FeatureSettingsPage({
                             <Link
                                 key={item.id}
                                 href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
-                                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                    ? `${ac.bg} ${ac.border} border`
-                                    : "border border-transparent hover:bg-white/[0.03] hover:border-white/8"
-                                    }`}
+                                className={cn(
+                                    "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 whitespace-nowrap lg:whitespace-normal",
+                                    isActive
+                                        ? `${ac.bg} ${ac.border} border shadow-[0_0_20px_rgba(0,0,0,0.2)]`
+                                        : "border border-transparent hover:bg-white/[0.03] hover:border-white/8 text-zinc-400 hover:text-white"
+                                )}
                             >
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? ac.bg : "bg-white/5 group-hover:bg-white/8"}`}>
-                                    <Icon className={`w-4 h-4 ${isActive ? ac.text : "text-zinc-400 group-hover:text-zinc-200"}`} />
+                                <div className={cn(
+                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-500",
+                                    isActive ? ac.bg : "bg-white/5 group-hover:bg-white/10 group-hover:scale-110"
+                                )}>
+                                    <Icon className={cn("w-4 h-4", isActive ? ac.text : "text-zinc-500 group-hover:text-zinc-200")} />
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className={`text-sm font-semibold truncate ${isActive ? ac.text : "text-zinc-200 group-hover:text-white"}`}>{item.label}</p>
-                                    <p className="text-xs text-zinc-400 truncate">{item.description}</p>
+                                <div className="min-w-0 flex-1 hidden lg:block">
+                                    <p className={cn("text-xs font-black uppercase tracking-widest leading-none mb-1", isActive ? ac.text : "text-zinc-400 group-hover:text-white")}>
+                                        {item.label}
+                                    </p>
+                                    <p className="text-[10px] text-zinc-500 truncate font-medium group-hover:text-zinc-400 transition-colors">
+                                        {item.description}
+                                    </p>
                                 </div>
-                                {isActive && <ChevronRight className={`w-4 h-4 shrink-0 ${ac.text}`} />}
+                                {/* Mobile display: only label */}
+                                <span className={cn("text-xs font-black uppercase tracking-widest lg:hidden", isActive ? ac.text : "")}>
+                                    {item.label}
+                                </span>
+                                {isActive && <ChevronRight className={cn("w-4 h-4 shrink-0 hidden lg:block", ac.text)} />}
                             </Link>
                         );
                     })}
                 </nav>
 
-                {/* ── CONTENT ── */}
-                <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-right-4 duration-300">
-                    {/* Section header */}
-                    <div className={`flex items-center gap-3 mb-6 p-4 rounded-2xl border ${a.border} ${a.bg}`}>
-                        <div className={`w-10 h-10 rounded-xl ${a.bg} border ${a.border} flex items-center justify-center shrink-0`}>
-                            {(() => { const Icon = activeItem.icon; return <Icon className={`w-5 h-5 ${a.text}`} />; })()}
+                {/* ── CONTENT AREA ── */}
+                <div className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+                    {/* Section visual header */}
+                    <div className={cn(
+                        "relative flex flex-col sm:flex-row sm:items-center gap-5 mb-8 p-6 rounded-3xl border overflow-hidden",
+                        a.border, a.bg
+                    )}>
+                        <div className={cn(
+                            "relative w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border shadow-2xl transition-transform duration-500 hover:scale-105",
+                            a.bg, a.border
+                        )}>
+                            {(() => { const Icon = activeItem.icon; return <Icon className={cn("w-7 h-7", a.text)} />; })()}
+                            <div className={cn("absolute inset-0 blur-xl opacity-20", a.bg)} />
                         </div>
-                        <div>
-                            <h2 className={`text-lg font-black tracking-tight ${a.text}`}>{activeItem.label}</h2>
-                            <p className="text-sm text-zinc-500">{activeItem.description}</p>
+                        <div className="space-y-1">
+                            <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-1 share-glass-strong", a.pill)}>
+                                Section Configuration
+                            </div>
+                            <h2 className={cn("text-2xl font-black tracking-tighter uppercase leading-none", a.text)}>
+                                {activeItem.label}
+                            </h2>
+                            <p className="text-sm text-zinc-500 font-medium max-w-xl opacity-80">
+                                {activeItem.description} — Gérez les paramètres de ce module pour votre guilde.
+                            </p>
                         </div>
+                        
+                        {/* Decorative background glow */}
+                        <div className={cn("absolute -top-10 -right-10 w-40 h-40 blur-[100px] opacity-10 pointer-events-none", a.bg)} />
                     </div>
 
                     {/* Content pane */}
@@ -178,6 +217,7 @@ export default async function FeatureSettingsPage({
                     {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                     {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
                     {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
+                    {activeTab === "discord" && <DiscordSettingsClient guildId={guildId} />}
 
 
                 </div>

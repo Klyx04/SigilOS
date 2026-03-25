@@ -14,12 +14,14 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
 
 import { ValidatorInbox } from "./_components/validator-inbox";
+import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
+import { CommandMenu } from "@/components/layout/command-menu";
 
 export default async function DashboardLayout({
     children,
@@ -49,6 +51,7 @@ export default async function DashboardLayout({
     if (!user.isAuthenticated) {
         return (
             <AccessDenied
+                guildId={guildId}
                 title="Bêta Fermée"
                 message="L'accès à SigilOS est actuellement limité aux serveurs partenaires. Ce serveur n'est pas encore autorisé."
                 variant="lock"
@@ -87,6 +90,7 @@ export default async function DashboardLayout({
     if (!user.isMember) {
         return (
             <AccessDenied
+                guildId={guildId}
                 title="Accès Restreint"
                 message={`Vous devez être membre du serveur Discord ${user.guildName} pour accéder à ce tableau de bord.`}
                 variant="lock"
@@ -123,8 +127,8 @@ export default async function DashboardLayout({
         <NebulaClientWrapper>
             <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
 
-                {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                {/* 1. DESKTOP SIDEBAR (Fixed) - Only for LG+ screens (State of the Art 2026) */}
+                <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
@@ -138,8 +142,8 @@ export default async function DashboardLayout({
                 {/* Silent Presence Update Hook */}
                 <PresenceHeartbeat guildId={guildId} />
 
-                {/* 2. MAIN CONTENT AREA (Offset by Sidebar width) */}
-                <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black">
+                {/* 2. MAIN CONTENT AREA (Offset by Sidebar width on LG+ only) */}
+                <div className="flex-1 flex flex-col lg:pl-[280px] transition-all duration-500 ease-in-out h-full overflow-hidden bg-black">
 
                     {/* Top Navigation - Fixed at top of content area */}
                     <div className="flex-shrink-0 z-50">
@@ -158,6 +162,11 @@ export default async function DashboardLayout({
                             <AnnouncementBanner />
                         </Suspense>
                         <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
+
+                            {/* Pseudo issues (sync) banner */}
+                            {user.hasPseudoIssue && (
+                                <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
+                            )}
 
                             {/* Page Content */}
                             <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
@@ -203,6 +212,9 @@ export default async function DashboardLayout({
                         userPseudo={user.pseudo}
                     />
                 )}
+
+                {/* Command Palette (Cmd+K) */}
+                <CommandMenu guildId={guildId} />
             </div>
         </NebulaClientWrapper>
     );

@@ -3,13 +3,37 @@
 # maintenance.sh - Le concierge haute-performance de SigilOS (2026)
 # Ce script nettoie les ressources inutilisées et alerte en cas de saturation.
 
-# Configuration des alertes (Récupère le Webhook Discord)
+# Configuration des alertes (Webhook Discord Classique)
 DISCORD_WEBHOOK_URL=$(grep DISCORD_ADMIN_WEBHOOK .env.prod | cut -d '=' -f2)
+# Nouvelle API SigilOS God Notifications
+GOD_NOTIFY_URL="https://sigilos.fr/api/god/notify"
+CRON_SECRET=$(grep CRON_SECRET .env.prod | cut -d '=' -f2)
 
 send_alert() {
     local message=$1
     if [ ! -z "$DISCORD_WEBHOOK_URL" ]; then
         curl -X POST -H "Content-Type: application/json" -d "{\"content\": \"🚨 **[SigilOS Infra]** $message\"}" "$DISCORD_WEBHOOK_URL"
+    fi
+}
+
+send_god_notif() {
+    local title=$1
+    local message=$2
+    local type=$3
+    local success=$4
+    local metadata=$5
+
+    if [ ! -z "$CRON_SECRET" ]; then
+        curl -s -X POST "$GOD_NOTIFY_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"title\": \"$title\",
+                \"message\": \"$message\",
+                \"type\": \"$type\",
+                \"success\": $success,
+                \"metadata\": $metadata
+            }" > /dev/null
     fi
 }
 
@@ -63,6 +87,7 @@ CONTAINER_NAME=$(sudo docker ps --format '{{.Names}}' | grep -E "^sigilos-(prod|
 if [ -z "$CONTAINER_NAME" ]; then
     echo "❌ Erreur : Impossible de trouver un conteneur SigilOS app actif."
     send_alert "Maintenance échouée : Conteneur app introuvable."
+    send_god_notif "[VPS] Maintenance ÉCHOUÉE" "Impossible de trouver un conteneur app actif pour lancer le Janitor." "VPS_MAINTENANCE" "false" "{ \"error\": \"container_not_found\" }"
 else
     echo "🚀 Exécution du Janitor dans : $CONTAINER_NAME"
     # Utilise npx tsx directement (disponible dans l'image Node, pas besoin du .js buildé)
@@ -77,3 +102,5 @@ echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"
 
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"
+FREE_SPACE=$(df -h / | tail -1 | awk '{print $4}')
+send_god_notif "[VPS] Maintenance Réussie" "Le script de purification a terminé son cycle quotidien." "VPS_MAINTENANCE" "true" "{ \"disk_usage\": \"$DISK_USAGE%\", \"free_space\": \"$FREE_SPACE\" }"

@@ -7,7 +7,10 @@ import { getActivePresence } from "@/server/actions/presence-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserProfile } from "@/server/actions/profile-actions";
+import { getAlmanaxData } from "@/server/actions/external/almanax-actions";
+import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { EchoDuSigil } from "./_components/echo-du-sigil";
+import { DashboardNews } from "./_components/dashboard-news";
 import { PresenceFacepile } from "./_components/presence-facepile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +63,7 @@ export default async function DashboardPage({
     }
 
     // All data fetches run concurrently — none depend on each other’s results
-    const [presenceData, ladderResult, profileResult, ocreProgress, guildStatsResult] = await Promise.all([
+    const [presenceData, ladderResult, profileResult, ocreProgress, guildStatsResult, almanaxItems] = await Promise.all([
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
         getUserProfile(guildId),
@@ -68,6 +71,7 @@ export default async function DashboardPage({
             ? getMyOcreProgress(guildId) 
             : Promise.resolve({ success: false, data: undefined }),
         getGuildStats(guildId),
+        getUpcomingAlmanax().catch(() => null)
     ]);
 
     // Focus data depends on Ocre result to avoid refetching
@@ -122,13 +126,15 @@ export default async function DashboardPage({
                             { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.totalXp ?? 0) > 100, icon: "book-open" }
                         ];
                         const allDone = adminSteps.every(s => s.completed);
-                        if (allDone) return null; // Banner disappears once everything is configured
+                        
                         return (
                             <div className="md:col-span-12">
                                 <OnboardingBanner
                                     guildId={guildId}
                                     guideHref={`/dashboard/${guildId}/admin/getting-started`}
                                     steps={adminSteps}
+                                    dismissible={true} // Always allow hiding if the user wishes
+                                    storageKey={`admin-setup-${guildId}`}
                                 />
                             </div>
                         );
@@ -145,8 +151,7 @@ export default async function DashboardPage({
                             { id: "docs", title: "Guide", description: "Comprendre SigilOS", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
                         ].filter(Boolean) as any[];
 
-                        const hasIncompleteSteps = memberSteps.some(s => !s.completed);
-                        if (!hasIncompleteSteps) return null;
+                        const allDone = memberSteps.every(s => s.completed);
 
                         return (
                             <div className="md:col-span-12">
@@ -157,11 +162,21 @@ export default async function DashboardPage({
                                     subtitle="Préparation Personnelle"
                                     checklistLabel="Ma progression"
                                     steps={memberSteps}
+                                    dismissible={true} // Always allow hiding
+                                    storageKey={`member-setup-${user.id}`}
                                 />
                             </div>
                         );
                     })()}
                 </div>
+
+                {/* --- 1. THE NEWS FEED (Almanax & Community News) --- */}
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                    <DashboardNews 
+                        guildId={guildId} 
+                        initialAlmanax={almanaxItems?.[0] ?? null}
+                    />
+                </section>
 
                 {/* --- 1. THE ECHO (Intelligence Focus) --- */}
                 <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
@@ -355,17 +370,6 @@ export default async function DashboardPage({
                                 </Card>
                             </Link>
                         )}
-                        <Link href={`/docs`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-zinc-500/50 transition-all group overflow-hidden relative">
-                                <CardHeader className="p-4">
-                                    <BookOpen className="w-5 h-5 text-zinc-400 mb-2" />
-                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Wiki</CardTitle>
-                                </CardHeader>
-                                <div className="absolute -bottom-2 -right-2 opacity-5">
-                                    <BookOpen className="w-12 h-12 text-zinc-400" />
-                                </div>
-                            </Card>
-                        </Link>
                     </div>
 
                 </main>

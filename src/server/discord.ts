@@ -107,7 +107,8 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     }>;
 
     // Cache the raw (unfiltered) list so both managed/unmanaged callers benefit
-    setCached(cacheKey, roles, 5 * 60 * 1000); // TTL: 5 minutes
+    // TTL: 60 seconds (reduced from 5min to avoid onboarding lags)
+    setCached(cacheKey, roles, 60 * 1000);
 
     const result = options.excludeManaged ? roles.filter(r => !r.managed) : roles;
     return result.sort((a, b) => b.position - a.position);
@@ -135,9 +136,11 @@ export async function fetchGuild(guildId: string) {
         name: string;
         icon: string | null;
         owner_id?: string;
+        system_channel_id?: string | null;
     };
 
-    setCached(cacheKey, data, 10 * 60 * 1000); // TTL: 10 minutes
+    // TTL: 120 seconds (reduced from 10min)
+    setCached(cacheKey, data, 120 * 1000);
     return data;
 }
 
@@ -174,7 +177,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
 
     if (!res.ok) {
         if (res.status === 404) {
-            setCached(cacheKey, null, 5 * 60 * 1000); // Cache 404 for 5min too
+            setCached(cacheKey, null, 15 * 1000); // Short TTL for 404 (important for onboarding)
             return null;
         }
         throw new Error(`Failed to fetch member: ${res.statusText}`);
@@ -188,7 +191,8 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         joined_at?: string;
     };
 
-    setCached(cacheKey, data, 5 * 60 * 1000); // TTL: 5 minutes
+    // TTL: 60 seconds (reduced from 5min to avoid onboarding lags)
+    setCached(cacheKey, data, 60 * 1000);
     return data;
 }
 
@@ -375,6 +379,19 @@ export async function sendChannelMessage(
 
     const body: Record<string, unknown> = {};
 
+    // Extract all mentions from BOTH content and mentionContent to force notifications
+    const fullTextForMentions = `${content || ""} ${options?.mentionContent || ""}`;
+    const roleMentions = [...fullTextForMentions.matchAll(/<@&(\d+)>/g)].map(m => m[1]);
+    const userMentions = [...fullTextForMentions.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
+    const hasEveryone = /(@everyone|@here)/.test(fullTextForMentions);
+
+    // Build the allowed_mentions object
+    const allowedMentions: Record<string, unknown> = {
+        parse: ["users", "roles", "everyone"],
+        roles: roleMentions.length > 0 ? roleMentions : undefined,
+        users: userMentions.length > 0 ? userMentions : undefined,
+    };
+
     // Use embed if title is provided, otherwise plain content
     if (options?.embedTitle) {
         const embed: Record<string, unknown> = {
@@ -383,19 +400,16 @@ export async function sendChannelMessage(
             timestamp: new Date().toISOString(),
         };
 
-        // Discord mentions regex: @everyone, @here, or <@ID>, <@!ID>, <@&ID>
-        const hasMentions = /(@everyone|@here|<@(!|&)?\d+>)/.test(content);
-
         // Add description: only if no explicit description AND content doesn't contain a ping
         if (options.embedDescription) {
             embed.description = options.embedDescription;
-        } else if (content && !hasMentions) {
+        } else if (content && !hasEveryone && roleMentions.length === 0 && userMentions.length === 0) {
             embed.description = content;
         }
 
         // Add mention content to trigger pings (must be in body.content)
         // If content has mentions, or mentionContent is provided, it goes to body.content
-        if (content && hasMentions) {
+        if (content && (hasEveryone || roleMentions.length > 0 || userMentions.length > 0)) {
             body.content = content;
         }
 
@@ -443,15 +457,11 @@ export async function sendChannelMessage(
         }
 
         // Allow mentions to actually ping users/roles
-        body.allowed_mentions = {
-            parse: ["users", "roles", "everyone"]
-        };
+        body.allowed_mentions = allowedMentions;
     } else {
         body.content = content;
         // Allow mentions in plain messages too
-        body.allowed_mentions = {
-            parse: ["users", "roles", "everyone"]
-        };
+        body.allowed_mentions = allowedMentions;
     }
 
     // Add components (buttons)
@@ -862,5 +872,56 @@ export async function sendSecurityAlert(data: {
         embedDescription: data.description,
         embedColor: colors[data.severity],
         fields
+    });
+}
+
+/**
+ * Send a welcome embed to a guild with instructions
+ */
+export async function sendGuildWelcomeEmbed(channelId: string, guildName: string) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    
+    return sendChannelMessage(channelId, "", {
+        embedTitle: `🏰 SigilOS rejoint **${guildName}** !`,
+        embedDescription: `Merci d'avoir invité le bot **SigilOS**. Je suis là pour automatiser votre guilde Dofus et booster l'engagement de vos membres.\n\n**Comment commencer ?**`,
+        embedColor: 0x5865F2, // Discord Blurple
+        fields: [
+            {
+                name: "1. Accédez au Dashboard",
+                value: `Rendez-vous sur [sigilos.fr/dashboard](${baseUrl}/dashboard) pour lier votre compte.`,
+                inline: false
+            },
+            {
+                name: "2. Configurez votre Guilde",
+                value: "Une fois connecté, cliquez sur votre serveur pour activer les modules (Missions, Songes, Ladder, etc.).",
+                inline: false
+            },
+            {
+                name: "3. Créez des Missions",
+                value: "Publiez des objectifs hebdomadaires pour permettre à vos membres de gagner de l'XP de guilde et des Guildatons.",
+                inline: false
+            }
+        ],
+        embedFooter: "SigilOS · L'outil ultime pour guilde Dofus",
+        embedThumbnail: "https://beta.sigilos.fr/assets/ui/logo-v2.png",
+        components: [
+            {
+                type: 1, // Action Row
+                components: [
+                    {
+                        type: 2, // Button
+                        style: 5, // URL
+                        label: "Ouvrir le Dashboard",
+                        url: `${baseUrl}/dashboard`
+                    },
+                    {
+                        type: 2, // Button
+                        style: 5,
+                        label: "Documentation",
+                        url: `${baseUrl}/docs`
+                    }
+                ]
+            }
+        ]
     });
 }

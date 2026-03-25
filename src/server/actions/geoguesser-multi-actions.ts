@@ -238,6 +238,7 @@ export async function submitSessionGuess(
     round: number,
     x: number,
     y: number,
+    worldId: number,
     score: number,
     distance: number
 ) {
@@ -255,7 +256,7 @@ export async function submitSessionGuess(
         if (!player) return { success: false, error: "Player not in session" };
 
         const currentGuesses = (player.guesses as any[]) || [];
-        const newGuess = { round, x, y, score, distance };
+        const newGuess = { round, x, y, score, distance, worldId };
 
         // Remove existing guess for this round if any (safety)
         const updatedGuesses = currentGuesses.filter(g => g.round !== round);

@@ -188,12 +188,34 @@ const worker = new Worker(METAMOB_QUEUE_NAME, processExchangeJob, {
     concurrency: 2, // Process up to 2 syncs at the exact same time
 });
 
-worker.on("completed", (job) => {
+worker.on("completed", async (job) => {
     logger.info(`[Worker] ✅ Job ${job.id} complété avec succès.`);
+    
+    // Notify God Dashboard for manual/critical syncs
+    if (job.name === "manual-metamob-sync") {
+        const { notifyGod } = await import("../server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Sync Metamob (Dofusbook) Réussie",
+            message: `La synchronisation manuelle pour l'utilisateur ${job.data.userId} s'est terminée avec succès.`,
+            type: "WORKER_SYNC",
+            success: true,
+            metadata: { jobId: job.id, userId: job.data.userId, guildId: job.data.guildId }
+        });
+    }
 });
 
-worker.on("failed", (job, err) => {
+worker.on("failed", async (job, err) => {
     logger.error(`[Worker] ❌ Job ${job?.id} a échoué: ${err.message}`);
+    
+    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    await notifyGod({
+        title: "Sync Metamob (Dofusbook) ÉCHOUÉE",
+        message: `Le job ${job?.id} a échoué : ${err.message}`,
+        type: "WORKER_SYNC",
+        success: false,
+        ping: true,
+        metadata: { jobId: job?.id, error: err.message, data: job?.data }
+    });
 });
 
 // =============================================================================

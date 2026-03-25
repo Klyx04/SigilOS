@@ -10,6 +10,7 @@ import CanvasPanel from "./CanvasPanel";
 import ChatPanel from "./ChatPanel";
 import TopBarInfo from "./TopBarInfo";
 import { SkribblStarDecorations } from "./SkribblDecorations";
+import { AtmosphericParticles } from "../ui/AtmosphericParticles";
 import { toast } from "sonner";
 import { 
     Loader2, 
@@ -34,7 +35,6 @@ const SKRIBBL_CATEGORIES = [
     { id: "Monstre", label: "Monstres", icon: "👹" },
     { id: "Objet / Équipement", label: "Équipements", icon: "⚔️" },
     { id: "Sort / Action", label: "Sorts", icon: "🪄" },
-    { id: "Personnage", label: "PNJs", icon: "🧑" },
     { id: "Ressource", label: "Ressources", icon: "💎" },
     { id: "Dofus", label: "Dofus", icon: "🥚" },
     { id: "Monture", label: "Montures", icon: "🐎" },
@@ -245,7 +245,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
 
     if (phase === "browse" || !gameState) {
         return (
-            <div className="min-h-screen h-full w-full bg-[#1a4e9b] flex flex-col items-center justify-start sm:justify-center p-8 relative overflow-x-hidden"
+            <div className="min-screen h-full w-full bg-[#1a4e9b] flex flex-col items-center justify-start sm:justify-center p-4 md:p-8 relative overflow-y-auto overflow-x-hidden"
                  style={{ 
                      backgroundImage: `url('https://skribbl.io/res/background.png')`,
                      backgroundRepeat: 'repeat',
@@ -361,7 +361,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
 
     return (
         <div 
-            className="min-h-screen h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-2 md:p-8 overflow-x-hidden relative"
+            className="min-h-screen h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-2 md:p-8 overflow-y-auto overflow-x-hidden relative"
             onClick={unlockAudio}
         >
             {/* BACKGROUND OVERLAY */}
@@ -378,7 +378,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                 <span className="sm:hidden">Sortir</span>
             </button>
 
-            <div className="w-full max-w-[95vw] flex flex-col gap-4 md:gap-6 mx-auto animate-in fade-in zoom-in duration-500 py-2 md:py-4 px-1 md:px-2 relative h-[95vh] md:h-[90vh]">
+            <div className="w-full max-w-[95vw] grow flex flex-col gap-4 md:gap-6 mx-auto animate-in fade-in zoom-in duration-500 py-2 md:py-4 px-1 md:px-2 relative min-h-[500px]">
                 <div className="flex gap-4 items-stretch justify-center w-full grow min-h-0 overflow-hidden">
                     {/* Main Game Area - Fluid */}
                     <div className="flex flex-col flex-1 gap-4 min-w-0 h-full max-w-full">
@@ -729,6 +729,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                     </div>
                 </div>
             </div>
+            <AtmosphericParticles />
         </div>
     );
 }

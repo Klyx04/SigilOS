@@ -60,7 +60,6 @@ export async function getAlmanaxData(): Promise<{
             next: { revalidate: secondsUntilMidnight }, // Dynamic cache until midnight
         });
 
-        // Try proxy if direct fetch fails
         if (!res.ok) {
             console.warn(`Direct fetch for Almanax data failed (${res.status}), trying proxy...`);
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
@@ -70,9 +69,14 @@ export async function getAlmanaxData(): Promise<{
             });
 
             if (res.ok) {
-                const json = await res.json();
-                if (json.contents) {
-                    return { success: true, data: JSON.parse(json.contents), secondsUntilMidnight };
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    if (json.contents) {
+                        return { success: true, data: JSON.parse(json.contents), secondsUntilMidnight };
+                    }
+                } catch (e) {
+                    throw new Error(`Proxy returned invalid JSON: ${text.slice(0, 100)}`);
                 }
             }
             throw new Error(`Proxy fallback failed. Status: ${res.status}`);

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { fetchGuildRoles } from "@/server/discord";
-import { PermissionsManager } from "../_components/permissions-manager";
+import { PermissionsManager } from "@/app/dashboard/[guildId]/admin/_components/permissions-manager";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";

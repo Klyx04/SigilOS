@@ -29,11 +29,16 @@ export default async function UnifiedValidationPage({
     const { tab } = await searchParams;
 
     const user = await getUserContext(guildId);
-
+    
     if (!user.canValidateMissions && !user.isAdmin) {
         await logAdminAccessDenied(guildId, "/admin/validation");
         return <AccessDenied />;
     }
+
+    // 🔒 LAZY CLEANUP: Trigger instant physical deletion of expired items (+24h)
+    // Avoids waiting for the nightly cron for hygiene
+    const { lazyCleanupExpiredSubmissions } = await import("@/server/actions/admin-actions");
+    await lazyCleanupExpiredSubmissions(guildId).catch(() => {});
 
     // Parallel fetch all pending items
     const [missionRes, achievementRes, kamaRes] = await Promise.all([

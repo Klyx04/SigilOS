@@ -6,14 +6,15 @@ import {
     type StorageGuildEntry, type StorageOverview, type PendingFile, type GuildAsset, type AssetDbField, type DiskFile
 } from "@/server/actions/storage-actions";
 import {
-    HardDrive, FolderOpen, Loader2, AlertTriangle, RefreshCw,
+    HardDrive, FolderOpen, Loader2, RefreshCw,
     FileImage, Coins, Trophy, Shield, Search, Clock, Image as ImageIcon,
-    X, Trash2, ExternalLink, Globe, ChevronDown, Handshake
+    X, Trash2, ExternalLink, Handshake
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getInternalSystemStatus } from "@/server/actions/god-system-actions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -25,24 +26,12 @@ function formatBytes(bytes: number): string {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-function useCountdown(expiresAt: Date) {
-    const getMs = () => Math.max(0, new Date(expiresAt).getTime() - Date.now());
-    const [ms, setMs] = useState(getMs);
-    useEffect(() => {
-        const id = setInterval(() => setMs(getMs()), 1000);
-        return () => clearInterval(id);
-    });
-    const h = Math.floor(ms / 3_600_000);
-    const m = Math.floor((ms % 3_600_000) / 60_000);
-    const s = Math.floor((ms % 60_000) / 1_000);
-    return { label: `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`, urgent: ms < 2 * 3_600_000, expired: ms === 0 };
-}
-
 const TYPE_CFG = {
     MISSION: { label: "Mission", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", dot: "bg-rose-500", barColor: "bg-rose-500" },
     KAMA: { label: "Kamas & Coffres", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500", barColor: "bg-amber-500" },
     ACHIEVEMENT: { label: "Succès", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", dot: "bg-purple-500", barColor: "bg-purple-500" },
-    LOAN_PROOF: { label: "Prêt/Coffre", color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", dot: "bg-cyan-500", barColor: "bg-cyan-500" },
+    LOAN_PROOF: { label: "Prêt & Coffre", color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", dot: "bg-cyan-500", barColor: "bg-cyan-500" },
+    PRESENTATION: { label: "Présentation Guilde", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500", barColor: "bg-emerald-500" },
     ICON: { label: "Icône", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", dot: "bg-sky-500", barColor: "bg-sky-500" },
     BANNER: { label: "Bannière de guilde", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500", barColor: "bg-emerald-500" },
     PHOTO: { label: "Photo de guilde", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", dot: "bg-indigo-500", barColor: "bg-indigo-500" },
@@ -51,546 +40,543 @@ const TYPE_CFG = {
 // ─── Path Display ─────────────────────────────────────────────────────────────
 
 function PathDisplay({ path, colorClass }: { path: string; colorClass: string }) {
-    const clean = path.replace(/^\/uploads\//, "").replace(/\/$/, "");
+    // Normalize path to look like project root path
+    const clean = path.replace(/^\/uploads\//, "private_uploads/").replace(/\/$/, "");
     const segments = clean.split("/");
+    
     return (
-        <div className="mt-2 overflow-x-auto">
-            <div className="flex items-center gap-0.5 min-w-max">
-                <span className="text-xs text-zinc-600 font-mono select-all">/uploads/</span>
-                {segments.map((seg, i) => {
-                    const isCuid = seg.length > 20 && /^[a-z0-9]+$/.test(seg);
-                    return (
-                        <span key={i} className="flex items-center gap-0.5">
-                            {i > 0 && <span className="text-zinc-700 text-xs mx-0.5">›</span>}
-                            <span title={seg} className={cn("text-xs font-mono font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap", isCuid ? "text-zinc-500 bg-zinc-800/80" : `${colorClass} bg-zinc-800/80`)}>
-                                {seg}
-                            </span>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2">
+            <span className="text-[10px] font-mono text-zinc-600 shrink-0 font-bold tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded border border-white/5">SigilOS/</span>
+            {segments.map((seg, i) => {
+                const isCuid = seg.length > 20 && /^[a-z0-9]+$/.test(seg);
+                return (
+                    <div key={i} className="flex items-center gap-1.5 shrink-0">
+                        {i > 0 && <span className="text-zinc-800 text-xs font-mono font-black">/</span>}
+                        <span 
+                            title={seg} 
+                            className={cn(
+                                "text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border",
+                                isCuid ? "text-zinc-500 bg-zinc-950/50 border-white/[0.03]" : `${colorClass} bg-zinc-900/50 border-white/[0.05]`
+                            )}
+                        >
+                            {isCuid ? seg.slice(0, 8) + "..." : seg}
                         </span>
-                    );
-                })}
-                <span className="text-zinc-600 text-xs font-mono ml-0.5">/</span>
-            </div>
-        </div>
-    );
-}
-
-// ─── Storage Bar ─────────────────────────────────────────────────────────────
-
-function StorageBar({ value, max, color }: { value: number; max: number; color: string }) {
-    const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-    return (
-        <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-            <div className={cn("h-full rounded-full transition-all duration-700", color)} style={{ width: `${pct}%` }} />
+                    </div>
+                );
+            })}
         </div>
     );
 }
 
 // ─── Countdown chip ───────────────────────────────────────────────────────────
 
-function CountdownChip({ expiresAt }: { expiresAt: Date }) {
-    const { label, urgent, expired } = useCountdown(expiresAt);
-    if (expired) return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">EXPIRÉ</span>;
+function useCountdown(expiresAt: Date) {
+    const getMs = () => Math.max(0, new Date(expiresAt).getTime() - Date.now());
+    const [ms, setMs] = useState(getMs);
+    useEffect(() => {
+        const id = setInterval(() => setMs(getMs()), 1000);
+        return () => clearInterval(id);
+    }, [expiresAt]);
+    
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    const s = Math.floor((ms % 60_000) / 1_000);
+    return { label: `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`, urgent: ms < 2 * 3_600_000, expired: ms === 0, ms };
+}
+
+function CountdownChip({ modifiedAt, labelPrefix = "SUPPRESSION DANS : " }: { modifiedAt: Date; labelPrefix?: string }) {
+    // Grace period is 4 hours from modification
+    const expiresAt = new Date(new Date(modifiedAt).getTime() + 4 * 60 * 60 * 1000);
+    const { label, urgent, expired, ms } = useCountdown(expiresAt);
+
+    if (expired) return <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 uppercase">PRÊT POUR NETTOYAGE</span>;
     return (
-        <span className={cn("text-[9px] font-mono font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0", urgent ? "bg-red-500/15 text-red-400 animate-pulse" : "bg-zinc-800 text-zinc-400")}>
-            <Clock className="w-2.5 h-2.5" />{label}
+        <span className={cn(
+            "text-[8px] font-mono font-black px-1.5 py-0.5 rounded flex items-center gap-1.5 whitespace-nowrap", 
+            urgent ? "bg-red-500/10 text-red-400 animate-pulse" : "bg-zinc-800 text-zinc-400"
+        )}>
+            <Clock className="w-2.5 h-2.5" />
+            {labelPrefix}{label}
         </span>
     );
 }
 
-// ─── Delete confirm button ────────────────────────────────────────────────────
+// ─── Explorer Dialog ─────────────────────────────────────────────────────────
 
-function DeleteButton({ fileUrl, onDeleted, dbClear, label = "Supprimer" }: {
-    fileUrl: string; onDeleted: () => void; label?: string;
+interface LightboxItem {
+    url: string;
+    type: keyof typeof TYPE_CFG;
+    label: string;
+    filename?: string;
+    sizeBytes?: number;
+    isLocal?: boolean;
+    expiresAt?: Date | string;
     dbClear?: { guildId: string; field: AssetDbField };
+}
+
+function FileExplorerDialog({ 
+    open, onOpenChange, 
+    files, label, type, onDeleted 
+}: { 
+    open: boolean; onOpenChange: (o: boolean) => void;
+    files: DiskFile[]; label: string; type: keyof typeof TYPE_CFG;
+    onDeleted: () => void;
 }) {
-    const [confirm, setConfirm] = useState(false);
-    const [deleting, setDeleting] = useState(false);
-
-    const handleDelete = async () => {
-        setDeleting(true);
-        const res = await godDeleteFile(fileUrl, dbClear);
-        setDeleting(false);
-        if (res.success) { toast.success("Fichier supprimé du VPS"); onDeleted(); }
-        else { toast.error(res.error || "Erreur suppression"); }
-        setConfirm(false);
-    };
-
-    if (confirm) return (
-        <div className="flex items-center gap-1">
-            <button onClick={handleDelete} disabled={deleting}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black bg-red-500 text-white hover:bg-red-400 transition-colors disabled:opacity-50">
-                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                CONFIRMER
-            </button>
-            <button onClick={() => setConfirm(false)} className="text-zinc-600 hover:text-white px-1"><X className="w-3 h-3" /></button>
-        </div>
-    );
-    return (
-        <button onClick={() => setConfirm(true)} className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all" title={label}>
-            <Trash2 className="w-3.5 h-3.5" />
-        </button>
-    );
-}
-
-// ─── Lightbox ─────────────────────────────────────────────────────────────────
-
-type LightboxItem = { url: string; type: string; label: string; memberName?: string; sizeBytes?: number; expiresAt?: Date; isLocal?: boolean; filename?: string; dbClear?: { guildId: string; field: AssetDbField } };
-
-function Lightbox({ item, onClose, onDeleted }: { item: LightboxItem; onClose: () => void; onDeleted: () => void }) {
-    const cfg = TYPE_CFG[item.type as keyof typeof TYPE_CFG] || TYPE_CFG.MISSION;
-    const isLocal = item.isLocal !== false && item.url.startsWith("/");
-
-    return (
-        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4" onClick={onClose}>
-            <div className="relative max-w-3xl w-full bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-2 h-2 rounded-full shrink-0", cfg.dot)} />
-                        <div className="min-w-0">
-                            <p className="text-xs font-black text-white uppercase tracking-widest">
-                                {cfg.label}{item.memberName ? ` — ${item.memberName}` : ""}
-                            </p>
-                            <p className="text-[9px] font-mono text-zinc-500 break-all mt-0.5">{item.filename || item.url}{item.sizeBytes ? ` · ${formatBytes(item.sizeBytes)}` : ""}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {item.expiresAt && <CountdownChip expiresAt={new Date(item.expiresAt)} />}
-                        {!isLocal && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white"><ExternalLink className="w-4 h-4" /></a>}
-                        {isLocal && <DeleteButton fileUrl={item.url} dbClear={item.dbClear} onDeleted={() => { onDeleted(); onClose(); }} label="Supprimer du VPS" />}
-                        <button onClick={onClose} className="text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>
-                    </div>
-                </div>
-                <div className="relative w-full max-h-[70vh] bg-black flex items-center justify-center overflow-hidden">
-                    <img src={item.url} alt={item.label} className="max-h-[70vh] w-auto object-contain" />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ─── Disk Files Gallery ───────────────────────────────────────────────────────
-
-function DiskFilesGallery({ files, type, onReload }: { files: DiskFile[]; type: "MISSION" | "KAMA" | "ACHIEVEMENT"; onReload: () => void }) {
-    const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
-    const [expanded, setExpanded] = useState(false);
     const cfg = TYPE_CFG[type];
-    const shown = expanded ? files : files.slice(0, 8);
-
-    if (files.length === 0) return (
-        <div className="text-center py-3 text-zinc-700 text-[10px] font-bold uppercase tracking-widest">Aucun fichier</div>
-    );
-
-    return (
-        <>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-4 gap-4">
-                {shown.map((f, i) => (
-                    <div key={i} className="group relative rounded-xl overflow-hidden border border-white/5 bg-zinc-950 hover:border-white/20 transition-all">
-                        {/* Thumbnail */}
-                        <button className="block w-full aspect-square overflow-hidden relative" onClick={() => setLightbox({ url: f.url, type, label: cfg.label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true })}>
-                            <img src={f.url} alt={f.filename} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                        </button>
-                        {/* Delete on hover */}
-                        <div className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <DeleteButton fileUrl={f.url} onDeleted={onReload} />
-                        </div>
-                        {/* Bottom info */}
-                        <div className="px-1.5 py-1 space-y-0.5">
-                            <p className="text-[8px] font-mono text-zinc-400 truncate" title={f.filename}>{f.filename}</p>
-                            <p className="text-[7px] font-mono text-zinc-600">{formatBytes(f.sizeBytes)}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            {files.length > 8 && (
-                <button onClick={() => setExpanded(e => !e)} className="mt-2 w-full text-center text-[10px] font-black text-zinc-600 hover:text-white transition-colors flex items-center justify-center gap-1">
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", expanded && "rotate-180")} />
-                    {expanded ? "Réduire" : `Voir ${files.length - 8} fichiers de plus`}
-                </button>
-            )}
-            {lightbox && <Lightbox item={lightbox} onClose={() => setLightbox(null)} onDeleted={onReload} />}
-        </>
-    );
-}
-
-// ─── Guild Assets Gallery ─────────────────────────────────────────────────────
-
-function AssetsGallery({ assets, guildId, onReload }: { assets: GuildAsset[]; guildId: string; onReload: () => void }) {
     const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
 
-    if (assets.length === 0) return (
-        <div className="text-center py-4 text-zinc-700 text-xs font-bold uppercase tracking-widest">Aucun asset configuré</div>
-    );
-
     return (
-        <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
-                {assets.map((a, i) => {
-                    const cfg = TYPE_CFG[a.type] || TYPE_CFG.ICON;
-                    const isDiscord = !a.isLocal;
-                    const dbClear = a.isLocal && a.dbField ? { guildId, field: a.dbField as AssetDbField } : undefined;
-                    const friendlyLabel = a.type === "BANNER" ? "Bannière de guilde" : a.type === "PHOTO" ? "Photo de guilde" : "Icône de guilde";
-                    return (
-                        <div key={i} className="group relative rounded-xl overflow-hidden border border-white/5 bg-zinc-900/60 hover:border-white/20 transition-all">
-                            <button className="relative block w-full aspect-video overflow-hidden" onClick={() => setLightbox({ url: a.url, type: a.type, label: friendlyLabel, isLocal: a.isLocal, dbClear })}>
-                                <img src={a.url} alt={friendlyLabel} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                            </button>
-                            <div className="flex items-center justify-between px-3 py-2">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                    <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", cfg.dot)} />
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">{friendlyLabel}</p>
-                                        {isDiscord && <span className="text-[8px] font-black px-1 py-px rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-0.5 w-fit mt-0.5"><Globe className="w-2 h-2" />CDN Discord</span>}
-                                        {a.isLocal && <p className="text-[8px] font-mono text-zinc-600 truncate mt-0.5" title={a.url}>{a.url}</p>}
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-5xl bg-zinc-950 border-white/5 p-0 overflow-hidden outline-none">
+                <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/50">
+                    <div className="flex items-center gap-4 text-left">
+                        <div className={cn("p-3 rounded-2xl", cfg.bg, cfg.color)}>
+                            <FolderOpen className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">{label}</DialogTitle>
+                            <p className="text-xs font-medium text-zinc-500">{files.length} fichiers trouvés sur le serveur</p>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar">
+                    {files.length === 0 ? (
+                        <div className="text-center py-20 text-zinc-700 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-[2rem]">
+                            Aucun fichier physique détecté
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {files.map((f, i) => (
+                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-white/5 bg-zinc-900/50 hover:border-white/20 transition-all aspect-square">
+                                    <button 
+                                        className="absolute inset-0 z-10" 
+                                        onClick={() => setLightbox({ url: f.url, type, label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true })}
+                                    />
+                                    <img src={f.url} alt={f.filename} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+                                    
+                                    <div className="absolute top-2 left-2 z-20">
+                                        {label.includes("Orphelin") ? (
+                                            <CountdownChip modifiedAt={f.modifiedAt} labelPrefix="" />
+                                        ) : (
+                                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1">
+                                                <Shield className="w-2 h-2" />
+                                                Permanent
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none">
+                                        <p className="text-[10px] font-mono text-zinc-300 truncate">{f.filename}</p>
+                                        <p className="text-[9px] font-mono text-zinc-500">{formatBytes(f.sizeBytes)}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                    {isDiscord ? (
-                                        <a href={a.url} target="_blank" rel="noopener noreferrer" className="p-1 text-zinc-500 hover:text-white"><ExternalLink className="w-3.5 h-3.5" /></a>
-                                    ) : (
-                                        <DeleteButton fileUrl={a.url} dbClear={dbClear} onDeleted={onReload} label="Supprimer l'asset du VPS" />
-                                    )}
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    );
-                })}
-            </div>
-            {lightbox && <Lightbox item={lightbox} onClose={() => setLightbox(null)} onDeleted={onReload} />}
-        </>
+                    )}
+                </div>
+
+                {lightbox && (
+                    <Lightbox 
+                        item={lightbox} 
+                        onClose={() => setLightbox(null)} 
+                        onDeleted={() => { onDeleted(); setLightbox(null); }} 
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 
-// ─── Pending Gallery ─────────────────────────────────────────────────────────
+// ─── Pending Validation Dialog ──────────────────────────────────────────────
 
-function PendingGallery({ files, onReload }: { files: PendingFile[]; onReload: () => void }) {
-    const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
-    if (files.length === 0) return <div className="text-center py-6 text-zinc-700 text-xs font-bold uppercase tracking-widest">Aucun fichier en attente</div>;
-    return (
-        <>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-4 gap-4">
-                {files.map(f => {
-                    const cfg = TYPE_CFG[f.type];
-                    return (
-                        <div key={f.submissionId} className="group relative rounded-xl overflow-hidden border border-white/5 bg-zinc-900/60 aspect-square hover:border-white/20 transition-all hover:scale-[1.02]">
-                            <button className="absolute inset-0 z-10" onClick={() => setLightbox({ url: f.url, type: f.type, label: cfg.label, memberName: f.memberName, sizeBytes: f.sizeBytes, expiresAt: f.expiresAt, isLocal: true, filename: f.filename })} />
-                            <img src={f.url} alt={f.memberName} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
-                            <div className={cn("absolute top-2 left-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border", cfg.bg, cfg.color, cfg.border)}>{cfg.label}</div>
-                            <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <DeleteButton fileUrl={f.url} onDeleted={onReload} />
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 p-2 space-y-1 pointer-events-none">
-                                <p className="text-[9px] font-black text-white truncate">{f.memberName}</p>
-                                <CountdownChip expiresAt={new Date(f.expiresAt)} />
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            {lightbox && <Lightbox item={lightbox} onClose={() => setLightbox(null)} onDeleted={onReload} />}
-        </>
-    );
-}
-
-// ─── Category Block ───────────────────────────────────────────────────────────
-
-type CategorySection = "files" | "pending" | null;
-
-function CategoryBlock({
-    type, dir, count, bytes, totalBytes, files, pending, pendingFiles, activeLoanProofs, onReload
-}: {
-    type: "MISSION" | "KAMA" | "ACHIEVEMENT" | "LOAN_PROOF";
-    dir: string; count: number; bytes: number; totalBytes: number;
-    files: DiskFile[];
-    pending: number; pendingFiles: PendingFile[];
-    activeLoanProofs?: number;
-    onReload: () => void;
+function PendingValidationDialog({ 
+    open, onOpenChange, 
+    files, label, type, onDeleted 
+}: { 
+    open: boolean; onOpenChange: (o: boolean) => void;
+    files: PendingFile[]; label: string; type: keyof typeof TYPE_CFG;
+    onDeleted: () => void;
 }) {
-    const [section, setSection] = useState<CategorySection>(null);
     const cfg = TYPE_CFG[type];
-    const icon = type === "MISSION" ? <FileImage className="w-3.5 h-3.5" /> :
-        type === "KAMA" ? <Coins className="w-3.5 h-3.5" /> :
-            type === "LOAN_PROOF" ? <Handshake className="w-3.5 h-3.5" /> :
-                <Trophy className="w-3.5 h-3.5" />;
-    const myPending = pendingFiles.filter(f => f.type === type);
-    const toggle = (s: CategorySection) => setSection(p => p === s ? null : s);
+    const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
 
     return (
-        <div className={cn("rounded-xl border overflow-hidden", cfg.bg, cfg.border)}>
-            {/* Header */}
-            <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                    <div className={cn("flex items-center gap-1.5", cfg.color)}>
-                        {icon}
-                        <span className="text-[10px] font-black uppercase tracking-widest">{cfg.label}s</span>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-5xl bg-zinc-950 border-white/5 p-0 overflow-hidden outline-none">
+                <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/50">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-left">
+                            <div className={cn("p-3 rounded-2xl bg-amber-500/10 text-amber-500")}>
+                                <Clock className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">SALLE D'ATTENTE : {label}</DialogTitle>
+                                <p className="text-xs font-medium text-zinc-500">{files.length} submissions en attente (24h avant auto-suppression record BDD)</p>
+                            </div>
+                        </div>
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-black px-3 py-1 text-[10px] tracking-widest uppercase">Expiration 24h</Badge>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                        {myPending.length > 0 && (
-                            <button onClick={() => toggle("pending")}
-                                className={cn("flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-md border shadow-sm transition-all hover:-translate-y-0.5",
-                                    section === "pending" ? "bg-yellow-400 text-black border-yellow-400" : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30")}>
-                                <Clock className="w-3 h-3" /> {myPending.length} En attente
-                            </button>
-                        )}
-                        {count > 0 && (
-                            <button onClick={() => toggle("files")}
-                                className={cn("flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-md border shadow-sm transition-all hover:-translate-y-0.5",
-                                    section === "files" ? "bg-white text-black border-white" : `${cfg.bg} ${cfg.color} ${cfg.border} hover:opacity-80`)}>
-                                <FolderOpen className="w-3 h-3" />
-                                {section === "files" ? "Masquer" : `Voir ${count} fichier${count > 1 ? "s" : ""}`}
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <StorageBar value={bytes} max={totalBytes || 1} color={cfg.barColor} />
-                <div className="flex justify-between text-[10px] text-zinc-500 font-mono font-bold">
-                    <span>{count} fichier{count !== 1 ? "s" : ""}</span>
-                    <span>{formatBytes(bytes)}</span>
-                </div>
-                {pending > 0 && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 font-black self-start w-fit">{pending} record(s) BDD en délai d'attente</Badge>
-                )}
-                {type === "KAMA" && activeLoanProofs !== undefined && activeLoanProofs > 0 && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black self-start w-fit">{activeLoanProofs} prêts/coffre actifs enregistrés</Badge>
-                )}
-                <PathDisplay path={dir} colorClass={cfg.color} />
-            </div>
+                </DialogHeader>
 
-            {/* Gallery: real disk files */}
-            {section === "files" && files.length > 0 && (
-                <div className="border-t border-white/5 p-3 space-y-2">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Fichiers sur disque</p>
-                    <DiskFilesGallery files={files} type={type === "LOAN_PROOF" ? "MISSION" : type} onReload={onReload} />
-                </div>
-            )}
+                <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar">
+                    {files.length === 0 ? (
+                        <div className="text-center py-20 text-zinc-700 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-[2rem]">
+                            Aucun record en attente
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {files.map((f, i) => (
+                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-white/5 bg-zinc-900/50 hover:border-white/20 transition-all aspect-square">
+                                    <button 
+                                        className="absolute inset-0 z-10" 
+                                        onClick={() => setLightbox({ url: f.url, type: f.type, label: cfg.label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true, expiresAt: f.expiresAt })}
+                                    />
+                                    <img src={f.url} alt={f.memberName} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+                                    
+                                    <div className="absolute top-2 left-2 z-20">
+                                        <div className="bg-black/80 backdrop-blur-md rounded-lg px-2 py-1 flex items-center gap-1.5 border border-white/5">
+                                            <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                            <span className="text-[8px] font-mono font-black text-white uppercase">
+                                                {new Date(f.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    </div>
 
-            {/* Gallery: pending */}
-            {section === "pending" && myPending.length > 0 && (
-                <div className="border-t border-white/5 p-3 space-y-2">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-1">
-                        <Clock className="w-2.5 h-2.5 text-yellow-400" />En attente de validation
-                    </p>
-                    <PendingGallery files={myPending} onReload={onReload} />
+                                    <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none">
+                                        <p className="text-[10px] font-black text-white truncate">{f.memberName}</p>
+                                        <p className="text-[8px] font-mono text-zinc-500">{formatBytes(f.sizeBytes)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
+
+                {lightbox && (
+                    <Lightbox 
+                        item={lightbox} 
+                        onClose={() => setLightbox(null)} 
+                        onDeleted={() => { onDeleted(); setLightbox(null); }} 
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 
-// ─── Guild Row ────────────────────────────────────────────────────────────────
-
-function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEntry; maxBytes: number; onReload: () => void }) {
-    const [showAssets, setShowAssets] = useState(false);
-    const totalBytes = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes;
-    const totalFiles = guild.missionsCount + guild.kamaCount + guild.achievementCount;
-
-    return (
-        <div className="rounded-2xl border border-white/5 bg-zinc-900/30 hover:bg-zinc-900/40 transition-all">
-            <div className="p-5 space-y-5">
-                {/* Header */}
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                        {guild.assets.find(a => a.type === "ICON") ? (
-                            <img src={guild.assets.find(a => a.type === "ICON")!.url} alt="" className="w-10 h-10 rounded-xl object-cover" />
-                        ) : <Shield className="w-4 h-4 text-indigo-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-black text-white truncate uppercase tracking-tight">{guild.name}</p>
-                        <p className="text-[9px] text-zinc-600 font-mono">{guild.discordGuildId}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                        {guild.assets.length > 0 && (
-                            <button onClick={() => setShowAssets(v => !v)}
-                                className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all",
-                                    showAssets ? "bg-white text-black border-white" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20")}>
-                                <ImageIcon className="w-3 h-3" /> {guild.assets.length} asset{guild.assets.length > 1 ? "s" : ""}
-                            </button>
-                        )}
-                        <div className="text-right">
-                            <p className="text-sm font-black text-white font-mono">{formatBytes(totalBytes)}</p>
-                            <p className="text-[9px] text-zinc-500">{totalFiles} fichiers</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Global bar */}
-                <div className="px-2">
-                    <StorageBar value={totalBytes} max={maxBytes} color="bg-indigo-500" />
-                </div>
-
-                {/* 3 category blocks: missions, kamas/vault, succès */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    <CategoryBlock type="MISSION" dir={guild.missionsDir}
-                        count={guild.missionsCount} bytes={guild.missionsBytes} totalBytes={totalBytes}
-                        files={guild.missionsFiles} pending={guild.pendingMissions}
-                        pendingFiles={guild.pendingFiles} onReload={onReload} />
-                    <CategoryBlock type="KAMA" dir={guild.kamaDir}
-                        count={guild.kamaCount} bytes={guild.kamaBytes} totalBytes={totalBytes}
-                        files={guild.kamaFiles} pending={guild.pendingKamas}
-                        pendingFiles={guild.pendingFiles} activeLoanProofs={guild.activeLoanProofs} onReload={onReload} />
-                    <CategoryBlock type="ACHIEVEMENT" dir={guild.achievementDir}
-                        count={guild.achievementCount} bytes={guild.achievementBytes} totalBytes={totalBytes}
-                        files={guild.achievementFiles} pending={0}
-                        pendingFiles={guild.pendingFiles} onReload={onReload} />
-                </div>
-
-                {/* Assets (only if any) */}
-                {guild.assets.length > 0 && showAssets && (
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-3">
-                        <div className="flex items-center gap-2">
-                            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Assets de présentation</span>
-                            <span className="text-[9px] text-zinc-600">(CDN Discord = lecture seule)</span>
-                        </div>
-                        <AssetsGallery assets={guild.assets} guildId={guild.guildId} onReload={onReload} />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-// ─── Main Panel ───────────────────────────────────────────────────────────────
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export function StorageOverviewPanel() {
-    const [data, setData] = useState<StorageOverview | null>(null);
+    const [overview, setOverview] = useState<StorageOverview | null>(null);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [orphansOpen, setOrphansOpen] = useState(false);
+    const [systemStatus, setSystemStatus] = useState<any>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
-        const res = await getStorageOverview();
-        if (res.success && res.data) setData(res.data);
+        const [res, status] = await Promise.all([getStorageOverview(), getInternalSystemStatus()]);
+        if (res.success && res.data) setOverview(res.data);
+        if (status) setSystemStatus(status);
         setLoading(false);
     }, []);
 
     useEffect(() => { load(); }, [load]);
 
-    const filtered = data?.guilds.filter(g =>
-        g.name.toLowerCase().includes(search.toLowerCase()) || g.discordGuildId.includes(search)
-    ) ?? [];
+    const filteredGuilds = overview?.guilds.filter(g => 
+        g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        g.discordGuildId.includes(searchTerm)
+    ) || [];
 
-    const maxBytes = data ? Math.max(...data.guilds.map(g => g.missionsBytes + g.kamaBytes + g.achievementBytes), 1) : 1;
+    if (loading && !overview) return (
+        <div className="flex flex-col items-center justify-center py-40 gap-6">
+            <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] animate-pulse">Exploration physique...</span>
+        </div>
+    );
+
+    const diskInfo = systemStatus?.disk;
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="w-full space-y-12 pb-20">
+            {/* Header & Stats */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
+                <div className="xl:col-span-3 2xl:col-span-2 space-y-8">
+                    <div className="p-8 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[50px] rounded-full -mr-10 -mt-10" />
+                        
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                                    <HardDrive className="w-6 h-6" />
+                                </div>
+                                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Stockage</h2>
+                            </div>
+                            <button onClick={load} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                                <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6 relative z-10">
+                            <div className="space-y-1">
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-[40px] font-black text-white tracking-tighter leading-none">{formatBytes(overview?.totalBytes || 0)}</p>
+                                    {diskInfo && <span className="text-[10px] font-black text-zinc-600">/ {diskInfo.totalMb} Mo</span>}
+                                </div>
+                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Occupé par SigilOS</p>
+                            </div>
+
+                            <div className="pt-6 border-t border-white/5 flex gap-12">
+                                <div className="space-y-1">
+                                    <p className="text-xl font-black text-white leading-none">{overview?.totalFiles || 0}</p>
+                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1">Fichiers</p>
+                                </div>
+                                <button onClick={() => setOrphansOpen(true)} className="space-y-1 text-left group/btn">
+                                    <p className={cn("text-xl font-black leading-none transition-colors", (overview?.orphanFiles.length || 0) > 0 ? "text-red-500 group-hover/btn:text-red-400" : "text-emerald-500")}>
+                                        {overview?.orphanFiles.length || 0}
+                                    </p>
+                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1 group-hover/btn:text-white transition-colors underline decoration-dotted">Orphelins</p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Search Filter */}
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-amber-500 transition-colors">
+                            <Search className="w-4 h-4" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="RECHERCHER UNE GUILDE..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-zinc-900/20 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:border-amber-500/50 focus:bg-zinc-900/40 transition-all outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="xl:col-span-9 2xl:col-span-10">
+                    <div className={cn(
+                        "grid gap-10",
+                        filteredGuilds.length === 1 ? "grid-cols-1" : 
+                        filteredGuilds.length === 2 ? "grid-cols-1 2xl:grid-cols-2" :
+                        "grid-cols-1 2xl:grid-cols-3"
+                    )}>
+                        {filteredGuilds.map((guild) => (
+                            <GuildCard key={guild.guildId} guild={guild} onReload={load} />
+                        ))}
+                    </div>
+                    {filteredGuilds.length === 0 && (
+                        <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3rem] text-zinc-700 text-xs font-black uppercase tracking-[0.3em]">
+                            Aucune correspondance physique
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Orphans Modal */}
+            <FileExplorerDialog 
+                open={orphansOpen} 
+                onOpenChange={setOrphansOpen} 
+                files={overview?.orphanFiles || []} 
+                label="Fichiers Orphelins" 
+                type="MISSION" 
+                onDeleted={load} 
+            />
+        </div>
+    );
+}
+
+function GuildCard({ guild, onReload }: { guild: StorageGuildEntry; onReload: () => void }) {
+    const subTotal = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes + guild.presentationBytes;
+    const totalCount = guild.missionsCount + guild.kamaCount + guild.achievementCount + guild.presentationCount;
+    
+    return (
+        <div className="p-8 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl space-y-8 relative group overflow-hidden">
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                        <HardDrive className="w-5 h-5 text-indigo-400" />
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                        {guild.assets.find(a => a.type === "ICON") ? (
+                            <img src={guild.assets.find(a => a.type === "ICON")!.url} alt="" className="w-full h-full object-cover" />
+                        ) : <Shield className="w-5 h-5 text-zinc-600" />}
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Cartographie du Stockage VPS</h3>
-                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5 select-all">~/SigilOS/public/uploads/</p>
+                        <h3 className="text-sm font-black text-white uppercase tracking-tight">{guild.name}</h3>
+                        <p className="text-[10px] font-mono text-zinc-500">{guild.discordGuildId}</p>
                     </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={load} disabled={loading}
-                    className="h-8 w-8 p-0 rounded-xl border border-white/5 text-zinc-500 hover:text-white">
-                    <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-                </Button>
+                <div className="text-right">
+                    <p className="text-lg font-black text-white">{formatBytes(subTotal)}</p>
+                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{totalCount} fichiers</p>
+                </div>
             </div>
 
-            {/* Global stats */}
-            {data && (
-                <div className="grid grid-cols-3 gap-3">
-                    {[
-                        { label: "Total utilisé", value: formatBytes(data.totalBytes), accent: false },
-                        { label: "Fichiers totaux", value: String(data.totalFiles), accent: false },
-                        { label: "Fichiers orphelins", value: String(data.orphanFiles.length), accent: data.orphanFiles.length > 0 },
-                    ].map(({ label, value, accent }) => (
-                        <div key={label} className={cn("p-4 rounded-2xl border text-center", accent ? "border-amber-500/20 bg-amber-500/5" : "border-white/5 bg-zinc-900/30")}>
-                            <p className={cn("text-2xl font-black font-mono", accent ? "text-amber-400" : "text-white")}>{value}</p>
-                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{label}</p>
-                        </div>
-                    ))}
+            <div className="grid grid-cols-2 gap-4">
+                <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                <div className="col-span-2">
+                    <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
                 </div>
-            )}
+            </div>
+            
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-[30px] rounded-full -mr-12 -mt-12 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+    );
+}
 
-            {/* Legend */}
-            <div className="flex items-center gap-5 text-[9px] font-black uppercase tracking-widest text-zinc-600 flex-wrap">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500" />Missions</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" />Kamas</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-purple-500" />Succès</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-500" />Prêts &amp; Coffre</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" />Assets guilde</div>
+function StorageMiniItem({ 
+    type, count, bytes, files, onReload, dir, pendingFiles 
+}: { 
+    type: keyof typeof TYPE_CFG; count: number; bytes: number; files: DiskFile[]; onReload: () => void; dir: string; pendingFiles: PendingFile[] 
+}) {
+    const [explorerOpen, setExplorerOpen] = useState(false);
+    const [pendingOpen, setPendingOpen] = useState(false);
+    const cfg = TYPE_CFG[type];
+    
+    // Filtre les fichiers en attente de validation pour cette catégorie
+    const myPending = pendingFiles.filter(pf => {
+        if (type === "MISSION") return pf.type === "MISSION";
+        if (type === "KAMA") return pf.type === "KAMA";
+        if (type === "ACHIEVEMENT") return pf.type === "ACHIEVEMENT";
+        return false;
+    });
+
+    const icon = type === "MISSION" ? <FileImage className="w-4 h-4" /> :
+                type === "KAMA" ? <Coins className="w-4 h-4" /> :
+                type === "PRESENTATION" ? <ImageIcon className="w-4 h-4" /> :
+                type === "LOAN_PROOF" ? <Handshake className="w-4 h-4" /> :
+                <Trophy className="w-4 h-4" />;
+
+    return (
+        <>
+            <div 
+                className={cn(
+                    "p-5 rounded-[2.5rem] border transition-all relative group/item overflow-hidden",
+                    count > 0 || myPending.length > 0 ? "bg-zinc-900/40 border-white/5" : "bg-zinc-950/20 border-white/[0.02] opacity-50 grayscale"
+                )}
+            >
+                <div className="flex items-start justify-between mb-4">
+                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover/item:rotate-12 shadow-2xl", cfg.bg, cfg.color)}>
+                        {icon}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {myPending.length > 0 && (
+                            <button 
+                                onClick={() => setPendingOpen(true)}
+                                className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl text-amber-500 text-[10px] font-black uppercase tracking-widest transition-all border border-amber-500/20 shadow-xl flex items-center gap-2"
+                            >
+                                <Clock className="w-3.5 h-3.5" />
+                                {myPending.length} EN ATTENTE
+                            </button>
+                        )}
+                        {count > 0 && (
+                            <button 
+                                onClick={() => setExplorerOpen(true)}
+                                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all shadow-xl"
+                            >
+                                <FolderOpen className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none">{cfg.label}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                            <p className="text-[28px] font-black text-white tracking-tighter leading-none">{count}</p>
+                            <p className="text-[10px] font-mono text-zinc-500 uppercase">{formatBytes(bytes)}</p>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/[0.03]">
+                        <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                            <HardDrive className="w-2.5 h-2.5" />
+                            Chemin Physique
+                        </p>
+                        <PathDisplay path={dir} colorClass={cfg.color} />
+                    </div>
+                </div>
             </div>
 
-            {/* Search */}
-            {data && data.guilds.length > 1 && (
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-                    <input value={search} onChange={e => setSearch(e.target.value)}
-                        placeholder="Filtrer par nom de guilde ou Discord ID…"
-                        className="w-full h-9 pl-9 pr-8 text-xs bg-zinc-900/50 border border-white/5 rounded-xl text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 font-mono" />
-                    {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white"><X className="w-3 h-3" /></button>}
-                </div>
-            )}
+            <FileExplorerDialog 
+                open={explorerOpen} 
+                onOpenChange={setExplorerOpen} 
+                files={files} 
+                label={cfg.label} 
+                type={type} 
+                onDeleted={onReload} 
+            />
 
-            {/* Orphan warning */}
-            {data && data.orphanFiles.length > 0 && (
-                <div className="flex flex-col gap-3 px-4 py-3 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                            <p className="text-xs text-amber-300">
-                                <span className="font-black">{data.orphanFiles.length} fichier(s) abandonné(s)</span> sur le disque sans correspondances BDD après 4h.
-                            </p>
+            {/* Salle d'attente (pending validation) */}
+            <PendingValidationDialog 
+                open={pendingOpen} 
+                onOpenChange={setPendingOpen} 
+                files={myPending} 
+                label={cfg.label} 
+                type={type} 
+                onDeleted={onReload} 
+            />
+        </>
+    );
+}
+
+function DeleteButton({ fileUrl, dbClear, onDeleted, label = "Supprimer" }: { fileUrl: string; dbClear?: { guildId: string; field: AssetDbField }; onDeleted: () => void; label?: string }) {
+    const [loading, setLoading] = useState(false);
+    const del = async () => {
+        if (!confirm(`Confirmer la suppression irréversible de : ${fileUrl} ?`)) return;
+        setLoading(true);
+        const res = await godDeleteFile(fileUrl, dbClear);
+        if (res.success) {
+            toast.success("Fichier supprimé définitivement");
+            onDeleted(); 
+        } else {
+            toast.error(res.error || "Erreur lors de la suppression");
+        }
+        setLoading(false);
+    };
+    return (
+        <button onClick={del} disabled={loading} className="p-2 text-zinc-600 hover:text-red-500 transition-colors" title={label}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        </button>
+    );
+}
+
+function Lightbox({ item, onClose, onDeleted }: { item: LightboxItem; onClose: () => void; onDeleted: () => void }) {
+    const cfg = TYPE_CFG[item.type as keyof typeof TYPE_CFG] || TYPE_CFG.MISSION;
+    
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="absolute inset-0" onClick={onClose} />
+            <div className="relative w-full max-w-6xl space-y-6" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-6">
+                    <div className="flex items-center gap-4">
+                        <div className={cn("p-3 rounded-2xl", cfg.bg, cfg.color)}>
+                            <ImageIcon className="w-6 h-6" />
                         </div>
-                        <Button 
-                            size="sm"
-                            disabled={loading}
-                            onClick={async () => {
-                                setLoading(true);
-                                const { cleanOrphanStorage } = await import("@/server/actions/storage-actions");
-                                const res = await cleanOrphanStorage();
-                                if (res.success) {
-                                    toast.success(`${res.deletedCount} fichier(s) orphelin(s) supprimé(s).`);
-                                    load();
-                                } else {
-                                    toast.error(res.error || "Erreur de nettoyage.");
-                                    setLoading(false);
-                                }
-                            }}
-                            className="bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black font-black uppercase text-[10px] h-8 px-3"
-                        >
-                            Purger {data.orphanFiles.length} fichier{data.orphanFiles.length > 1 ? "s" : ""}
-                        </Button>
-                    </div>
-
-                    <div className="mt-2 border-t border-amber-500/20 pt-3">
-                        <div className="flex items-center gap-2 mb-2 text-amber-500/80">
-                            <FolderOpen className="w-3.5 h-3.5" />
-                            <p className="text-[10px] uppercase font-black tracking-widest text-inherit">Aperçu avant purge :</p>
+                        <div>
+                            <p className="text-xl font-black text-white uppercase tracking-tight truncate max-w-md">{item.filename}</p>
+                            <p className="text-xs font-medium text-zinc-500">{formatBytes(item.sizeBytes || 0)} · {item.label}</p>
                         </div>
-                        {/* We use 'MISSION' type to render standard image previews */}
-                        <DiskFilesGallery files={data.orphanFiles} type="MISSION" onReload={load} />
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <DeleteButton fileUrl={item.url} onDeleted={onDeleted} label="Supprimer physiquement le fichier" />
+                        <button onClick={onClose} className="p-3 text-zinc-500 hover:text-white transition-colors bg-white/5 rounded-2xl hover:bg-white/10">
+                            <X className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
-            )}
-
-            {/* Existing pending and assets... */}
-
-            {/* Guild list */}
-            {loading ? (
-                <div className="flex items-center justify-center py-16 text-zinc-600 gap-3">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm font-bold uppercase tracking-widest">Scan VPS en cours…</span>
+                
+                <div className="relative rounded-[2rem] overflow-hidden bg-black border border-white/5 shadow-2xl flex items-center justify-center min-h-[50vh]">
+                    <img src={item.url} alt="" className="max-h-[80vh] w-auto object-contain select-none" />
                 </div>
-            ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-zinc-600 gap-2">
-                    <FolderOpen className="w-10 h-10 opacity-30" />
-                    <p className="text-sm font-bold">{search ? "Aucune guilde correspondante" : "Aucune guilde"}</p>
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    {filtered.map(guild => (
-                        <GuildStorageRow key={guild.guildId} guild={guild} maxBytes={maxBytes} onReload={load} />
-                    ))}
-                </div>
-            )}
+            </div>
         </div>
     );
 }

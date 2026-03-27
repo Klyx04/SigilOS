@@ -554,9 +554,11 @@ export async function getContributionLadder(
 
 /**
  * Get Guildatons Ladder (Guild currency ranking)
+ * @param view "weekly", "monthly", or "alltime"
  */
 export async function getGuildatonsLadder(
-    guildId: string
+    guildId: string,
+    view: ActivityView = "alltime"
 ): Promise<ActionResponse<LadderEntry[]>> {
     try {
         const session = await auth();
@@ -577,39 +579,129 @@ export async function getGuildatonsLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE",
-                guildatons: { gt: 0 }
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                discordRoleColor: true,
-                discordRoleName: true,
-                discordJoinedAt: true,
-                pseudoDofus: true,
-                classe: true,
-                guildatons: true,
-                user: {
-                    select: { image: true }
+        if (view === "weekly" || view === "monthly") {
+            let startDate: Date;
+            if (view === "weekly") {
+                const now = new Date();
+                const daysSinceTuesday = (now.getDay() + 7 - 2) % 7;
+                const tuesday = new Date(now);
+                tuesday.setDate(now.getDate() - daysSinceTuesday);
+                tuesday.setHours(7, 0, 0, 0);
+                if (now < tuesday) tuesday.setDate(tuesday.getDate() - 7);
+                startDate = tuesday;
+            } else {
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            }
+
+            const cacheKey = `ladder:guildatons:${guildId}:${view}:${startDate.getTime()}`;
+            const ladder = await withCache(cacheKey, 300, async () => {
+                const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+                
+                // Aggregate Guildatons from Missions and Kama Donations
+                const dotsByProfile = await db.$queryRaw<{ profileId: string; totalDots: number }[]>`
+                    WITH MissionDots AS (
+                        SELECT s."profileId", COALESCE(SUM(m."guildatonReward"), 0)::int AS dots
+                        FROM "Submission" s
+                        JOIN "Mission" m ON s."missionId" = m."id"
+                        JOIN "UserProfile" up ON s."profileId" = up."id"
+                        WHERE s."status" = 'VALIDATED'
+                          AND s."updatedAt" >= ${startDate}
+                          AND up."guildId" = ${guildConfig.id}
+                        GROUP BY s."profileId"
+                    ),
+                    KamaDots AS (
+                        SELECT k."profileId", COALESCE(SUM(FLOOR(k."amount" / ${KAMA_TRANCHE}) * ${REWARDS_PER_TRANCHE.guildatons || 0}), 0)::int AS dots
+                        FROM "KamaDonation" k
+                        JOIN "UserProfile" up ON k."profileId" = up."id"
+                        WHERE k."status" = 'VALIDATED'
+                          AND k."validatedAt" >= ${startDate}
+                          AND up."guildId" = ${guildConfig.id}
+                        GROUP BY k."profileId"
+                    ),
+                    CombinedDots AS (
+                        SELECT "profileId", dots FROM MissionDots
+                        UNION ALL
+                        SELECT "profileId", dots FROM KamaDots
+                    )
+                    SELECT "profileId", COALESCE(SUM(dots), 0)::int AS "totalDots"
+                    FROM CombinedDots
+                    GROUP BY "profileId"
+                    HAVING COALESCE(SUM(dots), 0) > 0
+                    ORDER BY "totalDots" DESC
+                `;
+
+                if (dotsByProfile.length === 0) return [];
+
+                const profileIds = dotsByProfile.map(x => x.profileId);
+                const dotsMap = new Map(dotsByProfile.map(x => [x.profileId, x.totalDots]));
+
+                const profiles = await db.userProfile.findMany({
+                    where: { id: { in: profileIds }, status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        discordNickname: true,
+                        discordRoleColor: true,
+                        discordRoleName: true,
+                        discordJoinedAt: true,
+                        pseudoDofus: true,
+                        classe: true,
+                        user: { select: { image: true } }
+                    }
+                });
+
+                const rankedProfiles = profiles
+                    .map(p => ({ ...p, periodDots: dotsMap.get(p.id) || 0 }))
+                    .sort((a, b) => b.periodDots - a.periodDots);
+
+                const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+                const adminRoleNames = new Set<string>();
+                for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                    if (perms.includes("admin:access")) adminRoleNames.add(roleId);
                 }
-            },
-            orderBy: [
-                { guildatons: "desc" },
-                { discordJoinedAt: "asc" } // Tie-breaker
-            ]
-        });
 
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-        const adminRoleNames = new Set<string>();
-        for (const [roleId, perms] of Object.entries(rolesMapping)) {
-            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
-        }
+                return rankedProfiles.map((p, idx) => ({
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: p.periodDots,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
+                }));
+            });
 
-        const ladder: LadderEntry[] = profiles.map((p, idx) => {
-            return {
+            return { 
+                success: true, 
+                data: ladder.map((entry: any) => ({ ...entry, isCurrentUser: entry.profileId === currentProfile?.id })) 
+            };
+        } else {
+            // All-time: existing cumulative logic
+            const profiles = await db.userProfile.findMany({
+                where: { guildId: guildConfig.id, status: "ACTIVE", guildatons: { gt: 0 } },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    guildatons: true,
+                    user: { select: { image: true } }
+                },
+                orderBy: [{ guildatons: "desc" }, { discordJoinedAt: "asc" }]
+            });
+
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const adminRoleNames = new Set<string>();
+            for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+            }
+
+            const ladder: LadderEntry[] = profiles.map((p, idx) => ({
                 rank: idx + 1,
                 profileId: p.id,
                 discordNickname: p.discordNickname,
@@ -620,10 +712,10 @@ export async function getGuildatonsLadder(
                 value: p.guildatons || 0,
                 isCurrentUser: p.id === currentProfile?.id,
                 isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? "")
-            };
-        });
+            }));
 
-        return { success: true, data: ladder };
+            return { success: true, data: ladder };
+        }
     } catch (error) {
         console.error("[getGuildatonsLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement de guildatons" };

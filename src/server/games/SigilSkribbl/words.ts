@@ -90,15 +90,19 @@ const getCategoryFromUrl = (url?: string, existingCategory?: string): string => 
 const isValidWord = (w: any): boolean => {
     if (!w || typeof w !== 'object') return false;
     if (!w.iconUrl || typeof w.iconUrl !== 'string') return false;
-    if (w.iconUrl.endsWith('/0.png')) return false;
-    if (/^archi\s+\d+$/i.test(w.word ?? '')) return false;
-    if (!w.word || /^[\s.]+$/.test(w.word)) return false;
     
-    // On refuse les mots composés de plus de 3 parties
-    if (w.word.trim().split(/\s+/).length > 3) return false;
+    // Filter out known broken or placeholder icons
+    if (w.iconUrl.endsWith('/0.png') || w.iconUrl.includes('sort_0.png') || w.iconUrl.includes('item_0.png')) return false;
+    
+    // Filter out Archimonstres (often too long or similar names)
+    if (/^archi\s+\d+$/i.test(w.word ?? '')) return false;
+    if (/^[\s.]+$/.test(w.word ?? '')) return false;
+    
+    // Filter out words that are too long (hard to draw/guess)
+    const word = (w.word as string).trim();
+    if (word.split(/\s+/).length > 3) return false;
+    if (word.length < 3 || word.length > 25) return false;
 
-    const letters = (w.word as string).replace(/\s/g, '');
-    if (letters.length < 3) return false;
     return true;
 };
 

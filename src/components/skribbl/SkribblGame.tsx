@@ -629,7 +629,17 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                                 className="group relative flex flex-col items-center gap-2 md:gap-4 p-4 md:p-8 bg-white hover:bg-yellow-400 rounded-2xl md:rounded-[2.5rem] border-b-[6px] md:border-b-[10px] border-black/10 hover:border-yellow-600 transition-all active:scale-95 shadow-2xl min-w-[120px] md:min-w-[200px]"
                                                             >
                                                                 <div className="w-12 h-12 md:w-24 md:h-24 bg-slate-50 rounded-xl md:rounded-3xl p-2 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                                                                    {choice.iconUrl && <img src={choice.iconUrl} alt="" className="w-full h-full object-contain" />}
+                                                                    {choice.iconUrl && (
+                                                                        <img 
+                                                                            src={choice.iconUrl} 
+                                                                            alt="" 
+                                                                            className="w-full h-full object-contain" 
+                                                                            onError={(e) => {
+                                                                                (e.target as HTMLImageElement).src = "https://api.dicebear.com/7.x/bottts/svg?seed=sigil-draw";
+                                                                                (e.target as HTMLImageElement).classList.add("opacity-50");
+                                                                            }}
+                                                                        />
+                                                                    )}
                                                                 </div>
                                                                 <span className="text-slate-900 group-hover:text-black font-black text-xs md:text-xl uppercase italic tracking-tight">{choice.word}</span>
                                                             </button>

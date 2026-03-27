@@ -385,11 +385,18 @@ export async function sendChannelMessage(
     const userMentions = [...fullTextForMentions.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
     const hasEveryone = /(@everyone|@here)/.test(fullTextForMentions);
 
-    // Build the allowed_mentions object
+    // Build the allowed_mentions object.
+    // Discord rule: `parse: ["roles"]` and `roles: [ids]` are MUTUALLY EXCLUSIVE.
+    // When explicit IDs are present, omit the wildcard from `parse` and use the IDs list instead.
+    const parseModes: string[] = [];
+    if (roleMentions.length === 0) parseModes.push("roles");   // no explicit IDs → allow wildcard
+    if (userMentions.length === 0) parseModes.push("users");   // no explicit IDs → allow wildcard
+    if (hasEveryone) parseModes.push("everyone");
+
     const allowedMentions: Record<string, unknown> = {
-        parse: ["users", "roles", "everyone"],
-        roles: roleMentions.length > 0 ? roleMentions : undefined,
-        users: userMentions.length > 0 ? userMentions : undefined,
+        parse: parseModes,
+        ...(roleMentions.length > 0 ? { roles: roleMentions } : {}),
+        ...(userMentions.length > 0 ? { users: userMentions } : {}),
     };
 
     // Use embed if title is provided, otherwise plain content

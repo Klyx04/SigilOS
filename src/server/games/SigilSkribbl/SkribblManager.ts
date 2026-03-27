@@ -213,7 +213,13 @@ export class SkribblManager {
         }
 
         if (event.startsWith("skribbl:draw:")) {
-            room.addCanvasAction({ type: event.replace("skribbl:draw:", ""), ...data });
+            const actionType = event.replace("skribbl:draw:", "");
+            if (actionType === "stroke" && Array.isArray(data)) {
+                // For batched strokes, we store the data as-is if it's an array
+                room.addCanvasAction(data);
+            } else {
+                room.addCanvasAction({ type: actionType, ...data });
+            }
         }
 
         if (data !== undefined) {

@@ -196,22 +196,36 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 justify-end">
-                                    <div className="flex flex-col items-end mr-4 hidden md:flex">
-                                        <span className={cn(
-                                            "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
-                                            user._count?.sessions > 0 ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : "text-zinc-600 border-white/5 bg-white/5"
-                                        )}>
-                                            {user._count?.sessions > 0 ? "Interactif" : "Visiteur"}
-                                        </span>
-                                    </div>
+                                <div className="flex items-center gap-2 justify-end shrink-0">
+                                    <div className="flex flex-col items-end mr-4 hidden md:flex gap-1.5">
+                                         <span className={cn(
+                                             "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                                             user._count?.sessions > 0 ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : "text-zinc-600 border-white/5 bg-white/5"
+                                         )}>
+                                             {user._count?.sessions > 0 ? "Interactif" : "Visiteur"}
+                                         </span>
+                                         
+                                         {/* New indicator for Whitelist membership */}
+                                         {user.memberInWhitelists && user.memberInWhitelists.length > 0 && (
+                                             <div className="flex flex-col items-end gap-1">
+                                                 <span className="text-[7px] font-black uppercase tracking-tighter text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-1.5 rounded-sm">
+                                                     Sur Whitelist
+                                                 </span>
+                                                 <div className="flex flex-wrap gap-1 justify-end max-w-[150px]">
+                                                     {user.memberInWhitelists.map((gName: string, idx: number) => (
+                                                         <span key={idx} className="text-[7px] text-zinc-500 whitespace-nowrap">{gName}</span>
+                                                     ))}
+                                                 </div>
+                                             </div>
+                                         )}
+                                     </div>
 
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleDeleteUser(user)}
                                         disabled={purgingId === user.id || isPurgingAll}
-                                        className="h-10 w-10 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all shrink-0"
+                                        className="h-10 w-10 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
                                     >
                                         {purgingId === user.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" /> : <Trash2 className="w-4 h-4" />}
                                     </Button>

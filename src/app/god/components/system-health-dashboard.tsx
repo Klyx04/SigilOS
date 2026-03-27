@@ -9,17 +9,33 @@ import {
     CheckCircle2, 
     AlertTriangle, 
     Loader2,
-    Clock
+    Clock,
+    TerminalSquare,
+    Cpu
 } from "lucide-react";
 import { getInternalSystemStatus } from "@/server/actions/god-system-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface SystemStatus {
-    database: { status: string; latency: number };
+    database: { 
+        status: string; 
+        latency: number; 
+        insights?: { auditLogs: number; profiles: number; missions: number } 
+    };
     cache: { status: string; latency: number };
     backup: { status: string; lastAt: Date | null };
-    worker: { status: string; lastAt: Date | null };
+    worker: { 
+        status: string; 
+        lastAt: Date | null; 
+        queues?: { 
+            metamob: { waiting: number; active: number; failed: number };
+            ladder: { waiting: number; active: number; failed: number };
+        } 
+    };
+    maintenance: { status: string; lastAt: Date | null; metrics?: any };
+    disk?: { totalMb: number; freeMb: number; usagePercent: number };
+    ram?: { totalMb: number; freeMb: number; usagePercent: number };
 }
 
 export function SystemHealthDashboard() {
@@ -28,7 +44,7 @@ export function SystemHealthDashboard() {
 
     const fetchStatus = async () => {
         const res = await getInternalSystemStatus();
-        if (res) setStatus(res);
+        if (res) setStatus(res as SystemStatus);
         setLoading(false);
     };
 
@@ -60,6 +76,22 @@ export function SystemHealthDashboard() {
         </div>
     );
 
+    const getDiskDisplay = () => {
+        if (!status.disk || status.disk.totalMb === 0) return "Jamais";
+        const totalGb = (status.disk.totalMb / 1024).toFixed(1);
+        const freeGb = (status.disk.freeMb / 1024).toFixed(1);
+        return `${freeGb}Go libres / ${totalGb}Go`;
+    };
+
+    const getRamDisplay = () => {
+        if (!status.ram || status.ram.totalMb === 0) return "Jamais";
+        const totalGb = (status.ram.totalMb / 1024).toFixed(1);
+        const freeGb = (status.ram.freeMb / 1024).toFixed(1);
+        return `${freeGb}Go libres / ${totalGb}Go`;
+    };
+
+    const totalWaitingJobs = (status.worker.queues?.metamob.waiting || 0) + (status.worker.queues?.ladder.waiting || 0);
+
     const cards = [
         {
             label: "Base de données",
@@ -67,7 +99,8 @@ export function SystemHealthDashboard() {
             value: status.database.status === "ONLINE" ? `${status.database.latency}ms` : "OFFLINE",
             status: status.database.status,
             icon: Database,
-            color: "emerald"
+            color: "emerald",
+            footer: status.database.insights ? `${(status.database.insights.auditLogs / 1000).toFixed(1)}k logs / ${status.database.insights.profiles} profils` : null
         },
         {
             label: "Moteur Cache",
@@ -78,12 +111,20 @@ export function SystemHealthDashboard() {
             color: "amber"
         },
         {
-            label: "Dernier Backup",
-            subLabel: "Cloudflare R2 Storage",
-            value: status.backup.lastAt ? formatDistanceToNow(new Date(status.backup.lastAt), { addSuffix: true, locale: fr }) : "Aucun",
-            status: status.backup.status === "SUCCESS" ? "ONLINE" : "OFFLINE",
-            icon: ShieldCheck,
-            color: "indigo"
+            label: "Stockage Système",
+            subLabel: "/dev/root OS Disk",
+            value: getDiskDisplay(),
+            status: status.disk && status.disk.usagePercent < 85 ? "ONLINE" : "OFFLINE",
+            icon: TerminalSquare,
+            color: status.disk && status.disk.usagePercent >= 85 ? "rose" : "cyan"
+        },
+        {
+            label: "Mémoire Vive (RAM)",
+            subLabel: "OS Node Allocation",
+            value: getRamDisplay(),
+            status: status.ram && status.ram.usagePercent < 90 ? "ONLINE" : "OFFLINE",
+            icon: Cpu,
+            color: status.ram && status.ram.usagePercent >= 90 ? "rose" : "violet"
         },
         {
             label: "Worker Platforms",
@@ -91,12 +132,21 @@ export function SystemHealthDashboard() {
             value: status.worker.lastAt ? formatDistanceToNow(new Date(status.worker.lastAt), { addSuffix: true, locale: fr }) : "En attente",
             status: status.worker.status === "IDLE" ? "ONLINE" : "OFFLINE",
             icon: RefreshCw,
-            color: "rose"
+            color: "rose",
+            footer: status.worker.queues ? `${totalWaitingJobs} tâches en attente` : null
+        },
+        {
+            label: "Dernier Backup",
+            subLabel: "Cloudflare R2 Storage",
+            value: status.backup.lastAt ? formatDistanceToNow(new Date(status.backup.lastAt), { addSuffix: true, locale: fr }) : "Aucun",
+            status: status.backup.status === "SUCCESS" ? "ONLINE" : "OFFLINE",
+            icon: ShieldCheck,
+            color: "indigo"
         }
     ];
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
             {cards.map((card, i) => (
                 <div key={i} className="group relative overflow-hidden bg-zinc-900/40 border border-white/5 p-5 rounded-3xl transition-all hover:bg-zinc-900/60 hover:border-white/10">
                     {/* Background Glow */}
@@ -124,8 +174,15 @@ export function SystemHealthDashboard() {
                     </div>
 
                     <div className="mt-4 flex items-end justify-between">
-                        <div className="text-lg font-black text-zinc-400 group-hover:text-white transition-colors">
-                            {card.value}
+                        <div className="space-y-1">
+                            <div className="text-lg font-black text-zinc-400 group-hover:text-white transition-colors">
+                                {card.value}
+                            </div>
+                            {card.footer && (
+                                <div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+                                    {card.footer}
+                                </div>
+                            )}
                         </div>
                         <Clock className="w-3.5 h-3.5 text-zinc-800" />
                     </div>

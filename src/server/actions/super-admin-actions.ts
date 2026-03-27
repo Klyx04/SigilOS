@@ -303,10 +303,40 @@ export async function getGhostUsers() {
         take: 50,
         include: {
             accounts: {
-                select: { provider: true }
+                select: { provider: true, providerAccountId: true } // Added providerAccountId to get Discord ID
             }
         }
     });
+}
+
+/**
+ * Delete a specific Ghost User (Manual Purge)
+ */
+export async function deleteGhostUser(userId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    const superAdminIds = await getSuperAdminIds();
+    
+    const user = await db.user.findUnique({
+        where: { id: userId },
+        include: { accounts: true, _count: { select: { profiles: true } } }
+    });
+
+    if (!user) throw new Error("Utilisateur introuvable.");
+    if (user._count.profiles > 0) throw new Error("Cet utilisateur n'est pas un fantôme (profil détecté).");
+
+    const discordId = user.accounts[0]?.providerAccountId;
+    if (discordId && superAdminIds.includes(discordId)) {
+        throw new Error("Impossible de purger un Super Admin.");
+    }
+
+    const hasEvents = await db.guildEvent.count({ where: { creatorId: user.id } });
+    if (hasEvents > 0) throw new Error("Cet utilisateur possède des événements et ne peut pas être purgé.");
+
+    await db.user.delete({ where: { id: user.id } });
+    revalidatePath("/god");
+    return { success: true };
 }
 
 /**

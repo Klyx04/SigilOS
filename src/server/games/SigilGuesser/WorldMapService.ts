@@ -146,7 +146,8 @@ export class WorldMapService {
         if (target.worldMap === guessWorldId) {
             const dx = guessX - target.x;
             const dy = guessY - target.y;
-            distance = Math.round(Math.sqrt(dx * dx + dy * dy));
+            // Dofus uses Manhattan distance for maps
+            distance = Math.abs(dx) + Math.abs(dy);
         }
 
         const maxDistPossible = 100;

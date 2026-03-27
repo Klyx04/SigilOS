@@ -141,7 +141,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     // Group by date for List View
     const groupedEvents = filteredEvents.reduce((groups, event) => {
-        const dateKey = format(new Date(event.startDate), "yyyy-MM-dd");
+        const start = event.startDate ? new Date(event.startDate) : null;
+        if (!start || isNaN(start.getTime())) return groups;
+        
+        const dateKey = format(start, "yyyy-MM-dd");
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(event);
         return groups;

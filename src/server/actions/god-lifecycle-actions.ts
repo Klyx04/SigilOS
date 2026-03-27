@@ -14,7 +14,8 @@
  * - getSoftDeletedProfiles
  * - getArchivedProfiles
  * - getPlatformBans
- * - getActiveGuilds
+ * - transferGuildOwnership
+ * - getGuildOwnerId
  */
 
 'use server';
@@ -372,37 +373,71 @@ export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) throw new Error("Unauthorized");
 
-    const members = await db.userProfile.findMany({
-        where: { guildId },
-        include: {
-            user: {
-                select: {
-                    name: true,
-                    image: true,
-                    accounts: {
-                        where: { provider: "discord" },
-                        select: { providerAccountId: true }
+    const [members, guild] = await Promise.all([
+        db.userProfile.findMany({
+            where: { guildId },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        image: true,
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true }
+                        }
                     }
                 }
-            }
-        },
-        orderBy: { updatedAt: "desc" }
-    });
+            },
+            orderBy: { updatedAt: "desc" }
+        }),
+        db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { ownerId: true }
+        })
+    ]);
 
-    return members.map(m => ({
-        id: m.id,
-        userId: m.userId,
-        status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
-        createdAt: m.createdAt.toISOString(),
-        updatedAt: m.updatedAt.toISOString(),
-        archivedAt: m.archivedAt?.toISOString() || null,
-        archiveReason: m.archiveReason,
-        pseudoDofus: m.pseudoDofus,
-        discordNickname: m.discordNickname,
-        user: {
-            name: m.user.name,
-            image: m.user.image,
-            accounts: m.user.accounts
-        }
-    }));
+    return {
+        ownerId: guild?.ownerId,
+        members: members.map(m => ({
+            id: m.id,
+            userId: m.userId,
+            status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
+            createdAt: m.createdAt.toISOString(),
+            updatedAt: m.updatedAt.toISOString(),
+            archivedAt: m.archivedAt?.toISOString() || null,
+            archiveReason: m.archiveReason,
+            pseudoDofus: m.pseudoDofus,
+            discordNickname: m.discordNickname,
+            user: {
+                name: m.user.name,
+                image: m.user.image,
+                accounts: m.user.accounts
+            }
+        }))
+    };
+}
+
+/**
+ * Transfer full ownership of a guild to another user (Super-admin only)
+ */
+export async function transferGuildOwnership(guildId: string, newOwnerUserId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        await db.guildConfig.update({
+            where: {
+                // Use OR to support both internal ID and discordGuildId (ID mismatch fix)
+                id: guildId.length < 25 ? undefined : guildId,
+                discordGuildId: guildId.length < 25 ? guildId : undefined
+            },
+            data: { ownerId: newOwnerUserId }
+        });
+
+        revalidatePath('/god');
+        return { success: true };
+    } catch (error) {
+        console.error('[GOD] transferGuildOwnership error:', error);
+        return { success: false, error: 'Failed to transfer ownership' };
+    }
 }

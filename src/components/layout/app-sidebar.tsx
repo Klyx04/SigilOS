@@ -137,8 +137,8 @@ export function AppSidebar({
     const showProgressionGroup = NAV_PROGRESSION.some(i => i.visible !== false);
 
     const NAV_TOOLS = [
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.isMember && user.canViewCalendar && modules.calendar },
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.isMember && user.canViewMiniGames && modules.worldmap },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.canViewCalendar && modules.calendar },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.worldmap }, // Assuming Mini-Games is bundled with Worldmap if no specific module exists
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewFinder && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "indigo", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "indigo", visible: user.isMember && user.canViewPolls && modules.polls },
@@ -151,14 +151,7 @@ export function AppSidebar({
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
     ];
 
-    const hasAnyAdminPermission = user.isAdmin || 
-        user.canManageMissions || user.canValidateMissions || user.canManageBonus ||
-        user.canManageMembers || user.canManageCalendar || user.canManageQuests ||
-        user.canManageWorldmap || user.canManageMiniGames || user.canManageResources || 
-        user.canModerateChat || user.canEditPresentation || user.canViewAdminDocs;
-
-    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "rose", visible: hasAnyAdminPermission };
-
+    // --- ADMIN NAVIGATION ---
     const NAV_ADMIN_SUB = [
         { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
         { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
@@ -166,10 +159,16 @@ export function AppSidebar({
         { name: "Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
         { name: "Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers },
         { name: "Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
+        { name: "Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin || user.canManageRelance },
         { name: "Chat Admin", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
-        { name: "Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin },
         { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
     ];
+
+    // Access to Supervision group is granted if user is a full admin OR has access to at least one sub-item
+    const hasAnyAdminTools = NAV_ADMIN_SUB.some(i => i.visible);
+    const hasAnyAdminPermission = user.isAdmin || hasAnyAdminTools || user.isSuperAdmin;
+
+    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "rose", visible: hasAnyAdminPermission };
 
     return (
         <div className={cn("flex flex-col h-full bg-[#0a0a0b] border-r border-white/5", className)}>
@@ -279,21 +278,23 @@ export function AppSidebar({
                         </div>
 
                         {/* SECTION: PROGRESSION */}
-                        <div className="space-y-0.5">
-                            <SectionTitle 
-                                label="Progression" 
-                                collapsible 
-                                isOpen={progressionOpen} 
-                                onToggle={() => setProgressionOpen(!progressionOpen)} 
-                            />
-                            {progressionOpen && (
-                                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-0.5">
-                                    {NAV_PROGRESSION.filter(i => i.visible !== false).map((item) => (
-                                        <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {showProgressionGroup && (
+                            <div className="space-y-0.5">
+                                <SectionTitle 
+                                    label="Progression" 
+                                    collapsible 
+                                    isOpen={progressionOpen} 
+                                    onToggle={() => setProgressionOpen(!progressionOpen)} 
+                                />
+                                {progressionOpen && (
+                                    <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-0.5">
+                                        {NAV_PROGRESSION.filter(i => i.visible !== false).map((item) => (
+                                            <NavItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* SECTION: TOOLS */}
                         <div className="space-y-0.5">

@@ -11,10 +11,18 @@ import {
     Activity,
     Home,
     Terminal,
-    Gamepad2
+    Gamepad2,
+    Settings2,
+    HardDrive,
+    Ticket,
+    Bell,
+    ShieldAlert,
+    Database,
+    Ban
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSearchParams } from "next/navigation";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,16 +32,28 @@ import {
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
-export function GodSidebar({ className, user }: { className?: string, user: any }) {
-    const pathname = usePathname();
+const CONSOLE_PAGES = [
+    { name: "Analytics", id: "overview", icon: Activity, color: "text-blue-400" },
+    { name: "Guildes & Users", id: "guilds", icon: Settings2, color: "text-emerald-400" },
+    { name: "Système & Infra", id: "infrastructure", icon: HardDrive, color: "text-amber-400" },
+    { name: "Alertes Système", id: "notifications", icon: Bell, color: "text-rose-400" },
+    { name: "Tickets Support", id: "tickets", icon: Ticket, color: "text-indigo-400" },
+    { name: "Données de Jeu", id: "game-data", icon: Database, color: "text-cyan-400" },
+    { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
+];
 
-    const isActive = (href: string) => {
+export function GodSidebar({ className, user, unreadCount = 0 }: { className?: string, user: any, unreadCount?: number }) {
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const activeTab = searchParams.get("tab") || "overview";
+
+    const isActiveRoot = (href: string) => {
         if (href === "/god") return pathname === "/god";
         return pathname.startsWith(href);
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-black border-r border-white/5", className)}>
+        <div className={cn("flex flex-col h-full bg-[#050505] border-r border-white/5", className)}>
 
             {/* 1. HEADER: BRAND */}
             <div className="p-8 pb-4">
@@ -56,63 +76,134 @@ export function GodSidebar({ className, user }: { className?: string, user: any 
 
             {/* 2. NAVIGATION */}
             <ScrollArea className="flex-1 px-4 py-8">
-                <nav className="space-y-6">
+                <nav className="space-y-8">
+                    {/* CONSOLE SECTION */}
                     <div>
-                        <h4 className="px-3 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 block">
-                            System Access
-                        </h4>
-                        <Link
-                            href="/god"
-                            className={cn(
-                                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group relative",
-                                isActive("/god")
-                                    ? "bg-white/5 text-white shadow-[0_0_30px_rgba(255,255,255,0.02)] border border-white/10"
-                                    : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.02] border border-transparent"
-                            )}
-                        >
-                            {isActive("/god") && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full" />}
-                            <Terminal className={cn(
-                                "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
-                                isActive("/god") ? "text-white" : "text-zinc-600 group-hover:text-zinc-400"
-                            )} />
-                            <span className="text-sm font-bold tracking-widest uppercase">Console Centrale</span>
-                        </Link>
+                        <div className="flex items-center gap-3 px-3 mb-6">
+                            <Terminal className="h-4 w-4 text-zinc-600" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">
+                                Console Centrale
+                            </h4>
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                            {CONSOLE_PAGES.map((page) => {
+                                const active = pathname === "/god" && activeTab === page.id;
+                                const hasBadge = page.id === "notifications" && unreadCount > 0;
+                                const sub = searchParams.get("sub") || "NONE";
 
-                        <Link
-                            href="/god/mini-games"
-                            className={cn(
-                                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group relative",
-                                isActive("/god/mini-games")
-                                    ? "bg-white/5 text-white shadow-[0_0_30px_rgba(255,255,255,0.02)] border border-white/10"
-                                    : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.02] border border-transparent"
-                            )}
-                        >
-                            {isActive("/god/mini-games") && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full" />}
-                            <Gamepad2 className={cn(
-                                "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
-                                isActive("/god/mini-games") ? "text-white" : "text-zinc-600 group-hover:text-zinc-400"
-                            )} />
-                            <span className="text-sm font-bold tracking-widest uppercase">Mini-Jeux</span>
-                        </Link>
+                                return (
+                                    <div key={page.id} className="space-y-1">
+                                        <Link
+                                            href={`/god?tab=${page.id}`}
+                                            className={cn(
+                                                "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
+                                                active
+                                                    ? "bg-white/5 text-white shadow-[0_0_40px_rgba(255,255,255,0.03)] border border-white/10"
+                                                    : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent"
+                                            )}
+                                        >
+                                            {active && (
+                                                <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+                                            )}
+                                            <page.icon className={cn(
+                                                "h-5 w-5 transition-all duration-500 group-hover:scale-110",
+                                                active ? page.color : "text-zinc-700/80 group-hover:text-zinc-400"
+                                            )} />
+                                            <span className="text-[11px] font-bold tracking-widest uppercase truncate flex-1">{page.name}</span>
+                                            
+                                            {hasBadge && (
+                                                <span className="flex items-center justify-center bg-rose-500 text-white text-[9px] font-black h-4 px-1.5 rounded-lg shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse">
+                                                    {unreadCount}
+                                                </span>
+                                            )}
+                                        </Link>
+
+                                        {/* Sub-tabs for specific sections */}
+                                        {active && page.id === "infrastructure" && (
+                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
+                                                <Link href="/god?tab=infrastructure&sub=STATUS" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "STATUS" || sub === "NONE" ? "text-emerald-400 bg-emerald-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <Activity className="h-3.5 w-3.5" /> Status
+                                                </Link>
+                                                <Link href="/god?tab=infrastructure&sub=STORAGE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "STORAGE" ? "text-blue-400 bg-blue-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <HardDrive className="h-3.5 w-3.5" /> Stockage
+                                                </Link>
+                                            </div>
+                                        )}
+
+                                        {active && page.id === "security" && (
+                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
+                                                <Link href="/god?tab=security&sub=AUDIT" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "AUDIT" || sub === "NONE" ? "text-zinc-300 bg-white/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <ShieldAlert className="h-3.5 w-3.5" /> Audit Logs
+                                                </Link>
+                                                <Link href="/god?tab=security&sub=FIREWALL" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "FIREWALL" ? "text-rose-400 bg-rose-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <Bell className="h-3.5 w-3.5" /> Firewall
+                                                </Link>
+                                            </div>
+                                        )}
+
+                                        {active && page.id === "tickets" && (
+                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
+                                                <Link href="/god?tab=tickets&sub=OPEN" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "OPEN" || sub === "NONE" ? "text-indigo-400 bg-indigo-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <Ticket className="h-3.5 w-3.5" /> Ouverts
+                                                </Link>
+                                                <Link href="/god?tab=tickets&sub=CLOSED" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "CLOSED" ? "text-zinc-400 bg-white/5" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                    <Database className="h-3.5 w-3.5" /> Archives
+                                                </Link>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
                     </div>
 
-                    <div className="h-px bg-white/5 mx-4" />
+                    {/* OTHER ACCESSS */}
+                    <div>
+                        <h4 className="px-3 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-6 block">
+                            Platform Access
+                        </h4>
+                        
+                        <div className="space-y-1.5">
+                            {[
+                                { name: "Gestion Mini-Jeux", href: "/god/mini-games?sub=MAINTENANCE", icon: Gamepad2, active: pathname.startsWith("/god/mini-games"), color: "text-amber-500" },
+                                { name: "Back to Member", href: "/dashboard", icon: LayoutDashboard, active: false, color: "text-emerald-500" },
+                                { name: "Landing Page", href: "/", icon: Home, active: false, color: "text-blue-500" },
+                            ].map((item) => (
+                                <div key={item.name} className="space-y-1">
+                                    <Link
+                                        href={item.href}
+                                        className={cn(
+                                            "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
+                                            item.active
+                                                ? "bg-white/5 text-white shadow-[0_0_40px_rgba(255,255,255,0.03)] border border-white/10"
+                                                : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent"
+                                        )}
+                                    >
+                                        {item.active && (
+                                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+                                        )}
+                                        <item.icon className={cn(
+                                            "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
+                                            item.active ? item.color : "text-zinc-700/80 group-hover:text-zinc-400"
+                                        )} />
+                                        <span className="text-[11px] font-bold tracking-widest uppercase truncate">{item.name}</span>
+                                    </Link>
 
-                    <div className="space-y-1">
-                        <Link
-                            href="/dashboard"
-                            className="flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-600 hover:text-white transition-all group"
-                        >
-                            <LayoutDashboard className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Back to Member</span>
-                        </Link>
-                        <Link
-                            href="/"
-                            className="flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-600 hover:text-white transition-all group"
-                        >
-                            <Home className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Landing Page</span>
-                        </Link>
+                                    {item.active && item.name === "Gestion Mini-Jeux" && (
+                                        <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
+                                            <Link href="/god/mini-games?sub=MAINTENANCE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", (searchParams.get("sub") || "MAINTENANCE") === "MAINTENANCE" ? "text-amber-400 bg-amber-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                <ShieldAlert className="h-3.5 w-3.5" /> Maintenance
+                                            </Link>
+                                            <Link href="/god/mini-games?sub=GUESSER" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", searchParams.get("sub") === "GUESSER" ? "text-rose-400 bg-rose-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
+                                                <Ban className="h-3.5 w-3.5" /> Blacklist
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </nav>
             </ScrollArea>
@@ -123,7 +214,7 @@ export function GodSidebar({ className, user }: { className?: string, user: any 
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/5 group">
                             <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-8 w-8 rounded-lg border border-amber-500/30">
+                                <Avatar className="h-8 w-8 rounded-lg border border-zinc-800">
                                     <AvatarImage src={user.image} />
                                     <AvatarFallback className="bg-zinc-800 text-xs font-bold text-amber-500">SU</AvatarFallback>
                                 </Avatar>

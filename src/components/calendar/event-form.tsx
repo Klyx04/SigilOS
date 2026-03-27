@@ -166,9 +166,13 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
             title: initialData.title || "",
             description: initialData.description || "",
             type: validType,
-            date: new Date(initialData.startDate),
-            startTime: format(new Date(initialData.startDate), "HH:mm"),
-            endTime: format(new Date(initialData.endDate), "HH:mm"),
+            date: initialData.startDate ? new Date(initialData.startDate) : new Date(),
+            startTime: initialData.startDate 
+                ? format(new Date(initialData.startDate), "HH:mm") 
+                : "20:00",
+            endTime: initialData.endDate 
+                ? format(new Date(initialData.endDate), "HH:mm") 
+                : "22:00",
             maxParticipants: initialData.maxParticipants || undefined,
             publishOnDiscord: false, // Default to false when editing
         } : {

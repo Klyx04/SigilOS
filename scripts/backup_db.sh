@@ -14,14 +14,21 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 # Local backup directory instead of /var/backups to avoid sudo/permission issues
 BACKUP_DIR="$ROOT_DIR/backups/db"
 
-# Load env vars safely (Prioritize PROD)
+# Load env vars safely (Prioritize PROD > BETA > .env)
 if [ -f "$ROOT_DIR/.env.prod" ]; then
     echo "[Config] Loading .env.prod"
     export $(grep -v '^#' "$ROOT_DIR/.env.prod" | xargs)
+elif [ -f "$ROOT_DIR/.env.beta" ]; then
+    echo "[Config] Loading .env.beta"
+    export $(grep -v '^#' "$ROOT_DIR/.env.beta" | xargs)
 elif [ -f "$ROOT_DIR/.env" ]; then
     echo "[Config] Loading .env"
     export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
 fi
+
+# Nova API God Notify (Cloudflare proxy URL or internal if app is up)
+# CRITICAL: Define AFTER loading env vars
+GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-https://sigilos.fr}/api/god/notify"
 
 DB_CONTAINER="sigilos-db-prod"
 DB_USER="${POSTGRES_USER:-user}"
@@ -29,9 +36,6 @@ DB_USER="${POSTGRES_USER:-user}"
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
 FILENAME_RAW="sigilos_${DATE}.sql.gz"
 FILENAME_ENC="${FILENAME_RAW}.gpg"
-
-# Nova API God Notify (Cloudflare proxy URL or internal if app is up)
-GOD_NOTIFY_URL="https://sigilos.fr/api/god/notify"
 
 send_god_notif() {
     local title=$1

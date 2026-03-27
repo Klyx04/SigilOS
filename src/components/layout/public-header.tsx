@@ -33,9 +33,10 @@ interface PublicHeaderProps {
     variant?: "hero" | "standard";
     dashboardHref?: string;
     isMember?: boolean;
+    isFixed?: boolean;
 }
 
-export function PublicHeader({ activePage, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp }: PublicHeaderProps) {
+export function PublicHeader({ activePage, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp, isFixed = true }: PublicHeaderProps) {
     const isHero = variant === "hero";
     const [isMember, setIsMember] = useState(isMemberProp ?? false);
     const [scrolled, setScrolled] = useState(false);
@@ -73,7 +74,8 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className={cn(
-                "fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 px-4 sm:px-6 lg:px-8",
+                isFixed ? "fixed top-0 left-0 right-0 z-50" : "relative z-50",
+                "transition-all duration-500 py-4 px-4 sm:px-6 lg:px-8",
                 scrolled ? "py-2" : "py-6"
             )}
         >
@@ -87,20 +89,26 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
 
                     {/* Left: Brand */}
                     <div className="flex items-center gap-12">
-                        <Link href="/" className="flex items-center gap-3 group shrink-0">
-                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 transition-all duration-500 group-hover:scale-110">
-                                <div className="absolute inset-0 bg-emerald-500/40 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Link href="/" className="flex items-center gap-4 group shrink-0 relative">
+                            {/* Animated Background Glow */}
+                            <div className="absolute -inset-4 bg-emerald-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700" />
+                            
+                            <div className="relative w-10 h-10 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
+                                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
                                 <Image
                                     src="/assets/ui/logo-v2.png"
                                     alt="SigilOS"
                                     fill
-                                    className="object-contain relative z-10 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                                    className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                                     priority
                                 />
                             </div>
-                            <span className="text-xl sm:text-2xl font-black tracking-tighter text-white transition-all group-hover:text-emerald-400 group-hover:italic uppercase leading-none">
-                                Sigil<span className="text-emerald-500 group-hover:text-white">OS</span>
-                            </span>
+                            <div className="flex flex-col -space-y-1">
+                                <span className="text-2xl font-black tracking-tighter text-white transition-all group-hover:text-emerald-400 uppercase leading-none">
+                                    Sigil<span className="text-emerald-500 group-hover:text-white transition-colors duration-500">OS</span>
+                                </span>
+                                <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] group-hover:text-emerald-500/40 transition-colors">Evolution</span>
+                            </div>
                         </Link>
 
                         {/* Desktop Nav (Standard 2026) */}
@@ -136,9 +144,11 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     className="flex items-center gap-3"
                                 >
                                     <DashboardDrawer>
-                                        <button className="group relative flex items-center gap-3 px-6 py-3 rounded-2xl bg-white text-black text-[12px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-0.5 active:scale-95 shadow-2xl">
-                                            Dashboard
-                                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                                        <button className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:scale-95 shadow-2x border border-white/20">
+                                            Accéder au Dashboard
+                                            <div className="w-5 h-5 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black/10 transition-colors">
+                                                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                                            </div>
                                         </button>
                                     </DashboardDrawer>
                                 </motion.div>

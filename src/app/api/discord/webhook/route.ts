@@ -197,6 +197,29 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
     });
 
     if (result.count > 0) {
+        // Notify God if this is the owner
+        const guildOwner = await db.guildConfig.findFirst({
+            where: { id: guild.id, ownerId: account.userId },
+            select: { name: true }
+        });
+
+        if (guildOwner) {
+            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            await notifyGod({
+                title: "Propriétaire de Guilde Parti",
+                message: `L'owner de la guilde **${guildOwner.name}** vient de quitter son serveur Discord.`,
+                type: "SECURITY_ALERT",
+                success: false,
+                ping: true,
+                metadata: {
+                    guildId: guild.id,
+                    guildName: guildOwner.name,
+                    discordUserId: userId,
+                    action: "MEMBER_REMOVE_WEBHOOK"
+                }
+            });
+        }
+
         // Log to audit trail
         await db.auditLog.create({
             data: {
@@ -250,6 +273,29 @@ async function handleBan(guildId: string, userId: string) {
             dofusBookLinks: Prisma.JsonNull
         }
     });
+
+    // Notify God if this is the owner
+    const guildOwner = await db.guildConfig.findFirst({
+        where: { id: guild.id, ownerId: account.userId },
+        select: { name: true }
+    });
+
+    if (guildOwner) {
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Propriétaire de Guilde Banni",
+            message: `L'owner de la guilde **${guildOwner.name}** vient d'être banni du serveur Discord.`,
+            type: "SECURITY_ALERT",
+            success: false,
+            ping: true,
+            metadata: {
+                guildId: guild.id,
+                guildName: guildOwner.name,
+                discordUserId: userId,
+                action: "BAN_WEBHOOK"
+            }
+        });
+    }
 
     if (result.count > 0) {
     }

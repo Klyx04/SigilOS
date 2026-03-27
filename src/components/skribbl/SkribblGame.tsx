@@ -361,7 +361,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
 
     return (
         <div 
-            className="min-h-screen h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-2 md:p-8 overflow-y-auto overflow-x-hidden relative"
+            className="h-full w-full bg-[#1a4e9b] font-sans flex flex-col items-center justify-start sm:justify-center p-1 md:p-4 overflow-y-auto overflow-x-hidden relative"
             onClick={unlockAudio}
         >
             {/* BACKGROUND OVERLAY */}
@@ -370,7 +370,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
             {/* STYLED EXIT BUTTON */}
             <button 
                 onClick={handleExitToMenu}
-                className="fixed top-2 right-2 md:top-6 md:right-6 z-[200] px-4 md:px-6 py-2 md:py-3 bg-red-500 hover:bg-red-400 text-white rounded-xl md:rounded-2xl border-b-4 border-black/20 transition-all hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-2 font-black italic uppercase text-[10px] md:text-xs group"
+                className="absolute top-2 right-2 md:top-4 md:right-4 z-[200] px-4 md:px-5 py-2 md:py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-xl border-b-4 border-black/20 transition-all hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-2 font-black italic uppercase text-[10px] md:text-xs group"
                 title="Quitter la partie"
             >
                 <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
@@ -378,7 +378,7 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                 <span className="sm:hidden">Sortir</span>
             </button>
 
-            <div className="w-full max-w-[95vw] grow flex flex-col gap-4 md:gap-6 mx-auto animate-in fade-in zoom-in duration-500 py-2 md:py-4 px-1 md:px-2 relative min-h-[500px]">
+            <div className="w-full max-w-[95vw] grow flex flex-col gap-3 md:gap-4 mx-auto animate-in fade-in zoom-in duration-500 py-1 md:py-2 px-1 md:px-2 relative">
                 <div className="flex gap-4 items-stretch justify-center w-full grow min-h-0 overflow-hidden">
                     {/* Main Game Area - Fluid */}
                     <div className="flex flex-col flex-1 gap-4 min-w-0 h-full max-w-full">
@@ -413,8 +413,8 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                     <Loader2 className="animate-spin" size={14} />
                                                     <span>En attente...</span>
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="hidden sm:flex items-center gap-2 bg-[#5d3fd3]/10 px-3 md:px-4 py-1.5 rounded-full border border-[#5d3fd3]/20">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="hidden sm:flex items-center gap-2 bg-[#5d3fd3]/10 px-3 md:px-4 py-1.5 rounded-full border border-[#5d3fd3]/20 shrink-0">
                                                         <Users size={12} /> 
                                                         <span>{gameState.players?.length || 0} JOUEURS</span>
                                                     </div>
@@ -433,53 +433,53 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                     {/* Drawing Board Container */}
                                     <div className="flex-1 relative min-h-0 bg-white/5 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden border-2 border-white/20 shadow-2xl">
                                         {gameState.state === "LOBBY" ? (
-                                            <div className="flex flex-col items-center justify-center h-full p-4 text-center overflow-y-auto custom-scrollbar">
-                                                 <div className="bg-[#41417a] p-4 md:p-8 rounded-[2rem] md:rounded-[3rem] border-b-8 border-black/20 w-full max-w-xl shadow-2xl flex flex-col items-center">
-                                                     <h2 className="text-[#eeeeee] text-2xl md:text-4xl font-black uppercase italic tracking-tighter mb-4 md:mb-8 drop-shadow-md">SALON D'ATTENTE</h2>
+                                            <div className="flex flex-col items-center justify-center h-full p-2 md:p-4 text-center overflow-y-auto custom-scrollbar">
+                                                 <div className="bg-[#41417a] p-4 md:p-6 lg:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border-b-8 border-black/20 w-full max-w-xl shadow-2xl flex flex-col items-center">
+                                                     <h2 className="text-[#eeeeee] text-xl md:text-3xl font-black uppercase italic tracking-tighter mb-4 md:mb-6 drop-shadow-md">SALON D'ATTENTE</h2>
                                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 w-full mb-6 md:mb-10 text-left">
-                                                         <div className="flex flex-col gap-1.5">
+                                                         <div className="flex flex-col gap-1.5 align-center">
                                                              <span className="text-[8px] md:text-[10px] font-black text-[#8b8bc5] uppercase tracking-widest pl-1">Joueurs</span>
-                                                             <div className="bg-[#2c2c54] text-white w-full py-2.5 md:py-3.5 rounded-xl md:rounded-2xl border border-white/5 font-bold text-xs md:text-base shadow-inner flex items-center justify-center gap-2">
+                                                             <div className="bg-[#2c2c54] text-white w-full py-2 md:py-2.5 rounded-xl border border-white/5 font-bold text-xs md:text-sm shadow-inner flex items-center justify-center gap-2">
                                                                  <Users size={14} className="text-blue-400" />
                                                                  {gameState?.players?.length || 0} / 8
                                                              </div>
                                                          </div>
-                                                         <div className="flex flex-col gap-1.5">
+                                                         <div className="flex flex-col gap-1.5 align-center">
                                                              <span className="text-[8px] md:text-[10px] font-black text-[#8b8bc5] uppercase tracking-widest pl-1">Manches</span>
                                                              {isHost ? (
                                                                  <div className="relative">
                                                                     <select 
                                                                         value={gameState?.maxRounds || 3}
                                                                         onChange={(e) => socket?.emit("skribbl:room:settings", { rounds: parseInt(e.target.value) })}
-                                                                        className="bg-[#2c2c54] text-white w-full py-2.5 md:py-3.5 rounded-xl md:rounded-2xl border border-white/5 font-bold text-xs md:text-base shadow-inner px-4 outline-none appearance-none cursor-pointer hover:bg-[#353565] transition-colors pr-10"
+                                                                        className="bg-[#2c2c54] text-white w-full py-2 md:py-2.5 rounded-xl border border-white/5 font-bold text-xs md:text-sm shadow-inner px-4 outline-none appearance-none cursor-pointer hover:bg-[#353565] transition-colors pr-8"
                                                                     >
                                                                         {[1,2,3,4,5,6,7,8,9,10].map(r => <option key={r} value={r}>{r}</option>)}
                                                                     </select>
-                                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20"><ChevronDown size={14} /></div>
+                                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/20"><ChevronDown size={14} /></div>
                                                                  </div>
                                                              ) : (
-                                                                <div className="bg-[#2c2c54] text-white w-full py-2.5 md:py-3.5 rounded-xl md:rounded-2xl border border-white/5 font-bold text-xs md:text-base shadow-inner flex items-center justify-center">
+                                                                <div className="bg-[#2c2c54] text-white w-full py-2 md:py-2.5 rounded-xl border border-white/5 font-bold text-xs md:text-sm shadow-inner flex items-center justify-center">
                                                                     {gameState?.maxRounds || 3}
                                                                 </div>
                                                              )}
                                                          </div>
-                                                         <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1">
+                                                         <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1 align-center">
                                                               <span className="text-[8px] md:text-[10px] font-black text-[#8b8bc5] uppercase tracking-widest pl-1">Difficulté</span>
                                                               {isHost ? (
                                                                   <div className="relative">
                                                                     <select 
                                                                         value={gameState?.difficulty || "moyen"}
                                                                         onChange={(e) => socket?.emit("skribbl:room:settings", { difficulty: e.target.value })}
-                                                                        className="bg-[#2c2c54] text-white w-full py-2.5 md:py-3.5 rounded-xl md:rounded-2xl border border-white/5 font-bold text-xs md:text-base shadow-inner px-4 outline-none appearance-none cursor-pointer hover:bg-[#353565] transition-colors pr-10"
+                                                                        className="bg-[#2c2c54] text-white w-full py-2 md:py-2.5 rounded-xl border border-white/5 font-bold text-xs md:text-sm shadow-inner px-4 outline-none appearance-none cursor-pointer hover:bg-[#353565] transition-colors pr-8"
                                                                     >
                                                                         <option value="facile">Facile</option>
                                                                         <option value="moyen">Moyen</option>
                                                                         <option value="difficile">Difficile</option>
                                                                     </select>
-                                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20"><ChevronDown size={14} /></div>
+                                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/20"><ChevronDown size={14} /></div>
                                                                   </div>
                                                               ) : (
-                                                                 <div className="bg-[#2c2c54] text-white w-full py-2.5 md:py-3.5 rounded-xl md:rounded-2xl border border-white/5 font-bold text-xs md:text-base shadow-inner flex items-center justify-center capitalize">
+                                                                 <div className="bg-[#2c2c54] text-white w-full py-2 md:py-2.5 rounded-xl border border-white/5 font-bold text-xs md:text-sm shadow-inner flex items-center justify-center capitalize">
                                                                      {gameState?.difficulty || "moyen"}
                                                                  </div>
                                                               )}
@@ -553,14 +553,14 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                              const canStart = (gameState?.players?.length || 0) >= 2;
                                                              return (
                                                                  <div className="flex flex-col gap-3">
-                                                                     <div className="flex flex-col sm:flex-row gap-3">
+                                                                     <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                                                                         <button
                                                                             onClick={() => canStart && socket?.emit("skribbl:game:start")}
                                                                             disabled={!canStart}
                                                                             className={cn(
-                                                                                "flex-[2] py-4 md:py-6 border-b-8 md:border-b-[10px] text-white font-black rounded-2xl md:rounded-[2rem] text-xl md:text-4xl transition-all uppercase tracking-tighter italic",
+                                                                                "flex-[2] py-3 md:py-4 border-b-6 md:border-b-8 text-white font-black rounded-xl md:rounded-2xl text-lg md:text-2xl transition-all uppercase tracking-tighter italic",
                                                                                 canStart
-                                                                                    ? "bg-[#52ce3c] hover:bg-[#5df044] border-[#2d7a1d] active:border-b-0 active:translate-y-2 shadow-[0_15px_30px_rgba(59,156,42,0.3)] cursor-pointer"
+                                                                                    ? "bg-[#52ce3c] hover:bg-[#5df044] border-[#2d7a1d] active:border-b-0 active:translate-y-2 shadow-[0_10px_20px_rgba(59,156,42,0.2)] cursor-pointer"
                                                                                     : "bg-slate-600/40 border-slate-800/50 cursor-not-allowed opacity-60"
                                                                             )}
                                                                         >
@@ -568,32 +568,32 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                                         </button>
                                                                         <button
                                                                             onClick={handleExitToMenu}
-                                                                            className="flex-1 py-4 px-6 md:py-6 md:px-8 border-b-8 md:border-b-[10px] bg-red-500 hover:bg-red-400 border-red-700 text-white font-black rounded-2xl md:rounded-[2rem] text-sm md:text-lg transition-all uppercase italic shadow-xl active:border-b-0 active:translate-y-2 flex items-center justify-center gap-2"
+                                                                            className="flex-1 py-3 px-4 md:py-4 md:px-6 border-b-6 md:border-b-8 bg-red-500 hover:bg-red-400 border-red-700 text-white font-black rounded-xl md:rounded-2xl text-xs md:text-sm transition-all uppercase italic shadow-xl active:border-b-0 active:translate-y-2 flex items-center justify-center gap-2"
                                                                         >
-                                                                            <X size={20} />
+                                                                            <X size={16} />
                                                                             Annuler
                                                                         </button>
                                                                      </div>
                                                                      {!canStart && (
-                                                                         <p className="text-center text-amber-400 text-[10px] md:text-sm font-black uppercase tracking-widest animate-pulse italic">
+                                                                         <p className="text-center text-amber-400 text-[10px] md:text-xs font-black uppercase tracking-widest animate-pulse italic">
                                                                              ⚠️ Il faut au moins 2 joueurs !
                                                                          </p>
                                                                      )}
                                                                  </div>
                                                              );
                                                          })() : (
-                                                             <div className="flex flex-col items-center py-6 gap-6">
-                                                                 <div className="flex flex-col items-center gap-4">
-                                                                    <Loader2 size={40} className="animate-spin text-white/40" />
-                                                                    <p className="text-white/40 font-black uppercase text-xs sm:text-sm tracking-[0.3em] italic">En attente du Maître...</p>
-                                                                 </div>
-                                                                 <button
-                                                                    onClick={handleExitToMenu}
-                                                                    className="w-full py-4 border-b-8 bg-red-500 hover:bg-red-400 border-red-700 text-white font-black rounded-2xl text-sm transition-all uppercase italic shadow-xl active:border-b-0 active:translate-y-2 flex items-center justify-center gap-2"
-                                                                 >
-                                                                    <LogOut size={18} />
-                                                                    Quitter le salon
-                                                                 </button>
+                                                             <div className="flex flex-col items-center py-4 gap-4">
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                   <Loader2 size={32} className="animate-spin text-white/40" />
+                                                                   <p className="text-white/40 font-black uppercase text-[10px] sm:text-xs tracking-[0.3em] italic">En attente du Maître...</p>
+                                                                </div>
+                                                                <button
+                                                                   onClick={handleExitToMenu}
+                                                                   className="w-full py-3 border-b-6 bg-red-500 hover:bg-red-400 border-red-700 text-white font-black rounded-xl text-xs transition-all uppercase italic shadow-xl active:border-b-0 active:translate-y-2 flex items-center justify-center gap-2"
+                                                                >
+                                                                   <LogOut size={16} />
+                                                                   Quitter le salon
+                                                                </button>
                                                              </div>
                                                          )}
                                                      </div>

@@ -10,10 +10,9 @@ interface OverviewTabsProps {
     chart: React.ReactNode;
     communication: React.ReactNode;
     worker: React.ReactNode;
-    links: React.ReactNode;
 }
 
-export function OverviewTabs({ stats, chart, communication, worker, links }: OverviewTabsProps) {
+export function OverviewTabs({ stats, chart, communication, worker }: OverviewTabsProps) {
     const [activeSubTab, setActiveSubTab] = useState<"performance" | "communication" | "system">("performance");
 
     const TABS = [
@@ -53,9 +52,6 @@ export function OverviewTabs({ stats, chart, communication, worker, links }: Ove
                         <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
                             {chart}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {links}
-                        </div>
                     </div>
                 )}
 
@@ -72,7 +68,7 @@ export function OverviewTabs({ stats, chart, communication, worker, links }: Ove
                             <SystemHealthDashboard />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start text-left">
+                        <div className="grid grid-cols-1 gap-8 items-start text-left">
                             <div className="p-10 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl space-y-8">
                                 <div className="space-y-2">
                                     <h4 className="text-xl font-black text-white uppercase tracking-tight">Worker Platform Sync</h4>
@@ -80,16 +76,6 @@ export function OverviewTabs({ stats, chart, communication, worker, links }: Ove
                                 </div>
                                 <div className="animate-in fade-in duration-500">
                                     {worker}
-                                </div>
-                            </div>
-                            
-                            <div className="p-10 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl space-y-8">
-                                <div className="space-y-2">
-                                    <h4 className="text-xl font-black text-zinc-500 uppercase tracking-tight">Maintenance Platform</h4>
-                                    <p className="text-zinc-500 text-sm leading-relaxed">Nettoyage automatique et protocoles d'hygiène de la base de données.</p>
-                                </div>
-                                <div className="grid grid-cols-1 gap-4">
-                                    {links} 
                                 </div>
                             </div>
                         </div>

@@ -363,13 +363,20 @@ export function CalendarGrid({
                             <div
                                 key={dayKey}
                                 className={cn(
-                                    "relative border-b border-r border-zinc-800/40 p-3 transition-all cursor-pointer",
+                                    "relative border-b border-r border-zinc-800/40 p-0 transition-all flex flex-col",
                                     minHeight,
+                                    canManage ? "cursor-pointer" : "cursor-default",
                                     isWeekend ? "bg-zinc-950/50" : "bg-zinc-900/40 hover:bg-zinc-800/40",
                                     index % 7 === 6 && "border-r-0"
                                 )}
-                                onClick={() => onDayClick?.(day)}
+                                onClick={(e) => {
+                                    // Only trigger if we clicked the cell itself, not an event button
+                                    if (canManage && onDayClick) {
+                                        onDayClick(day);
+                                    }
+                                }}
                             >
+                                <div className="p-3 flex-1 flex flex-col">
                                 {/* Day Number - BIG */}
                                 <div className="flex items-center justify-between mb-2">
                                     <span className={cn(
@@ -390,9 +397,12 @@ export function CalendarGrid({
                                 {/* Events - BIGGER PILLS */}
                                 <div className="space-y-1.5">
                                     {dayEvents.slice(0, maxEvents).map((event) => {
+                                        const start = event.startDate ? new Date(event.startDate) : null;
+                                        if (!start || isNaN(start.getTime())) return null;
+
                                         const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
                                         const Icon = config.icon;
-                                        const time = format(new Date(event.startDate), "HH:mm");
+                                        const time = format(start, "HH:mm");
 
                                         return (
                                             <TooltipProvider key={event.id}>
@@ -436,10 +446,11 @@ export function CalendarGrid({
                                     })}
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
+                        </div>
+                    );
+                })}
             </div>
+        </div>
 
             {/* ============ LEGEND (BIG) ============ */}
             <div className="flex items-center justify-center gap-8 py-4">

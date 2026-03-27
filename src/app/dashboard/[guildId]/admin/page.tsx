@@ -176,19 +176,24 @@ export default async function AdminPage({
 
     const user = await getUserContext(guildId);
     
-    // Allow access if user is admin OR has any management permission
-    const hasAnyAdminPermission = user.isAdmin || 
-        user.canManageMissions || user.canValidateMissions || user.canManageBonus ||
-        user.canManageMembers || user.canManageCalendar || user.canManageQuests ||
-        user.canManageWorldmap || user.canManageResources || user.canModerateChat ||
-        user.canEditPresentation || user.canViewAdminDocs;
+    const sections = buildSections(guildId);
+    
+    // Check if any management card is visible for this user
+    const hasVisibleCards = sections.some(section => 
+        section.cards.some(card => {
+            if (user.isSuperAdmin) return true;
+            if (typeof card.permission === 'function') return card.permission(user);
+            return user.isAdmin;
+        })
+    );
+
+    // Allow access if user is admin OR has at least one visible management tool
+    const hasAnyAdminPermission = user.isAdmin || hasVisibleCards;
 
     if (!hasAnyAdminPermission) {
         await logAdminAccessDenied(guildId, "/admin");
         return <AccessDenied />;
     }
-
-    const sections = buildSections(guildId);
 
     return (
         <div className="space-y-10 pb-12">

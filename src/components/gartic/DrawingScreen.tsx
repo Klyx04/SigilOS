@@ -74,10 +74,10 @@ export const DrawingScreen = ({
         <div className="flex flex-col items-center justify-center w-full max-w-[98vw] relative py-2 md:py-4 animate-in zoom-in-95 duration-500">
             {/* Top Bar - Round & Timer */}
             <div className="absolute top-2 md:top-4 inset-x-4 md:inset-x-8 z-50 flex items-center justify-between select-none pointer-events-none">
-                <div className="flex flex-col items-start translate-y-2">
+                <div className="flex flex-col items-start translate-y-1 md:translate-y-2">
                     <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
-                    <span className="text-white font-black text-2xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
-                        {round}<span className="text-white/30 text-lg md:text-3xl">/{totalRounds}</span>
+                    <span className="text-white font-black text-xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
+                        {round}<span className="text-white/30 text-sm md:text-3xl">/{totalRounds}</span>
                     </span>
                 </div>
                 
@@ -86,10 +86,10 @@ export const DrawingScreen = ({
                 </div>
             </div>
 
-            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative shadow-2xl mt-12 md:mt-20 min-h-0">
+            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[1.5rem] md:rounded-[4rem] p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative shadow-2xl mt-10 md:mt-20 min-h-0">
                 
                 {/* Purple Card Header */}
-                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-2 md:p-6 relative shadow-2xl -mt-8 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
+                <div className="w-full bg-[#5d3fd3] rounded-xl md:rounded-[2.5rem] p-2 md:p-6 relative shadow-2xl -mt-8 md:-mt-16 border-b-[4px] md:border-b-[10px] border-black/20 flex flex-col md:flex-row items-center justify-between z-20 gap-2 md:gap-4 shrink-0">
                     <div className="flex flex-col gap-0.5 md:gap-1 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-1 md:gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -196,9 +196,9 @@ export const DrawingScreen = ({
 
                         {submitted && (
                             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-500">
-                                <div className="text-4xl md:text-8xl mb-3 md:mb-6 animate-bounce">🎨</div>
-                                <h3 className="text-lg md:text-4xl font-black text-[#5d3fd3] uppercase italic tracking-tighter">C'EST ENVOYÉ !</h3>
-                                <p className="text-slate-500 font-bold uppercase tracking-widest mt-1 md:mt-2 text-[8px] md:text-base">Attente des autres joueurs...</p>
+                                <div className="text-4xl md:text-7xl mb-1 md:mb-6 animate-bounce">🎨</div>
+                                <h3 className="text-lg md:text-3xl font-black text-[#5d3fd3] uppercase italic tracking-tighter">C'EST ENVOYÉ !</h3>
+                                <p className="text-slate-500 font-bold uppercase tracking-widest mt-0.5 md:mt-2 text-[6px] md:text-base">Attente des autres joueurs...</p>
                             </div>
                         )}
                     </div>

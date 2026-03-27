@@ -98,7 +98,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                         <div className="h-1.5 w-16 bg-[#2ed573] mx-auto rounded-full mt-1" />
                     </div>
 
-                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[6px] border-white/10 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar shadow-2xl">
+                    <div className="flex-1 bg-white/10 backdrop-blur-md rounded-[2.5rem] border-[4px] md:border-[6px] border-white/10 p-3 md:p-4 flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto custom-scrollbar shadow-2xl shrink-0 md:shrink">
                         {albums.map((a, idx) => {
                             const name = typeof a.owner === "string" ? a.owner : a.owner?.username || "?";
                             const isActive = idx === revealIndex;
@@ -106,23 +106,23 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                                 <div 
                                     key={idx}
                                     className={cn(
-                                        "flex items-center gap-4 p-4 rounded-3xl border-b-[6px] transition-all",
+                                        "flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl border-b-[4px] md:border-b-[6px] transition-all shrink-0 md:shrink-0",
                                         isActive 
                                             ? "bg-[#2ed573] border-[#1e9b53] translate-x-1" 
                                             : "bg-white/90 border-[#c5b58e] opacity-80"
                                     )}
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-white border-4 border-black/10 overflow-hidden shrink-0">
+                                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 md:border-4 border-black/10 overflow-hidden shrink-0">
                                         <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${name}`} alt={name} className="w-full h-full object-cover" />
                                     </div>
                                     <span className={cn(
-                                        "font-black text-xl uppercase italic tracking-tight truncate",
+                                        "font-black text-sm md:text-xl uppercase italic tracking-tight truncate max-w-[100px] md:max-w-none",
                                         isActive ? "text-white" : "text-[#3d2080]"
                                     )}>
                                         {name}
                                     </span>
                                     {isActive && (
-                                        <div className="ml-auto bg-white/30 rounded-full p-1">
+                                        <div className="ml-auto bg-white/30 rounded-full p-1 hidden md:block">
                                             <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                                                 <span className="text-[10px]">👑</span>
                                             </div>
@@ -170,8 +170,8 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
 
                                     {/* Content Bubble - Notebook Style */}
                                     <div className={cn(
-                                        "flex-1 max-w-[85%] bg-white rounded-[2rem] p-6 shadow-xl border-b-[8px] border-black/10 flex flex-col items-center justify-center relative overflow-hidden",
-                                        isText ? "min-h-[120px]" : "min-h-[350px]"
+                                        "flex-1 max-w-[85%] bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 shadow-xl border-b-[4px] md:border-b-[8px] border-black/10 flex flex-col items-center justify-center relative overflow-hidden",
+                                        isText ? "min-h-0 py-4 md:min-h-[120px]" : "min-h-[150px] md:min-h-[350px]"
                                     )}>
                                         {/* Spiral decorations at the top of the "paper" */}
                                         <div className="absolute top-0 left-0 w-full flex justify-around px-12 opacity-[0.05] pointer-events-none">
@@ -181,11 +181,11 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                                         </div>
 
                                         {isText ? (
-                                            <p className="text-[#3d2080] font-black text-2xl md:text-4xl text-center uppercase tracking-tight leading-tight p-4 relative z-10">
+                                            <p className="text-[#3d2080] font-black text-lg md:text-2xl lg:text-4xl text-center uppercase tracking-tight leading-tight p-2 md:p-4 relative z-10">
                                                 {entry.content}
                                             </p>
                                         ) : (
-                                            <img src={entry.content} alt="Drawing" className="max-w-full max-h-[450px] object-contain rounded-xl relative z-10" />
+                                            <img src={entry.content} alt="Drawing" className="max-w-full max-h-[250px] md:max-h-[450px] object-contain rounded-xl relative z-10" />
                                         )}
 
                                         {/* Subtle line pattern for text */}

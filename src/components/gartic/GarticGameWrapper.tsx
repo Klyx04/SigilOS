@@ -194,7 +194,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
     if (phase === "browse" || !gameState) {
         return (
             <GarticLayout phase="BROWSE" onClose={handleExitToMenu}>
-                <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-4xl mx-auto gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0">
+                <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-4xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0 overflow-y-auto custom-scrollbar">
                     {/* Header */}
                     <div className="text-center px-4">
                         <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
@@ -203,7 +203,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                         </div>
                         
                         <div className="relative">
-                            <h1 className="text-5xl md:text-8xl lg:text-9xl font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_0_rgba(0,0,0,0.2)]">
+                            <h1 className="text-4xl md:text-8xl lg:text-9xl font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_0_rgba(0,0,0,0.2)]">
                                 SIGIL<span className="text-[#a78bfa]">PHONE</span>
                             </h1>
                             <div className="absolute -bottom-2 md:-bottom-4 left-1/2 -translate-x-1/2 w-24 md:w-48 h-2 md:h-3 bg-[#5d3fd3] rounded-full skew-x-[-20deg] shadow-lg" />
@@ -323,8 +323,8 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
             case "STARTING":
             case "INTERMISSION":
                 return (
-                    <div className="flex flex-col items-center justify-center h-full gap-6 animate-pulse">
-                        <div className="text-9xl font-black text-purple-400 font-mono drop-shadow-xl mb-4 text-white">
+                    <div className="flex flex-col items-center justify-center h-full gap-4 md:gap-6 animate-pulse">
+                        <div className="text-6xl md:text-9xl font-black text-purple-400 font-mono drop-shadow-xl mb-2 md:mb-4 text-white">
                              {gameState.timer || 0}
                         </div>
                         <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">
@@ -398,14 +398,14 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                 );
             case "SCORES":
                 return (
-                    <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-5xl mx-auto gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0">
+                    <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-5xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0 overflow-y-auto custom-scrollbar">
                         <div className="text-center px-4">
                             <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
                                 <Sparkles size={18} className="text-yellow-400 animate-pulse" />
                                 <span className="text-white font-black uppercase tracking-[0.3em] text-[10px] italic">PARTIE TERMINÉE</span>
                             </div>
                             
-                            <h2 className="text-4xl md:text-8xl font-black italic text-white uppercase leading-none tracking-tighter drop-shadow-[0_10px_0_rgba(0,0,0,0.2)] text-center">
+                            <h2 className="text-3xl md:text-8xl font-black italic text-white uppercase leading-none tracking-tighter drop-shadow-[0_10px_0_rgba(0,0,0,0.2)] text-center">
                                 MERCI D'AVOIR <span className="text-purple-300">JOUÉ !</span>
                             </h2>
                             <p className="mt-4 md:mt-8 text-white/60 text-sm md:text-xl font-bold uppercase tracking-[0.2em] italic max-w-2xl mx-auto leading-relaxed">

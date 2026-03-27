@@ -13,12 +13,12 @@ export async function DeletionPendingPanel() {
     const users = await getPendingDeletionUsers();
 
     return (
-        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all space-y-6">
+        <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl h-full flex flex-col space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${users.length > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-600"}`} />
-                    Suppressions en Attente
+                <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <UserX className={`w-4 h-4 ${users.length > 0 ? "text-amber-400" : "text-zinc-600"}`} />
+                    Comptes (Plateforme)
                 </h3>
                 <span className={`text-xs px-3 py-1 rounded-full font-black tracking-widest border ${users.length === 0
                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"

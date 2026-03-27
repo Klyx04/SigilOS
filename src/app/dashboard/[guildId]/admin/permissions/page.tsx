@@ -46,11 +46,11 @@ export default async function PermissionsPage({
 
     if (!config) return <div>Fatal: Configuration not found after onboarding.</div>;
 
-    let roles;
-    let members;
+    let roles: any[] = [];
+    let membersData: any = { members: [] };
     try {
         roles = await fetchGuildRoles(guildId);
-        members = await getGuildMembers(guildId);
+        membersData = await getGuildMembers(guildId);
     } catch (e) {
         return (
             <div className="p-6 flex flex-col gap-4">
@@ -81,7 +81,7 @@ export default async function PermissionsPage({
             <PermissionsManager
                 guildId={guildId}
                 roles={roles}
-                members={members || []}
+                members={membersData.members || []}
                 currentMapping={currentMapping}
                 currentUsersMapping={currentUsersMapping}
             />

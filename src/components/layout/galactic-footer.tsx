@@ -112,75 +112,112 @@ export function GalacticFooter({ variant = "standard", isMember = false }: Galac
 
     // STANDARD FULL FOOTER
     return (
-        <footer className="w-full bg-background border-t border-white/5 pt-20 pb-10 mt-auto">
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+        <footer className="w-full bg-[#030303] border-t border-white/5 pt-32 pb-12 mt-auto relative overflow-hidden">
+            {/* Background Ambient Glow */}
+            <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
+            
+            <div className="max-w-7xl mx-auto px-8 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
+                    {/* Brand Meta */}
+                    <div className="space-y-8 flex flex-col items-start">
+                         <Link href="/" className="flex items-center gap-4 group">
+                            <div className="relative w-10 h-10 transition-transform group-hover:scale-110">
+                                <Image
+                                    src="/assets/ui/logo-v2.png"
+                                    alt="SigilOS"
+                                    fill
+                                    className="object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                />
+                            </div>
+                            <span className="text-2xl font-black tracking-tighter text-white uppercase">
+                                Sigil<span className="text-emerald-500">OS</span>
+                            </span>
+                        </Link>
+                        <p className="text-zinc-500 text-sm font-medium leading-relaxed max-w-[240px]">
+                            L'excellence opérationnelle pour les guildes les plus ambitieuses du Monde des Douze.
+                        </p>
+                        <div className="flex items-center gap-4">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">Evolution 2026</span>
+                        </div>
+                    </div>
 
                     {/* Resources */}
-                    <div className="flex flex-col gap-4">
-                        <h4 className="text-white font-bold text-sm uppercase tracking-widest">Ressources</h4>
-                        <nav className="flex flex-col gap-3">
-                            {isMember && (
-                                <Link href="/docs" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">Documentation</Link>
-                            )}
-                            <Link
-                                href="https://discord.gg/uX7G6SUDgN"
-                                target="_blank"
-                                className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors text-sm font-bold group"
-                            >
-                                <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
-                                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-                                </svg>
-                                Support Discord
-                            </Link>
+                    <div className="space-y-8">
+                        <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Plateforme</h4>
+                        <nav className="flex flex-col gap-4">
+                            <Link href="/guilds" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Annuaire de Guildes</Link>
+                            <Link href="/changelog" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Journal des mises à jour</Link>
+                            <Link href="/status" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Monitor System</Link>
+                            <Link href="/docs" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Guides & Wikis</Link>
                         </nav>
                     </div>
 
-                    {/* Legal */}
-                    <div className="flex flex-col gap-4">
-                        <h4 className="text-white font-bold text-sm uppercase tracking-widest">Aide & Légal</h4>
-                        <nav className="flex flex-col gap-2">
-                            <Link href="/legal/faq" className="text-zinc-300 font-bold hover:text-accent-teal transition-colors text-sm flex items-center gap-2">
-                                <HelpCircle className="w-4 h-4" /> FAQ & Sécurité
+                    {/* Support & Community */}
+                    <div className="space-y-8">
+                        <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Communauté</h4>
+                        <nav className="flex flex-col gap-4">
+                             <Link
+                                href="https://discord.gg/uX7G6SUDgN"
+                                target="_blank"
+                                className="flex items-center gap-3 text-emerald-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest group"
+                            >
+                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                    <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
+                                        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                                    </svg>
+                                </div>
+                                Support 24/7
                             </Link>
-                            <Link href="/legal/cgu" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">CGU</Link>
-                            <Link href="/legal/privacy" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">Confidentialité</Link>
-                            <Link href="/legal/mentions" className="text-zinc-500 hover:text-accent-teal transition-colors text-sm">Mentions Légales</Link>
+                            <Link href="/legal/faq" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Centre d'aide</Link>
+                            <div className="pt-2">
+                                <BugReportButton />
+                            </div>
                         </nav>
                     </div>
 
                     {/* Status Badge */}
-                    <div className="flex flex-col gap-4">
-                        <h4 className="text-white font-bold text-sm uppercase tracking-widest">Statut</h4>
-                        <Link href="/status" className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-accent-teal/30 transition-all group">
+                    <div className="space-y-8">
+                        <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Système</h4>
+                        <Link href="/status" className="block p-6 rounded-3xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-all group overflow-hidden relative">
                             <div className={cn(
-                                "w-2 h-2 rounded-full animate-pulse",
-                                systemStatus === "online" ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" :
-                                    systemStatus === "degraded" ? "bg-amber-500 shadow-[0_0_10px_#f59e0b]" :
-                                        "bg-red-500 shadow-[0_0_10px_#ef4444]"
+                                "w-2 h-2 rounded-full animate-pulse mb-4",
+                                systemStatus === "online" ? "bg-emerald-500 shadow-[0_0_15px_#10b981]" :
+                                    systemStatus === "degraded" ? "bg-amber-500" : "bg-red-500"
                             )} />
-                            <div className="flex flex-col">
-                                <span className="text-white text-xs font-bold uppercase tracking-tight">
-                                    {systemStatus === "online" ? "Tous les systèmes opérationnels" :
-                                        systemStatus === "degraded" ? "Performance dégradée" :
-                                            "Maintenance en cours"}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-white text-[11px] font-black uppercase tracking-widest">
+                                    {systemStatus === "online" ? "Systèmes Online" : "Maintenance"}
                                 </span>
-                                {latency && <span className="text-zinc-500 text-[10px] font-mono">{latency}ms latence</span>}
+                                {latency && <span className="text-zinc-600 text-[10px] font-mono">{latency}ms response</span>}
                             </div>
+                            <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-500/5 blur-2xl rounded-full" />
                         </Link>
                     </div>
                 </div>
 
-                {/* Bottom Bar */}
-                <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] md:text-xs text-zinc-600 font-medium italic">
-                    <div className="flex flex-col gap-1">
-                        <p>© 2026 SigilOS. Fait avec passion pour Dofus par <strong>Wylan</strong>.</p>
-                        <p className="opacity-50">SigilOS est un outil indépendant. Nous ne sommes pas affiliés à Ankama Games.</p>
+                {/* Bottom Bar: Legal & Credits */}
+                <div className="pt-12 border-t border-white/5 flex flex-col lg:flex-row justify-between items-center gap-10">
+                    <div className="flex flex-col gap-4 text-center lg:text-left">
+                        <p className="text-zinc-500 text-[11px] font-medium leading-relaxed max-w-xl">
+                            SigilOS est un outil indépendant. Dofus est une marque déposée d'Ankama Games. 
+                            Tous droits réservés aux auteurs respectifs. Fait avec passion pour la communauté.
+                        </p>
+                        <div className="flex flex-wrap justify-center lg:justify-start gap-6 text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em]">
+                            <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
+                            <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
+                            <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions Légales</Link>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <span>V1</span>
-                        <span className="w-1 h-1 rounded-full bg-zinc-800" />
-                        <span>BETA</span>
+
+                    <div className="flex items-center gap-10 shrink-0">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Engine Version</span>
+                            <span className="text-sm font-black text-white">V1.0.8 <span className="text-emerald-500 font-sans italic ml-1">Beta</span></span>
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all">
+                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={24} height={24} />
+                        </div>
                     </div>
                 </div>
             </div>

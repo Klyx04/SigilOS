@@ -47,210 +47,226 @@ import { Suspense } from "react";
 import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 
-export default async function SuperAdminPage() {
+export default async function SuperAdminPage(props: {
+    searchParams: Promise<{ tab?: string }>;
+}) {
     const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/");
 
-    if (!isAdmin) {
-        redirect("/");
-    }
+    const resolvedSearchParams = await props.searchParams;
+    const tab = resolvedSearchParams.tab || "overview";
+
+    console.log(`[GodDashboard] Rendering tab: ${tab}`);
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
-            <GodDashboardClient
-                overview={
-                    <div className="space-y-12">
-                        {/* Header Area */}
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
-                                        <Activity className="w-5 h-5 text-violet-400" />
+            <Suspense fallback={
+                <div className="flex-1 flex items-center justify-center bg-black py-20">
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] animate-pulse">Initializing Interface...</span>
+                    </div>
+                </div>
+            }>
+                <GodDashboardClient activeTab={tab}>
+                    {tab === "overview" && (
+                            <div className="space-y-12">
+                                {/* Header Area */}
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                                                <Activity className="w-5 h-5 text-violet-400" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+                                                Performance Overview
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">
+                                                Console
+                                            </h1>
+                                            <p className="text-zinc-500 text-lg font-medium max-w-3xl leading-relaxed">
+                                                Gestion centrale de SigilOS : Analytics, Communication globale et Systèmes.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
-                                        Performance Overview
-                                    </span>
                                 </div>
-                                
-                                <div className="space-y-2">
-                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">
-                                        Console
-                                    </h1>
-                                    <p className="text-zinc-500 text-lg font-medium max-w-3xl leading-relaxed">
-                                        Gestion centrale de SigilOS : Analytics, Communication globale et Systèmes.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
 
-                        <OverviewTabs 
-                            stats={
-                                <Suspense fallback={<StatsLoading />}>
-                                    <LiveStatsServer />
-                                </Suspense>
-                            }
-                            chart={
-                                <Suspense fallback={<ChartLoading />}>
-                                    <ChartServer />
-                                </Suspense>
-                            }
-                            communication={
-                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                    <AnnouncementServer />
-                                </Suspense>
-                            }
-                            worker={<WorkerTester />}
-                            links={
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <JanitorButton />
-                                    <Suspense fallback={<div className="bg-zinc-900/50 h-20 rounded-[2rem] animate-pulse" />}>
-                                        <MiniGamesReportServer />
+                                <OverviewTabs 
+                                    stats={
+                                        <Suspense fallback={<StatsLoading />}>
+                                            <LiveStatsServer />
+                                        </Suspense>
+                                    }
+                                    chart={
+                                        <Suspense fallback={<ChartLoading />}>
+                                            <ChartServer />
+                                        </Suspense>
+                                    }
+                                    communication={
+                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
+                                            <AnnouncementServer />
+                                        </Suspense>
+                                    }
+                                    worker={<WorkerTester />}
+                                    links={
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <JanitorButton />
+                                            <Suspense fallback={<div className="bg-zinc-900/50 h-20 rounded-[2rem] animate-pulse" />}>
+                                                <MiniGamesReportServer />
+                                            </Suspense>
+                                        </div>
+                                    }
+                                />
+                            </div>
+                        )}
+
+                        {tab === "guilds" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Guildes</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Administration des instances discord et cycle de vie client.</p>
+                                </div>
+
+                                <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-1 pb-10 shadow-2xl">
+                                    <Suspense fallback={<TableLoading />}>
+                                        <GuildsServer />
                                     </Suspense>
                                 </div>
-                            }
-                        />
-                    </div>
-                }
-                guilds={
-                    <div className="space-y-12">
-                        <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Guildes</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Administration des instances discord et cycle de vie client.</p>
-                        </div>
-
-                        <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-1 pb-10 shadow-2xl">
-                            <Suspense fallback={<TableLoading />}>
-                                <GuildsServer />
-                            </Suspense>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
-                                <GhostUsersServer />
-                            </Suspense>
-                            <GhostRadarPanel />
-                        </div>
-                    </div>
-                }
-                infrastructure={
-                    <div className="space-y-12">
-                         <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
-                        </div>
-
-                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
-                            <PlatformConfigServer />
-                        </Suspense>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
-                                <OcrStatsServer />
-                            </Suspense>
-                            <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
-                                <StorageOverviewPanel />
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
+                                        <GhostUsersServer />
+                                    </Suspense>
+                                    <GhostRadarPanel />
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                }
-                security={
-                    <div className="space-y-12">
-                         <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
-                        </div>
+                        )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-2 bg-zinc-900/10 border border-white/5 rounded-3xl">
-                                <Suspense fallback={<div className="animate-pulse h-96 rounded-3xl" />}>
-                                    <GlobalLogsServer />
+                        {tab === "infrastructure" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
+                                </div>
+
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                    <PlatformConfigServer />
+                                </Suspense>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
+                                        <OcrStatsServer />
+                                    </Suspense>
+                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
+                                        <StorageOverviewPanel />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "security" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-2 bg-zinc-900/10 border border-white/5 rounded-3xl">
+                                        <Suspense fallback={<div className="animate-pulse h-96 rounded-3xl" />}>
+                                            <GlobalLogsServer />
+                                        </Suspense>
+                                    </div>
+                                    <div className="space-y-8">
+                                        <div className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-8 text-center space-y-6">
+                                            <Shield className="w-12 h-12 text-rose-500 mx-auto opacity-50" />
+                                            <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">Chat Firewall</h3>
+                                            <Link href="/god/chat" className="inline-block px-6 py-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-sm font-black text-rose-400 hover:text-white transition-all uppercase tracking-widest w-full">
+                                                Open Monitor
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                    <div className="lg:col-span-3 bg-zinc-900/10 border border-white/5 rounded-3xl p-1 shadow-2xl">
+                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
+                                            <LifecycleServer />
+                                        </Suspense>
+                                    </div>
+                                    <div className="lg:col-span-1">
+                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
+                                            <DeletionPendingPanel />
+                                        </Suspense>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "tickets" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Support</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Gestion centralisée des tickets discord et retours utilisateurs.</p>
+                                </div>
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                                    <TicketsServer />
                                 </Suspense>
                             </div>
-                            <div className="space-y-8">
-                                <div className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-8 text-center space-y-6">
-                                    <Shield className="w-12 h-12 text-rose-500 mx-auto opacity-50" />
-                                    <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">Chat Firewall</h3>
-                                    <Link href="/god/chat" className="inline-block px-6 py-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-sm font-black text-rose-400 hover:text-white transition-all uppercase tracking-widest w-full">
-                                        Open Monitor
-                                    </Link>
+                        )}
+
+                        {tab === "notifications" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Alertes</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
                                 </div>
-                                <DeletionPendingPanel />
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                                    <NotificationsServer />
+                                </Suspense>
                             </div>
-                        </div>
-                        
-                        <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                <LifecycleServer />
-                            </Suspense>
-                        </div>
-                    </div>
-                }
-                tickets={
-                    <div className="space-y-12">
-                         <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Support</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Gestion centralisée des tickets discord et retours utilisateurs.</p>
-                        </div>
-                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
-                            <TicketsServer />
-                        </Suspense>
-                    </div>
-                }
-                notifications={
-                    <div className="space-y-12">
-                         <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Alertes</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
-                        </div>
-                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
-                            <NotificationsServer />
-                        </Suspense>
-                    </div>
-                }
-                gameData={
-                    <div className="space-y-12">
-                         <div className="space-y-4 pb-12 border-b border-white/5">
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Game Data</h1>
-                            <p className="text-zinc-500 text-lg font-medium">Synchronisez et orchestrez les données de référence du monde des Douze.</p>
-                        </div>
+                        )}
 
-                        {/* Quick Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {[
-                                { label: "Familles", icon: Layers, color: "text-blue-400" },
-                                { label: "Zones", icon: MapPin, color: "text-green-400" },
-                                { label: "Challenges", icon: Trophy, color: "text-yellow-400" },
-                                { label: "Donjons", icon: Database, color: "text-purple-400" },
-                            ].map((stat) => (
-                                <div key={stat.label} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 flex items-center gap-4">
-                                    <div className={cn("p-3 rounded-xl bg-zinc-950/50 border border-white/5", stat.color)}>
-                                        <stat.icon className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{stat.label}</div>
-                                        <div className="text-xl font-black text-white">Sync OK</div>
-                                    </div>
+                        {tab === "game-data" && (
+                            <div className="space-y-12">
+                                <div className="space-y-4 pb-12 border-b border-white/5">
+                                    <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Game Data</h1>
+                                    <p className="text-zinc-500 text-lg font-medium">Synchronisez et orchestrez les données de référence du monde des Douze.</p>
                                 </div>
-                            ))}
-                        </div>
 
-                        <GameDataInterface />
+                                {/* Quick Stats Grid */}
+                                <Suspense fallback={
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                                        {[...Array(4)].map((_, i) => <div key={i} className="bg-zinc-900/10 h-24 rounded-3xl border border-white/5" />)}
+                                    </div>
+                                }>
+                                    <GameDataStatsServer />
+                                </Suspense>
 
-                        <div className="border-t border-white/5 pt-12 space-y-6">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs font-black text-yellow-400 uppercase tracking-widest">
-                                <Sparkles className="w-4 h-4" />
-                                <span>Zones Saisonnières</span>
+                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                                    <GameDataInterface />
+                                </Suspense>
+
+                                <div className="border-t border-white/5 pt-12 space-y-6">
+                                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs font-black text-yellow-400 uppercase tracking-widest">
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>Zones Saisonnières</span>
+                                    </div>
+                                    <h2 className="text-3xl font-black text-white tracking-tighter">Zones Événements</h2>
+                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                                        <EventZoneManager />
+                                    </Suspense>
+                                </div>
                             </div>
-                            <h2 className="text-3xl font-black text-white tracking-tighter">Zones Événements</h2>
-                            <EventZoneManager />
-                        </div>
-                    </div>
-                }
-            />
+                    )}
+                </GodDashboardClient>
+            </Suspense>
         </div>
     );
 }
-
-// ... All Server Functions (GlobalLogsServer, LiveStatsServer, ChartServer, OcrStatsServer, GhostUsersServer, GuildsServer, LifecycleServer, StatsLoading, ChartLoading, TableLoading, AnnouncementServer, TicketsServer, PlatformConfigServer, NotificationsServer) stay exactly the same ...
 
 async function GlobalLogsServer() {
     try {
@@ -338,17 +354,10 @@ async function OcrStatsServer() {
 async function GhostUsersServer() {
     try {
         const { getGhostUsers } = await import("@/server/actions/super-admin-actions");
+        const { TargetPurgePanel } = await import("./components/target-purge-panel");
         const ghostUsers = await getGhostUsers();
-        return (
-            <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
-                <h3 className="text-xs font-black text-zinc-500 mb-8 uppercase tracking-widest flex items-center justify-between">
-                    <span>Target Purge Zone</span>
-                    <span className="text-rose-400">{ghostUsers.length}</span>
-                </h3>
-                {/* Simplified view or just Use UserList */}
-                <div className="mt-8 pt-6 border-t border-white/5 text-[10px] uppercase font-bold text-zinc-700">Comptes orphelins</div>
-            </div>
-        );
+        
+        return <TargetPurgePanel ghostUsers={ghostUsers} />;
     } catch { return <div>Error Ghosts</div> }
 }
 
@@ -465,4 +474,37 @@ async function NotificationsServer() {
         const res = await getGodNotifications(50);
         return <GodNotificationPanel notifications={res.success ? res.data : []} />;
     } catch { return <div>Error notifications</div>; }
+}
+
+async function GameDataStatsServer() {
+    try {
+        const { db } = await import("@/lib/prisma");
+        const [families, zones, challenges, dungeons] = await Promise.all([
+            db.monsterFamily.count(),
+            db.zone.count(),
+            db.challenge.count(),
+            db.dungeon.count()
+        ]);
+        
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                    { label: "Familles", count: families, icon: Layers, color: "text-blue-400" },
+                    { label: "Zones", count: zones, icon: MapPin, color: "text-green-400" },
+                    { label: "Challenges", count: challenges, icon: Trophy, color: "text-yellow-400" },
+                    { label: "Donjons", count: dungeons, icon: Database, color: "text-purple-400" },
+                ].map((stat) => (
+                    <div key={stat.label} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 flex items-center gap-4">
+                        <div className={cn("p-3 rounded-xl bg-zinc-950/50 border border-white/5", stat.color)}>
+                            <stat.icon className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{stat.label}</div>
+                            <div className="text-xl font-black text-white">{stat.count}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    } catch { return <div>Stats indisponibles</div>; }
 }

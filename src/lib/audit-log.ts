@@ -15,7 +15,7 @@ type AuditAction =
 interface AuditLog {
     timestamp: string;
     userId: string;
-    userEmail: string;
+    userName: string;
     action: AuditAction;
     resource?: string;
     details?: Record<string, any>;
@@ -49,13 +49,13 @@ export function auditLog(log: Omit<AuditLog, 'timestamp'>): void {
  */
 export function logPageAccess(params: {
     userId: string;
-    userEmail: string;
+    userName: string;
     page: string;
     details?: Record<string, any>;
 }): void {
     auditLog({
         userId: params.userId,
-        userEmail: params.userEmail,
+        userName: params.userName,
         action: 'ADMIN_ACCESS',
         resource: params.page,
         details: params.details,
@@ -67,7 +67,7 @@ export function logPageAccess(params: {
  */
 export function logGameDataChange(params: {
     userId: string;
-    userEmail: string;
+    userName: string;
     operation: 'CREATE' | 'UPDATE' | 'DELETE';
     entityType: string;
     entityId?: string;
@@ -76,7 +76,7 @@ export function logGameDataChange(params: {
 }): void {
     auditLog({
         userId: params.userId,
-        userEmail: params.userEmail,
+        userName: params.userName,
         action: `GAME_DATA_${params.operation}` as AuditAction,
         resource: `${params.entityType}:${params.entityId || params.entityName || 'unknown'}`,
         details: params.changes,

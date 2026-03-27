@@ -20,7 +20,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     const { logPageAccess } = await import('@/lib/audit-log');
     logPageAccess({
         userId: session.user.id,
-        userEmail: session.user.email || 'unknown',
+        userName: session.user.name || 'unknown',
         page: '/god',
         details: { environment: process.env.NODE_ENV }
     });

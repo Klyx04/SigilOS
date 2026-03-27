@@ -16,29 +16,29 @@ export default function GameDataInterface() {
     return (
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-slate-700/50 p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-7 bg-slate-800/50 mb-6">
-                    <TabsTrigger value="families" className="data-[state=active]:bg-indigo-600">
+                <TabsList className="flex flex-wrap justify-start gap-1 w-full bg-slate-800/50 mb-6 p-2 rounded-xl h-auto">
+                    <TabsTrigger value="families" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         🦎 Familles
                     </TabsTrigger>
-                    <TabsTrigger value="zones" className="data-[state=active]:bg-indigo-600">
+                    <TabsTrigger value="zones" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         🗺️ Zones
                     </TabsTrigger>
-                    <TabsTrigger value="challenges" className="data-[state=active]:bg-indigo-600">
+                    <TabsTrigger value="challenges" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         ⚔️ Challenges
                     </TabsTrigger>
-                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-indigo-600">
+                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         🏰 Donjons
                     </TabsTrigger>
-                    <TabsTrigger value="songes" className="data-[state=active]:bg-purple-600">
+                    <TabsTrigger value="songes" className="data-[state=active]:bg-purple-600 flex-1 min-w-[100px]">
                         🌙 Songes
                     </TabsTrigger>
-                    <TabsTrigger value="quests" className="data-[state=active]:bg-cyan-600">
+                    <TabsTrigger value="quests" className="data-[state=active]:bg-cyan-600 flex-1 min-w-[100px]">
                         📜 Quêtes
                     </TabsTrigger>
-                    <TabsTrigger value="mini-games" className="data-[state=active]:bg-amber-600">
+                    <TabsTrigger value="mini-games" className="data-[state=active]:bg-amber-600 flex-1 min-w-[100px]">
                         🎮 Mini-Jeux
                     </TabsTrigger>
-                    <TabsTrigger value="import-export" className="data-[state=active]:bg-indigo-600">
+                    <TabsTrigger value="import-export" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         📦 Import/Export
                     </TabsTrigger>
                 </TabsList>
@@ -46,10 +46,7 @@ export default function GameDataInterface() {
                 <TabsContent value="mini-games" className="space-y-4">
                     <div className="bg-zinc-950/50 border border-white/5 rounded-3xl p-8 flex flex-col items-center justify-center text-center gap-6">
                         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                            <TabsTrigger value="mini-games" className="p-0 bg-transparent border-none">
-                                <span className="sr-only">MiniGames</span>
-                                <div className="w-10 h-10 flex items-center justify-center">🎮</div>
-                            </TabsTrigger>
+                            <div className="w-10 h-10 flex items-center justify-center text-2xl">🎮</div>
                         </div>
                         <div className="space-y-2">
                             <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Gestion des Mini-Jeux</h3>

@@ -82,14 +82,14 @@ export const GuessingScreen = ({
         return (
             <div className="flex flex-col items-center justify-center h-full w-full animate-in zoom-in-95 duration-500 p-4">
                 <div className="w-full max-w-4xl bg-white/10 backdrop-blur-md border-[4px] md:border-[6px] border-white/20 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 text-center flex flex-col items-center gap-4 md:gap-6 shadow-2xl overflow-hidden shrink-0">
-                    <div className="text-6xl md:text-9xl animate-bounce drop-shadow-xl mb-2 md:mb-4">🎨</div>
-                    <h2 className="text-white text-2xl md:text-5xl font-black uppercase tracking-tighter italic leading-tight">
+                    <div className="text-4xl md:text-8xl animate-bounce drop-shadow-xl mb-1 md:mb-4">🎨</div>
+                    <h2 className="text-white text-xl md:text-5xl font-black uppercase tracking-tighter italic leading-tight">
                         LES AUTRES DEVINENT...
                     </h2>
-                    <p className="text-white/60 text-sm md:text-xl font-bold uppercase tracking-widest italic">
+                    <p className="text-white/60 text-xs md:text-xl font-bold uppercase tracking-widest italic">
                         Tu as dessiné :
                     </p>
-                    <div className="text-white text-3xl md:text-6xl font-black bg-white/10 px-6 md:px-12 py-4 md:py-8 rounded-[1.5rem] md:rounded-[2rem] border-2 md:border-4 border-white/20 shadow-2xl">
+                    <div className="text-white text-xl md:text-6xl font-black bg-white/10 px-4 md:px-12 py-2 md:py-8 rounded-xl md:rounded-[2rem] border-[2px] md:border-4 border-white/20 shadow-2xl">
                         {currentWord}
                     </div>
                 </div>
@@ -101,23 +101,23 @@ export const GuessingScreen = ({
         <div className="flex flex-col items-center justify-center w-full max-w-[98vw] animate-in zoom-in-95 duration-500 relative py-2 md:py-4 lg:py-6 overflow-hidden">
             {/* Top Bar - Round & Timer */}
             <div className="absolute top-2 md:top-4 inset-x-4 md:inset-x-8 z-50 flex items-center justify-between select-none pointer-events-none">
-                <div className="flex flex-col items-start translate-y-2">
+                <div className="flex flex-col items-start translate-y-1 md:translate-y-2">
                     <span className="text-white/40 font-black text-[8px] md:text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase italic">ROUND</span>
-                    <span className="text-white font-black text-2xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
-                        {round}<span className="text-white/30 text-lg md:text-3xl">/{totalRounds}</span>
+                    <span className="text-white font-black text-xl md:text-5xl italic drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
+                        {round}<span className="text-white/30 text-sm md:text-3xl">/{totalRounds}</span>
                     </span>
                 </div>
                 
-                <div className="scale-[0.7] md:scale-100 drop-shadow-2xl translate-y-4">
+                <div className="scale-[0.6] md:scale-100 drop-shadow-2xl translate-y-2 md:translate-y-4">
                     <CircularTimer remaining={timeLeft} total={totalTime} />
                 </div>
             </div>
  
             {/* Main Stage */}
-            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[2rem] md:rounded-[4rem] p-2 md:p-8 shadow-2xl flex flex-col items-center gap-2 md:gap-4 relative mt-12 md:mt-20 shrink-0 min-h-0 overflow-hidden grow">
+            <div className="w-full bg-white/10 backdrop-blur-xl border-[4px] md:border-[8px] border-white/10 rounded-[1.5rem] md:rounded-[4rem] p-2 md:p-8 shadow-2xl flex flex-col items-center gap-2 md:gap-4 relative mt-10 md:mt-20 shrink-0 min-h-0 overflow-hidden grow">
                 
                 {/* Purple Card Header - Fluid */}
-                <div className="w-full max-w-3xl bg-[#5d3fd3] rounded-[1.2rem] md:rounded-[2.5rem] p-3 md:p-6 relative shadow-2xl -mt-8 md:-mt-14 border-b-[4px] md:border-b-[10px] border-black/20 z-20 shrink-0">
+                <div className="w-full max-w-3xl bg-[#5d3fd3] rounded-[1.2rem] md:rounded-[2.5rem] p-3 md:p-6 relative shadow-2xl -mt-8 md:-mt-16 border-b-[4px] md:border-b-[10px] border-black/20 z-20 shrink-0">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 md:w-48 h-5 md:h-8 bg-black/20 rounded-b-[1.5rem] md:rounded-b-[2rem] flex items-center justify-center">
                         <span className="text-white/40 font-black text-[6px] md:text-[8px] tracking-[0.2em] md:tracking-[0.4em] uppercase italic">SIGIL PHONE</span>
                     </div>

@@ -76,8 +76,12 @@ export function EventCard({
     canManage,
     variant = "card"
 }: EventCardProps & { variant?: "card" | "list" }) {
-    const startDate = new Date(event.startDate);
-    const endDate = new Date(event.endDate);
+    const startDate = event.startDate ? new Date(event.startDate) : null;
+    const endDate = event.endDate ? new Date(event.endDate) : (startDate || new Date());
+    
+    if (!startDate || isNaN(startDate.getTime())) return null;
+    const validEndDate = (endDate && !isNaN(new Date(endDate).getTime())) ? new Date(endDate) : startDate;
+
     const theme = TYPE_THEMES[event.type] || TYPE_THEMES.SESSION_MISSIONS;
     const Icon = theme.icon;
 
@@ -126,7 +130,7 @@ export function EventCard({
                         </Badge>
                         <div className="flex items-center gap-1 text-xs text-zinc-500">
                             <Clock className="h-3 w-3" />
-                            <span>{format(startDate, "HH:mm")} - {format(endDate, "HH:mm")}</span>
+                            <span>{format(startDate, "HH:mm")} - {format(validEndDate, "HH:mm")}</span>
                         </div>
                     </div>
                     <h3 className="truncate text-base font-bold text-zinc-100 group-hover:text-amber-400 transition-colors">
@@ -249,7 +253,7 @@ export function EventCard({
                     <div className="flex items-center text-base text-zinc-400 group-hover:text-zinc-300 transition-colors">
                         <Clock className="w-5 h-5 mr-3 text-zinc-500 shrink-0" />
                         <span>
-                            {format(startDate, "HH:mm")} - {format(endDate, "HH:mm")}
+                            {format(startDate, "HH:mm")} - {format(validEndDate, "HH:mm")}
                         </span>
                     </div>
                     {event.location && (

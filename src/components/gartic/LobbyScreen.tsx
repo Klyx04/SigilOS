@@ -38,7 +38,7 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
         <div className="relative w-full max-w-[95vw] mx-auto flex flex-col items-center animate-in zoom-in-95 duration-500">
             {countdown !== null && (
                 <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-md flex items-center justify-center">
-                    <span className="text-[15rem] font-black text-white drop-shadow-[0_15px_0_rgba(0,0,0,0.4)] animate-bounce leading-none">
+                    <span className="text-[10rem] md:text-[15rem] font-black text-white drop-shadow-[0_15px_0_rgba(0,0,0,0.4)] animate-bounce leading-none">
                         {countdown}
                     </span>
                 </div>
@@ -48,12 +48,12 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
             <div className="w-full bg-white/10 backdrop-blur-md border-[8px] border-white/10 rounded-[3.5rem] p-8 md:p-12 shadow-2xl flex flex-col gap-10 relative overflow-visible">
                 
                 {/* Purple Header - Adaptive height and text */}
-                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 relative overflow-hidden shadow-2xl -mt-8 md:-mt-12 border-b-8 border-black/20 text-center shrink-0">
+                <div className="w-full max-w-3xl mx-auto bg-[#5d3fd3] rounded-[1.5rem] md:rounded-[2rem] p-3 md:p-8 relative overflow-hidden shadow-2xl -mt-10 md:-mt-16 border-b-8 border-black/20 text-center shrink-0">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 md:h-8 bg-black/20 rounded-b-2xl flex items-center justify-center">
                         <span className="text-white/40 font-black text-[8px] md:text-[10px] tracking-widest uppercase italic">SIGILPHONE LOBBY</span>
                     </div>
 
-                    <h2 className="text-white text-2xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter italic mt-4 md:mt-2 drop-shadow-lg leading-tight">
+                    <h2 className="text-white text-xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter italic mt-4 md:mt-2 drop-shadow-lg leading-tight">
                         PRÊT À <span className="text-[#a78bfa]">DESSINER ?</span>
                     </h2>
 
@@ -63,20 +63,20 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
                 </div>
 
                 {/* Floating Action Buttons */}
-                <div className="absolute top-8 right-8 flex gap-3">
+                <div className="absolute top-4 md:top-8 right-4 md:right-8 flex gap-2 md:gap-3">
                     <button 
                         onClick={handleInvite}
-                        className="w-14 h-14 flex items-center justify-center bg-[#5d3fd3] hover:bg-[#6c4be0] text-white rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
+                        className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center bg-[#5d3fd3] hover:bg-[#6c4be0] text-white rounded-xl md:rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
                         title="Inviter des amis"
                     >
-                        <Share2 size={24} />
+                        <Share2 size={18} className="md:w-6 md:h-6" />
                     </button>
                     <button 
                         onClick={onClose}
-                        className="w-14 h-14 flex items-center justify-center bg-red-500 hover:bg-red-400 text-white rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
+                        className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center bg-red-500 hover:bg-red-400 text-white rounded-xl md:rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
                         title="Quitter"
                     >
-                        <X size={24} />
+                        <X size={18} className="md:w-6 md:h-6" />
                     </button>
                 </div>
 

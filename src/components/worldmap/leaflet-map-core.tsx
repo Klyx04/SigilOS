@@ -493,7 +493,11 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
             setTimeout(() => {
-                map.flyToBounds(bounds, { padding: [120, 120], duration: 1.5, easeLinearity: 0.25, maxZoom: -1 });
+                if (isMiniMap) {
+                    map.fitBounds(bounds, { padding: [80, 80], maxZoom: -1, animate: false });
+                } else {
+                    map.flyToBounds(bounds, { padding: [120, 120], duration: 1.5, easeLinearity: 0.25, maxZoom: -1 });
+                }
             }, 100);
         }
     }, [guessResult, isMiniMap, map, activeWorld, participants]);

@@ -100,7 +100,10 @@ interface MemberManagementProps {
         total: number;
         maxMembers: number;
     };
-    initialMembers: Member[];
+    initialMembers: {
+        ownerId?: string | null;
+        members: Member[];
+    };
     welcomeBadgeName: string;
     isSuperAdmin: boolean;
 }
@@ -120,6 +123,11 @@ export default function MemberManagement({
         stats: RoleStats[];
         authorizedRoles: string[];
     } | null>(null);
+
+    const [memberList, setMemberList] = useState({
+        members: initialMembers.members,
+        ownerId: initialMembers.ownerId
+    });
 
     // Filters for Audit Tab
     const [search, setSearch] = useState("");
@@ -649,10 +657,11 @@ export default function MemberManagement({
                     <MemberStatsOverview stats={initialStats} />
                     <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
-                            initialMembers={initialMembers}
+                            initialMembers={memberList.members}
                             guildId={guildId}
                             welcomeBadgeName={welcomeBadgeName}
                             isSuperAdmin={isSuperAdmin}
+                            ownerId={memberList.ownerId}
                         />
                     </div>
                 </TabsContent>

@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Gamepad2, AlertTriangle, CheckCircle2, Save, Power, MessageSquare, Ban, Flag, Trash2, Map, Plus, Loader2 } from "lucide-react";
 import { updateMiniGameStatus, updateGeoguesserConfig, getMapsInfo } from "@/server/actions/god-mini-games-actions";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { GodTopNav } from "@/components/layout/god-top-nav";
 
 interface MiniGame {
     gameId: string;
@@ -30,7 +30,9 @@ export default function MiniGamesGodClient({
     initialStatuses: any[],
     initialPlatformConfig: any
 }) {
-    const [activeTab, setActiveTab] = useState<Tab>("MAINTENANCE");
+    const searchParams = useSearchParams();
+    const activeTab = (searchParams.get("sub") as Tab) || "MAINTENANCE";
+
     const [statuses, setStatuses] = useState(
         GAMES.map(game => {
             const status = initialStatuses.find(s => s.gameId === game.gameId);
@@ -171,19 +173,8 @@ export default function MiniGamesGodClient({
         }
     };
 
-    const subTabs = [
-        { id: "MAINTENANCE", name: "Maintenance", icon: Power },
-        { id: "GUESSER", name: "Blacklist Guesser", icon: Ban },
-    ];
-
     return (
         <div className="flex flex-col flex-1 h-full overflow-hidden">
-            <GodTopNav
-                activeSection="game-data"
-                subTabs={subTabs}
-                activeSubTab={activeTab}
-                onSubTabChange={(id) => setActiveTab(id as Tab)}
-            />
             <main className="flex-1 overflow-y-auto no-scrollbar bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/10 via-transparent to-transparent">
                 <div className="max-w-6xl mx-auto px-6 lg:px-12 py-10 space-y-8">
                     <AnimatePresence mode="wait">

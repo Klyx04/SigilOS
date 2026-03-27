@@ -1494,6 +1494,31 @@ export async function publishMissionsToDiscord(
 // [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
 // =============================================================================
 
+import { getKamaStats } from "./kama-actions";
+
+async function calculateDynamicXP(guildInternalId: string, discordGuildId: string): Promise<number> {
+    const { week, year } = getDofusWeek();
+    
+    // 1. Mission XP
+    const missions = await db.mission.findMany({
+        where: { guildId: guildInternalId, weekNumber: week, year },
+        include: { _count: { select: { submissions: { where: { status: 'VALIDATED' } } } } }
+    });
+    const missionXP = missions.reduce((acc, m) => acc + (m.xpReward || 0) * m._count.submissions, 0);
+
+    // 2. Kama XP
+    let kamaXP = 0;
+    const kamaStatsRes = await getKamaStats(discordGuildId);
+    if (kamaStatsRes.success && kamaStatsRes.data) {
+        const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+        const validatedWeeklyKamas = kamaStatsRes.data.weeklyTotal || 0;
+        const validatedTranches = Math.floor(validatedWeeklyKamas / KAMA_TRANCHE);
+        kamaXP = validatedTranches * REWARDS_PER_TRANCHE.xp;
+    }
+
+    return missionXP + kamaXP;
+}
+
 const XpOverrideSchema = z.object({
     guildId: z.string().min(1),
     xpOverride: z.number().int().min(0).max(1_000_000).nullable(),
@@ -1522,12 +1547,15 @@ export async function setGuildMissionXpOverride(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        // Note: missionWeekXpOverride est un champ nouveau "”
-        // le type $extends de Prisma ne le reconnaît pas toujours correctement;
-        // on passe via un cast partiel du payload uniquement.
+        let finalBaseOverride: number | null = null;
+        if (xpOverride !== null) {
+            const dynamicXP = await calculateDynamicXP(guild.id, guildId);
+            finalBaseOverride = xpOverride - dynamicXP; // Deduct auto points to act as base
+        }
+
         await db.guildConfig.update({
             where: { id: guild.id },
-            data: { missionWeekXpOverride: xpOverride } as any
+            data: { missionWeekXpOverride: finalBaseOverride } as any
         });
 
         await createAuditLog({
@@ -1536,7 +1564,7 @@ export async function setGuildMissionXpOverride(
             actorName: session.user.name || "Admin",
             action: "MISSION_XP_OVERRIDE" as any,
             targetType: "GUILD_CONFIG" as any,
-            metadata: { xpOverride, cleared: xpOverride === null }
+            metadata: { targetTotalXp: xpOverride, baseOverrideComputed: finalBaseOverride, cleared: xpOverride === null }
         });
 
         revalidatePath(`/dashboard/${guildId}/missions`);
@@ -1562,9 +1590,17 @@ export async function getGuildMissionXpOverride(
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { missionWeekXpOverride: true } as Record<string, true>
-        }) as unknown as { missionWeekXpOverride: number | null } | null;
-        return { success: true, data: { xpOverride: guild?.missionWeekXpOverride ?? null } };
+            select: { id: true, missionWeekXpOverride: true } as any
+        }) as unknown as { id: string, missionWeekXpOverride: number | null } | null;
+        
+        if (!guild || guild.missionWeekXpOverride === null) {
+            return { success: true, data: { xpOverride: null } };
+        }
+
+        const dynamicXP = await calculateDynamicXP(guild.id, guildId);
+        const totalXP = guild.missionWeekXpOverride + dynamicXP; // Base + Generated
+        
+        return { success: true, data: { xpOverride: totalXP } };
     } catch (error) {
         logger.error("getGuildMissionXpOverride Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };

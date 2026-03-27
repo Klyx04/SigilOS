@@ -20,7 +20,7 @@ export default async function GarticPage({ params }: Props) {
     if (!user.isMember) return <AccessDenied />;
 
     return (
-        <div className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-b-3xl border-b border-white/5 mx-2">
+        <div className="fixed top-14 bottom-0 left-0 md:left-[280px] right-0 z-[41] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 border-b border-white/5">
             <div className="flex-shrink-0 px-4 md:px-6 pt-3 pb-1 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Sigil-Phone (Gartic)"
@@ -29,7 +29,7 @@ export default async function GarticPage({ params }: Props) {
                     backHref={`/dashboard/${guildId}`}
                 />
             </div>
-            <div className="flex-1 w-full relative overflow-y-auto">
+            <div className="flex-1 w-full relative overflow-y-auto custom-scrollbar">
                 <GarticGame guildId={guildId} user={user} />
             </div>
         </div>

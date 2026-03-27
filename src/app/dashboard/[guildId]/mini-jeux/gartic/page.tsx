@@ -25,7 +25,7 @@ export default async function SigilGarticPage({
     if (!enabled) return <AccessDenied />;
 
     return (
-        <div className="fixed top-[64px] md:top-[88px] bottom-0 left-0 md:left-[280px] right-0 bg-[#c83d5a] z-40 overflow-hidden">
+        <div className="fixed top-14 bottom-0 left-0 md:left-[280px] right-0 bg-[#c83d5a] z-[41] overflow-hidden">
             <div className="h-full w-full overflow-hidden relative">
                 <GarticGameWrapper roomId={roomId} guildId={guildId} />
             </div>

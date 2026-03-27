@@ -3,11 +3,28 @@
 # maintenance.sh - Le concierge haute-performance de SigilOS (2026)
 # Ce script nettoie les ressources inutilisées et alerte en cas de saturation.
 
-# Configuration des alertes (Webhook Discord Classique)
-DISCORD_WEBHOOK_URL=$(grep DISCORD_ADMIN_WEBHOOK .env.prod | cut -d '=' -f2)
-# Nouvelle API SigilOS God Notifications
-GOD_NOTIFY_URL="https://sigilos.fr/api/god/notify"
-CRON_SECRET=$(grep CRON_SECRET .env.prod | cut -d '=' -f2)
+# 1. Config & Context
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Load env vars safely (Prioritize PROD > BETA > .env)
+if [ -f "$ROOT_DIR/.env.prod" ]; then
+    echo "[Config] Loading .env.prod"
+    export $(grep -v '^#' "$ROOT_DIR/.env.prod" | xargs)
+elif [ -f "$ROOT_DIR/.env.beta" ]; then
+    echo "[Config] Loading .env.beta"
+    export $(grep -v '^#' "$ROOT_DIR/.env.beta" | xargs)
+elif [ -f "$ROOT_DIR/.env" ]; then
+    echo "[Config] Loading .env"
+    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+fi
+
+# Nova API God Notify (Cloudflare proxy URL or internal if app is up)
+# CRITICAL: Define AFTER loading env vars
+GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-https://sigilos.fr}/api/god/notify"
+
+# Fallback for discord webhook if not set globally
+DISCORD_WEBHOOK_URL="${DISCORD_ADMIN_WEBHOOK:-}"
 
 send_alert() {
     local message=$1

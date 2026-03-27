@@ -24,7 +24,8 @@ import {
     Edit,
     ArrowUpDown,
     Copy,
-    Check
+    Check,
+    Crown
 } from "lucide-react";
 import {
     Table,
@@ -55,6 +56,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
 import { deleteProfileByAdmin } from "@/server/actions/lifecycle-actions";
+import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
@@ -87,9 +89,10 @@ interface MemberManagementTableProps {
     guildId: string;
     welcomeBadgeName: string;
     isSuperAdmin?: boolean;
+    ownerId?: string | null;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, ownerId = null }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
@@ -169,6 +172,25 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         }
     };
 
+    const handleTransferOwnership = async (userId: string, memberName: string) => {
+        if (!confirm(`⚠️ ATTENTION : Transférer la PROPRIÉTÉ de cette guilde à ${memberName} ?\n\nCette personne deviendra le nouvel administrateur principal.`)) return;
+        
+        setIsUpdating(userId);
+        try {
+            const res = await transferGuildOwnership(guildId, userId);
+            if (res.success) {
+                toast.success(`Propriété transférée avec succès à ${memberName} !`);
+                window.location.reload(); // Refresh to update context
+            } else {
+                toast.error(res.error || "Échec du transfert");
+            }
+        } catch (error) {
+            toast.error("Erreur de communication");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
 
     const handleUpdatePseudo = async (profileId: string) => {
         const currentMember = members.find(m => m.id === profileId);
@@ -226,6 +248,24 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     };
 
     const isIdValid = /^[a-zA-Z0-9\-]{1,50}$/.test(namePart) && /^[0-9]{4}$/.test(digitsPart);
+
+    const handleWelcome = async (profileId: string, memberName: string) => {
+        if (!confirm(`Souhaiter la bienvenue à ${memberName} ? Cela publiera un message sur le Mur Social et sur Discord (si configuré).`)) return;
+        
+        setIsUpdating(profileId);
+        try {
+            const res = await sendWelcomeMessage(guildId, profileId);
+            if (res.success) {
+                toast.success(`Message de bienvenue envoyé pour ${memberName} ! ✨`);
+            } else {
+                toast.error(res.error || "Échec de l'envoi");
+            }
+        } catch (error) {
+            toast.error("Erreur de communication");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
 
     const copyToClipboard = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
@@ -330,6 +370,9 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         <div className="flex flex-col">
                                             <div className="font-medium text-sm text-white flex items-center gap-2">
                                                 {member.pseudoDofus || member.user.name}
+                                                {member.user.accounts[0]?.providerAccountId === ownerId && (
+                                                    <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20 stroke-[3]" />
+                                                )}
                                                 {!member.pseudoDofus && (
                                                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase font-black">
                                                         Pseudo manquant
@@ -441,7 +484,15 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer"
                                             >
                                                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                                                Appliquer {welcomeBadgeName}
+                                                Attribuer Badge {welcomeBadgeName}
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem
+                                                onClick={() => handleWelcome(member.id, member.pseudoDofus || member.user.name || "Nouveau membre")}
+                                                className="gap-2 focus:bg-violet-500/10 focus:text-violet-400 cursor-pointer"
+                                            >
+                                                <Send className="h-3.5 w-3.5 text-violet-500" />
+                                                Souhaiter la Bienvenue
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
@@ -464,6 +515,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             {isSuperAdmin && (
                                                 <>
                                                     <DropdownMenuSeparator className="bg-white/5" />
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")}
+                                                        className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer font-bold"
+                                                    >
+                                                        <UserCheck className="h-3.5 w-3.5" />
+                                                        Promouvoir Propriétaire
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onClick={() => handleDelete(member.id)}
                                                         className="gap-2 focus:bg-red-600 focus:text-white text-red-400 cursor-pointer"

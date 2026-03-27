@@ -787,7 +787,7 @@ export default function InteractiveMapV2({
         if (targetMap.worldMap === selectedWorldId) {
             const dx = selectedPosition.x - targetMap.x;
             const dy = selectedPosition.y - targetMap.y;
-            dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+            dist = Math.abs(dx) + Math.abs(dy); // Manhattan distance for Dofus maps
         }
 
         // Quadratic decline (standard GeoGuess feel): 1000 * (1 - dist/100)^2

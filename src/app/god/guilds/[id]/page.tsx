@@ -78,7 +78,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                     </div>
 
                     <div className="px-6 py-4 bg-zinc-900/50 border border-white/5 rounded-2xl text-center min-w-[140px]">
-                        <div className="text-2xl font-black text-white tracking-tighter">{members.length}</div>
+                        <div className="text-2xl font-black text-white tracking-tighter">{members.members.length}</div>
                         <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Membres Totaux</div>
                     </div>
                 </div>
@@ -94,10 +94,11 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                 </div>
                 <div className="p-6">
                     <MemberManagementTable
-                        initialMembers={members as any}
+                        initialMembers={members.members as any}
                         guildId={guild.discordGuildId}
                         welcomeBadgeName={guild.welcomeBadgeName}
                         isSuperAdmin={true}
+                        ownerId={members.ownerId}
                     />
                 </div>
             </div>

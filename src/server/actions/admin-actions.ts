@@ -129,9 +129,13 @@ export async function updateRBACMapping(
             }
         });
 
-        // 🛡️ CRITICAL: Invalidate Server-side memory cache
-        const { invalidateGuildCache } = await import("./user-actions");
+        const { invalidateGuildCache, invalidateUserContextCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
+        
+        const userId = session.user.id;
+        if (userId) {
+            await invalidateUserContextCache(userId, guildId);
+        }
 
         // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");

@@ -265,6 +265,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 welcomeNotifyChannelId: true,
                 welcomeMentionRoleId: true,
                 welcomeMessageTemplate: true,
+                welcomeDiscordMessageTemplate: true,
+                welcomeBadgeName: true,
                 newsBroadcastEnabled: true,
                 modules: {
                     select: {
@@ -545,26 +547,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 // ---- NEW MEMBER WELCOME LOGIC ----
                 Promise.resolve().then(async () => {
                     if (!guildConfig.welcomeEnabled) return;
-
-                    // FIX: Ensure user actually has rights to view the dashboard before welcoming them
-                    const mapping = (guildConfig.rolesMapping as Record<string, PermissionId[]>) || {};
-                    const userMapping = (guildConfig.usersMapping as Record<string, PermissionId[]>) || {};
-                    let hasAccess = false;
-
-                    memberRoles.forEach(rId => {
-                        if (mapping[rId]?.includes(PERMISSIONS.DASHBOARD_VIEW) || mapping[rId]?.includes(PERMISSIONS.ADMIN_ACCESS)) hasAccess = true;
-                    });
-                    if (discordUserId && (userMapping[discordUserId]?.includes(PERMISSIONS.DASHBOARD_VIEW) || userMapping[discordUserId]?.includes(PERMISSIONS.ADMIN_ACCESS))) {
-                        hasAccess = true;
-                    }
-                    const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
-                    const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
-                    if (hasDiscordAdminRole || isOwner) hasAccess = true;
-
-                    if (!hasAccess && !isGod) {
-                        logger.warn(`[Welcome] Skipped welcome notification for ${displayName} because they lack dashboard permissions.`);
-                        return;
-                    }
 
                     try {
                         const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
@@ -1101,7 +1083,7 @@ export async function getGuildMembers(guildId: string) {
 
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true, name: true }
+        select: { id: true, name: true, ownerId: true }
     });
 
     if (!guildConfig) throw new Error("Guild not found");
@@ -1127,27 +1109,28 @@ export async function getGuildMembers(guildId: string) {
         orderBy: { createdAt: "desc" }
     });
 
-    // Return only the fields needed by MemberManagementTable
-    // (avoid spreading the full Prisma object which contains non-serializable JsonValue symbols)
-    return members.map(m => ({
-        id: m.id,
-        userId: m.userId,
-        status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
-        createdAt: m.createdAt.toISOString(),
-        updatedAt: m.updatedAt.toISOString(),
-        archivedAt: m.archivedAt?.toISOString() || null,
-        archiveReason: m.archiveReason,
-        pseudoDofus: m.pseudoDofus,
-        discordNickname: m.discordNickname,
-        discordRoleName: m.discordRoleName,
-        discordRoleColor: m.discordRoleColor,
-        ankamaId: m.ankamaId,
-        user: {
-            name: m.user.name,
-            image: m.user.image,
-            accounts: m.user.accounts
-        }
-    }));
+    return {
+        ownerId: guildConfig.ownerId,
+        members: members.map(m => ({
+            id: m.id,
+            userId: m.userId,
+            status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
+            createdAt: m.createdAt.toISOString(),
+            updatedAt: m.updatedAt.toISOString(),
+            archivedAt: m.archivedAt?.toISOString() || null,
+            archiveReason: m.archiveReason,
+            pseudoDofus: m.pseudoDofus,
+            discordNickname: m.discordNickname,
+            discordRoleName: m.discordRoleName,
+            discordRoleColor: m.discordRoleColor,
+            ankamaId: m.ankamaId,
+            user: {
+                name: m.user.name,
+                image: m.user.image,
+                accounts: m.user.accounts
+            }
+        }))
+    };
 }
 
 /**

@@ -270,30 +270,17 @@ export default async function SuperAdminPage(props: {
 
 async function GlobalLogsServer() {
     try {
-    const { getGlobalAuditLogs, cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
-    await cleanupGlobalAuditLogs().catch(() => {});
-    const result = await getGlobalAuditLogs({ limit: 100 });
-    return (
-        <div className="p-8">
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-                <span className="text-xs text-zinc-500 font-black uppercase tracking-widest">Security Feed ({result.data?.total || 0})</span>
-                <div className="flex gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                </div>
-            </div>
-            <div className="space-y-3 font-mono text-[11px]">
-                {result.data?.logs?.map((log: any) => (
-                    <div key={log.id} className="flex gap-4 p-3 rounded-xl bg-black/40 border border-white/5 hover:border-blue-500/30 transition-all group">
-                        <span className="text-zinc-600 whitespace-nowrap">{new Date(log.createdAt).toLocaleTimeString()}</span>
-                        <span className="text-blue-400 font-bold w-32 truncate">{log.action}</span>
-                        <span className="text-zinc-400">@{log.actorName}</span>
-                        <span className="text-zinc-600 truncate flex-1 opacity-50">{log.targetType}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-    } catch { return <div>Error logs</div> }
+        const { getGlobalAuditLogs, cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+        const { AuditFeedPanel } = await import("./components/audit-feed-panel");
+        
+        await cleanupGlobalAuditLogs().catch(() => {});
+        const result = await getGlobalAuditLogs({ limit: 200 });
+        const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
+        
+        return <AuditFeedPanel logs={safeLogs} total={result.data?.total || 0} />;
+    } catch { 
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading global logs</div>; 
+    }
 }
 
 async function LiveStatsServer() {

@@ -43,7 +43,7 @@ export default function FAQPage() {
                 "name": "Comment fonctionne la connexion Discord ?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "La connexion s'effectue uniquement via Discord (OAuth2). SigilOS ne demande jamais vos identifiants Ankama. Nous n'avons accès qu'à votre ID Discord, pseudo et avatar."
+                    "text": "La connexion s'effectue uniquement via Discord (OAuth2). SigilOS ne demande jamais vos identifiants Ankama. Nous n'avons accès qu'à votre ID Discord, votre pseudo public et votre avatar. Aucune adresse e-mail n'est collectée."
                 }
             },
             {
@@ -166,7 +166,7 @@ export default function FAQPage() {
                                     Comment fonctionne la connexion si je ne donne pas mes pass Dofus ?
                                 </AccordionTrigger>
                                 <AccordionContent className="text-zinc-400 leading-relaxed text-sm pb-4">
-                                    La connexion s'effectue <strong className="text-white">uniquement via Discord</strong> (Système OAuth2). Nous utilisons l'authentification officielle de Discord pour vérifier que vous appartenez bien au serveur Discord de votre guilde. Nous n'avons accès qu'à votre ID Discord, votre pseudo public et votre avatar.
+                                    La connexion s'effectue <strong className="text-white">uniquement via Discord</strong> (Système OAuth2). Nous utilisons l'authentification officielle de Discord pour vérifier que vous appartenez bien au serveur Discord de votre guilde. Nous n'avons accès qu'à votre ID Discord, votre pseudo public, votre avatar et la liste de vos serveurs Discord. Aucune adresse e-mail n'est collectée.
                                 </AccordionContent>
                             </AccordionItem>
                             <AccordionItem value="item-sec-email" className="border border-white/5 bg-zinc-900/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-emerald-500/30 transition-colors">
@@ -174,8 +174,8 @@ export default function FAQPage() {
                                     Est-ce que vous collectez mon adresse email ?
                                 </AccordionTrigger>
                                 <AccordionContent className="text-zinc-400 leading-relaxed text-sm pb-4 space-y-2">
-                                    <p>Oui, nous collectons l'adresse e-mail associée à votre compte Discord lors de l'authentification, mais <strong className="text-white">nous ne l'utilisons pour aucun démarchage commercial ni spam.</strong></p>
-                                    <p>Elle sert uniquement d'identifiant unique complémentaire sécurisé par la logique d'authentification de Discord. Vos données restent strictement confidentielles et ne sont pas revendues.</p>
+                                    <p><strong className="text-white">Non.</strong> SigilOS ne collecte <strong className="text-white">ni ne stocke</strong> votre adresse e-mail. Lors de la connexion via Discord, nous ne demandons que les permissions strictement nécessaires : votre <strong className="text-white">ID Discord</strong>, votre <strong className="text-white">pseudo public</strong> et la <strong className="text-white">liste des serveurs Discord</strong> auxquels vous appartenez (pour vérifier votre appartenance à une guilde gérée par SigilOS).</p>
+                                    <p>Votre adresse e-mail Discord n'est jamais demandée, jamais transmise à nos serveurs, et jamais stockée dans notre base de données.</p>
                                 </AccordionContent>
                             </AccordionItem>
                             <AccordionItem value="item-sec-2" className="border border-white/5 bg-zinc-900/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-emerald-500/30 transition-colors">

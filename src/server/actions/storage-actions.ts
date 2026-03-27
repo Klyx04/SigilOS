@@ -59,6 +59,10 @@ export type StorageGuildEntry = {
     loansProofsCount: number;
     loansProofsBytes: number;
     loansProofsFiles: DiskFile[];
+    presentationDir: string;
+    presentationCount: number;
+    presentationBytes: number;
+    presentationFiles: DiskFile[];
     activeLoanProofs: number; // nb de prêts/coffre actifs avec proofUrl en DB
     // pending
     pendingMissions: number;
@@ -216,30 +220,29 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                 const missionsDir = join(cwd, "private_uploads", "proofs", g.discordGuildId);
                 const kamaDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
                 const achievementDir = join(cwd, "private_uploads", "guilds", g.id, "achievements");
-                const loansProofsDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
+                const presentationDir = join(cwd, "private_uploads", "guilds", g.id); // Root of guild folder for presentation assets
 
                 const missionsUrlBase = `/uploads/proofs/${g.discordGuildId}`;
                 const kamaUrlBase = `/uploads/guilds/${g.id}/proofs`;
                 const achievementUrlBase = `/uploads/guilds/${g.id}/achievements`;
-                const loansUrlBase = `/uploads/guilds/${g.id}/proofs`;
+                const presentationUrlBase = `/uploads/guilds/${g.id}`;
 
-                const [missionsList, kamaList, achievementList, pendingFiles] = await Promise.all([
+                const [missionsList, kamaList, achievementList, presentationList, pendingFiles] = await Promise.all([
                     dirList(missionsDir, missionsUrlBase),
                     dirList(kamaDir, kamaUrlBase),
                     dirList(achievementDir, achievementUrlBase),
+                    dirList(presentationDir, presentationUrlBase),
                     getPendingFilesForGuild(g.id, g.discordGuildId, cwd),
                 ]);
 
+                // Filter presentationList to only include local files (exclude subfolders scan)
+                // Actually dirList only scans files in that specific folder (no recursion)
+
                 // Les fichiers du dossier /proofs/ sont partagés entre Kama Donations et Prêts/Coffre
-                // On scanne la DB pour séparer: prêts+coffre avec proofUrl non-null
                 const activeLoanProofs = await Promise.all([
                     db.guildLoan.count({ where: { guildId: g.id, proofUrl: { not: null } } }),
                     db.vaultEntry.count({ where: { guildId: g.id, proofUrl: { not: null } } }),
                 ]).then(([loans, vault]) => loans + vault);
-
-                // On réutilise les fichiers disk du dossier proofs pour les deux catégories
-                // Note: même répertoire, le tag est DB-side uniquement
-                const loansProofsList = kamaList; // Same dir as kama proofs
 
                 const [pendingMissions, pendingKamas] = await Promise.all([
                     db.submission.count({ where: { mission: { guildId: g.id }, status: "PENDING" } }),
@@ -284,10 +287,14 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     achievementCount: achievementList.count,
                     achievementBytes: achievementList.bytes,
                     achievementFiles: achievementList.files,
-                    loansProofsDir: `${loansUrlBase}/`,
-                    loansProofsCount: loansProofsList.count,
-                    loansProofsBytes: loansProofsList.bytes,
-                    loansProofsFiles: loansProofsList.files,
+                    loansProofsDir: `${kamaUrlBase}/`, // share same dir as kama proofs
+                    loansProofsCount: kamaList.count,
+                    loansProofsBytes: kamaList.bytes,
+                    loansProofsFiles: kamaList.files,
+                    presentationDir: `${presentationUrlBase}/`,
+                    presentationCount: presentationList.count,
+                    presentationBytes: presentationList.bytes,
+                    presentationFiles: presentationList.files,
                     activeLoanProofs,
                     pendingMissions,
                     pendingKamas,

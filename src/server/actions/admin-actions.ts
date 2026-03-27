@@ -7,6 +7,7 @@ import { type PermissionId, PERMISSIONS } from "@/lib/permissions";
 import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 export type ActionResponse = {
     success: boolean;
@@ -158,6 +159,68 @@ export async function updateRBACMapping(
     } catch (error) {
         console.error("Failed to update role mapping:", error);
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * 🔒 LAZY CLEANUP: Purge les soumissions expirées (+24h) au chargement de la page admin.
+ * Assure que le stockage reste propre sans attendre le cron de 4h.
+ */
+export async function lazyCleanupExpiredSubmissions(discordGuildId: string): Promise<void> {
+    const session = await auth();
+    if (!session?.user?.id) return;
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true }
+        });
+        if (!guild) return;
+
+        const cutoff = new Date();
+        cutoff.setHours(cutoff.getHours() - 24);
+
+        // 1. Missions
+        const expiredMissions = await db.submission.findMany({
+            where: { mission: { guildId: guild.id }, status: "PENDING", createdAt: { lt: cutoff } },
+            select: { id: true, proofUrl: true }
+        });
+
+        // 2. Kamas
+        const kamaDb = db as any;
+        const expiredKamas = await (kamaDb.kamaDonation?.findMany({
+            where: { guildId: guild.id, status: "PENDING", createdAt: { lt: cutoff } },
+            select: { id: true, proofUrl: true }
+        }) || Promise.resolve([]));
+
+        // 3. Achievements
+        const expiredAchievements = await (kamaDb.achievementSubmission?.findMany({
+            where: { guildId: guild.id, status: "PENDING", createdAt: { lt: cutoff } },
+            select: { id: true, proofUrl: true }
+        }) || Promise.resolve([]));
+
+        const allExpired = [...expiredMissions, ...expiredKamas, ...expiredAchievements];
+        if (allExpired.length === 0) return;
+
+        const { deleteProofFile } = await import("@/lib/storage-utils");
+
+        // Physical deletion
+        for (const item of allExpired) {
+            if (item.proofUrl) {
+                await deleteProofFile(item.proofUrl).catch(() => {});
+            }
+        }
+
+        // DB Clean (Hard delete as they are expired/rejected equivalent)
+        await Promise.all([
+            db.submission.deleteMany({ where: { id: { in: expiredMissions.map((m: any) => m.id) } } }),
+            kamaDb.kamaDonation?.deleteMany({ where: { id: { in: expiredKamas.map((k: any) => k.id) } } }).catch(() => {}),
+            kamaDb.achievementSubmission?.deleteMany({ where: { id: { in: expiredAchievements.map((a: any) => a.id) } } }).catch(() => {})
+        ]);
+
+        logger.info(`[LazyCleanup] Purged ${allExpired.length} expired items for guild ${discordGuildId}`);
+    } catch (error) {
+        logger.error("[LazyCleanup] Error during lazy cleanup", { error, discordGuildId });
     }
 }
 

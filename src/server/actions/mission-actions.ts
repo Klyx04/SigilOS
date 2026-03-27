@@ -407,51 +407,92 @@ export async function resetWeek(
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
+            where: { discordGuildId: guildId },
+            select: { id: true }
         });
 
-        if (!guildConfig) {
-            return { success: false, error: "Guilde non configurée" };
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const { deleteProofFile } = await import("@/lib/storage-utils");
+
+        // 1. Calculate week boundaries for non-weekly models (approximate)
+        const startOfWeek = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+        const endOfWeek = new Date(year, 0, 1 + weekNumber * 7);
+
+        // 2. Fetch all items to be deleted to cleanup physical files
+        const [missions, kamas, achievements] = await Promise.all([
+            db.mission.findMany({
+                where: { guildId: guildConfig.id, weekNumber, year },
+                include: { submissions: { select: { id: true, proofUrl: true } } }
+            }),
+            (db as any).kamaDonation.findMany({
+                where: { guildId: guildConfig.id, weekNumber, yearNumber: year },
+                select: { id: true, proofUrl: true }
+            }),
+            (db as any).achievementSubmission.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    createdAt: { gte: startOfWeek, lte: endOfWeek }
+                },
+                select: { id: true, proofUrl: true }
+            })
+        ]);
+
+        // 3. Extract and delete physical proofs + ImageHashes
+        const submissionProofs = missions.flatMap(m => m.submissions.map(s => ({ id: s.id, url: s.proofUrl, type: "MISSION" })));
+        const kamaProofs = kamas.map((k: any) => ({ id: k.id, url: k.proofUrl, type: "KAMA_DONATION" }));
+        const achievementProofs = achievements.map((a: any) => ({ id: a.id, url: a.proofUrl, type: "ACHIEVEMENT" }));
+        
+        const allProofs = [...submissionProofs, ...kamaProofs, ...achievementProofs];
+
+        for (const proof of allProofs) {
+            if (proof.url) {
+                await deleteProofFile(proof.url);
+                // Clean image hashes to allow re-upload if needed
+                await (db as any).imageHash.deleteMany({
+                    where: { 
+                        guildId: guildConfig.id, 
+                        sourceId: proof.id 
+                    }
+                });
+            }
         }
 
+        // 4. Final DB Reset
         await db.$transaction([
             db.mission.deleteMany({
-                where: {
-                    guildId: guildConfig.id,
-                    weekNumber,
-                    year
-                }
+                where: { guildId: guildConfig.id, weekNumber, year }
             }),
-            // Use PrismaClient casting since kamaDonation expects dynamically added type in this module
             (db as any).kamaDonation.deleteMany({
+                where: { guildId: guildConfig.id, weekNumber, yearNumber: year }
+            }),
+            (db as any).achievementSubmission.deleteMany({
                 where: {
                     guildId: guildConfig.id,
-                    weekNumber,
-                    yearNumber: year
+                    createdAt: { gte: startOfWeek, lte: endOfWeek }
                 }
             })
         ]);
 
         revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);
+        revalidatePath(`/dashboard/${guildId}/ladder`);
 
-        // Invalidate Cache
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
-        // Audit log
         await createAuditLog({
             guildId,
             actorUserId: session?.user?.id ?? "unknown",
             actorName: session?.user?.name || "Admin",
             action: "MISSION_DELETED",
             targetType: "MISSION",
-            metadata: { weekNumber, year, scope: "FULL_WEEK" }
+            metadata: { weekNumber, year, scope: "FULL_WEEK_CLEANUP", proofsDeleted: allProofs.length }
         });
 
         return { success: true };
     } catch (error) {
         logger.error("ResetWeek Critical Error", { error, guildId, weekNumber, year });
-        return { success: false, error: "Failed to reset week" };
+        return { success: false, error: "Expansion de la purge échouée" };
     }
 }
 

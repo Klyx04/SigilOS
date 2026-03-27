@@ -289,21 +289,39 @@ export async function cleanupGhostUsers(isTestMode = false) {
 }
 
 /**
- * Get Ghost Users (No Profile) for Admin View
+ * Get Ghost Users (No Profile) for Admin View with advanced insights
  */
-export async function getGhostUsers() {
+export async function getGhostUsers(params?: { search?: string; limit?: number }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return [];
 
+    const { search, limit = 100 } = params || {};
+
     return db.user.findMany({
         where: {
-            profiles: { none: {} } // ONLY users without any profile
+            profiles: { none: {} },
+            ...(search ? {
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } },
+                    { id: { contains: search } },
+                    { accounts: { some: { providerAccountId: { contains: search } } } }
+                ]
+            } : {})
         },
         orderBy: { createdAt: "desc" },
-        take: 50,
+        take: limit,
         include: {
             accounts: {
-                select: { provider: true, providerAccountId: true } // Added providerAccountId to get Discord ID
+                select: { provider: true, providerAccountId: true }
+            },
+            sessions: {
+                orderBy: { expires: 'desc' },
+                take: 1,
+                select: { expires: true }
+            },
+            _count: {
+                select: { sessions: true, guildEvents: true }
             }
         }
     });

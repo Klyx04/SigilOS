@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-23)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-27)
 
-**Branche Active** : `feat/dofus-ladder-sync` (Ladder Worker & God Robustness)  
-**Status** : Fix du synchronisateur de ladder (Worker Secrets), sécurisation du GOD Dashboard (Error Boundaries) et automatisation de l'onboarding Discord.
+**Branche Active** : `feat/god-storage-lazy-cleanup` (Optimisation Stockage & Hygiène VPS)  
+**Status** : Overhaul du dashboard de stockage Super-Admin (Ultra-Wide, Paths VPS) et implémentation du **Lazy Cleanup** (suppression immédiate des screens expirés à l'ouverture de la file de validation).
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -390,6 +390,17 @@ git push origin feat/ma-branche
 
 ---
 
+### Session — Infrastructure Stockage & Lazy Cleanup (2026-03-27)
+
+- ✅ **God Storage Dashboard (Ultra-Wide)** : Refonte massive du stockage Super-Admin. Support 2500px pour une densité d'information maximale. Grid adaptative par guilde avec visualisation miroir du disque VPS (tailles, fichiers, modifs).
+- ✅ **Path Visualization (Premium)** : Implémentation de `PathDisplay`, un système de fil d'Ariane segmenté affichant les chemins physiques réels sur le serveur (ex: `/private_uploads/proofs/1234.../`).
+- ✅ **Gestion des Orphelins & Countdowns** : Visualisation en temps réel des fichiers "Orphelins" (fichiers sans record BDD) avec un chronomètre de grâce de 4h avant purge automatique.
+- ✅ **Lazy Cleanup (Instant Hygiene)** : Création d'un mécanisme de "Nettoyage Paresseux" dans `/admin/validation`. À chaque ouverture du cockpit de validation par un admin, le système scanne et **supprime physiquement** instantanément les preuves expirées (+24h) pour garantir un stockage VPS à 0% d'encombrement inutile.
+- ✅ **Sécurité Immédiate** : Confirmation de la suppression physique instantanée lors des actions manuelles (Validation/Rejet) via `deleteProofFile`.
+- ✅ **Git & Build Compliance** : Résolution des erreurs de type (implicit any) et import correct du logger structuré dans les actions d'admin. Migration vers la branche `feat/god-storage-lazy-cleanup`.
+
+---
+
 ## 🔒 Sécurité & Standards (Aligné avec RULES.md & SECURITY.md)
 
 ### 1. Patterns Applicatifs (Server Actions & Stocks)
@@ -470,6 +481,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - Calendrier événements (Modales Premium, Draggable)
 - Documentation (viewer + éditeur TipTap)
 - GOD Dashboard (whitelist, lifecycle, stats, game data ultra-wide)
+- **God Storage Dashboard V2** : Miroir disque VPS, paths physiques, Lazy Cleanup instantané.
 - Upload images (docs, preuves missions, bannières)
 - Notifications in-app (Glassmorphism, Couverture missions, filtres par catégorie)
 - Ocre / MetaMob integration (BullMQ async, progress bar)

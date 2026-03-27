@@ -297,7 +297,7 @@ export async function getGhostUsers(params?: { search?: string; limit?: number }
 
     const { search, limit = 100 } = params || {};
 
-    return db.user.findMany({
+    const users = await db.user.findMany({
         where: {
             profiles: { none: {} },
             ...(search ? {
@@ -325,6 +325,42 @@ export async function getGhostUsers(params?: { search?: string; limit?: number }
             }
         }
     });
+
+    // Enhancement: Check if these ghost users are present in ANY whitelisted guild
+    // This helps the admin know if they are "legit" members who just haven't confirmed their profile.
+    const allowedGuilds = await db.allowedGuild.findMany({
+        where: { isActive: true },
+        select: { discordGuildId: true, name: true }
+    });
+
+    const { fetchGuildMember } = await import("@/server/discord");
+
+    const enrichedUsers = await Promise.all(users.map(async (user) => {
+        const discordId = user.accounts.find(a => a.provider === "discord")?.providerAccountId;
+        const memberIn = [];
+
+        if (discordId && allowedGuilds.length > 0) {
+            // We check membership in whitelist guilds
+            // To avoid huge latency, we only check the first 3 active guilds found or a limited subset
+            for (const guild of allowedGuilds.slice(0, 5)) {
+                try {
+                    const member = await fetchGuildMember(guild.discordGuildId, discordId);
+                    if (member) {
+                        memberIn.push(guild.name || guild.discordGuildId);
+                    }
+                } catch {
+                    // Ignore errors for individual guilds
+                }
+            }
+        }
+
+        return {
+            ...user,
+            memberInWhitelists: memberIn
+        };
+    }));
+
+    return enrichedUsers;
 }
 
 /**

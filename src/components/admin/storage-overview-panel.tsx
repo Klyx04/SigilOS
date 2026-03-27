@@ -182,7 +182,7 @@ function DiskFilesGallery({ files, type, onReload }: { files: DiskFile[]; type: 
 
     return (
         <>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-4 gap-4">
                 {shown.map((f, i) => (
                     <div key={i} className="group relative rounded-xl overflow-hidden border border-white/5 bg-zinc-950 hover:border-white/20 transition-all">
                         {/* Thumbnail */}
@@ -224,7 +224,7 @@ function AssetsGallery({ assets, guildId, onReload }: { assets: GuildAsset[]; gu
 
     return (
         <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
                 {assets.map((a, i) => {
                     const cfg = TYPE_CFG[a.type] || TYPE_CFG.ICON;
                     const isDiscord = !a.isLocal;
@@ -269,7 +269,7 @@ function PendingGallery({ files, onReload }: { files: PendingFile[]; onReload: (
     if (files.length === 0) return <div className="text-center py-6 text-zinc-700 text-xs font-bold uppercase tracking-widest">Aucun fichier en attente</div>;
     return (
         <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-4 gap-4">
                 {files.map(f => {
                     const cfg = TYPE_CFG[f.type];
                     return (
@@ -416,10 +416,12 @@ function GuildStorageRow({ guild, maxBytes, onReload }: { guild: StorageGuildEnt
                 </div>
 
                 {/* Global bar */}
-                <StorageBar value={totalBytes} max={maxBytes} color="bg-indigo-500" />
+                <div className="px-2">
+                    <StorageBar value={totalBytes} max={maxBytes} color="bg-indigo-500" />
+                </div>
 
                 {/* 3 category blocks: missions, kamas/vault, succès */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <CategoryBlock type="MISSION" dir={guild.missionsDir}
                         count={guild.missionsCount} bytes={guild.missionsBytes} totalBytes={totalBytes}
                         files={guild.missionsFiles} pending={guild.pendingMissions}

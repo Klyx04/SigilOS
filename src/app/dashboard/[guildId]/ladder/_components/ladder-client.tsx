@@ -55,7 +55,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     result = await getGeneralLadder(guildId);
                     break;
                 case "guildatons":
-                    result = await getGuildatonsLadder(guildId);
+                    result = await getGuildatonsLadder(guildId, activityView);
                     break;
             }
 
@@ -106,11 +106,11 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
     const categories = [
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
+        { id: "guildatons", label: "Guildatons", icon: "/guildaton.png", isImage: true, color: "#eab308" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
         { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
         { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
-        { id: "guildatons", label: "Guildatons", icon: "/guildaton.png", isImage: true, color: "#eab308" },
     ] as const;
 
     return (
@@ -118,7 +118,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
             {/* Modern Tab Navigation (Glassmorphism 2026) */}
             <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/40 backdrop-blur-3xl border-b border-white/5 shadow-2xl transition-all duration-500">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8">
+                    <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}
                         <div className="relative flex-1 min-w-0">
                             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mask-horizontal-scroll premium-scrollbar lg:mask-none -mb-[1px] pb-1">
@@ -183,26 +183,10 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                     );
                                 })}
                             </div>
+                            
+                            {/* Fading Edge for Scroll */}
+                            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black/80 to-transparent pointer-events-none md:hidden" />
                         </div>
-
-                        {/* Period Selector - Full width on mobile */}
-                        {activeTab === "activity" && (
-                            <div className="w-full md:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
-                                <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                    <SelectTrigger className="w-full md:w-[220px] h-10 sm:h-11 bg-white/[0.03] border-white/5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl">
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                                            <SelectValue placeholder="Période" />
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                        <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Cette semaine</SelectItem>
-                                        <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Ce mois-ci</SelectItem>
-                                        <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-500">🏆 Global (All-Time)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -235,10 +219,34 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             })()}
                         </div>
                         
-                        <div className="space-y-2 flex-1">
-                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase">
-                                {categories.find(c => c.id === activeTab)?.label}
-                            </h2>
+                        <div className="space-y-2 flex-1 relative">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <h2 className="text-2xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
+                                    {categories.find(c => c.id === activeTab)?.label}
+                                    {activeTab === 'activity' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
+                                    {activeTab === 'guildatons' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]" />}
+                                </h2>
+
+                                {/* Contextual Period Selector */}
+                                {(activeTab === "activity" || activeTab === "guildatons") && (
+                                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                                        <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
+                                            <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                                                    <SelectValue placeholder="Période" />
+                                                </div>
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
+                                                <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Cette semaine</SelectItem>
+                                                <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Ce mois-ci</SelectItem>
+                                                <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-500">🏆 Global (All-Time)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+                            
                             <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl">
                                 {activeTab === 'activity' && "Ce classement mesure votre engagement direct dans la guilde via la validation de missions et les dons de kamas. Seul l'XP gagné sur la période sélectionnée est comptabilisé."}
                                 {activeTab === 'contribution' && "Récompense les membres qui s'impliquent dans la vie de la guilde (aide aux succès, présence aux événements, parrainage). Ces points sont attribués manuellement par les officiers."}

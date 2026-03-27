@@ -71,7 +71,10 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
                                         src={gameState.currentWordIcon || "https://api.dofusdb.fr/img/items/4349.png"} 
                                         alt="" 
                                         className="w-full h-full object-contain relative z-10 p-1 md:p-2"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        onError={(e) => { 
+                                            (e.currentTarget as HTMLImageElement).src = 'https://api.dicebear.com/7.x/bottts/svg?seed=sigil-hint';
+                                            (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
+                                        }}
                                     />
                                 </div>
                             </div>

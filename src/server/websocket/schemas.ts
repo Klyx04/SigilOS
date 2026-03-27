@@ -8,12 +8,32 @@ export const GarticTextSchema = z.object({
     text: z.string().min(1).max(100),
 });
 
-export const SkribblDrawSchema = z.object({
-    stroke: z.any().optional(), // Can be more specific if we want
-    color: z.string().optional(),
-    size: z.number().optional(),
-    type: z.enum(["draw", "clear", "undo"]).optional(),
-});
+export const SkribblDrawSchema = z.union([
+    z.object({
+        type: z.string().optional(),
+        x0: z.number().optional(),
+        y0: z.number().optional(),
+        x1: z.number().optional(),
+        y1: z.number().optional(),
+        normX: z.number().optional(),
+        normY: z.number().optional(),
+        color: z.string().optional(),
+        lineWidth: z.number().optional(),
+        pathId: z.string().optional(),
+    }),
+    z.array(z.object({
+        type: z.string().optional(),
+        x0: z.number().optional(),
+        y0: z.number().optional(),
+        x1: z.number().optional(),
+        y1: z.number().optional(),
+        normX: z.number().optional(),
+        normY: z.number().optional(),
+        color: z.string().optional(),
+        lineWidth: z.number().optional(),
+        pathId: z.string().optional(),
+    }))
+]);
 
 export const SkribblGuessSchema = z.object({
     text: z.string().min(1).max(100),

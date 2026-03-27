@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-27)
 
-**Branche Active** : `feat/god-storage-lazy-cleanup` (Optimisation Stockage & Hygiène VPS)  
-**Status** : Overhaul du dashboard de stockage Super-Admin (Ultra-Wide, Paths VPS) et implémentation du **Lazy Cleanup** (suppression immédiate des screens expirés à l'ouverture de la file de validation).
+**Branche Active** : `feat/god-storage-lazy-cleanup` (Optimisation Stockage & Hygiène VPS)
+**Status** : Overhaul du dashboard de stockage Super-Admin terminé. Purge RGPD des Emails effectuée sur Beta et Prod (0 e-mail en DB). Scope Discord réduit à `identify` et `guilds`.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -345,12 +345,12 @@ git push origin feat/ma-branche
 
 - ✅ **Stockage Privé (RFC)** : Migration de tous les dossiers sensibles (`uploads/`) vers `private_uploads/` (hors du root public).
 - ✅ **Protect Storage API** : Nouvelle route `/api/storage/[...path]` avec **RBAC strict**. Seuls les membres d'une guilde peuvent visualiser les preuves de leur guilde. Bypass automatique pour le Super-Admin.
-- ✅ **Audit GDPR & Privacy** : 
-  - Masquage des adresses IP dans les logs d'audit pour les admins de guilde (RGPD-ready). 
+- ✅ **Audit GDPR & Privacy** :
+  - Masquage des adresses IP dans les logs d'audit pour les admins de guilde (RGPD-ready).
   - Vision complète (IP/UserAgent) réservée au Super-Admin pour les incidents critiques (`ADMIN_ACCESS_DENIED`).
   - Affichage explicite de la durée de rétention (30 jours).
 - ✅ **Data Minimization** : Suppression automatique des missions `PENDING` > 48h (screenshots + DB) pour limiter la rétention de données inutiles.
-- ✅ **CI Fixed (Success)** : 
+- ✅ **CI Fixed (Success)** :
   - Migration vers `eslint.config.mjs` (Flat Config) pour corriger les bugs de build Windows.
   - Utilisation de `fixupPluginRules` pour `react-hooks` v7.
   - **Stratégie de Mitigation du Lint** : Passage à des patterns de dossiers (`scripts/**`, `prisma/**`) au lieu de fichiers individuels pour réduire le bruit.
@@ -364,11 +364,11 @@ git push origin feat/ma-branche
 
 - ✅ **Refonte Landing (Premium UI)** : Agrandissement massif des cartes d'accès guilde au centre du Hero. Effets de survol (glow, translation), icônes 56px, et séparation claire entre accès membres et boutons "Inscrire une guilde".
 - ✅ **Dashboard Cockpit (Drawer)** : Implémentation d'un panneau latéral (Drawer) pour la gestion multi-guilde. Accessible via le header ou le bouton central "Mes Guildes" (si plusieurs guildes).
-- ✅ **Gestion Multi-Guilde Intelligent** : 
+- ✅ **Gestion Multi-Guilde Intelligent** :
   - Si 1 seule guilde : lien direct pour la rapidité.
   - Si plusieurs : bouton "Pile d'avatars" stylisé ouvrant le cockpit.
 - ✅ **Server-Side Recovery (Separated Guilds)** : Éradication de la logique dupliquée entre la Landing et le Portail Dashboard. Création d'une Server Action unifiée `getGuildsSeparated` avec gestion fine du cache Discord et de la whitelist GOD.
-- ✅ **Onboarding Admin Polish** : 
+- ✅ **Onboarding Admin Polish** :
   - Clarification du module "Badge Nouveau" (Badge Temporaire Automatique).
   - Ajout d'explications détaillées et tooltips pour les variables de messages de bienvenue.
   - Suppression des éléments superflus (barres de progression redondantes dans les stats guilde).
@@ -398,6 +398,8 @@ git push origin feat/ma-branche
 - ✅ **Lazy Cleanup (Instant Hygiene)** : Création d'un mécanisme de "Nettoyage Paresseux" dans `/admin/validation`. À chaque ouverture du cockpit de validation par un admin, le système scanne et **supprime physiquement** instantanément les preuves expirées (+24h) pour garantir un stockage VPS à 0% d'encombrement inutile.
 - ✅ **Sécurité Immédiate** : Confirmation de la suppression physique instantanée lors des actions manuelles (Validation/Rejet) via `deleteProofFile`.
 - ✅ **Git & Build Compliance** : Résolution des erreurs de type (implicit any) et import correct du logger structuré dans les actions d'admin. Migration vers la branche `feat/god-storage-lazy-cleanup`.
+- ✅ **Architecture Emails (Privacy-First)** : Retrait du scope `email` de Discord OAuth. Mise à jour de `AuditLog` pour utiliser `userName` au lieu de `userEmail`. Suppression des emails en base de données (52 sur Beta, 3 sur Prod).
+- ✅ **Résolution Drift Prisma** : Réparation manuelle de la table `ImageHash` et du champ `gallery` sur le VPS de Prod suite à une migration bloquée. `deploy.sh prod` 100% opérationnel.
 
 ---
 
@@ -420,12 +422,17 @@ if (!isAdmin) return { success: false, error: "Unauthorized" };
 - Toute requête DB **doit** inclure un filtre par `guildId` ou `profileId` vérifié en amont.
 - **Zéro fichier sensible en public** : Les preuves de missions, bannières et documents de guilde sont stockés dans `private_uploads/` et servis via `/api/storage/[...path]` (RBAC protégé).
 
-### 3. Logging Policy Strict (Prod: Pas de console.log)
+### 3. Politique "Privacy-First" (Emails)
+- Aucune adresse e-mail ne doit être demandée, stockée ou transmise.
+- Le scope Discord `email` est strictement **interdit**.
+- Les logs d'audit doivent identifier les utilisateurs par leur pseudo Discord unique.
+
+### 4. Logging Policy Strict (Prod: Pas de console.log)
 - Les `console.log()` sont prohibés en production.
 - Utiliser le logger structuré : `import { logger } from '@/lib/logger'`.
 - Ce logger gère l'auto-rédaction de clés sensibles (`token`, `password`, `cookie`, etc.).
 
-### 4. XSS & CSRF Prevention
+### 5. XSS & CSRF Prevention
 - Tout HTML généré par les utilisateurs est échappé via `sanitizeHtml()`.
 - L'anti-CSRF est natif sur Next.js avec `SameSite=Lax` et Header de validation Oring (Origin Header verification).
 

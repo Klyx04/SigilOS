@@ -33,7 +33,7 @@ export default async function QueteOcrePage({
 
     // RBAC
     const user = await getUserContext(guildId);
-    if (!user.canViewArchis) {
+    if (!user.canViewOcre) {
         return <AccessDenied />;
     }
 

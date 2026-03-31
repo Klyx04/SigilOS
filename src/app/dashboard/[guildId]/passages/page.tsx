@@ -35,7 +35,7 @@ export default async function PassagesPage({ params }: { params: Promise<{ guild
             guildId={guildId}
             profileId={user.profileId || undefined}
             isAdmin={isAdmin}
-            canCreate={user.canCreateServices}
+            canCreate={user.canViewServices}
             listings={listingsRes.success ? (listingsRes.data || []) : []}
             loans={loansRes.success ? (loansRes.data || []) : []}
             vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}

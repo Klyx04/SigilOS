@@ -145,7 +145,7 @@ export async function getPendingAchievements(guildId: string) {
         const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         const submissions = await (db as any).achievementSubmission.findMany({

@@ -14,7 +14,7 @@ export async function ValidatorInbox({ guildId }: ValidatorInboxProps) {
 
     const [missionGuard, adminGuard] = await Promise.all([
         checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE),
-        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS),
+        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL),
     ]);
 
     if (!missionGuard.allowed && !adminGuard.allowed) return null;

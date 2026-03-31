@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
             const DISCORD_PERM_MAP: Record<string, string> = {
                 calendar: PERMISSIONS.CALENDAR_VIEW,
                 songes: PERMISSIONS.SONGES_JOIN,
-                dj: PERMISSIONS.FINDER_VIEW,
+                dj: PERMISSIONS.DJ_QUESTS_VIEW,
                 poll: PERMISSIONS.POLLS_VIEW,
                 svc: PERMISSIONS.SERVICES_VIEW,
             };

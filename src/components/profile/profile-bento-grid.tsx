@@ -85,7 +85,7 @@ interface ProfileBentoGridProps {
     readOnly?: boolean;
     isAdmin?: boolean;
     permissions?: {
-        canViewArchis?: boolean;
+        canViewOcre?: boolean;
         canViewSonges?: boolean;
         canViewLadder?: boolean;
         canSyncLadder?: boolean;
@@ -122,7 +122,7 @@ export function ProfileBentoGrid({
 
     // Default permissions to true if not provided (internal consistency)
     const { 
-        canViewArchis = true, 
+        canViewOcre = true, 
         canViewSonges: canViewStats = true, 
         canViewLadder = true, 
         canViewMissions = true,
@@ -386,7 +386,7 @@ export function ProfileBentoGrid({
                             />
 
                             {/* Metamob */}
-                            {canViewArchis && (
+                            {canViewOcre && (
                                 <MetamobLink
                                     guildId={guildId}
                                     metamobPseudo={profile.metamobPseudo}

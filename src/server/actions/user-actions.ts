@@ -445,7 +445,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canViewGameFeatures: true,
                 canViewLadder: true,
                 canSyncLadder: true,
-                canViewArchis: true,
+                canViewOcre: true,
                 canViewFinder: true,
                 canViewSonges: true,
                 canCreateSonges: true,

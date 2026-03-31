@@ -9,7 +9,8 @@ import { getUserContext, getGuildMembers } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { Shield } from "lucide-react";
+import { Shield, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default async function PermissionsPage({
     params,
@@ -78,6 +79,15 @@ export default async function PermissionsPage({
                 icon={Shield}
                 backHref={`/dashboard/${guildId}/admin`}
             />
+
+            <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-lg mb-8">
+                <AlertTriangle className="h-5 w-5 !text-amber-500" />
+                <AlertTitle className="pl-8 font-black uppercase tracking-widest text-amber-500">Accès Restreint : Administrateurs Discord</AlertTitle>
+                <AlertDescription className="pl-8 mt-2 leading-relaxed text-amber-500/90 font-medium">
+                    L'accès à cette page de gestion des permissions (RBAC) est <strong>strictement réservé au Propriétaire du serveur Discord et à ses Administrateurs</strong> (permission native Discord). Il n'est pas possible d'assigner l'accès à ce système via la matrice ci-dessous afin de prévenir toute usurpation de privilèges.
+                </AlertDescription>
+            </Alert>
+
             <PermissionsManager
                 guildId={guildId}
                 roles={roles}

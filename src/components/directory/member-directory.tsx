@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
-import { Search, Filter, X, Briefcase, Swords, Check } from "lucide-react";
+import { Search, Filter, X, Briefcase, Swords, Check, Palmtree } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
     const [search, setSearch] = useState("");
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
+    const [showAbsent, setShowAbsent] = useState(false);
     const [isOpenClass, setIsOpenClass] = useState(false);
     const [isOpenJob, setIsOpenJob] = useState(false);
 
@@ -58,6 +59,15 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
             if (!hasJob) return false;
         }
 
+        // 4. Absence Filter
+        if (showAbsent) {
+            const now = new Date();
+            const vacationStart = m.vacationStart ? new Date(m.vacationStart) : null;
+            const vacationEnd = m.vacationEnd ? new Date(m.vacationEnd) : null;
+            const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+            if (!isOnVacation) return false;
+        }
+
         return true;
     });
 
@@ -65,9 +75,10 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         setSearch("");
         setSelectedClass(null);
         setSelectedJob(null);
+        setShowAbsent(false);
     };
 
-    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0);
+    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0) + (showAbsent ? 1 : 0);
 
     const getSelectedClassName = () => DOFUS_CLASSES.find(c => c.id === selectedClass)?.name;
     const getSelectedJobName = () => {
@@ -238,6 +249,19 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                             </Command>
                         </PopoverContent>
                     </Popover>
+
+                    {/* Absence Filter Toggle */}
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowAbsent(!showAbsent)}
+                        className={cn(
+                            "h-10 border-dashed border-white/20 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 gap-2 px-3 shrink-0",
+                            showAbsent && "border-solid border-cyan-500/50 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 shadow-[0_0_15px_-5px_rgba(6,182,212,0.5)]"
+                        )}
+                    >
+                        <Palmtree className={cn("w-4 h-4", showAbsent && "animate-bounce-subtle")} />
+                        <span className="hidden sm:inline">Absents</span>
+                    </Button>
 
                     {/* Reset Button */}
                     {activeFiltersCount > 0 && (

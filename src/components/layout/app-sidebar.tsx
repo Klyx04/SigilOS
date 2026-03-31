@@ -130,7 +130,7 @@ export function AppSidebar({
     const NAV_PROGRESSION = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "amber", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "amber", visible: user.canViewArchis && modules.ocre },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "amber", visible: user.canViewOcre && modules.ocre },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
     ];
 
@@ -138,7 +138,8 @@ export function AppSidebar({
 
     const NAV_TOOLS = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.canViewCalendar && modules.calendar },
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.worldmap }, // Assuming Mini-Games is bundled with Worldmap if no specific module exists
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.worldmap }, 
+        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewFinder && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "indigo", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "indigo", visible: user.isMember && user.canViewPolls && modules.polls },
@@ -147,21 +148,16 @@ export function AppSidebar({
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
     ];
 
-    const NAV_COMING_SOON = [
-        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
-    ];
-
     // --- ADMIN NAVIGATION ---
     const NAV_ADMIN_SUB = [
-        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
-        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
+        { name: "Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isDiscordAdmin },
+        { name: "Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin || user.canViewSettings },
         { name: "Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
         { name: "Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
-        { name: "Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers },
+        { name: "Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, visible: user.isAdmin || user.canManageMembers || user.canManageRelance },
         { name: "Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
-        { name: "Relances", href: `/dashboard/${guildId}/admin/relance`, icon: Bell, visible: user.isAdmin || user.canManageRelance },
-        { name: "Chat Admin", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
-        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
+        { name: "Chat Admin", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.canModerateChat },
+        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.canViewAuditLogs && modules.logs },
     ];
 
     // Access to Supervision group is granted if user is a full admin OR has access to at least one sub-item
@@ -323,9 +319,12 @@ export function AppSidebar({
                                     onToggle={() => setAdminOpen(!adminOpen)} 
                                 />
                                 {adminOpen && (
-                                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="relative ml-4 mt-2 mb-4 pl-4 border-l border-white/5 animate-in fade-in slide-in-from-top-1 duration-200 space-y-1">
+                                        {/* Connector Line Glow */}
+                                        <div className="absolute left-[-1px] top-0 bottom-4 w-[1px] bg-gradient-to-b from-rose-500/50 via-rose-500/20 to-transparent" />
+                                        
                                         <NavItem item={NAV_ADMIN_TOP} isActive={checkIsActive(NAV_ADMIN_TOP.href, true)} />
-                                        <div className="space-y-0.5 pt-1">
+                                        <div className="pt-2 space-y-0.5">
                                             {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
                                                 <AdminSubItem key={item.href} item={item} isActive={checkIsActive(item.href)} />
                                             ))}
@@ -477,20 +476,29 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
         <Link
             href={item.href}
             className={cn(
-                "group flex items-center gap-3 px-3 py-2 rounded-xl transition-all",
-                isActive ? "text-rose-300 bg-white/5" : "text-zinc-500 hover:text-rose-400 hover:bg-white/[0.02]"
+                "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
+                isActive ? "text-rose-300 bg-rose-500/5" : "text-zinc-500 hover:text-rose-400 hover:bg-white/[0.02]"
             )}
         >
+            {/* Active Glow Background */}
+            {isActive && (
+                <div className="absolute inset-0 bg-rose-500/5 blur-xl pointer-events-none" />
+            )}
+
             <div className={cn(
-                "w-1.5 h-1.5 rounded-full border border-rose-500/30 transition-all",
+                "w-1.5 h-1.5 rounded-full border border-rose-500/30 transition-all shrink-0 z-10",
                 isActive ? "bg-rose-500 shadow-[0_0_8px_#ef4444]" : "bg-zinc-700 group-hover:bg-rose-400 group-hover:border-rose-500"
             )} />
             <span className={cn(
-                "text-[11px] font-bold uppercase tracking-widest",
-                isActive ? "text-rose-200" : "text-zinc-500 group-hover:text-rose-300"
+                "text-[10px] font-black uppercase tracking-[0.2em] z-10",
+                isActive ? "text-rose-100" : "text-zinc-500 group-hover:text-rose-300"
             )}>
                 {item.name}
             </span>
+
+            {isActive && (
+                <div className="ml-auto h-1 w-1 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e] z-10" />
+            )}
         </Link>
     );
 }

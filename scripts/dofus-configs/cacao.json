@@ -1,0 +1,15 @@
+{
+  "slug": "cacao",
+  "displayName": "Dofus Cacao",
+  "color": "#7B3F00",
+  "dofusItemId": 7835,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Mystère et oeuf au chocolat"
+      ]
+    }
+  ]
+}

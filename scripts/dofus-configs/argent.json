@@ -1,0 +1,46 @@
+{
+  "slug": "argent",
+  "displayName": "Dofus Argenté",
+  "color": "#C0C0C0",
+  "dofusItemId": 7822,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Boune un jour, boune toujours",
+        "Des vestiges de legende",
+        "Mise a l'epreuve",
+        "Champs de bataille",
+        "Coups d'epee dans l'eau",
+        "Vu du ciel",
+        "Decime-moi des bouftous",
+        "Les principes d'archie m'aident",
+        "Les deux font l'impair",
+        "Les touffes des heros",
+        "On marche sur des oeufs",
+        "Conseil de classe",
+        "Quete de classe",
+        "Ca sent le gaz",
+        "Balade en foret",
+        "Ca tombe a l'eau",
+        "Six pieds sous terre",
+        "Tel est pris qui croyait prendre",
+        "L'histoire en mouvement",
+        "Biere qui roule n'amasse pas mousse",
+        "Dejeuner a la fourchette",
+        "Comme un pichon hors de l'eau",
+        "La coupe des vices",
+        "La petite mission dans la prairie",
+        "Livraison par interim",
+        "Golemancien",
+        "Le rebelle de la foret",
+        "De vrais rats de bibliotheque",
+        "Chacha blues",
+        "Les as de la cambriole",
+        "Legende d'automne",
+        "L'invasion des profanateurs de sepulture"
+      ]
+    }
+  ]
+}

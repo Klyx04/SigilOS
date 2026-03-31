@@ -1,0 +1,69 @@
+page http://localhost:3000/dashboard/1290442961380835451/quetes-dofus
+Onglet Mes Dofus
+laisse moi indiquer moi meme via god quel type de dofus il s'agit et non codé par toi meme
+
+3 filtres dont 2 sous filtre
+
+- Primordiaux 
+	- 4/6
+	- 6/6
+- Prérequis Sylvestre
+- Autres
+
+Rvois les filtres en conséquence
+
+
+page http://localhost:3000/dashboard/1290442961380835451/quetes-dofus
+onglet Guilde:
+
+Rien compris à ce qui est implémenté ici c vraiment laid
+
+1er dofus : dofus argenté 
+page http://localhost:3000/dashboard/1290442961380835451/quetes-dofus/argent
+onglet succès
+
+Coloriser quand un succès est terminé entièrement
+mettre en avant et coloriser le mot "Succès" dans chaque bloc succès
+
+onglet Liste
+
+quand on déroule uen quete pour voir ses étapes : si on reclique à l'intérieur ca se referme
+Fabriquer 1 📦 Objet #19622 et fermer l'interface , il faut afficher l'objet au lioeu de ce tag et sa recette si il y a une recette
+Quand il y a un donjon : Afficher la vraie image du donjon attention au faux positif par exemple : 
+Afficher une notif au copier coller de la position en presse papier
+
+Dans la gueule du Milimilou
+Crypte du Milimilou
+🏰 Donjon
+PNJ OBJECTIF
+COPIER /TRAVEL
+Klasmor le fossoyeur en [5, -1]
+Marche à suivre
+1
+Aller voir Klasmor le fossoyeur
+2
+Pénétrer dans l'antre du Milimilou
+3
+Vaincre le Milimilou
+
+ce n'est pas un le donjon il n'y a pas de donjon mimulou c un mob à taper ici 
+revoir le code pour les prochains dofus
+
+
+Onglet arbre neuronal
+
+je suis désolé mais l'arbre proposé est ilisible niveau UI UX
+quand on clique ensuite sur une serie de quete depuis l'arbre neuronale ca ouvre une modale
+les images depuis dofusdb sont pas chargé dans le composant du haut
+la ligne de quete affiché est pas centré , afficher dans cette vue clairement si il y a un ou des donjons à taper sur tel quete
+Récompenses du succès
+11 581 XP codé en dur par exemple …
+Il faut afficher l'ensemble des ressources nécessaire , les donjons qu'il faudra taper
+quand on clique sur une quete dans cette modale on a le panneau à droite qui s'ouvre avec le détail de la quete : 
+- pas scrollable
+- Vaincre x2 {monster,4111} en un seul combat affiochez les vrai mos avec leur image
+quand il ya un donjon afficher la bonne image lié au dj
+le bouton gps donjon n'ouvre pas le monde world associé au dj et ne pointe pas à la bonne position du donjon
+
+
+

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
-import { Crown, Medal, Trophy, ShieldCheck, User, Zap } from "lucide-react";
+import { Crown, Medal, Trophy, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClass } from "@/lib/dofus-assets";
 
@@ -67,6 +67,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     const colors = colorClasses[accentColor];
     const isTop3 = entry.rank <= 3;
     const isGeneral = !!(entry.dofusLevel || entry.totalXpBigInt);
+    
+    // 0-value "Tourist" / "Bad Student" logic
+    // We don't apply it to the General ladder (total XP) because 0 is normal for new characters
+    const isTourist = !isGeneral && entry.value === 0;
     const dofusClass = entry.classe ? getClass(entry.classe) : null;
 
     return (
@@ -76,6 +80,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                "backdrop-blur-md shadow-lg",
                colors.border,
                isTop3 ? "bg-white/[0.04] border-white/20 shadow-white/5" : "bg-zinc-900/40 border-white/5",
+               isTourist && "border-red-500/10 grayscale-[0.8] opacity-60 hover:opacity-100 hover:grayscale-0",
                entry.isCurrentUser && "ring-1 ring-white/20 bg-white/[0.06]"
             )}
         >
@@ -166,7 +171,23 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         <div className={cn("text-[14px] font-black tracking-tight uppercase", isTop3 ? "text-white" : colors.valueText)}>
                             {valueLabel}
                         </div>
-                        {accentColor === "purple" && (
+                        {isTourist ? (
+                            <div className={cn(
+                                "flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border animate-pulse",
+                                entry.isInVacation 
+                                    ? "bg-blue-500/10 border-blue-500/20 text-blue-400" 
+                                    : "bg-red-500/10 border-red-500/20 text-red-400"
+                            )}>
+                                {entry.isInVacation ? (
+                                    <Umbrella className="w-3 h-3" />
+                                ) : (
+                                    <Ghost className="w-3 h-3" />
+                                )}
+                                <span className="text-[7px] font-black uppercase tracking-widest leading-none">
+                                    {entry.isInVacation ? "En Vacances" : "Mauvais Élève"}
+                                </span>
+                            </div>
+                        ) : accentColor === "purple" && (
                             <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
                         )}
                     </div>

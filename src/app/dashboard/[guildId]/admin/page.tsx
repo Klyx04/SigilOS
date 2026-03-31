@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
+import { cn } from "@/lib/utils";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -18,6 +19,7 @@ import {
     Users,
     BookOpen,
     ArrowRight,
+    Bell,
     Activity,
 } from "lucide-react";
 
@@ -47,100 +49,92 @@ type AdminSection = {
 function buildSections(guildId: string): AdminSection[] {
     return [
         {
-            label: "Configuration",
+            label: "Structure & Configuration",
             icon: Settings,
             cards: [
                 {
-                    href: `/dashboard/${guildId}/admin/modules`,
-                    icon: Puzzle,
-                    title: "Modules",
-                    description: "Activer ou désactiver les fonctionnalités disponibles pour la guilde.",
-                    accent: "violet",
+                    href: `/dashboard/${guildId}/admin/settings`,
+                    icon: Settings,
+                    title: "Paramètres Généraux",
+                    description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
+                    accent: "amber",
                     permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
                     icon: Shield,
-                    title: "Permissions",
-                    description: "Attribuer les droits d'accès aux rôles Discord de la guilde.",
+                    title: "Rôles & Permissions",
+                    description: "Gestion fine des accès. Définissez qui peut valider, modérer ou administrer.",
                     accent: "blue",
                     permission: (u) => u.isAdmin,
                 },
                 {
-                    href: `/dashboard/${guildId}/admin/settings`,
-                    icon: Settings,
-                    title: "Paramètres",
-                    description: "Intégrations Discord, Metamob, Dofus et configuration avancée.",
-                    accent: "slate",
+                    href: `/dashboard/${guildId}/admin/modules`,
+                    icon: Puzzle,
+                    title: "Gestion des Modules",
+                    description: "Activez ou désactivez les fonctionnalités (Chat, Songe, Ocre, etc.) pour votre guilde.",
+                    accent: "violet",
                     permission: (u) => u.isAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
                     icon: BookOpen,
-                    title: "Page Guilde",
-                    description: "Éditer la page de présentation publique et de recrutement.",
+                    title: "Identité de Guilde",
+                    description: "Édition de la page publique, recrutement et présentation des objectifs.",
                     accent: "indigo",
                     permission: (u) => u.canEditPresentation,
                 },
             ],
         },
         {
-            label: "Gestion",
+            label: "Opérations & Gestion",
             icon: Swords,
             cards: [
                 {
-                    href: `/dashboard/${guildId}/missions/validation`,
-                    icon: CheckCircle,
-                    title: "Valider les Preuves",
-                    description: "Accepter ou refuser les soumissions de missions des membres.",
-                    accent: "green",
-                    permission: (u) => u.canValidateMissions,
-                },
-                {
                     href: `/dashboard/${guildId}/missions/manage`,
                     icon: Swords,
-                    title: "Gérer les Missions",
-                    description: "Créer, modifier et archiver les missions hebdomadaires.",
+                    title: "Gestion des Missions",
+                    description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
                     accent: "emerald",
                     permission: (u) => u.canManageMissions,
                 },
                 {
-                    href: `/dashboard/${guildId}/missions/manage#bonus`,
-                    icon: Sparkles,
-                    title: "Bonus de Guilde",
-                    description: "Acheter et gérer les bonus temporaires actifs pour la guilde.",
-                    accent: "amber",
-                    permission: (u) => u.canManageBonus,
+                    href: `/dashboard/${guildId}/admin/validation`,
+                    icon: CheckCircle,
+                    title: "Validation Preuves",
+                    description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
+                    accent: "green",
+                    permission: (u) => u.canValidateMissions,
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/members`,
+                    icon: Users,
+                    title: "Gestion des Membres",
+                    description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
+                    accent: "cyan",
+                    permission: (u) => u.canManageMembers || u.canManageRelance,
                 },
             ],
         },
         {
-            label: "Supervision",
-            icon: LayoutDashboard,
+            label: "Supervision & Sécurité",
+            icon: Shield,
             cards: [
+                {
+                    href: `/dashboard/${guildId}/admin/chat`,
+                    icon: Activity,
+                    title: "Modération Chat",
+                    description: "Historique et contrôle des messages échangés sur la plateforme.",
+                    accent: "violet",
+                    permission: (u) => u.canModerateChat,
+                },
                 {
                     href: `/dashboard/${guildId}/admin/logs`,
                     icon: FileText,
-                    title: "Logs d'Audit",
-                    description: "Consulter l'historique complet des actions administratives.",
-                    accent: "rose",
+                    title: "Audit Logs",
+                    description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
+                    accent: "slate",
                     permission: (u) => u.isAdmin,
-                },
-                {
-                    href: `/dashboard/${guildId}/admin/settings#membres`,
-                    icon: Users,
-                    title: "Membres & Sync",
-                    description: "Gérer les membres, archiver des comptes et synchroniser Discord.",
-                    accent: "cyan",
-                    permission: (u) => u.canManageMembers,
-                },
-                {
-                    href: `/dashboard/${guildId}/admin/workers`,
-                    icon: Activity,
-                    title: "Workers & Sync",
-                    description: "Déclencher manuellement les tâches de fond (Dofusbook, Ladder).",
-                    accent: "amber",
-                    permission: (u) => u.isSuperAdmin,
                 },
             ],
         },
@@ -196,69 +190,142 @@ export default async function AdminPage({
     }
 
     return (
-        <div className="space-y-10 pb-12">
+        <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">
             <UnifiedModuleHeader
-                title="Centre Admin"
-                description="Panneau de contrôle de la guilde"
-                icon={LayoutDashboard}
+                title="Supervision"
+                description="Administration centrale de la guilde • Contrôle des systèmes et monitoring des opérations."
+                icon={Shield}
+                iconColor="#f43f5e"
                 backHref={`/dashboard/${guildId}`}
             />
 
-            {sections.map((section) => {
-                const visibleCards = section.cards.filter(card => {
-                    if (user.isSuperAdmin) return true;
-                    if (typeof card.permission === 'function') return card.permission(user);
-                    return user.isAdmin;
-                });
+            <div className="space-y-24">
+                {sections.map((section) => {
+                    const visibleCards = section.cards.filter(card => {
+                        if (user.isSuperAdmin) return true;
+                        if (typeof card.permission === 'function') return card.permission(user);
+                        return user.isAdmin;
+                    });
 
-                if (visibleCards.length === 0) return null;
+                    if (visibleCards.length === 0) return null;
 
-                const SectionIcon = section.icon;
-                return (
-                    <div key={section.label} className="space-y-4">
-                        {/* Section header */}
-                        <div className="flex items-center gap-3">
-                            <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50">
-                                <SectionIcon className="w-3.5 h-3.5" />
-                                {section.label}
+                    const SectionIcon = section.icon;
+                    return (
+                        <div key={section.label} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                            {/* Section header: Industrial Tech Style */}
+                            <div className="flex items-center gap-6">
+                                <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]">
+                                    <SectionIcon className="w-5 h-5 text-rose-500" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-rose-500/80">
+                                        {section.label}
+                                    </h2>
+                                    <div className="h-0.5 w-24 bg-gradient-to-r from-rose-500 to-transparent" />
+                                </div>
+                                <div className="h-px flex-1 bg-gradient-to-r from-white/5 to-transparent" />
                             </div>
-                            <div className="h-px flex-1 bg-gradient-to-l from-white/10 to-transparent" />
+
+                            {/* Cards grid: High-End HUD Slots */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {visibleCards.map((card) => {
+                                    const Icon = card.icon;
+                                    const a = ACCENT[card.accent] ?? ACCENT.slate;
+                                    
+                                    return (
+                                        <Link key={card.href} href={card.href} className="group outline-none">
+                                            <div className={cn(
+                                                "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-700 hover:border-white/10 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
+                                                "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-700"
+                                            )}>
+                                                {/* Card Accent Glow */}
+                                                <div className={cn(
+                                                    "absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-0 group-hover:opacity-20 transition-opacity duration-700 rounded-full z-0",
+                                                    a.bg
+                                                )} />
+
+                                                <div className="relative z-10 flex flex-col h-full">
+                                                    {/* Header: Icon & Tech ID */}
+                                                    <div className="flex items-center justify-between mb-8">
+                                                        <div className={cn(
+                                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border group-hover:scale-110 group-hover:rotate-3 shadow-xl",
+                                                            a.bg,
+                                                            a.border.replace("hover:", "")
+                                                        )}>
+                                                            <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-white/10 uppercase tracking-widest font-mono">
+                                                            {card.accent === 'rose' ? 'SEC.V4' : 'INT.GEN'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Body: Title & Intro */}
+                                                    <div className="space-y-4 flex-1">
+                                                        <h3 className="text-xl font-black text-white tracking-tighter uppercase leading-tight">
+                                                            {card.title}
+                                                        </h3>
+                                                        <p className="text-[13px] text-zinc-500 font-medium leading-relaxed group-hover:text-zinc-400 transition-colors">
+                                                            {card.description}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Footer: Action & Decoration */}
+                                                    <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+                                                        <div className={cn(
+                                                            "flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                                                            a.text,
+                                                            "opacity-40 group-hover:opacity-100"
+                                                        )}>
+                                                            <span className="group-hover:translate-x-1 transition-transform">Accès Panel</span>
+                                                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                                        </div>
+                                                        
+                                                        {/* Industrial Corner Detail */}
+                                                        <div className="flex gap-1">
+                                                            {[...Array(3)].map((_, i) => (
+                                                                <div key={i} className="h-1 w-1 rounded-full bg-white/5 group-hover:bg-white/20 transition-colors" />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Corner Decoration */}
+                                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
+                                                    <div className="h-[1px] w-12 bg-white/40" />
+                                                    <div className="h-12 w-[1px] bg-white/40 absolute top-3 right-3" />
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
+                    );
+                })}
+            </div>
 
-                        {/* Cards grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {visibleCards.map((card) => {
-                                const Icon = card.icon;
-                                const a = ACCENT[card.accent] ?? ACCENT.slate;
-                                return (
-                                    <Link key={card.href} href={card.href}>
-                                        <div className={`group relative flex flex-col h-full rounded-xl border border-white/8 bg-white/[0.02] p-5 transition-all duration-200 cursor-pointer ${a.border} ${a.hover}`}>
-                                            {/* Icon */}
-                                            <div className={`w-10 h-10 rounded-lg ${a.bg} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-                                                <Icon className={`w-5 h-5 ${a.text}`} />
-                                            </div>
-
-                                            {/* Text */}
-                                            <h3 className={`font-bold text-sm text-foreground mb-1.5 group-hover:${a.text} transition-colors`}>
-                                                {card.title}
-                                            </h3>
-                                            <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                                                {card.description}
-                                            </p>
-
-                                            {/* Arrow */}
-                                            <div className={`mt-4 flex items-center gap-1 text-xs font-semibold ${a.text} opacity-0 group-hover:opacity-100 transition-all translate-x-0 group-hover:translate-x-1`}>
-                                                Accéder <ArrowRight className="w-3 h-3" />
-                                            </div>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
+            {/* Platform Terminal Status */}
+            <div className="max-w-2xl mx-auto pt-20">
+                <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.01] backdrop-blur-sm relative overflow-hidden group">
+                    <div className="flex flex-col items-center gap-6 text-center relative z-10">
+                        <div className="h-1 w-12 bg-rose-500/40 rounded-full" />
+                        <div className="space-y-2">
+                             <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">SigilOS Command Center</h4>
+                             <p className="text-xs text-zinc-600 font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
+                        </div>
+                        <div className="flex items-center gap-8">
+                             <div className="flex flex-col items-center">
+                                 <span className="text-[10px] font-black text-zinc-700 uppercase mb-1">Status</span>
+                                 <span className="text-[9px] font-black text-emerald-500 px-2 py-0.5 border border-emerald-500/20 rounded-md bg-emerald-500/5 animate-pulse">ESTABLISHED</span>
+                             </div>
+                             <div className="flex flex-col items-center">
+                                 <span className="text-[10px] font-black text-zinc-700 uppercase mb-1">Version</span>
+                                 <span className="text-[9px] font-bold text-zinc-500">v4.2.0-STABLE</span>
+                             </div>
                         </div>
                     </div>
-                );
-            })}
+                </div>
+            </div>
         </div>
     );
 }

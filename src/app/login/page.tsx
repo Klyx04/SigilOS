@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default async function LoginPage({
     searchParams,
 }: {
-    searchParams: Promise<{ callbackUrl?: string }>;
+    searchParams: Promise<{ callbackUrl?: string; info?: string }>;
 }) {
     const session = await auth();
 
@@ -33,11 +33,13 @@ export default async function LoginPage({
         redirect("/");
     }
 
-    const { callbackUrl } = await searchParams;
+    const { callbackUrl, info } = await searchParams;
 
     // SECURITY: Only allow relative callbackUrls to prevent Open Redirect
     const safeCallbackUrl =
         callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/";
+
+    const isSessionExpired = info === "session_expired";
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-violet-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
@@ -70,6 +72,14 @@ export default async function LoginPage({
                                 Connectez-vous via Discord pour accéder au tableau de bord de votre guilde.
                             </p>
                         </div>
+
+                        {/* Session expired notice */}
+                        {isSessionExpired && (
+                            <div className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-left">
+                                <p className="text-amber-400 text-sm font-semibold">⏰ Session expirée</p>
+                                <p className="text-zinc-400 text-xs mt-1">Votre session Discord a expiré. Reconnectez-vous pour continuer.</p>
+                            </div>
+                        )}
 
                         {/* Server Action Sign In */}
                         <form

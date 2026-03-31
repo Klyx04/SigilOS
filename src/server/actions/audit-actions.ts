@@ -399,34 +399,41 @@ export async function getAuditLogs(
 
         // Parse and validate options
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined };
 
         // Build where clause
-        const where: {
-            guildId: string;
-            action?: string;
-            actorUserId?: string;
-            createdAt?: { gte?: Date; lte?: Date };
-        } = {
+        const where: any = {
             guildId: guildConfig.id,
         };
 
         if (actionFilter) {
             if (actionFilter.includes(",")) {
-                (where as any).action = { in: actionFilter.split(",") };
+                where.action = { in: actionFilter.split(",") };
             } else {
                 where.action = actionFilter;
             }
         }
+
         if (actorFilter) {
             where.actorUserId = actorFilter;
         }
+
         if (dateFrom || dateTo) {
             where.createdAt = {};
             if (dateFrom) where.createdAt.gte = dateFrom;
             if (dateTo) where.createdAt.lte = dateTo;
+        }
+
+        // --- SEARCH LOGIC (NEW) ---
+        if (search && search.trim()) {
+            const searchTerm = search.trim();
+            where.OR = [
+                { actorName: { contains: searchTerm, mode: 'insensitive' } },
+                { action: { contains: searchTerm, mode: 'insensitive' } },
+                { targetId: { contains: searchTerm, mode: 'insensitive' } }
+            ];
         }
 
         // Get total count

@@ -88,6 +88,7 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
         headers: {
             Authorization: `Bot ${token}`,
         },
+        cache: "no-store"
     });
 
     if (!res.ok) {
@@ -125,6 +126,7 @@ export async function fetchGuild(guildId: string) {
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
     });
 
     if (!res.ok) {
@@ -150,6 +152,7 @@ export async function fetchBotGuilds() {
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/users/@me/guilds`, {
         headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
     });
 
     if (!res.ok) throw new Error(`Failed to fetch bot guilds: ${res.statusText}`);
@@ -173,6 +176,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
 
     const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
         headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
     });
 
     if (!res.ok) {

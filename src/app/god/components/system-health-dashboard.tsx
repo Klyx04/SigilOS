@@ -141,7 +141,8 @@ export function SystemHealthDashboard() {
             value: status.backup.lastAt ? formatDistanceToNow(new Date(status.backup.lastAt), { addSuffix: true, locale: fr }) : "Aucun",
             status: status.backup.status === "SUCCESS" ? "ONLINE" : "OFFLINE",
             icon: ShieldCheck,
-            color: "indigo"
+            color: status.backup.status === "SUCCESS" ? "indigo" : "rose",
+            footer: status.backup.status === "FAILED" ? "La sauvegarde a échoué" : (status.backup.status === "SUCCESS" ? "Stockage R2 OK" : "Non configuré")
         }
     ];
 

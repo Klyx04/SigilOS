@@ -12,9 +12,12 @@ import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 
 // In-memory cache for user context paths that don't change often
+// BUGFIX: Cache TTL réduit à 0 pour éviter les incohérences entre workers PM2/Docker.
+// Le cache en Map() n'est pas partagé entre les processus Node — chaque worker a son état.
+// React cache() (per-request) est suffisant pour éviter les requêtes redondantes dans un même render.
 const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
-const CACHE_TTL = 10_000; // 10 seconds (reduced from 30s for better responsiveness during onboarding)
+const CACHE_TTL = 0; // Désactivé (0 = pas de cache inter-requêtes)
 
 /**
  * Invalidate cache for a specific user in a specific guild
@@ -972,8 +975,8 @@ export async function internalCheckPermission(
         const guildInfo = await fetchGuild(actualGuildId).catch(() => null);
         if (guildInfo?.owner_id === discordUserId) return true;
 
-        // 4. Discord Admin bypass
-        const guildRoles = await fetchGuildRoles(actualGuildId).catch(() => []);
+        // 4. Discord Admin bypass - IMPORTANT: include managed roles for permission checks
+        const guildRoles = await fetchGuildRoles(actualGuildId, { excludeManaged: false }).catch(() => []);
         const memberRoles = guildRoles.filter(r => member.roles.includes(r.id));
         const isDiscordAdmin = memberRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
         if (isDiscordAdmin) return true;

@@ -154,6 +154,8 @@ export async function updateRBACMapping(
             }
         });
 
+        // BUGFIX: Invalider le layout pour propager les permissions à toutes les pages
+        revalidatePath(`/dashboard/${guildId}`, "layout");
         revalidatePath(`/dashboard/${guildId}/admin`);
         return { success: true };
     } catch (error) {

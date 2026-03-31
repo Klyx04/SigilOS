@@ -21,7 +21,7 @@ export default async function AdminLogsPage({ params }: Props) {
 
     // Security: Verify admin access + Audit Log
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canViewAuditLogs) {
         await logAdminAccessDenied(guildId, "/admin/logs");
         return <AccessDenied />;
     }

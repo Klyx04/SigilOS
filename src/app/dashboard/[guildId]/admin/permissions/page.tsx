@@ -23,7 +23,7 @@ export default async function PermissionsPage({
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.isDiscordAdmin) {
         await logAdminAccessDenied(guildId, "/admin/permissions");
         return <AccessDenied />;
     }

@@ -93,7 +93,7 @@ export default async function FeatureSettingsPage({
     const activeTab = tab || "absences";
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canViewSettings) {
         await logAdminAccessDenied(guildId, "/admin/settings");
         return <AccessDenied />;
     }

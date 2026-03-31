@@ -17,9 +17,9 @@ export default async function AbsenceSettingsPage({
 
     const { guildId } = await params;
 
-    // Verify admin access + Audit Log
+    // Verify permission
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canManageRelance) {
         await logAdminAccessDenied(guildId, "/admin/absence");
         return <AccessDenied />;
     }

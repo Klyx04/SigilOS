@@ -168,7 +168,9 @@ export async function updateGuildModules(
         });
 
         revalidatePath(`/dashboard/${discordGuildId}/admin/modules`);
-        revalidatePath(`/dashboard/${discordGuildId}`);
+        // BUGFIX: Invalider le layout pour répercuter les changements de modules sur tout le dashboard
+        revalidatePath(`/dashboard/${discordGuildId}`, "layout");
+
 
         return { success: true };
     } catch (error) {

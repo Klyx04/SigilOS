@@ -19,7 +19,7 @@ export default async function AdminModulesPage({ params }: Props) {
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.isDiscordAdmin) {
         await logAdminAccessDenied(guildId, "/admin/modules");
         return <AccessDenied />;
     }

@@ -58,7 +58,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Paramètres Généraux",
                     description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
                     accent: "amber",
-                    permission: (u) => u.isAdmin,
+                    permission: (u) => u.canViewSettings,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
@@ -66,7 +66,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Rôles & Permissions",
                     description: "Gestion fine des accès. Définissez qui peut valider, modérer ou administrer.",
                     accent: "blue",
-                    permission: (u) => u.isAdmin,
+                    permission: (u) => u.isDiscordAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/modules`,
@@ -74,7 +74,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Gestion des Modules",
                     description: "Activez ou désactivez les fonctionnalités (Chat, Songe, Ocre, etc.) pour votre guilde.",
                     accent: "violet",
-                    permission: (u) => u.isAdmin,
+                    permission: (u) => u.isDiscordAdmin,
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
@@ -134,7 +134,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Audit Logs",
                     description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
                     accent: "slate",
-                    permission: (u) => u.isAdmin,
+                    permission: (u) => u.canViewAuditLogs,
                 },
             ],
         },

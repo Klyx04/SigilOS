@@ -7,11 +7,22 @@ import { LogOut, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function SignOutPage() {
+export default async function SignOutPage({
+    searchParams
+}: {
+    searchParams: Promise<{ reason?: string }>
+}) {
     const session = await auth();
+    const { reason } = await searchParams;
 
     if (!session) {
         redirect("/");
+    }
+
+    // SECURITY FIX: Auto-signout for expired Discord OAuth tokens
+    // Triggered by the JWT callback when Discord token expires
+    if (reason === "token_expired") {
+        await signOut({ redirectTo: "/login?info=session_expired" });
     }
 
     return (

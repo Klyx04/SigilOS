@@ -88,9 +88,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.scope = account.scope;
                 // Store discord ID specifically for permissions
                 token.discordId = account.providerAccountId;
+                // Clear any previous error on fresh sign-in
+                delete (token as any).error;
             }
             if (user) {
                 token.role = (user as any).role;
+            }
+
+            // SECURITY FIX: Check if Discord OAuth token has expired
+            // Discord access tokens expire after 7 days — force re-auth if expired
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            if (token.expiresAt && typeof token.expiresAt === 'number' && token.expiresAt < nowSeconds) {
+                console.warn(`[Auth] Discord token expired for user ${token.discordId} — forcing re-auth`);
+                return { ...token, error: "DiscordTokenExpired" } as any;
             }
 
             return token;
@@ -106,6 +116,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 }
                 if (token.role) {
                     anySession.user.role = token.role;
+                }
+                // SECURITY FIX: Propagate token expiry error to session
+                // Client-side layout will detect this and force signOut()
+                if ((token as any).error) {
+                    anySession.error = (token as any).error;
                 }
             }
             return session;

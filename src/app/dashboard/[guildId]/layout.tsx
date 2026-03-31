@@ -36,6 +36,12 @@ export default async function DashboardLayout({
     const session = await auth();
     if (!session?.user) redirect("/");
 
+    // SECURITY FIX: Detect expired Discord OAuth token (sessions immortelles)
+    // The JWT callback marks sessions with error="DiscordTokenExpired" when token is expired
+    if ((session as any).error === "DiscordTokenExpired") {
+        redirect("/auth/signout?reason=token_expired");
+    }
+
     const [user, guildData, userGuilds, events, modules, configRes] = await Promise.all([
         getUserContext(guildId),
         getGuildHeaderData(guildId),

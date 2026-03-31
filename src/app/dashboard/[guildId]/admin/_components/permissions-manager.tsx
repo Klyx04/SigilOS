@@ -24,7 +24,7 @@ type Props = {
     currentUsersMapping: Record<string, PermissionId[]>;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info", "chat"];
+const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "profile", "songes", "game", "community", "info"];
 
 export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
@@ -35,8 +35,10 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
     Object.entries(currentMapping).forEach(([roleId, perms]) => {
         perms.forEach(perm => {
-            if (!initialPermState[perm]) initialPermState[perm] = [];
-            initialPermState[perm].push(roleId);
+            // Only include permissions that still exist in the new system
+            if (initialPermState[perm]) {
+                initialPermState[perm].push(roleId);
+            }
         });
     });
 
@@ -48,8 +50,10 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
     Object.entries(currentUsersMapping).forEach(([discordUserId, perms]) => {
         perms.forEach(perm => {
-            if (!initialUserState[perm]) initialUserState[perm] = [];
-            initialUserState[perm].push(discordUserId);
+            // Only include permissions that still exist in the new system
+            if (initialUserState[perm]) {
+                initialUserState[perm].push(discordUserId);
+            }
         });
     });
 

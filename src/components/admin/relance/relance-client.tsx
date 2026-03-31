@@ -81,7 +81,7 @@ interface RelanceClientProps {
 
 export function RelanceClient({ guildId, channels, roles, initialHistory }: RelanceClientProps) {
     const [activeTab, setActiveTab] = useState("new");
-    const [criteria, setCriteria] = useState<"MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE">("MISSING_MISSIONS");
+    const [criteria, setCriteria] = useState<"MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE">("MISSING_MISSIONS");
     const [inactiveDays, setInactiveDays] = useState(7);
     const [loading, setLoading] = useState(false);
     const [candidates, setCandidates] = useState<any[]>([]);
@@ -99,10 +99,12 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
     const templates = {
         MISSING_MISSIONS: "Bonjour ! Il semble que tu n'aies pas encore validé de missions cette semaine. N'oublie pas de participer pour aider la guilde ! 🚀",
         INACTIVE: "Hello ! On ne t'a pas vu sur le dashboard depuis un petit moment. Passe faire un tour pour voir les nouveautés et les missions en cours ! 😉",
-        DOFUS_INACTIVE: "Hello ! Petite relance pour le point absence/activité en jeu : peux-tu mettre à jour ton statut sur le dashboard SigilOS ? Ça nous aide énormément pour l'organisation des raids et sorties ! Merci d'avance ⚔️"
+        DOFUS_INACTIVE: "Hello ! Petite relance pour le point absence/activité en jeu : peux-tu mettre à jour ton statut sur le dashboard SigilOS ? Ça nous aide énormément pour l'organisation des raids et sorties ! Merci d'avance ⚔️",
+        DISCORD_INACTIVE: "Hey ! On a remarqué que tu étais très discret sur Discord ces derniers temps (vocal et écrit). Hésite pas à passer nous faire un coucou, on aime bien savoir que tout va bien ! 👋",
+        GLOBAL_INACTIVE: "Attention ! Tu sembles totalement inactif sur tous nos supports (Dofus, Discord et Dashboard). Merci de nous tenir au courant de ton état de jeu pour éviter un archivage automatique. 🚩"
     };
 
-    const handleCriteriaChange = (v: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE") => {
+    const handleCriteriaChange = (v: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE") => {
         setCriteria(v);
         setMessage(templates[v]);
         setCandidates([]);
@@ -213,35 +215,68 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Critères</Label>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="w-3 h-3 text-zinc-600 hover:text-zinc-400 cursor-help" />
-                                            </TooltipTrigger>
-                                            <TooltipContent className="bg-zinc-800 border-white/10 p-3 max-w-xs">
-                                                <div className="space-y-2 text-xs">
-                                                    <p className="font-bold text-white mb-1 uppercase tracking-wider text-[10px]">Détails des filtres :</p>
-                                                    <p className="text-zinc-400"><span className="text-violet-400 font-bold uppercase text-[9px]">Missions :</span> Membres n'ayant rien validé sur la période.</p>
-                                                    <p className="text-zinc-400"><span className="text-violet-400 font-bold uppercase text-[9px]">Dashboard :</span> Membres ne s'étant pas connectés au site depuis X jours.</p>
-                                                    <p className="text-zinc-400"><span className="text-violet-400 font-bold uppercase text-[9px]">Dofus :</span> Affiche tout le monde pour une sélection manuelle (ex: absences).</p>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    { 
+                                        id: "MISSING_MISSIONS", 
+                                        label: "Missions (Semaine)", 
+                                        desc: "Ceux qui n'ont rien validé depuis mardi 7h.",
+                                        icon: <Target className="w-4 h-4 text-violet-400" /> 
+                                    },
+                                    { 
+                                        id: "INACTIVE", 
+                                        label: "Inactivité Dashboard", 
+                                        desc: `Pas vu sur le site depuis ${inactiveDays} jours.`,
+                                        icon: <HistoryIcon className="w-4 h-4 text-orange-400" /> 
+                                    },
+                                    { 
+                                        id: "DISCORD_INACTIVE", 
+                                        label: "Silence Discord", 
+                                        desc: "Aucune trace écrite ou vocale cette semaine.",
+                                        icon: <MessageSquare className="w-4 h-4 text-sky-400" /> 
+                                    },
+                                    { 
+                                        id: "GLOBAL_INACTIVE", 
+                                        label: "Fantôme Global", 
+                                        desc: "0 mission + 0 site + 0 discord. Le néant.",
+                                        icon: <Bell className="w-4 h-4 text-rose-500 animate-pulse" /> 
+                                    },
+                                    { 
+                                        id: "DOFUS_INACTIVE", 
+                                        label: "Absence (Manuel)", 
+                                        desc: "Cible tout le monde pour un tri manuel.",
+                                        icon: <Users className="w-4 h-4 text-emerald-400" /> 
+                                    }
+                                ].map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleCriteriaChange(item.id as any)}
+                                        className={cn(
+                                            "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 group/item relative overflow-hidden",
+                                            criteria === item.id 
+                                                ? "bg-violet-500/10 border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.1)] ring-1 ring-violet-500/20" 
+                                                : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {item.icon}
+                                            <span className={cn(
+                                                "text-[11px] font-black uppercase tracking-wider",
+                                                criteria === item.id ? "text-white" : "text-zinc-400 group-hover/item:text-zinc-200"
+                                            )}>
+                                                {item.label}
+                                            </span>
+                                            {criteria === item.id && (
+                                                <div className="ml-auto bg-violet-500 rounded-full p-0.5 animate-in zoom-in duration-300">
+                                                    <Check className="w-2.5 h-2.5 text-white" />
                                                 </div>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                                <Select value={criteria} onValueChange={(v: any) => handleCriteriaChange(v)}>
-                                    <SelectTrigger className="bg-white/5 border-white/10 h-11">
-                                        <SelectValue placeholder="Sélectionner un critère" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                                        <SelectItem value="MISSING_MISSIONS">Missions non validées (Semaine)</SelectItem>
-                                        <SelectItem value="INACTIVE">Inactivité Dashboard</SelectItem>
-                                        <SelectItem value="DOFUS_INACTIVE">Inactivité Dofus (Absences)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] font-medium text-zinc-500 pl-6 leading-tight">
+                                            {item.desc}
+                                        </p>
+                                    </button>
+                                ))}
                             </div>
 
                             {criteria === "INACTIVE" && (
@@ -570,14 +605,22 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                             </div>
                                             <div className="flex flex-col min-w-0 flex-1">
                                                 <span className="text-sm font-black truncate text-zinc-100 group-hover/card:text-white transition-colors">{user.name}</span>
-                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
-                                                    {criteria === "MISSING_MISSIONS" 
-                                                        ? "0 mission validée" 
-                                                        : criteria === "DOFUS_INACTIVE"
-                                                            ? "Cible Manuelle"
-                                                            : `Inactif ${formatDistanceToNow(new Date(user.lastSeen), { locale: fr, addSuffix: true })}`
-                                                    }
-                                                </span>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
+                                                        {criteria === "MISSING_MISSIONS" 
+                                                            ? "0 mission validée" 
+                                                            : criteria === "DOFUS_INACTIVE"
+                                                                ? "Cible Manuelle"
+                                                                : `Site: ${formatDistanceToNow(new Date(user.lastSeen), { locale: fr, addSuffix: true })}`
+                                                        }
+                                                    </span>
+                                                    {user.discordStats && (
+                                                        <span className="text-[9px] font-medium text-violet-400/70 flex items-center gap-1 uppercase tracking-tighter">
+                                                            <div className="w-1 h-1 rounded-full bg-violet-500" />
+                                                            {user.discordStats.messages} msg • {user.discordStats.voiceMin} min vocal
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             
                                             {!selectedUsers.includes(user.discordId) && (
@@ -669,7 +712,9 @@ function RelanceHistory({ history }: { history: any[] }) {
                                 <Badge className="bg-violet-500/5 hover:bg-violet-500/10 border-violet-500/20 text-violet-400 font-black uppercase text-[8px] tracking-widest gap-1.5 flex items-center h-6 px-2 transition-colors">
                                     <Target className="w-3 h-3" /> {
                                         item.criteria === "MISSING_MISSIONS" ? "Missions" : 
-                                        item.criteria === "DOFUS_INACTIVE" ? "Absences" : "Dashboard"
+                                        item.criteria === "DOFUS_INACTIVE" ? "Absences" : 
+                                        item.criteria === "DISCORD_INACTIVE" ? "Discord" :
+                                        item.criteria === "GLOBAL_INACTIVE" ? "Globale" : "Dashboard"
                                     }
                                 </Badge>
                             )}

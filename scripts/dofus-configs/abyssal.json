@@ -1,0 +1,17 @@
+{
+  "slug": "abyssal",
+  "displayName": "Dofus Abyssal",
+  "color": "#191970",
+  "dofusItemId": 7837,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Reine de beaute",
+        "Son nom est personne",
+        "Le hero de sufokia"
+      ]
+    }
+  ]
+}

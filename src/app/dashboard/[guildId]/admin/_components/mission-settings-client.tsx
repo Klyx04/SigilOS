@@ -30,6 +30,10 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     // Contributions Kamas
     const [kamaChannelId, setKamaChannelId] = useState<string>("");
     const [kamaRoleId, setKamaRoleId] = useState<string | null>(null);
+    
+    // Rappel Reset Staff (Mardi 8h00)
+    const [managementChannelId, setManagementChannelId] = useState<string>("");
+    const [managementRoleId, setManagementRoleId] = useState<string | null>(null);
 
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +56,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 // New fields (may not exist in older configs, graceful fallback)
                 setAchievementRoleId((configRes.data as any).achievementNotifyRoleId || null);
                 setKamaRoleId((configRes.data as any).kamaNotifyRoleId || null);
+                setManagementChannelId(configRes.data.missionManagementNotifyChannelId || "");
+                setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
             }
 
             if (rolesRes.success && rolesRes.data) {
@@ -74,6 +80,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 kamaNotifyRoleId: kamaRoleId,
                 achievementNotifyChannelId: achievementChannelId.trim() || null,
                 achievementNotifyRoleId: achievementRoleId,
+                missionManagementNotifyChannelId: managementChannelId.trim() || null,
+                missionManagementNotifyRoleId: managementRoleId,
             });
             if (result.success) {
                 toast.success("Paramètres mis à jour !");
@@ -284,26 +292,72 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                             />
                         </CardContent>
                     </Card>
+
+                    {/* RAPPEL RESET HEBDO (STAFF) */}
+                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative md:col-span-3">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-indigo-400 text-sm">
+                                <Bell className="w-4 h-4" />
+                                Rappel Reset Hebdo (Staff)
+                            </CardTitle>
+                            <CardDescription className="text-[10px] font-medium leading-relaxed">
+                                Ping automatique envoyé **chaque mardi matin à 08h00** pour rappeler aux officiers de générer les missions et purger les attentes.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="relative z-10 pt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                        <Hash className="w-3 h-3" /> Salon de Rappel
+                                    </label>
+                                    <Input
+                                        value={managementChannelId}
+                                        onChange={(e) => setManagementChannelId(e.target.value)}
+                                        placeholder="ID du salon..."
+                                        className="font-mono bg-black/40 border-white/10 text-white h-10 focus:ring-indigo-500/20 focus:border-indigo-500/50 rounded-xl"
+                                    />
+                                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
+                                        Laisse vide pour désactiver ce rappel.
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                                        <Users className="w-3 h-3" /> Rôle (Officiers / Mission Managers)
+                                    </label>
+                                    <RoleSelector
+                                        value={managementRoleId}
+                                        onChange={setManagementRoleId}
+                                        roles={roles}
+                                        className="h-10 border-indigo-500/10"
+                                    />
+                                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
+                                        Le rôle qui possède les droits de validation / création.
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
             {/* ACTION FOOTER */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-white/5">
-                <div className="flex items-start gap-4 max-w-md">
-                    <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                        <Search className="w-4 h-4 text-indigo-400" />
+            <div className="sticky bottom-4 z-30 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-zinc-900/80 backdrop-blur-xl border border-white/10 shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.5)] mt-8">
+                <div className="flex items-start gap-4 max-w-lg">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0 shadow-inner">
+                        <Search className="w-4 h-4 text-amber-400" />
                     </div>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">
+                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
                         Ces réglages s&apos;appliquent à l&apos;ensemble de la guilde. Assurez-vous que le bot SigilOS a les permissions d&apos;écrire dans les salons choisis.
                     </p>
                 </div>
                 <Button
                     onClick={handleSave}
                     disabled={isPending}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 h-12 shadow-lg shadow-indigo-900/20 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white font-black px-8 h-12 shadow-[0_0_20px_rgba(217,119,6,0.2)] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    SAUVEGARDER
+                    {isPending ? "SAUVEGARDE EN COURS..." : "SAUVEGARDER LES MODIFICATIONS"}
                 </Button>
             </div>
         </div>

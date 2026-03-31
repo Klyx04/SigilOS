@@ -1,0 +1,15 @@
+{
+  "slug": "ocre",
+  "displayName": "Dofus Ocre",
+  "color": "#CC7722",
+  "dofusItemId": 7828,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "https://docs.google.com/spreadsheets/d/1n4QFLAoKxy_ZWfxnPx0jDxvzfEeqLRjBwJVdVyo0P2k/edit?usp=sharing"
+      ]
+    }
+  ]
+}

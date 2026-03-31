@@ -76,7 +76,7 @@ export function GalacticHeader({
 
     // Group 1: Core / Management
     const NAV_GROUP_CORE = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, color: "text-blue-400", exact: true, visible: true },
+        { name: "Tableau de bord", href: `/dashboard/${guildId}`, icon: LayoutDashboard, color: "text-blue-400", exact: true, visible: true },
         { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: true },
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-cyan-400", visible: user.isMember || user.canViewCalendar },
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-indigo-400", visible: user.canViewRoster },
@@ -264,7 +264,7 @@ export function GalacticHeader({
                                             : "bg-[#0A0A0C] text-zinc-400 border-white/10 hover:bg-white/5 hover:text-white"
                                     )}>
                                         <Shield className={cn("w-4 h-4", isActive(`/dashboard/${guildId}/admin`) ? "text-amber-500" : "text-zinc-500")} />
-                                        <span className="hidden xl:inline">Admin</span>
+                                        <span className="hidden xl:inline">Administration</span>
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 bg-[#0A0A0C]/95 backdrop-blur-xl border border-white/10 text-white p-1 shadow-2xl">

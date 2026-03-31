@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
 import { Settings, Shield, Save, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { updatePlatformConfig, testStatusPing } from "@/server/actions/changelog-actions";
@@ -97,200 +98,160 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </button>
                 </div>
             </div>
+            {/* Main Configuration Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                
+                {/* 1. DISCORD CHANNELS & CORE */}
+                <div className="space-y-6 flex flex-col h-full">
+                    <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <Shield className="w-4 h-4 text-indigo-400" />
+                        </div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Connectivité Discord</h4>
+                    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Section Channels */}
-                <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-2">
-                        <Shield className="w-3.5 h-3.5" /> Canaux Officiels
-                    </h4>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Canal HUB (Annonces)</label>
+                    <div className="space-y-4 flex-1">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Salon HUB (Annonces)</label>
                             <input 
                                 type="text"
                                 value={formData.hubChannelId}
                                 onChange={(e) => setFormData(prev => ({ ...prev, hubChannelId: e.target.value }))}
-                                placeholder="ID du salon Discord..."
-                                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
+                                placeholder="ID du salon..."
+                                className="w-full px-4 py-2.5 bg-zinc-950/50 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
                             />
                         </div>
-                        <div>
-                             <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Statut Service (Logs Hub)</label>
-                             <input 
-                                 type="text"
-                                 value={formData.serviceStatusChannelId}
-                                 onChange={(e) => setFormData(prev => ({ ...prev, serviceStatusChannelId: e.target.value }))}
-                                 placeholder="ID du salon Discord..."
-                                 className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
-                             />
-                         </div>
-
-                         {/* Status Mode & Lite Toggle */}
-                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Format d'Affichage</label>
-                                <Select 
-                                    value={formData.statusIsLite ? "LITE" : "FULL"} 
-                                    onValueChange={(val) => setFormData(prev => ({ ...prev, statusIsLite: val === "LITE" }))}
-                                >
-                                    <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="FULL">📊 Complet (Technique)</SelectItem>
-                                        <SelectItem value="LITE">✨ Lite (Épuré)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Mode de Mise à Jour</label>
-                                <Select 
-                                    value={formData.statusMode} 
-                                    onValueChange={(val) => setFormData(prev => ({ ...prev, statusMode: val }))}
-                                >
-                                    <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent side="top">
-                                        <SelectItem value="living">♻️ Living Status (Edit msg)</SelectItem>
-                                        <SelectItem value="notification">🔔 Notification (New msg)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                         </div>
-
-                         {/* Mention & Frequency */}
-                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Mention Notification</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Statut Service (Logs Hub)</label>
+                            <input 
+                                type="text"
+                                value={formData.serviceStatusChannelId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, serviceStatusChannelId: e.target.value }))}
+                                placeholder="ID du salon..."
+                                className="w-full px-4 py-2.5 bg-zinc-950/50 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Ping</label>
                                 <Select 
                                     value={formData.statusMention} 
                                     onValueChange={(val) => setFormData(prev => ({ ...prev, statusMention: val }))}
                                 >
-                                    <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
+                                    <SelectTrigger className="bg-zinc-950/50 border-white/5 rounded-xl text-zinc-400 h-10">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent side="top">
                                         <SelectItem value="none">😶 Aucune</SelectItem>
-                                        <SelectItem value="@here">🔔 @here</SelectItem>
-                                        <SelectItem value="@everyone">📢 @everyone</SelectItem>
+                                        <SelectItem value="@here">@here</SelectItem>
+                                        <SelectItem value="@everyone">@everyone</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Fréquence (Minutes)</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Cycles</label>
                                 <Select 
                                     value={String(formData.statusFrequency)} 
                                     onValueChange={(val) => setFormData(prev => ({ ...prev, statusFrequency: parseInt(val) }))}
                                 >
-                                    <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
+                                    <SelectTrigger className="bg-zinc-950/50 border-white/5 rounded-xl text-zinc-400 h-10">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent side="top">
-                                        <SelectItem value="5">🏎️ 5 min</SelectItem>
-                                        <SelectItem value="15">🛰️ 15 min</SelectItem>
-                                        <SelectItem value="60">🕙 1 h</SelectItem>
-                                        <SelectItem value="360">🕙 6 h</SelectItem>
-                                        <SelectItem value="1440">📅 24 h</SelectItem>
+                                        <SelectItem value="5">5m</SelectItem>
+                                        <SelectItem value="15">15m</SelectItem>
+                                        <SelectItem value="60">1h</SelectItem>
+                                        <SelectItem value="1440">24h</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                         </div>
-                     </div>
- 
-                     {/* NSFW Safety Section */}
-                     <div className="space-y-4 pt-4 border-t border-white/5">
-                        <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
-                            <Shield className="w-3.5 h-3.5" /> Sécurité des Contenus (IA)
-                        </h4>
-                        
-                        <div className="flex items-center justify-between p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl group/toggle">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest block">Filtre NSFW Client-Side</label>
-                                <p className="text-[10px] text-zinc-600 font-medium max-w-[200px] leading-relaxed">Analyse les images via TensorFlow.js avant l'upload sur le VPS.</p>
-                            </div>
-                            <Select 
-                                value={formData.nsfwFilterEnabled ? "ENABLED" : "DISABLED"} 
-                                onValueChange={(val) => setFormData(prev => ({ ...prev, nsfwFilterEnabled: val === "ENABLED" }))}
-                            >
-                                <SelectTrigger className="w-32 bg-black/40 border-white/5 rounded-xl text-zinc-400 h-10 hover:border-rose-500/30 transition-all">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    <SelectItem value="ENABLED">🛡️ Activé</SelectItem>
-                                    <SelectItem value="DISABLED">🔓 Désactivé</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                     </div>
-                </div>
-
-                 {/* Section God Notifications */}
-                <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                        <Shield className="w-3.5 h-3.5" /> Notifications Administrateur (PINGS)
-                    </h4>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Canal Notifications God (Discord)</label>
-                            <input 
-                                type="text"
-                                value={formData.godNotifyChannelId}
-                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyChannelId: e.target.value }))}
-                                placeholder="ID du salon pour les notifs Platform..."
-                                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Rôle à Pinger (Optionnel)</label>
-                            <input 
-                                type="text"
-                                value={formData.godNotifyRoleId}
-                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyRoleId: e.target.value }))}
-                                placeholder="ID du rôle (ex: 123456789...)"
-                                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/30 transition-all font-mono"
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl group/toggle mt-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">Notifications Web (God Dashboard)</label>
-                                <p className="text-[10px] text-zinc-600 font-medium leading-relaxed">Affiche les alertes en temps réel sur l'interface d'administration.</p>
-                            </div>
-                            <Select 
-                                value={formData.godNotifyWebEnabled ? "ENABLED" : "DISABLED"} 
-                                onValueChange={(val) => setFormData(prev => ({ ...prev, godNotifyWebEnabled: val === "ENABLED" }))}
-                            >
-                                <SelectTrigger className="w-32 bg-black/40 border-white/5 rounded-xl text-zinc-400 h-10 hover:border-indigo-500/30 transition-all">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    <SelectItem value="ENABLED">🛡️ Activé</SelectItem>
-                                    <SelectItem value="DISABLED">🔓 Désactivé</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
                     </div>
                 </div>
 
-                {/* Section Ticket System */}
-                <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-2">
-                        🎫 Système de Tickets (Automatique)
-                    </h4>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Serveur de Support (Reference)</label>
+                {/* 2. SECURITY & NOTIFICATIONS */}
+                <div className="space-y-6 flex flex-col h-full">
+                    <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                            <Activity className="w-4 h-4 text-rose-400" />
+                        </div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Alerte & Sécurité</h4>
+                    </div>
+
+                    <div className="space-y-4 flex-1">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Canal Alertes God</label>
+                            <input 
+                                type="text"
+                                value={formData.godNotifyChannelId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyChannelId: e.target.value }))}
+                                placeholder="ID du salon..."
+                                className="w-full px-4 py-2.5 bg-zinc-950/50 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Filtre IA NSFW</span>
+                                <button 
+                                    onClick={() => setFormData(prev => ({ ...prev, nsfwFilterEnabled: !prev.nsfwFilterEnabled }))}
+                                    className={cn(
+                                        "px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border",
+                                        formData.nsfwFilterEnabled 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                                            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                    )}
+                                >
+                                    {formData.nsfwFilterEnabled ? "Activé" : "Désactivé"}
+                                </button>
+                            </div>
+                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Notifs Web Dashboard</span>
+                                <button 
+                                    onClick={() => setFormData(prev => ({ ...prev, godNotifyWebEnabled: !prev.godNotifyWebEnabled }))}
+                                    className={cn(
+                                        "px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border",
+                                        formData.godNotifyWebEnabled 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                                            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                    )}
+                                >
+                                    {formData.godNotifyWebEnabled ? "Activé" : "Désactivé"}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Rôle Notif (ID)</label>
+                            <input 
+                                type="text"
+                                value={formData.godNotifyRoleId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, godNotifyRoleId: e.target.value }))}
+                                placeholder="ID du rôle..."
+                                className="w-full px-4 py-2.5 bg-zinc-950/50 border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. LOGISTIQUE & TICKETING */}
+                <div className="space-y-6 flex flex-col h-full">
+                    <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                            <Settings className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Logistique & Support</h4>
+                    </div>
+
+                    <div className="space-y-4 flex-1">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Serveur Support</label>
                             <Select 
-                                value={formData.ticketSupportGuildId} 
+                                value={formData.ticketSupportGuildId || ""} 
                                 onValueChange={(val) => setFormData(prev => ({ ...prev, ticketSupportGuildId: val }))}
                             >
-                                <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
-                                    <SelectValue placeholder="Choisir le serveur..." />
+                                <SelectTrigger className="bg-zinc-950/50 border-white/5 rounded-xl text-zinc-400 h-10">
+                                    <SelectValue placeholder="Choisir..." />
                                 </SelectTrigger>
                                 <SelectContent side="top">
                                     {availableGuilds.map(g => (
@@ -299,33 +260,34 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 mb-1.5 block">Rôle Auto-Assigné (Validation)</label>
+                        
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Rôle Auto-Assign (Validation)</label>
                             <Select 
-                                value={formData.ticketAutoRoleId} 
+                                value={formData.ticketAutoRoleId || ""} 
                                 onValueChange={(val) => setFormData(prev => ({ ...prev, ticketAutoRoleId: val }))}
                                 disabled={!formData.ticketSupportGuildId}
                             >
-                                <SelectTrigger className="bg-black/40 border-white/5 rounded-xl text-zinc-400 h-11">
-                                    <SelectValue placeholder="Choisir le rôle par défaut..." />
+                                <SelectTrigger className="bg-zinc-950/50 border-white/5 rounded-xl text-zinc-400 h-10">
+                                    <SelectValue placeholder="Choisir..." />
                                 </SelectTrigger>
                                 <SelectContent side="top">
-                                    <SelectItem value="SKIP">Aucun (Manuel uniquement)</SelectItem>
+                                    <SelectItem value="SKIP">Aucun</SelectItem>
                                     {availableRoles.map(r => (
                                         <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-3 flex items-start gap-3">
+                            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-zinc-500 leading-relaxed font-medium italic">
+                                Le rôle auto-assign est donné au créateur du ticket dès la validation manuelle.
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-start gap-4">
-                <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-zinc-500 leading-relaxed italic">
-                    Le rôle auto-assigné sera donné à l'auteur du ticket dès que vous cliquez sur <strong>"Valider"</strong> dans le Dashboard Tickets, sauf si vous choisissez un autre rôle manuellement.
-                </p>
             </div>
         </div>
     );

@@ -1,0 +1,22 @@
+{
+  "slug": "dorigami",
+  "displayName": "Dorigami",
+  "color": "#FF1493",
+  "dofusItemId": 7846,
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "unknown",
+      "quests": [
+        "Le reveil de pandala"
+      ]
+    },
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Maudite disparition"
+      ]
+    }
+  ]
+}

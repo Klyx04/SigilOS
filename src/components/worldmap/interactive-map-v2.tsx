@@ -861,8 +861,8 @@ export default function InteractiveMapV2({
         const excludedKeywords = [
             "donjon", "tunnel", "souterrain", "cave", "crypt", "labyrinthe", 
             "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
-            "égout", "cellule", "prison", "temple", "salle", "château",
-            "laboratoire", "secret", "caché"
+            "égout", "cellule", "prison", "temple", "salle", "château", "tour",
+            "laboratoire", "secret", "caché", "étage", "palier", "ascenseur", "sommet"
         ];
 
         // On pioche dans les maps selon le mode
@@ -1251,6 +1251,7 @@ export default function InteractiveMapV2({
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={setSelectedDungeon}
                             triggerCenterPosition={triggerCenterPosition}
+                            triggerWorldId={initialWorldId} // Use the parsed param from URL
                             mapsBySubAreaId={mapsBySubAreaId}
                             guessResult={guessResult}
                             isMiniMap={false}

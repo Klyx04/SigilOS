@@ -1,0 +1,50 @@
+{
+  "slug": "tachete",
+  "displayName": "Dofus Tacheté",
+  "color": "#8B4513",
+  "dofusItemId": 7829,
+  "successName": "Un rêve en clair-obscur",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "Pandala",
+      "description": "Toutes les quêtes de Pandala doivent être complétées avant de commencer la série du Dofus Tacheté.",
+      "isPrerequisite": true,
+      "quests": [
+        "Dites-le avec des fleurs",
+        "Un pendule pour guider ses pas",
+        "Protection divine",
+        "Voir le dark Vlad et mourir... ou pas",
+        "La magicienne des marécages",
+        "Retourner voir le dark Vlad, toujours sans mourir",
+        "Qui botte le cul des culs-bottés ?",
+        "Le voleur d'âmes",
+        "Ça est frugal, une fois",
+        "À la croisée des mondes",
+        "Sous le bois de sa colère",
+        "Au nom de l'art",
+        "La jetée des enfants perdus",
+        "Le festival de la lanterne",
+        "L'équilibre des forces",
+        "Sang d'encre",
+        "Maudite disparition",
+        "Requiem pour un yôkai",
+        "Jusqu'à leur dernier soupir"
+      ]
+    },
+    {
+      "name": "Les quêtes du Dofus Tacheté",
+      "zone": "Pandala — Royaumes de Papier et d'Encre",
+      "description": "La série de 3 quêtes pour obtenir le Dofus Tacheté. Inclut les donjons Mémoire d'Orukam et Souvenir d'Imagiro. Nécessite d'être Paysan niv. 20+, et de posséder un Domakuro et un Dorigami.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "quests": [
+        "Main dans la main",
+        "Deux souffles, une inspiration",
+        "En ce jardin qui nous unit"
+      ]
+    }
+  ]
+}

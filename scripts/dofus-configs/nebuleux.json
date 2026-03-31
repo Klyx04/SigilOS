@@ -1,0 +1,27 @@
+{
+  "slug": "nebuleux",
+  "displayName": "Dofus Nébuleux",
+  "color": "#483D8B",
+  "dofusItemId": 7830,
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "unknown",
+      "quests": [
+        "Voyage, voyage",
+        "La cite de l'indicible mal",
+        "Messager clandestin",
+        "La voix de son maitre",
+        "Le maitre des zaaps",
+        "Energie renouvelable",
+        "Traitement de choc",
+        "Le disparu de sufokia",
+        "Rendez-vous avec la mort",
+        "Secret de fabrication",
+        "S'emparer des commandes",
+        "C'est dans la boite",
+        "Crise d'identite"
+      ]
+    }
+  ]
+}

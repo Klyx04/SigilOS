@@ -1,0 +1,273 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-27",
+  "sources": ["dofuspourlesnoobs.com", "duffus.fr", "tougli-all-dofus", "dofusdb.fr"],
+  "dofus": {
+    "emeraude": {
+      "slug": "emeraude",
+      "levelRecommended": 100,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Mais où sont les Dofus ?",
+          "description": "Série de quêtes principale — prérequis obligatoire",
+          "quests": [
+            { "name": "L'anneau de tous les dangers", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Sous le regard des dieux", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Réprime le tout", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Le silence dans les nuages", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Exposé et fragilisé", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Dans la gueule du milimulou", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Destruction Astrub", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Les principes d'Archie m'étaient", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "On marche sur des œufs", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Combat de classe", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Quête de classe", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Où sont le gaz", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Entrée en scène", "dofusdbId": null, "zone": "Astrub", "type": "QUEST" },
+            { "name": "Entrée de pandémie", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "La receptacle des dofus", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Intrusion chez les volidits", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Un espion parmi les sages", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Protection d'une", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Un parasite pour quitter ses pois", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Voir le dark vlad et mourir... ou pas", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "La magicienne des ammonites", "dofusdbId": null, "zone": "Pandala", "type": "QUEST" },
+            { "name": "Avoir le sort capture d'âme", "dofusdbId": null, "zone": "-", "type": "SPELL", "note": "Sort obtenu à la fin du Nid du Kwakwa" },
+            { "name": "Avoir le sort Apprivoisement de monture", "dofusdbId": null, "zone": "-", "type": "SPELL" }
+          ]
+        },
+        {
+          "type": "ACHIEVEMENT",
+          "name": "Ce n'est qu'un prélèvement",
+          "description": "Capturer une Dragodinde Dorée, Rousse et Amande",
+          "quests": []
+        },
+        {
+          "type": "ACHIEVEMENT",
+          "name": "Elle a peut-être trop mangé ?",
+          "description": "Succès d'élevage de Dragodindes",
+          "quests": []
+        },
+        {
+          "type": "REQUIREMENT",
+          "name": "Métier niveau 55+",
+          "description": "Un métier quelconque au niveau 55 minimum",
+          "quests": []
+        }
+      ],
+      "questChain": [
+        { "name": "Retourner voir le Dark Vlad, toujours sans mourir", "zone": "Pandala [27,-47]", "type": "QUEST", "levelZone": "[45+]", "stepOrder": 1 },
+        { "name": "Qui botte le cul des Culs Bottés ?", "zone": "Cania", "type": "QUEST", "stepOrder": 2, "requirements": [{ "type": "JOB", "description": "Métier lvl 100" }] },
+        { "name": "Le voleur d'âmes", "zone": "Divers", "type": "QUEST", "stepOrder": 3, "requirements": [
+          { "type": "DUNGEON", "name": "Nid du Kwakwa (Boostache)" },
+          { "type": "DUNGEON", "name": "Donjon Miliclette (Kanniboule Ebil)" },
+          { "type": "DUNGEON", "name": "Tanière du Meulou (Nelween)" },
+          { "type": "DUNGEON", "name": "Donjon Fuji (Wa Wobot)" }
+        ]},
+        { "name": "L'amour perdu de Nabur", "zone": "Cania", "type": "QUEST", "stepOrder": 4 },
+        { "name": "Naissance d'une vocation", "zone": "Cania", "type": "QUEST", "stepOrder": 5 },
+        { "name": "Les bandits de Cania", "zone": "Cania", "type": "QUEST", "stepOrder": 6 },
+        { "name": "Draconanthropie", "zone": "Cania", "type": "QUEST", "stepOrder": 7 },
+        { "name": "Ultime réminiscence", "zone": "Cania", "type": "QUEST", "stepOrder": 8, "isLast": true }
+      ]
+    },
+    "ebene": {
+      "slug": "ebene",
+      "levelRecommended": 200,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Prérequis Ébène (succès Astral)",
+          "description": "Série de prérequis via le succès 'Archimonstre muet'",
+          "quests": [
+            { "name": "Les principes d'Archie m'étaient", "zone": "Astrub", "type": "ACHIEVEMENT_REQUIRED" },
+            { "name": "La grande biblioquête", "zone": "Astrub", "type": "ACHIEVEMENT_REQUIRED", "note": "Un des succès d'Astral nécessaires pour la zone Plantiegel" },
+            { "name": "L'histoire en mouvement", "zone": "Astrub [7-19]", "type": "QUEST" },
+            { "name": "Restauration rapide", "zone": "Astrub [7-19]", "type": "QUEST" },
+            { "name": "De vrais rats de bibliothèque", "zone": "Astrub [7-19]", "type": "QUEST" },
+            { "name": "Légende d'automne", "zone": "Astrub [7-19]", "type": "QUEST" },
+            { "name": "Ça sent le gaz", "zone": "Astrub", "type": "QUEST" },
+            { "name": "Balade en forêt", "zone": "Astrub [7-18]", "type": "QUEST" }
+          ]
+        },
+        {
+          "type": "ACHIEVEMENT",
+          "name": "Archimonstre muet",
+          "description": "Succès nécessaire - précondition pour zone Plantiegel",
+          "quests": []
+        }
+      ],
+      "questChain": [
+        { "name": "Retourner voir le dark Vlad, toujours sans mourir", "zone": "Pandala", "type": "QUEST", "stepOrder": 1 },
+        { "name": "Si ça t'aide ça coûte toujours ?", "zone": "Pandala", "type": "QUEST", "stepOrder": 2 },
+        { "name": "La voleur d'âmes", "zone": "Divers", "type": "QUEST", "stepOrder": 3 },
+        { "name": "L'amour perdu de Nabur", "zone": "Cania", "type": "QUEST", "stepOrder": 4 },
+        { "name": "Naissance d'une vocation", "zone": "Cania", "type": "QUEST", "stepOrder": 5 },
+        { "name": "Les bandits de Cania", "zone": "Cania", "type": "QUEST", "stepOrder": 6 },
+        { "name": "Draconanthropie", "zone": "Cania", "type": "QUEST", "stepOrder": 7 },
+        { "name": "Ultime réminiscence", "zone": "Cania", "type": "QUEST", "stepOrder": 8 }
+      ]
+    },
+    "vulbis": {
+      "slug": "vulbis",
+      "levelRecommended": 200,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Série Éliocalypse complète",
+          "description": "Toute la série de quêtes de l'Éliocalypse",
+          "quests": [
+            { "name": "Bienvenue dans l'espèce", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Chaque chose en son temps", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Aux frontières du réel", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Ce sera mieux avant", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Restez dans le temps", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Plongée dans un bain de sang", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Le sens du sacrifice", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "L'éternelle molesse", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Vert émeraude", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Pourpre profond", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Bleu turquoise", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Gris d'ombre", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "La dernière danse", "zone": "Éliocalypse", "type": "QUEST", "requirements": [{ "type": "COMBAT_GROUP", "description": "x8 Blucifer - Level 40" },{ "type": "COMBAT_GROUP", "description": "x8 Dupup" }] },
+            { "name": "Les dons du sort", "zone": "Éliocalypse", "type": "QUEST", "requirements": [{ "type": "COMBAT_GROUP", "description": "x6 Ombre" }] },
+            { "name": "L'ombre et le pape", "zone": "Éliocalypse", "type": "QUEST", "requirements": [{ "type": "COMBAT_GROUP", "description": "x4 Ombre, x1 Gboumelefre" }] },
+            { "name": "Une ombre ou tableau", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Un ennemi drocorien", "zone": "Éliocalypse", "type": "QUEST" },
+            { "name": "Le Dragon des Forêts", "zone": "Éliocalypse", "type": "QUEST", "isOptional": true, "note": "Optionnel — évite de payer 1M kamas au Marchand de Sable" }
+          ]
+        },
+        {
+          "type": "REQUIREMENT",
+          "name": "Métier Alchimiste ou Paysan lvl 200",
+          "description": "Requis pour une étape cruciale",
+          "quests": []
+        }
+      ],
+      "questChain": [
+        { "name": "Amaknanomalie", "zone": "Amakna", "type": "QUEST", "stepOrder": 1 },
+        { "name": "La Mère des Dragoeufs", "zone": "Songes Infinis", "type": "QUEST", "stepOrder": 2 },
+        { "name": "Cauchemar infini", "zone": "Songes Infinis", "type": "QUEST", "stepOrder": 3 },
+        { "name": "La Nuit-qui-rugit", "zone": "Songes Infinis", "type": "QUEST", "stepOrder": 4, "requirements": [{ "type": "QUEST", "name": "Le sens du sacrifice" }] },
+        { "name": "Les Raisons de la Colère", "zone": "Archipel des Écailles", "type": "QUEST", "stepOrder": 5 },
+        { "name": "Le temps des secrets", "zone": "Archipel des Écailles [-80,-12]", "type": "QUEST", "stepOrder": 6, "isLast": true }
+      ]
+    },
+    "ivoire": {
+      "slug": "ivoire",
+      "levelRecommended": 150,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Prérequis Frigost",
+          "description": "Série de quêtes de Frigost Île",
+          "quests": [
+            { "name": "L'expédition Frigost", "zone": "Frigost", "type": "QUEST" },
+            { "name": "La foi du charbonnier", "zone": "Frigost", "type": "QUEST" },
+            { "name": "Sur le bout des doigts", "zone": "Frigost", "type": "QUEST" },
+            { "name": "En eaux troubles", "zone": "Frigost", "type": "QUEST" },
+            { "name": "À feu et à sang", "zone": "Frigost", "type": "QUEST" }
+          ]
+        }
+      ],
+      "questChain": [
+        { "name": "La Reine des Santiagues", "zone": "Frigost", "type": "QUEST", "stepOrder": 1 },
+        { "name": "Les Bûcherons de Frigost", "zone": "Frigost", "type": "QUEST", "stepOrder": 2 },
+        { "name": "La Guerre du Froid", "zone": "Frigost", "type": "QUEST", "stepOrder": 3 },
+        { "name": "Le Chemin de Harebourg", "zone": "Frigost", "type": "QUEST", "stepOrder": 4 },
+        { "name": "La Vengeance de Harebourg", "zone": "Frigost", "type": "QUEST", "stepOrder": 5, "isLast": true, "requirements": [{ "type": "DUNGEON", "name": "Château Harebourg" }] }
+      ]
+    },
+    "turquoise": {
+      "slug": "turquoise",
+      "levelRecommended": 120,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Prérequis Sufokia",
+          "description": "Quêtes initiales de Sufokia",
+          "quests": [
+            { "name": "Les Nouvelles Eaux", "zone": "Sufokia", "type": "QUEST" },
+            { "name": "La Liberté des Profondeurs", "zone": "Sufokia", "type": "QUEST" }
+          ]
+        }
+      ],
+      "questChain": [
+        { "name": "Rose-aux-vents", "zone": "Sufokia", "type": "QUEST", "stepOrder": 1 },
+        { "name": "Le Secret des Turquoises", "zone": "Sufokia", "type": "QUEST", "stepOrder": 2 },
+        { "name": "La Tempête Monte", "zone": "Sufokia", "type": "QUEST", "stepOrder": 3 },
+        { "name": "Les Abysses Chantent", "zone": "Sufokia", "type": "QUEST", "stepOrder": 4, "isLast": true }
+      ]
+    },
+    "ocre": {
+      "slug": "ocre",
+      "levelRecommended": 175,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Quêtes principales (série Krosmoz)",
+          "description": "Très long parcours de quêtes principales couvrant tout le monde",
+          "quests": [
+            { "name": "Série d'alignement Bonta/Brâkmar (100+ quêtes)", "zone": "Amakna/Bonta/Brâkmar", "type": "QUEST" },
+            { "name": "Quêtes de Krosmoz", "zone": "Divers", "type": "QUEST" }
+          ]
+        },
+        {
+          "type": "ACHIEVEMENT",
+          "name": "Teinte Ocre (succès général)",
+          "description": "Complétion de la série complète des quêtes principales",
+          "quests": []
+        },
+        {
+          "type": "REQUIREMENT",
+          "name": "Niveau 175+",
+          "description": "Niveau minimum conseillé",
+          "quests": []
+        }
+      ],
+      "questChain": [
+        { "name": "La Saga des Dofus (quêtes principales)", "zone": "World", "type": "QUEST_CHAIN_LONG", "note": "Le Dofus Ocre s'obtient en complétant la longue série des quêtes principales du jeu", "stepOrder": 1, "isLast": true }
+      ]
+    },
+    "pourpre": {
+      "slug": "pourpre",
+      "levelRecommended": 150,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Quêtes d'introduction Saharach",
+          "description": "Déblocage de la zone",
+          "quests": [
+            { "name": "Destination Sable", "zone": "Saharach", "type": "QUEST" },
+            { "name": "Les Sables Mouvants", "zone": "Saharach", "type": "QUEST" }
+          ]
+        }
+      ],
+      "questChain": [
+        { "name": "La Malédiction des Sables", "zone": "Saharach", "type": "QUEST", "stepOrder": 1 },
+        { "name": "Le Roi des Sables", "zone": "Saharach", "type": "QUEST", "stepOrder": 2 },
+        { "name": "L'Héritage Pourpre", "zone": "Saharach", "type": "QUEST", "stepOrder": 3, "isLast": true }
+      ]
+    },
+    "abyssal": {
+      "slug": "abyssal",
+      "levelRecommended": 160,
+      "prerequisites": [
+        {
+          "type": "QUEST_CHAIN",
+          "name": "Quêtes de Sufokia",
+          "description": "Progression complète dans Sufokia",
+          "quests": [
+            { "name": "Série principale Sufokia", "zone": "Sufokia", "type": "QUEST" }
+          ]
+        }
+      ],
+      "questChain": [
+        { "name": "Les Profondeurs Abyssales", "zone": "Sufokia", "type": "QUEST", "stepOrder": 1 },
+        { "name": "La Voix des Abysses", "zone": "Sufokia", "type": "QUEST", "stepOrder": 2 },
+        { "name": "L'Abyssal Révélé", "zone": "Sufokia", "type": "QUEST", "stepOrder": 3, "isLast": true }
+      ]
+    }
+  }
+}

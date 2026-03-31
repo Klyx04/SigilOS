@@ -1,0 +1,37 @@
+{
+  "slug": "vulbis",
+  "displayName": "Dofus Vulbis",
+  "color": "#9B59B6",
+  "dofusItemId": 7849,
+  "successName": "N/A",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série des quêtes du Dofus Vulbis.",
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "Monde de Douze / Xélorium",
+      "description": "Prérequis pour lancer la première quête du Dofus Vulbis. Nécessite aussi : être Alchimiste ou Paysan niveau 200, avoir accès à Songes Infinis Paradoxe I+, aller en Xélorium.",
+      "isPrerequisite": true,
+      "quests": [
+        "Ce sera mieux avant",
+        "Le sens du sacrifice",
+        "Le dragon des forêts"
+      ]
+    },
+    {
+      "name": "Les quêtes du Dofus Vulbis",
+      "zone": "Xélorium / Songes Infinis",
+      "description": "La série de 6 quêtes pour obtenir le Dofus Vulbis. Nécessite des combats solo, des drops rares (Quisnoa, Salikrone, Galet Solaire) et des passages en Xélorium.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "quests": [
+        "Amaknanomalie",
+        "La mère des Dragoeufs",
+        "Cauchemar infini",
+        "La Nuit-qui-rugit",
+        "Les raisons de la colère",
+        "Le temps des secrets"
+      ]
+    }
+  ]
+}

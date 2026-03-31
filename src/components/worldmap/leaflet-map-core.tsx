@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus, Minus, Copy } from 'lucide-react';
+import { Plus, Minus, Copy, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 
 // -------------------------------------------------------------------------------------
@@ -398,6 +398,17 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
             const gy = Math.floor((-e.latlng.lat - world.origineY) / world.mapHeight);
             const key = `${gx},${gy}`;
             const mapData = mapsByCoords?.get(key);
+            
+            // ── HOVER SECU: No highlight in void if playing in Mini-Jeux ──
+            if (isMiniMap && !mapData) {
+                if (hoveredCellRef.current !== null) {
+                    hoveredCellRef.current = null;
+                    hoveredSubAreaIdRef.current = null;
+                    drawGrid();
+                }
+                return;
+            }
+
             const subAreaId = mapData ? mapData.subAreaId : null;
 
             if (key !== hoveredCellRef.current || subAreaId !== hoveredSubAreaIdRef.current) {
@@ -425,6 +436,32 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, showDebugG
     return null;
 }
 
+function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWorldId }: any) {
+    const map = useMap();
+    if (!triggerCoords || !activeWorld) return null;
+    
+    // Only show pulse if we are on the correct world for this trigger
+    if (triggerWorldId !== undefined && triggerWorldId !== currentWorldId) return null;
+
+    const lat = -(activeWorld.origineY + triggerCoords.y * activeWorld.mapHeight + activeWorld.mapHeight / 2);
+    const lng = activeWorld.origineX + triggerCoords.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+
+    const icon = L.divIcon({
+        className: 'gps-pulse-marker',
+        html: `
+            <div class="relative flex items-center justify-center w-12 h-12">
+                <div class="absolute w-12 h-12 bg-emerald-500/40 rounded-full gps-pulse-outer"></div>
+                <div class="absolute w-8 h-8 bg-emerald-500/60 rounded-full animate-pulse blur-sm"></div>
+                <div class="relative w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white shadow-[0_0_15px_rgba(52,211,153,1)]"></div>
+            </div>
+        `,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
+    });
+
+    return <Marker position={[lat, lng]} icon={icon} interactive={false} />;
+}
+
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
@@ -437,8 +474,13 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
     }, [map]);
 
     // Recenter map automatically when the active world changes
+    // BUT only if we don't have a specific quest/trigger position to focus on
     useEffect(() => {
-        if (activeWorld && map) {
+        if (activeWorld && map && !participants) { 
+            // If we have a triggerCenterPosition pending, we let that handler or initial mount take care of it
+            const hasTrigger = (map as any)._hasTriggeredOnce;
+            if (hasTrigger) return;
+
             const world = activeWorld;
             const targetLat = -(world.totalHeight / 2);
             const targetLng = world.totalWidth / 2;
@@ -446,7 +488,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
             // SetView is immediate which feels better when switching worlds than flyTo
             map.setView([targetLat, targetLng], isMiniMap ? -3 : 0, { animate: false });
         }
-    }, [activeWorld, map, isMiniMap]);
+    }, [activeWorld, map, isMiniMap, participants]);
 
     // Manual Zoom Control for MiniMap
     useEffect(() => {
@@ -560,6 +602,16 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const gameX = Math.floor((mapX - world.origineX) / world.mapWidth);
             const gameY = Math.floor((mapY - world.origineY) / world.mapHeight);
             const foundMap = mapsByCoords.get(`${gameX},${gameY}`);
+            
+            // ── SECU: Block click if "Hors Map" in Mini-Jeux Mode ──
+            if (isMiniMap && !foundMap) {
+                toast.error("Position hors carte — Veuillez viser une zone valide du monde !", {
+                    id: "geoguesser-void-click",
+                    duration: 2000,
+                    icon: <Flag className="w-4 h-4 text-rose-500" />
+                });
+                return;
+            }
 
             setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
 
@@ -666,6 +718,7 @@ interface LeafletMapCoreProps {
     setSelectedPosition: (pos: any) => void;
     setSelectedDungeon: (dungeons: any[] | null) => void;
     triggerCenterPosition?: { x: number, y: number } | null;
+    triggerWorldId?: number;
     isMiniMap?: boolean;
     guessResult?: { target: any, guess: any } | null;
     mapsBySubAreaId?: Map<number, any[]>;
@@ -682,7 +735,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         activeWorld, selectedWorldId, activeMaps, mapsByCoords, subAreasById,
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
-        isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
+        triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true
     } = props;
 
@@ -710,6 +763,21 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
     // Dimension des tuiles du monde en cours pour combler parfaitement les trous
     const tileSize = selectedWorldId === 1 ? 256 : 250;
 
+    // Calculate initial center: quest target if exists, else world center
+    const initialCenter = useMemo(() => {
+        if (triggerCenterPosition && correctedActiveWorld) {
+            const lat = -(correctedActiveWorld.origineY + triggerCenterPosition.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2);
+            const lng = correctedActiveWorld.origineX + triggerCenterPosition.x * correctedActiveWorld.mapWidth + correctedActiveWorld.mapWidth / 2;
+            return [lat, lng] as [number, number];
+        }
+        return [-correctedActiveWorld.totalHeight / 2, correctedActiveWorld.totalWidth / 2] as [number, number];
+    }, [triggerCenterPosition, correctedActiveWorld]);
+
+    const initialZoom = useMemo(() => {
+        if (triggerCenterPosition) return 0; // Standard for quest focus
+        return isMiniMap ? -3 : 0;
+    }, [triggerCenterPosition, isMiniMap]);
+
     return (
         <div className="w-full h-full cursor-crosshair">
             <style>{`
@@ -717,10 +785,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                    Force la taille exacte des tuiles du monde ciblé + 1 pixel
                    pour un recouvrement garanti qui annule les lignes blanches */
                 .leaflet-tile {
-                    width: ${tileSize + 1}px !important;
-                    height: ${tileSize + 1}px !important;
-                    margin-right: -1px;
-                    margin-bottom: -1px;
+                    width: ${tileSize}px !important;
+                    height: ${tileSize}px !important;
                     -webkit-backface-visibility: hidden;
                     backface-visibility: hidden;
                     image-rendering: auto;
@@ -728,9 +794,6 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     outline: none !important;
                     border: none !important;
                     box-shadow: none !important;
-                    /* Fix flickering (lignes blanches) spécifique Chromium/WebKit */
-                    margin: -1px !important;
-                    padding: 1px !important;
                 }
                 .leaflet-container {
                     background: #080b12 !important;
@@ -754,13 +817,31 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 .leaflet-tooltip-left::before, .leaflet-tooltip-right::before { display: none; }
                 .dungeon-icon-marker { background: none; border: none; }
                 .sigil-grid-canvas { pointer-events: none; }
+                
+                /* ── GPS Pulse Animation ── */
+                @keyframes gps-ping {
+                    0% { transform: scale(1); opacity: 0.8; }
+                    100% { transform: scale(2.5); opacity: 0; }
+                }
+                .gps-pulse-outer {
+                    animation: gps-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+                }
+                .gps-pulse-marker {
+                    background: none !important;
+                    border: none !important;
+                }
+                
+                /* Animation zoom fluide */
+                .leaflet-zoom-animated {
+                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                }
             `}</style>
 
             <MapContainer
-                key={`${selectedWorldId}-${isMiniMap}`}
+                key={`${selectedWorldId}-${isMiniMap}-${triggerCenterPosition?.x}-${triggerCenterPosition?.y}`}
                 crs={sigilCRS}
-                center={[-correctedActiveWorld.totalHeight / 2, correctedActiveWorld.totalWidth / 2]}
-                zoom={isMiniMap ? -3 : 0}
+                center={initialCenter}
+                zoom={initialZoom}
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 zoomControl={false}
                 attributionControl={false}
@@ -813,6 +894,14 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     isSpectator={isSpectator}
                     hideUI={hideUI}
                     interactive={interactive}
+                />
+
+                {/* 5. GPS Narrative Pulse (Highlight for quests) */}
+                <MapNarrativeGPS 
+                    activeWorld={correctedActiveWorld} 
+                    triggerCoords={triggerCenterPosition} 
+                    triggerWorldId={triggerWorldId}
+                    currentWorldId={selectedWorldId}
                 />
 
                 {/* 5. Highlight overlay (click selection) */}

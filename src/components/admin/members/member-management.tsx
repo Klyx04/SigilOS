@@ -21,7 +21,8 @@ import {
     ChevronRight,
     ArrowUpRight,
     Trophy,
-    ArrowUpDown
+    ArrowUpDown,
+    Bell
 } from "lucide-react";
 import { 
     Card, 
@@ -73,6 +74,7 @@ import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
+import { RelanceClient } from "@/components/admin/relance/relance-client";
 
 interface Member {
     id: string;
@@ -106,6 +108,11 @@ interface MemberManagementProps {
     };
     welcomeBadgeName: string;
     isSuperAdmin: boolean;
+    channels: any[];
+    roles: any[];
+    initialHistory: any[];
+    canManageMembers: boolean;
+    canManageRelance: boolean;
 }
 
 export default function MemberManagement({ 
@@ -113,11 +120,19 @@ export default function MemberManagement({
     initialStats, 
     initialMembers, 
     welcomeBadgeName, 
-    isSuperAdmin 
+    isSuperAdmin,
+    channels,
+    roles,
+    initialHistory,
+    canManageMembers,
+    canManageRelance
 }: MemberManagementProps) {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState("audit");
+    const [activeTab, setActiveTab] = useState(() => {
+        if (!canManageMembers && canManageRelance) return "relances";
+        return "audit";
+    });
     const [data, setData] = useState<{
         members: MemberReconciliationData[];
         stats: RoleStats[];
@@ -269,63 +284,81 @@ export default function MemberManagement({
             </div>
 
             {/* Unified Summary Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, color: "blue" },
-                    { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${data ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
-                    { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, color: "amber" },
-                    { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, color: "purple" }
-                ].map((stat, i) => (
-                    <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
-                        <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-500/10 blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
-                        <CardHeader className="pb-3">
-                            <CardDescription className={`flex items-center gap-2 text-${stat.color}-400 font-bold uppercase text-[10px] tracking-[0.2em]`}>
-                                <stat.icon className="w-3 h-3" />
-                                {stat.label}
-                            </CardDescription>
-                            <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {stat.progress ? (
-                                <div className="space-y-1.5">
-                                    <Progress 
-                                        value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
-                                        className="h-1.5 bg-white/5"
-                                        indicatorClassName={`bg-${stat.color}-500`}
-                                    />
-                                    <p className={`text-[10px] text-${stat.color}-500/70 font-black uppercase tracking-widest`}>{stat.sub}</p>
-                                </div>
-                            ) : (
-                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+            {canManageMembers && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                        { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, color: "blue" },
+                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${data ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
+                        { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, color: "amber" },
+                        { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, color: "purple" }
+                    ].map((stat, i) => (
+                        <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
+                            <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-500/10 blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
+                            <CardHeader className="pb-3">
+                                <CardDescription className={`flex items-center gap-2 text-${stat.color}-400 font-bold uppercase text-[10px] tracking-[0.2em]`}>
+                                    <stat.icon className="w-3 h-3" />
+                                    {stat.label}
+                                </CardDescription>
+                                <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {stat.progress ? (
+                                    <div className="space-y-1.5">
+                                        <Progress 
+                                            value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
+                                            className="h-1.5 bg-white/5"
+                                            indicatorClassName={`bg-${stat.color}-500`}
+                                        />
+                                        <p className={`text-[10px] text-${stat.color}-500/70 font-black uppercase tracking-widest`}>{stat.sub}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl w-fit">
                     {[
-                        { id: "audit", label: "Audit Complet", icon: ShieldCheck },
-                        { id: "stats", label: "Stats par Rôle", icon: LayoutGrid },
-                        { id: "management", label: "Liste Profils", icon: UserCircle },
-                        { id: "sync", label: "Outils & Sync", icon: Settings2 },
-                    ].map(tab => (
-                        <TabsTrigger 
-                            key={tab.id}
-                            value={tab.id} 
-                            className="rounded-[16px] px-6 py-2.5 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/20 data-[state=active]:border-t data-[state=active]:border-white/20 transition-all text-[11px] font-black uppercase tracking-[0.15em] gap-2.5"
-                        >
-                            <tab.icon className="w-4 h-4" />
-                            {tab.label}
-                        </TabsTrigger>
-                    ))}
+                        { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
+                        { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
+                        { id: "relances", label: "Relances Discord", icon: Bell, requiresFull: false },
+                    ].map(tab => {
+                        const isDisabled = tab.requiresFull && !canManageMembers;
+                        
+                        return (
+                            <TooltipProvider key={tab.id}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                            <TabsTrigger 
+                                                value={tab.id} 
+                                                disabled={isDisabled}
+                                                className={`rounded-[16px] px-6 py-2.5 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/20 data-[state=active]:border-t data-[state=active]:border-white/20 transition-all text-[11px] font-black uppercase tracking-[0.15em] gap-2.5 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
+                                            >
+                                                {isDisabled ? <ShieldAlert className="w-4 h-4 text-zinc-500" /> : <tab.icon className="w-4 h-4" />}
+                                                {tab.label}
+                                            </TabsTrigger>
+                                        </div>
+                                    </TooltipTrigger>
+                                    {isDisabled && (
+                                        <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-black uppercase tracking-widest text-amber-500">
+                                            Permission &quot;Gestion des Membres&quot; requise
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+                        );
+                    })}
                 </TabsList>
 
                 {/* --- TAB 1: AUDIT --- */}
-                <TabsContent value="audit" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                        <div className="xl:col-span-3 space-y-4">
+                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-8">
+                        <div className="space-y-4">
                             {/* Filter Bar */}
                             <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-xl">
                                 <div className="relative flex-1 group">
@@ -536,8 +569,29 @@ export default function MemberManagement({
                             </div>
                         </div>
 
-                        {/* Sidebar Stats */}
-                        <div className="space-y-6">
+                        {/* Bottom Utility Cards */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Embedded Sync Card */}
+                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-indigo-500/20 rounded-[32px] overflow-hidden shadow-2xl relative group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <CardHeader className="bg-white/[0.03] py-5 border-b border-indigo-500/10 px-6 relative z-10">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center">
+                                            <RefreshCw className="w-4 h-4 text-indigo-400" />
+                                        </div>
+                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Outils & Sync</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-4 relative z-10">
+                                    <MemberSyncButton guildId={guildId} />
+                                    <DailyReportButton guildId={guildId} />
+                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                        <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
+                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">QUOTIDIEN 04:00 AM</Badge>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
                             <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
                                 <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
                                     <div className="flex items-center gap-2">
@@ -560,7 +614,7 @@ export default function MemberManagement({
                                             return (
                                                 <div key={s.roleId} className="space-y-3 group/role cursor-default">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2 max-w-[140px]">
+                                                        <div className="flex items-center gap-2 max-w-[200px]">
                                                             <div 
                                                                 className="w-1.5 h-1.5 rounded-full shrink-0 shadow-lg"
                                                                 style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
@@ -602,10 +656,10 @@ export default function MemberManagement({
                                     </div>
                                     <p className="text-[11px] leading-relaxed text-zinc-400 font-medium italic">
                                         Cet outil croise la liste des membres Discord avec les profils SigilOS. 
-                                        <span className="text-violet-400 font-bold block mt-2 underline decoration-violet-400/30">Seuls les membres possédant un rôle autorisé à se connecter au Dashboard sont inclus dans cet audit.</span>
+                                        <span className="text-violet-400 font-bold block mt-2 underline decoration-violet-400/30">Seuls les membres possédant un rôle autorisé sont inclus.</span>
                                     </p>
                                     <Button variant="ghost" className="w-full h-11 bg-white/5 group-hover:bg-violet-600 transition-all rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-white mt-4 border border-white/5">
-                                        Documentation Audit
+                                        Documentation
                                     </Button>
                                 </div>
                             </div>
@@ -613,47 +667,8 @@ export default function MemberManagement({
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 2: STATS --- */}
-                <TabsContent value="stats" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {data?.stats.map(s => {
-                            const percent = s.totalDiscord > 0 ? (s.totalDashboard / s.totalDiscord) * 100 : 0;
-                            return (
-                                <Card key={s.roleId} className="bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[32px] p-6 group hover:border-violet-500/30 transition-all">
-                                    <div className="flex items-start justify-between mb-6">
-                                        <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
-                                            <Trophy className="w-5 h-5" style={{ color: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : undefined }} />
-                                        </div>
-                                        <Badge variant="outline" className="font-black italic px-3 rounded-lg border-white/5 bg-black/40 text-zinc-400">
-                                            {percent.toFixed(0)}% ACTIFS
-                                        </Badge>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <h4 className="text-lg font-black text-white italic uppercase tracking-tight truncate">{s.roleName}</h4>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mt-1">Audit de couverture Grade</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600 block">Discord</span>
-                                                <span className="text-xl font-black text-zinc-200">{s.totalDiscord}</span>
-                                            </div>
-                                            <div className="p-4 rounded-2xl bg-violet-600/10 border border-violet-500/10 space-y-1">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-violet-500/70 block">SigilOS</span>
-                                                <span className="text-xl font-black text-violet-400">{s.totalDashboard}</span>
-                                            </div>
-                                        </div>
-                                        <Progress value={percent} className="h-2 bg-black/40 border border-white/5" />
-                                    </div>
-                                </Card>
-                            );
-                        })}
-                        
-                    </div>
-                </TabsContent>
-
-                {/* --- TAB 3: MANAGEMENT --- */}
-                <TabsContent value="management" className="space-y-6">
+                {/* --- TAB 2: MANAGEMENT --- */}
+                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <MemberStatsOverview stats={initialStats} />
                     <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
@@ -666,30 +681,16 @@ export default function MemberManagement({
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 4: SYNC --- */}
-                <TabsContent value="sync" className="space-y-6">
-                        <Card className="max-w-2xl bg-zinc-900/60 border-white/5 rounded-3xl overflow-hidden relative group p-8 space-y-6 backdrop-blur-xl shadow-2xl">
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="p-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/30">
-                                    <RefreshCw className="w-6 h-6 text-indigo-400" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black text-white italic uppercase">Synchronisation Manuelle</h3>
-                                    <p className="text-zinc-500 text-sm font-medium">Rafraîchir les statuts à partir de la présence Discord.</p>
-                                </div>
-                            </div>
-                            <div className="p-6 rounded-2xl bg-black/40 border border-white/5 relative z-10 space-y-6 box-shadow-inner">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <MemberSyncButton guildId={guildId} />
-                                    <DailyReportButton guildId={guildId} />
-                                </div>
-                                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                    <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
-                                    <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">QUOTIDIEN 04:00 AM</Badge>
-                                </div>
-                            </div>
-                        </Card>
+                {/* --- TAB 3: RELANCES --- */}
+                <TabsContent value="relances" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
+                        <RelanceClient 
+                            guildId={guildId}
+                            channels={channels}
+                            roles={roles}
+                            initialHistory={initialHistory}
+                        />
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

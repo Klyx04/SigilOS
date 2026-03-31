@@ -80,7 +80,7 @@ export async function globalSearch(query: string, guildId: string): Promise<Sear
         { title: "Missions", href: `/dashboard/${guildId}/missions`, perm: ctx.canViewMissions },
         { title: "Ladder", href: `/dashboard/${guildId}/ladder`, perm: ctx.canViewLadder },
         { title: "Songes", href: `/dashboard/${guildId}/songes`, perm: ctx.canViewSonges },
-        { title: "Ocre", href: `/dashboard/${guildId}/quete-ocre`, perm: ctx.canViewArchis },
+        { title: "Ocre", href: `/dashboard/${guildId}/quete-ocre`, perm: ctx.canViewOcre },
         { title: "Profil", href: `/dashboard/${guildId}/profile`, perm: ctx.canViewProfile },
         { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, perm: ctx.canValidateMissions },
         { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, perm: ctx.isAdmin },

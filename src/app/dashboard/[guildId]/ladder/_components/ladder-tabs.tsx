@@ -50,7 +50,7 @@ export function LadderTabs({ guildId }: Props) {
             }
 
             if (result.success && result.data) {
-                setLadder(result.data);
+                setLadder(result.data.entries);
             } else {
                 setLadder([]);
             }

@@ -4,7 +4,7 @@
  */
 
 type AuditAction =
-    | 'ADMIN_ACCESS'
+    | 'ADMIN_FULL'
     | 'GAME_DATA_VIEW'
     | 'GAME_DATA_CREATE'
     | 'GAME_DATA_UPDATE'
@@ -56,7 +56,7 @@ export function logPageAccess(params: {
     auditLog({
         userId: params.userId,
         userName: params.userName,
-        action: 'ADMIN_ACCESS',
+        action: 'ADMIN_FULL',
         resource: params.page,
         details: params.details,
     });

@@ -163,7 +163,7 @@ export async function createWeekMissions(
     const data = validation.data;
 
     // 2. Auth & Permission
-    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) {
         logger.error("createWeekMissions - Permission denied", { error: guard.error, guildId: data.guildId, userId: session?.user?.id });
         return { success: false, error: guard.error };
@@ -295,7 +295,7 @@ export async function updateWeekTier(
     tier: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -352,7 +352,7 @@ export async function resetMission(
     slotIndex: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -399,7 +399,7 @@ export async function resetWeek(
 ): Promise<ActionResponse> {
     const session = await auth();
 
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) {
         logger.error("ResetWeek - Permission denied", { error: guard.error, guildId });
         return { success: false, error: guard.error };
@@ -1451,7 +1451,7 @@ export async function publishMissionsToDiscord(
 ): Promise<ActionResponse> {
     const session = await auth();
     // Security check: Must have permission to manage missions
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -1575,7 +1575,7 @@ export async function setGuildMissionXpOverride(
     if (!parsed.success) return { success: false, error: "Donnees invalides" };
     const { guildId, xpOverride } = parsed.data;
 
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const limiter = await rateLimit(`xp_override:${session.user.id}:${guildId}`, 10, 60 * 1000);

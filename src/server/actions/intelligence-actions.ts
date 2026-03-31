@@ -28,7 +28,7 @@ export async function getDashboardFocus(
 
     try {
         // 1. Check Ocre Progress (Use prefetched data if available to save DB connections)
-        if (user.canViewArchis) {
+        if (user.canViewOcre) {
             let ocreData = prefetchedOcre;
             
             if (!ocreData) {

@@ -303,7 +303,7 @@ export async function linkOcreAccount(
 
             if (force) {
                 // Check if user is Admin
-                const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+                const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
                 if (guard.allowed) {
                     canOverwrite = true;
                     // Detach the previous owner
@@ -483,7 +483,7 @@ export async function getMyOcreProgress(
         const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
         if (!rateCheck.success) return { success: false, error: "Trop de requÃªtes." };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         // Use Prisma ORM — $queryRawUnsafe is forbidden by project rules
@@ -682,7 +682,7 @@ export async function findOcreExchangePartners(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) {
             return { success: false, error: "AccÃ¨s non autorisÃ©" };
         }
@@ -768,7 +768,7 @@ export async function findMonsterOwnersAction(
         if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
         const { guildId, monsterId } = parsed.data;
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         const guildApiKey = undefined; // Deprecated guild key
@@ -882,7 +882,7 @@ export async function getProfileMatchingArchis(
         if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
         const { guildId, targetProfileId } = parsed.data;
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         // 1. Get Me and Target (scoped to this guild to prevent cross-guild probing)
@@ -995,7 +995,7 @@ export async function getGuildExchangeMap(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) {
             return { success: true, data: { availableExchanges: {}, totalMonstersAvailable: 0 } };
         }
@@ -1195,7 +1195,7 @@ export async function getOcreZones(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ARCHIS_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
         if (!guard.allowed) return { success: true, data: [] }; // Silent fail for common data
 
         const guildApiKey = undefined;
@@ -1542,7 +1542,7 @@ export async function adminForceUnlink(
         const { guildId, targetPseudo } = parsed.data;
 
         // Security check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         // Find the user holding this pseudo
@@ -1596,7 +1596,7 @@ export async function searchMetamobPseudos(
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         if (query.length < 2) return { success: true, data: [] };

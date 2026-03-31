@@ -23,7 +23,7 @@ export default async function ArchimonstresPage({
 
     // RBAC: Check permission to view Archis
     const user = await getUserContext(guildId);
-    if (!user.canViewArchis) {
+    if (!user.canViewOcre) {
         return <AccessDenied />;
     }
 

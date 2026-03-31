@@ -118,13 +118,13 @@ describe('getContributionLadder', () => {
         const result = await getContributionLadder(mockGuildId);
 
         expect(result.success).toBe(true);
-        expect(result.data).toHaveLength(2);
-        expect(result.data![0].rank).toBe(1);
-        expect(result.data![0].value).toBe(100);
-        expect(result.data![0].discordNickname).toBe('Alice');
-        expect(result.data![1].rank).toBe(2);
-        expect(result.data![1].value).toBe(50);
-        expect(result.data![1].discordNickname).toBe('Bob');
+        expect(result.data!.entries).toHaveLength(2);
+        expect(result.data!.entries[0].rank).toBe(1);
+        expect(result.data!.entries[0].value).toBe(100);
+        expect(result.data!.entries[0].discordNickname).toBe('Alice');
+        expect(result.data!.entries[1].rank).toBe(2);
+        expect(result.data!.entries[1].value).toBe(50);
+        expect(result.data!.entries[1].discordNickname).toBe('Bob');
     });
 
     it('should apply tie-breaker correctly (older member wins)', async () => {
@@ -169,8 +169,8 @@ describe('getContributionLadder', () => {
         const result = await getContributionLadder(mockGuildId);
 
         expect(result.success).toBe(true);
-        expect(result.data![0].discordNickname).toBe('OlderMember');
-        expect(result.data![1].discordNickname).toBe('NewerMember');
+        expect(result.data!.entries[0].discordNickname).toBe('OlderMember');
+        expect(result.data!.entries[1].discordNickname).toBe('NewerMember');
     });
 
     it('should filter only ACTIVE profiles', async () => {
@@ -257,7 +257,7 @@ describe('getContributionLadder', () => {
 
         const result = await getContributionLadder(mockGuildId);
 
-        expect(result.data![0].isCurrentUser).toBe(true);
-        expect(result.data![1].isCurrentUser).toBe(false);
+        expect(result.data!.entries[0].isCurrentUser).toBe(true);
+        expect(result.data!.entries[1].isCurrentUser).toBe(false);
     });
 });

@@ -133,20 +133,20 @@ export async function sendGlobalStatusPing(isTestRequest = false, mode?: 'living
             }
         }
 
-        if (!finalMessageId) {
-            return { success: false, error: "Impossible de communiquer avec Discord." };
-        }
-
         return { 
             success: true, 
             action: actionTaken,
             messageId: finalMessageId,
-            stats: { systemStatus, dbLatency, redisLatency }
+            stats: { 
+                systemStatus, 
+                dbLatency, 
+                redisLatency,
+                channelId
+            }
         };
 
     } catch (error: any) {
-        console.error("[Status Action] Error:", error);
-        return { success: false, error: error.message || "Erreur interne lors du ping système" };
+        console.error("[Status Action] Critical Failure:", error);
+        return { success: false, error: error.message || "Erreur de connexion Discord (vérifiez l'ID du salon)" };
     }
 }
-

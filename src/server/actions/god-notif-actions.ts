@@ -45,23 +45,27 @@ export async function notifyGod(params: {
             const embedColor = success ? (type === "SYSTEM" ? 0x3b82f6 : 0x10b981) : 0xef4444;
             const emoji = success ? "✅" : "❌";
 
-            await sendChannelMessage(
-                (platformConfig as any).godNotifyChannelId,
-                mention,
-                {
-                    embedTitle: `${emoji} ${title}`,
-                    embedDescription: message,
-                    embedColor,
-                    embedFooter: `SigilOS Alert System • ${type}`,
-                    // embedTimestamp is handled by standard Discord embed time when sent
-                    fields: metadata && typeof metadata === 'object' ? 
-                        Object.entries(metadata).slice(0, 5).map(([k, v]) => ({
-                            name: k,
-                            value: String(v),
-                            inline: true
-                        })) : undefined
-                }
-            );
+            try {
+                await sendChannelMessage(
+                    (platformConfig as any).godNotifyChannelId,
+                    mention,
+                    {
+                        embedTitle: `${emoji} ${title}`,
+                        embedDescription: message,
+                        embedColor,
+                        embedFooter: `SigilOS Alert System • ${type}`,
+                        fields: metadata && typeof metadata === 'object' ? 
+                            Object.entries(metadata).slice(0, 5).map(([k, v]) => ({
+                                name: k,
+                                value: String(v),
+                                inline: true
+                            })) : undefined
+                    }
+                );
+            } catch (discordErr: any) {
+                console.error("[GodNotify] Discord dispatch failed:", discordErr.message);
+                // We still want to return success for the DB part, but log the Discord fail
+            }
         }
 
         return { success: true };

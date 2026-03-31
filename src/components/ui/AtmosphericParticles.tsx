@@ -20,16 +20,19 @@ export const AtmosphericParticles = () => {
   useEffect(() => {
     // Generate random values once on mount to avoid impure renders
     setParticles(
-      Array.from({ length: 15 }, (_, i) => ({
-        id: i,
-        width: Math.random() * 200 + 100,
-        height: Math.random() * 200 + 100,
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animateX: Math.random() * 400 - 200,
-        animateY: Math.random() * 400 - 200,
-        duration: Math.random() * 20 + 10,
-      }))
+      Array.from({ length: 40 }, (_, i) => {
+        const size = Math.random() * 4 + 2; // 2px to 6px
+        return {
+          id: i,
+          width: size,
+          height: size,
+          left: `${Math.random() * 100}%`,
+          top: `${Math.random() * 100}%`,
+          animateX: Math.random() * 100 - 50,
+          animateY: Math.random() * -200 - 100, // Float upwards
+          duration: Math.random() * 10 + 15,
+        };
+      })
     );
   }, []);
 
@@ -40,7 +43,7 @@ export const AtmosphericParticles = () => {
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          className="absolute rounded-full bg-white/5 blur-xl"
+          className="absolute rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(165,180,252,0.8)]"
           style={{
             width: p.width,
             height: p.height,
@@ -48,10 +51,10 @@ export const AtmosphericParticles = () => {
             top: p.top,
           }}
           animate={{
-            x: [0, p.animateX],
-            y: [0, p.animateY],
-            scale: [1, 1.2, 1],
-            opacity: [0.03, 0.08, 0.03],
+            x: [0, p.animateX / 2, p.animateX],
+            y: [0, p.animateY / 2, p.animateY],
+            scale: [0.5, 1.2, 0.5],
+            opacity: [0, 0.6, 0],
           }}
           transition={{
             duration: p.duration,

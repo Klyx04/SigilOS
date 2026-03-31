@@ -1,0 +1,186 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Crown, Gem, Lock } from "lucide-react";
+import { DofusProgressRing } from "./DofusProgressRing";
+import { DofusIcon } from "./DofusIcon";
+import { toggleDofusObtained } from "@/server/actions/dofus-quest-actions";
+import type { DofusItemWithProgress } from "@/server/actions/dofus-quest-actions";
+
+interface DofusGemCardProps {
+    dofus: DofusItemWithProgress;
+    guildId: string;
+}
+
+export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
+    const [isObtained, setIsObtained] = useState(dofus.isObtained);
+    const [isPending, startTransition] = useTransition();
+
+    const color = dofus.color || "#6366f1";
+    const hasChain = dofus.totalQuests > 0;
+    const isLocked = !hasChain; // No quest data yet
+
+    const rarityLabel = {
+        PRIMORDIAL: "Primordial",
+        MAJEUR: "Majeur",
+        MINEUR: "Mineur",
+    }[dofus.rarity] || dofus.rarity;
+
+    function handleToggleObtained(e: React.MouseEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isPending || isLocked) return;
+
+        const newVal = !isObtained;
+        setIsObtained(newVal);
+        startTransition(async () => {
+            await toggleDofusObtained(guildId, dofus.id, newVal);
+        });
+    }
+
+    return (
+        <Link
+            href={dofus.slug === "ocre" ? `/dashboard/${guildId}/quete-ocre` : `/dashboard/${guildId}/quetes-dofus/${dofus.slug}`}
+            className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
+            style={{
+                background: `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)`,
+                border: `1px solid ${isObtained ? color + "66" : "rgba(255,255,255,0.08)"}`,
+                boxShadow: isObtained
+                    ? `0 0 20px ${color}22, 0 4px 24px rgba(0,0,0,0.4)`
+                    : `0 4px 24px rgba(0,0,0,0.3)`,
+            }}
+        >
+            {/* Glow overlay on hover */}
+            <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+                style={{
+                    background: `radial-gradient(ellipse at 50% 0%, ${color}18 0%, transparent 70%)`,
+                }}
+            />
+
+            {/* Rarity badge */}
+            <div className="absolute top-3 left-3 z-10">
+                <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                        background: `${color}22`,
+                        color,
+                        border: `1px solid ${color}44`,
+                    }}
+                >
+                    {dofus.isPrimordial && <Crown className="w-2.5 h-2.5" />}
+                    {rarityLabel}
+                </span>
+            </div>
+
+            {/* Obtained toggle button */}
+            <button
+                onClick={handleToggleObtained}
+                disabled={isPending || isLocked}
+                className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                style={{
+                    background: isObtained ? color : "rgba(255,255,255,0.08)",
+                    border: `1px solid ${isObtained ? color : "rgba(255,255,255,0.15)"}`,
+                    boxShadow: isObtained ? `0 0 10px ${color}66` : "none",
+                }}
+                title={isObtained ? "Marquer comme non obtenu" : "Marquer comme obtenu"}
+                aria-label={isObtained ? "Dofus obtenu — cliquer pour annuler" : "Marquer comme obtenu"}
+            >
+                {isObtained ? (
+                    <span className="text-sm text-black font-bold">✓</span>
+                ) : (
+                    <span className="text-sm text-white/40">○</span>
+                )}
+            </button>
+
+            {/* Image + Ring */}
+            <div className="flex flex-col items-center pt-10 pb-4 px-4">
+                <div className="relative">
+                    <DofusProgressRing
+                        percent={dofus.progressPercent}
+                        size={90}
+                        strokeWidth={5}
+                        color={color}
+                        isObtained={isObtained}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div
+                            className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110"
+                            style={{
+                                width: "auto",
+                                height: "auto",
+                            }}
+                        >
+                            {dofus.nameShort ? (
+                                <DofusIcon
+                                    name={dofus.nameShort}
+                                    size={64}
+                                    color={color}
+                                    isObtained={isObtained}
+                                />
+                            ) : (
+                                <Gem className="w-8 h-8 opacity-40" style={{ color }} />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Info */}
+            <div className="flex flex-col px-4 pb-4 gap-1">
+                <h3
+                    className="text-sm font-bold text-center leading-tight"
+                    style={{ color: isObtained ? color : "white" }}
+                >
+                    {dofus.nameShort}
+                </h3>
+
+                {hasChain ? (
+                    <div className="flex items-center justify-center gap-1.5 mt-1">
+                        <div
+                            className="flex-1 h-1 rounded-full overflow-hidden"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                        >
+                            <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                    width: `${dofus.progressPercent}%`,
+                                    background: isObtained
+                                        ? `linear-gradient(90deg, ${color}, #fbbf24)`
+                                        : color,
+                                }}
+                            />
+                        </div>
+                        <span className="text-[10px] tabular-nums text-white/40 whitespace-nowrap">
+                            {dofus.completedQuests}/{dofus.totalQuests}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                        <Lock className="w-3 h-3 text-white/25" />
+                        <span className="text-[10px] text-white/25">Guide à venir</span>
+                    </div>
+                )}
+
+                {dofus.levelRecommended > 0 && (
+                    <p className="text-[10px] text-white/30 text-center mt-0.5">
+                        Niveau {dofus.levelRecommended}+
+                    </p>
+                )}
+            </div>
+
+            {/* Bottom accent line */}
+            <div
+                className="h-0.5 w-full transition-all duration-300"
+                style={{
+                    background: isObtained
+                        ? `linear-gradient(90deg, transparent, ${color}, transparent)`
+                        : `linear-gradient(90deg, transparent, ${color}44, transparent)`,
+                    opacity: isObtained ? 1 : 0.5,
+                }}
+            />
+        </Link>
+    );
+}

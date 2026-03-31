@@ -37,7 +37,7 @@ const RelanceSchema = z.object({
  */
 export async function getRelanceCandidates(
     guildId: string, 
-    criteria: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE",
+    criteria: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE",
     inactiveDays: number = 7
 ): Promise<ActionResponse<any[]>> {
     const user = await getUserContext(guildId);
@@ -46,7 +46,14 @@ export async function getRelanceCandidates(
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            include: { profiles: { where: { status: "ACTIVE" }, include: { user: { include: { accounts: true } } } } }
+            include: { 
+                profiles: { 
+                    where: { status: "ACTIVE" }, 
+                    include: { 
+                        user: { include: { accounts: true } } 
+                    } 
+                } 
+            }
         });
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
@@ -85,6 +92,32 @@ export async function getRelanceCandidates(
         } else if (criteria === "DOFUS_INACTIVE") {
             // Return all active members for manual selection (no filters)
             candidates = guildConfig.profiles;
+        } else if (criteria === "DISCORD_INACTIVE") {
+            // No message AND No voice this week
+            candidates = guildConfig.profiles.filter(p => 
+                (p.discordMessageCountWeekly || 0) === 0 && 
+                (p.discordVoiceTimeWeekly || 0) === 0
+            );
+        } else if (criteria === "GLOBAL_INACTIVE") {
+            // No mission + No dashboard + No discord
+            const { week, year } = getDofusWeek();
+            const threshold = new Date();
+            threshold.setDate(threshold.getDate() - inactiveDays);
+
+            const validatedSubmissions = await db.submission.findMany({
+                where: { mission: { guildId: guildConfig.id, weekNumber: week, year }, status: "VALIDATED" },
+                select: { profileId: true }
+            });
+            const validatedProfileIds = new Set(validatedSubmissions.map(s => s.profileId));
+
+            candidates = guildConfig.profiles.filter(p => {
+                const isNoMission = !validatedProfileIds.has(p.id);
+                const lastSeen = p.lastSeen || p.lastActivityAt || p.updatedAt;
+                const isDashboardInactive = lastSeen < threshold;
+                const isDiscordInactive = (p.discordMessageCountWeekly || 0) === 0 && (p.discordVoiceTimeWeekly || 0) === 0;
+                
+                return isNoMission && isDashboardInactive && isDiscordInactive;
+            });
         }
 
         // Format candidates for UI
@@ -96,6 +129,14 @@ export async function getRelanceCandidates(
                 name: p.pseudoDofus || p.discordNickname || p.user.name || "Inconnu",
                 image: p.user.image,
                 lastSeen: p.lastSeen || p.lastActivityAt || p.updatedAt,
+                discordStats: {
+                    messages: p.discordMessageCountWeekly || 0,
+                    voiceMin: p.discordVoiceTimeWeekly || 0,
+                    lastMessage: p.lastDiscordMessageAt,
+                    lastVoice: p.lastDiscordVoiceAt,
+                    lastReaction: p.lastDiscordReactionAt,
+                    lastTyping: p.lastDiscordTypingAt
+                }
             };
         }).filter(c => !!c.discordId); // Only those with linked Discord
 

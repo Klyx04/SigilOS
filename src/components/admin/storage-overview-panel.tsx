@@ -46,17 +46,17 @@ function PathDisplay({ path, colorClass }: { path: string; colorClass: string })
     
     return (
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2">
-            <span className="text-[10px] font-mono text-zinc-600 shrink-0 font-bold tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded border border-white/5">SigilOS/</span>
+            <span className="text-[10px] font-mono text-zinc-300 shrink-0 font-black tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2.5 py-1 rounded-lg border border-white/10 shadow-sm">SigilOS/</span>
             {segments.map((seg, i) => {
                 const isCuid = seg.length > 20 && /^[a-z0-9]+$/.test(seg);
                 return (
                     <div key={i} className="flex items-center gap-1.5 shrink-0">
-                        {i > 0 && <span className="text-zinc-800 text-xs font-mono font-black">/</span>}
+                        {i > 0 && <span className="text-zinc-700 text-xs font-mono font-black">/</span>}
                         <span 
                             title={seg} 
                             className={cn(
-                                "text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border",
-                                isCuid ? "text-zinc-500 bg-zinc-950/50 border-white/[0.03]" : `${colorClass} bg-zinc-900/50 border-white/[0.05]`
+                                "text-[10px] font-mono font-black px-2.5 py-1.5 rounded-lg border shadow-sm transition-all",
+                                isCuid ? "text-zinc-400 bg-zinc-900 border-white/[0.08]" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
                             )}
                         >
                             {isCuid ? seg.slice(0, 8) + "..." : seg}
@@ -128,14 +128,14 @@ function FileExplorerDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-5xl bg-zinc-950 border-white/5 p-0 overflow-hidden outline-none">
-                <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/50">
+                <DialogHeader className="p-6 border-b border-white/10 bg-zinc-900/80 backdrop-blur-md">
                     <div className="flex items-center gap-4 text-left">
-                        <div className={cn("p-3 rounded-2xl", cfg.bg, cfg.color)}>
+                        <div className={cn("p-3 rounded-2xl shadow-xl", cfg.bg, cfg.color)}>
                             <FolderOpen className="w-6 h-6" />
                         </div>
                         <div>
-                            <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">{label}</DialogTitle>
-                            <p className="text-xs font-medium text-zinc-500">{files.length} fichiers trouvés sur le serveur</p>
+                            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">{label}</DialogTitle>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-widest mt-1 opacity-80">{files.length} fichiers physiques</p>
                         </div>
                     </div>
                 </DialogHeader>
@@ -153,7 +153,7 @@ function FileExplorerDialog({
                                         className="absolute inset-0 z-10" 
                                         onClick={() => setLightbox({ url: f.url, type, label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true })}
                                     />
-                                    <img src={f.url} alt={f.filename} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
+                                    <img src={f.url} alt="" title={f.filename} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
                                     
                                     <div className="absolute top-2 left-2 z-20">
@@ -167,9 +167,9 @@ function FileExplorerDialog({
                                         )}
                                     </div>
 
-                                    <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none">
-                                        <p className="text-[10px] font-mono text-zinc-300 truncate">{f.filename}</p>
-                                        <p className="text-[9px] font-mono text-zinc-500">{formatBytes(f.sizeBytes)}</p>
+                                    <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none drop-shadow-md">
+                                        <p className="text-[10px] font-black text-white truncate uppercase tracking-tighter">{f.filename}</p>
+                                        <p className="text-[9px] font-mono font-black text-zinc-300 opacity-80">{formatBytes(f.sizeBytes)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -208,12 +208,12 @@ function PendingValidationDialog({
                 <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/50">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 text-left">
-                            <div className={cn("p-3 rounded-2xl bg-amber-500/10 text-amber-500")}>
+                            <div className={cn("p-3 rounded-2xl bg-amber-500/10 text-amber-500 shadow-xl")}>
                                 <Clock className="w-6 h-6" />
                             </div>
                             <div>
-                                <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">SALLE D'ATTENTE : {label}</DialogTitle>
-                                <p className="text-xs font-medium text-zinc-500">{files.length} submissions en attente (24h avant auto-suppression record BDD)</p>
+                                <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter leading-none">WAITING ROOM</DialogTitle>
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-2">{label} — {files.length} submissions</p>
                             </div>
                         </div>
                         <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-black px-3 py-1 text-[10px] tracking-widest uppercase">Expiration 24h</Badge>
@@ -233,7 +233,7 @@ function PendingValidationDialog({
                                         className="absolute inset-0 z-10" 
                                         onClick={() => setLightbox({ url: f.url, type: f.type, label: cfg.label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true, expiresAt: f.expiresAt })}
                                     />
-                                    <img src={f.url} alt={f.memberName} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
+                                    <img src={f.url} alt="" title={f.memberName} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
                                     
                                     <div className="absolute top-2 left-2 z-20">
@@ -324,21 +324,21 @@ export function StorageOverviewPanel() {
                             <div className="space-y-1">
                                 <div className="flex items-baseline gap-2">
                                     <p className="text-[40px] font-black text-white tracking-tighter leading-none">{formatBytes(overview?.totalBytes || 0)}</p>
-                                    {diskInfo && <span className="text-[10px] font-black text-zinc-600">/ {diskInfo.totalMb} Mo</span>}
+                                    {diskInfo && <span className="text-[10px] font-black text-zinc-400">/ {diskInfo.totalMb} Mo</span>}
                                 </div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Occupé par SigilOS</p>
+                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em] mt-1 opacity-90">Occupé par SigilOS</p>
                             </div>
 
-                            <div className="pt-6 border-t border-white/5 flex gap-12">
+                            <div className="pt-6 border-t border-white/10 flex gap-12">
                                 <div className="space-y-1">
                                     <p className="text-xl font-black text-white leading-none">{overview?.totalFiles || 0}</p>
-                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1">Fichiers</p>
+                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-1">Fichiers</p>
                                 </div>
                                 <button onClick={() => setOrphansOpen(true)} className="space-y-1 text-left group/btn">
-                                    <p className={cn("text-xl font-black leading-none transition-colors", (overview?.orphanFiles.length || 0) > 0 ? "text-red-500 group-hover/btn:text-red-400" : "text-emerald-500")}>
+                                    <p className={cn("text-2xl font-black leading-none transition-colors", (overview?.orphanFiles.length || 0) > 0 ? "text-rose-500 group-hover/btn:text-rose-400" : "text-emerald-500 font-black")}>
                                         {overview?.orphanFiles.length || 0}
                                     </p>
-                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1 group-hover/btn:text-white transition-colors underline decoration-dotted">Orphelins</p>
+                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-1 group-hover/btn:text-white transition-colors underline decoration-dotted underline-offset-4">Orphelins</p>
                                 </button>
                             </div>
                         </div>
@@ -405,13 +405,13 @@ function GuildCard({ guild, onReload }: { guild: StorageGuildEntry; onReload: ()
                         ) : <Shield className="w-5 h-5 text-zinc-600" />}
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-tight">{guild.name}</h3>
-                        <p className="text-[10px] font-mono text-zinc-500">{guild.discordGuildId}</p>
+                        <h3 className="text-base font-black text-white uppercase tracking-tighter">{guild.name}</h3>
+                        <p className="text-[10px] font-mono font-black text-zinc-400 tracking-tighter opacity-80">{guild.discordGuildId}</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-lg font-black text-white">{formatBytes(subTotal)}</p>
-                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{totalCount} fichiers</p>
+                    <p className="text-2xl font-black text-white tracking-tighter">{formatBytes(subTotal)}</p>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest opacity-90">{totalCount} fichiers</p>
                 </div>
             </div>
 
@@ -542,39 +542,69 @@ function DeleteButton({ fileUrl, dbClear, onDeleted, label = "Supprimer" }: { fi
         setLoading(false);
     };
     return (
-        <button onClick={del} disabled={loading} className="p-2 text-zinc-600 hover:text-red-500 transition-colors" title={label}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        <button onClick={del} disabled={loading} className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl flex items-center gap-2 font-black uppercase text-[10px] tracking-widest transition-colors shadow-2xl" title={label}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 shrink-0" />}
+            {label}
         </button>
     );
 }
 
 function Lightbox({ item, onClose, onDeleted }: { item: LightboxItem; onClose: () => void; onDeleted: () => void }) {
     const cfg = TYPE_CFG[item.type as keyof typeof TYPE_CFG] || TYPE_CFG.MISSION;
+    const [isZoomed, setIsZoomed] = useState(false);
     
     return (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col p-4 md:p-8 animate-in fade-in duration-300">
             <div className="absolute inset-0" onClick={onClose} />
-            <div className="relative w-full max-w-6xl space-y-6" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-6">
+            <div className="relative w-full max-w-6xl mx-auto h-full flex flex-col space-y-6" onClick={e => e.stopPropagation()}>
+                {/* Header pinned to top */}
+                <div className="flex-none flex items-center justify-between px-2 md:px-6">
                     <div className="flex items-center gap-4">
-                        <div className={cn("p-3 rounded-2xl", cfg.bg, cfg.color)}>
+                        <div className={cn("p-3 rounded-2xl hidden md:block", cfg.bg, cfg.color)}>
                             <ImageIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-xl font-black text-white uppercase tracking-tight truncate max-w-md">{item.filename}</p>
+                            <p className="text-sm md:text-xl font-black text-white uppercase tracking-tight truncate max-w-[200px] md:max-w-md">{item.filename}</p>
                             <p className="text-xs font-medium text-zinc-500">{formatBytes(item.sizeBytes || 0)} · {item.label}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <DeleteButton fileUrl={item.url} onDeleted={onDeleted} label="Supprimer physiquement le fichier" />
-                        <button onClick={onClose} className="p-3 text-zinc-500 hover:text-white transition-colors bg-white/5 rounded-2xl hover:bg-white/10">
-                            <X className="w-6 h-6" />
+                    <div className="flex items-center gap-3">
+                        <DeleteButton fileUrl={item.url} onDeleted={onDeleted} label="Supprimer Définitivement" />
+                        <button onClick={onClose} className="p-3 shrink-0 text-zinc-500 hover:text-white transition-colors bg-white/5 rounded-2xl hover:bg-white/10">
+                            <X className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
                 </div>
                 
-                <div className="relative rounded-[2rem] overflow-hidden bg-black border border-white/5 shadow-2xl flex items-center justify-center min-h-[50vh]">
-                    <img src={item.url} alt="" className="max-h-[80vh] w-auto object-contain select-none" />
+                {/* Image restricted to available height */}
+                <div 
+                    className={cn(
+                        "flex-1 min-h-0 relative rounded-[2rem] bg-black/50 border border-white/5 shadow-2xl p-4 transition-all",
+                        isZoomed ? "overflow-auto flex items-start justify-start cursor-zoom-out" : "overflow-hidden flex items-center justify-center text-center cursor-zoom-in"
+                    )}
+                    onClick={() => setIsZoomed(!isZoomed)}
+                >
+                    <img 
+                        src={item.url} 
+                        alt="Aperçu" 
+                        className={cn(
+                            "select-none transition-transform duration-300",
+                            isZoomed ? "w-auto h-auto max-w-none max-h-none origin-top-left" : "max-h-full max-w-full object-contain"
+                        )}
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement?.setAttribute('data-error', 'Image indisponible (404/403) ou corrompue');
+                        }}
+                    />
+                    <style jsx>{`
+                        div[data-error]::before {
+                            content: attr(data-error);
+                            color: #ef4444;
+                            font-size: 14px;
+                            font-weight: 900;
+                            text-transform: uppercase;
+                        }
+                    `}</style>
                 </div>
             </div>
         </div>

@@ -1,0 +1,15 @@
+{
+  "slug": "veilleurs",
+  "displayName": "Dofus des Veilleurs",
+  "color": "#1ABC9C",
+  "dofusItemId": 7850,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Crise d'identite"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "slug": "dotruche",
+  "displayName": "Dotruche",
+  "color": "#DAA520",
+  "dofusItemId": 7847,
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "unknown",
+      "quests": [
+        "Scene de menage"
+      ]
+    },
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Un oeuf pour ecaflip"
+      ]
+    }
+  ]
+}

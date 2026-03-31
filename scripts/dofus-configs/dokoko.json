@@ -1,0 +1,16 @@
+{
+  "slug": "dokoko",
+  "displayName": "Dokoko",
+  "color": "#FFD700",
+  "dofusItemId": 7842,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Squelettes et amulettes",
+        "Rendez-vous avec la lune"
+      ]
+    }
+  ]
+}

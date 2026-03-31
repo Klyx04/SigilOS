@@ -1,0 +1,36 @@
+{
+  "slug": "dofoozbz",
+  "displayName": "Dofoozbz",
+  "color": "#32CD32",
+  "dofusItemId": 7840,
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "unknown",
+      "quests": [
+        "Voyage, voyage",
+        "Frappez, ami, et entrez"
+      ]
+    },
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Ca barde là-haut",
+        "Un probleme de taille",
+        "Le vol des bourdons",
+        "Des petites betes qui font bzzzbz",
+        "Tetes de ponte",
+        "Derive insectaire",
+        "La proie des verites",
+        "Quand on la cherche, on finit par tomber dessus",
+        "Devoir de reserve",
+        "Trois coeurs, un roi",
+        "Un hote de marque",
+        "L'union sacree",
+        "Destructeur de mondes",
+        "Parler aux reines des kabombz"
+      ]
+    }
+  ]
+}

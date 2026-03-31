@@ -1,0 +1,30 @@
+{
+  "dofus": "ocre",
+  "displayName": "Dofus Ocre",
+  "color": "#CC7722",
+  "compiledAt": "2026-03-30T12:50:18.955Z",
+  "chains": [
+    {
+      "sectionName": "Dofus Ocre",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "https://docs.google.com/spreadsheets/d/1n4QFLAoKxy_ZWfxnPx0jDxvzfEeqLRjBwJVdVyo0P2k/edit?usp=sharing",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,330 @@
+{
+  "dofus": "pourpre",
+  "displayName": "Dofus Pourpre",
+  "color": "#800020",
+  "successName": "Pourpre profond",
+  "recommendedLevel": 150,
+  "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
+  "dofusItemId": 7827,
+  "compiledAt": "2026-03-30T13:41:10.493Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "Monde de Douze",
+      "description": "Quêtes à compléter avant de commencer la série principale du Dofus Pourpre.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Dans la gueule du milimulou",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        },
+        {
+          "name": "Voir le dark Vlad et mourir... ou pas",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 1,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes du Dofus Pourpre",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Minotot / Taure Céleste",
+      "description": "La série de 8 quêtes pour obtenir le Dofus Pourpre. Inclut les donjons Bibliothèque du Maître Corbac, Labyrinthe du Minotoror, Serre du Royalmouth, Ring du Capitaine Ekarlatte et Antre du Blop Multicolore Royal.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le livre des Taures",
+          "dofusdbId": 1521,
+          "level": 110,
+          "zone": "Bibliothèque de Pandala",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque de Pandala",
+          "coords": {
+            "x": -24,
+            "y": 39,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,6383}",
+            "Aller voir {npc,6405}",
+            "Aller voir {npc,704}",
+            "Aller voir {npc,1590}",
+            "Aller voir {npc,127}",
+            "Trouver un bouquiniste à Astrub",
+            "Aller voir {npc,4341}",
+            "Retourner voir {npc,2205}",
+            "Voler le Livre des Taures au Maître Corbac et donner le livre à Mériana"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "Taures et détours",
+          "dofusdbId": 1522,
+          "level": 120,
+          "zone": "Refuge des cent détours",
+          "npcName": null,
+          "npcSubArea": "Refuge des cent détours",
+          "coords": {
+            "x": -42,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Escalier vers le labyrinthe du Minotoror",
+            "Aller voir {npc,783}",
+            "Découvrir la carte : Refuge des Cent Détours",
+            "Aller voir {npc,2464}",
+            "Retourner voir Lorkos à l'entrée du labyrinthe",
+            "Découvrir la carte : Salle du Minotoror",
+            "Vaincre x1 {monster,121} en un seul combat",
+            "Jeter le sortilège de vérité sur le trône de l'antichambre du Minotoror",
+            "Aller voir {npc,2482}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1521
+            }
+          ]
+        },
+        {
+          "name": "Le trésor de Totankama",
+          "dofusdbId": 1523,
+          "level": 130,
+          "zone": "La Malle aux Trésors",
+          "npcName": null,
+          "npcSubArea": "La Malle aux Trésors",
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 15391,
+              "name": "Tablette de Totankama",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126026.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,2205}",
+            "Montrer à {npc,2205} : 1 {item,15418}",
+            "Montrer les 5 doses de Poudre d'Éternaile à Mériana",
+            "Montrer à {npc,2205} : 1 {item,15420}",
+            "Se protéger contre la malédiction de Totankama",
+            "Montrer à {npc,2348} : 1 {item,15391}",
+            "Étudier la tablette de Totankama pour se lancer dans la chasse au trésor",
+            "Ramener à {npc,2482} : x1 {item,15400}",
+            "Découvrir la carte : Salle du Dofus Pourpre",
+            "Prendre le Dofus Pourpre"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1522
+            }
+          ]
+        },
+        {
+          "name": "Il faut battre le lait quand il est chaud",
+          "dofusdbId": 1524,
+          "level": 130,
+          "zone": "Refuge des cent détours",
+          "npcName": null,
+          "npcSubArea": "Refuge des cent détours",
+          "coords": {
+            "x": -42,
+            "y": -17,
+            "worldId": 4
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Obtenir du lait doré",
+            "Aller voir {npc,1034}",
+            "Vaincre la Roublarde Hoize et ses complices",
+            "Aller voir {npc,2466}",
+            "Vaincre x1 {monster,1188} sur la carte {map,166990850} en un seul combat",
+            "Retourner voir {npc,2205}",
+            "Fabriquer la Perle de Lait Doré avec l'aide de Lired et Arlo"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1523
+            }
+          ]
+        },
+        {
+          "name": "Regrets d'éternailes",
+          "dofusdbId": 1525,
+          "level": 130,
+          "zone": "Minotot / Taure Céleste",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 7290,
+              "name": "Tige de Bambouto",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164665.png"
+            }
+          ],
+          "objectives": [
+            "Trouver Dlime Katcheule",
+            "Aller voir {npc,2484}",
+            "Ramener à {npc,2484} : x1 {item,7290}",
+            "Ramener à {npc,2484} : x1 {item,15424}",
+            "Ramener à {npc,2484} : x13 {item,15423}",
+            "Utiliser l'Attrape-poussière pour obtenir 5 Poudres d'Éternaile"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1524
+            }
+          ]
+        },
+        {
+          "name": "L'anneau de Tot",
+          "dofusdbId": 1526,
+          "level": 130,
+          "zone": "Refuge des cent détours",
+          "npcName": null,
+          "npcSubArea": "Refuge des cent détours",
+          "coords": {
+            "x": 11,
+            "y": -1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2472}",
+            "Aller voir {npc,2332}",
+            "Entrer dans Srambad, la dimension du dieu Sram",
+            "Découvrir la carte : Trouver l'entrée de la taverne du Bourreau",
+            "Parler au trafiquant et lui donner ce qu'il veut",
+            "Obtenir le nom de l'acheteur",
+            "Vaincre x1 {monster,3753} en un seul combat",
+            "Aller voir {npc,2449}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1525
+            }
+          ]
+        },
+        {
+          "name": "Une âme en peine",
+          "dofusdbId": 1528,
+          "level": 130,
+          "zone": "Labyrinthe des âmes",
+          "npcName": null,
+          "npcSubArea": "Labyrinthe des âmes",
+          "coords": {
+            "x": -39,
+            "y": -11,
+            "worldId": 4
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Vaincre x1 {monster,3740} en un seul combat",
+            "Aller voir {npc,783}",
+            "Aller voir {npc,2464}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1526
+            }
+          ]
+        },
+        {
+          "name": "Le pouvoir derrière le trône",
+          "dofusdbId": 1529,
+          "level": 130,
+          "zone": "Clos des Blops - Entrée",
+          "npcName": null,
+          "npcSubArea": "Clos des Blops - Entrée",
+          "coords": {
+            "x": -7,
+            "y": -43,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1034}",
+            "Trouver Gavroch dans la serre du Royalmouth",
+            "Vaincre x1 {monster,2854} sur la carte {map,55053312} en un seul combat",
+            "Aller voir {npc,2466}",
+            "Montrer à {npc,783} : 1 {item,15443}",
+            "Donner la clef du trône à Gavroch",
+            "Aller voir {npc,4331}",
+            "Vaincre x1 {monster,3759} en un seul combat",
+            "Prendre le Dofus Pourpre"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1528
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

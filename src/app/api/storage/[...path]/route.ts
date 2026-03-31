@@ -55,10 +55,24 @@ export async function GET(
         if (!isTokenValid && (segment === "guilds" || segment === "proofs")) {
             if (!guildId) return new NextResponse("Forbidden", { status: 403 });
             
-            // Check membership for any private image in guilds/ or proofs/
-            const context = await getUserContext(guildId);
-            if (!context.isMember) {
-                return new NextResponse("Forbidden: You are not a member of this guild", { status: 403 });
+            const baseContext = await getUserContext();
+            if (!baseContext.isAdmin) {
+                let resolvedDiscordGuildId = guildId;
+                // If the guildId is a Prisma CUID/UUID (not numeric), we must map it to the discordGuildId
+                if (!/^\d+$/.test(guildId)) {
+                    const { db } = await import("@/lib/prisma");
+                    const g = await db.guildConfig.findUnique({ 
+                        where: { id: guildId }, 
+                        select: { discordGuildId: true } 
+                    });
+                    if (g) resolvedDiscordGuildId = g.discordGuildId;
+                }
+
+                // Check membership for any private image in guilds/ or proofs/
+                const targetContext = await getUserContext(resolvedDiscordGuildId);
+                if (!targetContext.isMember) {
+                    return new NextResponse("Forbidden: You are not a member of this guild", { status: 403 });
+                }
             }
         }
     }

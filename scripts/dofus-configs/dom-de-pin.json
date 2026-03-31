@@ -1,0 +1,57 @@
+{
+  "slug": "dom-de-pin",
+  "displayName": "Dom de Pin",
+  "color": "#006400",
+  "dofusItemId": 7844,
+  "successes": [
+    {
+      "name": "Prérequis des prérequis (... ouais, je sais)",
+      "zone": "unknown",
+      "quests": [
+        "Infame pourriture",
+        "Le saule du Promeneur",
+        "Arak-hai en pagaille",
+        "Requiem pour un yokai",
+        "Si loin, si proches",
+        "Jusqu'a leur dernier soupir",
+        "Deux souffles une inspiration",
+        "En ce jardin qui nous unit",
+        "Bucherons en detresse",
+        "L'accuse de la reception",
+        "Attention à la bête !",
+        "Le nouveau monde",
+        "Le Dofus et l'Alchimiste",
+        "Après lui, le déluge",
+        "Comme un corbac sur sa branche",
+        "Rester planté là",
+        "Arrête-la si tu peux",
+        "Pas de fumée sans feu",
+        "Quand les esprits s'échauffent",
+        "Le serment de l'ambre"
+      ]
+    },
+    {
+      "name": "Prérequis - Quatre sur six",
+      "zone": "unknown",
+      "quests": [
+        "Les couts du sort"
+      ]
+    },
+    {
+      "name": "Prérequis - Le secret des Dofus: Prologue",
+      "zone": "unknown",
+      "quests": [
+        "La bête au bois dormant"
+      ]
+    },
+    {
+      "name": "100% quêtes Valonia : L'héritage de l'île brisée",
+      "zone": "unknown",
+      "quests": [
+        "Dans la gueule du Trankilou",
+        "Un événement inattendu",
+        "L'île maudite"
+      ]
+    }
+  ]
+}

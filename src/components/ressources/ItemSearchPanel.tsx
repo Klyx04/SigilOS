@@ -568,9 +568,62 @@ export function ItemSearchPanel() {
                         source === "dofusbook" ? "bg-emerald-950/10 border-emerald-500/20" : "bg-zinc-900/40 border-white/10"
                     )}>
                         {!selectedItem ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
-                                <Sparkles className="h-20 w-20 mb-6 text-zinc-500" />
-                                <h3 className="text-xl font-black uppercase tracking-widest text-zinc-500">Sélectionnez un item</h3>
+                            <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-1000">
+                                <div className="relative group">
+                                    <div className="absolute inset-0 bg-violet-500/20 blur-[100px] rounded-full group-hover:bg-emerald-500/20 transition-colors duration-1000" />
+                                    <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-violet-500/10 to-emerald-500/10 border border-white/10 flex items-center justify-center relative z-10 shadow-2xl group-hover:scale-110 transition-transform duration-500 backdrop-blur-xl">
+                                        <Library className="h-10 w-10 text-white animate-pulse" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 max-w-lg relative z-10">
+                                    <h3 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">
+                                        Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-white to-emerald-400">Encyclopédique</span>
+                                    </h3>
+                                    <p className="text-zinc-500 text-sm font-medium leading-relaxed">
+                                        Votre archive centrale synchronisée. Recherchez n&apos;importe quel équipement, ressource ou dofus pour consulter ses statistiques et sa recette de craft en temps réel.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl mt-8 relative z-10">
+                                    <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-3 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all group/card">
+                                        <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center mx-auto mb-2 border border-violet-500/20 group-hover/card:scale-110 transition-transform">
+                                            <Zap className="h-5 w-5 text-violet-400" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h4 className="text-[12px] font-black uppercase tracking-widest text-zinc-100">Effets Directs</h4>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">Jets min/max & bonus</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-3 hover:border-emerald-500/30 hover:bg-white/[0.04] transition-all group/card">
+                                        <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-2 border border-emerald-500/20 group-hover/card:scale-110 transition-transform">
+                                            <Scroll className="h-5 w-5 text-emerald-400" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h4 className="text-[12px] font-black uppercase tracking-widest text-zinc-100">Fabrication</h4>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">Recettes & quantités</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-3 hover:border-amber-500/30 hover:bg-white/[0.04] transition-all group/card">
+                                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-2 border border-amber-500/20 group-hover/card:scale-110 transition-transform">
+                                            <ExternalLink className="h-5 w-5 text-amber-400" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h4 className="text-[12px] font-black uppercase tracking-widest text-zinc-100">Multi-Sources</h4>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">DofusDB & Dofusbook</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-12 text-zinc-700">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-4 justify-center">
+                                        <div className="w-12 h-px bg-current opacity-20" />
+                                        Recherchez pour commencer
+                                        <div className="w-12 h-px bg-current opacity-20" />
+                                    </p>
+                                </div>
                             </div>
                         ) : (
                             <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-500">

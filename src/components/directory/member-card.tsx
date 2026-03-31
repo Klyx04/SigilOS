@@ -68,7 +68,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
             <Card
                 className={cn(
                     "bg-white/[0.03] hover:bg-white/[0.08] transition-all group overflow-hidden cursor-pointer border-2 shadow-lg",
-                    roleColor ? "" : "border-white/5"
+                    roleColor ? "" : "border-white/5",
+                    isOnVacation && "bg-cyan-500/[0.02] border-cyan-500/20 shadow-cyan-500/[0.05]"
                 )}
                 style={roleColor ? { borderColor: roleColor } : undefined}
             >
@@ -150,7 +151,10 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     </div>
 
                     {/* Jobs */}
-                    <div className="flex flex-wrap items-center justify-center gap-2 mt-2 min-h-[1.5rem]">
+                    <div className={cn(
+                        "flex flex-wrap items-center justify-center gap-2 mt-2 min-h-[1.5rem]",
+                        isOnVacation && "mb-2"
+                    )}>
                         {jobs.length > 0 ? (
                             <>
                                 {topJobs.map(job => {
@@ -178,6 +182,19 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <span className="text-xs text-zinc-600 italic">Aucun métier</span>
                         )}
                     </div>
+
+                    {/* Absence details footer */}
+                    {isOnVacation && (
+                        <div className="w-full mt-2 pt-3 border-t border-cyan-500/10 flex flex-col items-center gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
+                            <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+                                <Palmtree className="w-3 h-3" /> Période d'absence
+                            </span>
+                            <span className="text-[11px] text-zinc-300 font-medium whitespace-nowrap">
+                                {format(vacationStart!, "d MMMM", { locale: fr })}
+                                {vacationEnd ? ` au ${format(vacationEnd, "d MMMM", { locale: fr })}` : " (indéfini)"}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Forgemagie Badge */}
 

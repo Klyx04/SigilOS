@@ -1,0 +1,25 @@
+{
+  "slug": "forgelave",
+  "displayName": "Dofus Forgelave",
+  "color": "#FF4500",
+  "dofusItemId": 7831,
+  "successes": [
+    {
+      "name": "Les quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Dernier contact",
+        "L'arme fatale",
+        "Battre le fer tant qu'il est chaud",
+        "La quete sous l'eau",
+        "Algue au rythme",
+        "La croisiere ca m'use",
+        "Coeur de pierre",
+        "Les pierres a feu",
+        "Plantes contre trepamorts",
+        "La guerre des marches",
+        "Du feu de dieu"
+      ]
+    }
+  ]
+}

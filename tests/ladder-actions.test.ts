@@ -16,7 +16,8 @@ vi.mock('@/lib/prisma', () => ({
         },
         userProfile: {
             findFirst: vi.fn(),
-            findMany: vi.fn()
+            findMany: vi.fn(),
+            count: vi.fn()
         }
     }
 }));
@@ -67,11 +68,12 @@ describe('getContributionLadder', () => {
         } as any);
 
         vi.mocked(db.userProfile.findMany).mockResolvedValue([]);
+        vi.mocked(db.userProfile.count).mockResolvedValue(0);
 
         const result = await getContributionLadder(mockGuildId);
 
         expect(result.success).toBe(true);
-        expect(result.data).toEqual([]);
+        expect(result.data).toEqual(expect.objectContaining({ totalCount: 0, entries: [] }));
     });
 
     it('should return correct ranking (descending by contribution points)', async () => {
@@ -114,6 +116,7 @@ describe('getContributionLadder', () => {
         ];
 
         vi.mocked(db.userProfile.findMany).mockResolvedValue(mockProfiles as any);
+        vi.mocked(db.userProfile.count).mockResolvedValue(2);
 
         const result = await getContributionLadder(mockGuildId);
 
@@ -165,6 +168,7 @@ describe('getContributionLadder', () => {
         ];
 
         vi.mocked(db.userProfile.findMany).mockResolvedValue(mockProfiles as any);
+        vi.mocked(db.userProfile.count).mockResolvedValue(2);
 
         const result = await getContributionLadder(mockGuildId);
 
@@ -201,14 +205,14 @@ describe('getContributionLadder', () => {
         ];
 
         vi.mocked(db.userProfile.findMany).mockResolvedValue(mockProfiles as any);
+        vi.mocked(db.userProfile.count).mockResolvedValue(1);
 
         const result = await getContributionLadder(mockGuildId);
 
         expect(db.userProfile.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    status: 'ACTIVE',
-                    contributionPoints: { gt: 0 }
+                    status: 'ACTIVE'
                 })
             })
         );
@@ -254,6 +258,7 @@ describe('getContributionLadder', () => {
         ];
 
         vi.mocked(db.userProfile.findMany).mockResolvedValue(mockProfiles as any);
+        vi.mocked(db.userProfile.count).mockResolvedValue(2);
 
         const result = await getContributionLadder(mockGuildId);
 

@@ -136,7 +136,7 @@ export default async function MemberProfilePage({
                 isSuperAdmin={viewerContext.isSuperAdmin}
                 isAdmin={profile.discordInfo?.isAdmin || false}
                 permissions={{
-                    canViewArchis: viewerContext.canViewArchis,
+                    canViewOcre: viewerContext.canViewOcre,
                     canViewSonges: viewerContext.canViewSonges,
                     canViewLadder: viewerContext.canViewLadder,
                     canViewMissions: viewerContext.canViewMissions,
@@ -144,7 +144,7 @@ export default async function MemberProfilePage({
             />
 
             {/* Archi Matching Widget - shows potential exchanges */}
-            {viewerContext.canViewArchis && (
+            {viewerContext.canViewOcre && (
                 <ArchiMatchingWidget
                     guildId={guildId}
                     profileId={profileId}

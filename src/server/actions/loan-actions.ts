@@ -141,7 +141,7 @@ export async function createLoan(
 ): Promise<ActionResponse<{ id: string }>> {
     try {
         const user = await getUserContext(guildId);
-        if (!user.isAuthenticated || !user.isMember || !user.canCreateServices) {
+        if (!user.isAuthenticated || !user.isMember || !user.canViewServices) {
             return { success: false, error: "Accès refusé" };
         }
         if (!user.profileId) return { success: false, error: "Profil introuvable" };

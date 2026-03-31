@@ -15,7 +15,7 @@ const ACTION_COLORS: Record<string, string> = {
     SETTINGS_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse",
     ACCESS_ATTEMPT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse",
-    ADMIN_ACCESS_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    ADMIN_FULL_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     MEMBER_LEFT: "bg-zinc-500/20 text-zinc-400 border-white/5",
     MEMBER_ARCHIVED: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     MEMBER_BANNED: "bg-red-500/20 text-red-400 border-red-500/30",

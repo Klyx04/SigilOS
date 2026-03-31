@@ -178,7 +178,7 @@ const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number;
 async function canCreatePoll(guildId: string, userId: string): Promise<boolean> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) return false;
-    if (ctx.isAdmin || ctx.canManagePolls) return true;
+    if (ctx.isAdmin || ctx.isAdmin) return true;
 
     // Check SigilOS custom roles
     if (!ctx.profileId) return false;
@@ -210,7 +210,7 @@ export async function checkUserHasPollRole(guildId: string, userId: string): Pro
  */
 async function checkPollCooldown(guildId: string, profileId: string, category: PollCategory): Promise<{ onCooldown: boolean; resetAt?: Date }> {
     const ctx = await getUserContext(guildId);
-    if (ctx.isAdmin || ctx.canManagePolls) return { onCooldown: false };
+    if (ctx.isAdmin || ctx.isAdmin) return { onCooldown: false };
 
     const lastPoll = await db.poll.findFirst({
         where: {
@@ -513,7 +513,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         const isCreator = poll.creatorId === profile.id;
         const hasMicro = await checkUserHasPollRole(data.guildId, session.user.id);
 
-        if (!ctx.isAdmin && !ctx.canManagePolls) {
+        if (!ctx.isAdmin && !ctx.isAdmin) {
             if (!isCreator || !hasMicro) {
                 return { success: false, error: "Vous devez avoir le micro pour modifier votre sondage." };
             }
@@ -820,7 +820,7 @@ export async function deletePoll(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_MANAGE);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.ADMIN_FULL);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {

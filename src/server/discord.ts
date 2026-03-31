@@ -496,17 +496,25 @@ export async function sendChannelMessage(
         });
 
         if (!res.ok) {
-            console.error(`[Discord] Failed to send message: ${res.status} ${res.statusText}`);
             const errBody = await res.text();
-            console.error(`[Discord] Error body: ${errBody}`);
-            return null;
+            console.error(`[Discord] Status ${res.status}: ${errBody}`);
+            
+            let message = "Discord API Error";
+            try {
+                const parsed = JSON.parse(errBody);
+                message = parsed.message || res.statusText;
+                if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
+                if (res.status === 404) message = "Salon introuvable (ID incorrect)";
+            } catch { /* use default */ }
+            
+            throw new Error(message);
         }
 
         const json = await res.json() as { id: string };
         return json.id; // Return message ID
-    } catch (error) {
+    } catch (error: any) {
         console.error("[Discord] Error sending message:", error);
-        return null;
+        throw error;
     }
 }
 
@@ -618,14 +626,15 @@ export async function updateChannelMessage(
         });
 
         if (!res.ok) {
-            console.error(`[Discord] Failed to update message: ${res.status}`);
-            return false;
+            const errBody = await res.text();
+            console.error(`[Discord] Update failed ${res.status}: ${errBody}`);
+            throw new Error(`Discord Update Error: ${res.status}`);
         }
 
         return true;
-    } catch (error) {
+    } catch (error: any) {
         console.error("[Discord] Error updating message:", error);
-        return false;
+        throw error;
     }
 }
 

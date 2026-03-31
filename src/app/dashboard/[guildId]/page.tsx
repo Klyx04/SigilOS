@@ -67,7 +67,7 @@ export default async function DashboardPage({
         getActivePresence(guildId),
         getActivityLadder(guildId, "monthly"),
         getUserProfile(guildId),
-        user.canViewArchis 
+        user.canViewOcre 
             ? getMyOcreProgress(guildId) 
             : Promise.resolve({ success: false, data: undefined }),
         getGuildStats(guildId),
@@ -77,7 +77,7 @@ export default async function DashboardPage({
     // Focus data depends on Ocre result to avoid refetching
     const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
 
-    const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
+    const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data.entries : [];
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
 
@@ -146,7 +146,7 @@ export default async function DashboardPage({
 
                         const memberSteps = [
                             { id: "profile", title: "Identité", description: "Pseudo Dofus & Classe", href: `/dashboard/${guildId}/profile?edit=identity`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
-                            user.canViewArchis && { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: !!profile.metamobVerified, icon: "infinity" },
+                            user.canViewOcre && { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: !!profile.metamobVerified, icon: "infinity" },
                             { id: "jobs", title: "Métiers", description: "Renseigner mes métiers", href: `/dashboard/${guildId}/profile`, completed: (profile.metiers as string[] || []).length > 0, icon: "scroll-text" },
                             { id: "docs", title: "Guide", description: "Comprendre SigilOS", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
                         ].filter(Boolean) as any[];
@@ -307,7 +307,7 @@ export default async function DashboardPage({
 
                     {/* Tertiary Quick Modules */}
                     <div className="md:col-span-12 lg:col-span-4 row-span-1 grid grid-cols-2 gap-4">
-                        {user.canViewArchis && (
+                        {user.canViewOcre && (
                             <Link href={`/dashboard/${guildId}/archimonstres`} className="h-full">
                                 <Card className="glass-premium h-full hover:border-amber-500/50 transition-all group overflow-hidden relative">
                                     <CardHeader className="p-4">

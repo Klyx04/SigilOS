@@ -66,7 +66,7 @@ const ACTION_OPTIONS = [
     { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
-    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
+    { value: "ADMIN_FULL_DENIED", label: "Accès refusé" },
 ];
 
 export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {

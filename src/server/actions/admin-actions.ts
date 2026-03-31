@@ -889,7 +889,7 @@ export async function getPendingValidationsCount(guildId: string) {
     const { checkGuildPermission } = await import("./user-actions");
     const [missionGuard, adminGuard] = await Promise.all([
         checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE),
-        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_ACCESS),
+        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL),
     ]);
 
     if (!missionGuard.allowed && !adminGuard.allowed) {

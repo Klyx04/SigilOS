@@ -17,7 +17,7 @@ export type AuditAction =
     | "SETTINGS_UPDATED"      // Guild settings changed
     | "API_KEY_UPDATED"       // Metamob API key changed
     | "CHANNEL_CONFIGURED"    // Discord channel configured
-    | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
+    | "ADMIN_FULL_DENIED"   // Unauthorized admin page access attempt
     | "SECURITY_ALERT"        // NSFW/Safety violation
     | "HELP_CREDIT_GIVEN"     // Peer-to-peer gratitude
     | "SUCCESS_SYNC"          // Personal success points updated
@@ -284,7 +284,7 @@ export async function logAdminAccessDenied(
                 guildId: guildConfig.id,
                 actorUserId: session.user.id,
                 actorName: session.user.name || "Unknown",
-                action: "ADMIN_ACCESS_DENIED",
+                action: "ADMIN_FULL_DENIED",
                 targetType: "ACCESS_ATTEMPT",
                 targetId: targetPage,
                 oldValue: Prisma.JsonNull,

@@ -105,7 +105,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     discordNickname={userContext.name}
                     isAdmin={userContext.isAdmin}
                     permissions={{
-                        canViewArchis: userContext.canViewArchis,
+                        canViewOcre: userContext.canViewOcre,
                         canViewSonges: userContext.canViewSonges,
                         canViewLadder: userContext.canViewLadder,
                         canSyncLadder: userContext.canSyncLadder,

@@ -315,6 +315,9 @@ export async function updatePlatformConfig(data: {
                 nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true
             }
         });
+        revalidatePath('/');
+        revalidatePath('/god');
+        revalidatePath('/god/roadmap');
         return { success: true, config };
     } catch (e) {
         console.error('[updatePlatformConfig]', e);

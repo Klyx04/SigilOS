@@ -59,12 +59,13 @@ export default async function SuperAdminPage(props: {
     console.log(`[GodDashboard] Rendering tab: ${tab}`);
 
     // Fetch data for LifecyclePanel
-    const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds] = await Promise.all([
+    const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds, ghostUsers] = await Promise.all([
         getSoftDeletedGuilds(),
         getSoftDeletedProfiles(),
         getArchivedProfiles(),
         getPlatformBans(),
-        getActiveGuilds()
+        getActiveGuilds(),
+        (await import("@/server/actions/super-admin-actions")).getGhostUsers()
     ]);
     
     const resolvedData = {
@@ -72,7 +73,8 @@ export default async function SuperAdminPage(props: {
         softDeletedProfiles,
         archivedProfiles,
         platformBans,
-        activeGuilds
+        activeGuilds,
+        ghostUsers
     };
 
     return (
@@ -142,27 +144,18 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "guilds" && (
                         <div className="space-y-10">
+                            <Suspense fallback={<div className="h-96 bg-zinc-900/10 rounded-[3rem] animate-pulse border border-white/5" />}>
+                                <GuildsServer />
+                            </Suspense>
+                            
                             <LifecyclePanel 
                                 guilds={resolvedData.softDeletedGuilds as any}
                                 profiles={resolvedData.softDeletedProfiles as any}
                                 archivedProfiles={resolvedData.archivedProfiles as any}
                                 bans={resolvedData.platformBans as any}
                                 activeGuilds={resolvedData.activeGuilds as any}
+                                ghostUsers={resolvedData.ghostUsers as any}
                             />
-                            
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                                <div className="lg:col-span-2">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-48 rounded-3xl" />}>
-                                            <GhostUsersServer />
-                                        </Suspense>
-                                        <GhostRadarPanel />
-                                    </div>
-                                </div>
-                                <div>
-                                    <JanitorButton />
-                                </div>
-                            </div>
                         </div>
                     )}
 
@@ -296,10 +289,9 @@ export default async function SuperAdminPage(props: {
 
 async function GlobalLogsServer() {
     try {
-        const { getGlobalAuditLogs, cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+        const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
         const { AuditFeedPanel } = await import("./components/audit-feed-panel");
         
-        await cleanupGlobalAuditLogs().catch(() => {});
         const result = await getGlobalAuditLogs({ limit: 200 });
         const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
         
@@ -405,11 +397,11 @@ async function GuildsServer() {
 }
 
 async function LifecycleServer() {
-    const [g, p, ap, b, ag] = await Promise.all([
-        getSoftDeletedGuilds(), getSoftDeletedProfiles(), getArchivedProfiles(), getPlatformBans(), getActiveGuilds(),
-    ]);
-    const safeData = (data: any) => JSON.parse(JSON.stringify(data, (key, value) => typeof value === 'bigint' ? value.toString() : value));
-    return <LifecyclePanel guilds={safeData(g)} profiles={safeData(p)} archivedProfiles={safeData(ap)} bans={safeData(b)} activeGuilds={safeData(ag)} />;
+    return (
+        <div className="p-8 text-center text-zinc-500 italic text-xs">
+            Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.
+        </div>
+    );
 }
 
 function StatsLoading() { return <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-pulse">{[...Array(5)].map((_, i) => <div key={i} className="bg-zinc-900/50 h-32 rounded-3xl" />)}</div>; }

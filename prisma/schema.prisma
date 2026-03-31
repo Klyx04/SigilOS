@@ -109,10 +109,10 @@ model PlatformConfig {
   statusMention          String   @default("none")
   nsfwFilterEnabled      Boolean  @default(true)
   geoguesserBlacklist    Int[]    @default([])
-  geoguesserReportedMaps Int[]    @default([])
   godNotifyChannelId     String?
   godNotifyRoleId        String?
   godNotifyWebEnabled    Boolean  @default(true)
+  geoguesserReportedMaps Int[]    @default([])
 }
 
 model GodNotification {
@@ -196,7 +196,6 @@ model GuildConfig {
   servicesNotifyChannelId          String?
   loansNotifyChannelId             String?
   systemNotifyChannelId            String?
-  newsBroadcastEnabled             Boolean                 @default(false)
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?
   welcomeDashboardEnabled          Boolean                 @default(true)
@@ -224,6 +223,7 @@ model GuildConfig {
   serviceVaultMessage              String?
   missionManagementNotifyChannelId String?
   missionManagementNotifyRoleId    String?
+  newsBroadcastEnabled             Boolean                 @default(false)
   achievementSubmissions           AchievementSubmission[]
   auditLogs                        AuditLog[]
   contentCreators                  ContentCreator[]
@@ -310,87 +310,95 @@ model GuildActivity {
 }
 
 model UserProfile {
-  id                      String                   @id @default(cuid())
-  userId                  String
-  guildId                 String
-  status                  ProfileStatus            @default(ACTIVE)
-  pseudoDofus             String?
-  classe                  String?
-  metiers                 Json?
-  succes                  Json?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  achievementLastSync     DateTime?
-  achievementPoints       Int?
-  altPseudos              Json?
-  archiveReason           String?
-  archivedAt              DateTime?
-  availability            Json?
-  classeSecondaires       Json?
-  discordCacheUpdatedAt   DateTime?
-  discordJoinedAt         DateTime?
-  discordNickname         String?
-  discordRoleColor        Int?
-  discordRoleName         String?
-  dofusBookLinks          Json?
-  dofusPseudo             String?
-  entraidePoints          Int                      @default(0)
-  fmPriceClassic          Int?
-  fmPriceExo              Int?
-  fmPriceTrans            Int?
-  forgemagieStatus        String?                  @default("UNAVAILABLE")
-  guildatons              Int                      @default(0)
-  lastActivityAt          DateTime?
-  lastActivityDesc        String?
-  lastLadderUpdate        DateTime?
-  metamobLastSync         DateTime?
-  metamobPseudo           String?
-  metamobVerified         Boolean                  @default(false)
-  successPoints           Int?                     @default(0)
-  vacationEnd             DateTime?
-  vacationNotify          Boolean                  @default(false)
-  vacationStart           DateTime?
-  xp                      Int                      @default(0)
-  metamobQuestSlug        String?
-  metamobServerId         Int?
-  metamobApiKey           String?
-  contributionPoints      Int                      @default(0)
-  scheduledDeletion       DateTime?
-  notificationPrefs       Json?
-  hasSeenWelcome          Boolean                  @default(false)
-  introduction            String?
-  isInGame                Boolean                  @default(false)
-  lastSeen                DateTime?                @default(now())
-  showPresence            Boolean                  @default(true)
-  ocreProgressSnapshot    Json?
-  dofusLevel              Int?                     @default(0)
-  totalXp                 BigInt?                  @default(0)
-  ankamaId                String?
-  achievementSubmissions  AchievementSubmission[]
-  djParticipations        DjSearchParticipant[]
-  djSearchPosts           DjSearchPost[]
-  guildBonuses            GuildBonus[]
-  loansReceived           GuildLoan[]              @relation("LoansReceived")
-  loansGiven              GuildLoan[]              @relation("LoansGiven")
-  givenCredits            HelpCredit[]             @relation("GivenCredits")
-  receivedCredits         HelpCredit[]             @relation("ReceivedCredits")
-  kamaDonations           KamaDonation[]
-  welcomePosts            MemberWelcome[]
-  interests               MissionInterest[]
-  sentOcreRequests        OcreTradeRequest[]       @relation("Requester")
-  receivedOcreRequests    OcreTradeRequest[]       @relation("Target")
-  polls                   Poll[]                   @relation("PollCreator")
-  pollVotes               PollVote[]
-  serviceActivityLogs     ServiceActivityLog[]
-  serviceListings         ServiceListing[]
-  roleGrants              SigilRoleGrant[]
-  submissions             Submission[]
-  userDungeonAchievements UserDungeonAchievement[]
-  dungeonProgress         UserDungeonProgress[]
-  guild                   GuildConfig              @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vaultEntries            VaultEntry[]
-  helpedSubmissions       Submission[]             @relation("SubmissionHelpers")
+  id                        String                     @id @default(cuid())
+  userId                    String
+  guildId                   String
+  status                    ProfileStatus              @default(ACTIVE)
+  pseudoDofus               String?
+  classe                    String?
+  metiers                   Json?
+  succes                    Json?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  achievementLastSync       DateTime?
+  achievementPoints         Int?
+  altPseudos                Json?
+  archiveReason             String?
+  archivedAt                DateTime?
+  availability              Json?
+  classeSecondaires         Json?
+  discordCacheUpdatedAt     DateTime?
+  discordJoinedAt           DateTime?
+  discordNickname           String?
+  discordRoleColor          Int?
+  discordRoleName           String?
+  dofusBookLinks            Json?
+  dofusPseudo               String?
+  entraidePoints            Int                        @default(0)
+  fmPriceClassic            Int?
+  fmPriceExo                Int?
+  fmPriceTrans              Int?
+  forgemagieStatus          String?                    @default("UNAVAILABLE")
+  guildatons                Int                        @default(0)
+  lastActivityAt            DateTime?
+  lastActivityDesc          String?
+  lastLadderUpdate          DateTime?
+  metamobLastSync           DateTime?
+  metamobPseudo             String?
+  metamobVerified           Boolean                    @default(false)
+  successPoints             Int?                       @default(0)
+  vacationEnd               DateTime?
+  vacationNotify            Boolean                    @default(false)
+  vacationStart             DateTime?
+  xp                        Int                        @default(0)
+  metamobQuestSlug          String?
+  metamobServerId           Int?
+  metamobApiKey             String?
+  contributionPoints        Int                        @default(0)
+  scheduledDeletion         DateTime?
+  notificationPrefs         Json?
+  hasSeenWelcome            Boolean                    @default(false)
+  introduction              String?
+  isInGame                  Boolean                    @default(false)
+  lastSeen                  DateTime?                  @default(now())
+  showPresence              Boolean                    @default(true)
+  ocreProgressSnapshot      Json?
+  dofusLevel                Int?                       @default(0)
+  totalXp                   BigInt?                    @default(0)
+  ankamaId                  String?
+  discordMessageCountWeekly Int                        @default(0)
+  discordVoiceTimeWeekly    Int                        @default(0)
+  lastDiscordMessageAt      DateTime?
+  lastDiscordReactionAt     DateTime?
+  lastDiscordTypingAt       DateTime?
+  lastDiscordVoiceAt        DateTime?
+  achievementSubmissions    AchievementSubmission[]
+  djParticipations          DjSearchParticipant[]
+  djSearchPosts             DjSearchPost[]
+  guildBonuses              GuildBonus[]
+  loansReceived             GuildLoan[]                @relation("LoansReceived")
+  loansGiven                GuildLoan[]                @relation("LoansGiven")
+  givenCredits              HelpCredit[]               @relation("GivenCredits")
+  receivedCredits           HelpCredit[]               @relation("ReceivedCredits")
+  kamaDonations             KamaDonation[]
+  welcomePosts              MemberWelcome[]
+  interests                 MissionInterest[]
+  sentOcreRequests          OcreTradeRequest[]         @relation("Requester")
+  receivedOcreRequests      OcreTradeRequest[]         @relation("Target")
+  dofusProgress             PlayerDofusProgress[]
+  dofusQuestProgress        PlayerDofusQuestProgress[]
+  polls                     Poll[]                     @relation("PollCreator")
+  pollVotes                 PollVote[]
+  serviceActivityLogs       ServiceActivityLog[]
+  serviceListings           ServiceListing[]
+  roleGrants                SigilRoleGrant[]
+  submissions               Submission[]
+  userDungeonAchievements   UserDungeonAchievement[]
+  dungeonProgress           UserDungeonProgress[]
+  guild                     GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vaultEntries              VaultEntry[]
+  helpedSubmissions         Submission[]               @relation("SubmissionHelpers")
 
   @@unique([userId, guildId])
   @@index([guildId])
@@ -1596,6 +1604,121 @@ model BuildVote {
   @@index([guildId])
 }
 
+/// Représente un Dofus (les 23 Dofus du jeu — assets dans /public/module-dofus/)
+model DofusItem {
+  id                String                @id @default(cuid())
+  slug              String                @unique
+  name              String
+  nameShort         String
+  element           String?
+  rarity            String                @default("MAJEUR")
+  isPrimordial      Boolean               @default(false)
+  levelRecommended  Int                   @default(1)
+  imageUrl          String?
+  color             String?
+  displayOrder      Int                   @default(0)
+  description       String?
+  successName       String?  // Nom du succès associé dans le jeu
+  localImageUrl     String?  // V3: Asset WebP local (plus léger)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  filterCategory    String                @default("AUTRES")
+  filterSubCategory String?
+  questChains       DofusQuestChain[]
+  playerProgress    PlayerDofusProgress[]
+
+  @@index([slug])
+  @@index([displayOrder])
+}
+
+/// Une "section" de quêtes pour un Dofus (Prérequis, Quêtes principales, etc.)
+model DofusQuestChain {
+  id          String            @id @default(cuid())
+  dofusId     String
+  sectionType String
+  sectionName String
+  description String?
+  chainOrder  Int               @default(0)
+  coordinatesV3 Json?   // V3: { x, y, zoom } pour le layout Neural Tree global
+  dofus       DofusItem         @relation(fields: [dofusId], references: [id], onDelete: Cascade)
+  entries     DofusQuestEntry[]
+
+  @@index([dofusId])
+  @@index([dofusId, chainOrder])
+}
+
+/// Une quête individuelle dans une chaîne Dofus
+model DofusQuestEntry {
+  id                 String                     @id @default(cuid())
+  chainId            String
+  name               String
+  zone               String?
+  questType          String                     @default("QUEST")
+  stepOrder          Int                        @default(0)
+  isOptional         Boolean                    @default(false)
+  isLast             Boolean                    @default(false)
+  dofusdbId          Int?
+  requirements       Json?
+  notes              String?
+  coords             Json?  // { x: number, y: number } coordonnées du PNJ de départ
+  localImageUrl      String? // V3: Asset WebP local (PNJ, monstre, etc.)
+  coordinatesV3      Json?   // V3: { x, y } pour le layout Neural Tree organique
+  mapId              Int?
+  posX               Int                        @default(0)
+  posY               Int                        @default(0)
+  isDungeon          Boolean                    @default(false)
+  itemsRequired      Json?
+  level              Int?
+  npcSubArea         String?
+  objectives         Json?
+  npcName            String?
+  isSynergyCandidate Boolean                    @default(false)
+  chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  playerProgress     PlayerDofusQuestProgress[]
+
+  @@index([chainId])
+  @@index([chainId, stepOrder])
+}
+
+/// Progression d'un joueur sur un Dofus spécifique (obtenu ou non)
+model PlayerDofusProgress {
+  id         String      @id @default(cuid())
+  profileId  String
+  guildId    String
+  dofusId    String
+  isObtained Boolean     @default(false)
+  obtainedAt DateTime?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  dofus      DofusItem   @relation(fields: [dofusId], references: [id], onDelete: Cascade)
+  profile    UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, dofusId])
+  @@index([guildId])
+  @@index([profileId])
+  @@index([dofusId])
+}
+
+/// Progression d'un joueur sur une quête spécifique dans une chaîne Dofus
+model PlayerDofusQuestProgress {
+  id          String           @id @default(cuid())
+  profileId   String
+  guildId     String
+  questId     String
+  status      DofusQuestStatus @default(NOT_STARTED)
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  quest       DofusQuestEntry  @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, questId])
+  @@index([guildId])
+  @@index([profileId])
+  @@index([questId])
+}
+
 enum GodNotifyType {
   VPS_MAINTENANCE
   BACKUP
@@ -1914,4 +2037,11 @@ enum SystemIssueStatus {
   EN_COURS
   TERMINE
   IGNORE
+}
+
+enum DofusQuestStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
 }

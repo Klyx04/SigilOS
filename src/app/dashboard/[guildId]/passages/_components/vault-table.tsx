@@ -255,7 +255,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             title="Voir la preuve"
                                             className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-white/15 hover:border-white/40 hover:scale-105 transition-all shadow-lg opacity-90 hover:opacity-100"
                                         >
-                                            <Image src={entry.proofUrl} alt="Preuve" fill className="object-cover" />
+                                            <img src={entry.proofUrl} alt="Preuve" className="absolute inset-0 w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-end justify-center pb-1">
                                                 <span className="text-[9px] text-white/0 hover:text-white/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                                                     ↗ Ouvrir

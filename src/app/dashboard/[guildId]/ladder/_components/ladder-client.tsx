@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -31,7 +31,14 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
+    const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+
+    // Reset page when switching tabs or timeframes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, activityView]);
 
     useEffect(() => {
         async function loadLadder() {
@@ -40,35 +47,40 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
             switch (activeTab) {
                 case "activity":
-                    result = await getActivityLadder(guildId, activityView);
+                    result = await getActivityLadder(guildId, activityView, currentPage);
                     break;
                 case "contribution":
-                    result = await getContributionLadder(guildId);
+                    result = await getContributionLadder(guildId, currentPage);
                     break;
                 case "seniority":
-                    result = await getSeniorityLadder(guildId);
+                    result = await getSeniorityLadder(guildId, currentPage);
                     break;
                 case "success":
-                    result = await getSuccessLadder(guildId);
+                    result = await getSuccessLadder(guildId, currentPage);
                     break;
                 case "general":
-                    result = await getGeneralLadder(guildId);
+                    result = await getGeneralLadder(guildId, currentPage);
                     break;
                 case "guildatons":
-                    result = await getGuildatonsLadder(guildId, activityView);
+                    result = await getGuildatonsLadder(guildId, activityView, currentPage);
                     break;
             }
 
             if (result.success && result.data) {
-                setLadder(result.data);
+                setLadder(result.data.entries);
+                setPagination({
+                    totalPages: result.data.totalPages,
+                    totalCount: result.data.totalCount
+                });
             } else {
                 setLadder([]);
+                setPagination(null);
             }
             setLoading(false);
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView]);
+    }, [guildId, activeTab, activityView, currentPage]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -310,15 +322,53 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         <p className="text-xs font-medium italic">Aucune donnée disponible pour ce classement.</p>
                     </div>
                 ) : (
-                    <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {ladder.map((entry) => (
-                            <LeaderboardCard
-                                key={entry.profileId}
-                                entry={entry}
-                                valueLabel={getValueLabel(entry)}
-                                accentColor={activeTab === 'activity' ? 'emerald' : activeTab === 'contribution' ? 'purple' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : (activeTab === 'general' ? 'blue' : 'amber')}
-                            />
-                        ))}
+                    <div className="space-y-8">
+                        <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            {ladder.map((entry) => (
+                                <LeaderboardCard
+                                    key={entry.profileId}
+                                    entry={entry}
+                                    valueLabel={getValueLabel(entry)}
+                                    accentColor={activeTab === 'activity' ? 'emerald' : activeTab === 'contribution' ? 'purple' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : (activeTab === 'general' ? 'blue' : 'amber')}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Pagination UI */}
+                        {pagination && pagination.totalPages > 1 && (
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="w-10 h-10 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                    >
+                                        <ChevronLeft className="w-5 h-5 text-zinc-400" />
+                                    </Button>
+
+                                    <div className="flex items-center gap-1.5 px-4 h-10 rounded-xl bg-white/5 border border-white/10">
+                                        <span className="text-[10px] font-black text-white">{currentPage}</span>
+                                        <span className="text-[10px] font-black text-zinc-600">/</span>
+                                        <span className="text-[10px] font-black text-zinc-400">{pagination.totalPages}</span>
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                                        disabled={currentPage === pagination.totalPages}
+                                        className="w-10 h-10 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                    >
+                                        <ChevronRight className="w-5 h-5 text-zinc-400" />
+                                    </Button>
+                                </div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
+                                    Total: {pagination.totalCount.toLocaleString()} membres
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

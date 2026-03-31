@@ -1,0 +1,1861 @@
+{
+  "dofus": "ebene",
+  "displayName": "Dofus Ébène",
+  "color": "#2D1B00",
+  "successName": "Noir d'ébène",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série des quêtes du Dofus Ébène.",
+  "dofusItemId": 7823,
+  "compiledAt": "2026-03-30T13:42:02.592Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "Frigost / Monde de Douze",
+      "description": "Toutes les quêtes et conditions requises avant de commencer la série du Dofus Ébène. Inclut l'accès à Frigost III (vaincre le Glourséleste au moins une fois).",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "L'anneau de tous les dangers",
+          "dofusdbId": 1629,
+          "level": 2,
+          "zone": "Salle des métiers",
+          "npcName": null,
+          "npcSubArea": "Salle des métiers",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            }
+          ],
+          "objectives": [
+            "Entrer dans la salle des métiers",
+            "Aller voir {npc,2895}",
+            "Récolter du blé",
+            "Cueillir de l'ortie",
+            "Couper du frêne",
+            "Extraire du fer",
+            "Pêcher un goujon",
+            "Fabriquer 1 {item,19622} et fermer l'interface",
+            "Retourner voir {npc,7581}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Sous le regard des dieux",
+          "dofusdbId": 1630,
+          "level": 2,
+          "zone": "Salle de combat",
+          "npcName": null,
+          "npcSubArea": "Salle de combat",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans la salle de combat",
+            "Aller voir {npc,2896}",
+            "Vaincre x2 {monster,4111} en un seul combat",
+            "Vaincre x1 {monster,4104} en un seul combat",
+            "Retourner voir {npc,2896}",
+            "Retourner voir {npc,7581}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1629
+            }
+          ]
+        },
+        {
+          "name": "Réponse à tout",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 2,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1630
+            }
+          ]
+        },
+        {
+          "name": "Le village dans les nuages",
+          "dofusdbId": 1632,
+          "level": 3,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2905}",
+            "Aller voir {npc,2899}",
+            "Aller voir {npc,2885}",
+            "Aller voir {npc,2880}",
+            "Aller voir {npc,2910}",
+            "Retourner voir {npc,2905}",
+            "Aller voir {npc,1515}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1630
+            }
+          ]
+        },
+        {
+          "name": "Espoirs et tragédies",
+          "dofusdbId": 1634,
+          "level": 5,
+          "zone": "Incarnam - Rocher du Phénix",
+          "npcName": null,
+          "npcSubArea": "Incarnam - Rocher du Phénix",
+          "coords": {
+            "x": 2,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Lire le livre contant la légende de Rykke Errel",
+            "Retourner voir {npc,1515}",
+            "Parler à un vieux de la vieille",
+            "Parler à une féline pantouflarde",
+            "Parler à un voleur malchanceux"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1632
+            }
+          ]
+        },
+        {
+          "name": "Dans la gueule du milimulou",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 5,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1634
+            }
+          ]
+        },
+        {
+          "name": "Destination Astrub",
+          "dofusdbId": 2004,
+          "level": 10,
+          "zone": "Incarnam - Aire de l'envol",
+          "npcName": null,
+          "npcSubArea": "Incarnam - Aire de l'envol",
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4360}",
+            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
+            "Aller voir {npc,4355}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1634
+            }
+          ]
+        },
+        {
+          "name": "Les principes d'archie m'aident",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 7,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2004
+            }
+          ]
+        },
+        {
+          "name": "On marche sur des œufs",
+          "dofusdbId": 1959,
+          "level": 15,
+          "zone": "Taverne d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 6,
+            "y": -18,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans la taverne d'Astrub",
+            "Parler avec les occupants de la taverne pour attirer l'attention d'un trafiquant",
+            "Aller voir {npc,4379}",
+            "Vaincre x1 {monster,5240} en un seul combat",
+            "Escorter Nowa et le livrer au chef Badufron",
+            "Aller voir {npc,1502}"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2004
+            }
+          ]
+        },
+        {
+          "name": "Conseil de classe",
+          "dofusdbId": 2009,
+          "level": 20,
+          "zone": "Taverne d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 4,
+            "y": -15,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4338}",
+            "Aller voir {npc,4326}",
+            "Aller voir {npc,4324}",
+            "Aller voir {npc,4335}",
+            "Aller voir {npc,4337}",
+            "Aller voir {npc,4328}",
+            "Aller voir {npc,4334}",
+            "Aller voir {npc,4329}",
+            "Aller voir {npc,4333}",
+            "Aller voir {npc,4327}",
+            "Aller voir {npc,4347}",
+            "Aller voir {npc,4319}",
+            "Aller voir {npc,4318}",
+            "Aller voir {npc,4317}",
+            "Aller voir {npc,4315}",
+            "Aller voir {npc,4314}",
+            "Aller voir {npc,4313}",
+            "Aller voir {npc,4312}",
+            "Aller voir {npc,6839}"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1959
+            }
+          ]
+        },
+        {
+          "name": "Quête de classe",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 10,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2009
+            }
+          ]
+        },
+        {
+          "name": "Ça sent le gaz",
+          "dofusdbId": 1960,
+          "level": 25,
+          "zone": "Tour du Conseil",
+          "npcName": null,
+          "npcSubArea": "Tour du Conseil",
+          "coords": {
+            "x": 4,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1502}",
+            "Rencontrer Fallanster",
+            "Aller voir {npc,4356}",
+            "Se rendre dans les égouts pour rencontrer les Rats Strubiens",
+            "Vaincre x3 {monster,5248} en un seul combat",
+            "Aller voir {npc,4414}",
+            "Explorer la mine de la carrière afin de trouver ce que cachent les Sidoas",
+            "Créer une diversion dans une galerie proche des Gardoas",
+            "Espionner les Gardoas en se cachant afin de pouvoir écouter leur conversation",
+            "Découvrir ce qu'il y a derrière la porte",
+            "Libérer Rathrosk",
+            "Sortir de la salle de la machine avec Rathrosk",
+            "Affronter les Gardoas vétérans",
+            "Escorter Rathrosk jusqu'à la salle du Conseil",
+            "Présenter Rathrosk à Fallanster",
+            "Aller voir {npc,4325}",
+            "Aller voir {npc,4310}",
+            "Aller voir {npc,4420}"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2009
+            }
+          ]
+        },
+        {
+          "name": "Balade en forêt",
+          "dofusdbId": 1962,
+          "level": 30,
+          "zone": "Tour de la Milice",
+          "npcName": null,
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": -1,
+            "y": -23,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller au rendez-vous fixé par Badufron",
+            "Aller voir {npc,4421}",
+            "Vaincre les Pandawas dans la forêt d'Astrub",
+            "Aller voir {npc,4323}",
+            "Aller voir {npc,4325}"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1960
+            }
+          ]
+        },
+        {
+          "name": "Le réveil de Pandala",
+          "dofusdbId": 2149,
+          "level": 30,
+          "zone": "Taverne du Pandazaap",
+          "npcName": null,
+          "npcSubArea": "Taverne du Pandazaap",
+          "coords": {
+            "x": 12,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 50,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 885,
+              "name": "Laine de Boufton Noir",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/57210.png"
+            },
+            {
+              "id": 23038,
+              "name": "Échantillon sanguin de Sel Dawa",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            }
+          ],
+          "objectives": [
+            "Vaincre x5 {monster,5228}",
+            "Vaincre x5 {monster,5229}",
+            "Vaincre x5 {monster,5230}",
+            "Vaincre x5 {monster,5231}",
+            "Retourner voir {npc,5604}",
+            "Trouver quelqu'un capable de vous prémunir de la Pandrista",
+            "Demander conseil à Nibé Lulle pour élaborer un sérum",
+            "Fabriquer 1 {item,23039} et fermer l'interface",
+            "Se faire administrer le sérum en retournant voir Nepra Lido",
+            "Traverser le pont de Pandala",
+            "Aller voir {npc,5605}",
+            "Boire la bière pour ouvrir votre conscience aux esprits alentours",
+            "Parler à l'esprit présent dans la pièce",
+            "Sortir de la chambre"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1962
+            }
+          ]
+        },
+        {
+          "name": "Le réceptacle des dofus",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 14,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2149
+            }
+          ]
+        },
+        {
+          "name": "Intrusion chez les wabbits",
+          "dofusdbId": 827,
+          "level": 40,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 1455,
+              "name": "Ailes de Scarafeuille Bleu",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/104212.png"
+            },
+            {
+              "id": 1456,
+              "name": "Ailes de Scarafeuille Blanc",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/104213.png"
+            },
+            {
+              "id": 1458,
+              "name": "Ailes de Scarafeuille Vert",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/104215.png"
+            },
+            {
+              "id": 1457,
+              "name": "Ailes de Scarafeuille Rouge",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/104214.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,119} : x1 {item,1455}",
+            "Ramener à {npc,119} : x1 {item,1456}",
+            "Ramener à {npc,119} : x1 {item,1458}",
+            "Ramener à {npc,119} : x1 {item,1457}"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2149
+            }
+          ]
+        },
+        {
+          "name": "Un sage parmi les sages",
+          "dofusdbId": 2193,
+          "level": 40,
+          "zone": "Maison des Lenalds",
+          "npcName": null,
+          "npcSubArea": "Maison des Lenalds",
+          "coords": {
+            "x": 22,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans la maison des Lenalds pour voir Ronald",
+            "Prouver que vous êtes folt et lusé comme un Lenald",
+            "Parler à la doyenne des Lenalds",
+            "Rencontrer la capitaine Lily au port de Madrestam",
+            "Se prémunir contre la myxomawose et prendre le bateau pour l'île des Wabbits",
+            "Trouver un sage lenald sur l'île de la Cawotte",
+            "Aller voir {npc,640}",
+            "Retrouver le sage disparu dans les souterrains des Wabbits",
+            "Vaincre les mangeuws de cawottes",
+            "Aller voir {npc,5569}",
+            "Escorter Ronald en lieu sûr",
+            "Discuter avec Ronald pour en apprendre davantage sur les six Dofus Primordiaux"
+          ],
+          "stepOrder": 16,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 827
+            }
+          ]
+        },
+        {
+          "name": "Protection divine",
+          "dofusdbId": 2194,
+          "level": 40,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler au maître de votre temple",
+            "Parler au maître des Dopeuls de votre temple",
+            "Vaincre x1 {monster,505} en un seul combat",
+            "Prier devant la statue du temple pour recevoir la bénédiction des Douze",
+            "Aller à la bibliothèque d'Amakna",
+            "Aller voir {npc,447}",
+            "Lire l'ouvrage de Wally Elconom",
+            "Se rendre à l'orée enchantée de la forêt Maléfique",
+            "Aller voir {npc,6709}"
+          ],
+          "stepOrder": 17,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2193
+            }
+          ]
+        },
+        {
+          "name": "Voir le dark Vlad et mourir... ou pas",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 18,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2194
+            }
+          ]
+        },
+        {
+          "name": "La magicienne des marécages",
+          "dofusdbId": 1462,
+          "level": 40,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2205}"
+          ],
+          "stepOrder": 19,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2194
+            }
+          ]
+        },
+        {
+          "name": "L'histoire en mouvement",
+          "dofusdbId": 1988,
+          "level": 25,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4341}",
+            "Aller voir {npc,730}",
+            "Récupérer le manuscrit avant qu'il ne soit détruit",
+            "Montrer à {npc,4310} : 1 {item,19681}"
+          ],
+          "stepOrder": 20,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1462
+            }
+          ]
+        },
+        {
+          "name": "Restauration rapide",
+          "dofusdbId": 1989,
+          "level": 30,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 3,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Montrer à {npc,726} : 1 {item,19681}",
+            "Récupérer un morceau d'écorce centenaire",
+            "Récupérer du lailait de boufette",
+            "Rapporter le lailait et l'écorce au Mage Ax",
+            "Ramener à {npc,1574} : x1 {item,19686}",
+            "Aller voir {npc,4310}"
+          ],
+          "stepOrder": 21,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1988
+            }
+          ]
+        },
+        {
+          "name": "De vrais rats de bibliothèque",
+          "dofusdbId": 1990,
+          "level": 35,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 6,
+            "y": -13,
+            "worldId": 3
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Affronter des rats de bibliothèque pour retrouver le parchemin",
+            "Aller voir {npc,4414}",
+            "Montrer à {npc,4310} : 1 {item,19690}",
+            "Aller voir {npc,1574}"
+          ],
+          "stepOrder": 22,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1989
+            }
+          ]
+        },
+        {
+          "name": "Légende d'automne",
+          "dofusdbId": 1991,
+          "level": 40,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Lire l'ouvrage créé par Prim",
+            "Aller voir {npc,4310}",
+            "Lire le parchemin traduit",
+            "Aller voir {npc,4443}",
+            "Escorter le dragon jusqu'au cimetière d'Astrub",
+            "Retrouver Rathrosk dans la partie sud-est du cimetière",
+            "Aller voir {npc,4418}",
+            "Trouver le vieillard près de l'oiseau de feu",
+            "Aller voir {npc,4321}",
+            "Ramasser de la terre près de la crypte de Brutas",
+            "Récupérer une relique en combattant des spectres de l'Aurore Pourpre",
+            "Arracher 3 ceintures aux Gargrouilles et les placer dans l'urne avec la terre et la relique",
+            "Enterrer l'urne près de la tombe du chevalier de l'automne"
+          ],
+          "stepOrder": 23,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1990
+            }
+          ]
+        },
+        {
+          "name": "Frappez, ami, et entrez",
+          "dofusdbId": 2010,
+          "level": 200,
+          "zone": "Porte de Ferfroid",
+          "npcName": null,
+          "npcSubArea": "Porte de Ferfroid",
+          "coords": {
+            "x": -69,
+            "y": -71,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Tenter d'ouvrir les portes du royaume des Martegel",
+            "Aller voir {npc,4491}",
+            "Rencontrer des Nimbos",
+            "Montrer aux Nimbos que vous savez vous battre",
+            "Entrer dans la taverne du Bateau ivre",
+            "Discuter avec le tavernier",
+            "Payer des tournées générales aux Nimbos",
+            "Essayer à nouveau de passer les portes du royaume des Martegel",
+            "Retourner voir {npc,4491}"
+          ],
+          "stepOrder": 24,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1991
+            }
+          ]
+        },
+        {
+          "name": "De Brikke et de Brokke",
+          "dofusdbId": 2011,
+          "level": 200,
+          "zone": "Porte de Ferfroid",
+          "npcName": null,
+          "npcSubArea": "Porte de Ferfroid",
+          "coords": {
+            "x": -66,
+            "y": -72,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver Brikke la forgeronne",
+            "Aller voir {npc,4501}",
+            "Résoudre le problème de Brikke",
+            "Parler à l'un des généraux pour rencontrer leur doyen",
+            "Aider à la libération du général Dourak",
+            "Aller voir {npc,4507}",
+            "Retourner voir {npc,4496}",
+            "Aller voir {npc,1901}",
+            "Trouver Volkaragnar et entendre sa version de l'histoire",
+            "Parler au dragon mentionné par Volkaragnar",
+            "Aller voir {npc,4310}",
+            "Lire le livre « Le Crépuscule de jade »",
+            "Lire le document « Les Sept Clans »",
+            "Retourner voir {npc,4310}",
+            "Aller voir {npc,4378}",
+            "Trouver l'acheteuse décrite par René Gossian",
+            "Vaincre les Srams pour s'emparer du marteau",
+            "Lire la note confidentielle trouvée sur la Sram",
+            "Montrer à {npc,4501} : 1 {item,19934}",
+            "Aider Brikke à réparer le marteau de Brokke",
+            "Entrer dans la Brasserie du roi Dazak",
+            "Demander violemment une audience avec le roi Dazak Martegel",
+            "Aller voir {npc,4500}",
+            "Effacer plusieurs affronts de la bible des rancunes du roi Dazak"
+          ],
+          "stepOrder": 25,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2010
+            }
+          ]
+        },
+        {
+          "name": "Les ennemis de mes ennemis sont mes ennemis",
+          "dofusdbId": 2019,
+          "level": 200,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -66,
+            "y": -69,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4506}",
+            "Discuter avec le chef des éclaireurs",
+            "Retourner voir {npc,4506}",
+            "Trouver un moyen pour que les éclaireurs et les Nimbos cessent de se battre",
+            "Ramener à {npc,2003} : x8 {item,19936}",
+            "Aller voir {npc,4520}",
+            "Vaincre x1 {monster,5323} en un seul combat",
+            "Retourner sur les lieux de l'affrontement entre les éclaireurs et les Nimbos",
+            "Placer le métal maudit pour provoquer une attaque d'Armutins",
+            "Combattre les Armutins avec l'aide des éclaireurs et des Nimbos",
+            "Aller voir {npc,4522}"
+          ],
+          "stepOrder": 26,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2011
+            }
+          ]
+        },
+        {
+          "name": "Les ninsoumis",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 27,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2019
+            }
+          ]
+        },
+        {
+          "name": "La bible des rancunes",
+          "dofusdbId": 2013,
+          "level": 200,
+          "zone": "Brasserie du roi Dazak - Sortie",
+          "npcName": null,
+          "npcSubArea": "Brasserie du roi Dazak - Sortie",
+          "coords": {
+            "x": -62,
+            "y": -70,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 11510,
+              "name": "Poisskaille en Fricassée",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/49136.png"
+            },
+            {
+              "id": 11503,
+              "name": "Pain de Frostiz",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/33072.png"
+            },
+            {
+              "id": 11568,
+              "name": "Pizza au boudin de boufmouth",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/24107.png"
+            },
+            {
+              "id": 11370,
+              "name": "Friswein",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/79013.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,4500} : x20 {item,19942}",
+            "Évoquer avec Plénie la question des dédommagements envers le clan Martegel",
+            "Aller voir {npc,1237}",
+            "Récupérer l'argent auprès du banquier de la Bourgade",
+            "Ramener à {npc,4531} : x1 {item,19943}",
+            "Ramener à {npc,4502} : x20 {item,11510}",
+            "Ramener à {npc,4502} : x20 {item,11503}",
+            "Ramener à {npc,4502} : x20 {item,11568}",
+            "Ramener à {npc,4502} : x20 {item,11370}",
+            "Trouver Ystrion Bannisterre",
+            "Aller voir {npc,4529}",
+            "Aller voir {npc,4530}",
+            "Retourner voir {npc,4529}",
+            "Trouver une caisse à la taille idéale pour un Nimbos",
+            "Récupérer une boîte à outils afin de percer des trous dans la caisse",
+            "Assommer Ystrion et l'enfermer dans la caisse",
+            "Remettre Ystrion à Deor Morfont"
+          ],
+          "stepOrder": 28,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2019
+            }
+          ]
+        },
+        {
+          "name": "Mieux vaut ne pas se fier à la première impression",
+          "dofusdbId": 894,
+          "level": 20,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 3,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 384,
+              "name": "Laine de Bouftou",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/57056.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,730}",
+            "Feuilleter le livre illustrant la légende de Steff Taff",
+            "Retourner voir {npc,1574}",
+            "Aller voir {npc,599}",
+            "Aller voir {npc,1575}",
+            "Vaincre x6 {monster,5106}",
+            "Retourner voir {npc,599}",
+            "Ramener à {npc,599} : x5 {item,384}",
+            "Ramener à {npc,599} : x3 {item,32098}",
+            "Ramener à {npc,599} : x5 {item,13174}",
+            "Ramener à {npc,1574} : x1 {item,13177}"
+          ],
+          "stepOrder": 29,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2013
+            }
+          ]
+        },
+        {
+          "name": "Aventure miniature",
+          "dofusdbId": 1607,
+          "level": 40,
+          "zone": "Cache de Kankreblath - Sortie",
+          "npcName": null,
+          "npcSubArea": "Cache de Kankreblath - Sortie",
+          "coords": {
+            "x": 3,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2767}",
+            "Réduire la taille de la croquette pour l'emporter avec vous",
+            "Montrer à {npc,1901} : 1 {item,15988}",
+            "Découvrir la carte : Lieu du rendez-vous avec l'Ecaflip",
+            "Aller voir {npc,2769}",
+            "Vaincre x1 {monster,3938} en un seul combat",
+            "Retourner voir {npc,1901}"
+          ],
+          "stepOrder": 30,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 894
+            }
+          ]
+        },
+        {
+          "name": "Ne tirez pas sur le messager",
+          "dofusdbId": 1845,
+          "level": 40,
+          "zone": "Boutique de Kerubim",
+          "npcName": null,
+          "npcSubArea": "Boutique de Kerubim",
+          "coords": {
+            "x": 3,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1901} : x1 {item,18650}",
+            "Voir si le talisman de Kerubim va vous porter chance",
+            "Lire le message trouvé dans la bouteille",
+            "Se rendre sur l'île mentionnée dans le message",
+            "Montrer le message à Coqueline et en apprendre plus sur l'île",
+            "Fouiller le camp des chasseurs",
+            "Trouver un stratagème pour tromper Bébert",
+            "Récupérer de la peinture",
+            "Récupérer de la laine",
+            "Récupérer une fausse tête de bouftou",
+            "Récupérer des pierres plates pour faire les sabots du bouftou",
+            "Trouver un atelier et fabriquer la peluche",
+            "Montrer à Bébert le bouftou arc-en-ciel que vous avez fabr... capturé",
+            "Aller voir {npc,3737}",
+            "Vaincre x1 {monster,4826} en un seul combat",
+            "Trouver l'auteur du message",
+            "Libérer le kaskargo",
+            "Libérer la mouette",
+            "Libérer le scarafeuille",
+            "Aller voir {npc,3739}",
+            "Escorter l'alchimiste jusqu'à Coqueline",
+            "Aller voir {npc,3733}"
+          ],
+          "stepOrder": 31,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1607
+            }
+          ]
+        },
+        {
+          "name": "À la rescousse des Magypus",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 32,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1845
+            }
+          ]
+        },
+        {
+          "name": "Dernier contact",
+          "dofusdbId": 1867,
+          "level": 40,
+          "zone": "Taverne Atolmond",
+          "npcName": null,
+          "npcSubArea": "Taverne Atolmond",
+          "coords": {
+            "x": -27,
+            "y": 33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Rencontrer le nécromancien ouginak",
+            "Ramener à {npc,3905} : x1 {item,18819}",
+            "Obtenir des informations concernant Azrim chez les Mériens",
+            "Aller voir {npc,3907}",
+            "Découvrir la carte : Grotte d'Azrim",
+            "Récupérer un souvenir d'Azrim dans la grotte où le shaman méditait",
+            "Trouver les maraudeurs mulous",
+            "Vaincre les maraudeurs mulous",
+            "Ramener à {npc,3905} : x1 {item,18821}",
+            "Ramener à {npc,3905} : x1 {item,18822}",
+            "Escorter le nécromancien jusqu'au temple d'Ouginak",
+            "Assister le nécromancien",
+            "Retourner voir {npc,3712}"
+          ],
+          "stepOrder": 33,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1845
+            }
+          ]
+        },
+        {
+          "name": "La voix des morts",
+          "dofusdbId": 1868,
+          "level": 40,
+          "zone": "Côte de la Meute",
+          "npcName": null,
+          "npcSubArea": "Côte de la Meute",
+          "coords": {
+            "x": 9,
+            "y": -66,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,3724}",
+            "Aller voir {npc,3906}",
+            "Se rendre au camp des Bradors",
+            "Aller voir {npc,3912}",
+            "Aider Kalidar",
+            "Se rendre au camp des Bermanes",
+            "Aller voir {npc,3913}",
+            "Aller voir {npc,3914}",
+            "Se rendre au camp des Maciens",
+            "Aller voir {npc,3870}",
+            "Se rendre au camp des Pagneuls",
+            "Aller voir {npc,3869}",
+            "Trouver le partisan d'Imaguni",
+            "Donner de l'eau au partisan",
+            "Aller voir {npc,365}",
+            "Ramener à {npc,3916} : x1 {item,18829}",
+            "Se rendre au camp des Shibaks",
+            "Aller voir {npc,3917}",
+            "Rencontrer Imaguni",
+            "Utiliser le sifflet enchanté pour appeler Nosya",
+            "Vaincre Imaguni et ses serviteurs",
+            "Aller voir {npc,3919}"
+          ],
+          "stepOrder": 34,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1867
+            }
+          ]
+        },
+        {
+          "name": "Le fléau de Burin",
+          "dofusdbId": 1869,
+          "level": 40,
+          "zone": "Temple Ouginak",
+          "npcName": null,
+          "npcSubArea": "Temple Ouginak",
+          "coords": {
+            "x": -28,
+            "y": 33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Montrer à {npc,365} : 1 {item,18835}",
+            "Explorer la mine abandonnée",
+            "Trouver un moyen d'entrer dans la fournaise",
+            "Rencontrer le forgeron",
+            "Aller voir {npc,3923}",
+            "Parler à un ami de Brumen",
+            "Trouver la chasseuse de Srambad",
+            "Vaincre x1 {monster,4910} en un seul combat",
+            "Montrer à {npc,3712} : 1 {item,18854}"
+          ],
+          "stepOrder": 35,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1868
+            }
+          ]
+        },
+        {
+          "name": "La colère des dieux",
+          "dofusdbId": 1938,
+          "level": 200,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Prier devant la statue du temple pour entrer dans le Domaine des dieux",
+            "Aller voir {npc,4197}",
+            "Aller voir {npc,4207}",
+            "Aller voir {npc,4209}"
+          ],
+          "stepOrder": 36,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1869
+            }
+          ]
+        },
+        {
+          "name": "La dernière barbe avant la fin du monde",
+          "dofusdbId": 2014,
+          "level": 200,
+          "zone": "Bateau Ivre",
+          "npcName": null,
+          "npcSubArea": "Bateau Ivre",
+          "coords": {
+            "x": -70,
+            "y": -69,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19950,
+              "name": "Orange amère",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/46468.png"
+            },
+            {
+              "id": 19952,
+              "name": "Sucre glace",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/48292.png"
+            },
+            {
+              "id": 19951,
+              "name": "Eau-de-vie vernale",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79014.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,4504} : x10 {item,19948}",
+            "Ramener à {npc,4504} : x4 {item,19949}",
+            "Montrer à {npc,4504} : 10 {item,19950}",
+            "Montrer à {npc,4504} : 4 {item,19952}",
+            "Montrer à {npc,4504} : 1 {item,19951}",
+            "Fabriquer 1 {item,19953} et fermer l'interface",
+            "Ramener à {npc,4504} : x1 {item,19953}"
+          ],
+          "stepOrder": 37,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1938
+            }
+          ]
+        },
+        {
+          "name": "Un pendule pour guider ses pas",
+          "dofusdbId": 2450,
+          "level": 40,
+          "zone": "Frigost / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -5,
+            "y": 13,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14278,
+              "name": "Chaînes Brisées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15245.png"
+            },
+            {
+              "id": 746,
+              "name": "Ébonite",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/40658.png"
+            },
+            {
+              "id": 2268,
+              "name": "Scalp de Bwork Archer",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15425.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,6709} : x1 {item,14278}",
+            "Ramener à {npc,6709} : x1 {item,746}",
+            "Ramener à {npc,6709} : x1 {item,2268}",
+            "Patienter le temps que Lanseuft de Troille confectionne le pendule",
+            "Aller voir {npc,6709}",
+            "Utiliser le pendule sous la supervision de Lanseuft pour entrer dans le dédale du Dark Vlad"
+          ],
+          "stepOrder": 38,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2014
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes du Dofus Ébène — Partie 1",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Forêt Maléfique / Crocabulia",
+      "description": "Les 5 premières quêtes de la série (succès Noir d'ébène). Inclut les donjons : Repaire de Skeunk, Mégalithe de Fraktale, Sanctuaire des Dragoeufs, Tour de Bethel, Temple de Koutoulou.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "L'épée du rocher",
+          "dofusdbId": 2035,
+          "level": 120,
+          "zone": "Repaire de Skeunk - Sortie",
+          "npcName": null,
+          "npcSubArea": "Repaire de Skeunk - Sortie",
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20210,
+              "name": "Crocobur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/6739.png"
+            }
+          ],
+          "objectives": [
+            "Lire l'ouvrage sur la légende de Crocoburio",
+            "Retourner voir {npc,2205}",
+            "Découvrir la carte : Rocher de l'épée",
+            "Tenter de retirer l'épée du rocher",
+            "Examiner le rocher",
+            "Récupérer de la poudre scintillante dans la bouate à maquillage de Skeunk",
+            "Fabriquer la poudre d'Oubn-Ghazou dans le creuset de Mériana",
+            "Utiliser la poudre magique sur le rocher de l'épée",
+            "Montrer à {npc,2205} : 1 {item,20207}",
+            "Trouver le magicien nommé Merlan",
+            "Se rendre dans la dimension du Xélorium",
+            "Vaincre x1 {monster,3852} en un seul combat",
+            "Ramener à {npc,6365} : x1 {item,20208}",
+            "Vaincre un craqueleur de verre dans la Montagne des Craqueleurs",
+            "Vaincre un craqueleur de verre dans les Plaines Rocheuses",
+            "Vaincre un craqueleur de verre dans les Plaines Herbeuses",
+            "Ramener à {npc,6365} : x3 {item,20209}",
+            "Placer les fragments pour briser le lien entre le rocher et l'épée",
+            "Aller voir {npc,4633}",
+            "Vaincre x1 {monster,5381} en un seul combat",
+            "Retirer l'épée Crocobur du rocher",
+            "Montrer à {npc,2205} : 1 {item,20210}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "Le forgeur de légende",
+          "dofusdbId": 2036,
+          "level": 120,
+          "zone": "Antre de Crocabulia - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Antre de Crocabulia - Cinquième salle",
+          "coords": {
+            "x": -29,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20210,
+              "name": "Crocobur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/6739.png"
+            }
+          ],
+          "objectives": [
+            "Rencontrer un forgeron capable de réparer Crocobur",
+            "Aller voir {npc,3923}",
+            "Tremper l'épée dans le lac gelé de Frigost",
+            "Tremper l'épée dans la fournaise de Feudala",
+            "Tremper l'épée dans un cratère acide de la Désolation",
+            "Montrer à {npc,3923} : 1 {item,20210}",
+            "Placer l'épée sur l'enclume de Volkaragnar",
+            "Assister Volkaragnar pendant qu'il reforge la lame de l'épée",
+            "Aller voir {npc,3922}",
+            "Trouver une source de magie dans les Lacs Enchantés",
+            "Remplir une fiole avec de l'eau de la source de magie",
+            "Ramener à {npc,3923} : x1 {item,20211}",
+            "Interroger la bijoutière d'Astrub",
+            "Trouver Crocopale",
+            "Vaincre les gardiens de l'épée",
+            "Aller voir {npc,4651}",
+            "Faire sertir une pierre de jade dans la garde de Crocobur",
+            "Retourner voir {npc,3923}",
+            "Découvrir la carte : Portail du Donjon des Dragoeufs",
+            "Vaincre x1 {monster,854} en un seul combat",
+            "Tremper l'épée dans le sang de Crocabulia",
+            "Aller voir {npc,4634}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2035
+            }
+          ]
+        },
+        {
+          "name": "Jusqu'au bout du rêve",
+          "dofusdbId": 2037,
+          "level": 130,
+          "zone": "Forêt Maléfique / Crocabulia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 19
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans le Plan Astral",
+            "Aller voir {npc,4638}",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le premier songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le deuxième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le troisième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le quatrième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le cinquième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le sixième songe de Crocobur",
+            "Trouver le septième songe de Crocobur dans les Pensées oniriques (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le huitième songe de Crocobur au cours des Balades fantastiques (ou au-delà) dans les méandres d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le neuvième songe de Crocobur dans les Espaces imaginaires (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le dixième songe de Crocobur dans les Concepts brumeux (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le onzième songe de Crocobur dans les Abstractions chimériques d'un rêve intense (difficulté 3 ou plus)",
+            "Affronter la vague de gardiens chimériques d'un rêve intense (difficulté 3 ou plus) pour trouver le dernier songe de Crocobur",
+            "Montrer l'épée éveillée à Volkaragnar",
+            "Retourner voir {npc,2205}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2036
+            }
+          ]
+        },
+        {
+          "name": "À la recherche de Crocoburio",
+          "dofusdbId": 2038,
+          "level": 200,
+          "zone": "Tour de Bethel - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tour de Bethel - Cinquième salle",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver Sramsara",
+            "Aller voir {npc,4566}",
+            "Affronter Bethel dans sa tour",
+            "Ramener à {npc,4566} : x1 {item,20078}",
+            "Chasser le fantôme crocodaille",
+            "Lire le parchemin magique",
+            "Trouver l'endroit où Crocoburio s'est réincarné",
+            "Découvrir des informations sur la famille de Crocoburio réincarné",
+            "Trouver l'endroit où a déménagé la famille de bûcherons",
+            "Découvrir de nouvelles informations sur la famille de Crocoburio réincarné",
+            "Trouver qui a recueilli les trois orphelins",
+            "Parler à l'aîné des orphelins",
+            "Trouver le plus jeune des orphelins",
+            "Se débarrasser des créatures qui importunent le jeune garçon",
+            "Aller voir {npc,4615}",
+            "Retourner voir {npc,4616}",
+            "Donner une bonne leçon à Bruce Epett",
+            "Trouver quelqu'un qui aurait aperçu la petite fille",
+            "Trouver l'endroit où s'est réfugiée la petite fille",
+            "Se débarrasser des boiboites de Yan Chenap",
+            "Aller voir {npc,4617}",
+            "Escorter la petite fille jusqu'à Mériana",
+            "Aller voir {npc,2205}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2037
+            }
+          ]
+        },
+        {
+          "name": "Le creuset de Mériana",
+          "dofusdbId": 2039,
+          "level": 200,
+          "zone": "Forêt Maléfique / Crocabulia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20162,
+              "name": "Métal abyssal",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/107737.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 7033,
+              "name": "Dolomite",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39110.png"
+            },
+            {
+              "id": 11110,
+              "name": "Obsidienne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39112.png"
+            }
+          ],
+          "objectives": [
+            "Consulter la page du grimoire pour obtenir des informations sur les composants",
+            "Montrer à {npc,2205} : 3 {item,20159}",
+            "Montrer à {npc,2205} : 3 {item,20160}",
+            "Montrer à {npc,2205} : 1 {item,20161}",
+            "Montrer à {npc,2205} : 1 {item,20163}",
+            "Montrer à {npc,2205} : 7 {item,20165}",
+            "Montrer à {npc,2205} : 1 {item,20167}",
+            "Trouver un alchimiste ayant accompli le Grand Œuvre",
+            "Retrouver l'alchimiste et lui prouver votre détermination",
+            "Parler à l'alchimiste",
+            "Montrer à {npc,2205} : 1 {item,20164}",
+            "Placer les composants dans le creuset",
+            "Montrer le résultat de la transmutation à Mériana"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2038
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes du Dofus Ébène — Partie 2",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Frigost / Xélorium",
+      "description": "Les 5 dernières quêtes de la série. Inclut les donjons : Brasserie du Roi Dazak, Salons Privés de Klime, Trône de la Cour Sombre, Tour de Solar. Nécessite Songes Infinis Rêve III+.",
+      "isSynergyCandidate": true,
+      "chainOrder": 2,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Une douloureuse séparation",
+          "dofusdbId": 2040,
+          "level": 200,
+          "zone": "Larmes de Grougalorasalar",
+          "npcName": null,
+          "npcSubArea": "Larmes de Grougalorasalar",
+          "coords": {
+            "x": -25,
+            "y": -52,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver l'accès aux larmes de Grougalorasalar",
+            "Descendre dans la crevasse",
+            "Explorer la caverne des larmes de Grougalorasalar",
+            "Purifier la caverne",
+            "Sortir de la caverne pour découvrir d'où viennent les éclats de voix",
+            "Parler aux miliciens bontariens",
+            "Tenter de s'expliquer auprès du capitaine bontarien",
+            "Faire comprendre à Strig que vous avez besoin d'aide",
+            "Inspecter la cellule pour passer le temps",
+            "Parler au capitaine bontarien",
+            "Se renseigner sur les formalités à remplir pour ne plus être inquiété",
+            "Vaincre les miliciens avec l'aide de Joris",
+            "Parler à Joris dans la salle de la milice",
+            "Se rendre au palais du roi de Bonta en compagnie de Joris",
+            "Aller voir {npc,2933}",
+            "Retourner dans la caverne des larmes de Grougalorasalar",
+            "Aller voir {npc,2205}",
+            "Accomplir le rituel avec l'aide de Mériana",
+            "Vaincre l'âme de Crocoburio",
+            "Aller voir {npc,4617}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "Le dragon noir",
+          "dofusdbId": 2041,
+          "level": 200,
+          "zone": "Brasserie du roi Dazak - Sortie",
+          "npcName": null,
+          "npcSubArea": "Brasserie du roi Dazak - Sortie",
+          "coords": {
+            "x": -62,
+            "y": -70,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 19954,
+              "name": "Barbarbe",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            }
+          ],
+          "objectives": [
+            "Passer la porte du royaume des Nimbos de Frigost",
+            "Obtenir une entrevue avec le roi Dazak Martegel",
+            "Trouver un cordonnier capable de travailler une peau de crocodaille gelée",
+            "Parler à une magicienne nimbos capable de voir au-delà des apparences",
+            "Ramener à {npc,4622} : x10 {item,17205}",
+            "Ramener à {npc,4622} : x2 {item,20444}",
+            "Ramener à {npc,4622} : x5 {item,19954}",
+            "Découvrir la carte : Environs de la porte des marais",
+            "Dissiper l'illusion qui cache la porte des marais",
+            "Passer la porte des marais",
+            "Entrer dans le fort Vert-de-gris",
+            "Parler à un officier du clan Vert-de-gris",
+            "Rencontrer la reine Tressa Vert-de-gris",
+            "Parler au guide nimbos pour partir vers la Jungle Dévorante",
+            "Traverser la Jungle Dévorante",
+            "Explorer la cité de Tikoltenak",
+            "Trouver un moyen d'entrer dans le temple",
+            "Explorer le temple à la recherche de Grougalorasalar",
+            "Aller voir {npc,4621}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2040
+            }
+          ]
+        },
+        {
+          "name": "La vengeance du dernier empereur",
+          "dofusdbId": 2042,
+          "level": 200,
+          "zone": "Frigost / Xélorium",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -82,
+            "y": 6,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver d'où vient la voix sépulcrale qui murmure votre nom",
+            "Aller voir {npc,4623}",
+            "Aller voir {npc,4626}",
+            "Explorer les marécages près de la montagne des Koalaks",
+            "Trouver un dictionnaire pour mieux comprendre le langage de l'étranger masqué",
+            "Aller voir {npc,4627}",
+            "Chercher des traces de l'aventurier près de la porte des marais",
+            "Obtenir des informations sur l'aventurier assoiffé de sang à Brâkmar",
+            "Découvrir la carte : Tour de Gisgoul",
+            "Trouver les Brâkmariens",
+            "Aller voir {npc,4628}",
+            "Suivre la piste des shushus",
+            "Tenter de parlementer avec les shushus",
+            "Apprendre la politesse aux shushus",
+            "Discuter un peu plus calmement avec les shushus",
+            "Explorer la baie de Cania à la recherche du possédé",
+            "Aller voir {npc,4629}",
+            "Vaincre Bulak",
+            "Retourner voir {npc,4626}",
+            "Retourner voir {npc,2205}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2041
+            }
+          ]
+        },
+        {
+          "name": "L'oeuf de Crocabulia",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2042
+            }
+          ]
+        },
+        {
+          "name": "Un nouvel héritier",
+          "dofusdbId": 2044,
+          "level": 200,
+          "zone": "Tour de Solar - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tour de Solar - Cinquième salle",
+          "coords": {
+            "x": -29,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,3923}",
+            "Assouvir la soif de Crocobur en combattant des Calcinés dans les Marches Magmatiques",
+            "Calmer la faim de Crocobur en lui faisant goûter à l'âme de Solar",
+            "Retourner voir {npc,3923}",
+            "Trouver le doyen des Aigles Célestes",
+            "Aller voir {npc,4631}",
+            "Libérer l'âme de Crocoburio pour qu'elle entre dans l'œuf de Crocabulia",
+            "Déposer l'œuf dans un endroit propice à son éclosion",
+            "Protéger l'œuf jusqu'à l'éclosion de Crocoburio",
+            "Demander au petit Crocoburio à peine sorti de l'œuf de vous accompagner",
+            "Rendre l'épée Crocobur à Volkaragnar",
+            "Escorter Crocoburio jusqu'à son père Grougalorasalar",
+            "Convaincre Grougalorasalar de respecter sa part du marché",
+            "Devenir le nouveau gardien du Dofus Ébène"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2042
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

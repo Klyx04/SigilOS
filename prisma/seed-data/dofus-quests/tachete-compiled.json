@@ -1,0 +1,1078 @@
+{
+  "dofus": "tachete",
+  "displayName": "Dofus Tacheté",
+  "color": "#8B4513",
+  "successName": "Un rêve en clair-obscur",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
+  "dofusItemId": 7829,
+  "compiledAt": "2026-03-30T13:44:41.737Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "Pandala",
+      "description": "Toutes les quêtes de Pandala doivent être complétées avant de commencer la série du Dofus Tacheté.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Dites-le avec des fleurs",
+          "dofusdbId": 2164,
+          "level": 110,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver les fleurs bleues dans la forêt de Plantala",
+            "Examiner les fleurs de plus près",
+            "Récupérer de l'eau spirituelle de Plantala",
+            "Arroser la fleur assoiffée",
+            "Tenter de communiquer avec la fleur-esprit",
+            "Trouver un moyen de dialoguer avec la fleur en explorant Plantala",
+            "Ramener à {npc,5557} : x1 {item,23018}",
+            "Ramener à {npc,5557} : x1 {item,23019}",
+            "Discuter avec une fleur bavarde",
+            "Tester votre maîtrise du langage des fleurs auprès d'une fleur timide",
+            "Aller voir {npc,5556}",
+            "Tenter de discuter avec le bourgeon",
+            "Parler de nouveau à la fleur-esprit",
+            "Retourner voir {npc,5558}",
+            "Escorter l'apprentie jusqu'aux massifs de fleurs",
+            "Aider l'apprentie à communiquer avec son maître",
+            "Se procurer un pot auprès des Tanuki",
+            "Donner le pot à l'apprentie"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Un pendule pour guider ses pas",
+          "dofusdbId": 2450,
+          "level": 40,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -5,
+            "y": 13,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14278,
+              "name": "Chaînes Brisées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15245.png"
+            },
+            {
+              "id": 746,
+              "name": "Ébonite",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/40658.png"
+            },
+            {
+              "id": 2268,
+              "name": "Scalp de Bwork Archer",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15425.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,6709} : x1 {item,14278}",
+            "Ramener à {npc,6709} : x1 {item,746}",
+            "Ramener à {npc,6709} : x1 {item,2268}",
+            "Patienter le temps que Lanseuft de Troille confectionne le pendule",
+            "Aller voir {npc,6709}",
+            "Utiliser le pendule sous la supervision de Lanseuft pour entrer dans le dédale du Dark Vlad"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2164
+            }
+          ]
+        },
+        {
+          "name": "Protection divine",
+          "dofusdbId": 2194,
+          "level": 40,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler au maître de votre temple",
+            "Parler au maître des Dopeuls de votre temple",
+            "Vaincre x1 {monster,505} en un seul combat",
+            "Prier devant la statue du temple pour recevoir la bénédiction des Douze",
+            "Aller à la bibliothèque d'Amakna",
+            "Aller voir {npc,447}",
+            "Lire l'ouvrage de Wally Elconom",
+            "Se rendre à l'orée enchantée de la forêt Maléfique",
+            "Aller voir {npc,6709}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2450
+            }
+          ]
+        },
+        {
+          "name": "Voir le dark Vlad et mourir... ou pas",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2194
+            }
+          ]
+        },
+        {
+          "name": "La magicienne des marécages",
+          "dofusdbId": 1462,
+          "level": 40,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2205}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2194
+            }
+          ]
+        },
+        {
+          "name": "Retourner voir le dark Vlad, toujours sans mourir",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 5,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1462
+            }
+          ]
+        },
+        {
+          "name": "Qui botte le cul des culs-bottés ?",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 6,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1462
+            }
+          ]
+        },
+        {
+          "name": "Le voleur d'âmes",
+          "dofusdbId": 1465,
+          "level": 50,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Rapporter 1 âme de {monster,5823} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,2975} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,2960} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,3100} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,3460} à {npc,2218}.",
+            "Assister Toungousa pendant le rituel",
+            "Vaincre x1 {monster,3583} en un seul combat",
+            "Aller voir {npc,2219}",
+            "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
+            "Examiner les tombes",
+            "Aller voir {npc,2220}"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1462
+            }
+          ]
+        },
+        {
+          "name": "Ça est frugal, une fois",
+          "dofusdbId": 158,
+          "level": 90,
+          "zone": "Pandala",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 3,
+            "y": -6,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 381,
+              "name": "Fraise",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/46053.png"
+            },
+            {
+              "id": 400,
+              "name": "Orge",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/34082.png"
+            },
+            {
+              "id": 17140,
+              "name": "Viande Exsudative",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/63471.png"
+            },
+            {
+              "id": 17181,
+              "name": "Terrine Bontarienne",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/69840.png"
+            },
+            {
+              "id": 287,
+              "name": "Graine de Sésame",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/58003.png"
+            },
+            {
+              "id": 2253,
+              "name": "Fleur de Gloutovore",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/35420.png"
+            },
+            {
+              "id": 390,
+              "name": "Huile de Noix",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60062.png"
+            },
+            {
+              "id": 1736,
+              "name": "Citron",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/46266.png"
+            },
+            {
+              "id": 2331,
+              "name": "Aubergine",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/46472.png"
+            },
+            {
+              "id": 537,
+              "name": "Pomme de Terre",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/68135.png"
+            },
+            {
+              "id": 1974,
+              "name": "Feuille de salace",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/68376.png"
+            },
+            {
+              "id": 1975,
+              "name": "Oignon",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/68377.png"
+            },
+            {
+              "id": 598,
+              "name": "Greuvette",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/41292.png"
+            },
+            {
+              "id": 600,
+              "name": "Kralamoure",
+              "amount": 15,
+              "img": "https://api.dofusdb.fr/img/items/41309.png"
+            },
+            {
+              "id": 7149,
+              "name": "Carré de Chocolat Noir",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/42034.png"
+            },
+            {
+              "id": 7046,
+              "name": "Pandapiler",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,820}",
+            "Trouver des indices parmi les villageois",
+            "Continuer votre investigation",
+            "Aller voir le jeune Jorg Dy",
+            "Découvrir la carte : La cabane secrète",
+            "Aller voir {npc,4563}",
+            "Aller voir {npc,825}",
+            "Aller voir {npc,826}",
+            "Retourner voir {npc,825}",
+            "Ramener à {npc,825} : x20 {item,381}",
+            "Ramener à {npc,825} : x10 {item,400}",
+            "Ramener à {npc,825} : x3 {item,17140}",
+            "Ramener à {npc,825} : x2 {item,17181}",
+            "Ramener à {npc,825} : x5 {item,287}",
+            "Ramener à {npc,825} : x4 {item,2253}",
+            "Ramener à {npc,825} : x1 {item,390}",
+            "Ramener à {npc,825} : x2 {item,1736}",
+            "Ramener à {npc,825} : x3 {item,2331}",
+            "Ramener à {npc,825} : x5 {item,537}",
+            "Ramener à {npc,825} : x3 {item,1974}",
+            "Ramener à {npc,825} : x4 {item,1975}",
+            "Ramener à {npc,825} : x8 {item,598}",
+            "Ramener à {npc,825} : x15 {item,600}",
+            "Ramener à {npc,825} : x10 {item,7149}",
+            "Ramener à {npc,825} : x1 {item,7046}",
+            "Ramener à {npc,826} : x1 {item,8497}",
+            "Ramener à {npc,4563} : x1 {item,8508}"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1465
+            }
+          ]
+        },
+        {
+          "name": "À la croisée des mondes",
+          "dofusdbId": 2150,
+          "level": 100,
+          "zone": "Taverne du Pandazaap",
+          "npcName": null,
+          "npcSubArea": "Taverne du Pandazaap",
+          "coords": {
+            "x": 20,
+            "y": -29,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 7013,
+              "name": "Bois de Bambou",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/38673.png"
+            },
+            {
+              "id": 7223,
+              "name": "Artefact Pandawushu Vent",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164661.png"
+            },
+            {
+              "id": 23311,
+              "name": "Artefact Pandawushu Bois",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164660.png"
+            },
+            {
+              "id": 7222,
+              "name": "Artefact Pandawushu Eau",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164659.png"
+            },
+            {
+              "id": 7225,
+              "name": "Artefact Pandawushu Feu",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164663.png"
+            },
+            {
+              "id": 7224,
+              "name": "Artefact Pandawushu Roc",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164662.png"
+            },
+            {
+              "id": 7045,
+              "name": "Pandaburg",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            }
+          ],
+          "objectives": [
+            "Boire le remède d'Hintikou",
+            "Parler au Grandapan là où se rencontrent les contraires",
+            "Aller voir {npc,5595}",
+            "Rencontrer le chaman du Village de Pandala",
+            "Entrer dans le Palais de bambou",
+            "Demander à être reçu par la Daimya",
+            "Imposer le silence aux Yokai de la bibliothèque",
+            "Obtenir une recommandation du bibliothécaire",
+            "Calmer l'appétit des Yokai qui dévorent les provisions de l'hôtel des ventes",
+            "Obtenir une recommandation du cellerier",
+            "Déjouer les plans des Pandissidans",
+            "Obtenir une recommandation du banquier",
+            "Montrer les recommandations au Pandarin Sudopong",
+            "Aller voir {npc,5560}",
+            "Aller voir {npc,5600}",
+            "Fabriquer 1 {item,23094} et fermer l'interface",
+            "Passer l'épreuve du maître Kwatimbe",
+            "Rejoindre la Daimya dans la salle de la Pandassemblée",
+            "Aller voir {npc,5570}",
+            "Boire une chope de Pandazahi ou de Pandaporo et se laisser guider par le Grandapan",
+            "Parler aux dragons Imagiro et Orukam",
+            "Retourner voir {npc,5560}"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 158
+            }
+          ]
+        },
+        {
+          "name": "Sous le bois de sa colère",
+          "dofusdbId": 2151,
+          "level": 110,
+          "zone": "Bibliothèque de Pandala",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque de Pandala",
+          "coords": {
+            "x": 24,
+            "y": -29,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,5602}",
+            "Se rendre à la bibliothèque pour lire le registre d'exploitation du bambou",
+            "Sortir de la bibliothèque pour parler au scribe",
+            "Retourner à l'atelier des bûcherons afin de discuter avec Kykori",
+            "Découvrir le site de l‘exploitation du bambou",
+            "Se débarrasser des bamboutos belliqueux",
+            "Parler au surveillant de l'exploitation",
+            "Explorer l'exploitation pour trouver des traces de Kykori",
+            "Lire la page du registre",
+            "Continuer l'exploration de la bambusaie",
+            "Affronter la gardienne de la bambusaie",
+            "Aller voir {npc,5606}",
+            "Retourner au village et trouver Kykori",
+            "Vaincre Kykori et son complice",
+            "Montrer le registre à la Daimya",
+            "Récupérer la pousse de bambou sacrée",
+            "Ramener à {npc,5606} : x1 {item,23096}",
+            "Se rendre devant l'arbre Goroku et parler à l'un de ses fruits",
+            "Réduire en pulpe les fruits pourris",
+            "Planter les pépins du fruit tombé pour qu'il renaisse",
+            "Manger un quartier de fruit et entrer dans l'arbre Goroku",
+            "Parler à l'esprit de la forêt",
+            "Retourner voir {npc,5560}"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2150
+            }
+          ]
+        },
+        {
+          "name": "Au nom de l'art",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 11,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2151
+            }
+          ]
+        },
+        {
+          "name": "La jetée des enfants perdus",
+          "dofusdbId": 2153,
+          "level": 130,
+          "zone": "Taverne d'Osakwa",
+          "npcName": null,
+          "npcSubArea": "Taverne d'Osakwa",
+          "coords": {
+            "x": 18,
+            "y": -25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Interroger une travailleuse des rizières à propos des Kwapa",
+            "Interroger un pêcheur en bord de mer à propos des Kwapa",
+            "Aider le pêcheur aux prises avec un groupe de Kwapa",
+            "Aller voir {npc,5617}",
+            "Interroger la patronne de la taverne d'Osakwa à propos des Kwapa",
+            "Explorer Akwadala à la recherche d'un Kwapa esseulé",
+            "Vaincre les chasseurs de prime qui veulent la peau du Kwapa",
+            "Engager la conversation avec le Kwapa esseulé",
+            "Ramener à {npc,5618} : x6 {item,23097}",
+            "Se rendre avec Kwatalo devant l'escalier menant à la Vallée de la Dame des eaux",
+            "Tenter de libérer le petit Pandawa avec l'aide de Kwatalo",
+            "Entrer dans la Vallée de la Dame des eaux",
+            "Vaincre Nagate la Dame des eaux",
+            "Aller voir {npc,5619}",
+            "Aller voir {npc,5618}",
+            "Accompagner Kwatalo au pont des granouilles",
+            "Faire le vœu de rencontrer l'esprit de l'eau",
+            "Parler à l'esprit de l'eau",
+            "Ramener le jeune Lenald à sa mère",
+            "Retourner voir la Daimya avec le petit Pandawa"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2151
+            }
+          ]
+        },
+        {
+          "name": "Le festival de la lanterne",
+          "dofusdbId": 2154,
+          "level": 140,
+          "zone": "Temple de la Lanterne",
+          "npcName": null,
+          "npcSubArea": "Temple de la Lanterne",
+          "coords": {
+            "x": 18,
+            "y": -30,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 7018,
+              "name": "Riz",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/34010.png"
+            },
+            {
+              "id": 311,
+              "name": "Eau Potable",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15026.png"
+            },
+            {
+              "id": 287,
+              "name": "Graine de Sésame",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/58003.png"
+            },
+            {
+              "id": 6671,
+              "name": "Haricot",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/58471.png"
+            }
+          ],
+          "objectives": [
+            "Demander un rapport de la situation au garde de Feudala",
+            "Confectionner une Lanterne cérémonielle",
+            "Retourner voir {npc,5640}",
+            "Rendre hommage à l'esprit du feu devant la lanterne primordiale",
+            "Aller voir {npc,5642}",
+            "Calmer les feux follets",
+            "Rapporter votre conversation au moine de la lanterne Ozulan",
+            "Aller voir {npc,5643}",
+            "Montrer à {npc,5643} : 8 {item,23166}",
+            "Attacher les énigmes sur les arbres-lanternes",
+            "Aller voir {npc,681}",
+            "Fabriquer 10 {item,23167} et fermer l'interface",
+            "Fabriquer 10 {item,23175} et fermer l'interface",
+            "Apporter les wanchiao à Ozulan au temple de la lanterne",
+            "Retourner à l'atelier de papier",
+            "Protéger le Qilin en papier des firefoux",
+            "Retourner voir {npc,5643}",
+            "Aller voir {npc,5646}",
+            "Entrer dans le donjon de Feudala",
+            "Vaincre x1 {monster,6249} en un seul combat",
+            "Aller voir {npc,5644}",
+            "Décider de rencontrer l'esprit du feu avec Ozulan ou Founoroshi",
+            "Utiliser le mortier enchanté devant le sanctuaire",
+            "Se rendre au sanctuaire du feu pour rencontrer l'esprit",
+            "Aller voir {npc,5645}",
+            "Faire le point avec Ozulan",
+            "Retourner voir {npc,5560}"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2153
+            }
+          ]
+        },
+        {
+          "name": "L'équilibre des forces",
+          "dofusdbId": 2155,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": null,
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 21,
+            "y": -39,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 10831,
+              "name": "Bananagrume",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/46001.png"
+            },
+            {
+              "id": 2294,
+              "name": "Viscères de Scarafeuille",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/15445.png"
+            },
+            {
+              "id": 381,
+              "name": "Fraise",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/46053.png"
+            }
+          ],
+          "objectives": [
+            "Fabriquer 1 {item,23118} et fermer l'interface",
+            "Déposer l'offrande à l'esprit du Vent au sommet de la montagne",
+            "Aller voir {npc,5625}",
+            "Aller voir {npc,5626}",
+            "Découvrir la carte : Camps des Pandissidans",
+            "Aller voir {npc,5627}",
+            "Intercepter les poseurs de bombe près des maisons Pandawas",
+            "Neutraliser d'autres poseurs de bombe près des habitations Pandawas",
+            "Découvrir la carte : Tour de guet",
+            "Protéger Ten Rowa de l'attaque de la Garde Kozaru",
+            "Aller voir {npc,5628}",
+            "Aller voir {npc,5629}",
+            "Entrer dans le Dojo du Vent",
+            "Vaincre x1 {monster,6212} en un seul combat",
+            "Aller voir {npc,5632}",
+            "Suivre l'échange entre Ten Rowa et les Maîtres Kozaru",
+            "Ramener à {npc,5629} : x1 {item,23120}",
+            "Retrouver Jun Pandawane et Ten Rowa au Sommet d'Aerdala",
+            "Retourner voir {npc,5560}"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2154
+            }
+          ]
+        },
+        {
+          "name": "Sang d'encre",
+          "dofusdbId": 2197,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": null,
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 19,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Rencontrer quelqu'un aux environs des escaliers montant en Aerdala",
+            "Suivre les instructions du message",
+            "Explorer les lieux",
+            "Se débarrasser des assassins pandikazes",
+            "Aller voir {npc,5690}",
+            "Entrer dans la demeure fortifiée du Maître Pandore sans éveiller les soupçons",
+            "Vaincre le Maître Pandore pour s'emparer du Dofus d'encre",
+            "Retourner voir {npc,5560}",
+            "Faire apparaître le Grandapan et boire une chope de Pandazahi ou de Pandaporo pour retourner dans l'Éther",
+            "Montrer à {npc,5598} : 1 {item,23240}"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2155
+            }
+          ]
+        },
+        {
+          "name": "Maudite disparition",
+          "dofusdbId": 2179,
+          "level": 160,
+          "zone": "Caverne du réceptacle",
+          "npcName": null,
+          "npcSubArea": "Caverne du réceptacle",
+          "coords": {
+            "x": 21,
+            "y": -33,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler à Imagiro devant la Statue du Réceptacle",
+            "Aller voir {npc,5569}",
+            "Entrer dans la crypte secrète grâce à la magie des Spiritueurs",
+            "Découvrir la carte : Découvrir l'intérieur de la Crypte secrète.",
+            "Vaincre les fantômes qui veillent sur la crypte",
+            "Aller voir {npc,5835}",
+            "Chercher des indices à propos de la disparition du Dofus dans la crypte secrète",
+            "Faire examiner les indices par un Spiritueur",
+            "Ramener à {npc,5837} : x1 {item,23569}",
+            "Ramener à {npc,5837} : x1 {item,23570}",
+            "Ramener à {npc,5837} : x1 {item,23571}",
+            "Ramener à {npc,5837} : x1 {item,23572}",
+            "Découvrir la carte : première salle de la Tombe du Shogun Tofugawa",
+            "Vaincre x1 {monster,6388} en un seul combat",
+            "Aller voir {npc,5828}",
+            "Découvrir la carte : Endroit où se réunissent les Yokai",
+            "Survivre à l'assaut des hordes de spectres Pandissidans",
+            "Aller voir {npc,5836}"
+          ],
+          "stepOrder": 16,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2197
+            }
+          ]
+        },
+        {
+          "name": "Requiem pour un yôkai",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 17,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2179
+            }
+          ]
+        },
+        {
+          "name": "Jusqu'à leur dernier soupir",
+          "dofusdbId": 2198,
+          "level": 170,
+          "zone": "Temple du Vent",
+          "npcName": null,
+          "npcSubArea": "Temple du Vent",
+          "coords": {
+            "x": 23,
+            "y": -36,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Étudier les légendes de Pandala pour en apprendre davantage sur la Kitsoune à neuf queues",
+            "Trouver un samouraï qui pourrait en savoir plus sur le rōnin mentionné dans le conte",
+            "Se rendre dans la montagne, près du temple du Vent",
+            "Entrer dans le temple du Vent",
+            "Parler au vieux Kozaru",
+            "Rencontrer la descendante d'une voyageuse perdue",
+            "Débarquer sur l'île de Grobe et parler au Nocher",
+            "Boire l'élixir des Trépasseurs et se rendre au début de la route des morts",
+            "Prendre une lanterne d'Externam sur la route des morts",
+            "Suivre la route jusqu'à la taverne du cimetière",
+            "Suivre la route jusqu'au pied du Mont des Tombeaux",
+            "Suivre la route jusqu'au ponton brumeux",
+            "Payer le prix de Karon",
+            "Naviguer sur le fleuve Akeranzu",
+            "Vaincre les Lémures dans l'Éther",
+            "Reprendre le cours du voyage le long du fleuve",
+            "Saluer le visiteur qui explore les ruines",
+            "Continuer à naviguer jusqu'à la Mer de poussière",
+            "Aider le guide et l'âme aventurière",
+            "Parler au guide errant",
+            "Retourner voir le vieux Kozaru au temple du Vent",
+            "Récupérer le secret gardé par le vent de l'ouest",
+            "Récupérer le secret gardé par le vent de l'est",
+            "Récupérer le secret gardé par le vent du nord",
+            "Récupérer le secret gardé par le vent du sud",
+            "Confier les quatre secrets au vieux Kozaru",
+            "Rapporter le Hoshinotama à la Kitsoune"
+          ],
+          "stepOrder": 18,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2179
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes du Dofus Tacheté",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala — Royaumes de Papier et d'Encre",
+      "description": "La série de 3 quêtes pour obtenir le Dofus Tacheté. Inclut les donjons Mémoire d'Orukam et Souvenir d'Imagiro. Nécessite d'être Paysan niv. 20+, et de posséder un Domakuro et un Dorigami.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Main dans la main",
+          "dofusdbId": 2200,
+          "level": 200,
+          "zone": "Salle des prières",
+          "npcName": null,
+          "npcSubArea": "Salle des prières",
+          "coords": {
+            "x": 22,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23179,
+              "name": "Pandazahi",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 7055,
+              "name": "Pandneken",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 1977,
+              "name": "Épices",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15378.png"
+            },
+            {
+              "id": 23482,
+              "name": "Alcool à 99%",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/174001.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,5570}",
+            "Découvrir la carte : Intérieur de la Taverne interdite",
+            "Aller voir le Grandapan pour dialoguer avec la déesse Pandawa par son intermédiaire",
+            "Aller voir {npc,5955}",
+            "Convaincre les prêtres de Pandawa d'administrer de la limonade de Grobe au Grandapan",
+            "Aller voir {npc,5796}",
+            "Obtenir la recette de la bière forte auprès d'un prêtre de Pandawa",
+            "Découvrir la carte : Brasserie",
+            "Vaincre x1 {monster,6515} en un seul combat",
+            "Essayer de fabriquer de la bière forte dans la brasserie",
+            "Chercher des indices pour localiser Sumowa",
+            "Suivre la tortue sur les traces de Sumowa",
+            "Continuer à suivre la tortue sur les traces de Sumowa",
+            "Aller voir {npc,5957}",
+            "Débusquer la tierce personne et la forcer à se dévoiler",
+            "Découvrir ce que cache l'individu suspect",
+            "Vaincre x1 {monster,6516} en un seul combat",
+            "Réparer la machine de la brasserie",
+            "Fabriquer 1 {item,23733} et fermer l'interface",
+            "Ramener à {npc,5796} : x1 {item,23733}",
+            "S'entretenir avec la déesse Pandawa par l'intermédiaire du Grandapan",
+            "Trouver les deux souffles du Wukin et du Wukang pour amener Pandawa à se manifester",
+            "Aller voir {npc,5962}",
+            "Écouter l'argumentaire de Keltra Ekazumi",
+            "Convaincre Pandawa de vous confier sa Main"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "Deux souffles, une inspiration",
+          "dofusdbId": 2201,
+          "level": 200,
+          "zone": "Atelier de calligraphie",
+          "npcName": null,
+          "npcSubArea": "Atelier de calligraphie",
+          "coords": {
+            "x": 23,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,5995}",
+            "Se rendre à la bibliothèque pour parler à Chochi",
+            "Trouver le possesseur du dernier manuscrit de Myamowa Musashwan",
+            "Vaincre les spectres terrassés par Musashwan",
+            "Aller voir {npc,6013}",
+            "Explorer Terrdala à la recherche d'une œuvre de Tanukang Jei",
+            "Éloigner les Tsukumogami du vase antique",
+            "Examiner le vase antique",
+            "Survivre à l'embuscade des shinobi",
+            "Recopier le caractère tracé sur un vase antique",
+            "Montrer les deux caractères à Shufamukin",
+            "Aller voir {npc,5560}",
+            "Découvrir l'un des temples du Wukin et du Wukang sur l'île de Pandala",
+            "Parler à Daoh et quitter l'un des temples pour entrer dans les Royaumes célestes d'encre et de papier",
+            "Explorer la Mémoire d'Orukam",
+            "Vaincre x1 {monster,6472} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle de la Mémoire d'Orukam",
+            "Trouver le Yokianzhi du Wukin dans le Royaume d'encre",
+            "Survivre à l'attaque de la Paume du chtigre pour obtenir la silhouette du Wukin",
+            "Parler au dragon Orukam dans sa caverne",
+            "Explorer le Souvenir d'Imagiro",
+            "Vaincre x1 {monster,6478} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle du Souvenir d'Imagiro",
+            "Trouver le Yokianzhi du Wukang dans le royaume de papier",
+            "Parler au dragon Imagiro dans sa caverne",
+            "Se rendre au pied du Mont Noir et Blanc",
+            "Vaincre les chtigres de papier",
+            "Faire des offrandes aux éléments sur le Mont Noir et Blanc",
+            "Calmer les esprits",
+            "Parler aux trois Kozaru",
+            "Explorer le rêve du taciturne",
+            "Rompre le silence pour obtenir l'héritage de Kian Zhi",
+            "Parler au maître des rêves",
+            "Montrer à {npc,5995} : 1 {item,24067}",
+            "Se rendre au Palais de bambou pour s'entretenir avec la Daimya",
+            "Vaincre l'exécuteur de la Paume avec l'aide de Wulan",
+            "Retourner voir le Grandapan dans le temple de la Taverne interdite"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2200
+            }
+          ]
+        },
+        {
+          "name": "En ce jardin qui nous unit",
+          "dofusdbId": 2202,
+          "level": 200,
+          "zone": "Temple Pandawa",
+          "npcName": null,
+          "npcSubArea": "Temple Pandawa",
+          "coords": {
+            "x": 4,
+            "y": -2,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Se rendre au temple de Pandawa en Amakna",
+            "Aller voir {npc,644}",
+            "Se préparer pour le rituel de la Main de Pandawa",
+            "Affronter Keltra Ekazumi et terminer vos préparatifs",
+            "Créer la Main de Pandawa grâce à la volonté de la déesse",
+            "Retourner sur Pandala et découvrir le jardin secret",
+            "Parler à Imagiro et à Orukam dans le jardin secret",
+            "Se concentrer sur le rocher et les deux Dofus",
+            "Aller voir {npc,5961}",
+            "Affronter le reflet du dragon",
+            "Aller voir {npc,5986}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2201
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

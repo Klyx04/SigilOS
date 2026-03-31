@@ -1,0 +1,20 @@
+{
+  "slug": "argent-scint",
+  "displayName": "Dofus Argenté Scintillant",
+  "color": "#E0E0FF",
+  "dofusItemId": 7838,
+  "successes": [
+    {
+      "name": "Prérequis - Quatre sur six",
+      "zone": "unknown",
+      "quests": [
+        "Les couts du sort",
+        "Une ombre au tableau",
+        "Un remede draconien",
+        "Le dragon des vents",
+        "Le dragon des flammes",
+        "Le destin de kalisthe"
+      ]
+    }
+  ]
+}

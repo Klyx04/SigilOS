@@ -127,7 +127,7 @@ export default async function DashboardLayout({
         <NebulaClientWrapper>
             <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
 
-                {/* 1. DESKTOP SIDEBAR (Fixed) - Only for LG+ screens (State of the Art 2026) */}
+                {/* 1. DESKTOP SIDEBAR (Fixed) */}
                 <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
@@ -135,18 +135,17 @@ export default async function DashboardLayout({
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
-                        className="h-full border-r border-white/5"
+                        className="h-full border-r border-white/5 bg-[#0a0a0b]/95 backdrop-blur-3xl shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
                     />
                 </div>
 
                 {/* Silent Presence Update Hook */}
                 <PresenceHeartbeat guildId={guildId} />
 
-                {/* 2. MAIN CONTENT AREA (Offset by Sidebar width on LG+ only) */}
-                <div className="flex-1 flex flex-col lg:pl-[280px] transition-all duration-500 ease-in-out h-full overflow-hidden bg-black">
-
+                {/* 2. MAIN CONTENT AREA */}
+                <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="flex-shrink-0 z-50">
+                    <div className="flex-shrink-0 z-50 border-b border-white/5 bg-black/40 backdrop-blur-xl">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
@@ -155,31 +154,36 @@ export default async function DashboardLayout({
                         />
                     </div>
 
-                    {/* Scrollable Main Content - THE ONLY SCROLLABLE AREA */}
+                    {/* Scrollable Main Content area */}
                     <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        {/* System Announcement Banner */}
-                        <Suspense fallback={null}>
-                            <AnnouncementBanner />
-                        </Suspense>
-                        <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
+                        <div className="relative z-10">
+                            {/* System Announcement Banner */}
+                            <Suspense fallback={null}>
+                                <AnnouncementBanner />
+                            </Suspense>
 
-                            {/* Pseudo issues (sync) banner */}
-                            {user.hasPseudoIssue && (
-                                <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
-                            )}
+                            <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
+                                {/* Pseudo issues (sync) banner */}
+                                {user.hasPseudoIssue && (
+                                    <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
+                                )}
 
-                            {/* Page Content */}
-                            <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
-                                <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
-                                    {children}
-                                </Suspense>
-                            </div>
+                                {/* Page Content */}
+                                <div className="flex-1 animate-in fade-in duration-700">
+                                    <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
+                                        {children}
+                                    </Suspense>
+                                </div>
 
-                            {/* Footer at bottom of content - Increased pb to 32 (128px) for safe dock area */}
-                            <div className="mt-12 md:mt-24 pb-32">
-                                <GalacticFooter variant="compact" />
+                                {/* Footer at bottom of content */}
+                                <div className="mt-12 md:mt-24 pb-8">
+                                    <GalacticFooter variant="compact" />
+                                </div>
                             </div>
                         </div>
+
+                        {/* subtle background decoration */}
+                        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10 animate-pulse-slow" />
                     </main>
                 </div>
 

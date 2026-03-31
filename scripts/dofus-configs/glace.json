@@ -1,0 +1,30 @@
+{
+  "slug": "glace",
+  "displayName": "Dofus des Glaces",
+  "color": "#ADD8E6",
+  "dofusItemId": 7832,
+  "successes": [
+    {
+      "name": "Liste des quêtes",
+      "zone": "unknown",
+      "quests": [
+        "Mauvaise graine"
+      ]
+    },
+    {
+      "name": "Choix avant de commencer",
+      "zone": "unknown",
+      "quests": [
+        "Le champ des heros",
+        "Cent vingt trois fleurs, point comme les autres"
+      ]
+    },
+    {
+      "name": "Légende",
+      "zone": "unknown",
+      "quests": [
+        "Le nom de la mycose"
+      ]
+    }
+  ]
+}

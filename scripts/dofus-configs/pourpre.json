@@ -1,0 +1,38 @@
+{
+  "slug": "pourpre",
+  "displayName": "Dofus Pourpre",
+  "color": "#800020",
+  "dofusItemId": 7827,
+  "successName": "Pourpre profond",
+  "recommendedLevel": 150,
+  "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "Monde de Douze",
+      "description": "Quêtes à compléter avant de commencer la série principale du Dofus Pourpre.",
+      "isPrerequisite": true,
+      "quests": [
+        "Dans la gueule du milimulou",
+        "Voir le dark Vlad et mourir... ou pas"
+      ]
+    },
+    {
+      "name": "Les quêtes du Dofus Pourpre",
+      "zone": "Minotot / Taure Céleste",
+      "description": "La série de 8 quêtes pour obtenir le Dofus Pourpre. Inclut les donjons Bibliothèque du Maître Corbac, Labyrinthe du Minotoror, Serre du Royalmouth, Ring du Capitaine Ekarlatte et Antre du Blop Multicolore Royal.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "quests": [
+        "Le livre des Taures",
+        "Taures et détours",
+        "Le trésor de Totankama",
+        "Il faut battre le lait quand il est chaud",
+        "Regrets d'éternailes",
+        "L'anneau de Tot",
+        "Une âme en peine",
+        "Le pouvoir derrière le trône"
+      ]
+    }
+  ]
+}

@@ -127,7 +127,7 @@ async function getPendingFilesForGuild(
         for (const sub of missionSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
                 const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
@@ -153,7 +153,7 @@ async function getPendingFilesForGuild(
         for (const sub of kamaSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
                 const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
@@ -179,7 +179,7 @@ async function getPendingFilesForGuild(
         for (const sub of achSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const physicalPath = sub.proofUrl.replace("/uploads/", "");
+                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
                 const s = await stat(join(cwd, "private_uploads", physicalPath));
                 pendingFiles.push({
                     filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
@@ -396,7 +396,7 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
                     // Safety check: Only delete if older than 4 hours (grace period for uploads in progress)
                     if (now - file.modifiedAt.getTime() > FOUR_HOURS_MS) {
                         // Normalize path join to avoid any leading slash issues
-                        const relativeFileUrl = file.url.replace(/^\/uploads\//, "");
+                        const relativeFileUrl = file.url.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
                         const physicalPath = normalize(join(process.cwd(), "private_uploads", relativeFileUrl));
                         
                         try {
@@ -434,11 +434,11 @@ export async function godDeleteFile(
 ): Promise<{ success: boolean; error?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
 
-    if (!fileUrl.startsWith("/uploads/")) {
-        return { success: false, error: "Chemin non autorisé (doit commencer par /uploads/)" };
+    if (!fileUrl.startsWith("/uploads/") && !fileUrl.startsWith("/api/storage/")) {
+        return { success: false, error: "Chemin non autorisé (doit commencer par /uploads/ ou /api/storage/)" };
     }
 
-    const physicalPath = fileUrl.replace("/uploads/", "");
+    const physicalPath = fileUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
     const absolutePath = normalize(join(process.cwd(), "private_uploads", physicalPath));
     const storageRoot = normalize(join(process.cwd(), "private_uploads"));
 

@@ -201,6 +201,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-cyan-500/30",
             },
             {
+                key: "quests",
+                label: "Quêtes Dofus",
+                description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
+                icon: BookMarked,
+                color: "text-amber-400",
+                bgColor: "bg-amber-500/10",
+                borderColor: "border-amber-500/30",
+            },
+            {
                 key: "profile",
                 label: "Profil Membre",
                 description: "Page de profil personnalisée par membre avec statistiques et historique d'activité.",
@@ -222,32 +231,6 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-rose-400",
                 bgColor: "bg-rose-500/10",
                 borderColor: "border-rose-500/30",
-            },
-        ],
-    },
-    {
-        label: "Bientôt",
-        modules: [
-            {
-                key: "quests",
-                label: "Quêtes Dofus",
-                description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
-                icon: BookMarked,
-                color: "text-amber-400",
-                bgColor: "bg-amber-500/10",
-                borderColor: "border-amber-500/30",
-                comingSoon: true,
-            },
-
-            {
-                key: "resources",
-                label: "Ressources Communautaires",
-                description: "Hub centralisé des ressources Dofus : sites communautaires, guides, actus et mises à jour.",
-                icon: Library,
-                color: "text-violet-400",
-                bgColor: "bg-violet-500/10",
-                borderColor: "border-violet-500/30",
-                comingSoon: true,
             },
         ],
     },
@@ -290,118 +273,180 @@ export function ModulesClient({ guildId, initialModules }: Props) {
     }
 
     return (
-        <div className="space-y-8">
-            {/* Summary bar */}
-            <div className="flex items-center justify-between px-1">
-                <p className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">{enabledCount}</span> / {totalCount} modules actifs
-                </p>
-                <Badge variant="outline" className="text-xs">
-                    Modifications instantanées
+        <div className="space-y-12 max-w-[1600px] mx-auto">
+            {/* Summary bar - Technical Stats Style */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 py-4 border-b border-white/5 bg-white/[0.01] rounded-2xl">
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Système de Capacités</span>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-white">{enabledCount}</span>
+                            <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-tighter">/ {totalCount} Modules Déployés</span>
+                        </div>
+                    </div>
+                    <div className="h-10 w-px bg-white/10 mx-2 hidden md:block" />
+                    <div className="flex h-2 w-32 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000 ease-out" 
+                            style={{ width: `${(enabledCount / totalCount) * 100}%` }} 
+                        />
+                    </div>
+                </div>
+                <Badge variant="outline" className="bg-white/5 border-white/10 text-white/40 font-black uppercase tracking-widest text-[9px] py-1 px-3 rounded-lg backdrop-blur-md">
+                    Modifications Instantanées • Sync Temps Réel
                 </Badge>
             </div>
 
             {/* Groups */}
-            {MODULE_GROUPS.map((group) => (
-                <div key={group.label} className="space-y-3">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/60 px-1">
-                        {group.label}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {group.modules.map((mod) => {
-                            const isEnabled = modules[mod.key];
-                            const isLoading = pending === mod.key && isPending;
-                            const Icon = mod.icon;
+            <div className="space-y-16">
+                {MODULE_GROUPS.map((group) => (
+                    <div key={group.label} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div className="flex items-center gap-4 px-2">
+                             <div className="h-0.5 w-8 bg-gradient-to-r from-emerald-500 to-transparent" />
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 drop-shadow-sm">
+                                {group.label}
+                            </h3>
+                        </div>
 
-                            return (
-                                <div
-                                    key={mod.key}
-                                    className={cn(
-                                        "relative rounded-xl border p-5 transition-all duration-200",
-                                        isEnabled
-                                            ? `${mod.bgColor} ${mod.borderColor}`
-                                            : "bg-card/20 border-border/50 opacity-60"
-                                    )}
-                                >
-                                    {/* Header */}
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+                            {group.modules.map((mod) => {
+                                const isEnabled = modules[mod.key];
+                                const isLoading = pending === mod.key && isPending;
+                                const Icon = mod.icon;
+
+                                return (
+                                    <div
+                                        key={mod.key}
+                                        className={cn(
+                                            "group relative rounded-[2rem] border transition-all duration-500 overflow-hidden",
+                                            isEnabled
+                                                ? "bg-[#09090b]/80 border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                                                : "bg-black/40 border-white/5 opacity-50 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 hover:border-white/10"
+                                        )}
+                                    >
+                                        {/* Dynamic Glow Layer */}
+                                        {isEnabled && (
                                             <div className={cn(
-                                                "p-2 rounded-lg",
-                                                isEnabled ? mod.bgColor : "bg-muted/30"
-                                            )}>
-                                                <Icon className={cn(
-                                                    "w-5 h-5",
-                                                    isEnabled ? mod.color : "text-muted-foreground"
-                                                )} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <h3 className={cn(
-                                                        "font-semibold text-sm",
-                                                        isEnabled ? "text-foreground" : "text-muted-foreground"
+                                                "absolute -inset-[100px] opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 blur-[100px] pointer-events-none",
+                                                mod.bgColor.replace("/10", "/100")
+                                            )} />
+                                        )}
+
+                                        <div className="relative z-10 p-6 flex flex-col h-full">
+                                            {/* Top Row: Icon & Toggle */}
+                                            <div className="flex items-start justify-between gap-4 mb-6">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={cn(
+                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                                        isEnabled 
+                                                            ? `bg-white/[0.03] ${mod.borderColor} shadow-[0_0_20px_rgba(255,255,255,0.02)]`
+                                                            : "bg-white/[0.01] border-white/5"
                                                     )}>
-                                                        {mod.label}
-                                                    </h3>
-                                                    {mod.comingSoon && (
-                                                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-400 font-black uppercase tracking-wider">
-                                                            Bientôt
-                                                        </Badge>
-                                                    )}
-                                                    <GuidePulse
-                                                        description={mod.description}
-                                                        className="w-2.5 h-2.5"
-                                                        side="top"
-                                                    />
+                                                        <Icon className={cn(
+                                                            "w-7 h-7 transition-all duration-500",
+                                                            isEnabled ? mod.color : "text-zinc-600"
+                                                        )} strokeWidth={1.5} />
+                                                        
+                                                        {isEnabled && (
+                                                            <div className={cn(
+                                                                "absolute -inset-2 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity",
+                                                                mod.bgColor
+                                                            )} />
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex flex-col">
+                                                         <div className="flex items-center gap-2">
+                                                            <h3 className={cn(
+                                                                "font-black text-base tracking-tighter uppercase",
+                                                                isEnabled ? "text-white" : "text-zinc-500"
+                                                            )}>
+                                                                {mod.label}
+                                                            </h3>
+                                                            {mod.comingSoon && (
+                                                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 bg-amber-500/10 border-amber-500/20 text-amber-400 font-black uppercase tracking-widest">
+                                                                    WIP
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {isEnabled ? (
+                                                                <span className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+                                                                    Active
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[11px] font-bold text-zinc-600">OFFLINE</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <span className={cn(
-                                                    "text-xs font-medium",
-                                                    isEnabled ? mod.color : "text-muted-foreground/60"
+
+                                                <div className="flex items-center shrink-0">
+                                                    {isLoading ? (
+                                                        <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                                                    ) : (
+                                                        <Switch
+                                                            checked={isEnabled}
+                                                            onCheckedChange={(val) => handleToggle(mod.key, val)}
+                                                            disabled={isPending}
+                                                            className="data-[state=checked]:bg-emerald-500 scale-125"
+                                                            aria-label={`Toggle module ${mod.label}`}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Description Card */}
+                                            <div className="flex-1 space-y-4">
+                                                <p className={cn(
+                                                    "text-[13px] leading-relaxed font-medium transition-colors duration-500",
+                                                    isEnabled ? "text-zinc-400" : "text-zinc-600"
                                                 )}>
-                                                    {isEnabled ? "Actif" : "Inactif"}
-                                                </span>
+                                                    {mod.description}
+                                                </p>
+                                            </div>
+
+                                            {/* Meta Footer */}
+                                            <div className="mt-6 pt-5 border-t border-white/[0.05] flex items-center justify-between">
+                                                <div className="flex -space-x-1">
+                                                    {/* Decorative user icons or stats placeholder */}
+                                                    {[...Array(2)].map((_, i) => (
+                                                        <div key={i} className="h-5 w-5 rounded-full border border-zinc-950 bg-zinc-900 flex items-center justify-center">
+                                                            <div className="h-1 w-1 rounded-full bg-zinc-600" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button 
+                                                    className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                                                    onClick={() => {}}
+                                                >
+                                                    Configs
+                                                    <span className="text-zinc-700">→</span>
+                                                </button>
                                             </div>
                                         </div>
 
-                                        {/* Toggle */}
-                                        <div className="flex items-center">
-                                            {isLoading ? (
-                                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                            ) : (
-                                                <Switch
-                                                    checked={isEnabled}
-                                                    onCheckedChange={(val) => handleToggle(mod.key, val)}
-                                                    disabled={isPending}
-                                                    aria-label={`Toggle module ${mod.label}`}
-                                                />
-                                            )}
+                                        {/* HUD Border Decoration */}
+                                        <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+                                            <div className="h-px w-8 bg-white" />
+                                            <div className="h-8 w-px bg-white absolute top-2 right-2" />
                                         </div>
                                     </div>
-
-                                    {/* Description */}
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                        {mod.description}
-                                    </p>
-
-                                    {/* Disabled overlay hint */}
-                                    {!isEnabled && (
-                                        <div className="absolute inset-0 rounded-xl flex items-end justify-end p-3 pointer-events-none">
-                                            <span className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-wider">
-                                                Désactivé
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))}
+            </div>
 
-            {/* Info note */}
-            <p className="text-xs text-muted-foreground/60 text-center pt-2">
-                Les membres ne peuvent plus accéder aux modules désactivés. Les données sont conservées.
-            </p>
+            {/* Support Note */}
+            <div className="pt-20 pb-10 text-center space-y-4">
+                <div className="h-px w-32 bg-white/5 mx-auto" />
+                <p className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.4em] opacity-40">
+                    Infrastructure Modules • v4.2.0-stabilized
+                </p>
+            </div>
         </div>
     );
 }

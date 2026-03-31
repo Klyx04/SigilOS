@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,25 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
         const file = e.dataTransfer.files?.[0];
         if (file) processFile(file);
     }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (!open) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            if (e.clipboardData && e.clipboardData.files.length > 0) {
+                const file = e.clipboardData.files[0];
+                if (file.type.startsWith("image/")) {
+                    e.preventDefault();
+                    processFile(file);
+                    toast.info("Image collée depuis le presse-papier ! 📋");
+                }
+            }
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [open]);
 
     const handleSubmit = async () => {
         if (!borrower || !description.trim()) {
@@ -339,11 +358,16 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
                                     onDrop={handleDrop}
                                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                                     onDragLeave={() => setIsDragging(false)}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${isDragging ? "border-amber-500/60 bg-amber-500/5 text-amber-400" : "border-white/10 hover:border-amber-500/30 hover:text-amber-400 text-zinc-500"}`}
+                                    className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 ${isDragging ? "border-amber-500/60 bg-amber-500/5 text-amber-400" : "border-white/10 hover:border-amber-500/30 hover:text-amber-400 text-zinc-500"}`}
                                 >
                                     <Upload className="h-5 w-5" />
-                                    <p className="text-xs font-medium">{isDragging ? "Relâcher pour ajouter" : "Glisser-déposer ou cliquer"}</p>
+                                    <p className="text-xs font-medium">
+                                        {isDragging ? "Relâcher pour ajouter" : (
+                                            <>
+                                                Glisser-déposer, coller ou <button type="button" onClick={() => fileInputRef.current?.click()} className="text-amber-400 hover:text-amber-300 underline font-black">cliquer</button>
+                                            </>
+                                        )}
+                                    </p>
                                     <p className="text-[10px] text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
                                 </div>
                             )}

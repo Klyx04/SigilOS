@@ -15,12 +15,13 @@ import {
     Minus,
     CircleHelp,
     Rocket,
+    Shield,
     Search as SearchIcon
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { FeedBell } from "@/components/notifications/feed-bell";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
 import { EventTicker } from "@/components/layout/event-ticker";
@@ -74,6 +75,8 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="p-0 w-[260px] border-r border-white/5 bg-[#050505]">
+                        <SheetTitle className="sr-only">Menu de Navigation Mobile</SheetTitle>
+                        <SheetDescription className="sr-only">Accédez aux différents modules et outils de votre guilde.</SheetDescription>
                         <AppSidebar {...sidebarProps} />
                     </SheetContent>
                 </Sheet>
@@ -159,6 +162,11 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                         <Link href="/changelog" className="p-2.5 text-zinc-500 hover:text-white transition-colors" title="Changelog">
                             <ScrollText className="w-4 h-4" />
                         </Link>
+                        {sidebarProps.user.isAdmin && (
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-zinc-500 hover:text-rose-400 transition-colors" title="RBAC / Permissions">
+                                <Shield className="w-4 h-4" />
+                            </Link>
+                        )}
                         <div className="w-px h-4 bg-white/5 mx-1" />
                         <FeedBell
                             guildId={sidebarProps.guildId}

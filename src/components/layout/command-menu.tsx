@@ -101,7 +101,7 @@ export function CommandMenu({ guildId }: CommandMenuProps) {
             <div className="flex items-center border-b border-white/5 px-3">
                 <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                 <CommandInput 
-                    placeholder="Rechercher un membre, une mission, une page..." 
+                    placeholder="Rechercher un membre, une mission, une page... (Ctrl+K)" 
                     className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none" 
                     value={query}
                     onValueChange={setQuery}
@@ -161,7 +161,7 @@ export function CommandMenu({ guildId }: CommandMenuProps) {
                 <CommandGroup heading="Navigation Rapide">
                     <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}>
                         <Home className="mr-2 h-4 w-4 text-emerald-400" />
-                        <span>Dashboard Accueil</span>
+                        <span>Accueil du Tableau de bord</span>
                         <CommandShortcut>🏠</CommandShortcut>
                     </CommandItem>
                     <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}>

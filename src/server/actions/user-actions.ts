@@ -64,58 +64,54 @@ export type UserContext = {
     roleNames: string[];
     pseudo?: string;
     roleColor?: number;
+    // Core Status & Section Visibility
+    canViewDashboard: boolean;
+    canViewPresentation: boolean;
+    canViewWelcome: boolean;
+    canViewStats: boolean;
+    canViewDocs: boolean;
+    canViewAdminDocs: boolean;
+    canViewResources: boolean;
+    canViewProfile: boolean;
+    canManageMembers: boolean;
+    // Modules
     canViewMissions: boolean;
     canManageMissions: boolean;
     canValidateMissions: boolean;
     canManageBonus: boolean;
     canViewRoster: boolean;
-    // Songes Permissions
     canViewSonges: boolean;
     canCreateSonges: boolean;
     canJoinSonges: boolean;
-    // Module Permissions
-    canViewArchis: boolean;
+    canViewOcre: boolean;
     canViewLadder: boolean;
     canSyncLadder: boolean;
-    // Presentation Permission
-    canEditPresentation: boolean;
-    // Calendar Permissions
+    canViewQuests: boolean;
+    canViewWorldmap: boolean;
+    canViewFinder: boolean;
+    canViewServices: boolean;
+    canViewStuffGallery: boolean;
+    canViewMiniGames: boolean;
+    canViewPolls: boolean;
     canViewCalendar: boolean;
     canManageCalendar: boolean;
-    canViewAdminDocs: boolean;
-    canManageMembers: boolean;
-    canViewDashboard: boolean;
-    canViewPresentation: boolean;
-    canViewStats: boolean;
-    canViewServices: boolean;
-    canCreateServices: boolean;
-    canViewFinder: boolean;
-    canViewPolls: boolean;
-    canManagePolls: boolean;
-    canViewDocs: boolean;
-    canViewWelcome: boolean;
-    canViewProfile: boolean;
-    // Chat Permissions
     canViewChat: boolean;
     canModerateChat: boolean;
-    // Coming Soon Permissions
-    canViewQuests: boolean;
-    canManageQuests: boolean;
-    canViewWorldmap: boolean;
-    canManageWorldmap: boolean;
-    canViewMiniGames: boolean;
-    canManageMiniGames: boolean;
-    canViewStuffGallery: boolean;
-    canViewResources: boolean;
-    canManageResources: boolean;
+    // Admin Tools
+    canEditPresentation: boolean;
     canManageRelance: boolean;
+    canManageRBAC: boolean;
+    canViewSettings: boolean;
+    canViewAuditLogs: boolean;
+    // Global Access
     isAdmin: boolean;
+    isDiscordAdmin: boolean;
     isSuperAdmin: boolean;
-    // Ladder Sync detection
+    isMember: boolean;
+    // Data & Identity
     hasPseudoIssue: boolean;
     pseudoDofus?: string | null;
     ankamaId?: string | null;
-    isMember: boolean;
     profileId?: string;
     guildName?: string;
     dofusServerId?: string | null;
@@ -174,9 +170,18 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const baseContext: UserContext = {
         isAuthenticated: !!session?.user?.id,
         isAdmin: false,
+        isDiscordAdmin: false,
         isSuperAdmin: false,
         isMember: false,
-        isCapacityFull: false,
+        canViewDashboard: false,
+        canViewPresentation: false,
+        canViewWelcome: false,
+        canViewStats: false,
+        canViewDocs: false,
+        canViewAdminDocs: false,
+        canViewResources: false,
+        canViewProfile: false,
+        canManageMembers: false,
         canViewMissions: false,
         canManageMissions: false,
         canValidateMissions: false,
@@ -185,41 +190,29 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewSonges: false,
         canCreateSonges: false,
         canJoinSonges: false,
-        canViewArchis: false,
-        canViewPolls: false,
-        canManagePolls: false,
+        canViewOcre: false,
         canViewLadder: false,
         canSyncLadder: false,
-        canEditPresentation: false,
+        canViewQuests: false,
+        canViewWorldmap: false,
+        canViewFinder: false,
+        canViewServices: false,
+        canViewStuffGallery: false,
+        canViewMiniGames: false,
+        canViewPolls: false,
         canViewCalendar: false,
         canManageCalendar: false,
-        canViewAdminDocs: false,
-        canViewPresentation: false,
-        canViewDashboard: false,
-        canViewStats: false,
-        canViewServices: false,
-        canCreateServices: false,
-        canViewFinder: false,
-        canViewDocs: false,
-        canViewWelcome: false,
-        canViewProfile: false,
-        canManageMembers: false,
-        canViewQuests: false,
-        canManageQuests: false,
-        canViewWorldmap: false,
-        canManageWorldmap: false,
-        canViewMiniGames: false,
-        canManageMiniGames: false,
-        canViewStuffGallery: false,
-        canViewResources: false,
-        canManageResources: false,
-        canManageRelance: false,
         canViewChat: false,
         canModerateChat: false,
+        canEditPresentation: false,
+        canManageRelance: false,
+        canManageRBAC: false,
+        canViewSettings: false,
+        canViewAuditLogs: false,
         hasPseudoIssue: false,
         roles: [],
         roleNames: [],
-        newsBroadcastEnabled: false,
+        newsBroadcastEnabled: true,
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -443,44 +436,32 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             // If God, grant all perms even if not in Discord
             ...(isGod ? {
                 isAdmin: true,
+                canManageMembers: true,
+                canViewStats: true,
                 canViewMissions: true,
                 canManageMissions: true,
                 canValidateMissions: true,
                 canManageBonus: true,
-                canViewRoster: true,
+                canViewGameFeatures: true,
+                canViewLadder: true,
+                canSyncLadder: true,
+                canViewArchis: true,
+                canViewFinder: true,
                 canViewSonges: true,
                 canCreateSonges: true,
                 canJoinSonges: true,
-                canViewArchis: true,
-                canViewPolls: true,
-                canManagePolls: true,
-                canViewLadder: true,
-                canSyncLadder: true,
                 canEditPresentation: true,
+                canViewDocs: true,
+                canViewAdminDocs: true,
                 canViewCalendar: true,
                 canManageCalendar: true,
-                canViewAdminDocs: true,
-                canViewDashboard: true,
-                canViewPresentation: true,
-                canViewStats: true,
-                canViewServices: true,
-                canCreateServices: true,
-                canViewFinder: true,
-                canViewProfile: true,
-                canViewWelcome: true, // FIX: was missing from God bypass
-                canManageMembers: true,
+                canViewChat: true,
+                canModerateChat: true,
+                canViewRoster: true,
                 canViewQuests: true,
                 canManageQuests: true,
                 canViewWorldmap: true,
                 canManageWorldmap: true,
-                canViewMiniGames: true,
-                canManageMiniGames: true,
-                canViewStuffGallery: true,
-                canViewResources: true,
-                canManageResources: true,
-                canManageRelance: true,
-                canViewChat: true,
-                canModerateChat: true,
                 roleName: "Administrateur",
                 roleColor: 0x5865F2,
             } : {})
@@ -611,46 +592,51 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
     
-    const isAdmin = myPerms.has(PERMISSIONS.ADMIN_ACCESS) || hasDiscordAdmin;
+    // Master admin: Explicit ADMIN_FULL or Discord Administrator/Owner
+    const isAdmin = myPerms.has(PERMISSIONS.ADMIN_FULL) || hasDiscordAdmin;
 
+    // Core & Information
+    const canViewWelcome = true; 
+    const canViewPresentation = true;
+    const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
+    const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
+    const canViewDocs = myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin;
+    const canViewAdminDocs = myPerms.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdmin;
+
+    // Members & Profiles
+    const canViewRoster = myPerms.has(PERMISSIONS.MEMBER_VIEW_ALL) || isAdmin;
+    const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
+
+    // Missions
     const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
-    const canManageMissions = myPerms.has(PERMISSIONS.MISSIONS_CREATE) || isAdmin;
+    const canManageMissions = myPerms.has(PERMISSIONS.MISSIONS_MANAGE) || isAdmin;
     const canValidateMissions = myPerms.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdmin;
-    const canManageBonus = myPerms.has(PERMISSIONS.BONUS_MANAGE) || isAdmin;
-    const canViewRoster = myPerms.has(PERMISSIONS.PROFILE_VIEW_ALL) || isAdmin;
+    const canManageBonus = myPerms.has(PERMISSIONS.MISSIONS_MANAGE) || isAdmin;
+
+    // Game Features
     const canViewSonges = myPerms.has(PERMISSIONS.SONGES_VIEW) || isAdmin;
     const canCreateSonges = myPerms.has(PERMISSIONS.SONGES_CREATE) || isAdmin;
     const canJoinSonges = myPerms.has(PERMISSIONS.SONGES_JOIN) || isAdmin;
-    const canViewArchis = myPerms.has(PERMISSIONS.ARCHIS_VIEW) || isAdmin;
+    const canViewOcre = myPerms.has(PERMISSIONS.OCRE_VIEW) || isAdmin;
     const canViewLadder = myPerms.has(PERMISSIONS.LADDER_VIEW) || isAdmin;
-    const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
+    const canViewQuests = myPerms.has(PERMISSIONS.QUESTS_VIEW) || isAdmin;
+    const canViewDJQuests = myPerms.has(PERMISSIONS.DJ_QUESTS_VIEW) || isAdmin;
+    const canViewServices = myPerms.has(PERMISSIONS.SERVICES_VIEW) || isAdmin;
+    const canViewWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_VIEW) || isAdmin;
+    const canViewMiniGames = myPerms.has(PERMISSIONS.MINIGAMES_VIEW) || isAdmin;
+
+    // Community
     const canViewCalendar = myPerms.has(PERMISSIONS.CALENDAR_VIEW) || isAdmin;
     const canManageCalendar = myPerms.has(PERMISSIONS.CALENDAR_MANAGE) || isAdmin;
-    const canViewAdminDocs = myPerms.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdmin;
-    const canViewDashboard = myPerms.has(PERMISSIONS.DASHBOARD_VIEW) || isAdmin;
-    const canViewPresentation = myPerms.has(PERMISSIONS.PRESENTATION_VIEW) || isAdmin;
-    const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
-    const canViewServices = myPerms.has(PERMISSIONS.SERVICES_VIEW) || isAdmin;
-    const canCreateServices = myPerms.has(PERMISSIONS.SERVICES_CREATE) || isAdmin;
-    const canViewFinder = myPerms.has(PERMISSIONS.FINDER_VIEW) || isAdmin;
-    const canViewProfile = myPerms.has(PERMISSIONS.PROFILE_VIEW) || isAdmin;
-    const canViewWelcome = myPerms.has(PERMISSIONS.WELCOME_VIEW) || isAdmin;
-    const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
-    const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
-    const canManagePolls = myPerms.has(PERMISSIONS.POLLS_MANAGE) || isAdmin;
-    // Coming Soon
-    const canViewQuests = myPerms.has(PERMISSIONS.QUESTS_VIEW) || isAdmin;
-    const canManageQuests = myPerms.has(PERMISSIONS.QUESTS_MANAGE) || isAdmin;
-    const canViewWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_VIEW) || isAdmin;
-    const canManageWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_MANAGE) || isAdmin;
-    const canViewMiniGames = myPerms.has(PERMISSIONS.MINIGAMES_VIEW) || isAdmin;
-    const canManageMiniGames = myPerms.has(PERMISSIONS.MINIGAMES_MANAGE) || isAdmin;
-    const canViewStuffGallery = myPerms.has(PERMISSIONS.STUFF_GALLERY_VIEW) || isAdmin;
-    const canViewResources = myPerms.has(PERMISSIONS.RESOURCES_VIEW) || isAdmin;
-    const canManageResources = myPerms.has(PERMISSIONS.RESOURCES_MANAGE) || isAdmin;
-    const canManageRelance = myPerms.has(PERMISSIONS.RELANCE_MANAGE) || isAdmin;
     const canViewChat = myPerms.has(PERMISSIONS.CHAT_VIEW) || isAdmin;
     const canModerateChat = myPerms.has(PERMISSIONS.CHAT_MODERATE) || isAdmin;
+    const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
+
+    // Supervision Admin Pages
+    const canManageRelance = myPerms.has(PERMISSIONS.RELANCE_MANAGE) || myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
+    const canManageRBAC = hasDiscordAdmin || isGod; // Strictly Discord Admins
+    const canViewSettings = myPerms.has(PERMISSIONS.ADMIN_SETTINGS) || isAdmin;
+    const canViewAuditLogs = myPerms.has(PERMISSIONS.ADMIN_AUDIT) || isAdmin;
 
     const isAdminFinal = isAdmin || isGod;
 
@@ -661,8 +647,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const mod = (guildConfig as any)?.modules;
     const bypassModules = isGod || isAdmin;
 
-    const applyModule = (moduleEnabled: boolean | undefined, perm: boolean) =>
-        bypassModules ? perm : (moduleEnabled !== false) && perm;
+    const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
+        !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
 
     return {
         isAuthenticated: true,
@@ -674,63 +660,65 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 ? `https://cdn.discordapp.com/guilds/${effectiveGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
                 : session.user.image || undefined,
         roleName: isGod && roleName === "Membre" ? "Administrateur" : roleName,
+        roleNames: memberRoles.map(rId => (guildInfo as any)?.roles.find((r: any) => r.id === rId)?.name || "Inconnu"),
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,
-        canViewMissions: applyModule(mod?.missions, canViewMissions || isGod),
-        canManageMissions: applyModule(mod?.missions, canManageMissions || isGod),
-        canValidateMissions: applyModule(mod?.missions, canValidateMissions || isGod),
-        canManageBonus: canManageBonus || isGod,
-        canViewRoster: applyModule(mod?.roster, canViewRoster || isGod),
-        canViewSonges: applyModule(mod?.songes, canViewSonges || isGod),
-        canCreateSonges: applyModule(mod?.songes, canCreateSonges || isGod),
-        canJoinSonges: applyModule(mod?.songes, canJoinSonges || isGod),
-        canViewArchis: applyModule(mod?.ocre, canViewArchis || isGod),
-        canViewPolls: applyModule(mod?.polls, canViewPolls || isGod),
-        canManagePolls: applyModule(mod?.polls, canManagePolls || isGod),
-        canViewLadder: applyModule(mod?.ladder, canViewLadder || isGod),
-        canSyncLadder: applyModule(mod?.ladderSync, canViewLadder || isGod),
-        canEditPresentation: applyModule(mod?.presentation, canEditPresentation || isGod),
-        canViewCalendar: applyModule(mod?.calendar, canViewCalendar || isGod),
-        canManageCalendar: applyModule(mod?.calendar, canManageCalendar || isGod),
-        canViewAdminDocs: canViewAdminDocs || isGod,
-        canManageMembers: canManageMembers || isGod,
-        canViewDashboard: canViewDashboard || isGod,
-        canViewPresentation: applyModule(mod?.presentation, canViewPresentation || isGod),
-        canViewStats: applyModule(mod?.stats, canViewStats || isGod),
-        canViewServices: applyModule(mod?.services, canViewServices || isGod),
-        canCreateServices: applyModule(mod?.services, canCreateServices || isGod),
-        canViewFinder: applyModule(mod?.donjons, canViewFinder || isGod),
-        canViewDocs: applyModule(mod?.docs, myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin || isGod),
-        canViewWelcome: canViewWelcome || isGod,
-        canViewProfile: applyModule(mod?.profile, canViewProfile || isGod),
-        canViewQuests: applyModule(mod?.quests, canViewQuests || isGod),
-        canManageQuests: applyModule(mod?.quests, canManageQuests || isGod),
-        canViewWorldmap: applyModule(mod?.worldmap, canViewWorldmap || isGod),
-        canManageWorldmap: applyModule(mod?.worldmap, canManageWorldmap || isGod),
-        canViewMiniGames: applyModule(mod?.worldmap, canViewMiniGames || isGod), // Re-using worldmap module toggle for now unless we add a new one
-        canManageMiniGames: applyModule(mod?.worldmap, canManageMiniGames || isGod),
-        canViewStuffGallery: applyModule(mod?.profile, canViewStuffGallery || isGod), // Part of profile module toggle
-        canViewResources: applyModule(mod?.resources, canViewResources || isGod),
-        canManageResources: applyModule(mod?.resources, canManageResources || isGod),
-        canManageRelance: canManageRelance || isGod,
-        canViewChat: applyModule(mod?.chat, canViewChat || isGod),
-        canModerateChat: applyModule(mod?.chat, canModerateChat || isGod),
-        isAdmin: isAdminFinal,
-        isSuperAdmin: isGod,
+        canViewDashboard: true,
+        canViewPresentation: !!applyModule(!!mod?.presentation, !!canViewPresentation),
+        canViewWelcome: !!applyModule(!!mod?.welcome, !!canViewWelcome),
+        canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
+        canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
+        canViewAdminDocs: !!canViewAdminDocs,
+        canViewResources: !!applyModule(!!mod?.resources, true),
+        canViewProfile: !!applyModule(!!mod?.profile, true),
+        canManageMembers: !!canManageMembers,
+        // Modules
+        canViewMissions: !!applyModule(!!mod?.missions, !!canViewMissions),
+        canManageMissions: !!applyModule(!!mod?.missions, !!canManageMissions),
+        canValidateMissions: !!applyModule(!!mod?.missions, !!canValidateMissions),
+        canManageBonus: !!canManageBonus,
+        canViewRoster: !!applyModule(!!mod?.roster, !!canViewRoster),
+        canViewSonges: !!applyModule(!!mod?.songes, !!canViewSonges),
+        canCreateSonges: !!applyModule(!!mod?.songes, !!canCreateSonges),
+        canJoinSonges: !!applyModule(!!mod?.songes, !!canJoinSonges),
+        canViewOcre: !!applyModule(!!mod?.ocre, !!canViewOcre),
+        canViewLadder: !!applyModule(!!mod?.ladder, !!canViewLadder),
+        canSyncLadder: !!applyModule(!!mod?.ladderSync, !!isAdminFinal),
+        canViewQuests: !!applyModule(!!mod?.quests, !!canViewQuests),
+        canViewWorldmap: !!applyModule(!!mod?.worldmap, !!canViewWorldmap),
+        canViewFinder: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
+        canViewServices: !!applyModule(!!mod?.services, !!canViewServices),
+        canViewStuffGallery: !!applyModule(!!mod?.gallery, true),
+        canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
+        canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
+        canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),
+        canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
+        canViewChat: !!applyModule(!!mod?.chat, !!canViewChat),
+        canModerateChat: !!applyModule(!!mod?.chat, !!canModerateChat),
+        // Admin
+        canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
+        canManageRelance: !!canManageRelance,
+        canManageRBAC: !!canManageRBAC,
+        canViewSettings: !!canViewSettings,
+        canViewAuditLogs: !!canViewAuditLogs,
+        // Global Access
+        isAdmin: !!isAdminFinal,
+        isDiscordAdmin: !!(hasDiscordAdmin || isGod),
+        isSuperAdmin: !!isGod,
         isMember: true,
-        roles: memberRoles,
-        roleNames: myRoles.map(r => r.name),
-        pseudo: profile?.discordNickname || profile?.pseudoDofus || displayName,
+        // Data & Identity
+        hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         pseudoDofus: profile?.pseudoDofus,
         ankamaId: profile?.ankamaId,
-        hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
-        isCapacityFull: false,
         profileId: profile?.id,
         guildName: guildConfig?.name || "Serveur Inconnu",
         dofusServerId: guildConfig?.dofusServerId,
         joinedAt: member?.joined_at ? new Date(member.joined_at).toISOString() : null,
         guildId: effectiveGuildId,
+        roles: memberRoles,
+        isCapacityFull: false,
+        scheduledDeletion: null,
+        createdAt: profile?.createdAt?.toISOString() || null,
         newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
-        createdAt: profile?.createdAt?.toISOString()
     };
 }
 
@@ -1003,7 +991,7 @@ export async function internalCheckPermission(
         const userPerms = userMapping[discordUserId];
         if (userPerms) userPerms.forEach((p: PermissionId) => allPerms.add(p));
 
-        return allPerms.has(PERMISSIONS.ADMIN_ACCESS) || allPerms.has(permission);
+        return allPerms.has(PERMISSIONS.ADMIN_FULL) || allPerms.has(permission);
     } catch (e) {
         console.error(`[PermissionCheck] Error for ${discordUserId} in ${guildId}:`, e);
         return false;

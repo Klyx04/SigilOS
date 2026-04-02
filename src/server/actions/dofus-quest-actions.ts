@@ -1069,3 +1069,153 @@ export async function seedDofusRequirements(guildId: string): Promise<ActionResp
         return { success: false, error: `Erreur: ${(error as Error).message}` };
     }
 }
+
+// ── Heatmap types ─────────────────────────────────────────────────────────────
+
+export type HeatmapMember = {
+    profileId: string;
+    pseudo: string;
+    image: string | null;
+    completedCount: number;
+    totalCount: number;
+    completionPercent: number;
+    statusMap: Record<string, string>;
+};
+
+export type HeatmapEntry = {
+    id: string;
+    name: string;
+    questType: string;
+    isDungeon: boolean;
+    isOptional: boolean;
+    stepOrder: number;
+    weight: number;
+    sectionType: string;
+    sectionName: string;
+};
+
+export type GuildHeatmapData = {
+    entries: HeatmapEntry[];
+    members: HeatmapMember[];
+};
+
+/**
+ * V3 — Heatmap membres × étapes pour un Dofus spécifique
+ */
+export async function getGuildHeatmapForDofus(
+    guildId: string,
+    dofusSlug: string
+): Promise<ActionResponse<GuildHeatmapData>> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isMember) return { success: false, error: "Accès refusé" };
+
+    try {
+        const guildConfig = await (db as any).guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        const internalGuildId: string = guildConfig.id;
+
+        // 1. Dofus + ses chaînes + entrées non-optionnelles
+        const dofusItem = await (db as any).dofusItem.findUnique({
+            where: { slug: dofusSlug },
+            include: {
+                questChains: {
+                    orderBy: { chainOrder: "asc" },
+                    include: {
+                        entries: {
+                            where: { isOptional: false },
+                            orderBy: { stepOrder: "asc" },
+                            select: {
+                                id: true,
+                                name: true,
+                                questType: true,
+                                isDungeon: true,
+                                isOptional: true,
+                                stepOrder: true,
+                                weight: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!dofusItem) return { success: false, error: "Dofus introuvable" };
+
+        const entries: HeatmapEntry[] = (dofusItem.questChains as any[]).flatMap(
+            (chain: { sectionType: string; sectionName: string; entries: any[] }) =>
+                chain.entries.map((e: any) => ({
+                    id: e.id as string,
+                    name: e.name as string,
+                    questType: e.questType as string,
+                    isDungeon: Boolean(e.isDungeon),
+                    isOptional: Boolean(e.isOptional),
+                    stepOrder: Number(e.stepOrder),
+                    weight: Number(e.weight ?? 1),
+                    sectionType: chain.sectionType,
+                    sectionName: chain.sectionName,
+                }))
+        );
+
+        if (entries.length === 0) return { success: true, data: { entries: [], members: [] } };
+
+        const entryIds = entries.map((e) => e.id);
+
+        // 2. Membres actifs de la guilde
+        const profiles = await db.userProfile.findMany({
+            where: { guildId: internalGuildId, status: "ACTIVE" },
+            select: {
+                id: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                user: { select: { image: true } },
+            },
+            orderBy: { discordNickname: "asc" },
+            take: 40,
+        });
+
+        // 3. Progression de tous ces membres sur ces entrées
+        const allProgress = await (db as any).playerDofusQuestProgress.findMany({
+            where: {
+                questId: { in: entryIds },
+                profileId: { in: profiles.map((p: any) => p.id) },
+            },
+            select: { profileId: true, questId: true, status: true },
+        });
+
+        // 4. Map profileId → { questId → status }
+        const progressByMember = new Map<string, Record<string, string>>();
+        for (const p of allProgress as { profileId: string; questId: string; status: string }[]) {
+            if (!progressByMember.has(p.profileId)) progressByMember.set(p.profileId, {});
+            progressByMember.get(p.profileId)![p.questId] = p.status;
+        }
+
+        const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
+
+        const members: HeatmapMember[] = (profiles as any[])
+            .map((p: any) => {
+                const statusMap = progressByMember.get(p.id as string) ?? {};
+                const completedCount = entryIds.filter((id) => statusMap[id] === "COMPLETED").length;
+                const doneWeight = entries
+                    .filter((e) => statusMap[e.id] === "COMPLETED")
+                    .reduce((s, e) => s + e.weight, 0);
+                return {
+                    profileId: p.id as string,
+                    pseudo: (p.discordNickname || p.pseudoDofus || "Inconnu") as string,
+                    image: (p.user?.image ?? null) as string | null,
+                    completedCount,
+                    totalCount: entryIds.length,
+                    completionPercent: totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0,
+                    statusMap,
+                };
+            })
+            .sort((a, b) => b.completionPercent - a.completionPercent);
+
+        return { success: true, data: { entries, members } };
+    } catch (error) {
+        console.error("[getGuildHeatmapForDofus] error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}

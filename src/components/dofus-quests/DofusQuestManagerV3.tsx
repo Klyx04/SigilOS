@@ -4,14 +4,16 @@ import { useState, useEffect, useTransition } from "react";
 import { 
     getGuildSynergyForDofus, 
     toggleQuestStatus,
-    MemberOnQuest 
+    MemberOnQuest,
+    GuildHeatmapData,
 } from "@/server/actions/dofus-quest-actions";
 import { DofusNeuralTree } from "./DofusNeuralTree";
 import { DofusSuccessGrid } from "./DofusSuccessGrid";
 import { DofusGlobalLogistics } from "./DofusGlobalLogistics";
 import { QuestChecklist } from "./QuestChecklist";
+import { GuildDofusHeatmap } from "./GuildDofusHeatmap";
 import { Button } from "@/components/ui/button";
-import { LayoutList, Network, RefreshCw, Users, LayoutGrid } from "lucide-react";
+import { LayoutList, Network, RefreshCw, Users, LayoutGrid, Flame } from "lucide-react";
 import { toast } from "sonner";
 
 interface DofusQuestManagerV3Props {
@@ -19,11 +21,12 @@ interface DofusQuestManagerV3Props {
     dofus: any;
     chains: any[];
     dofusColor: string;
+    heatmapData?: GuildHeatmapData | null;
 }
 
-type ViewMode = "successes" | "list" | "tree";
+type ViewMode = "successes" | "list" | "tree" | "heatmap";
 
-export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: DofusQuestManagerV3Props) {
+export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatmapData }: DofusQuestManagerV3Props) {
     const [viewMode, setViewMode] = useState<ViewMode>("successes");
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
@@ -40,6 +43,7 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: Dofu
         loadSynergy();
         const interval = setInterval(loadSynergy, 120000);
         return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dofus.id, guildId]);
 
     async function handleToggleStatus(questId: string, newStatus: any) {
@@ -62,14 +66,15 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: Dofu
         { id: "successes", label: "Succès",       Icon: LayoutGrid },
         { id: "list",      label: "Liste",         Icon: LayoutList },
         { id: "tree",      label: "Arbre Neural",  Icon: Network },
+        { id: "heatmap",   label: "Guilde",        Icon: Flame },
     ];
 
     return (
         <div className="space-y-4">
-            {/* ── Toolbar ───────────────────────────────────────────── */}
             {/* Global Logistics Summary */}
             <DofusGlobalLogistics chains={chains} dofusColor={dofus.color} />
 
+            {/* ── Toolbar ─────────────────────────────────────────────── */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-zinc-900/40 border border-white/5 rounded-2xl backdrop-blur-sm mb-8">
                 <div className="flex items-center gap-3">
                     <div className="flex p-1 bg-zinc-950/60 rounded-xl border border-white/5">
@@ -86,6 +91,11 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: Dofu
                                 }`}
                             >
                                 <Icon className="w-3.5 h-3.5 mr-1.5" />{label}
+                                {id === "heatmap" && heatmapData && heatmapData.members.length > 0 && (
+                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-indigo-500/20 text-indigo-300">
+                                        {heatmapData.members.length}
+                                    </span>
+                                )}
                             </Button>
                         ))}
                     </div>
@@ -115,7 +125,7 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: Dofu
                 </div>
             </div>
 
-            {/* ── Content ───────────────────────────────────────────── */}
+            {/* ── Content ──────────────────────────────────────────────── */}
             <div className="relative">
                 {viewMode === "successes" && (
                     <DofusSuccessGrid
@@ -140,6 +150,31 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor }: Dofu
                 {viewMode === "list" && (
                     <div className="bg-zinc-950/40 border border-white/5 rounded-3xl p-6">
                         <QuestChecklist chains={chains} guildId={guildId} dofusColor={dofusColor} />
+                    </div>
+                )}
+                {viewMode === "heatmap" && (
+                    <div
+                        className="rounded-2xl p-5"
+                        style={{
+                            background: "rgba(0,0,0,0.2)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                        }}
+                    >
+                        {heatmapData ? (
+                            <GuildDofusHeatmap
+                                data={heatmapData}
+                                dofusColor={dofusColor}
+                                dofusName={dofus.nameShort || dofus.name}
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                <Flame className="w-10 h-10 text-white/10" />
+                                <p className="text-white/25 text-sm font-bold uppercase tracking-widest">Données indisponibles</p>
+                                <p className="text-white/15 text-xs text-center max-w-xs">
+                                    Lance le seed depuis l&apos;admin panel pour charger les étapes, puis reviens ici.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

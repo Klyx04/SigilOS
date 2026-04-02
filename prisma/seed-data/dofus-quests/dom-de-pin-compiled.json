@@ -1,0 +1,119 @@
+{
+  "dofus": "dom-de-pin",
+  "displayName": "Dofus Dom de Pin",
+  "color": "#4ade80",
+  "compiledAt": "2026-04-02T08:00:00.000Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "description": "Conditions requises avant de démarrer les quêtes du Dom de Pin.",
+      "chainOrder": 0,
+      "entries": [
+        {
+          "name": "Niveau 100+",
+          "questType": "MISC",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 1,
+          "stepOrder": 0,
+          "notes": "Niveau minimum recommandé.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Accès à la forêt d'Amakna",
+          "questType": "MISC",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 1,
+          "stepOrder": 1,
+          "notes": "Zone de départ principale.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Quêtes principales du Dom de Pin",
+      "sectionType": "MAIN_CHAIN",
+      "description": "Série de quêtes liées aux arbres et à la forêt enchantée d'Amakna, menant à l'obtention du Dom de Pin.",
+      "chainOrder": 1,
+      "entries": [
+        {
+          "name": "Les Arbres Vivants",
+          "questType": "QUEST",
+          "zone": "Forêt d'Amakna",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 3,
+          "stepOrder": 0,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dom-de-pin.html",
+          "notes": "Première quête de la saga Dom de Pin.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Le Gardien de la Forêt",
+          "questType": "QUEST",
+          "zone": "Forêt d'Amakna",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 3,
+          "stepOrder": 1,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dom-de-pin.html",
+          "notes": null,
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Ressources de la forêt (récolte/drops)",
+          "questType": "RESOURCE",
+          "zone": "Forêt d'Amakna / Forêt des Abraknydes",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 4,
+          "stepOrder": 2,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dom-de-pin.html",
+          "notes": "Collecte de ressources rares propres à la saga Dom de Pin.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Donjon de l'Arbre-Mère",
+          "questType": "DUNGEON",
+          "zone": "Forêt d'Amakna",
+          "isDungeon": true,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 3,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dom-de-pin.html",
+          "notes": "Le boss de ce donjon est un prérequis pour la suite.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Combat final — Gardien du Dom de Pin",
+          "questType": "DUNGEON",
+          "zone": "Cœur de la forêt",
+          "isDungeon": true,
+          "isOptional": false,
+          "isLast": true,
+          "weight": 6,
+          "stepOrder": 4,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dom-de-pin.html",
+          "notes": "Dernier combat pour obtenir le Dofus Dom de Pin.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": ["Vaincre le Gardien du Dom de Pin", "Récupérer le Dofus Dom de Pin"]
+        }
+      ]
+    }
+  ]
+}

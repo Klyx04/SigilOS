@@ -1,0 +1,217 @@
+{
+  "dofus": "sylvestre",
+  "displayName": "Dofus Sylvestre",
+  "color": "#22c55e",
+  "compiledAt": "2026-04-02T08:00:00.000Z",
+  "chains": [
+    {
+      "sectionName": "Dofus requis",
+      "sectionType": "PREREQUISITE",
+      "description": "Le Sylvestre nécessite d'avoir obtenu plusieurs Dofus au préalable. Chaque Dofus représente une grosse étape de progression.",
+      "chainOrder": 0,
+      "entries": [
+        {
+          "name": "Posséder le Dofus Dom de Pin",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 8,
+          "stepOrder": 0,
+          "notes": "Prérequis direct et indispensable du Sylvestre.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Émeraude",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 1,
+          "notes": "Prérequis via les Dofus primordiaux.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Turquoise",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 2,
+          "notes": "Prérequis via les Dofus primordiaux.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Ivoire",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 3,
+          "notes": "Prérequis via les Dofus primordiaux.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Ébène",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 4,
+          "notes": "Prérequis via les Dofus primordiaux.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Ocre",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 5,
+          "notes": "Prérequis via les Dofus primordiaux.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Posséder le Dofus Pourpre",
+          "questType": "OTHER_DOFUS",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 4,
+          "stepOrder": 6,
+          "notes": "Dofus de quête requis pour le Sylvestre.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Arc de quêtes Sylvestre",
+      "sectionType": "MAIN_CHAIN",
+      "description": "Longue série de quêtes forestières incluant les sagas Silvosse, L'arbre qui cache la forêt, et Flovoraison.",
+      "chainOrder": 1,
+      "entries": [
+        {
+          "name": "L'arbre qui cache la forêt",
+          "questType": "QUEST",
+          "zone": "Forêt d'Amakna",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 8,
+          "stepOrder": 0,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Premier grand arc de quêtes du Sylvestre. Démarre dans la forêt d'Amakna.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Flovoraison",
+          "questType": "QUEST",
+          "zone": "Forêt enchantée",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 7,
+          "stepOrder": 1,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Deuxième grand arc de quêtes. Requiert d'avoir terminé L'arbre qui cache la forêt.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Silvosse",
+          "questType": "QUEST",
+          "zone": "Silvosse",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 7,
+          "stepOrder": 2,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Troisième arc. Zone spéciale de Silvosse.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Quêtes du Refuge Sylvestre",
+          "questType": "QUEST",
+          "zone": "Refuge Sylvestre",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 5,
+          "stepOrder": 3,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Dernières quêtes avant le combat final.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Donjons & Ressources",
+      "sectionType": "RESOURCE_CHAIN",
+      "description": "Donjons et ressources spécifiques à collecter ou débloquer pour le Sylvestre.",
+      "chainOrder": 2,
+      "entries": [
+        {
+          "name": "Donjon du Refuge Sylvestre",
+          "questType": "DUNGEON",
+          "zone": "Refuge Sylvestre",
+          "isDungeon": true,
+          "isOptional": false,
+          "weight": 6,
+          "stepOrder": 0,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Donjon principal lié au Sylvestre. Boss à vaincre dans le cadre de la quête.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Ressources forestières (packs de craft)",
+          "questType": "RESOURCE",
+          "zone": "Zones forestières",
+          "isDungeon": false,
+          "isOptional": false,
+          "weight": 4,
+          "stepOrder": 1,
+          "notes": "Packs de ressources rares nécessaires : bois anciens, essences forestières, drops de monstres du biome.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": []
+        },
+        {
+          "name": "Combat final — Gardien du Dofus Sylvestre",
+          "questType": "DUNGEON",
+          "zone": "Cœur du Sylvestre",
+          "isDungeon": true,
+          "isOptional": false,
+          "isLast": true,
+          "weight": 8,
+          "stepOrder": 2,
+          "externalRef": "https://www.dofuspourlesnoobs.com/dofus-sylvestre.html",
+          "notes": "Combat final solo / groupe. Prérequis : tous les Dofus requis + arcs de quêtes terminés.",
+          "requirements": [],
+          "itemsRequired": [],
+          "objectives": [
+            "Vaincre le Gardien du Dofus Sylvestre",
+            "Récupérer le Dofus Sylvestre"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,12 +6,16 @@
     "element": "Émeraude",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+60 Sagesse",
     "levelRecommended": 100,
     "imageUrl": "/module-dofus/Dofus_Emeraude.png",
     "color": "#10b981",
     "displayOrder": 1,
     "description": "Dofus vert aux reflets dorés, obtenu via la saga \"Vert Émeraude\".",
-    "successName": "Vert Émeraude"
+    "successName": "Vert Émeraude",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "turquoise",
@@ -20,12 +24,16 @@
     "element": "Turquoise",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+2 PM",
     "levelRecommended": 120,
     "imageUrl": "/module-dofus/Dofus_Turquoise.png",
     "color": "#06b6d4",
     "displayOrder": 2,
     "description": "Dofus bleu cristallin, obtenu via la saga \"Rose-aux-vents\".",
-    "successName": "Rose-aux-vents"
+    "successName": "Rose-aux-vents",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "ivoire",
@@ -34,12 +42,16 @@
     "element": "Ivoire",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+1 PA",
     "levelRecommended": 150,
     "imageUrl": "/module-dofus/Dofus_Ivoire.png",
     "color": "#fbbf24",
     "displayOrder": 3,
     "description": "Dofus blanc nacré, obtenu via la saga de Frigost.",
-    "successName": "Blanc Ivoire"
+    "successName": "Blanc Ivoire",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "ebene",
@@ -48,12 +60,16 @@
     "element": "Ébène",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+40 dommages / +10% résistances",
     "levelRecommended": 200,
     "imageUrl": "/module-dofus/Dofus_Ebene.png",
     "color": "#7c3aed",
     "displayOrder": 4,
     "description": "Dofus violet sombre, le plus difficile des primordiaux.",
-    "successName": "Bois Ébène"
+    "successName": "Bois Ébène",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "ocre",
@@ -62,12 +78,16 @@
     "element": "Ocre",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+1 PA",
     "levelRecommended": 175,
     "imageUrl": "/module-dofus/Dofus_Ocre.png",
     "color": "#f97316",
     "displayOrder": 5,
-    "description": "Dofus orangé légendaire, obtenu via un long parcours de quêtes principales.",
-    "successName": "Teinte Ocre"
+    "description": "Dofus orangé légendaire, obtenu via un long parcours de 4 séries de quêtes principales.",
+    "successName": "Teinte Ocre",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "vulbis",
@@ -76,12 +96,16 @@
     "element": "Vulbis",
     "rarity": "PRIMORDIAL",
     "isPrimordial": true,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PM",
     "levelRecommended": 200,
     "imageUrl": "/module-dofus/Dofus_Vulbis.png",
     "color": "#ec4899",
     "displayOrder": 6,
     "description": "Dofus rose rare, +1 PM. Obtenu dans les Songes Infinis et l'Éliocalypse.",
-    "successName": "Faille Vulbis"
+    "successName": "Faille Vulbis",
+    "filterCategory": "PRIMORDIAL"
   },
   {
     "slug": "pourpre",
@@ -90,12 +114,16 @@
     "element": "Pourpre",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+300 Vitalité",
     "levelRecommended": 150,
     "imageUrl": "/module-dofus/Dofus_Pourpre.png",
     "color": "#be185d",
     "displayOrder": 7,
     "description": "Dofus rouge foncé obtenu via les quêtes de Saharach.",
-    "successName": "Écarlate Pourpre"
+    "successName": "Écarlate Pourpre",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "abyssal",
@@ -104,12 +132,16 @@
     "element": "Abyssal",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+75 de chaque résistance",
     "levelRecommended": 160,
     "imageUrl": "/module-dofus/Dofus_Abyssal.png",
     "color": "#1e3a5f",
     "displayOrder": 8,
     "description": "Dofus bleu profond obtenu via les quêtes de Sufokia.",
-    "successName": "Bleu Abyssal"
+    "successName": "Bleu Abyssal",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "sylvestre",
@@ -118,12 +150,16 @@
     "element": "Sylvestre",
     "rarity": "MAJEUR",
     "isPrimordial": false,
-    "levelRecommended": 100,
+    "isSylvestreReq": false,
+    "isMeta": true,
+    "bonusSummary": "+2 PO, Puissance par PM utilisé, soins si aucun PM dépensé",
+    "levelRecommended": 200,
     "imageUrl": "/module-dofus/Dofus_Sylvestre.png",
     "color": "#22c55e",
     "displayOrder": 9,
-    "description": "Dofus vert forêt obtenu via les quêtes du Royaume d'Amakna.",
-    "successName": "Vert Sylvestre"
+    "description": "Méta-Dofus : nécessite le Dom de Pin, la plupart des Dofus primordiaux et un long arc de quêtes forestières.",
+    "successName": "Vert Sylvestre",
+    "filterCategory": "META"
   },
   {
     "slug": "cawotte",
@@ -132,12 +168,34 @@
     "element": "Cawotte",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PA si aucun PM dépensé, soins basés sur la Chance",
     "levelRecommended": 60,
     "imageUrl": "/module-dofus/Dofus_Cawotte.png",
     "color": "#fb923c",
     "displayOrder": 10,
     "description": "Dofus orange carotte, obtenu via les quêtes de Vulkania.",
-    "successName": "Cawotte Dorée"
+    "successName": "Cawotte Dorée",
+    "filterCategory": "QUEST"
+  },
+  {
+    "slug": "dom-de-pin",
+    "name": "Dofus Dom de Pin",
+    "nameShort": "Dom de Pin",
+    "element": "Dom de Pin",
+    "rarity": "MAJEUR",
+    "isPrimordial": false,
+    "isSylvestreReq": true,
+    "isMeta": false,
+    "bonusSummary": "+2 PO",
+    "levelRecommended": 120,
+    "imageUrl": "/module-dofus/Dofus_Dom_De_Pin.png",
+    "color": "#4ade80",
+    "displayOrder": 11,
+    "description": "Dofus vert forêt, prérequis direct du Dofus Sylvestre. Obtenu via les quêtes liées aux arbres d'Amakna.",
+    "successName": "Vert Dom de Pin",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "des-glaces",
@@ -146,12 +204,16 @@
     "element": "Glace",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PA en hiver, +60 Sagesse",
     "levelRecommended": 100,
     "imageUrl": "/module-dofus/Dofus_Des_Glaces.png",
     "color": "#93c5fd",
-    "displayOrder": 11,
+    "displayOrder": 12,
     "description": "Dofus blanc glacé, obtenu dans l'Île de Frigost.",
-    "successName": "Blanc Virginal"
+    "successName": "Blanc Virginal",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "nebuleux",
@@ -160,12 +222,16 @@
     "element": "Nébuleux",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+25% dommages sorts en début de tour",
     "levelRecommended": 130,
     "imageUrl": "/module-dofus/Dofus_Nebuleux.png",
     "color": "#a855f7",
-    "displayOrder": 12,
+    "displayOrder": 13,
     "description": "Dofus mauve obtenu via les quêtes d'Ecaflipus.",
-    "successName": "Mauve Nébuleux"
+    "successName": "Mauve Nébuleux",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "dokoko",
@@ -174,12 +240,16 @@
     "element": "Dokoko",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PM, Vitalité selon PM restants",
     "levelRecommended": 90,
     "imageUrl": "/module-dofus/Dofus_Dokoko.png",
     "color": "#84cc16",
-    "displayOrder": 13,
+    "displayOrder": 14,
     "description": "Dofus vert/jaune obtenu via les quêtes de Pandala.",
-    "successName": "Vert Dokoko"
+    "successName": "Vert Dokoko",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "domakuro",
@@ -188,12 +258,16 @@
     "element": "Domakuro",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+60 à toutes caractéristiques",
     "levelRecommended": 80,
     "imageUrl": "/module-dofus/Dofus_Domakuro.png",
     "color": "#6b7280",
-    "displayOrder": 14,
+    "displayOrder": 15,
     "description": "Dofus gris métallique, obtenu via les quêtes d'Otomaï.",
-    "successName": "Gris Domakuro"
+    "successName": "Gris Domakuro",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "dolmanax",
@@ -202,12 +276,16 @@
     "element": "Dolmanax",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "Dommages selon écart de niveau",
     "levelRecommended": 100,
     "imageUrl": "/module-dofus/Dofus_Dolmanax.png",
     "color": "#f43f5e",
-    "displayOrder": 15,
+    "displayOrder": 16,
     "description": "Dofus rouge vif, obtenu via les succès de donjons de Bonta.",
-    "successName": "Rouge Dolmanax"
+    "successName": "Rouge Dolmanax",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "dorigami",
@@ -216,12 +294,16 @@
     "element": "Dorigami",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+500 Vitalité, +1 PA (50% chances)",
     "levelRecommended": 110,
     "imageUrl": "/module-dofus/Dofus_Dorigami.png",
     "color": "#f59e0b",
-    "displayOrder": 16,
+    "displayOrder": 17,
     "description": "Dofus inspiré de l'origami, obtenu via les quêtes du Xélorium.",
-    "successName": "Doré Dorigami"
+    "successName": "Doré Dorigami",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "du-cauchemar",
@@ -230,12 +312,16 @@
     "element": "Cauchemar",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+20% résistances en début de combat",
     "levelRecommended": 120,
     "imageUrl": "/module-dofus/Dofus_Du_Cauchemar.png",
     "color": "#dc2626",
-    "displayOrder": 17,
+    "displayOrder": 18,
     "description": "Dofus rouge sang obtenu via les Songes Infinis.",
-    "successName": "Songe Cauchemar"
+    "successName": "Songe Cauchemar",
+    "filterCategory": "SONGES"
   },
   {
     "slug": "forgelave",
@@ -244,12 +330,16 @@
     "element": "Forgelave",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PA (perte de Vitalité)",
     "levelRecommended": 140,
     "imageUrl": "/module-dofus/Dofus_Forgelave.png",
     "color": "#ea580c",
-    "displayOrder": 18,
+    "displayOrder": 19,
     "description": "Dofus orangé lave, obtenu via les quêtes de Srambad.",
-    "successName": "Pierre Forgelave"
+    "successName": "Pierre Forgelave",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "argenté",
@@ -258,12 +348,16 @@
     "element": "Argenté",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "Modificateur de dommages aléatoire",
     "levelRecommended": 120,
     "imageUrl": "/module-dofus/Dofus_Argenté.png",
     "color": "#94a3b8",
-    "displayOrder": 19,
+    "displayOrder": 20,
     "description": "Dofus argenté brillant, obtenu via les quêtes de l'Énutrosor.",
-    "successName": "Argent Pur"
+    "successName": "Argent Pur",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "argente-scintillant",
@@ -272,12 +366,16 @@
     "element": "Argenté Scintillant",
     "rarity": "MAJEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "Modificateur de dommages aléatoire (amélioré)",
     "levelRecommended": 180,
     "imageUrl": "/module-dofus/Dofus_Argente_Scintillant.png",
     "color": "#e2e8f0",
-    "displayOrder": 20,
+    "displayOrder": 21,
     "description": "Version évoluée du Dofus Argenté.",
-    "successName": "Argent Scintillant"
+    "successName": "Argent Scintillant",
+    "filterCategory": "QUEST"
   },
   {
     "slug": "cacao",
@@ -286,12 +384,16 @@
     "element": "Cacao",
     "rarity": "MINEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+60 Vitalité",
     "levelRecommended": 50,
     "imageUrl": "/module-dofus/Dofus_Cacao.png",
     "color": "#92400e",
-    "displayOrder": 21,
+    "displayOrder": 22,
     "description": "Dofus brun chocolat, obtenu via les quêtes de la Kwismas.",
-    "successName": "Brun Cacao"
+    "successName": "Brun Cacao",
+    "filterCategory": "AUTRES"
   },
   {
     "slug": "tacheté",
@@ -300,12 +402,16 @@
     "element": "Tacheté",
     "rarity": "MINEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+50 Vitalité, +1 PM (aléatoire)",
     "levelRecommended": 70,
     "imageUrl": "/module-dofus/Dofus_Tacheté.png",
     "color": "#78716c",
-    "displayOrder": 22,
+    "displayOrder": 23,
     "description": "Dofus moucheté, obtenu via les quêtes de la Wabbit Island.",
-    "successName": "Tacheté"
+    "successName": "Tacheté",
+    "filterCategory": "AUTRES"
   },
   {
     "slug": "veilleur",
@@ -314,11 +420,15 @@
     "element": "Veilleur",
     "rarity": "MINEUR",
     "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+1 PO, +40 Sagesse la nuit",
     "levelRecommended": 60,
     "imageUrl": "/module-dofus/Dofus_Veilleur.png",
     "color": "#0ea5e9",
-    "displayOrder": 23,
+    "displayOrder": 24,
     "description": "Dofus bleu en permanence en éveil, obtenu via les quêtes d'Amakna.",
-    "successName": "Veilleur des Nuits"
+    "successName": "Veilleur des Nuits",
+    "filterCategory": "AUTRES"
   }
 ]

@@ -1620,15 +1620,21 @@ model DofusItem {
   description       String?
   successName       String?  // Nom du succès associé dans le jeu
   localImageUrl     String?  // V3: Asset WebP local (plus léger)
+  bonusSummary      String?  // V3: Résumé du bonus (+1 PA, +2 PO, etc.)
+  isSylvestreReq    Boolean               @default(false) // V3: Prérequis du Dofus Sylvestre
+  isMeta            Boolean               @default(false) // V3: true uniquement pour le Sylvestre
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   filterCategory    String                @default("AUTRES")
   filterSubCategory String?
   questChains       DofusQuestChain[]
   playerProgress    PlayerDofusProgress[]
+  requirementsFrom  DofusRequirement[]    @relation("RequirementSource")  // V3: Dofus qui requiert d'autres
+  requirementsTo    DofusRequirement[]    @relation("RequirementTarget")  // V3: Dofus requis par d'autres
 
   @@index([slug])
   @@index([displayOrder])
+  @@index([isSylvestreReq])
 }
 
 /// Une "section" de quêtes pour un Dofus (Prérequis, Quêtes principales, etc.)
@@ -1673,6 +1679,8 @@ model DofusQuestEntry {
   objectives         Json?
   npcName            String?
   isSynergyCandidate Boolean                    @default(false)
+  weight             Int                        @default(1) // V3: Poids pour le calcul de complétion pondéré
+  externalRef        String?                               // V3: Lien vers guide externe (DPLN, Next-Stage...)
   chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
   playerProgress     PlayerDofusQuestProgress[]
 
@@ -1682,22 +1690,38 @@ model DofusQuestEntry {
 
 /// Progression d'un joueur sur un Dofus spécifique (obtenu ou non)
 model PlayerDofusProgress {
-  id         String      @id @default(cuid())
-  profileId  String
-  guildId    String
-  dofusId    String
-  isObtained Boolean     @default(false)
-  obtainedAt DateTime?
-  notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  dofus      DofusItem   @relation(fields: [dofusId], references: [id], onDelete: Cascade)
-  profile    UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id                String      @id @default(cuid())
+  profileId         String
+  guildId           String
+  dofusId           String
+  isObtained        Boolean     @default(false)
+  obtainedAt        DateTime?
+  notes             String?
+  completionPercent Int         @default(0) // V3: Cache du % de complétion (pondéré), rafraîchi à chaque update
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  dofus             DofusItem   @relation(fields: [dofusId], references: [id], onDelete: Cascade)
+  profile           UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, dofusId])
   @@index([guildId])
   @@index([profileId])
   @@index([dofusId])
+}
+
+/// V3: Lien de dépendance entre Dofus (ex: Sylvestre → Dom de Pin → Ocre)
+model DofusRequirement {
+  id           String    @id @default(cuid())
+  fromDofusId  String    // Le Dofus qui nécessite l'autre
+  toDofusId    String    // Le Dofus requis
+  notes        String?   // Description optionnelle de la dépendance
+  createdAt    DateTime  @default(now())
+  fromDofus    DofusItem @relation("RequirementSource", fields: [fromDofusId], references: [id], onDelete: Cascade)
+  toDofus      DofusItem @relation("RequirementTarget", fields: [toDofusId], references: [id], onDelete: Cascade)
+
+  @@unique([fromDofusId, toDofusId])
+  @@index([fromDofusId])
+  @@index([toDofusId])
 }
 
 /// Progression d'un joueur sur une quête spécifique dans une chaîne Dofus

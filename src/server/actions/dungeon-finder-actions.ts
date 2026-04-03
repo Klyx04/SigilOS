@@ -583,6 +583,8 @@ export async function closeDjPostWithContributions(
             select: {
                 profileId: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 dungeon: { select: { level: true } },
             },
         });
@@ -618,6 +620,48 @@ export async function closeDjPostWithContributions(
     } catch (error) {
         console.error("[closeDjPostWithContributions]", error);
         return { success: false, error: "Erreur lors de la fermeture" };
+    }
+}
+
+/**
+ * Lightweight guild member list for the close modal — no Discord API calls.
+ * Returns only id, pseudo, and avatar of active guild members.
+ */
+export async function getDjGuildMembersForClose(
+    guildId: string
+): Promise<ActionResponse<{ id: string; name: string; image: string | null }[]>> {
+    const user = await getUserContext(guildId);
+    if (!user.canViewFinder || !user.profileId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profiles = await db.userProfile.findMany({
+            where: { guildId: guildConfig.id, status: "ACTIVE" },
+            select: {
+                id: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                user: { select: { name: true, image: true } },
+            },
+            orderBy: { pseudoDofus: "asc" },
+        });
+
+        return {
+            success: true,
+            data: profiles.map((p) => ({
+                id: p.id,
+                name: p.discordNickname || p.pseudoDofus || p.user.name || "Membre",
+                image: p.user.image,
+            })),
+        };
+    } catch (error) {
+        console.error("[getDjGuildMembersForClose]", error);
+        return { success: false, error: "Erreur serveur" };
     }
 }
 

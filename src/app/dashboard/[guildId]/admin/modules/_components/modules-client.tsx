@@ -141,7 +141,7 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-indigo-500/30",
             },
             {
-                key: "worldmap",
+                key: "minigames",
                 label: "Mini-Jeux & Carte",
                 description: "Défiez vos amis sur SigilGuesser (Geo), Sigil-Gartic (Dessin) et explorez la carte du monde.",
                 icon: Map,
@@ -208,6 +208,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-amber-400",
                 bgColor: "bg-amber-500/10",
                 borderColor: "border-amber-500/30",
+            },
+            {
+                key: "worldmap",
+                label: "Carte du Monde",
+                description: "Carte interactive de Dofus avec zones, ressources et points d'intérêt. Navigation géographique avancée.",
+                icon: Map,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
             },
             {
                 key: "profile",

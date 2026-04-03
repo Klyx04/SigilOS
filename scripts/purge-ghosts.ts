@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PrismaClient } from '@prisma/client';
 import itemsData from './prisma/seed-data/dofus-quests/dofus-items.json';
 

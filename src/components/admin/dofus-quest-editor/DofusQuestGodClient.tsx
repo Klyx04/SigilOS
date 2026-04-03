@@ -132,9 +132,17 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                 return (
                     <div key={dofus.id} className="border border-white/5 rounded-3xl overflow-hidden bg-zinc-950/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:border-white/10">
                         {/* Dofus header card */}
-                        <button
+                        <div
+                            role="button"
+                            tabIndex={0}
                             onClick={() => setExpandedDofus(isExpanded ? null : dofus.id)}
-                            className="w-full flex items-center gap-6 px-8 py-7 hover:bg-white/[0.03] transition-all text-left group"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    setExpandedDofus(isExpanded ? null : dofus.id);
+                                }
+                            }}
+                            className="w-full flex items-center gap-6 px-8 py-7 hover:bg-white/[0.03] transition-all text-left group cursor-pointer"
                         >
                             {/* Dofus icon */}
                             {dofus.imageUrl ? (
@@ -169,14 +177,23 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                 Neural Tree
                                             </Button>
                                             <Button
-                                                variant="ghost"
+                                                variant="default"
                                                 size="sm"
                                                 disabled={isPending}
-                                                onClick={(e) => { e.stopPropagation(); handleV3Siphon(dofus.slug); }}
-                                                className="h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-widest hover:bg-sky-500/20 transition-all"
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    startTransition(async () => {
+                                                        const toastId = toast.loading(`Injection en base de données pour tous les Dofus...`);
+                                                        const { seedDofusData } = await import("@/server/actions/dofus-quest-actions");
+                                                        const res = await seedDofusData("GOD");
+                                                        if (res.success) toast.success("Seed V3 terminé avec succès ! Les donjons sont là.", { id: toastId });
+                                                        else toast.error("Erreur Seed", { id: toastId });
+                                                    });
+                                                }}
+                                                className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(52,211,153,0.3)]"
                                             >
-                                                <RefreshCcw className={`w-3.5 h-3.5 mr-1.5 ${isPending ? 'animate-spin' : ''}`} />
-                                                Siphon V3
+                                                <Database className={`w-3.5 h-3.5 mr-1.5 ${isPending ? 'animate-bounce' : ''}`} />
+                                                SEED V3 GÉANT
                                             </Button>
                                         </div>
                                     )}
@@ -204,7 +221,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                     <ChevronDown className="w-6 h-6 text-zinc-500" />
                                 </div>
                             </div>
-                        </button>
+                        </div>
 
                         {/* Expanded detail */}
                         <AnimatePresence>

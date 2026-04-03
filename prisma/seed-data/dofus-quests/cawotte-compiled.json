@@ -1,0 +1,743 @@
+{
+  "dofus": "cawotte",
+  "displayName": "Dofus Cawotte",
+  "color": "#eab308",
+  "successName": "Rusé comme une Lenalde",
+  "recommendedLevel": 60,
+  "successDescription": "Obtenir le Dofus Cawotte en aidant les gardiens de l'île des Wabbits.",
+  "dofusItemId": 3087,
+  "compiledAt": "2026-04-03T08:43:28.334Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Mais où sont les Dofus ?",
+      "sectionType": "PREREQUISITE",
+      "zone": "Astrub",
+      "description": "Prérequis d'accès aux quêtes Wabbit",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Un sage parmi les sages",
+          "dofusdbId": 2193,
+          "level": 40,
+          "zone": "Maison des Lenalds",
+          "npcName": "Wanald le Sage Lenald",
+          "npcSubArea": "Maison des Lenalds",
+          "coords": {
+            "x": 22,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Entrer dans la maison des Lenalds pour voir Ronald",
+            "Prouver que vous êtes folt et lusé comme un Lenald",
+            "Parler à la doyenne des Lenalds",
+            "Rencontrer la capitaine Lily au port de Madrestam",
+            "Se prémunir contre la myxomawose et prendre le bateau pour l'île des Wabbits",
+            "Trouver un sage lenald sur l'île de la Cawotte",
+            "Aller voir Wanald le Sage Lenald",
+            "Retrouver le sage disparu dans les souterrains des Wabbits",
+            "Vaincre les mangeuws de cawottes",
+            "Aller voir Ronald le sage lenald",
+            "Escorter Ronald en lieu sûr",
+            "Discuter avec Ronald pour en apprendre davantage sur les six Dofus Primordiaux"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Rusé comme une Lenalde",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Île des Wabbits",
+      "description": "Succès principal d'exploration de l'île.",
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Sauvegarder l'espèce",
+          "dofusdbId": 836,
+          "level": 40,
+          "zone": "Île des Wabbits",
+          "npcName": "Lilou la Lenalde",
+          "npcSubArea": null,
+          "coords": {
+            "x": 24,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 12828,
+              "name": "Bois de chauffage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 12829,
+              "name": "Lombric",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15625.png"
+            },
+            {
+              "id": 12830,
+              "name": "Baies sucrées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/94013.png"
+            },
+            {
+              "id": 12831,
+              "name": "Tapis Wabbit",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/150001.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Trouver du Bois de chauffage au centre de l'île de la Cawotte",
+            "Ramener à Lilou la Lenalde : x1 Bois de chauffage",
+            "Trouver un Lombric au nord de l'île de la Cawotte",
+            "Ramener à Lilou la Lenalde : x1 Lombric",
+            "Trouver des Baies sucrées au nord-est de l'île de la Cawotte",
+            "Ramener à Lilou la Lenalde : x1 Baies sucrées",
+            "Trouver un Tapis Wabbit dans les souterrains de l'île de la Cawotte",
+            "Ramener à Lilou la Lenalde : x1 Tapis Wabbit"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Faites l'amour, pas la guerre",
+          "dofusdbId": 837,
+          "level": 45,
+          "zone": "Île des Wabbits",
+          "npcName": "Lilou la Lenalde",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": -7,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 12874,
+              "name": "Œuf de Wabbit",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/105038.png"
+            },
+            {
+              "id": 12875,
+              "name": "Cawotte mature",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/68031.png"
+            },
+            {
+              "id": 12877,
+              "name": "Jus de Cawotte râpée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79005.png"
+            },
+            {
+              "id": 12878,
+              "name": "Black Wabbit écrasé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/150008.png"
+            },
+            {
+              "id": 13205,
+              "name": "Échantillon de sang de Xiap",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24102.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher l'Œuf de Wabbit caché derrière un tableau de cawotte",
+            "Ramener à Lilou la Lenalde : x1 Œuf de Wabbit",
+            "Déterrer une Cawotte mature au centre de l'île de la Cawotte",
+            "Ramener à Lilou la Lenalde : x1 Cawotte mature",
+            "Voler du Jus de Cawotte râpée",
+            "Ramener à Lilou la Lenalde : x1 Jus de Cawotte râpée",
+            "Ramener à Lilou la Lenalde : x1 Black Wabbit écrasé",
+            "Aller voir Xiap",
+            "Ramener à Lilou la Lenalde : x1 Échantillon de sang de Xiap"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 836
+            }
+          ]
+        },
+        {
+          "name": "Ça sent la cawotte",
+          "dofusdbId": 838,
+          "level": 47,
+          "zone": "Île des Wabbits",
+          "npcName": "Lilou la Lenalde",
+          "npcSubArea": null,
+          "coords": {
+            "x": 24,
+            "y": -6,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 12880,
+              "name": "Seringue de Lilou",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Utiliser la Seringue de Lilou sur une cawotte en pleine croissance",
+            "Ramener à Lilou la Lenalde : x1 Seringue de Lilou"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 837
+            }
+          ]
+        },
+        {
+          "name": "Il y a un os, de Wabbit",
+          "dofusdbId": 839,
+          "level": 50,
+          "zone": "Île des Wabbits",
+          "npcName": "Lilou la Lenalde",
+          "npcSubArea": null,
+          "coords": {
+            "x": 24,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Sur l'îlot des Tombeaux, chercher des indices sur l'origine des Wabbits Squelettes",
+            "Aller voir Lilou la Lenalde",
+            "Aller voir Lenald des Temps Anciens",
+            "Aller voir Capitaine Lily",
+            "Chercher le Wabbit enfermé dans les souterrains",
+            "Aller voir Lilou la Lenalde"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 838
+            }
+          ]
+        },
+        {
+          "name": "Art gastronomique",
+          "dofusdbId": 840,
+          "level": 52,
+          "zone": "Île des Wabbits",
+          "npcName": "Capitaine Lily",
+          "npcSubArea": null,
+          "coords": {
+            "x": 24,
+            "y": -2,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 361,
+              "name": "Cawotte",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/68031.png"
+            },
+            {
+              "id": 2288,
+              "name": "Patte de Wabbit",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/103440.png"
+            },
+            {
+              "id": 14480,
+              "name": "Calotte du Midi Layonnant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/68031.png"
+            },
+            {
+              "id": 14481,
+              "name": "Champignon du Midi Layonnant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15001.png"
+            },
+            {
+              "id": 14482,
+              "name": "Mauvaise Helbe du Midi Layonnant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24103.png"
+            },
+            {
+              "id": 14483,
+              "name": "Patte de Wabbit glillée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69131.png"
+            },
+            {
+              "id": 14484,
+              "name": "Salade Caesal du Midi Layonnant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69129.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Capitaine Lily",
+            "Aller voir Tiwabbit Kiatwefin",
+            "Montrer à Tiwabbit Kiatwefin : 1 Cawotte",
+            "Aller voir Caesal",
+            "Récupérer 1 Calotte du Midi Layonnant",
+            "Récupérer 1 Champignon du Midi Layonnant",
+            "Récupérer 1 Mauvaise Helbe du Midi Layonnant",
+            "Récupérer 1 Patte de Wabbit glillée",
+            "Ramener à Caesal : x1 Calotte du Midi Layonnant",
+            "Ramener à Caesal : x1 Champignon du Midi Layonnant",
+            "Ramener à Caesal : x1 Mauvaise Helbe du Midi Layonnant",
+            "Ramener à Caesal : x1 Patte de Wabbit glillée",
+            "Ramener à Lelievwe Pâle Pitane : x1 Salade Caesal du Midi Layonnant"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 839
+            }
+          ]
+        },
+        {
+          "name": "Expédition culinaire",
+          "dofusdbId": 841,
+          "level": 54,
+          "zone": "Île des Wabbits",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 21,
+            "y": -12,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Chercher des traces du passage de l'expédition.",
+            "Examiner les traces du passage de l'expédition",
+            "Découvrir la carte : Chercher d'autres traces du passage de l'expédition.",
+            "Vaincre x4 {monster,3473} en un seul combat",
+            "Lire le Carnet de voyage déchiré"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 840
+            }
+          ]
+        },
+        {
+          "name": "Voyage au centre du Wabbit",
+          "dofusdbId": 842,
+          "level": 56,
+          "zone": "Île des Wabbits",
+          "npcName": "Betamoche",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": -10,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Campement.",
+            "Fouiller le souterrain à la recherche d'un indice",
+            "Aller voir Betamoche",
+            "Découvrir la carte : Passage secret.",
+            "Débloquer la grille pour menacer le Gawdien Wabbit"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 841
+            }
+          ]
+        },
+        {
+          "name": "Des pwinces pas très charmants",
+          "dofusdbId": 843,
+          "level": 60,
+          "zone": "Île des Wabbits",
+          "npcName": "Pwince Uwgé",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": -10,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Repaire des pwinces déchus.",
+            "Aller voir Pwince Uwgé",
+            "Aller voir Pwince Sanwiwe",
+            "Aller voir Pwince Ipauté",
+            "Vaincre les pwinces déchus et leur dérober le Necronobacon",
+            "Aller voir Tim Bweton",
+            "Aller voir Lilou la Lenalde"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 842
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Un Wa de pacotille",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Île des Wabbits",
+      "description": "Succès final requérant d'affronter le Wa Wabbit dans ses deux donjons.",
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [
+        {
+          "name": "Château du Wa Wabbit",
+          "idoleName": null
+        },
+        {
+          "name": "Terrier du Wa Wabbit",
+          "idoleName": null
+        }
+      ],
+      "entries": [
+        {
+          "name": "Jamais deux sans trois",
+          "dofusdbId": 833,
+          "level": 60,
+          "zone": "Île des Wabbits",
+          "npcName": "Wabbit du Matin Pewlant",
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": -11,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Wabbit du Matin Pewlant",
+            "Aller voir Wabbit du Midi Wayonnant",
+            "Aller voir Wabbit du Soiw Woulant",
+            "Découvrir la carte : Entrée du Château du Wa Wabbit",
+            "Aller voir Powte-clef"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Le château du Wa",
+          "dofusdbId": 834,
+          "level": 60,
+          "zone": "Château du Wa Wabbit - Salle du trône",
+          "npcName": "Wa Wabbit",
+          "npcSubArea": "Château du Wa Wabbit - Salle du trône",
+          "coords": {
+            "x": 24,
+            "y": -13,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 52,
+              "name": "Château du Wa Wabbit",
+              "level": null,
+              "bossName": "Wa Wabbit",
+              "img": "https://api.dofusdb.fr/img/monsters/101.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Vaincre x1 {monster,180} en un seul combat",
+            "Aller voir Wa Wabbit",
+            "Aller voir Wanald le Sage Lenald"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 833
+            }
+          ]
+        },
+        {
+          "name": "L'œuf ou la cawotte ?",
+          "dofusdbId": 835,
+          "level": 80,
+          "zone": "Terrier du Wa Wabbit - Sortie",
+          "npcName": "Gawde Wabbit",
+          "npcSubArea": "Terrier du Wa Wabbit - Sortie",
+          "coords": {
+            "x": 28,
+            "y": -12,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 969,
+              "name": "Couronne du Wa Wabbit",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/16021.png"
+            },
+            {
+              "id": 970,
+              "name": "Bâton du Wa Wabbit",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/4021.png"
+            },
+            {
+              "id": 971,
+              "name": "Cape du Wa Wabbit",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/17021.png"
+            },
+            {
+              "id": 972,
+              "name": "Dofus Cawotte",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/23006.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 52,
+              "name": "Château du Wa Wabbit",
+              "level": null,
+              "bossName": "Wa Wabbit",
+              "img": "https://api.dofusdb.fr/img/monsters/101.png",
+              "idoleName": null
+            },
+            {
+              "id": 17,
+              "name": "Terrier du Wa Wabbit",
+              "level": null,
+              "bossName": "Tiwobot",
+              "img": "https://api.dofusdb.fr/img/monsters/1018.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Montrer à Gawde Wabbit : 1 Couronne du Wa Wabbit",
+            "Montrer à Gawde Wabbit : 1 Bâton du Wa Wabbit",
+            "Montrer à Gawde Wabbit : 1 Cape du Wa Wabbit",
+            "Aller voir Gawdien du Dofus",
+            "Montrer à Wanald le Sage Lenald : 1 Dofus Cawotte"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 834
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 12,
+    "totalItems": 21,
+    "totalDungeons": 2,
+    "items": [
+      {
+        "id": 361,
+        "name": "Cawotte",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/68031.png"
+      },
+      {
+        "id": 2288,
+        "name": "Patte de Wabbit",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/103440.png"
+      },
+      {
+        "id": 969,
+        "name": "Couronne du Wa Wabbit",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/16021.png"
+      },
+      {
+        "id": 970,
+        "name": "Bâton du Wa Wabbit",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/4021.png"
+      },
+      {
+        "id": 971,
+        "name": "Cape du Wa Wabbit",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/17021.png"
+      },
+      {
+        "id": 972,
+        "name": "Dofus Cawotte",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/23006.png"
+      },
+      {
+        "id": 12828,
+        "name": "Bois de chauffage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/38017.png"
+      },
+      {
+        "id": 12829,
+        "name": "Lombric",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15625.png"
+      },
+      {
+        "id": 12830,
+        "name": "Baies sucrées",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/94013.png"
+      },
+      {
+        "id": 12831,
+        "name": "Tapis Wabbit",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/150001.png"
+      },
+      {
+        "id": 12874,
+        "name": "Œuf de Wabbit",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/105038.png"
+      },
+      {
+        "id": 12875,
+        "name": "Cawotte mature",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/68031.png"
+      },
+      {
+        "id": 12877,
+        "name": "Jus de Cawotte râpée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/79005.png"
+      },
+      {
+        "id": 12878,
+        "name": "Black Wabbit écrasé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/150008.png"
+      },
+      {
+        "id": 13205,
+        "name": "Échantillon de sang de Xiap",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24102.png"
+      },
+      {
+        "id": 12880,
+        "name": "Seringue de Lilou",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 14480,
+        "name": "Calotte du Midi Layonnant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/68031.png"
+      },
+      {
+        "id": 14481,
+        "name": "Champignon du Midi Layonnant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15001.png"
+      },
+      {
+        "id": 14482,
+        "name": "Mauvaise Helbe du Midi Layonnant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24103.png"
+      },
+      {
+        "id": 14483,
+        "name": "Patte de Wabbit glillée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69131.png"
+      },
+      {
+        "id": 14484,
+        "name": "Salade Caesal du Midi Layonnant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69129.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 52,
+        "name": "Château du Wa Wabbit",
+        "level": null,
+        "bossName": "Wa Wabbit",
+        "img": "https://api.dofusdb.fr/img/monsters/101.png",
+        "idoleName": null
+      },
+      {
+        "id": 17,
+        "name": "Terrier du Wa Wabbit",
+        "level": null,
+        "bossName": "Tiwobot",
+        "img": "https://api.dofusdb.fr/img/monsters/1018.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

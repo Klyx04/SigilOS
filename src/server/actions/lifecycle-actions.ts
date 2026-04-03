@@ -59,7 +59,7 @@ export async function archiveProfile(guildId: string, profileId?: string) {
             action: "MEMBER_ARCHIVED" as any,
             actorUserId: ctx.id as string,
             actorName: ctx.name ?? "Inconnu",
-            targetType: "USER_PROFILE" as any,
+            targetType: "PROFILE" as any,
             targetId: targetProfileId,
             metadata: {
                 description: profileId ? "Archivage administratif" : "Mise en sommeil volontaire",
@@ -119,7 +119,7 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             action: "MEMBER_PURGED" as any,
             actorUserId: ctx.id as string,
             actorName: ctx.name ?? "Inconnu",
-            targetType: "USER_PROFILE" as any,
+            targetType: "PROFILE" as any,
             targetId: targetUserId,
             metadata: {
                 description: `Purge définitive : ${target.user.name || profileId}`,
@@ -412,6 +412,24 @@ export async function syncGuildMembers(discordGuildId: string) {
                             dofusBookLinks: Prisma.JsonNull
                         }
                     });
+
+                    // 📝 AUDIT LOG Departure (Banned)
+                    try {
+                        const { createAuditLog: log } = await import("./audit-actions");
+                        await log({
+                            guildId: discordGuildId,
+                            actorUserId: "SYSTEM",
+                            actorName: "Sync System",
+                            action: "MEMBER_BANNED" as any,
+                            targetType: "PROFILE",
+                            targetId: profile.id,
+                            metadata: { 
+                                description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
+                                reason: "Bannissement Discord détecté lors de la synchro"
+                            }
+                        });
+                    } catch (e) { console.error("[Lifecycle Sync] Audit failed", e); }
+
                     bannedCount++;
                 } else {
                     await db.userProfile.update({
@@ -422,6 +440,24 @@ export async function syncGuildMembers(discordGuildId: string) {
                             archiveReason: "LEFT"
                         }
                     });
+
+                    // 📝 AUDIT LOG Departure (Left)
+                    try {
+                        const { createAuditLog: log } = await import("./audit-actions");
+                        await log({
+                            guildId: discordGuildId,
+                            actorUserId: "SYSTEM",
+                            actorName: "Sync System",
+                            action: "MEMBER_LEFT" as any,
+                            targetType: "PROFILE",
+                            targetId: profile.id,
+                            metadata: { 
+                                description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
+                                reason: "Départ Discord détecté lors de la synchro"
+                            }
+                        });
+                    } catch (e) { console.error("[Lifecycle Sync] Audit failed", e); }
+
                     archivedCount++;
                 }
             }

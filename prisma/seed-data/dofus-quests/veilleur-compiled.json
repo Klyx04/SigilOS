@@ -1,0 +1,47 @@
+{
+  "dofus": "veilleur",
+  "displayName": "Dofus des Veilleurs",
+  "color": "#1ABC9C",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7850,
+  "compiledAt": "2026-04-03T08:45:30.329Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Crise d'identite",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 1,
+    "totalItems": 0,
+    "totalDungeons": 0,
+    "items": [],
+    "dungeons": []
+  }
+}

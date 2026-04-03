@@ -1,0 +1,90 @@
+{
+  "dofus": "dokoko",
+  "displayName": "Dokoko",
+  "color": "#FFD700",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7842,
+  "compiledAt": "2026-04-03T08:43:37.009Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Squelettes et amulettes",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        },
+        {
+          "name": "Rendez-vous avec la lune",
+          "dofusdbId": 1670,
+          "level": 100,
+          "zone": "Arbre de Moon - Cinquième Salle",
+          "npcName": "Servante de Moon",
+          "npcSubArea": "Arbre de Moon - Cinquième Salle",
+          "coords": {
+            "x": 31,
+            "y": 7,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 92,
+              "name": "Arbre de Moon",
+              "level": null,
+              "bossName": "Domoizelle",
+              "img": "https://api.dofusdb.fr/img/monsters/1326.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Enterrer la jeune pousse et 5 doses d'engrais de Moon au pied d'un totem",
+            "Aller voir Servante de Moon",
+            "Vaincre x1 {monster,226} en un seul combat",
+            "Aller voir Moon"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 2,
+    "totalItems": 0,
+    "totalDungeons": 1,
+    "items": [],
+    "dungeons": [
+      {
+        "id": 92,
+        "name": "Arbre de Moon",
+        "level": null,
+        "bossName": "Domoizelle",
+        "img": "https://api.dofusdb.fr/img/monsters/1326.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

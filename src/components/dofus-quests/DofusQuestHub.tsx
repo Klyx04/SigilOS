@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Gem, Users, Filter, Search, Crown, Sparkles } from "lucide-react";
 import { DofusGemCard } from "./DofusGemCard";
 import { GuildDofusOverview } from "./GuildDofusOverview";
+import { SylvestreDonut } from "./SylvestreDonut";
 import type { DofusItemWithProgress, GuildDofusStats, MemberDofusSummary, WarRoomData } from "@/server/actions/dofus-quest-actions";
 
 type Tab = "mes-dofus" | "guilde";
@@ -33,10 +34,11 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
     const statusFilters = ["Tous", "Obtenus", "En cours", "À faire"] as const;
 
     // Compute summary stats
+    const sylvestre = dofusList.find(d => d.isMeta);
     const totalObtained = dofusList.filter((d) => d.isObtained).length;
     const totalInProgress = dofusList.filter((d) => !d.isObtained && d.progressPercent > 0).length;
     const overallPercent = dofusList.length > 0
-        ? Math.round((totalObtained / dofusList.length) * 100)
+        ? Math.round(dofusList.reduce((sum, d) => sum + d.progressPercent, 0) / dofusList.length)
         : 0;
 
     // Filter + search
@@ -49,9 +51,10 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
             return true;
         })
         .filter((d) => {
-            if (category !== "Tous" && d.filterCategory !== category) return false;
-            if (category === "Primordiaux" && subCategory !== "Tous" && d.filterSubCategory !== subCategory) return false;
-            return true;
+            if (category === "Primordiaux") return d.isPrimordial;
+            if (category === "Prérequis Sylvestre") return d.isSylvestreReq;
+            if (category === "Autres") return !d.isPrimordial && !d.isSylvestreReq && !d.isMeta;
+            return true; // "Tous"
         })
         .filter((d) => {
             switch (statusFilter) {
@@ -187,6 +190,15 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
                                 </button>
                             ))}
                         </div>
+                    )}
+
+                    {/* Sylvestre Donut — meta Dofus spotlight */}
+                    {sylvestre && (
+                        <SylvestreDonut
+                            sylvestre={sylvestre}
+                            allDofus={dofusList}
+                            guildId={guildId}
+                        />
                     )}
 
                     {/* Grid */}

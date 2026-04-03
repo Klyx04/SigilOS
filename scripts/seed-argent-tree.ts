@@ -116,15 +116,20 @@ async function seedDofus() {
                 const entry = chainData.entries[i];
                 const xJitter = (i % 2 === 0) ? -15 : 15;
 
+                // Normalize name: can be a string OR { name: "...", id: N } when the config had pre-defined IDs
+                const entryName: string = typeof entry.name === "string"
+                    ? entry.name
+                    : (entry.name as any)?.name ?? String(entry.name);
+
                 // Build a stable ID: slug-dofusdbId or slug-name
                 const stableId = entry.dofusdbId
                     ? `${dofusSlug}-${entry.dofusdbId}`
-                    : `${dofusSlug}-${entry.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+                    : `${dofusSlug}-${entryName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
 
                 await db.dofusQuestEntry.create({
                     data: {
                         id: stableId,
-                        name: entry.name,
+                        name: entryName,
                         chainId: chain.id,
                         dofusdbId: entry.dofusdbId ?? null,
                         stepOrder: entry.stepOrder,
@@ -161,7 +166,7 @@ async function seedDofus() {
                     entry.level != null ? `Lvl${entry.level}` : "",
                 ].filter(Boolean).join(" ");
 
-                console.log(`  ✓ ${entry.name} ${flags}`);
+                console.log(`  ✓ ${entryName} ${flags}`);
                 currentY += ROW_GAP_Y;
             }
 

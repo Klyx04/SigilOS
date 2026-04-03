@@ -3,12 +3,18 @@
   "displayName": "Dofus Ocre",
   "color": "#CC7722",
   "dofusItemId": 7828,
+  "successName": "L'éternelle moisson",
+  "recommendedLevel": 180,
+  "successDescription": "Terminer la quête L'éternelle moisson.",
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "L'éternelle moisson",
+      "zone": "Le Monde des Douze",
+      "description": "La quête légendaire de collecte d'âmes pour l'alchimiste Otomaï. Divisée en 34 étapes de capture de monstres, boss et archimonstres.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
       "quests": [
-        "https://docs.google.com/spreadsheets/d/1n4QFLAoKxy_ZWfxnPx0jDxvzfEeqLRjBwJVdVyo0P2k/edit?usp=sharing"
+        { "name": "L'éternelle moisson", "id": 439 }
       ]
     }
   ]

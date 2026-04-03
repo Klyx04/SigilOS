@@ -42,7 +42,7 @@ export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
 
     return (
         <Link
-            href={dofus.slug === "ocre" ? `/dashboard/${guildId}/quete-ocre` : `/dashboard/${guildId}/quetes-dofus/${dofus.slug}`}
+            href={`/dashboard/${guildId}/quetes-dofus/${dofus.slug}`}
             className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
             style={{
                 background: `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)`,
@@ -106,17 +106,25 @@ export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
                         isObtained={isObtained}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div
-                            className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110"
-                            style={{
-                                width: "auto",
-                                height: "auto",
-                            }}
-                        >
-                            {dofus.nameShort ? (
+                        <div className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                            {dofus.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={dofus.imageUrl}
+                                    alt={dofus.nameShort}
+                                    width={56}
+                                    height={56}
+                                    className="object-contain"
+                                    style={{
+                                        filter: isObtained
+                                            ? `drop-shadow(0 0 10px ${color}aa)`
+                                            : `drop-shadow(0 0 4px ${color}44)`,
+                                    }}
+                                />
+                            ) : dofus.nameShort ? (
                                 <DofusIcon
                                     name={dofus.nameShort}
-                                    size={64}
+                                    size={56}
                                     color={color}
                                     isObtained={isObtained}
                                 />

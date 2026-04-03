@@ -1,0 +1,221 @@
+{
+  "dofus": "des-glaces",
+  "displayName": "Dofus des Glaces",
+  "color": "#ADD8E6",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7832,
+  "compiledAt": "2026-04-03T08:43:30.361Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Liste des quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Mauvaise graine",
+          "dofusdbId": 560,
+          "level": 160,
+          "zone": "unknown",
+          "npcName": "Cassiopée Hisane",
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11144,
+              "name": "Graine Hade",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/24834.png"
+            },
+            {
+              "id": 11145,
+              "name": "Graine Haye",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/24835.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Cassiopée Hisane : x40 Graine Hade",
+            "Ramener à Cassiopée Hisane : x5 Graine Haye"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Choix avant de commencer",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le champ des heros",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        },
+        {
+          "name": "Cent vingt trois fleurs, point comme les autres",
+          "dofusdbId": 566,
+          "level": 110,
+          "zone": "unknown",
+          "npcName": "Bisale Vinlenta",
+          "npcSubArea": null,
+          "coords": {
+            "x": -72,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11102,
+              "name": "Perce-Neige",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/35635.png"
+            },
+            {
+              "id": 11156,
+              "name": "Yucca Lélé",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/24841.png"
+            },
+            {
+              "id": 11157,
+              "name": "Tulipe Ossucion",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/24842.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Bisale Vinlenta : x40 Yucca Lélé",
+            "Ramener à Bisale Vinlenta : x5 Tulipe Ossucion",
+            "Ramener à Bisale Vinlenta : x2 Perce-Neige"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Légende",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le nom de la mycose",
+          "dofusdbId": 573,
+          "level": 180,
+          "zone": "unknown",
+          "npcName": "Éric Azaraille",
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11168,
+              "name": "Ortyde",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/24853.png"
+            },
+            {
+              "id": 11169,
+              "name": "Mysterbe",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/24854.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Éric Azaraille : x40 Ortyde",
+            "Ramener à Éric Azaraille : x5 Mysterbe"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 4,
+    "totalItems": 7,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 11144,
+        "name": "Graine Hade",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/24834.png"
+      },
+      {
+        "id": 11156,
+        "name": "Yucca Lélé",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/24841.png"
+      },
+      {
+        "id": 11168,
+        "name": "Ortyde",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/24853.png"
+      },
+      {
+        "id": 11145,
+        "name": "Graine Haye",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/24835.png"
+      },
+      {
+        "id": 11157,
+        "name": "Tulipe Ossucion",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/24842.png"
+      },
+      {
+        "id": 11169,
+        "name": "Mysterbe",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/24854.png"
+      },
+      {
+        "id": 11102,
+        "name": "Perce-Neige",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/35635.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

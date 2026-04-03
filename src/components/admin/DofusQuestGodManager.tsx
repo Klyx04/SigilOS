@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import { 
     getDofusManagementData, 
     upsertDofusItem, 
@@ -42,6 +43,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { seedDofusData } from "@/server/actions/dofus-quest-actions";
 
 export default function DofusQuestGodManager() {
+    const params = useParams();
+    const guildId = (params?.guildId as string) || "";
+
     const [dofusList, setDofusList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedDofusId, setSelectedDofusId] = useState<string | null>(null);
@@ -83,7 +87,7 @@ export default function DofusQuestGodManager() {
     async function handleSeed() {
         if (!confirm("Attention: Cela va écraser les chaînes existantes par les données du JSON de référence. Continuer ?")) return;
         setIsSeeding(true);
-        const res = await seedDofusData("GOD"); // Use a placeholder or actual guildId if needed by the action
+        const res = await seedDofusData(guildId || "GOD");
         if (res.success) {
             toast.success(res.message);
             loadData();
@@ -512,9 +516,10 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                             onChange={e => setFormData({...formData, sectionType: e.target.value})}
                             className="w-full h-10 bg-zinc-900 border border-white/5 rounded-lg text-sm px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         >
-                            <option value="PREREQUISITE">Prérequis (Access)</option>
-                            <option value="MAIN_CHAIN">Quêtes Principales</option>
-                            <option value="OPTIONAL">Quêtes Optionnelles</option>
+                            <option value="PREREQUISITE">🔑 Prérequis (Access)</option>
+                            <option value="MAIN_CHAIN">📜 Quêtes Principales</option>
+                            <option value="RESOURCE_CHAIN">⚔️ Ressources & Donjons</option>
+                            <option value="OPTIONAL">✨ Quêtes Optionnelles</option>
                         </select>
                     </div>
                     <div className="space-y-1">
@@ -594,7 +599,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-zinc-900 border-white/5 text-sm" placeholder="Ex: L'Arc d'Ontas" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-1">
+                            <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase text-zinc-500 italic">Type</label>
                                 <select 
                                     value={formData.questType} 
@@ -603,9 +608,10 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 >
                                     <option value="QUEST">📚 Quête</option>
                                     <option value="DUNGEON">🏰 Donjon</option>
+                                    <option value="RESOURCE">🪵 Ressource / Craft</option>
+                                    <option value="OTHER_DOFUS">💎 Autre Dofus requis</option>
                                     <option value="ACHIEVEMENT">🏆 Succès</option>
-                                    <option value="REQUIREMENT">🚩 Prérequis</option>
-                                    <option value="JOB">⚒️ Métier</option>
+                                    <option value="MISC">🔹 Autre (niveau, accès)</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
@@ -632,20 +638,34 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             </div>
                         </div>
 
-                         <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
+                        <div className="grid grid-cols-2 gap-4">
                              <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase text-zinc-500 block text-center">Ordre d'affichage</label>
                                 <Input type="number" value={formData.stepOrder} onChange={e => setFormData({...formData, stepOrder: e.target.value})} className="bg-zinc-900 border-white/5 text-sm text-center" />
                             </div>
-                            <div className="flex items-center justify-center gap-4 pt-4">
-                                <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={formData.isLast} onChange={e => setFormData({...formData, isLast: e.target.checked})} className="accent-indigo-500" />
-                                    <label className="text-[10px] font-black uppercase text-zinc-500 italic">Dernière ?</label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={formData.isOptional} onChange={e => setFormData({...formData, isOptional: e.target.checked})} className="accent-zinc-500" />
-                                    <label className="text-[10px] font-black uppercase text-zinc-500 italic">Optionnelle ?</label>
-                                </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase text-zinc-500 block text-center">Poids (Weight V3)</label>
+                                <Input type="number" min={1} max={20} value={formData.weight ?? 1} onChange={e => setFormData({...formData, weight: parseInt(e.target.value) || 1})} className="bg-zinc-900 border-white/5 text-sm text-center" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase text-zinc-500 italic">Lien guide externe (ExternalRef V3)</label>
+                            <Input value={formData.externalRef ?? ""} onChange={e => setFormData({...formData, externalRef: e.target.value})} className="bg-zinc-900 border-white/5 text-sm" placeholder="https://dofuspourlesnoobs.com/..." />
+                        </div>
+
+                        <div className="flex items-center gap-4 py-1">
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={formData.isLast} onChange={e => setFormData({...formData, isLast: e.target.checked})} className="accent-indigo-500" />
+                                <label className="text-[10px] font-black uppercase text-zinc-500 italic">Dernière ?</label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={formData.isOptional} onChange={e => setFormData({...formData, isOptional: e.target.checked})} className="accent-zinc-500" />
+                                <label className="text-[10px] font-black uppercase text-zinc-500 italic">Optionnelle ?</label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={formData.isDungeon} onChange={e => setFormData({...formData, isDungeon: e.target.checked})} className="accent-rose-500" />
+                                <label className="text-[10px] font-black uppercase text-zinc-500 italic">Donjon ?</label>
                             </div>
                         </div>
 

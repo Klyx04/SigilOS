@@ -1,0 +1,451 @@
+{
+  "dofus": "nebuleux",
+  "displayName": "Dofus Nébuleux",
+  "color": "#483D8B",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7830,
+  "compiledAt": "2026-04-03T08:44:36.127Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Voyage, voyage",
+          "dofusdbId": 1484,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Colonel Oneuil",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Hall des Voyageurs",
+            "Aller voir Colonel Oneuil",
+            "Aller voir L'Explorancienne",
+            "Retourner voir Colonel Oneuil",
+            "Aller voir Collecteur Hystik",
+            "Découvrir la carte : Salle de localisation",
+            "Aller voir Gladis"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "La cite de l'indicible mal",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 1,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1484
+            }
+          ]
+        },
+        {
+          "name": "Messager clandestin",
+          "dofusdbId": 1531,
+          "level": 100,
+          "zone": "unknown",
+          "npcName": "Sinedia Zieunoir",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": -2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Sinedia Zieunoir",
+            "Aller voir Mama Phia",
+            "Aller voir Madame Hyrda",
+            "Aller voir Goboukhan",
+            "Aller voir Zap Gobdon",
+            "Aller voir Al Capote",
+            "Aller voir Rufiette",
+            "Aller voir Venimeuse",
+            "Parler au Bouché",
+            "Retourner voir Franche Smisse"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1484
+            }
+          ]
+        },
+        {
+          "name": "La voix de son maitre",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ]
+        },
+        {
+          "name": "Le maitre des zaaps",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 4,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ]
+        },
+        {
+          "name": "Energie renouvelable",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 5,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ]
+        },
+        {
+          "name": "Traitement de choc",
+          "dofusdbId": 1573,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Maître des zaaps",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": 4,
+            "y": 2,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15882,
+              "name": "Batterie Éternelle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15923.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Utiliser l'électrofoudre sur le Maître des zaaps",
+            "Contacter le Doc Emiette Borgne via son Krosmoglob",
+            "Dissiper les doubles à coup de marteau",
+            "Taper sur la tête du maître des zaaps",
+            "Aller voir Maître des zaaps",
+            "Ramener à Major Qiu : x1 Batterie Éternelle"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ]
+        },
+        {
+          "name": "Le disparu de sufokia",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 7,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1573
+            }
+          ]
+        },
+        {
+          "name": "Rendez-vous avec la mort",
+          "dofusdbId": 1609,
+          "level": 100,
+          "zone": "Temple Sram",
+          "npcName": "Gein le Silencieux",
+          "npcSubArea": "Temple Sram",
+          "coords": {
+            "x": -4,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Se rendre au temple de Sram",
+            "Trouver la personne qui vous a donné rendez-vous",
+            "Aller voir Gein le Silencieux",
+            "Réunir des preuves contre Écho et les montrer à Gein"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1573
+            }
+          ]
+        },
+        {
+          "name": "Secret de fabrication",
+          "dofusdbId": 1610,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Prison",
+          "npcName": "Krosmoglob de l'agent Bloude",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Prison",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16059,
+              "name": "Échantillon d'orichor raffiné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15929.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Chercher l'agent Bloude dans les sous-sols",
+            "Découvrir la carte : Chercher l'agent Bloude dans les étages",
+            "Interroger les Voyageurs de la tour",
+            "Activer le Krosmoglob de l'agent Bloude dans la prison",
+            "Aller voir Krosmoglob de l'agent Bloude",
+            "Se servir de l'alambic dans le laboratoire",
+            "Aller voir Colonel Oneuil",
+            "Découvrir la carte : Portail de la mine Istairameur",
+            "Utiliser la Potion de transparence totale pour emprunter le portail en toute discrétion",
+            "Chercher les traces du passage du convoi",
+            "Essayer d'entrer dans la raffinerie",
+            "Chercher où le code a été caché",
+            "Essayer le code pour entrer dans la raffinerie",
+            "Découvrir où a été transporté l'orichor",
+            "Aller voir Zap Gobdon",
+            "Aller voir Belle Adrenne",
+            "Dérober de l'orichor raffiné",
+            "Aller voir Amaurykor",
+            "Aller voir Roi Nidas",
+            "Aller voir Agent Bloude",
+            "Découvrir la carte : Porte de la raffinerie",
+            "Aller voir Agent Bloude",
+            "Montrer à Gein le Silencieux : 1 Échantillon d'orichor raffiné"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1609
+            }
+          ]
+        },
+        {
+          "name": "S'emparer des commandes",
+          "dofusdbId": 1611,
+          "level": 100,
+          "zone": "Planque minuscule",
+          "npcName": "Anne Saulo",
+          "npcSubArea": "Planque minuscule",
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16064,
+              "name": "Potion de transformation en sirène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12041.png"
+            },
+            {
+              "id": 16063,
+              "name": "Rapports d'espionnage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15931.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Anne Saulo",
+            "Enquêter sur la récente présence de Gein à Srambad",
+            "Acheter une Potion de transformation en sirène au marché de Srambad",
+            "Ramener à Arielle : x1 Potion de transformation en sirène",
+            "Découvrir la carte : Passage des Hauts Ténébreux",
+            "Chercher des traces du passage de Gein",
+            "Aller voir Haugne Boidboul",
+            "Découvrir la carte : Taverne du Bourreau",
+            "Aller voir Malveilleur en service",
+            "Découvrir la carte : Prison de Srambad",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Chercher un témoin du vol des documents dans la prison de Srambad",
+            "Chercher les hommes de main d'Al Capote récemment sortis de la prison de Srambad",
+            "Interroger les commerçants du marché de Srambad",
+            "Apporter 1 Anneau du Bandit ou 100000 kamas à Grima Fandanga",
+            "Chercher le Râtelier Gris dans les Catacombres",
+            "Chercher des traces du passage du Râtelier Gris",
+            "Chercher un moyen de passer à travers les grilles",
+            "Écouter la conversation entre le Râtelier Gris et Morora",
+            "Vaincre les Milirats et fouiller leurs cadavres",
+            "Retourner au marché pour retrouver la piste du Râtelier Gris",
+            "Chercher la personne qui vous attend",
+            "Montrer à Gein le Silencieux : 1 Rapports d'espionnage"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1610
+            }
+          ]
+        },
+        {
+          "name": "C'est dans la boite",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 11,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1611
+            }
+          ]
+        },
+        {
+          "name": "Crise d'identite",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 12,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1611
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 13,
+    "totalItems": 4,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 15882,
+        "name": "Batterie Éternelle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15923.png"
+      },
+      {
+        "id": 16059,
+        "name": "Échantillon d'orichor raffiné",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15929.png"
+      },
+      {
+        "id": 16064,
+        "name": "Potion de transformation en sirène",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12041.png"
+      },
+      {
+        "id": 16063,
+        "name": "Rapports d'espionnage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15931.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

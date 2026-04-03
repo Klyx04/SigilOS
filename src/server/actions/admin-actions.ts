@@ -140,6 +140,23 @@ export async function updateRBACMapping(
 
         // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");
+        const { PERMISSION_DETAILS } = await import("@/lib/permissions");
+
+        // Format changes for better readability in UI
+        const formattedChanges = changes.map(change => ({
+            roleId: change.roleId,
+            roleName: undefined, // Will be resolved by client or if we fetch here
+            added: change.added.map(p => ({
+                permission: p,
+                label: PERMISSION_DETAILS[p]?.label || p,
+                module: PERMISSION_DETAILS[p]?.module || "unknown"
+            })),
+            removed: change.removed.map(p => ({
+                permission: p,
+                label: PERMISSION_DETAILS[p]?.label || p,
+                module: PERMISSION_DETAILS[p]?.module || "unknown"
+            }))
+        }));
 
         await createAuditLog({
             guildId,
@@ -150,6 +167,8 @@ export async function updateRBACMapping(
             oldValue: { roles: oldRolesMapping, users: oldUsersMapping },
             newValue: { roles: rolesMapping, users: usersMapping },
             metadata: {
+                changes: formattedChanges,
+                rolesAffected: changes.length,
                 timestamp: new Date().toISOString()
             }
         });

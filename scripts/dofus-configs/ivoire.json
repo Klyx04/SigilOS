@@ -8,40 +8,43 @@
   "successDescription": "Terminer la série des quêtes du Dofus Ivoire.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Monde de Douze / Dimensions Divines",
-      "description": "Conditions requises avant de commencer la série du Dofus Ivoire. Nécessite l'accès à Enutrosor, Ecaflipus, Srambad. Avoir l'alignement Bontarien ou Brâkmarien.",
+      "name": "Les 100 Quêtes d'Alignement",
+      "zone": "Bonta / Brâkmar",
+      "description": "Atteindre le rang maximum (niveau 100) d'alignement Bontarien ou Brâkmarien.",
       "isPrerequisite": true,
       "quests": [
-        "L'anneau de tous les dangers",
-        "Sous le regard des dieux",
-        "Réponse à tout",
-        "Le village dans les nuages",
-        "Espoirs et tragédies",
-        "Dans la gueule du milimulou",
-        "Destination Astrub",
-        "Les principes d'archie m'aident",
-        "On marche sur des œufs",
-        "Conseil de classe",
-        "Quête de classe",
-        "Ça sent le gaz",
-        "Balade en forêt",
-        "Le réveil de Pandala",
-        "Le réceptacle des dofus",
-        "Intrusion chez les wabbits",
-        "Un sage parmi les sages",
-        "Un pendule pour guider ses pas",
-        "Voir le dark Vlad et mourir... ou pas",
-        "La magicienne des marécages",
-        "Avoir le sort Apprivoisement de Monture"
+        "Ordre 1",
+        "Ordre 2",
+        "Ordre 3",
+        "Ordre 4",
+        "Ordre 5"
+      ]
+    },
+    {
+      "name": "Nouvelle fournée de Justiciers",
+      "zone": "Base des Justiciers",
+      "description": "Prérequis nécessaires avec les justiciers.",
+      "isPrerequisite": true,
+      "quests": [
+        "Un choix cornélien",
+        "L'allié des justiciers"
       ]
     },
     {
       "name": "Les quêtes du Dofus Ivoire",
-      "zone": "Enutrosor / Ecaflipus / Frigost",
-      "description": "La série de 10 quêtes pour obtenir le Dofus Ivoire. Inclut les boss : Baguette Rikiki, Chaloeil, Protozorreur, Nidas, Tal Kasha, Nileza, Capitaine Meno, Katrepat, Sylargh. Nécessite l'accès à Enutrosor, Ecaflipus (x3) et Srambad.",
+      "zone": "Enutrosor / Ecaflipus / Frigost / Srambad",
+      "description": "La série des 10 quêtes pour obtenir le Dofus Ivoire.",
       "isPrerequisite": false,
       "isSynergyCandidate": true,
+      "globalDungeonsRequired": [
+        "Palais du Roi Nidas",
+        "Comte Harebourg",
+        "Merkator",
+        "Reine des Voleurs",
+        "Capitaine Meno",
+        "Tal Kasha",
+        "Ilyzaelle"
+      ],
       "quests": [
         "Le dragon blanc",
         "Examen de passage",

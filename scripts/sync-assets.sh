@@ -22,8 +22,8 @@ cd "$PROJECT_ROOT"
 
 # Load local secrets if they exist (.gitignore protected)
 if [[ -f "$PROJECT_ROOT/.env.local" ]]; then
-    # Filter to only load SSH related vars safely
-    export $(grep -E '^VPS_' "$PROJECT_ROOT/.env.local" | xargs)
+    # Filter to only load SSH related vars safely, stripping comments, spaces AND carriage returns (CRLF)
+    export $(grep -E '^VPS_' "$PROJECT_ROOT/.env.local" | sed 's/[[:space:]]*#.*//' | tr -d '\r' | xargs)
 fi
 
 # ── 3. Arguments & Mode Dry-Run ───────────────────────────────────────────────
@@ -36,20 +36,30 @@ fi
 
 # ── 4. Choix de l'Hôte et du Chemin ──────────────────────────────────────────
 if [[ "$TARGET" == "beta" ]]; then
+    VPS_SSH_ALIAS="${VPS_SSH_ALIAS_BETA:-}"
     VPS_IP="${VPS_IP_BETA:-}"
     VPS_PATH="${VPS_PATH_BETA:-}"
 elif [[ "$TARGET" == "prod" ]]; then
+    VPS_SSH_ALIAS="${VPS_SSH_ALIAS_PROD:-}"
     VPS_IP="${VPS_IP_PROD:-}"
     VPS_PATH="${VPS_PATH_PROD:-}"
 fi
 
-if [[ -z "$VPS_IP" ]] || [[ -z "$VPS_PATH" ]]; then
-    echo "❌ Erreur : VPS_IP ou VPS_PATH non défini. Configurez-les dans .env.local"
+# Prefer SSH alias (respects ~/.ssh/config) over raw IP
+if [[ -n "${VPS_SSH_ALIAS:-}" ]]; then
+    VPS_HOST="$VPS_SSH_ALIAS"
+elif [[ -n "${VPS_IP:-}" ]]; then
+    VPS_USER="${VPS_USER:-sigiladmin}"
+    VPS_HOST="$VPS_USER@$VPS_IP"
+else
+    echo "❌ Erreur : Ni VPS_SSH_ALIAS_BETA ni VPS_IP_BETA définis dans .env.local"
     exit 1
 fi
 
-VPS_USER="${VPS_USER:-sigiladmin}"
-VPS_HOST="$VPS_USER@$VPS_IP"
+if [[ -z "$VPS_PATH" ]]; then
+    echo "❌ Erreur : VPS_PATH non défini. Configurez-le dans .env.local"
+    exit 1
+fi
 
 # ── 5. Validations de Sécurité ────────────────────────────────────────────────
 if [[ "$TARGET" != "beta" ]] && [[ "$TARGET" != "prod" ]]; then

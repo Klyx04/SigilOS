@@ -160,7 +160,7 @@ async function handleGuildDelete(guildId: string) {
 }
 
 // Archive a user profile when they leave or are kicked
-async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT" | "KICKED") {
+async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT" | "KICKED", userMeta?: { username: string, global_name: string | null }) {
 
     // Find the guild config
     const guild = await db.guildConfig.findUnique({
@@ -221,24 +221,32 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
         }
 
         // Log to audit trail
+        const pseudo = userMeta ? (userMeta.global_name || userMeta.username) : userId;
+
         await db.auditLog.create({
             data: {
                 guildId: guild.id,
                 actorUserId: "SYSTEM",
-                actorName: "Discord Webhook",
+                actorName: "Discord Gateway Bot",
                 action: "PLATFORM_DEPARTURE", // Platform-wide departure log
                 targetType: "PROFILE",
                 targetId: userId,
                 oldValue: { status: "ACTIVE" },
                 newValue: { status: "ARCHIVED", archiveReason: reason },
-                metadata: { discordUserId: userId, reason, originalAction: "WEBHOOK_MEMBER_REMOVE" }
+                metadata: { 
+                    discordUserId: userId, 
+                    description: pseudo, // NEW: UI uses this for display
+                    username: userMeta?.username,
+                    reason, 
+                    originalAction: "WEBHOOK_MEMBER_REMOVE" 
+                }
             }
         });
     }
 }
 
 // Anonymize a user profile when they are banned
-async function handleBan(guildId: string, userId: string) {
+async function handleBan(guildId: string, userId: string, userMeta?: { username: string, global_name: string | null }) {
 
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
@@ -298,6 +306,27 @@ async function handleBan(guildId: string, userId: string) {
     }
 
     if (result.count > 0) {
+        // Log to audit trail
+        const pseudo = userMeta ? (userMeta.global_name || userMeta.username) : userId;
+
+        await db.auditLog.create({
+            data: {
+                guildId: guild.id,
+                actorUserId: "SYSTEM",
+                actorName: "Discord Gateway Bot",
+                action: "MEMBER_BANNED",
+                targetType: "PROFILE",
+                targetId: userId,
+                oldValue: { status: "ACTIVE" },
+                newValue: { status: "BANNED" },
+                metadata: { 
+                    discordUserId: userId, 
+                    description: pseudo,
+                    username: userMeta?.username,
+                    originalAction: "WEBHOOK_BAN_ADD" 
+                }
+            }
+        });
     }
 }
 
@@ -347,11 +376,11 @@ export async function POST(request: NextRequest) {
                 case "GUILD_MEMBER_REMOVE":
                     // Note: Discord doesn't distinguish between leave and kick in this event
                     // We treat all as "LEFT" unless we have audit log access
-                    await handleMemberRemove(data.guild_id, data.user.id, "LEFT");
+                    await handleMemberRemove(data.guild_id, data.user.id, "LEFT", data.user);
                     break;
 
                 case "GUILD_BAN_ADD":
-                    await handleBan(data.guild_id, data.user.id);
+                    await handleBan(data.guild_id, data.user.id, data.user);
                     break;
 
                 default:

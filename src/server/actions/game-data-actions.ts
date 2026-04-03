@@ -172,9 +172,11 @@ export async function upsertEventZone(data: {
     if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
     try {
         const payload = { name: data.name, level: data.level || 1, eventZoneKey: data.eventZoneKey, dpnlUrl: data.dpnlUrl, isEventZone: true as const };
-        const zone = data.id
-            ? await db.zone.update({ where: { id: data.id }, data: payload })
-            : await db.zone.create({ data: payload });
+        const zone = await db.zone.upsert({
+            where: data.id ? { id: data.id } : { name: data.name },
+            update: payload,
+            create: payload
+        });
         return { success: true, data: zone };
     } catch (error) {
         console.error('[upsertEventZone] Error:', error);

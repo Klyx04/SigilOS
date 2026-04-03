@@ -1,0 +1,77 @@
+{
+  "dofus": "domakuro",
+  "displayName": "Domakuro",
+  "color": "#2F4F4F",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7845,
+  "compiledAt": "2026-04-03T08:43:53.434Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Sang d'encre",
+          "dofusdbId": 2197,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": "Ikunochi",
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 19,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23240,
+              "name": "Dofus d'encre diaphane",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164705.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Rencontrer quelqu'un aux environs des escaliers montant en Aerdala",
+            "Suivre les instructions du message",
+            "Explorer les lieux",
+            "Se débarrasser des assassins pandikazes",
+            "Aller voir Ikunochi",
+            "Entrer dans la demeure fortifiée du Maître Pandore sans éveiller les soupçons",
+            "Vaincre le Maître Pandore pour s'emparer du Dofus d'encre",
+            "Retourner voir Daimya Hikomi",
+            "Faire apparaître le Grandapan et boire une chope de Pandazahi ou de Pandaporo pour retourner dans l'Éther",
+            "Montrer à Orukam : 1 Dofus d'encre diaphane"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 1,
+    "totalItems": 1,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 23240,
+        "name": "Dofus d'encre diaphane",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164705.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

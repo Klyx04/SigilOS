@@ -20,7 +20,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { NpcName, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText } from "./dofus-resolvers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Package, Target, Navigation } from "lucide-react";
+import { Package, Target, Navigation, Users } from "lucide-react";
 
 
 
@@ -31,21 +31,14 @@ interface DofusSuccessGridProps {
     synergy: Record<string, MemberOnQuest[]>;
     dofusColor: string;
     onToggleStatus: (questId: string, status: any) => void;
+    completedIds: Set<string>;
 }
 
-const ZONE_LABELS: Record<string, { label: string; color: string }> = {
-    "En route pour l'aventure": { label: "Incarnam", color: "#6366f1" },
-    "Poussé par le vent":       { label: "Incarnam", color: "#6366f1" },
-    "Service dans la milice":   { label: "Incarnam", color: "#6366f1" },
-    "C'est le métier qui rentre": { label: "Incarnam", color: "#6366f1" },
-    "Ramdam sur Incarnam":      { label: "Incarnam", color: "#6366f1" },
-    "Un citoyen modèle":        { label: "Astrub", color: "#0ea5e9" },
-    "L'occasion fait le larron":{ label: "Astrub", color: "#0ea5e9" },
-    "La grande biblioquête":    { label: "Astrub", color: "#0ea5e9" },
-    "Mercenaire d'acier":       { label: "Astrub", color: "#0ea5e9" },
-    "Pas le temps de chômer":   { label: "Astrub", color: "#0ea5e9" },
-    "L'habitat urbain":         { label: "Astrub", color: "#0ea5e9" },
-    "Escapades et embuscades":  { label: "Astrub", color: "#0ea5e9" },
+const SECTION_TYPES: Record<string, { label: string; color: string; order: number }> = {
+    PREREQUISITE:   { label: "Prérequis", color: "#f59e0b", order: 1 },
+    MAIN_CHAIN:     { label: "Arc Principal", color: "#6366f1", order: 2 },
+    RESOURCE_CHAIN: { label: "Donjons & Ressources", color: "#ec4899", order: 3 },
+    OPTIONAL:       { label: "Optionnel", color: "#6b7280", order: 4 },
 };
 
 export function DofusSuccessGrid({
@@ -55,13 +48,25 @@ export function DofusSuccessGrid({
     synergy,
     dofusColor,
     onToggleStatus,
+    completedIds,
 }: DofusSuccessGridProps) {
     const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
     const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
 
-    const allEntries = useMemo(() => chains.flatMap(c => c.entries ?? []), [chains]);
-    const completedIds = useMemo(() => new Set(allEntries.filter(e => e.status === "COMPLETED").map(e => e.id)), [allEntries]);
-    
+    const groups = useMemo(() => {
+        const map = new Map<string, any[]>();
+        for (const c of chains) {
+            const type = c.sectionType || "OTHER";
+            if (!map.has(type)) map.set(type, []);
+            map.get(type)!.push(c);
+        }
+        return Array.from(map.entries()).sort((a, b) => {
+            const orderA = SECTION_TYPES[a[0]]?.order || 99;
+            const orderB = SECTION_TYPES[b[0]]?.order || 99;
+            return orderA - orderB;
+        });
+    }, [chains]);
+
     const getChainStats = (chain: any) => {
         const entries = chain.entries ?? [];
         const done = entries.filter((e: any) => e.status === "COMPLETED").length;
@@ -72,7 +77,8 @@ export function DofusSuccessGrid({
         if (!entry.requirements || !Array.isArray(entry.requirements) || entry.requirements.length === 0) return false;
         return entry.requirements.some((req: any) => {
             if (!req || typeof req !== 'object' || req.type !== "QUEST") return false;
-            return !completedIds.has(req.id?.toString());
+            const rid = req.id || req.dofusdbId;
+            return !completedIds.has(String(rid));
         });
     };
 
@@ -81,20 +87,19 @@ export function DofusSuccessGrid({
     return (
         <div className="space-y-12">
             {/* Phase-based Roadmap */}
-            {["Incarnam", "Astrub", "Autre"].map((zoneName) => {
-                const zoneChains = chains.filter(c => {
-                    const label = ZONE_LABELS[c.sectionName]?.label || "Autre";
-                    return label === zoneName;
-                });
+            {groups.map(([sectionType, zoneChains]) => {
+                const config = SECTION_TYPES[sectionType] || { label: "Divers", color: dofusColor };
+                const zoneName = config.label;
+                const zoneColor = config.color;
+                
                 if (zoneChains.length === 0) return null;
 
-                const zoneColor = zoneName === "Incarnam" ? "#6366f1" : zoneName === "Astrub" ? "#0ea5e9" : dofusColor;
                 const totalInZone = zoneChains.reduce((acc, c) => acc + getChainStats(c).total, 0);
                 const doneInZone = zoneChains.reduce((acc, c) => acc + getChainStats(c).done, 0);
                 const zonePct = totalInZone > 0 ? Math.round((doneInZone / totalInZone) * 100) : 0;
 
                 return (
-                    <div key={zoneName} className="space-y-8">
+                    <div key={sectionType} className="space-y-8">
                         {/* Section Header */}
                         <div className="flex items-end justify-between border-b border-white/5 pb-6">
                             <div className="flex items-center gap-5">
@@ -179,12 +184,12 @@ export function DofusSuccessGrid({
 
             {/* Centered Detail Modal */}
             <Dialog open={!!selectedChain} onOpenChange={(open) => !open && setSelectedChainId(null)}>
-                <DialogContent className="max-w-4xl h-[85vh] bg-[#050608] border-white/10 p-0 overflow-hidden rounded-[2.5rem] flex flex-col">
+                <DialogContent className="max-w-4xl h-[90vh] bg-[#050608] border-white/10 p-0 overflow-hidden rounded-[2.5rem] flex flex-col">
                     {/* Header Section */}
                     <div className="p-8 border-b border-white/5 flex items-start justify-between bg-zinc-950/50 flex-shrink-0">
                         <div>
                             <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-2">
-                                {selectedChain ? (ZONE_LABELS[selectedChain.sectionName]?.label || "Exploration") : ""}
+                                {selectedChain ? (SECTION_TYPES[selectedChain.sectionType]?.label || "Exploration") : ""}
                             </div>
                             <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">
                                 {selectedChain?.sectionName}
@@ -192,7 +197,7 @@ export function DofusSuccessGrid({
                         </div>
                     </div>
 
-                    <ScrollArea className="flex-1 w-full">
+                    <ScrollArea className="flex-1 w-full overflow-y-auto">
                         <div className="p-8 space-y-6">
                             {selectedChain?.entries?.map((entry: any, i: number) => {
                                     const done = entry.status === "COMPLETED";
@@ -285,11 +290,46 @@ export function DofusSuccessGrid({
                                                                                             {idx + 1}
                                                                                         </div>
                                                                                         <div className={isReturn ? "text-white" : ""}>
-                                                                                            <ParsedObjective text={obj} guildId={guildId} zone={selectedChain ? ZONE_LABELS[selectedChain.sectionName]?.label : undefined} />
+                                                                                            <ParsedObjective text={obj} guildId={guildId} zone={selectedChain ? SECTION_TYPES[selectedChain.sectionType]?.label : undefined} />
                                                                                         </div>
                                                                                     </div>
                                                                                 );
                                                                             })}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Guild Synergy */}
+                                                                {synergy && synergy[entry.id] && synergy[entry.id].length > 0 && (
+                                                                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-3xl">
+                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                                                                <Users className="w-4 h-4" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="text-[10px] font-black text-emerald-400/70 uppercase tracking-widest">
+                                                                                    Synergie de Guilde
+                                                                                </div>
+                                                                                <div className="text-sm font-bold text-emerald-400 italic">
+                                                                                    Membres à cette étape
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            {synergy[entry.id].map(m => (
+                                                                                <div key={m.profileId} className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-[1rem] border border-emerald-500/20" title={m.status === "COMPLETED" ? "Déjà terminé (peut aider)" : "En cours"}>
+                                                                                    {m.image ? (
+                                                                                        <img src={m.image} alt={m.pseudo} className="w-5 h-5 rounded-full" />
+                                                                                    ) : (
+                                                                                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-400 font-black">
+                                                                                            {m.pseudo[0]}
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <span className={`text-[12px] font-bold ${m.status === "COMPLETED" ? "text-emerald-400/60" : "text-emerald-400"}`}>
+                                                                                        {m.pseudo} {m.status === "COMPLETED" && <Check className="w-3 h-3 inline-block ml-1 opacity-50" />}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -301,6 +341,7 @@ export function DofusSuccessGrid({
                                                                         onClick={(e) => { 
                                                                             e.stopPropagation(); 
                                                                             if (lock && !done) return;
+                                                                            if (!done) setSelectedQuestId(null); // Auto-collapse on validation
                                                                             onToggleStatus(entry.id, done ? "NOT_STARTED" : "COMPLETED"); 
                                                                         }}
                                                                         className={`w-full h-14 rounded-2xl font-black italic uppercase text-[14px] transition-all tracking-widest ${
@@ -313,7 +354,7 @@ export function DofusSuccessGrid({
                                                                     </Button>
                                                                     <div className="grid grid-cols-3 gap-4">
                                                                         <a href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} target="_blank" className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[10px] font-black text-zinc-500 hover:text-indigo-400 uppercase tracking-widest transition-all"><Target className="w-5 h-5" /> DofusDB</a>
-                                                                        <a href={`https://www.google.com/search?q=dofus+pour+les+noobs+${encodeURIComponent(entry.name)}`} target="_blank" className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-amber-500/10 hover:border-amber-500/30 text-[10px] font-black text-zinc-500 hover:text-amber-400 uppercase tracking-widest transition-all"><BookOpen className="w-5 h-5" /> Noobs</a>
+                                                                        <a href={entry.externalRef || `https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} target="_blank" className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-amber-500/10 hover:border-amber-500/30 text-[10px] font-black text-zinc-500 hover:text-amber-400 uppercase tracking-widest transition-all"><BookOpen className="w-5 h-5" /> Noobs</a>
                                                                         <Button 
                                                                             variant="ghost" 
                                                                             onClick={(e) => {

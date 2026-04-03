@@ -1,7 +1,34 @@
 {
   "slug": "dolmanax",
   "displayName": "Dolmanax",
-  "color": "#D2691E",
-  "dofusItemId": 7843,
-  "successes": []
+  "color": "#1ABC9C",
+  "dofusItemId": 8774,
+  "successName": "Le Dolmanax",
+  "recommendedLevel": 170,
+  "successDescription": "Obtenir le Dolmanax.",
+  "successes": [
+    {
+      "name": "Prérequis",
+      "zone": "Monde de Douze",
+      "description": "Conditions requises pour accéder aux quêtes du Dolmanax.",
+      "isPrerequisite": true,
+      "quests": [
+        { "name": "L'anneau de tous les dangers", "id": 1629 },
+        { "name": "Destination Astrub", "id": 2004 },
+        "On marche sur des œufs",
+        "Conseil de classe",
+        "Quête de classe"
+      ]
+    },
+    {
+      "name": "Le Dolmanax",
+      "zone": "Monde de Douze",
+      "description": "Quête ou drop pour obtenir le Dolmanax.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": false,
+      "quests": [
+        { "name": "La quête du Dolmanax", "id": 3020, "note": "Vérifier le nom exact sur DofusDB" }
+      ]
+    }
+  ]
 }

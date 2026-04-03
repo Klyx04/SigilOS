@@ -138,7 +138,7 @@ export function AppSidebar({
 
     const NAV_TOOLS = [
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.canViewCalendar && modules.calendar },
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.worldmap }, 
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.minigames }, 
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewFinder && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "indigo", visible: user.isMember && user.canViewServices && modules.services },

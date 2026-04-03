@@ -470,7 +470,7 @@ function RoadmapResources({ chains, dofusColor, completedIds }: { chains: any[];
             items: Array.from(items.values()).sort((a, b) => b.amount - a.amount),
             dungeons: Array.from(dungeons.values()).sort((a, b) => (a.level || 0) - (b.level || 0)),
         };
-    }, [chains]);
+    }, [chains, completedIds]);
 
     const [filteredItems, setFilteredItems] = useState<typeof raw.items>([]);
     const [loading, setLoading] = useState(true);

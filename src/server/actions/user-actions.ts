@@ -287,6 +287,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         resources: true,
                         chat: true,
                         ladderSync: true,
+                        minigames: true,
                     }
                 }
             }

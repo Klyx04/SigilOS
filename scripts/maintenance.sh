@@ -7,21 +7,36 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Load env vars safely (Prioritize PROD > BETA > .env)
+# 🛡️ SAFER ENV LOADING
+load_env() {
+    local env_file=$1
+    if [ -f "$env_file" ]; then
+        echo "[Config] Loading $env_file"
+        set -a
+        source "$env_file"
+        set +a
+    fi
+}
+
+FALLBACK_URL="https://sigilos.fr"
+
 if [ -f "$ROOT_DIR/.env.prod" ]; then
-    echo "[Config] Loading .env.prod"
-    export $(grep -v '^#' "$ROOT_DIR/.env.prod" | xargs)
+    load_env "$ROOT_DIR/.env.prod"
+    FALLBACK_URL="https://sigilos.fr"
 elif [ -f "$ROOT_DIR/.env.beta" ]; then
-    echo "[Config] Loading .env.beta"
-    export $(grep -v '^#' "$ROOT_DIR/.env.beta" | xargs)
+    load_env "$ROOT_DIR/.env.beta"
+    FALLBACK_URL="https://beta.sigilos.fr"
 elif [ -f "$ROOT_DIR/.env" ]; then
-    echo "[Config] Loading .env"
-    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+    load_env "$ROOT_DIR/.env"
+    FALLBACK_URL="https://beta.sigilos.fr"
 fi
 
 # Nova API God Notify (Cloudflare proxy URL or internal if app is up)
-# CRITICAL: Define AFTER loading env vars
-GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-https://sigilos.fr}/api/god/notify"
+GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}"
+if [[ "$GOD_NOTIFY_URL" == *"localhost"* ]]; then
+    GOD_NOTIFY_URL="$FALLBACK_URL"
+fi
+export GOD_NOTIFY_URL="$GOD_NOTIFY_URL/api/god/notify"
 
 # Fallback for discord webhook if not set globally
 DISCORD_WEBHOOK_URL="${DISCORD_ADMIN_WEBHOOK:-}"
@@ -40,17 +55,28 @@ send_god_notif() {
     local success=$4
     local metadata=$5
 
-    if [ ! -z "$CRON_SECRET" ]; then
-        curl -s -X POST "$GOD_NOTIFY_URL" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            -H "Content-Type: application/json" \
-            -d "{
-                \"title\": \"$title\",
-                \"message\": \"$message\",
-                \"type\": \"$type\",
-                \"success\": $success,
-                \"metadata\": $metadata
-            }" > /dev/null
+    echo "[$(date)] 📣 Sending God Notification: $title..."
+
+    if [ -z "$CRON_SECRET" ]; then
+        echo "⚠️  CRON_SECRET is missing. Notification skipped."
+        return
+    fi
+
+    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$GOD_NOTIFY_URL" \
+        -H "Authorization: Bearer $CRON_SECRET" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"title\": \"$title\",
+            \"message\": \"$message\",
+            \"type\": \"$type\",
+            \"success\": $success,
+            \"metadata\": $metadata
+        }")
+
+    if [ "$response" -eq 200 ]; then
+        echo "✅ Notification sent!"
+    else
+        echo "❌ Notification failed (HTTP $response). Check your .env CRON_SECRET and GOD_NOTIFY_URL ($GOD_NOTIFY_URL)."
     fi
 }
 

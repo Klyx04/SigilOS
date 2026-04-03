@@ -1,0 +1,756 @@
+{
+  "dofus": "forgelave",
+  "displayName": "Dofus Forgelave",
+  "color": "#FF4500",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7831,
+  "compiledAt": "2026-04-03T08:44:24.086Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Dernier contact",
+          "dofusdbId": 1867,
+          "level": 40,
+          "zone": "Taverne Atolmond",
+          "npcName": "Relik le nécromancien",
+          "npcSubArea": "Taverne Atolmond",
+          "coords": {
+            "x": -27,
+            "y": 33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18819,
+              "name": "Os maudit",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/47636.png"
+            },
+            {
+              "id": 18821,
+              "name": "Souvenir d'Azrim",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164125.png"
+            },
+            {
+              "id": 18822,
+              "name": "Totem en os",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164140.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Rencontrer le nécromancien ouginak",
+            "Ramener à Relik le nécromancien : x1 Os maudit",
+            "Obtenir des informations concernant Azrim chez les Mériens",
+            "Aller voir Hyrini",
+            "Découvrir la carte : Grotte d'Azrim",
+            "Récupérer un souvenir d'Azrim dans la grotte où le shaman méditait",
+            "Trouver les maraudeurs mulous",
+            "Vaincre les maraudeurs mulous",
+            "Ramener à Relik le nécromancien : x1 Souvenir d'Azrim",
+            "Ramener à Relik le nécromancien : x1 Totem en os",
+            "Escorter le nécromancien jusqu'au temple d'Ouginak",
+            "Assister le nécromancien",
+            "Retourner voir Chalcas"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "L'arme fatale",
+          "dofusdbId": 1939,
+          "level": 200,
+          "zone": "unknown",
+          "npcName": "Gobanos le forgeron",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 17992,
+              "name": "Salikrone",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/36653.png"
+            },
+            {
+              "id": 17994,
+              "name": "Patelle",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/41419.png"
+            },
+            {
+              "id": 17991,
+              "name": "Bois d'Aquajou",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/38684.png"
+            },
+            {
+              "id": 17993,
+              "name": "Quisnoa",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/34560.png"
+            },
+            {
+              "id": 17988,
+              "name": "Pierre Angulaire",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/51499.png"
+            },
+            {
+              "id": 15691,
+              "name": "Sel de Baleine",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/164045.png"
+            },
+            {
+              "id": 15414,
+              "name": "Étoffe de la Cour Sombre",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/59645.png"
+            },
+            {
+              "id": 19396,
+              "name": "Bloc de nécronyx brut",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24990.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Récupérer un bloc de nécronyx brut",
+            "Ramener à Gobanos le forgeron : x1 Bloc de nécronyx brut",
+            "Aller voir Prêtresse de Sadida",
+            "Ramener à Prêtresse de Sadida : x5 Écume de mer",
+            "Ramener à Prêtresse de Sadida : x5 Salikrone",
+            "Ramener à Prêtresse de Sadida : x5 Patelle",
+            "Ramener à Prêtresse de Sadida : x5 Bois d'Aquajou",
+            "Ramener à Prêtresse de Sadida : x5 Quisnoa",
+            "Ramener à Prêtresse de Sadida : x3 Pierre Angulaire",
+            "Ramener à Prêtresse de Sadida : x3 Sel de Baleine",
+            "Ramener à Prêtresse de Sadida : x2 Étoffe de la Cour Sombre",
+            "Terminer la confection de la poupée en donnant de sa personne",
+            "Sacrifier des Armutins à la poupée de nécronyx",
+            "Sacrifier des Goules à la poupée de nécronyx",
+            "Sacrifier des Maudits à la poupée de nécronyx",
+            "Sacrifier des Brûlâmes à la poupée de nécronyx",
+            "Retourner voir Prêtresse de Sadida",
+            "Aller voir Dieu Sadida"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1867
+            }
+          ]
+        },
+        {
+          "name": "Battre le fer tant qu'il est chaud",
+          "dofusdbId": 1953,
+          "level": 200,
+          "zone": "Taverne d'Amakna",
+          "npcName": "Berklé",
+          "npcSubArea": "Taverne d'Amakna",
+          "coords": {
+            "x": -26,
+            "y": 23,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11503,
+              "name": "Pain de Frostiz",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/33072.png"
+            },
+            {
+              "id": 11510,
+              "name": "Poisskaille en Fricassée",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/49136.png"
+            },
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 11505,
+              "name": "Potion Torboyo",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 2044,
+              "name": "Bière du Chabrûlé",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            },
+            {
+              "id": 19542,
+              "name": "Minerai Résiduel",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/88044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Berklé : x2 Pain de Frostiz",
+            "Ramener à Berklé : x2 Poisskaille en Fricassée",
+            "Ramener à Berklé : x2 Saucisse Fumée",
+            "Ramener à Berklé : x2 Potion Torboyo",
+            "Ramener à Berklé : x10 Bière du Chabrûlé",
+            "Découvrir la carte : Traces de Yamamoto Kacapoté",
+            "Aller voir Yamamoto Kacapoté",
+            "Fouiller le lieu indiqué",
+            "Continuer à fouiller à proximité du minerai",
+            "Aller voir Yamamoto Kacapoté",
+            "Ramener à Berklé : x1 Minerai Résiduel",
+            "Aller voir Bol Pokuz",
+            "Aller voir Linda Malibou",
+            "Aller voir Graham Finame",
+            "Aller voir Agent Smisse",
+            "Aller voir Berklé"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1939
+            }
+          ]
+        },
+        {
+          "name": "La quete sous l'eau",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1953
+            }
+          ]
+        },
+        {
+          "name": "Algue au rythme",
+          "dofusdbId": 1942,
+          "level": 200,
+          "zone": "Profondeurs de la Mer Kantil",
+          "npcName": "Zrid Rahys",
+          "npcSubArea": "Profondeurs de la Mer Kantil",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 17993,
+              "name": "Quisnoa",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/34560.png"
+            },
+            {
+              "id": 17992,
+              "name": "Salikrone",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/36653.png"
+            },
+            {
+              "id": 11505,
+              "name": "Potion Torboyo",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 17994,
+              "name": "Patelle",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/41419.png"
+            },
+            {
+              "id": 19414,
+              "name": "Mycose Infectieuse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15045.png"
+            },
+            {
+              "id": 19415,
+              "name": "Gants de Zrid",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/20005.png"
+            },
+            {
+              "id": 19417,
+              "name": "Parasite de Tournoyé",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/111754.png"
+            },
+            {
+              "id": 19418,
+              "name": "Parasite de Funespadon",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/111754.png"
+            },
+            {
+              "id": 19419,
+              "name": "Parasite de Crânonier",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/111754.png"
+            },
+            {
+              "id": 19420,
+              "name": "Parasite de Macrab",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/111754.png"
+            },
+            {
+              "id": 19416,
+              "name": "Liste de Zrid",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24074.png"
+            },
+            {
+              "id": 19421,
+              "name": "Caisse de potions d'Éric Azaraille",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher comment récupérer des parasites sur les Submergés",
+            "Fabriquer 1 Gants de Zrid et fermer l'interface",
+            "Montrer à Zrid Rahys : 5 Parasite de Tournoyé",
+            "Montrer à Zrid Rahys : 5 Parasite de Funespadon",
+            "Montrer à Zrid Rahys : 5 Parasite de Crânonier",
+            "Montrer à Zrid Rahys : 5 Parasite de Macrab",
+            "Chasser les importuns",
+            "Donner des parasites de Submergés à Zrid Rahys",
+            "Donner des parasites de Submergés à Albert Paisse",
+            "Ramener à Albert Paisse : x5 Potion Torboyo",
+            "Ramener à Albert Paisse : x3 Patelle",
+            "Ramener à Éric Azaraille : x1 Liste de Zrid",
+            "Ramener à Zrid Rahys : x1 Caisse de potions d'Éric Azaraille"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1953
+            }
+          ]
+        },
+        {
+          "name": "La croisiere ca m'use",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 5,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "Coeur de pierre",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 6,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "Les pierres a feu",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 7,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "Plantes contre trepamorts",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 8,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "La guerre des marches",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 9,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "Du feu de dieu",
+          "dofusdbId": 1950,
+          "level": 200,
+          "zone": "unknown",
+          "npcName": "Rodak le Pagneul",
+          "npcSubArea": null,
+          "coords": {
+            "x": -21,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 19511,
+              "name": "Talisman de Laly",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/1302.png"
+            },
+            {
+              "id": 19512,
+              "name": "Talisman de Binos",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/1302.png"
+            },
+            {
+              "id": 19513,
+              "name": "Talisman d'Ys",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/1302.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x3 {monster,5102}",
+            "Vaincre x3 {monster,5103}",
+            "Vaincre x3 {monster,5104}",
+            "Vaincre x3 {monster,5105}",
+            "Aller voir Rodak le Pagneul",
+            "Chercher des traces des Pagneuls disparus",
+            "Chercher des survivants",
+            "Aller voir Rodak le Pagneul",
+            "Aller voir Mandalle",
+            "Aller voir Céfran",
+            "Utiliser le sifflet",
+            "Aller voir Laly",
+            "Ramener à Falaine : x4 Saucisse Fumée",
+            "Aller voir Binos",
+            "Aller voir Daisollan",
+            "Aller voir Ys",
+            "Vaincre x1 {monster,5186} en un seul combat",
+            "Montrer à Mandalle : 1 Talisman de Laly",
+            "Montrer à Mandalle : 1 Talisman de Binos",
+            "Montrer à Mandalle : 1 Talisman d'Ys",
+            "Aller voir Guy Mauve",
+            "Découvrir la carte : Endroit indiqué par Guy Mauve",
+            "Aller voir Guy Mauve",
+            "Découvrir la carte : Repaire caché",
+            "Aller voir Claude M'Sé",
+            "Vaincre Claude M'Sé",
+            "Aller voir Claude M'Sé",
+            "Aller voir Guy Mauve",
+            "Aller voir Rodak le Pagneul"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 11,
+    "totalItems": 29,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 2044,
+        "name": "Bière du Chabrûlé",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/37004.png"
+      },
+      {
+        "id": 17995,
+        "name": "Écume de mer",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/39399.png"
+      },
+      {
+        "id": 17992,
+        "name": "Salikrone",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/36653.png"
+      },
+      {
+        "id": 17994,
+        "name": "Patelle",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/41419.png"
+      },
+      {
+        "id": 17993,
+        "name": "Quisnoa",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/34560.png"
+      },
+      {
+        "id": 11505,
+        "name": "Potion Torboyo",
+        "totalAmount": 14,
+        "img": "https://api.dofusdb.fr/img/items/12720.png"
+      },
+      {
+        "id": 17205,
+        "name": "Saucisse Fumée",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/69820.png"
+      },
+      {
+        "id": 17991,
+        "name": "Bois d'Aquajou",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/38684.png"
+      },
+      {
+        "id": 17988,
+        "name": "Pierre Angulaire",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/51499.png"
+      },
+      {
+        "id": 15691,
+        "name": "Sel de Baleine",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/164045.png"
+      },
+      {
+        "id": 19417,
+        "name": "Parasite de Tournoyé",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/111754.png"
+      },
+      {
+        "id": 19418,
+        "name": "Parasite de Funespadon",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/111754.png"
+      },
+      {
+        "id": 19419,
+        "name": "Parasite de Crânonier",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/111754.png"
+      },
+      {
+        "id": 19420,
+        "name": "Parasite de Macrab",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/111754.png"
+      },
+      {
+        "id": 15414,
+        "name": "Étoffe de la Cour Sombre",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/59645.png"
+      },
+      {
+        "id": 11503,
+        "name": "Pain de Frostiz",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/33072.png"
+      },
+      {
+        "id": 11510,
+        "name": "Poisskaille en Fricassée",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/49136.png"
+      },
+      {
+        "id": 18819,
+        "name": "Os maudit",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/47636.png"
+      },
+      {
+        "id": 18821,
+        "name": "Souvenir d'Azrim",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164125.png"
+      },
+      {
+        "id": 18822,
+        "name": "Totem en os",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164140.png"
+      },
+      {
+        "id": 19396,
+        "name": "Bloc de nécronyx brut",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24990.png"
+      },
+      {
+        "id": 19542,
+        "name": "Minerai Résiduel",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/88044.png"
+      },
+      {
+        "id": 19414,
+        "name": "Mycose Infectieuse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15045.png"
+      },
+      {
+        "id": 19415,
+        "name": "Gants de Zrid",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/20005.png"
+      },
+      {
+        "id": 19416,
+        "name": "Liste de Zrid",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24074.png"
+      },
+      {
+        "id": 19421,
+        "name": "Caisse de potions d'Éric Azaraille",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15056.png"
+      },
+      {
+        "id": 19511,
+        "name": "Talisman de Laly",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/1302.png"
+      },
+      {
+        "id": 19512,
+        "name": "Talisman de Binos",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/1302.png"
+      },
+      {
+        "id": 19513,
+        "name": "Talisman d'Ys",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/1302.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "dofus": "du-cauchemar",
+  "displayName": "Dofus Cauchemar",
+  "color": "#4B0082",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7833,
+  "compiledAt": "2026-04-03T08:43:56.514Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prérequis - Eliocalypse : Resilience",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Main dans la main",
+          "dofusdbId": 2200,
+          "level": 200,
+          "zone": "Salle des prières",
+          "npcName": "Le Grandapan",
+          "npcSubArea": "Salle des prières",
+          "coords": {
+            "x": 22,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23179,
+              "name": "Pandazahi",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 7055,
+              "name": "Pandneken",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 1977,
+              "name": "Épices",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15378.png"
+            },
+            {
+              "id": 23482,
+              "name": "Alcool à 99%",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/174001.png"
+            },
+            {
+              "id": 23237,
+              "name": "Domakuro",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23032.png"
+            },
+            {
+              "id": 23408,
+              "name": "Dorigami",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23033.png"
+            },
+            {
+              "id": 23733,
+              "name": "Bière forte",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164789.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Le Grandapan",
+            "Découvrir la carte : Intérieur de la Taverne interdite",
+            "Aller voir le Grandapan pour dialoguer avec la déesse Pandawa par son intermédiaire",
+            "Aller voir Prêtre de Pandawa",
+            "Aller voir Le Grandapan",
+            "Convaincre les prêtres de Pandawa d'administrer de la limonade de Grobe au Grandapan",
+            "Aller voir Le Grandapan",
+            "Obtenir la recette de la bière forte auprès d'un prêtre de Pandawa",
+            "Découvrir la carte : Brasserie",
+            "Vaincre x1 {monster,6515} en un seul combat",
+            "Essayer de fabriquer de la bière forte dans la brasserie",
+            "Chercher des indices pour localiser Sumowa",
+            "Suivre la tortue sur les traces de Sumowa",
+            "Continuer à suivre la tortue sur les traces de Sumowa",
+            "Aller voir Tortue ninjawa",
+            "Débusquer la tierce personne et la forcer à se dévoiler",
+            "Découvrir ce que cache l'individu suspect",
+            "Vaincre x1 {monster,6516} en un seul combat",
+            "Réparer la machine de la brasserie",
+            "Fabriquer 1 Bière forte et fermer l'interface",
+            "Ramener à Le Grandapan : x1 Bière forte",
+            "S'entretenir avec la déesse Pandawa par l'intermédiaire du Grandapan",
+            "Trouver les deux souffles du Wukin et du Wukang pour amener Pandawa à se manifester",
+            "Aller voir Déesse Pandawa",
+            "Écouter l'argumentaire de Keltra Ekazumi",
+            "Convaincre Pandawa de vous confier sa Main"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 1,
+    "totalItems": 7,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 23179,
+        "name": "Pandazahi",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/79179.png"
+      },
+      {
+        "id": 7055,
+        "name": "Pandneken",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/79179.png"
+      },
+      {
+        "id": 1977,
+        "name": "Épices",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15378.png"
+      },
+      {
+        "id": 23482,
+        "name": "Alcool à 99%",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/174001.png"
+      },
+      {
+        "id": 23237,
+        "name": "Domakuro",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/23032.png"
+      },
+      {
+        "id": 23408,
+        "name": "Dorigami",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/23033.png"
+      },
+      {
+        "id": 23733,
+        "name": "Bière forte",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164789.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

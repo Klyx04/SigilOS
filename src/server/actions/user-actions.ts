@@ -125,6 +125,7 @@ export type UserContext = {
     scheduledDeletion?: string | null;
     createdAt?: string;
     newsBroadcastEnabled: boolean;
+    metamobPseudo?: string | null;
 };
 
 export type ActionResponse<T = any> = {
@@ -216,6 +217,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         roles: [],
         roleNames: [],
         newsBroadcastEnabled: true,
+        metamobPseudo: null,
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -520,8 +522,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         actorUserId: "SYSTEM",
                         actorName: "Platform System",
                         action: "PLATFORM_ARRIVAL",
-                        targetType: "USER_PROFILE",
+                        targetType: "PROFILE",
                         targetId: profile.id,
+                        metadata: { description: displayName },
                         newValue: { displayName, roleName, discordJoinedAt: joinedAt }
                     });
                 } catch (e) {
@@ -598,8 +601,13 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Master admin: Explicit ADMIN_FULL or Discord Administrator/Owner
     const isAdmin = myPerms.has(PERMISSIONS.ADMIN_FULL) || hasDiscordAdmin;
 
-    // Core & Information
-    const canViewWelcome = true; 
+    // Core & Information — Bienvenue is visible to all members by default,
+    // but can be restricted via RBAC (BIENVENUE_VIEW permission).
+    // If no explicit permission is configured for this role, default to true (open).
+    const hasExplicitBienvenueGrant = myPerms.has(PERMISSIONS.BIENVENUE_VIEW);
+    const rbacIsConfigured = Object.keys(mapping).length > 0 || Object.keys(userMapping).length > 0;
+    const canViewWelcome = hasExplicitBienvenueGrant || isAdmin || !rbacIsConfigured;
+
     const canViewPresentation = true;
     const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
     const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
@@ -667,7 +675,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,
         canViewDashboard: true,
         canViewPresentation: !!applyModule(!!mod?.presentation, !!canViewPresentation),
-        canViewWelcome: !!applyModule(!!mod?.welcome, !!canViewWelcome),
+        canViewWelcome: !!applyModule(!!(guildConfig?.welcomeEnabled && guildConfig?.welcomeDashboardEnabled), !!canViewWelcome),
         canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
@@ -722,6 +730,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         scheduledDeletion: null,
         createdAt: profile?.createdAt?.toISOString() || null,
         newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
+        metamobPseudo: profile?.metamobPseudo,
     };
 }
 
@@ -1079,9 +1088,9 @@ export async function getGuildMembers(guildId: string) {
 
     if (!guildConfig) throw new Error("Guild not found");
 
-    // SECURITY: Must be admin to list all members with detailed status
+    // SECURITY: Must be admin or have management/relance permissions to list all members
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) throw new Error("Forbidden: Admin access required");
+    if (!user.isAdmin && !user.canManageMembers && !user.canManageRelance) throw new Error("Forbidden: Admin access required");
 
     const members = await db.userProfile.findMany({
         where: { guildId: guildConfig.id },
@@ -1169,34 +1178,35 @@ export async function updateMemberProfileStatus(
         }
     });
 
-    // 5. Audit Log (SKIP IF SUPER-ADMIN for stealth)
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
-    const isGod = await isSuperAdmin();
+    // 5. Audit & Activity
+    const targetProfile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        select: { 
+            discordNickname: true, 
+            pseudoDofus: true, 
+            user: { select: { name: true, image: true } } 
+        }
+    });
+    const targetName = targetProfile?.pseudoDofus || targetProfile?.discordNickname || targetProfile?.user?.name || profileId;
 
-    if (!isGod) {
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session.user.id as string,
-                actorName: session.user.name || "Admin",
-                action: `MEMBER_STATUS_${status}`,
-                targetType: "PROFILE",
-                targetId: profileId,
-                oldValue: { status: profile.status } as any,
-                newValue: { status } as any,
-                metadata: { reason: reason || "No reason" } as any
-            }
+    if (!actor.isSuperAdmin) {
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId: profile.guild.discordGuildId,
+            actorUserId: session.user.id as string,
+            actorName: session.user.name || "Admin",
+            action: status === "ACTIVE" ? "PROFILE_REACTIVATED" : status === "BANNED" ? "MEMBER_BANNED" : "PROFILE_ARCHIVED",
+            targetType: "PROFILE",
+            targetId: profileId,
+            oldValue: { status: profile.status },
+            newValue: { status },
+            metadata: { description: targetName, reason: reason || "Manual Action" }
         });
     }
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
 
     // Emit activity feed event
-    const targetProfile = await db.userProfile.findUnique({
-        where: { id: profileId },
-        select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true, image: true } } }
-    });
-    const targetName = targetProfile?.pseudoDofus || targetProfile?.discordNickname || targetProfile?.user?.name || "Membre";
     const activityType = status === "BANNED" ? "BANNED" : status === "ARCHIVED" ? "ARCHIVED" : "UNARCHIVED";
     await emitGuildActivity(
         profile.guildId,
@@ -1236,17 +1246,19 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
     const isGod = await isSuperAdmin();
 
     if (!isGod) {
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session.user.id as string,
-                actorName: session.user.name || "Admin",
-                action: "MEMBER_PSEUDO_UPDATE",
-                targetType: "PROFILE",
-                targetId: profileId,
-                oldValue: { pseudo: profile.pseudoDofus } as any,
-                newValue: { pseudo: pseudoDofus } as any,
-            }
+        const { createAuditLog } = await import("./audit-actions");
+        const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
+
+        await createAuditLog({
+            guildId: profile.guild.discordGuildId,
+            actorUserId: session.user.id as string,
+            actorName: session.user.name || "Admin",
+            action: "MEMBER_PSEUDO_UPDATE",
+            targetType: "PROFILE",
+            targetId: profileId,
+            oldValue: { pseudo: profile.pseudoDofus },
+            newValue: { pseudo: pseudoDofus },
+            metadata: { description: targetName }
         });
     }
 
@@ -1288,17 +1300,19 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     const isGod = await isSuperAdmin();
 
     if (!isGod) {
-        await db.auditLog.create({
-            data: {
-                guildId: profile.guildId,
-                actorUserId: session.user.id as string,
-                actorName: session.user.name || "Admin",
-                action: "MEMBER_ANKAMA_ID_UPDATE",
-                targetType: "PROFILE",
-                targetId: profileId,
-                oldValue: { ankamaId: profile.ankamaId } as any,
-                newValue: { ankamaId: ankamaId } as any,
-            }
+        const { createAuditLog } = await import("./audit-actions");
+        const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
+
+        await createAuditLog({
+            guildId: profile.guild.discordGuildId,
+            actorUserId: session.user.id as string,
+            actorName: session.user.name || "Admin",
+            action: "MEMBER_ANKAMA_ID_UPDATE",
+            targetType: "PROFILE",
+            targetId: profileId,
+            oldValue: { ankamaId: profile.ankamaId },
+            newValue: { ankamaId: ankamaId },
+            metadata: { description: targetName }
         });
     }
 

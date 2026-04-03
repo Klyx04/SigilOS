@@ -1,451 +1,632 @@
-# Module de progression de quêtes Dofus pour dashboard de guilde — Spécification v3 complète
+Module Dofus Sylvestre & Meta-Dofus – Conception Fonctionnelle et Technique
+1. Objectif du module
+Ce module a pour but de fournir à ta guilde un suivi structuré, visuel et collaboratif de la progression sur l’ensemble des Dofus du jeu, avec un focus particulier sur le Dofus Sylvestre qui agit comme méta-Dofus (nécessitant une grande partie des autres Dofus et de nombreuses séries de quêtes/donjons).
 
-> Vision : un **GPS narratif de guilde** pour Dofus, combinant graphe de quêtes, carte du monde, analytics de guilde, UI neuronale et copilote IA.
->
-> Cette v3 agrège tout ce qui a été défini dans les versions précédentes (v1, v2) et ajoute une **spécification UI/UX & Motion Design complète**, ainsi qu’une **roadmap de versions jouables (V0 → V3)**.
+Contrairement aux Google Docs et aux guides classiques (Dofus pour les Noobs, Ganymède, Next-Stage, etc.), ce module ne vise pas à décrire les quêtes dans le détail, mais à modéliser :
 
----
+Les Dofus en tant qu’objectifs finaux.
 
-## 1. Contexte et objectifs
+Les étapes majeures nécessaires pour chaque Dofus (quêtes clés, succès, donjons, ressources, prérequis d’alignement, autres Dofus requis, etc.).
 
-### 1.1 Complexité des quêtes Dofus
+La progression individuelle de chaque membre sur ces étapes.
 
-- Un joueur recense 1 949 quêtes dans Dofus via un agrégateur communautaire (ofus.fr), confirmant l’ordre de grandeur de ~2 000 quêtes.[web:33]
-- DofusDB liste au moins : 247 quêtes « principales », 39 quêtes de temple de classe, 115 quêtes d’alignement Bonta, 120 quêtes d’alignement Brâkmar, 390 quêtes d’Almanax, etc., ce qui illustre la densité du contenu.[web:58][web:61]
-- Les quêtes d’obtention des Dofus (Émeraude, Turquoise, Ivoire, Ébène, Vulbis, etc.) reposent sur des chaînes longues avec de nombreux prérequis : succès de zones, donjons spécifiques, conditions de niveau/métier et parfois événements temporels.[web:37][web:40]
+La progression collective de la guilde.
 
-### 1.2 Limites des outils actuels
+Avec ce module, le Dofus Sylvestre devient un dashboard central qui agrège la progression de tous les autres Dofus pertinents.
 
-- Dofus Pour les Noobs, JeuxOnline, NSI4Noobs fournissent d’excellents guides linéaires par quête ou par Dofus, mais sans vue globale de la progression ni optimisation d’ordre.[web:34][web:37][web:40]
-- DofusDB et Dofus Map offrent une encyclopédie et des cartes très riches mais focalisées sur la recherche ponctuelle (quêtes individuelles, donjons, spots de ressources) plutôt que sur des **routes personnalisées**.[web:50][web:55][web:70][web:75]
-- DofusPlanet / DofusGuide et quelques outils de checklist (Google Sheets, sites dédiés) permettent de cocher des quêtes, mais restent essentiellement des TODO listes sans moteur de recommandation ni dimension guilde.[web:51][web:56][web:93][web:105]
+2. Vision générale UX
+Le module est constitué de trois grandes vues :
 
-### 1.3 Ambition du module
+Hub Dofus (Vue globale)
 
-- Remplacer ces approches fragmentées par un **système de knowledge graph** : quêtes, donjons, succès, zones, sous‑zones, ressources, métiers, Dofus, etc. reliés dans un graphe pondéré.
-- Proposer à chaque membre de la guilde un **chemin optimal ou enrichi** vers ses objectifs (Dofus, succès, zones, métiers), en tenant compte de son état réel et de ses préférences.
-- Fournir aux meneurs une **War Room** qui visualise la progression collective et suggère des événements de guilde alignés sur les besoins réels.
-- Offrir une **expérience UI/UX premium**, inspirée de Dofus et des MMO modernes : arbre neuronal animé, zoom sémantique, HUD diégétique et intégration avec une carte du monde interactive.
+Vue d’accueil du module.
 
-[image:1]
+Affiche un graphique central pour le Dofus Sylvestre (progression par catégories : prérequis Dofus, arc de quêtes, ressources/donjons).
 
----
+Autour du Sylvestre, des cartes/bulles pour les Dofus principaux (Cawotte, Ocre, Ivoire, Pourpre, Turquoise, Émeraude, etc.) avec leur progression moyenne de guilde et progression personnelle.
 
-## 2. Modélisation de données avancée (Graphe)
+Vue détail Dofus
+Pour chaque Dofus :
 
-### 2.1 Types de nœuds
+Résumé compact (bonus, type, lien vers guide externe, statut personnel et guilde).
 
-Tous les IDs externes (DofusDB, ofus, dofapi, dofusdude) sont conservés, mais le graphe utilise ses propres IDs internes.
+Sections d’étapes : Pré-requis, Étapes majeures de quêtes, Donjons associés, Ressources importantes.
 
-- **QuestNode**
-  - Représente une quête unique.[web:33][web:58]
-  - Champs : `id`, `externalIds`, `name`, `level`, `type`, `isRepeatable`, `isCriticalFor: DofusId[]`, `isSynergyCandidate: boolean`, `estimatedTime`, `difficulty`.
+Interface en listes/accordéons avec checkboxes pour la progression.
 
-- **AchievementNode**
-  - Succès regroupant plusieurs quêtes/donjons (par zone, Dofus, événement).[web:58]
-  - Champs : `id`, `name`, `category`, `rewardXp`, `rewardKamas`, `rewardItems`.
+Vue progression de guilde (Leaderboard / Heatmap)
 
-- **DungeonNode**
-  - Donjon unique.[web:35][web:55]
-  - Champs : `id`, `name`, `minLevel`, `boss`, `locationSubAreaId`, `recommendedIdolScore`.
+Comparaison des membres de la guilde pour un Dofus donné.
 
-- **DofusNode**
-  - Dofus primordial ou majeur (Émeraude, Turquoise, Ivoire, Ébène, etc.).[web:37][web:40]
-  - Champs : `id`, `name`, `rarity`, `element`, `isPrimordial`.
+Heatmap par étapes ou tableau détaillé avec pourcentages de complétion, étape actuelle, etc.
 
-- **ZoneNode**
-  - Zone géographique principale (Amakna, Frigost, Pandala, Saharach, Sufokia…).[web:63][web:74]
-  - Champs : `id`, `name`, `continent`, `levelRange`, `theme`.
+Utilisé pour organiser des sessions communes et repérer qui est « au même point » que soi.
 
-- **SubAreaNode**
-  - Sous‑zone (ex. Plaine de Cania → Campement des Bworks, Mines de Sidimote).[web:63]
-  - Champs : `id`, `zoneId`, `name`, `mapCoordApprox`, `hasZaap`, `resourceProfile`.
+Le tout doit être sobriété + lisibilité : TU ne réécris pas les guides. Tu offres une vue synthétique, actionable.
 
-- **RequirementNode**
-  - Contrainte abstraite : niveau, métier, alignement, accès zone.[web:34][web:37]
-  - Champs : `id`, `type` (`LEVEL`, `JOB_LEVEL`, `ALIGNMENT`, `ACCESS_QUEST`…), `value`.
+3. Modélisation des données
+Ton module peut être vu comme un graphe de dépendances entre objets :
 
-- **TemporalNode**
-  - Contrainte temporelle : Almanax, hebdo, événement saisonnier.[web:33]
-  - Champs : `id`, `type` (`DAILY`, `WEEKLY`, `YEARLY`, `EVENT`), `calendarPattern`.
+Dofus : nœuds principaux.
 
-- **ResourceNode**
-  - Ressource, craft, drop spécifique utile à une ou plusieurs quêtes.[web:68][web:75]
-  - Champs : `id`, `itemId`, `name`, `type` (`ORE`, `HERB`, `MONSTER_DROP`, `CRAFT`), `rarity`, `avgMarketPrice`.
+Steps (Étapes) : nœuds secondaires représentant des gros blocs (pré-requis, séries de quêtes, donjons majeurs, ressources, etc.).
 
-- **NPCNode** (optionnel mais utile pour l’UI et l’overlay futur)
-  - PNJ clé d’une série de quêtes.
-  - Champs : `id`, `name`, `subAreaId`, `role` (`QUEST_GIVER`, `CRAFT_MASTER`…).[web:99]
+Edges (RequirementEdges) : lient Dofus ⇄ Étapes ⇄ Dofus, etc.
 
-- **PlayerProgressNode (virtuel)**
-  - Représente l’état d’un joueur sur le graphe (quêtes faites, en cours, bloqués, inventaire de ressources pertinent).
-  - Pas stocké comme nœud persistant, mais utile conceptuellement.
+Progress : liaison entre joueurs et steps/Dofus.
 
-### 2.2 Types d’arcs
+3.1 Entité Dofus
+Chaque Dofus distingue :
 
-- `REQUIRES_QUEST (QuestNode → QuestNode)` : A doit être complétée avant B.[web:40]
-- `REQUIRES_DUNGEON (QuestNode → DungeonNode)` : B requiert le donjon X.
-- `REQUIRES_LEVEL (QuestNode/AchievementNode → RequirementNode)`.
-- `REQUIRES_ALIGNMENT / REQUIRES_JOB_LEVEL`.
-- `UNLOCKS_QUEST (QuestNode → QuestNode)`.
-- `PART_OF_ACHIEVEMENT (QuestNode/DungeonNode → AchievementNode)`.[web:58]
-- `FEEDS_DOFUS (AchievementNode → DofusNode)`.
-- `LOCATED_IN_AREA (QuestNode/DungeonNode/NPCNode → ZoneNode)`.[web:63]
-- `LOCATED_IN_SUBAREA (QuestNode/DungeonNode/NPCNode → SubAreaNode)`.
-- `REQUIRES_RESOURCE (QuestNode/AchievementNode → ResourceNode)`.[web:68]
-- `DROPPED_IN (ResourceNode → DungeonNode/MonsterGroup)`.[web:68]
-- `HARVESTED_IN (ResourceNode → SubAreaNode)`.[web:75]
-- `CRAFTED_BY (ResourceNode → RequirementNode{JOB_LEVEL})`.
-- `HAS_TEMPORAL_CONSTRAINT (QuestNode/AchievementNode → TemporalNode)`.
+Identité : nom, slug, type (PRIMORDIAL, QUEST, DROP, EVENT, etc.).
 
-Chaque arc porte des **poids** :
+Métadonnées : bonus principal, icône, niveau approximatif, difficulté.
 
-- `timeCost` (minutes estimées).[web:51]
-- `difficulty` (1–5, basé sur niveau recommandé, nécessité de groupe, complexité du combat).[web:40][web:49]
-- `profit` (XP/kamas/succès/ressources par minute).[web:51]
-- `synergyScore` (à quel point cette étape se combine bien avec d’autres objectifs, notamment via ressources ou sous‑zones partagées).
+Flags :
 
-### 2.3 Tables SQL minimalistes (PostgreSQL + Prisma)
+isSylvestreReq : si le Dofus est un prérequis direct ou indirect du Dofus Sylvestre.
 
-Sans tout réécrire ici, les tables clés :
+isMeta : pour marquer le Sylvestre comme méta-Dofus.
 
-- `raw_quests`, `raw_dungeons`, `raw_achievements`, `raw_areas`, `raw_subareas`, `raw_items` : mirroirs des sources externes (DofusDB, ofus, dofapi, dofusdude).[web:33][web:48][web:53][web:55][web:58][web:59]
-- `graph_nodes` (`id`, `type`, `refId`, `metadata` JSONB).
-- `graph_edges` (`id`, `fromId`, `toId`, `type`, `weights` JSONB).
-- `ui_layouts` (positions XY, zoom, styles par nœud + vue).
-- `player_progress` (par perso : quêtes faites, succès faits, Dofus obtenus, ressources clés connues).
-- `guild_analytics` (counters agrégés par zone, donjon, Dofus, etc.).
+Propriétés typiques :
 
----
+id: Int
 
-## 3. Moteurs de calcul
+slug: String (ex: sylvestre, ocre, ivoire)
 
-### 3.1 Coût de chemin et variantes
+name: String
 
-Base : \(C(q) = \sum_{i=1}^{n} (T_i \times D_i)\) pour un chemin de n étapes, où \(T_i\) est le temps estimé et \(D_i\) la difficulté.[web:35]
+type: String (enum logique côté code)
 
-On l’enrichit avec :
+isSylvestreReq: Boolean
 
-- `SynergyFactor` : bonus si la même étape sert plusieurs objectifs (plusieurs Dofus, succès, métiers).
-- `TravelCost` : coût de déplacement entre sous‑zones/zaaps (approximation via distance carte + nombre de transitions de zones, inspirée de projets type WorldGraph).[web:43][web:45]
-- `PreferenceFactor` : pondération en fonction du style du joueur (plus de quêtes de dialogue, plus de donjons, évitement des combats THL, etc.).[web:106][web:107]
+isMeta: Boolean (true uniquement pour Sylvestre)
 
-Le moteur expose plusieurs profils :
+iconUrl: String?
 
-- `FASTEST_DOFUS` : minimiser principalement `C(q)`.
-- `RICH_ROUTE` : tolérer un certain `detourBudget` pour insérer des quêtes `isSynergyCandidate`.
-- `FARM_ROUTE` : privilégier les nœuds à fort `profit` (kamas, ressources, succès).
+bonusSummary: String (ex: +2 PA, +2 PO, gain de Puissance par PM utilisé, soin si aucun PM)
 
-### 3.2 Gestion des quêtes critiques vs optionnelles
+3.2 Entité Step (Étape)
+Une Step représente un gros bloc logique utile à tracker, pas chaque quête individuellement.
 
-- `isCriticalFor` : route minimale vers un Dofus ou une saga ; utilisée pour la vue “chemin pur”.
-- `isSynergyCandidate` : quêtes qui :
-  - se trouvent dans une sous‑zone déjà visitée,
-  - ont un bon ratio profit/temps,
-  - n’ajoutent pas de prérequis lourds.
+Types possibles :
 
-L’algorithme :
+QUEST : un bloc de quêtes, une série, un succès majeur.
 
-1. Calcule le chemin critique minimal vers l’ensemble des objectifs choisis.
-2. Identifie les fenêtres où le joueur reste dans une même sous‑zone ou repasse par une même zone.
-3. Dans ces fenêtres, propose des quêtes `isSynergyCandidate` dans la limite d’un budget de détour.
+DUNGEON : un ou plusieurs donjons nécessaires.
 
-### 3.3 Profondeur de prérequis
+RESOURCE : pack de ressources significatif (ex : X Pépites, Y ressources rares).
 
-Pour chaque Dofus/saga, le moteur calcule un **niveau de profondeur** par quête : distance minimale en nombre d’arcs `REQUIRES_QUEST` à un DofusNode ou un AchievementNode final.[web:35]
+ALIGNMENT : niveau ou palier d’alignement, série de quêtes d’alignement.
 
-Utilisations :
+OTHER_DOFUS : possession d’un autre Dofus.
 
-- Colorer les nœuds (gris clair pour profondeur élevée, couleur vive pour quêtes proches de la fin).
-- Marquer certains nœuds comme **pivots** (forte centralité) pour les mettre en avant dans le HUD.
+MISC : tout ce qui ne rentre pas dans le reste (rencontres, combats spéciaux, succès annexes).
 
-### 3.4 Multi‑joueurs et synergie de guilde
+Chaque Step :
 
-Pour chaque joueur, on stocke une route proposée. Le serveur calcule l’intersection des routes :
+Est optionnellement rattachée à un Dofus (colonne dofusId).
 
-- Nœuds communs (quêtes/donjons/ressources) sur une fenêtre temporelle.
-- Classe ces nœuds par nombre de joueurs impactés + importance (pivots, Dofus feedés).
+Possède un weight permettant de pondérer son importance dans le calcul de complétion.
 
-Ces nœuds deviennent des **cibles de synergie** affichées dans la War Room.
+Peut avoir :
 
----
+label : pour l’affichage.
 
-## 4. Couche cartographique : intégration du module « map monde »
+description : texte court explicatif si nécessaire.
 
-### 4.1 Lien graphe ↔ carte
+externalRef : lien vers DPLN / Next-Stage / Ganymède pour les détails.
 
-- Chaque `ZoneNode` et `SubAreaNode` référence une zone/sous‑zone existant dans ton module de carte (environ 35 zones principales).[web:63][web:74]
-- Un clic sur une zone/sous‑zone dans la carte filtre l’arbre sur :
-  - quêtes présentes dans cette zone,
-  - donjons présents,
-  - ressources récoltables ou drops majeurs.
-- Depuis l’arbre, un clic sur un nœud (quête, donjon, ressource) centre la carte sur la sous‑zone correspondante, avec un zoom smooth type Dofus Map.[web:70][web:75]
+quantity : pertinent pour les ressources.
 
-### 4.2 Heatmap de progression de guilde
+Exemples pour l’Ocre :
 
-- Chaque zone/sous‑zone reçoit un score basé sur :
-  - nombre de joueurs avec une étape critique dans la zone,
-  - nombre de joueurs avec une étape `isSynergyCandidate` pertinente.
-- Ce score est traduit en heatmap colorée sur la carte : chaud = priorité pour les sorties de guilde.
+Step type=QUEST label="Vert Émeraude"
 
-### 4.3 Itinéraires optimisés
+Step type=QUEST label="Pourpre profond"
 
-- Le chemin calculé par le moteur est projeté sur la carte comme une polyligne (séquence de subareas / maps importantes).
-- Un mode “itinéraire de farm” peut mettre en avant les SubAreaNode liés aux ResourceNode critiques (mines, champs, spots de mobs ciblés).[web:68][web:75]
+Step type=QUEST label="Bleu Turquoise"
 
----
+Step type=QUEST label="La fin de l'éternité"
 
-## 5. Sources de données et pipeline
+3.3 Entité RequirementEdge
+RequirementEdge lie des Dofus et des Steps entre eux.
 
-### 5.1 Couche brute locale (source de vérité interne)
+Cas d’usage :
 
-- Tables `raw_*` remplies par des imports depuis :
-  - DofusDB (API/HTML),
-  - dofapi,
-  - dofusdude,
-  - ofus.fr,
-  - autres wikis.[web:33][web:48][web:53][web:55][web:58][web:59]
-- Ces tables sont **read‑only** via l’admin : jamais éditées à la main, seulement via jobs d’import.
+Sylvia (Sylvestre) requiert Dom de Pin → edge de Dofus Sylvestre vers Dofus Dom de Pin (via type OTHER_DOFUS ou relation directe).
 
-Avantage : si un site communautaire tombe, ton module garde une copie complète.
+Dom de Pin requiert d’autres Dofus ou prérequis particuliers.
 
-### 5.2 Couche curation / overrides
+Ivoire requiert les 100 quêtes d’alignement → edge de Ivoire vers Step type=ALIGNMENT label="100 quêtes d’alignement".
 
-- `graph_nodes`, `graph_edges`, `graph_overrides`, `ui_layouts` sont éditables par toi (super‑admin) via un éditeur graphique.
-- La vue visible par les joueurs est une **vue matérialisée** issue de `raw_*` + `graph_*`.
+Un edge peut pointer :
 
-### 5.3 Connecteurs d’import
+De Dofus → Dofus
 
-- Chaque source (DofusDB, dofapi, etc.) a un connecteur capable de :
-  - lister les quêtes/donjons/succès,
-  - retourner leurs métadonnées,
-  - fournir un indicateur de mise à jour.[web:48][web:53][web:55][web:58][web:59]
-- Un job planifié compare les données externes à `raw_*` et applique les diffs.
+De Dofus → Step
 
----
+De Step → Step
 
-## 6. Éditeur d’admin orienté graphe
+(Éventuellement) de Step → Dofus (rare).
 
-### 6.1 Objectifs
+3.4 Entité GuildMember
+Représente un membre de ta guilde au sein du dashboard.
 
-- Permettre au super‑admin/dev de modifier quotidiennement l’arbre (regroupements, pondérations, layout) sans toucher au code.
-- S’inspirer des outils de quest design node‑based utilisés en dev de jeux (QuestMap, LoomGraph, editors internes).[web:80][web:82][web:90]
+id
 
-### 6.2 Fonctionnalités
+discordId
 
-- Canvas React (Cytoscape.js ou React‑Flow) avec :[web:81][web:85]
-  - recherche/autocomplétion sur quêtes/donjons (`raw_*`),
-  - drag & drop pour relier/déplacer des nœuds,
-  - édition des poids/flags dans un panneau latéral,
-  - groupement de quêtes en “chapitres”/sagas,
-  - système de versions de graph (v1, v2) + rollback.[web:82][web:86]
-- Bouton “Prévisualiser comme joueur X” :
-  - applique l’état de quêtes du joueur,
-  - calcule le sous‑graphe montré au membre et la route proposée.
+mainCharacterName
 
-### 6.3 Environnements
+server
 
-- **Draft** : modifications visibles seulement par toi et certains rôles (officiers).
-- **Prod** : lorsque validé, un graphe de draft est promu en prod ; les joueurs voient immédiatement la nouvelle organisation.
+Métadonnées diverses selon besoins.
 
----
+3.5 Entités de progression
+StepProgress
+Paire (member, step) avec :
 
-## 7. Suivi de progression par personnage
+status: NOT_STARTED | IN_PROGRESS | DONE
 
-### 7.1 Sans API Ankama
+doneAt: optionnel.
 
-- Import manuel : multi‑sélection des quêtes déjà faites, ou validation de “lignes terminées” (succès, Dofus).
-- Synchronisation opportuniste : lorsqu’un joueur confirme avoir obtenu un Dofus ou validé un succès, toutes les quêtes correspondantes sont marquées comme complétées.
-- Les outils existants (DofusPlanet, DofusGuide) montrent que ce modèle “semi‑manuel” est réaliste pour les joueurs investis.[web:51][web:56]
+MemberDofusProgress
+Paire (member, dofus) avec :
 
-### 7.2 Outil compagnon / overlay (optionnel)
+status: NOT_STARTED | IN_PROGRESS | OBTAINED
 
-- Inspiré de DofusDB Treasure Hunt Overlay : une PWA/Electron superposée au client qui aide sans le modifier.[web:38]
-- À terme, l’overlay peut :
-  - scanner la liste de quêtes via OCR,
-  - envoyer au dashboard un diff des quêtes mises à jour.
+completionPercent: cache du % de complétion calculé.
 
----
+Ce cache est recalculé à chaque modification pertinente (update d’une step, recalcul batch, CRON, etc.), ou à la demande.
 
-## 8. UI / UX & Motion Design — Spécification 2026
+4. Schéma Prisma suggéré
+text
+model Dofus {
+  id             Int      @id @default(autoincrement())
+  slug           String   @unique
+  name           String
+  type           String   // PRIMORDIAL | QUEST | DROP | EVENT ...
+  isSylvestreReq Boolean  @default(false)
+  isMeta         Boolean  @default(false) // true pour le Sylvestre
+  iconUrl        String?
+  bonusSummary   String?
 
-### 8.1 Design system (tokens)
+  steps          Step[]   @relation("DofusSteps")
+  prerequisites  RequirementEdge[] @relation("DofusAsTarget")
+  dependants     RequirementEdge[] @relation("DofusAsSource")
 
-- **Couleurs principales** :
-  - `dofus-emerald` : vert lumineux (nœuds Émeraude),
-  - `dofus-turquoise` : bleu clair,
-  - `dofus-ebony` : violet sombre,
-  - `dofus-ivory` : blanc doré,
-  - `accent-guild` : couleur personnalisable par la guilde.
-- **États de nœuds** :
-  - `locked` (cadenas gris),
-  - `available` (halo léger),
-  - `in-progress` (halo animé, contour pulsant),
-  - `completed` (check vert, glow réduit),
-  - `critical` (bordure plus large, légère aura).
-- **Typographie** :
-  - Titres : font fantasy type *Cinzel*,
-  - Corps : sans‑serif lisible type *Inter*.
+  progresses     MemberDofusProgress[]
+}
 
-### 8.2 Composants majeurs
+model Step {
+  id          Int      @id @default(autoincrement())
+  dofus       Dofus?   @relation("DofusSteps", fields: [dofusId], references: [id])
+  dofusId     Int?
+  type        String   // QUEST, DUNGEON, RESOURCE, ALIGNMENT, OTHER_DOFUS, MISC
+  label       String
+  description String?
+  quantity    Int?
+  externalRef String?
+  weight      Int      @default(1)
 
-- **Neural Tree Canvas** :
-  - nœuds Dofus (gros gemmes),
-  - nœuds chapitres (médaillons),
-  - nœuds quêtes (pastilles),
-  - arcs lumineux (flux entre nœuds).[web:101]
-- **HUD “Main Scenario”** (bandeau en bas ou en haut) :
-  - objectif majeur,
-  - 3–4 étapes suivantes,
-  - indicateur de rentabilité (XP/Kamas/Succès attendus).
-- **Panneau de détail** (à droite ou en modal) :
-  - détails d’une quête/chapitre/saga,
-  - checklist, récompenses, liens vers guides externes.[web:34][web:51]
-- **War Room** :
-  - grande carte + heatmap,
-  - liste des synergies de guilde,
-  - timeline des événements proposés.
+  requirements RequirementEdge[] @relation("StepAsSource")
+  dependants   RequirementEdge[] @relation("StepAsTarget")
+  progresses   StepProgress[]
+}
 
-### 8.3 Motion & transitions
+model RequirementEdge {
+  id          Int    @id @default(autoincrement())
 
-Guidelines inspirées des bonnes pratiques de graph UX et de quest logs modernes.[web:83][web:98][web:101]
+  fromStep    Step?  @relation("StepAsSource", fields: [fromStepId], references: [id])
+  fromStepId  Int?
+  fromDofus   Dofus? @relation("DofusAsSource", fields: [fromDofusId], references: [id])
+  fromDofusId Int?
 
-- **Durées** :
-  - petites transitions (hover, toggles) : 120–180 ms,
-  - déplacements/zoom du graphe : 200–350 ms,
-  - animations de complétion de Dofus : 400–600 ms max.
+  toStep      Step?  @relation("StepAsTarget", fields: [toStepId], references: [id])
+  toStepId    Int?
+  toDofus     Dofus? @relation("DofusAsTarget", fields: [toDofusId], references: [id])
+  toDofusId   Int?
+}
 
-- **Zoom sémantique** :
-  - Zoom out : consolidation des quêtes en chapitres, puis en Dofus ; les nœuds fusionnent visuellement (morphing léger).
-  - Zoom in : explosion progressive d’un Dofus en chapitres, puis d’un chapitre en quêtes ; arcs qui se dévoilent avec un effet de “signal électrique”.
+model GuildMember {
+  id        Int    @id @default(autoincrement())
+  discordId String @unique
+  name      String
+  server    String?
 
-- **Transitions d’état de nœud** :
-  - `available` → `in-progress` : l’aura s’allume, un fil lumineux part du Dofus racine vers la quête.
-  - `in-progress` → `completed` : flash rapide, check animé, propagation d’une onde lumineuse sur la branche correspondante.
-  - `locked` → `available` : cadenas qui se dissout, halo qui apparaît.
+  stepProgresses   StepProgress[]
+  dofusProgresses  MemberDofusProgress[]
+}
 
-- **Déplacements sur carte** :
-  - pan/zoom inertiels (ease‑in‑out),
-  - recentrage sur sous‑zone ciblée avec léger tilt de caméra (si WebGL) pour donner un côté “table de stratégie MMO”.
+model StepProgress {
+  memberId Int
+  stepId   Int
+  status   String  // NOT_STARTED, IN_PROGRESS, DONE
+  doneAt   DateTime?
 
-- **Feedback de guilde en temps réel** :
-  - lorsqu’un membre termine une étape critique, micro‑anim sur sa position dans l’arbre et sur la carte (icône de classe Dofus qui clignote une seconde).
+  member   GuildMember @relation(fields: [memberId], references: [id])
+  step     Step        @relation(fields: [stepId], references: [id])
 
-### 8.4 Accessibilité
+  @@id([memberId, stepId])
+}
 
-- Mode **daltonien** : icônes/formes différentes par état, pas seulement des couleurs.[web:83]
-- Mode **réduction de mouvement** : animations ralenties ou remplacées par des transitions plus simples.
-- Contrastes minimum conformes aux bonnes pratiques (textes sur fonds foncés, etc.).
+model MemberDofusProgress {
+  memberId          Int
+  dofusId           Int
+  status            String // NOT_STARTED, IN_PROGRESS, OBTAINED
+  completionPercent Int    @default(0)
 
----
+  member            GuildMember @relation(fields: [memberId], references: [id])
+  dofus             Dofus       @relation(fields: [dofusId], references: [id])
 
-## 9. Copilote IA et journal narratif
+  @@id([memberId, dofusId])
+}
+5. Calculs de complétion
+5.1 Complétion d’un Dofus pour un joueur
+Principe :
 
-### 9.1 Copilote IA branché sur le graphe
+Récupérer toutes les Steps associées à ce Dofus (dofus.steps).
 
-- Un module IA (LLM) interroge ton knowledge graph plutôt que le web.
-- Cas d’usage :
-  - “J’ai 40 minutes, je veux avancer Turquoise + Vulbis en solo, je fais quoi ?”
-  - “Qu’est‑ce qu’on peut faire à 4 ce soir qui avance au mieux les quêtes émeraude/turquoise de X, Y et Z ?”
-- L’IA utilise ton moteur de chemin comme oracle et se contente de reformuler en langage naturel, en expliquant pourquoi ces étapes sont proposées.[web:94][web:97][web:103]
+Pour chaque Step, récupérer le StepProgress correspond à (memberId, stepId).
 
-### 9.2 Journal narratif par personnage
+Calculer :
 
-- Au‑delà de la checklist, chaque joueur a un **journal de saga** :
-  - chapitres = grands nœuds ou sagas (Émeraude, Frigost I, Pandala, etc.),
-  - entrées = quêtes pivots complétées.
-- Chaque entrée est générée à partir des métadonnées de quêtes + un gabarit IA, pour raconter “l’aventure de la guilde” plutôt que juste “tu as coché X”.[web:95][web:98]
+totalWeight = somme(weight de toutes les Steps)
 
----
+doneWeight = somme(weight pour les Steps avec status = DONE)
 
-## 10. Analytics de guilde
+completionPercent = floor((doneWeight / totalWeight) * 100).
 
-- Temps médian pour chaque Dofus dans la guilde.
-- Funnels : combien commencent vs terminent chaque saga ; où les gens décrochent.[web:51]
-- “Dofus per month” par joueur, temps passé par zone.
-- Campagnes de guilde : objectifs globaux (ex. “Mois de l’Émeraude”) avec suivi automatisé.
+Ce pourcentage est stocké dans MemberDofusProgress.completionPercent et mis à jour lors des modifications.
 
----
+5.2 Statut d’un Dofus
+NOT_STARTED : 0% et aucune step en IN_PROGRESS ou DONE.
 
-## 11. Roadmap de développement (versions jouables)
+IN_PROGRESS : 0 < % < 100.
 
-### 11.1 V0 — Prototype local (solo)
+OBTAINED : soit completionPercent = 100, soit un flag manuel (ex : joueur coche explicitement “J’ai le Dofus”).
 
-Objectif : prouver le concept sur une petite portion du jeu.
+5.3 Complétion moyenne de guilde
+Pour un Dofus donné :
 
-- Scope limité :
-  - Dofus Émeraude + Dofus Turquoise, quêtes principales seulement.[web:37][web:40]
-  - Quelques zones : Astrub, Amakna, Cania, Frigost 1.[web:63][web:74]
-- Fonctionnalités :
-  - Import manuel ou semi‑auto des quêtes/donjons concernés (`raw_*`).
-  - Graphe minimal (QuestNode, DungeonNode, DofusNode, ZoneNode).
-  - Calcul de chemin critique simple (temps + difficulté).
-  - Affichage en liste + mini‑HUD (sans arbre neuronal).
+avgCompletion = moyenne des completionPercent de tous les membres ayant au moins 1 StepProgress ou un MemberDofusProgress pour ce Dofus.
 
-### 11.2 V1 — MVP guilde (core graphe + UI simple)
+Ce calcul peut être :
 
-Objectif : module **utilisable par la guilde**.
+Rafraîchi à chaque update individuelle (éventuellement trop coûteux).
 
-- Ajouts :
-  - Intégration complète des Dofus primordiaux + quelques sagas majeures (Frigost, Pandala).[web:58][web:61]
-  - Carte du monde Dofus (ton module) reliée aux ZoneNode/SubAreaNode.[web:70][web:75]
-  - Moteur de chemin critique multi‑objectifs (sans quêtes synergie au début).
-  - HUD “3 prochaines étapes” stable.
-  - Suivi de progression manuel simple (cocher des quêtes / lignes finies).
+Ou recalculé via une tâche CRON toutes les X minutes.
 
-- UI :
-  - Graphe 2D simple (Cytoscape) sans animations poussées.
-  - War Room basique : heatmap par zone, liste de donjons prioritaires.
+6. Dofus Sylvestre en tant que méta-Dofus
+Le Dofus Sylvestre est particulier : il requiert :
 
-### 11.3 V2 — Version “Neural Tree” (LOD, synergie, ressources)
+D’autres Dofus (Dom de Pin + potentiellement une grande partie des Dofus primordiaux et/ou de quête).
 
-Objectif : passer au **vrai produit différenciant**.
+Un arc de quêtes conséquent (Silvosse, L’arbre qui cache la forêt, Flovoraison, refuge Sylvestre, etc.).
 
-- Moteur :
-  - Ajout SubAreaNode + ResourceNode + arcs de ressources.[web:68][web:75]
-  - Routage avec budget de détour + quêtes `isSynergyCandidate`.
-  - Indice de profondeur + marquage des nœuds pivots.
+Des donjons et ressources spécifiques.
 
-- UI :
-  - Implémentation du Neural Tree (zoom sémantique, transitions animées).[web:83][web:101]
-  - Animations d’état de nœud (available/in‑progress/completed/locked).
-  - HUD enrichi (rentabilité, indicateurs visuels).
+6.1 Catégorisation interne
+Pour le Sylvestre, tu peux définir 3 grandes catégories internes, chacune représentée par un bloc de Steps :
 
-- Guilde :
-  - Détection de synergies multi‑joueurs (intersections de routes).
-  - War Room améliorée (heatmap zones + sous‑zones, top ressources/donjons).
+Dofus requis (exemple) :
 
-### 11.4 V3 — Version “Grotesque” (copilote IA, journal, analytics)
+Dom de Pin
 
-Objectif : transformer le module en **centre névralgique** de la guilde.
+Dofus primordiaux (Ocre, Ivoire, Ébène, etc. – selon les infos exactes)
 
-- Ajouts IA :
-  - Copilote branché sur ton graphe pour requêtes naturelles avancées.[web:94][web:97][web:103]
-  - Journal narratif par personnage.
+Éventuellement d’autres Dofus de quête.
 
-- Analytics :
-  - Statistiques de progression fines, funnels, temps médian par Dofus.
-  - Campagnes de guilde avec objectifs globaux et suivi automatique.[web:51]
+Arc de quêtes :
 
-- UX :
-  - Motion design abouti (effets particules, sons, thèmes par monde).
-  - Options d’accessibilité complètes (mode daltonien, réduction de mouvement).
+Succès ou steps "L’arbre qui cache la forêt"
 
-### 11.5 Au‑delà (V4+) — Overlay & auto‑sync
+Quêtes "Flovoraison"
 
-- Overlay PWA/Electron pour lire l’UI de Dofus et synchroniser automatiquement les quêtes (OCR, parsing limité).[web:38]
-- Plugins communautaires (API publique) pour que d’autres outils puissent consommer ton graphe.
+Quêtes de Silvosse, etc.
 
----
+Ressources & Donjons :
 
-## 12. Valeur ajoutée récap
+Packs de ressources clés nécessaires.
 
-Par rapport à tout ce qui existe aujourd’hui (checklists, Dofus Quests, wikis, cartes), ton module :
+Donjons propres à la progression Sylvestre (refuge, boss, etc.).
 
-- traite les quêtes comme un **knowledge graph complet** (quests/donjons/zones/sous‑zones/ressources/Dofus),
-- fournit des **routes personnalisées** et optimisées multi‑objectifs,
-- donne une **vue de guilde** (War Room, synergies, analytics),
-- offre une **UI neuronale animée** directement inspirée de Dofus mais plus moderne,[web:101]
-- et intègre un **copilote IA** + journal narratif.
+6.2 Poids et pourcentage
+Tu alloues des poids pour que chaque bloc ait un poids global approximatif :
 
-C’est bien au‑delà d’un “site pour cocher des quêtes” : c’est le **cerveau stratégique** d’une guilde Dofus moderne.
+Dofus requis : 35% du poids total.
+
+Arc de quêtes : 30%.
+
+Ressources & Donjons : 35%.
+
+Chaque Step interne se voit attribuer un poids cohérent pour que la somme corresponde (par exemple, avoir le Dom de Pin pèse plus lourd que un donjon isolé).
+
+6.3 Affichage dans le hub
+Le hub affiche le Sylvestre avec un graphique circulaire (donut) où :
+
+La progression se décline par catégorie (segments).
+
+Chaque segment est rempli selon la complétion moyenne des Steps de la catégorie.
+
+Cela donne une visualisation claire de :
+
+"On est plutôt en retard sur l’arc de quêtes".
+
+"On a tous (ou presque) les Dofus requis, mais manque les ressources/donjons".
+
+7. JSON de seed (concept)
+Avant Prisma, tu peux préparer un fichier JSON/YAML de seed pour une poignée de Dofus clés. Exemple conceptuel pour deux Dofus : Ocre et Sylvestre (simplifié volontairement).
+
+json
+{
+  "dofus": [
+    {
+      "slug": "ocre",
+      "name": "Dofus Ocre",
+      "type": "QUEST",
+      "iconUrl": "/icons/dofus/ocre.png",
+      "bonusSummary": "+1 PA",
+      "isSylvestreReq": true,
+      "isMeta": false,
+      "steps": [
+        {
+          "type": "QUEST",
+          "label": "Vert Émeraude",
+          "weight": 3,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "QUEST",
+          "label": "Pourpre profond",
+          "weight": 3,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "QUEST",
+          "label": "Bleu Turquoise",
+          "weight": 3,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "QUEST",
+          "label": "La fin de l'éternité",
+          "weight": 6,
+          "externalRef": "https://..."
+        }
+      ]
+    },
+    {
+      "slug": "sylvestre",
+      "name": "Dofus Sylvestre",
+      "type": "QUEST",
+      "iconUrl": "/icons/dofus/sylvestre.png",
+      "bonusSummary": "+2 PO, gain de Puissance par PM, soin si aucun PM",
+      "isSylvestreReq": false,
+      "isMeta": true,
+      "steps": [
+        {
+          "type": "OTHER_DOFUS",
+          "label": "Posséder le Dom de Pin",
+          "weight": 8
+        },
+        {
+          "type": "OTHER_DOFUS",
+          "label": "Posséder les Dofus primordiaux",
+          "weight": 12
+        },
+        {
+          "type": "QUEST",
+          "label": "Arc de quêtes : L'arbre qui cache la forêt",
+          "weight": 10,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "QUEST",
+          "label": "Arc de quêtes : Flovoraison & Silvosse",
+          "weight": 10,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "DUNGEON",
+          "label": "Donjons liés au refuge Sylvestre",
+          "weight": 6,
+          "externalRef": "https://..."
+        },
+        {
+          "type": "RESOURCE",
+          "label": "Ressources clés Sylvestre (packs)",
+          "weight": 4
+        }
+      ]
+    }
+  ]
+}
+Ce JSON sera lu par un script de seed qui :
+
+Crée les Dofus.
+
+Crée les Steps associées.
+
+Crée les RequirementEdges nécessaires (par exemple pour lier les Steps OTHER_DOFUS aux Dofus correspondants ou lier le Sylvestre à l’Ocre, etc.).
+
+8. API & endpoints backend
+8.1 Endpoints principaux
+GET /dofus
+
+Retourne la liste des Dofus, avec les métadonnées de base et, éventuellement, le % de complétion du membre courant (si auth) et la complétion moyenne de guilde.
+
+GET /dofus/:slug
+
+Détails du Dofus, incluant :
+
+les Steps,
+
+le statut et la complétion du joueur courant,
+
+des données de moyenne guilde.
+
+GET /dofus/:slug/guild
+
+Vue agrégée de progression pour tous les membres sur ce Dofus (pour la heatmap / leaderboard).
+
+POST /progress/steps
+
+Permet de mettre à jour en bulk les StepProgress du joueur courant.
+
+Body possible : liste de {stepId, status}.
+
+POST /progress/dofus/:slug/status
+
+Optionnel pour permettre à un joueur de déclarer explicitement qu’il a obtenu un Dofus (utile si ses Steps ne reflètent pas tout – ex : ancien joueur qui a déjà fait les quêtes sans tracking).
+
+8.2 Auth & intégration Discord
+Auth basée sur Discord OAuth2 (logique si ton dashboard est déjà pour la guilde).
+
+Mapping discordId → GuildMember.
+
+Optionnel : endpoints spécifiques pour alimenter des slash commands via ton bot.
+
+9. UX détaillée par vue
+9.1 Hub Dofus
+Composant central :
+
+Donut représentant le Sylvestre avec segments (Dofus requis / Arc de quêtes / Ressources & donjons).
+
+À l’intérieur du donut : % global (guilde) + % perso en plus petit.
+
+Anneau périphérique / grille de cartes :
+
+Pour chaque Dofus majeur (Cawotte, Ocre, Ivoire, etc.) : carte avec icône, nom, type, % perso, % guilde.
+
+Timeline / liste d’étapes Sylvestre (en bas) :
+
+Longue barre avec les grandes étapes du Sylvestre (Dom de Pin, primordiaux, arc quêtes, etc.).
+
+Avatars des joueurs positionnés sur la step où ils en sont.
+
+9.2 Vue détail Dofus
+Layout proposé :
+
+Colonne gauche (sticky) :
+
+Icône + nom du Dofus.
+
+Type (badge), bonus, statut perso/guilde.
+
+2 progress bars : perso et guilde.
+
+Boutons :
+
+"Voir la progression guilde"
+
+"Ouvrir le guide" (nouvelle fenêtre vers DPLN / autre guide)
+
+Optionnel : "Marquer comme obtenu".
+
+Colonne droite (scroll) :
+
+Section "Pré-requis" (Steps de type OTHER_DOFUS / ALIGNMENT).
+
+Section "Étapes majeures de quêtes" (Steps de type QUEST).
+
+Section "Ressources" (tableau simple).
+
+Section "Donjons" (liste checkable).
+
+Chaque Step :
+
+Checkbox (Not started / In progress / Done) ou au moins un toggle sur 2–3 états.
+
+Nom.
+
+(Optionnel) icône type (quest/donjon/ressource).
+
+Lien discret vers un guide externe (icône de lien).
+
+9.3 Vue guild/heatmap
+Tableau ou heatmap :
+
+Lignes = joueurs.
+
+Colonnes = Steps principales pour ce Dofus.
+
+Cellules colorées selon le statut (gris / orange / vert).
+
+Avatars intégrés.
+
+Sidebar ou header avec :
+
+Filtres (par rang, par pourcentage).
+
+Bouton "Trouver des joueurs au même stade que moi".
+
+10. Gamification
+Tu peux enrichir l’engagement avec :
+
+Badges :
+
+Obtenir X Dofus.
+
+Terminer un Dofus en moins de N jours après l’avoir commencé.
+
+Être le premier de la guilde à obtenir un meta-Dofus.
+
+Leaderboards :
+
+Nombre de Dofus obtenus.
+
+Progression la plus rapide sur le Sylvestre.
+
+Annonces Discord (via webhooks ou ton bot) :
+
+Quand quelqu’un marque un Dofus comme obtenu, annonce dans un canal dédié.
+
+11. Roadmap de développement
+Phase 1 – Data & setup
+
+Implémenter les modèles Prisma.
+
+Ajouter le JSON de seed pour 3–5 Dofus clés (Cawotte, Ocre, Ivoire, Sylvestre, Dom de Pin).
+
+Scripts de seed.
+
+Implémenter les endpoints GET /dofus et GET /dofus/:slug.
+
+Phase 2 – UI basique
+
+Vue Hub avec liste de Dofus sous forme de cartes (sans encore le donut avancé).
+
+Vue détail Dofus avec sections et checkboxes.
+
+Endpoint POST /progress/steps + mise à jour du % perso.
+
+Phase 3 – Vue guilde
+
+Endpoint GET /dofus/:slug/guild.
+
+Vue heatmap/leaderboard.
+
+Phase 4 – Donut Sylvestre & meta
+
+Mise en place de la logique catégorie interne pour le Sylvestre.
+
+Donut central sur le hub.
+
+Phase 5 – Gamification & Discord
+
+Badges, annonces, commandes Discord.
+
+12. Principes généraux
+Ne pas sur-détailler :
+Tu restes au niveau « étape majeure », pas au niveau de chaque quête individuelle.
+
+Toujours garder en tête l’usage guilde :
+La valeur est dans la comparaison, la coordination et la motivation, plus que dans l’exhaustivité.
+
+Data-driven, mais éditable :
+Ton JSON de seed est versionné ; tu peux faire évoluer les Steps/weights à mesure que ta guilde avance et que tu affines la granularité.
+
+Stack alignée avec toi :
+Tailwind pour le UI, Prisma pour l’ORM, API Node/TS, intégration Discord afin que l’expérience soit fluide entre le jeu, le bot et le dashboard.

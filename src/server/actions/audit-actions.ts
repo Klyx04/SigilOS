@@ -44,6 +44,11 @@ export type AuditAction =
     | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
     | "CHAT_MOTD_UPDATE"           // Admin updated the MOTD
     | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
+    | "MEMBER_BANNED"             // Member was banned on Discord
+    | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
+    | "MEMBER_ANKAMA_ID_UPDATE"   // Manual Ankama ID override
+    | "PROFILE_ARCHIVED"          // Profile manually or automatically archived
+    | "PROFILE_REACTIVATED"       // Archived profile restored to active
     | "PLATFORM_ARRIVAL"          // User first registered on platform
     | "PLATFORM_DEPARTURE";       // User left or was deleted from platform
 
@@ -55,6 +60,7 @@ export type AuditTargetType =
     | "ACCESS_ATTEMPT"
     | "CONTENT_SAFETY"
     | "USER_PROFILE"
+    | "PROFILE"
     | "PLATFORM_SECURITY"
     | "USER"
     | "MISSION"

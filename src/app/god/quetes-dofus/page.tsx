@@ -32,6 +32,7 @@ export default async function QuestsDofusGodPage() {
                             npcSubArea: true,
                             coords: true,
                             itemsRequired: true,
+                            dungeonsRequired: true,
                             objectives: true,
                             stepOrder: true,
                             questType: true,

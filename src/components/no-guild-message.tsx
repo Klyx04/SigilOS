@@ -27,7 +27,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
         if (rateLimited) {
             const interval = setInterval(() => {
                 window.location.reload();
-            }, 3000);
+            }, 15000);
             return () => clearInterval(interval);
         }
     }, [rateLimited]);

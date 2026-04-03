@@ -41,7 +41,7 @@ export async function getRelanceCandidates(
     inactiveDays: number = 7
 ): Promise<ActionResponse<any[]>> {
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    if (!user.isAdmin && !user.canManageRelance) return { success: false, error: "Unauthorized" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -161,7 +161,7 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
     if (!guildId) return { success: false, error: "ID de guilde requis" };
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    if (!user.isAdmin && !user.canManageRelance) return { success: false, error: "Unauthorized" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -264,7 +264,7 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
  */
 export async function getRelanceHistory(guildId: string) {
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) throw new Error("Unauthorized");
+    if (!user.isAdmin && !user.canManageRelance && !user.canManageMembers) throw new Error("Unauthorized");
 
     try {
         const history = await (db as any).relance.findMany({

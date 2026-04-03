@@ -1,0 +1,167 @@
+{
+  "dofus": "dorigami",
+  "displayName": "Dorigami",
+  "color": "#FF1493",
+  "successName": null,
+  "recommendedLevel": null,
+  "successDescription": null,
+  "dofusItemId": 7846,
+  "compiledAt": "2026-04-03T08:43:54.927Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le reveil de pandala",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Maudite disparition",
+          "dofusdbId": 2179,
+          "level": 160,
+          "zone": "Caverne du réceptacle",
+          "npcName": "Ronald le sage lenald",
+          "npcSubArea": "Caverne du réceptacle",
+          "coords": {
+            "x": 21,
+            "y": -33,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23569,
+              "name": "Ectoplasme de Tsukinochi",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164762.png"
+            },
+            {
+              "id": 23570,
+              "name": "Ectoplasme de Tambouraï",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164761.png"
+            },
+            {
+              "id": 23571,
+              "name": "Ectoplasme de Onabu-Geisha",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164760.png"
+            },
+            {
+              "id": 23572,
+              "name": "Ectoplasme de Jiangshi-Nobi",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164759.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 132,
+              "name": "Tombe du Shogun Tofugawa",
+              "level": null,
+              "bossName": "Shogun Tofugawa",
+              "img": "https://api.dofusdb.fr/img/monsters/2095.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Parler à Imagiro devant la Statue du Réceptacle",
+            "Aller voir Ronald le sage lenald",
+            "Entrer dans la crypte secrète grâce à la magie des Spiritueurs",
+            "Découvrir la carte : Découvrir l'intérieur de la Crypte secrète.",
+            "Vaincre les fantômes qui veillent sur la crypte",
+            "Aller voir Fantôme vaillant de guerrier lenald",
+            "Chercher des indices à propos de la disparition du Dofus dans la crypte secrète",
+            "Faire examiner les indices par un Spiritueur",
+            "Ramener à Danaba Retzu : x1 Ectoplasme de Tsukinochi",
+            "Ramener à Danaba Retzu : x1 Ectoplasme de Tambouraï",
+            "Ramener à Danaba Retzu : x1 Ectoplasme de Onabu-Geisha",
+            "Ramener à Danaba Retzu : x1 Ectoplasme de Jiangshi-Nobi",
+            "Découvrir la carte : première salle de la Tombe du Shogun Tofugawa",
+            "Vaincre x1 {monster,6388} en un seul combat",
+            "Aller voir Shogun Tofugawa",
+            "Découvrir la carte : Endroit où se réunissent les Yokai",
+            "Survivre à l'assaut des hordes de spectres Pandissidans",
+            "Aller voir Spectre Pandissidore",
+            "Aller voir Shogun Tofugawa"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 2,
+    "totalItems": 4,
+    "totalDungeons": 1,
+    "items": [
+      {
+        "id": 23569,
+        "name": "Ectoplasme de Tsukinochi",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164762.png"
+      },
+      {
+        "id": 23570,
+        "name": "Ectoplasme de Tambouraï",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164761.png"
+      },
+      {
+        "id": 23571,
+        "name": "Ectoplasme de Onabu-Geisha",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164760.png"
+      },
+      {
+        "id": 23572,
+        "name": "Ectoplasme de Jiangshi-Nobi",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164759.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 132,
+        "name": "Tombe du Shogun Tofugawa",
+        "level": null,
+        "bossName": "Shogun Tofugawa",
+        "img": "https://api.dofusdb.fr/img/monsters/2095.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

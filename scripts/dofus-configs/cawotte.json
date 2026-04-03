@@ -1,7 +1,51 @@
 {
   "slug": "cawotte",
   "displayName": "Dofus Cawotte",
-  "color": "#FF6347",
-  "dofusItemId": 7836,
-  "successes": []
+  "color": "#eab308",
+  "dofusItemId": 3087,
+  "successName": "Rusé comme une Lenalde",
+  "recommendedLevel": 60,
+  "successDescription": "Obtenir le Dofus Cawotte en aidant les gardiens de l'île des Wabbits.",
+  "successes": [
+    {
+      "name": "Mais où sont les Dofus ?",
+      "zone": "Astrub",
+      "description": "Prérequis d'accès aux quêtes Wabbit",
+      "isPrerequisite": true,
+      "quests": [
+        "Un sage parmi les sages"
+      ]
+    },
+    {
+      "name": "Rusé comme une Lenalde",
+      "zone": "Île des Wabbits",
+      "description": "Succès principal d'exploration de l'île.",
+      "isPrerequisite": false,
+      "quests": [
+        "Sauvegarder l'espèce",
+        "Faites l'amour, pas la guerre",
+        "Ça sent la cawotte",
+        "Il y a un os, de Wabbit",
+        "Art gastronomique",
+        "Expédition culinaire",
+        "Voyage au centre du Wabbit",
+        "Des pwinces pas très charmants"
+      ]
+    },
+    {
+      "name": "Un Wa de pacotille",
+      "zone": "Île des Wabbits",
+      "description": "Succès final requérant d'affronter le Wa Wabbit dans ses deux donjons.",
+      "isPrerequisite": false,
+      "dungeons": [
+        { "name": "Château du Wa Wabbit", "idoleName": null },
+        { "name": "Terrier du Wa Wabbit", "idoleName": null }
+      ],
+      "quests": [
+        "Jamais deux sans trois",
+        "Le château du Wa",
+        "L'œuf ou la cawotte ?"
+      ]
+    }
+  ]
 }

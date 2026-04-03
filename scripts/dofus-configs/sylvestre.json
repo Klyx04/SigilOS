@@ -3,5 +3,90 @@
   "displayName": "Dofus Sylvestre",
   "color": "#228B22",
   "dofusItemId": 7834,
-  "successes": []
+  "successName": "L'arbre qui cache la forêt",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série des quêtes du Dofus Sylvestre.",
+  "successes": [
+    {
+      "name": "En attendant le printemps (Prérequis)",
+      "zone": "Le Monde des Douze",
+      "description": "Les premiers prérequis monumentaux pour accéder à la floraison.",
+      "isPrerequisite": true,
+      "quests": [
+        "Le secret des Dofus - Prologue",
+        "Obtenir le Dom de Pin"
+      ]
+    },
+    {
+      "name": "L'arbre qui cache la forêt",
+      "zone": "Silvosse / Forêt",
+      "description": "Série unique et officielle des quêtes pour acquérir le Dofus Sylvestre (2.70+).",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "globalDungeonsRequired": [
+        "Antre de la Reine Nyée",
+        "Domaine Ancestral",
+        "Clairière du Chêne Mou",
+        "Antre du Korriandre",
+        "Palais du Roi Nidas",
+        "Bataille de l'Aurore Pourpre",
+        "Tour de Solar",
+        "Chambre des maléfices"
+      ],
+      "globalItemsRequired": [
+        { "name": "Pépite", "amount": 500, "img": "https://api.dofusdb.fr/img/items/14635.png", "id": 14635 },
+        { "name": "Ailes de Moskito", "amount": 31, "img": "https://api.dofusdb.fr/img/items/353.png", "id": 353 },
+        { "name": "Métronome du Début-Temps", "amount": 24, "img": "https://api.dofusdb.fr/img/items/18567.png", "id": 18567 },
+        { "name": "Eau calme", "amount": 20, "img": "https://api.dofusdb.fr/img/items/11105.png", "id": 11105 },
+        { "name": "Poudre de Perlinpainpain", "amount": 12, "id": 372 },
+        { "name": "Capsule Explosive", "amount": 12, "id": 12151 },
+        { "name": "Poudre d'Artifice", "amount": 12, "id": 16900 },
+        { "name": "Goulouboule rouge", "amount": 12, "id": 20491 },
+        { "name": "Glande d'Arak-haï", "amount": 6, "id": 16428 },
+        { "name": "Citron", "amount": 6, "id": 359 },
+        { "name": "Fil de Néfileuse", "amount": 6, "id": 14061 },
+        { "name": "Résine", "amount": 6, "id": 883 },
+        { "name": "Kouartz", "amount": 6, "id": 7033 },
+        { "name": "Volve de Fistulor", "amount": 4, "id": 11116 },
+        { "name": "Lamelle de Dramanite", "amount": 4, "id": 11117 },
+        { "name": "Lamelle de Mérulette", "amount": 4, "id": 11118 },
+        { "name": "Volve de Fongeur", "amount": 4, "id": 11119 },
+        { "name": "Écorce d'Abrazif", "amount": 4, "id": 11120 },
+        { "name": "Tourmaline", "amount": 4, "id": 14636 },
+        { "name": "Œil de Cycloïde", "amount": 4, "id": 15263 },
+        { "name": "Huile de Koode", "amount": 3, "id": 1795 },
+        { "name": "Queue de Mantaze", "amount": 2, "id": 17875 },
+        { "name": "Fragment d'anomalie", "amount": 2, "id": 19445 },
+        { "name": "Ardonite", "amount": 2, "id": 13410 },
+        { "name": "Galet Solaire", "amount": 2, "id": 20389 },
+        { "name": "Jus de cawotte fwelaté ou 100 000 kamas", "amount": 1 },
+        { "name": "Élixir des Trépasseurs", "amount": 1, "id": 21104 },
+        { "name": "Galet Lunaire", "amount": 1, "id": 20387 },
+        { "name": "Substrat de Forêt vierge", "amount": 1, "id": 17351 },
+        { "name": "Clef de la Clairière du Chêne Mou", "amount": 1, "id": 10648 },
+        { "name": "Dague de Will Killson ou 20 Kama de glace", "amount": 1 },
+        { "name": "Essence de Torkélonia", "amount": 1 },
+        { "name": "Essence de Tal Kasha", "amount": 1 }
+      ],
+      "quests": [
+        "C'est tout Simple",
+        "Arak-haï en pagaille",
+        "Munster lève le mystère",
+        "L'art de la langue de bois",
+        "Les derniers d'entre nous",
+        "Cultures et turpitudes",
+        "Qui nous protège du Protecteur ?"
+      ]
+    },
+    {
+      "name": "L'éclosion du Dofus",
+      "zone": "Refuge Sylvestre",
+      "description": "La conclusion finale de la quête forestière.",
+      "isPrerequisite": false,
+      "quests": [
+        "Flovoraison",
+        "Parler à Silvosse"
+      ]
+    }
+  ]
 }

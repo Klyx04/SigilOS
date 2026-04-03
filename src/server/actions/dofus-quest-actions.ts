@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -298,6 +299,7 @@ export async function getDofusDetailWithChains(
                     requirements: entry.requirements,
                     coords: entry.coords,
                     itemsRequired: entry.itemsRequired,
+                    dungeonsRequired: entry.dungeonsRequired, // V3
                     objectives: entry.objectives,
                     isDungeon: entry.isDungeon,
                     bossName: entry.bossName,
@@ -305,6 +307,7 @@ export async function getDofusDetailWithChains(
                     posX: entry.posX,
                     posY: entry.posY,
                     dofusdbId: entry.dofusdbId,
+                    level: entry.level, // V3
                     isSynergyCandidate: entry.isSynergyCandidate,
                     weight: entry.weight ?? 1, // V3
                     externalRef: entry.externalRef ?? null, // V3
@@ -846,27 +849,75 @@ export async function seedDofusData(guildId: string): Promise<{
     error?: string;
     message?: string;
 }> {
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isSuperAdmin && !ctx.isAdmin) return { success: false, error: "Admin uniquement" };
+    // Accept super-admins (called from /god with no guildId) OR guild admins
+    const superAdmin = await isSuperAdmin();
+    if (!superAdmin) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAdmin) return { success: false, error: "Admin uniquement" };
+    }
 
     try {
-        // Dynamic import of JSON data — items list (master catalog)
-        const itemsData = await import("../../../prisma/seed-data/dofus-quests/dofus-items.json");
-        const items: any[] = (itemsData as any).default;
+        // Load items list from disk (bypassing Node cache)
+        const fs = require("fs");
+        const pathModule = require("path");
+        const itemsPath = pathModule.resolve(process.cwd(), "prisma/seed-data/dofus-quests/dofus-items.json");
+        const itemsDataRaw = fs.readFileSync(itemsPath, "utf-8");
+        const items: any[] = JSON.parse(itemsDataRaw);
 
-        // List of compiled chain JSONs to load (ordered by priority)
+        // Delete any ghost Dofus that are no longer in our JSON (cleaning duplicates from old slugs)
+        const validSlugs = items.map((i: any) => i.slug);
+        const ghosts = await (db as any).dofusItem.findMany({ where: { slug: { notIn: validSlugs } } });
+        for (const ghost of ghosts) {
+            console.log(`[seedDofusData] Deleting ghost item: ${ghost.slug}`);
+            
+            // Delete player progresses
+            await (db as any).playerDofusProgress.deleteMany({ where: { dofusId: ghost.id } });
+            
+            // Delete chains
+            const chains = await (db as any).dofusQuestChain.findMany({ where: { dofusId: ghost.id } });
+            for (const chain of chains) {
+                await (db as any).dofusQuestEntry.deleteMany({ where: { chainId: chain.id } });
+            }
+            await (db as any).dofusQuestChain.deleteMany({ where: { dofusId: ghost.id } });
+            
+            // Delete requirements involving this ghost
+            await (db as any).dofusRequirement.deleteMany({
+                where: { OR: [ { fromDofusId: ghost.id }, { toDofusId: ghost.id } ] }
+            });
+
+            await (db as any).dofusItem.delete({ where: { id: ghost.id } });
+        }
+
+        // List of compiled chain JSON paths to load (bypassing Node cache)
         const chainFiles = [
-            { slug: "emeraude", file: () => import("../../../prisma/seed-data/dofus-quests/emeraude-compiled.json") },
-            { slug: "turquoise", file: () => import("../../../prisma/seed-data/dofus-quests/turquoise-compiled.json") },
-            { slug: "ivoire", file: () => import("../../../prisma/seed-data/dofus-quests/ivoire-compiled.json") },
-            { slug: "ebene", file: () => import("../../../prisma/seed-data/dofus-quests/ebene-compiled.json") },
-            { slug: "ocre", file: () => import("../../../prisma/seed-data/dofus-quests/ocre-compiled.json") },
-            { slug: "vulbis", file: () => import("../../../prisma/seed-data/dofus-quests/vulbis-compiled.json") },
-            { slug: "pourpre", file: () => import("../../../prisma/seed-data/dofus-quests/pourpre-compiled.json") },
-            { slug: "tacheté", file: () => import("../../../prisma/seed-data/dofus-quests/tachete-compiled.json") },
-            { slug: "argenté", file: () => import("../../../prisma/seed-data/dofus-quests/argent-compiled.json") },
-            { slug: "dom-de-pin", file: () => import("../../../prisma/seed-data/dofus-quests/dom-de-pin-compiled.json") },
-            { slug: "sylvestre", file: () => import("../../../prisma/seed-data/dofus-quests/sylvestre-compiled.json") },
+            // Primordiaux
+            { slug: "emeraude", path: "prisma/seed-data/dofus-quests/emeraude-compiled.json" },
+            { slug: "turquoise", path: "prisma/seed-data/dofus-quests/turquoise-compiled.json" },
+            { slug: "ivoire", path: "prisma/seed-data/dofus-quests/ivoire-compiled.json" },
+            { slug: "ebene", path: "prisma/seed-data/dofus-quests/ebene-compiled.json" },
+            { slug: "ocre", path: "prisma/seed-data/dofus-quests/ocre-compiled.json" },
+            { slug: "pourpre", path: "prisma/seed-data/dofus-quests/pourpre-compiled.json" },
+            // Majeurs
+            { slug: "vulbis", path: "prisma/seed-data/dofus-quests/vulbis-compiled.json" },
+            { slug: "tachete", path: "prisma/seed-data/dofus-quests/tachete-compiled.json" },
+            { slug: "argente", path: "prisma/seed-data/dofus-quests/argente-compiled.json" },
+            { slug: "dom-de-pin", path: "prisma/seed-data/dofus-quests/dom-de-pin-compiled.json" },
+            { slug: "des-glaces", path: "prisma/seed-data/dofus-quests/des-glaces-compiled.json" },
+            { slug: "domakuro", path: "prisma/seed-data/dofus-quests/domakuro-compiled.json" },
+            { slug: "dorigami", path: "prisma/seed-data/dofus-quests/dorigami-compiled.json" },
+            { slug: "du-cauchemar", path: "prisma/seed-data/dofus-quests/du-cauchemar-compiled.json" },
+            { slug: "abyssal", path: "prisma/seed-data/dofus-quests/abyssal-compiled.json" },
+            { slug: "nebuleux", path: "prisma/seed-data/dofus-quests/nebuleux-compiled.json" },
+            { slug: "forgelave", path: "prisma/seed-data/dofus-quests/forgelave-compiled.json" },
+            { slug: "cacao", path: "prisma/seed-data/dofus-quests/cacao-compiled.json" },
+            { slug: "dokoko", path: "prisma/seed-data/dofus-quests/dokoko-compiled.json" },
+            { slug: "veilleur", path: "prisma/seed-data/dofus-quests/veilleur-compiled.json" },
+            { slug: "argente-scintillant", path: "prisma/seed-data/dofus-quests/argente-scintillant-compiled.json" },
+            // Meta / Spéciaux
+            { slug: "sylvestre", path: "prisma/seed-data/dofus-quests/sylvestre-compiled.json" },
+            // Mineurs (configs minimales)
+            { slug: "cawotte", path: "prisma/seed-data/dofus-quests/cawotte-compiled.json" },
+            { slug: "dolmanax", path: "prisma/seed-data/dofus-quests/dolmanax-compiled.json" },
         ];
 
         let itemCount = 0;
@@ -919,16 +970,17 @@ export async function seedDofusData(guildId: string): Promise<{
         }
 
         // Seed chains from per-Dofus compiled JSONs
-        for (const { slug, file } of chainFiles) {
+        for (const { slug, path: filePath } of chainFiles) {
             const dofusId = createdItems[slug];
             if (!dofusId) continue;
 
             let chainData: any;
             try {
-                const module = await file();
-                chainData = (module as any).default;
-            } catch {
-                // JSON file not found — skip silently
+                const resolvedPath = pathModule.resolve(process.cwd(), filePath);
+                const fileContent = fs.readFileSync(resolvedPath, "utf-8");
+                chainData = JSON.parse(fileContent);
+            } catch (err) {
+                console.error(`[seedDofusData] Could not load ${filePath}:`, err);
                 continue;
             }
 
@@ -964,7 +1016,11 @@ export async function seedDofusData(guildId: string): Promise<{
                             npcSubArea: entry.npcSubArea ?? null,
                             requirements: entry.requirements ?? null,
                             itemsRequired: entry.itemsRequired ?? null,
+                            dungeonsRequired: entry.dungeonsRequired ?? null, // V3
                             objectives: entry.objectives ?? null,
+                            coords: entry.coords ?? null,                      // V3
+                            level: entry.level ?? null,                        // V3
+                            isSynergyCandidate: entry.isSynergyCandidate ?? false,
                             weight: entry.weight ?? 1,           // V3
                             externalRef: entry.externalRef ?? null, // V3
                         },
@@ -974,9 +1030,12 @@ export async function seedDofusData(guildId: string): Promise<{
             }
         }
 
+        const { revalidatePath } = require("next/cache");
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`, "layout");
+
         return {
             success: true,
-            message: `✅ Seed terminé : ${itemCount} Dofus, ${chainCount} sections, ${entryCount} entrées`,
+            message: `✅ Seed terminé : ${itemCount} Dofus, ${chainCount} sections, ${entryCount} entrées (Cache vidéo Next.js purgé)`,
         };
     } catch (error) {
         console.error("[dofus-quest-actions] seedDofusData error:", error);

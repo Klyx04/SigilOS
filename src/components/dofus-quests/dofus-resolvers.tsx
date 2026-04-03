@@ -303,19 +303,24 @@ export function detectRealDungeons(objectives: any[]): {
             }
         }
         
-        // 2. Check for explicit dungeon keywords
+        // 2. Check for explicit dungeon keywords or injected 'Vaincre : ' patterns
         if (
-            lower.includes("donjon") && (
+            (lower.includes("donjon") && (
                 lower.includes("pénétrer") || 
                 lower.includes("entrer") || 
                 lower.includes("accéder") ||
                 lower.includes("vaincre") || 
                 lower.includes("terminer")
-            )
+            )) || text.startsWith("Vaincre : ")
         ) {
-            // Extract donjon name if it follows the pattern "Vaincre : Donjon de XXX"
+            // Extract donjon name if it follows the pattern "Vaincre : Donjon de XXX" or just "Vaincre : XXX"
+            let dName = "Donjon inconnu";
             const nameMatch = text.match(/Donjon (?:de |des |du )?([^,.{}]+)/i);
-            const dName = nameMatch?.[1]?.trim() || "Donjon inconnu";
+            if (nameMatch) {
+                dName = nameMatch[1].trim();
+            } else if (text.startsWith("Vaincre : ")) {
+                dName = text.replace("Vaincre : ", "").trim();
+            }
             
             // Try to find by name in known bosses if ID was missing
             const knownByName = Object.values(KNOWN_DUNGEON_BOSSES).find(kb => kb.name.toLowerCase() === dName.toLowerCase());
@@ -349,7 +354,6 @@ export function detectRealDungeons(objectives: any[]): {
 export async function filterQuestItemsFromResources<T extends { id: string | number }>(items: T[]): Promise<T[]> {
     if (!items.length) return items;
     try {
-        // Chunk requests to avoid too long URLs (max ~100 per chunk but here we just take unique)
         const uniqueIds = Array.from(new Set(items.map(i => String(i.id))));
         const chunks = [];
         for (let i = 0; i < uniqueIds.length; i += 50) chunks.push(uniqueIds.slice(i, i + 50));
@@ -357,27 +361,43 @@ export async function filterQuestItemsFromResources<T extends { id: string | num
         const finalIdsToKeep = new Set<string>();
         
         for (const chunk of chunks) {
-            const idsStr = chunk.join(',');
-            const res = await fetch(`https://api.dofusdb.fr/items?id[$in]=${idsStr}&$select=id,typeId`);
+            // Build proper DofusDB array query params
+            const params = new URLSearchParams({ "$select": "id,typeId", "$limit": "50" });
+            chunk.forEach(id => params.append("id[$in][]", id));
+            const res = await fetch(`https://api.dofusdb.fr/items?${params}`);
             const data = await res.json();
             
-            if (!data?.data) continue;
+            // Normalize: DofusDB can return {data: [...]}, [...], or a single object
+            const dataArr: any[] = Array.isArray(data?.data) ? data.data
+                : Array.isArray(data) ? data
+                : data?.data ? [data.data]
+                : [];
+            if (!dataArr.length) continue;
             
-            const typeIdsArray = Array.from(new Set(data.data.map((d: any) => d.typeId)));
-            if (!typeIdsArray.length) continue;
+            const typeIdsArray = Array.from(new Set(dataArr.map((d: any) => d.typeId).filter(Boolean)));
+            if (!typeIdsArray.length) {
+                // No type info — keep all items from this chunk
+                for (const item of dataArr) finalIdsToKeep.add(String(item.id));
+                continue;
+            }
             
-            const typeIdsStr = typeIdsArray.join(',');
-            const typeRes = await fetch(`https://api.dofusdb.fr/item-types?id[$in]=${typeIdsStr}&$select=id,superTypeId`);
+            const typeParams = new URLSearchParams({ "$select": "id,superTypeId", "$limit": "50" });
+            typeIdsArray.forEach(id => typeParams.append("id[$in][]", String(id)));
+            const typeRes = await fetch(`https://api.dofusdb.fr/item-types?${typeParams}`);
             const typeData = await typeRes.json();
             
-            if (!typeData?.data) continue;
+            // Normalize type response too
+            const typeArr: any[] = Array.isArray(typeData?.data) ? typeData.data
+                : Array.isArray(typeData) ? typeData
+                : typeData?.data ? [typeData.data]
+                : [];
             
             // superTypeId 14 is "Objet de Quête"
             const questItemTypeIds = new Set(
-                typeData.data.filter((t: any) => t.superTypeId === 14).map((t: any) => t.id)
+                typeArr.filter((t: any) => t.superTypeId === 14).map((t: any) => t.id)
             );
             
-            for (const item of data.data) {
+            for (const item of dataArr) {
                 // Keep ONLY items that are NOT quest items
                 if (!questItemTypeIds.has(item.typeId)) {
                     finalIdsToKeep.add(String(item.id));

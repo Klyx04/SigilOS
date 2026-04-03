@@ -12,7 +12,10 @@ import {
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
 import { DofusProgressRing } from "@/components/dofus-quests/DofusProgressRing";
 import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
+import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
+import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
 import { notFound } from "next/navigation";
+import { linkOcreAccount } from "@/server/actions/ocre-actions";
 
 type Props = {
     params: Promise<{ guildId: string; dofusSlug: string }>;
@@ -82,7 +85,17 @@ export default async function DofusDetailPage({ params }: Props) {
                         isObtained={dofus.isObtained}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        {dofus.name ? (
+                        {(dofus as any).imageUrl ? (
+                            <div className="relative w-16 h-16">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={(dofus as any).imageUrl}
+                                    alt={dofus.nameShort || dofus.name}
+                                    className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                                    style={{ filter: dofus.isObtained ? `drop-shadow(0 0 16px ${color})` : undefined }}
+                                />
+                            </div>
+                        ) : dofus.name ? (
                             <DofusIcon
                                 name={dofus.nameShort || "Argenté"}
                                 size={64}
@@ -174,6 +187,48 @@ export default async function DofusDetailPage({ params }: Props) {
                     )}
                 </div>
             </div>
+
+
+            {/* ── Special slug renderers ── */}
+            {dofusSlug === "ocre" && (
+                <div
+                    className="rounded-3xl p-6 border"
+                    style={{
+                        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 100%)`,
+                        border: `1px solid ${color}25`,
+                    }}
+                >
+                    <div className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                        <span style={{ color }}>⬡</span> Progression Metamob
+                    </div>
+                    <DofusOcreMetamob
+                        guildId={guildId}
+                        metamobUsername={user.metamobPseudo || null}
+                        onLinkMetamob={async (pseudo) => {
+                            "use server";
+                            return linkOcreAccount({ guildId, pseudo });
+                        }}
+                    />
+                </div>
+            )}
+
+            {dofusSlug === "dolmanax" && (
+                <div
+                    className="rounded-3xl p-6 border"
+                    style={{
+                        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 100%)`,
+                        border: `1px solid ${color}25`,
+                    }}
+                >
+                    <div className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                        <span style={{ color }}>📖</span> Progression Almanax
+                    </div>
+                    <DofusDolmanaxTracker
+                        guildId={guildId}
+                        initialPages={0}
+                    />
+                </div>
+            )}
 
             <DofusQuestManagerV3
                 guildId={guildId}

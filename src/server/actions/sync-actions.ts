@@ -15,6 +15,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
+import { createAuditLog } from "./audit-actions";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -154,6 +155,17 @@ export async function syncMembershipStatus(
                         archiveReason: "LEFT"
                     }
                 });
+                
+                // 📝 Audit Log Archival (Sync)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: ctx.id || "SYSTEM",
+                    actorName: ctx.name || "Admin Sync",
+                    action: "PROFILE_ARCHIVED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "LEFT_GUILD" }
+                });
                 result.archived++;
             }
             else if (
@@ -173,6 +185,17 @@ export async function syncMembershipStatus(
                         archiveReason: null,
                         scheduledDeletion: null
                     }
+                });
+
+                // 📝 Audit Log Reactivation (Sync)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: ctx.id || "SYSTEM",
+                    actorName: ctx.name || "Admin Sync",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId }
                 });
                 result.reactivated++;
             }
@@ -278,6 +301,17 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                         archiveReason: "LEFT"
                     }
                 });
+
+                // 📝 Audit Log (Internal/Cron)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Internal Sync Bot",
+                    action: "PROFILE_ARCHIVED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "LEFT_GUILD" }
+                });
                 result.archived++;
             } else if (
                 profile.status === "ARCHIVED" &&
@@ -293,6 +327,17 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                         archiveReason: null,
                         scheduledDeletion: null
                     }
+                });
+
+                // 📝 Audit Log (Internal/Cron)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Internal Sync Bot",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId }
                 });
                 result.reactivated++;
             }

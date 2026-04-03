@@ -112,7 +112,7 @@ export async function giveHelpCredit(formData: z.infer<typeof GiveHelpCreditSche
             actorUserId: fromUserId,
             actorName: ctx.name || "Inconnu",
             action: "HELP_CREDIT_GIVEN",
-            targetType: "USER_PROFILE",
+            targetType: "PROFILE",
             targetId: toUserId,
             newValue: { toUserId, points: pointsPerCredit, missionId, message }
         });

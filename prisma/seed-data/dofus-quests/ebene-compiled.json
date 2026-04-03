@@ -6,7 +6,8 @@
   "recommendedLevel": 200,
   "successDescription": "Terminer la série des quêtes du Dofus Ébène.",
   "dofusItemId": 7823,
-  "compiledAt": "2026-03-30T13:42:02.592Z",
+  "compiledAt": "2026-04-03T08:44:14.992Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -16,13 +17,14 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "L'anneau de tous les dangers",
           "dofusdbId": 1629,
           "level": 2,
           "zone": "Salle des métiers",
-          "npcName": null,
+          "npcName": "Maître Hoboulo",
           "npcSubArea": "Salle des métiers",
           "coords": {
             "x": -3,
@@ -34,44 +36,52 @@
             {
               "id": 289,
               "name": "Blé",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/34009.png"
             },
             {
               "id": 303,
               "name": "Bois de Frêne",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/38017.png"
             },
             {
               "id": 312,
               "name": "Fer",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/39024.png"
             },
             {
               "id": 421,
               "name": "Ortie",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/36642.png"
             },
             {
               "id": 1782,
               "name": "Goujon",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 19622,
+              "name": "Anneau de l'Audacieux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/9332.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
             "Entrer dans la salle des métiers",
-            "Aller voir {npc,2895}",
+            "Aller voir Maître Hoboulo",
             "Récolter du blé",
             "Cueillir de l'ortie",
             "Couper du frêne",
             "Extraire du fer",
             "Pêcher un goujon",
-            "Fabriquer 1 {item,19622} et fermer l'interface",
-            "Retourner voir {npc,7581}"
+            "Fabriquer 1 Anneau de l'Audacieux et fermer l'interface",
+            "Aller voir Maître Hoboulo",
+            "Retourner voir Ganymède"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
@@ -82,7 +92,7 @@
           "dofusdbId": 1630,
           "level": 2,
           "zone": "Salle de combat",
-          "npcName": null,
+          "npcName": "Maître Darm",
           "npcSubArea": "Salle de combat",
           "coords": {
             "x": -3,
@@ -91,13 +101,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Entrer dans la salle de combat",
-            "Aller voir {npc,2896}",
+            "Aller voir Maître Darm",
             "Vaincre x2 {monster,4111} en un seul combat",
             "Vaincre x1 {monster,4104} en un seul combat",
-            "Retourner voir {npc,2896}",
-            "Retourner voir {npc,7581}"
+            "Retourner voir Maître Darm",
+            "Retourner voir Ganymède"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": false,
@@ -113,10 +124,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 2,
           "requirements": [
@@ -131,7 +144,7 @@
           "dofusdbId": 1632,
           "level": 3,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Ternette Nhin",
           "npcSubArea": null,
           "coords": {
             "x": -1,
@@ -140,14 +153,15 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,2905}",
-            "Aller voir {npc,2899}",
-            "Aller voir {npc,2885}",
-            "Aller voir {npc,2880}",
-            "Aller voir {npc,2910}",
-            "Retourner voir {npc,2905}",
-            "Aller voir {npc,1515}"
+            "Aller voir Ternette Nhin",
+            "Aller voir Berb Nhin",
+            "Aller voir Grobid",
+            "Aller voir Capitaine des Kerubims",
+            "Aller voir Hollie Brok",
+            "Retourner voir Ternette Nhin",
+            "Aller voir Fécaline la Sage"
           ],
           "stepOrder": 3,
           "isSynergyCandidate": false,
@@ -163,7 +177,7 @@
           "dofusdbId": 1634,
           "level": 5,
           "zone": "Incarnam - Rocher du Phénix",
-          "npcName": null,
+          "npcName": "Fécaline la Sage",
           "npcSubArea": "Incarnam - Rocher du Phénix",
           "coords": {
             "x": 2,
@@ -172,12 +186,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Lire le livre contant la légende de Rykke Errel",
-            "Retourner voir {npc,1515}",
+            "Retourner voir Fécaline la Sage",
             "Parler à un vieux de la vieille",
             "Parler à une féline pantouflarde",
-            "Parler à un voleur malchanceux"
+            "Parler à un voleur malchanceux",
+            "Retourner voir Fécaline la Sage"
           ],
           "stepOrder": 4,
           "isSynergyCandidate": false,
@@ -193,10 +209,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 5,
           "requirements": [
@@ -211,7 +229,7 @@
           "dofusdbId": 2004,
           "level": 10,
           "zone": "Incarnam - Aire de l'envol",
-          "npcName": null,
+          "npcName": "Maître Anemo",
           "npcSubArea": "Incarnam - Aire de l'envol",
           "coords": {
             "x": 4,
@@ -220,10 +238,11 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,4360}",
+            "Aller voir Maître Anemo",
             "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
-            "Aller voir {npc,4355}"
+            "Aller voir Envoyée des Douze"
           ],
           "stepOrder": 6,
           "isSynergyCandidate": false,
@@ -239,10 +258,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 7,
           "requirements": [
@@ -257,7 +278,7 @@
           "dofusdbId": 1959,
           "level": 15,
           "zone": "Taverne d'Astrub",
-          "npcName": null,
+          "npcName": "Nowa",
           "npcSubArea": "Taverne d'Astrub",
           "coords": {
             "x": 6,
@@ -266,13 +287,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Entrer dans la taverne d'Astrub",
             "Parler avec les occupants de la taverne pour attirer l'attention d'un trafiquant",
-            "Aller voir {npc,4379}",
+            "Aller voir Nowa",
             "Vaincre x1 {monster,5240} en un seul combat",
             "Escorter Nowa et le livrer au chef Badufron",
-            "Aller voir {npc,1502}"
+            "Aller voir Conseillère Archie"
           ],
           "stepOrder": 8,
           "isSynergyCandidate": false,
@@ -288,7 +310,7 @@
           "dofusdbId": 2009,
           "level": 20,
           "zone": "Taverne d'Astrub",
-          "npcName": null,
+          "npcName": "Allisteria",
           "npcSubArea": "Taverne d'Astrub",
           "coords": {
             "x": 4,
@@ -297,26 +319,27 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,4338}",
-            "Aller voir {npc,4326}",
-            "Aller voir {npc,4324}",
-            "Aller voir {npc,4335}",
-            "Aller voir {npc,4337}",
-            "Aller voir {npc,4328}",
-            "Aller voir {npc,4334}",
-            "Aller voir {npc,4329}",
-            "Aller voir {npc,4333}",
-            "Aller voir {npc,4327}",
-            "Aller voir {npc,4347}",
-            "Aller voir {npc,4319}",
-            "Aller voir {npc,4318}",
-            "Aller voir {npc,4317}",
-            "Aller voir {npc,4315}",
-            "Aller voir {npc,4314}",
-            "Aller voir {npc,4313}",
-            "Aller voir {npc,4312}",
-            "Aller voir {npc,6839}"
+            "Aller voir Allisteria",
+            "Aller voir Abrazelon Sixgriffe",
+            "Aller voir Gasdaure",
+            "Aller voir Jim Fleps",
+            "Aller voir Montrakwartz",
+            "Aller voir Meow Moew",
+            "Aller voir Nepra Lido",
+            "Aller voir Rok Elreuss",
+            "Aller voir Setsinbol",
+            "Aller voir Sadadi Sama",
+            "Aller voir Saketsu",
+            "Aller voir Sel Dawa",
+            "Aller voir Bapapa",
+            "Aller voir Hibaba",
+            "Aller voir Alberta Borida",
+            "Aller voir Lester",
+            "Aller voir Hazel Ementaire",
+            "Aller voir Sidèle Laffie",
+            "Aller voir Yvain Dykt"
           ],
           "stepOrder": 9,
           "isSynergyCandidate": false,
@@ -332,10 +355,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 10,
           "requirements": [
@@ -350,7 +375,7 @@
           "dofusdbId": 1960,
           "level": 25,
           "zone": "Tour du Conseil",
-          "npcName": null,
+          "npcName": "Conseillère Archie",
           "npcSubArea": "Tour du Conseil",
           "coords": {
             "x": 4,
@@ -359,13 +384,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,1502}",
+            "Aller voir Conseillère Archie",
             "Rencontrer Fallanster",
-            "Aller voir {npc,4356}",
+            "Aller voir Paule Amploa",
             "Se rendre dans les égouts pour rencontrer les Rats Strubiens",
             "Vaincre x3 {monster,5248} en un seul combat",
-            "Aller voir {npc,4414}",
+            "Aller voir Ramane Hitoo",
             "Explorer la mine de la carrière afin de trouver ce que cachent les Sidoas",
             "Créer une diversion dans une galerie proche des Gardoas",
             "Espionner les Gardoas en se cachant afin de pouvoir écouter leur conversation",
@@ -375,9 +401,9 @@
             "Affronter les Gardoas vétérans",
             "Escorter Rathrosk jusqu'à la salle du Conseil",
             "Présenter Rathrosk à Fallanster",
-            "Aller voir {npc,4325}",
-            "Aller voir {npc,4310}",
-            "Aller voir {npc,4420}"
+            "Aller voir Fallanster",
+            "Aller voir Aisling",
+            "Aller voir Recrue Mercenaire"
           ],
           "stepOrder": 11,
           "isSynergyCandidate": false,
@@ -393,7 +419,7 @@
           "dofusdbId": 1962,
           "level": 30,
           "zone": "Tour de la Milice",
-          "npcName": null,
+          "npcName": "Recrue Mercenaire",
           "npcSubArea": "Tour de la Milice",
           "coords": {
             "x": -1,
@@ -402,12 +428,13 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Aller au rendez-vous fixé par Badufron",
-            "Aller voir {npc,4421}",
+            "Aller voir Recrue Mercenaire",
             "Vaincre les Pandawas dans la forêt d'Astrub",
-            "Aller voir {npc,4323}",
-            "Aller voir {npc,4325}"
+            "Aller voir Badufron",
+            "Aller voir Fallanster"
           ],
           "stepOrder": 12,
           "isSynergyCandidate": false,
@@ -423,7 +450,7 @@
           "dofusdbId": 2149,
           "level": 30,
           "zone": "Taverne du Pandazaap",
-          "npcName": null,
+          "npcName": "Moktwa",
           "npcSubArea": "Taverne du Pandazaap",
           "coords": {
             "x": 12,
@@ -435,34 +462,41 @@
             {
               "id": 421,
               "name": "Ortie",
-              "amount": 50,
+              "amount": 100,
               "img": "https://api.dofusdb.fr/img/items/36642.png"
             },
             {
               "id": 885,
               "name": "Laine de Boufton Noir",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/57210.png"
             },
             {
               "id": 23038,
               "name": "Échantillon sanguin de Sel Dawa",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            },
+            {
+              "id": 23039,
+              "name": "Sérum contre la Pandrista",
               "amount": 1,
               "img": "https://api.dofusdb.fr/img/items/24031.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
             "Vaincre x5 {monster,5228}",
             "Vaincre x5 {monster,5229}",
             "Vaincre x5 {monster,5230}",
             "Vaincre x5 {monster,5231}",
-            "Retourner voir {npc,5604}",
+            "Retourner voir Moktwa",
             "Trouver quelqu'un capable de vous prémunir de la Pandrista",
             "Demander conseil à Nibé Lulle pour élaborer un sérum",
-            "Fabriquer 1 {item,23039} et fermer l'interface",
+            "Fabriquer 1 Sérum contre la Pandrista et fermer l'interface",
             "Se faire administrer le sérum en retournant voir Nepra Lido",
             "Traverser le pont de Pandala",
-            "Aller voir {npc,5605}",
+            "Aller voir Garde Chopynju",
             "Boire la bière pour ouvrir votre conscience aux esprits alentours",
             "Parler à l'esprit présent dans la pièce",
             "Sortir de la chambre"
@@ -481,10 +515,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 14,
           "requirements": [
@@ -499,7 +535,7 @@
           "dofusdbId": 827,
           "level": 40,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Assistant d'Otomaï",
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
@@ -507,33 +543,34 @@
             {
               "id": 1455,
               "name": "Ailes de Scarafeuille Bleu",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/104212.png"
             },
             {
               "id": 1456,
               "name": "Ailes de Scarafeuille Blanc",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/104213.png"
             },
             {
               "id": 1458,
               "name": "Ailes de Scarafeuille Vert",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/104215.png"
             },
             {
               "id": 1457,
               "name": "Ailes de Scarafeuille Rouge",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/104214.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à {npc,119} : x1 {item,1455}",
-            "Ramener à {npc,119} : x1 {item,1456}",
-            "Ramener à {npc,119} : x1 {item,1458}",
-            "Ramener à {npc,119} : x1 {item,1457}"
+            "Ramener à Assistant d'Otomaï : x1 Ailes de Scarafeuille Bleu",
+            "Ramener à Assistant d'Otomaï : x1 Ailes de Scarafeuille Blanc",
+            "Ramener à Assistant d'Otomaï : x1 Ailes de Scarafeuille Vert",
+            "Ramener à Assistant d'Otomaï : x1 Ailes de Scarafeuille Rouge"
           ],
           "stepOrder": 15,
           "isSynergyCandidate": false,
@@ -549,7 +586,7 @@
           "dofusdbId": 2193,
           "level": 40,
           "zone": "Maison des Lenalds",
-          "npcName": null,
+          "npcName": "Wanald le Sage Lenald",
           "npcSubArea": "Maison des Lenalds",
           "coords": {
             "x": 22,
@@ -558,6 +595,7 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Entrer dans la maison des Lenalds pour voir Ronald",
             "Prouver que vous êtes folt et lusé comme un Lenald",
@@ -565,10 +603,10 @@
             "Rencontrer la capitaine Lily au port de Madrestam",
             "Se prémunir contre la myxomawose et prendre le bateau pour l'île des Wabbits",
             "Trouver un sage lenald sur l'île de la Cawotte",
-            "Aller voir {npc,640}",
+            "Aller voir Wanald le Sage Lenald",
             "Retrouver le sage disparu dans les souterrains des Wabbits",
             "Vaincre les mangeuws de cawottes",
-            "Aller voir {npc,5569}",
+            "Aller voir Ronald le sage lenald",
             "Escorter Ronald en lieu sûr",
             "Discuter avec Ronald pour en apprendre davantage sur les six Dofus Primordiaux"
           ],
@@ -586,7 +624,7 @@
           "dofusdbId": 2194,
           "level": 40,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Wally Elconom",
           "npcSubArea": null,
           "coords": {
             "x": 4,
@@ -595,16 +633,17 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Parler au maître de votre temple",
             "Parler au maître des Dopeuls de votre temple",
             "Vaincre x1 {monster,505} en un seul combat",
             "Prier devant la statue du temple pour recevoir la bénédiction des Douze",
             "Aller à la bibliothèque d'Amakna",
-            "Aller voir {npc,447}",
+            "Aller voir Wally Elconom",
             "Lire l'ouvrage de Wally Elconom",
             "Se rendre à l'orée enchantée de la forêt Maléfique",
-            "Aller voir {npc,6709}"
+            "Aller voir Lanseuft de Troille"
           ],
           "stepOrder": 17,
           "isSynergyCandidate": false,
@@ -620,10 +659,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 18,
           "requirements": [
@@ -638,7 +679,7 @@
           "dofusdbId": 1462,
           "level": 40,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Mériana",
           "npcSubArea": null,
           "coords": {
             "x": -6,
@@ -647,8 +688,9 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,2205}"
+            "Aller voir Mériana"
           ],
           "stepOrder": 19,
           "isSynergyCandidate": false,
@@ -664,7 +706,7 @@
           "dofusdbId": 1988,
           "level": 25,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Oz Dralett",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 7,
@@ -672,12 +714,20 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,4341}",
-            "Aller voir {npc,730}",
+            "Aller voir Oz Dralett",
+            "Aller voir Nacf Virgil",
             "Récupérer le manuscrit avant qu'il ne soit détruit",
-            "Montrer à {npc,4310} : 1 {item,19681}"
+            "Montrer à Aisling : 1 Livre calciné"
           ],
           "stepOrder": 20,
           "isSynergyCandidate": false,
@@ -693,7 +743,7 @@
           "dofusdbId": 1989,
           "level": 30,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Mage Ax",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 3,
@@ -701,14 +751,28 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            },
+            {
+              "id": 19686,
+              "name": "Écorce enchantée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25142.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Montrer à {npc,726} : 1 {item,19681}",
+            "Montrer à Mage Ax : 1 Livre calciné",
             "Récupérer un morceau d'écorce centenaire",
             "Récupérer du lailait de boufette",
             "Rapporter le lailait et l'écorce au Mage Ax",
-            "Ramener à {npc,1574} : x1 {item,19686}",
-            "Aller voir {npc,4310}"
+            "Ramener à Prim : x1 Écorce enchantée",
+            "Aller voir Aisling"
           ],
           "stepOrder": 21,
           "isSynergyCandidate": false,
@@ -724,7 +788,7 @@
           "dofusdbId": 1990,
           "level": 35,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Ramane Hitoo",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 6,
@@ -732,12 +796,20 @@
             "worldId": 3
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19690,
+              "name": "Étui en cuir ouvragé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25141.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
             "Affronter des rats de bibliothèque pour retrouver le parchemin",
-            "Aller voir {npc,4414}",
-            "Montrer à {npc,4310} : 1 {item,19690}",
-            "Aller voir {npc,1574}"
+            "Aller voir Ramane Hitoo",
+            "Montrer à Aisling : 1 Étui en cuir ouvragé",
+            "Aller voir Prim"
           ],
           "stepOrder": 22,
           "isSynergyCandidate": false,
@@ -753,7 +825,7 @@
           "dofusdbId": 1991,
           "level": 40,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Aisling",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 7,
@@ -762,20 +834,22 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Lire l'ouvrage créé par Prim",
-            "Aller voir {npc,4310}",
+            "Aller voir Aisling",
             "Lire le parchemin traduit",
-            "Aller voir {npc,4443}",
+            "Aller voir Rathrosk",
             "Escorter le dragon jusqu'au cimetière d'Astrub",
             "Retrouver Rathrosk dans la partie sud-est du cimetière",
-            "Aller voir {npc,4418}",
+            "Aller voir Rathrosk",
             "Trouver le vieillard près de l'oiseau de feu",
-            "Aller voir {npc,4321}",
+            "Aller voir Nistracolamus",
             "Ramasser de la terre près de la crypte de Brutas",
             "Récupérer une relique en combattant des spectres de l'Aurore Pourpre",
             "Arracher 3 ceintures aux Gargrouilles et les placer dans l'urne avec la terre et la relique",
-            "Enterrer l'urne près de la tombe du chevalier de l'automne"
+            "Enterrer l'urne près de la tombe du chevalier de l'automne",
+            "Aller voir Rathrosk"
           ],
           "stepOrder": 23,
           "isSynergyCandidate": false,
@@ -791,7 +865,7 @@
           "dofusdbId": 2010,
           "level": 200,
           "zone": "Porte de Ferfroid",
-          "npcName": null,
+          "npcName": "Deor Morfont",
           "npcSubArea": "Porte de Ferfroid",
           "coords": {
             "x": -69,
@@ -800,16 +874,17 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Tenter d'ouvrir les portes du royaume des Martegel",
-            "Aller voir {npc,4491}",
+            "Aller voir Deor Morfont",
             "Rencontrer des Nimbos",
             "Montrer aux Nimbos que vous savez vous battre",
             "Entrer dans la taverne du Bateau ivre",
             "Discuter avec le tavernier",
             "Payer des tournées générales aux Nimbos",
             "Essayer à nouveau de passer les portes du royaume des Martegel",
-            "Retourner voir {npc,4491}"
+            "Retourner voir Deor Morfont"
           ],
           "stepOrder": 24,
           "isSynergyCandidate": false,
@@ -825,7 +900,7 @@
           "dofusdbId": 2011,
           "level": 200,
           "zone": "Porte de Ferfroid",
-          "npcName": null,
+          "npcName": "Brikke",
           "npcSubArea": "Porte de Ferfroid",
           "coords": {
             "x": -66,
@@ -833,32 +908,52 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19934,
+              "name": "Marteau brisé de Brokke",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 110,
+              "name": "Brasserie du roi Dazak",
+              "level": null,
+              "bossName": "Dazak Martegel",
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png",
+              "idoleName": null
+            }
+          ],
           "objectives": [
             "Trouver Brikke la forgeronne",
-            "Aller voir {npc,4501}",
+            "Aller voir Brikke",
             "Résoudre le problème de Brikke",
+            "Aller voir Brikke",
             "Parler à l'un des généraux pour rencontrer leur doyen",
             "Aider à la libération du général Dourak",
-            "Aller voir {npc,4507}",
-            "Retourner voir {npc,4496}",
-            "Aller voir {npc,1901}",
+            "Aller voir Général Dourak",
+            "Retourner voir Plénie Potentiel",
+            "Aller voir Kerubim Crépin",
             "Trouver Volkaragnar et entendre sa version de l'histoire",
             "Parler au dragon mentionné par Volkaragnar",
-            "Aller voir {npc,4310}",
+            "Aller voir Aisling",
             "Lire le livre « Le Crépuscule de jade »",
             "Lire le document « Les Sept Clans »",
-            "Retourner voir {npc,4310}",
-            "Aller voir {npc,4378}",
+            "Retourner voir Aisling",
+            "Aller voir René Gossian",
             "Trouver l'acheteuse décrite par René Gossian",
             "Vaincre les Srams pour s'emparer du marteau",
             "Lire la note confidentielle trouvée sur la Sram",
-            "Montrer à {npc,4501} : 1 {item,19934}",
+            "Montrer à Brikke : 1 Marteau brisé de Brokke",
             "Aider Brikke à réparer le marteau de Brokke",
             "Entrer dans la Brasserie du roi Dazak",
             "Demander violemment une audience avec le roi Dazak Martegel",
-            "Aller voir {npc,4500}",
-            "Effacer plusieurs affronts de la bible des rancunes du roi Dazak"
+            "Aller voir Dazak Martegel",
+            "Effacer plusieurs affronts de la bible des rancunes du roi Dazak",
+            "Aller voir Dazak Martegel",
+            "Retourner voir Plénie Potentiel"
           ],
           "stepOrder": 25,
           "isSynergyCandidate": false,
@@ -874,7 +969,7 @@
           "dofusdbId": 2019,
           "level": 200,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Général Boll",
           "npcSubArea": null,
           "coords": {
             "x": -66,
@@ -882,19 +977,28 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19936,
+              "name": "Métal maudit",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/15994.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,4506}",
+            "Aller voir Général Boll",
             "Discuter avec le chef des éclaireurs",
-            "Retourner voir {npc,4506}",
+            "Retourner voir Général Boll",
             "Trouver un moyen pour que les éclaireurs et les Nimbos cessent de se battre",
-            "Ramener à {npc,2003} : x8 {item,19936}",
-            "Aller voir {npc,4520}",
+            "Ramener à Mina Spirite : x8 Métal maudit",
+            "Aller voir Ratse",
             "Vaincre x1 {monster,5323} en un seul combat",
             "Retourner sur les lieux de l'affrontement entre les éclaireurs et les Nimbos",
             "Placer le métal maudit pour provoquer une attaque d'Armutins",
             "Combattre les Armutins avec l'aide des éclaireurs et des Nimbos",
-            "Aller voir {npc,4522}"
+            "Aller voir Edolor",
+            "Aller voir Général Boll"
           ],
           "stepOrder": 26,
           "isSynergyCandidate": false,
@@ -910,10 +1014,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 27,
           "requirements": [
@@ -928,7 +1034,7 @@
           "dofusdbId": 2013,
           "level": 200,
           "zone": "Brasserie du roi Dazak - Sortie",
-          "npcName": null,
+          "npcName": "Dazak Martegel",
           "npcSubArea": "Brasserie du roi Dazak - Sortie",
           "coords": {
             "x": -62,
@@ -940,42 +1046,64 @@
             {
               "id": 11510,
               "name": "Poisskaille en Fricassée",
-              "amount": 20,
+              "amount": 40,
               "img": "https://api.dofusdb.fr/img/items/49136.png"
             },
             {
               "id": 11503,
               "name": "Pain de Frostiz",
-              "amount": 20,
+              "amount": 40,
               "img": "https://api.dofusdb.fr/img/items/33072.png"
             },
             {
               "id": 11568,
               "name": "Pizza au boudin de boufmouth",
-              "amount": 20,
+              "amount": 40,
               "img": "https://api.dofusdb.fr/img/items/24107.png"
             },
             {
               "id": 11370,
               "name": "Friswein",
-              "amount": 20,
+              "amount": 40,
               "img": "https://api.dofusdb.fr/img/items/79013.png"
+            },
+            {
+              "id": 19942,
+              "name": "Morceau de Brikoléreux",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/95023.png"
+            },
+            {
+              "id": 19943,
+              "name": "Coffre de kamas",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/172006.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 110,
+              "name": "Brasserie du roi Dazak",
+              "level": null,
+              "bossName": "Dazak Martegel",
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png",
+              "idoleName": null
             }
           ],
           "objectives": [
-            "Ramener à {npc,4500} : x20 {item,19942}",
+            "Ramener à Dazak Martegel : x20 Morceau de Brikoléreux",
             "Évoquer avec Plénie la question des dédommagements envers le clan Martegel",
-            "Aller voir {npc,1237}",
+            "Aller voir Maire Cantile",
             "Récupérer l'argent auprès du banquier de la Bourgade",
-            "Ramener à {npc,4531} : x1 {item,19943}",
-            "Ramener à {npc,4502} : x20 {item,11510}",
-            "Ramener à {npc,4502} : x20 {item,11503}",
-            "Ramener à {npc,4502} : x20 {item,11568}",
-            "Ramener à {npc,4502} : x20 {item,11370}",
+            "Ramener à Trésorier du roi : x1 Coffre de kamas",
+            "Ramener à Séninchale Umo : x20 Poisskaille en Fricassée",
+            "Ramener à Séninchale Umo : x20 Pain de Frostiz",
+            "Ramener à Séninchale Umo : x20 Pizza au boudin de boufmouth",
+            "Ramener à Séninchale Umo : x20 Friswein",
             "Trouver Ystrion Bannisterre",
-            "Aller voir {npc,4529}",
-            "Aller voir {npc,4530}",
-            "Retourner voir {npc,4529}",
+            "Aller voir Ystrion Bannisterre",
+            "Aller voir Shea",
+            "Retourner voir Ystrion Bannisterre",
             "Trouver une caisse à la taille idéale pour un Nimbos",
             "Récupérer une boîte à outils afin de percer des trous dans la caisse",
             "Assommer Ystrion et l'enfermer dans la caisse",
@@ -995,7 +1123,7 @@
           "dofusdbId": 894,
           "level": 20,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Nacf Virgil",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 3,
@@ -1007,22 +1135,41 @@
             {
               "id": 384,
               "name": "Laine de Bouftou",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/57056.png"
+            },
+            {
+              "id": 32098,
+              "name": "Limaille collante",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/48735.png"
+            },
+            {
+              "id": 13174,
+              "name": "Crottes de Milirat",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/15381.png"
+            },
+            {
+              "id": 13177,
+              "name": "Poudre Révélatrice",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/48281.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,730}",
+            "Aller voir Nacf Virgil",
             "Feuilleter le livre illustrant la légende de Steff Taff",
-            "Retourner voir {npc,1574}",
-            "Aller voir {npc,599}",
-            "Aller voir {npc,1575}",
+            "Retourner voir Prim",
+            "Aller voir Cirle Drawde",
+            "Aller voir Thélène Teh",
             "Vaincre x6 {monster,5106}",
-            "Retourner voir {npc,599}",
-            "Ramener à {npc,599} : x5 {item,384}",
-            "Ramener à {npc,599} : x3 {item,32098}",
-            "Ramener à {npc,599} : x5 {item,13174}",
-            "Ramener à {npc,1574} : x1 {item,13177}"
+            "Retourner voir Cirle Drawde",
+            "Ramener à Cirle Drawde : x5 Laine de Bouftou",
+            "Ramener à Cirle Drawde : x3 Limaille collante",
+            "Ramener à Cirle Drawde : x5 Crottes de Milirat",
+            "Ramener à Prim : x1 Poudre Révélatrice"
           ],
           "stepOrder": 29,
           "isSynergyCandidate": false,
@@ -1038,7 +1185,7 @@
           "dofusdbId": 1607,
           "level": 40,
           "zone": "Cache de Kankreblath - Sortie",
-          "npcName": null,
+          "npcName": "Kankreblath",
           "npcSubArea": "Cache de Kankreblath - Sortie",
           "coords": {
             "x": 3,
@@ -1046,15 +1193,33 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 15988,
+              "name": "Croquette Magique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126036.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 88,
+              "name": "Cache de Kankreblath",
+              "level": null,
+              "bossName": "Kankreblath",
+              "img": "https://api.dofusdb.fr/img/monsters/1245.png",
+              "idoleName": null
+            }
+          ],
           "objectives": [
-            "Aller voir {npc,2767}",
+            "Aller voir Kankreblath",
             "Réduire la taille de la croquette pour l'emporter avec vous",
-            "Montrer à {npc,1901} : 1 {item,15988}",
+            "Montrer à Kerubim Crépin : 1 Croquette Magique",
             "Découvrir la carte : Lieu du rendez-vous avec l'Ecaflip",
-            "Aller voir {npc,2769}",
+            "Aller voir Cendre Mystigrize",
             "Vaincre x1 {monster,3938} en un seul combat",
-            "Retourner voir {npc,1901}"
+            "Aller voir Cendre Mystigrize",
+            "Retourner voir Kerubim Crépin"
           ],
           "stepOrder": 30,
           "isSynergyCandidate": false,
@@ -1070,7 +1235,7 @@
           "dofusdbId": 1845,
           "level": 40,
           "zone": "Boutique de Kerubim",
-          "npcName": null,
+          "npcName": "Kerubim Crépin",
           "npcSubArea": "Boutique de Kerubim",
           "coords": {
             "x": 3,
@@ -1078,9 +1243,17 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 18650,
+              "name": "Message pour Kerubim Crépin",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15951.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à {npc,1901} : x1 {item,18650}",
+            "Ramener à Kerubim Crépin : x1 Message pour Kerubim Crépin",
             "Voir si le talisman de Kerubim va vous porter chance",
             "Lire le message trouvé dans la bouteille",
             "Se rendre sur l'île mentionnée dans le message",
@@ -1093,15 +1266,16 @@
             "Récupérer des pierres plates pour faire les sabots du bouftou",
             "Trouver un atelier et fabriquer la peluche",
             "Montrer à Bébert le bouftou arc-en-ciel que vous avez fabr... capturé",
-            "Aller voir {npc,3737}",
+            "Aller voir Gérard Barbak",
             "Vaincre x1 {monster,4826} en un seul combat",
+            "Aller voir Gérard Barbak",
             "Trouver l'auteur du message",
             "Libérer le kaskargo",
             "Libérer la mouette",
             "Libérer le scarafeuille",
-            "Aller voir {npc,3739}",
+            "Aller voir Poolay parlant",
             "Escorter l'alchimiste jusqu'à Coqueline",
-            "Aller voir {npc,3733}"
+            "Aller voir Coqueline"
           ],
           "stepOrder": 31,
           "isSynergyCandidate": false,
@@ -1117,10 +1291,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 32,
           "requirements": [
@@ -1135,7 +1311,7 @@
           "dofusdbId": 1867,
           "level": 40,
           "zone": "Taverne Atolmond",
-          "npcName": null,
+          "npcName": "Relik le nécromancien",
           "npcSubArea": "Taverne Atolmond",
           "coords": {
             "x": -27,
@@ -1143,21 +1319,41 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 18819,
+              "name": "Os maudit",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/47636.png"
+            },
+            {
+              "id": 18821,
+              "name": "Souvenir d'Azrim",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164125.png"
+            },
+            {
+              "id": 18822,
+              "name": "Totem en os",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164140.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
             "Rencontrer le nécromancien ouginak",
-            "Ramener à {npc,3905} : x1 {item,18819}",
+            "Ramener à Relik le nécromancien : x1 Os maudit",
             "Obtenir des informations concernant Azrim chez les Mériens",
-            "Aller voir {npc,3907}",
+            "Aller voir Hyrini",
             "Découvrir la carte : Grotte d'Azrim",
             "Récupérer un souvenir d'Azrim dans la grotte où le shaman méditait",
             "Trouver les maraudeurs mulous",
             "Vaincre les maraudeurs mulous",
-            "Ramener à {npc,3905} : x1 {item,18821}",
-            "Ramener à {npc,3905} : x1 {item,18822}",
+            "Ramener à Relik le nécromancien : x1 Souvenir d'Azrim",
+            "Ramener à Relik le nécromancien : x1 Totem en os",
             "Escorter le nécromancien jusqu'au temple d'Ouginak",
             "Assister le nécromancien",
-            "Retourner voir {npc,3712}"
+            "Retourner voir Chalcas"
           ],
           "stepOrder": 33,
           "isSynergyCandidate": false,
@@ -1173,7 +1369,7 @@
           "dofusdbId": 1868,
           "level": 40,
           "zone": "Côte de la Meute",
-          "npcName": null,
+          "npcName": "Nosya la Ronge",
           "npcSubArea": "Côte de la Meute",
           "coords": {
             "x": 9,
@@ -1181,30 +1377,41 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 18829,
+              "name": "Onguent du forgeron",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12057.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,3724}",
-            "Aller voir {npc,3906}",
+            "Aller voir Nosya la Ronge",
+            "Aller voir Cronan le Mérien",
             "Se rendre au camp des Bradors",
-            "Aller voir {npc,3912}",
+            "Aller voir Kalidar le Brador",
             "Aider Kalidar",
+            "Aller voir Kalidar le Brador",
             "Se rendre au camp des Bermanes",
-            "Aller voir {npc,3913}",
-            "Aller voir {npc,3914}",
+            "Aller voir Capitaine des Bermanes",
+            "Aller voir Partisan d'Imaguni",
             "Se rendre au camp des Maciens",
-            "Aller voir {npc,3870}",
+            "Aller voir Pongos le Macien",
             "Se rendre au camp des Pagneuls",
-            "Aller voir {npc,3869}",
+            "Aller voir Rodak le Pagneul",
             "Trouver le partisan d'Imaguni",
             "Donner de l'eau au partisan",
-            "Aller voir {npc,365}",
-            "Ramener à {npc,3916} : x1 {item,18829}",
+            "Aller voir Mulic Bere",
+            "Ramener à Ouginak cuit à point : x1 Onguent du forgeron",
             "Se rendre au camp des Shibaks",
-            "Aller voir {npc,3917}",
+            "Aller voir Hinu la Shibak",
             "Rencontrer Imaguni",
             "Utiliser le sifflet enchanté pour appeler Nosya",
+            "Aller voir Nosya la Ronge",
             "Vaincre Imaguni et ses serviteurs",
-            "Aller voir {npc,3919}"
+            "Aller voir Imaguni",
+            "Aller voir Nosya la Ronge"
           ],
           "stepOrder": 34,
           "isSynergyCandidate": false,
@@ -1220,7 +1427,7 @@
           "dofusdbId": 1869,
           "level": 40,
           "zone": "Temple Ouginak",
-          "npcName": null,
+          "npcName": "Mulic Bere",
           "npcSubArea": "Temple Ouginak",
           "coords": {
             "x": -28,
@@ -1228,17 +1435,31 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 18835,
+              "name": "Poignard inaltérable",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164141.png"
+            },
+            {
+              "id": 18854,
+              "name": "Poignard empoisonné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164142.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Montrer à {npc,365} : 1 {item,18835}",
+            "Montrer à Mulic Bere : 1 Poignard inaltérable",
             "Explorer la mine abandonnée",
             "Trouver un moyen d'entrer dans la fournaise",
             "Rencontrer le forgeron",
-            "Aller voir {npc,3923}",
+            "Aller voir Volkaragnar",
             "Parler à un ami de Brumen",
             "Trouver la chasseuse de Srambad",
             "Vaincre x1 {monster,4910} en un seul combat",
-            "Montrer à {npc,3712} : 1 {item,18854}"
+            "Montrer à Chalcas : 1 Poignard empoisonné"
           ],
           "stepOrder": 35,
           "isSynergyCandidate": false,
@@ -1254,7 +1475,7 @@
           "dofusdbId": 1938,
           "level": 200,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "La Voix des Douze",
           "npcSubArea": null,
           "coords": {
             "x": 0,
@@ -1263,11 +1484,12 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Prier devant la statue du temple pour entrer dans le Domaine des dieux",
-            "Aller voir {npc,4197}",
-            "Aller voir {npc,4207}",
-            "Aller voir {npc,4209}"
+            "Aller voir La Voix des Douze",
+            "Aller voir Prêtresse de Féca",
+            "Aller voir Déesse Féca"
           ],
           "stepOrder": 36,
           "isSynergyCandidate": false,
@@ -1283,7 +1505,7 @@
           "dofusdbId": 2014,
           "level": 200,
           "zone": "Bateau Ivre",
-          "npcName": null,
+          "npcName": "Lambik",
           "npcSubArea": "Bateau Ivre",
           "coords": {
             "x": -70,
@@ -1295,30 +1517,49 @@
             {
               "id": 19950,
               "name": "Orange amère",
-              "amount": 10,
+              "amount": 60,
               "img": "https://api.dofusdb.fr/img/items/46468.png"
             },
             {
               "id": 19952,
               "name": "Sucre glace",
-              "amount": 4,
+              "amount": 24,
               "img": "https://api.dofusdb.fr/img/items/48292.png"
             },
             {
               "id": 19951,
               "name": "Eau-de-vie vernale",
-              "amount": 1,
+              "amount": 6,
               "img": "https://api.dofusdb.fr/img/items/79014.png"
+            },
+            {
+              "id": 19948,
+              "name": "Miel de Boulglours",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/139047.png"
+            },
+            {
+              "id": 19949,
+              "name": "Poudre de Korriandre",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/48670.png"
+            },
+            {
+              "id": 19953,
+              "name": "Liqueur d'orange amère",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79010.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à {npc,4504} : x10 {item,19948}",
-            "Ramener à {npc,4504} : x4 {item,19949}",
-            "Montrer à {npc,4504} : 10 {item,19950}",
-            "Montrer à {npc,4504} : 4 {item,19952}",
-            "Montrer à {npc,4504} : 1 {item,19951}",
-            "Fabriquer 1 {item,19953} et fermer l'interface",
-            "Ramener à {npc,4504} : x1 {item,19953}"
+            "Ramener à Lambik : x10 Miel de Boulglours",
+            "Ramener à Lambik : x4 Poudre de Korriandre",
+            "Montrer à Lambik : 10 Orange amère",
+            "Montrer à Lambik : 4 Sucre glace",
+            "Montrer à Lambik : 1 Eau-de-vie vernale",
+            "Fabriquer 1 Liqueur d'orange amère et fermer l'interface",
+            "Ramener à Lambik : x1 Liqueur d'orange amère"
           ],
           "stepOrder": 37,
           "isSynergyCandidate": false,
@@ -1334,7 +1575,7 @@
           "dofusdbId": 2450,
           "level": 40,
           "zone": "Frigost / Monde de Douze",
-          "npcName": null,
+          "npcName": "Lanseuft de Troille",
           "npcSubArea": null,
           "coords": {
             "x": -5,
@@ -1346,28 +1587,29 @@
             {
               "id": 14278,
               "name": "Chaînes Brisées",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/15245.png"
             },
             {
               "id": 746,
               "name": "Ébonite",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/40658.png"
             },
             {
               "id": 2268,
               "name": "Scalp de Bwork Archer",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/15425.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à {npc,6709} : x1 {item,14278}",
-            "Ramener à {npc,6709} : x1 {item,746}",
-            "Ramener à {npc,6709} : x1 {item,2268}",
+            "Ramener à Lanseuft de Troille : x1 Chaînes Brisées",
+            "Ramener à Lanseuft de Troille : x1 Ébonite",
+            "Ramener à Lanseuft de Troille : x1 Scalp de Bwork Archer",
             "Patienter le temps que Lanseuft de Troille confectionne le pendule",
-            "Aller voir {npc,6709}",
+            "Aller voir Lanseuft de Troille",
             "Utiliser le pendule sous la supervision de Lanseuft pour entrer dans le dédale du Dark Vlad"
           ],
           "stepOrder": 38,
@@ -1389,13 +1631,14 @@
       "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "L'épée du rocher",
           "dofusdbId": 2035,
           "level": 120,
           "zone": "Repaire de Skeunk - Sortie",
-          "npcName": null,
+          "npcName": "Mériana",
           "npcSubArea": "Repaire de Skeunk - Sortie",
           "coords": {
             "x": -6,
@@ -1407,33 +1650,70 @@
             {
               "id": 20210,
               "name": "Crocobur",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/6739.png"
+            },
+            {
+              "id": 20207,
+              "name": "Dessin d'une rune de signature",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24001.png"
+            },
+            {
+              "id": 20208,
+              "name": "Temps fracassé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15910.png"
+            },
+            {
+              "id": 20209,
+              "name": "Verre brisé",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/51010.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 46,
+              "name": "Repaire de Skeunk",
+              "level": null,
+              "bossName": "Fauchalak",
+              "img": "https://api.dofusdb.fr/img/monsters/433.png",
+              "idoleName": null
+            },
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Segmantid",
+              "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+              "idoleName": null
             }
           ],
           "objectives": [
             "Lire l'ouvrage sur la légende de Crocoburio",
-            "Retourner voir {npc,2205}",
+            "Retourner voir Mériana",
             "Découvrir la carte : Rocher de l'épée",
             "Tenter de retirer l'épée du rocher",
             "Examiner le rocher",
+            "Retourner voir Mériana",
             "Récupérer de la poudre scintillante dans la bouate à maquillage de Skeunk",
             "Fabriquer la poudre d'Oubn-Ghazou dans le creuset de Mériana",
             "Utiliser la poudre magique sur le rocher de l'épée",
-            "Montrer à {npc,2205} : 1 {item,20207}",
+            "Montrer à Mériana : 1 Dessin d'une rune de signature",
             "Trouver le magicien nommé Merlan",
             "Se rendre dans la dimension du Xélorium",
             "Vaincre x1 {monster,3852} en un seul combat",
-            "Ramener à {npc,6365} : x1 {item,20208}",
+            "Ramener à Merlan l'Enchaîneur : x1 Temps fracassé",
             "Vaincre un craqueleur de verre dans la Montagne des Craqueleurs",
             "Vaincre un craqueleur de verre dans les Plaines Rocheuses",
             "Vaincre un craqueleur de verre dans les Plaines Herbeuses",
-            "Ramener à {npc,6365} : x3 {item,20209}",
+            "Ramener à Merlan l'Enchaîneur : x3 Verre brisé",
             "Placer les fragments pour briser le lien entre le rocher et l'épée",
-            "Aller voir {npc,4633}",
+            "Aller voir Gardienne de l'épée",
             "Vaincre x1 {monster,5381} en un seul combat",
             "Retirer l'épée Crocobur du rocher",
-            "Montrer à {npc,2205} : 1 {item,20210}"
+            "Montrer à Mériana : 1 Crocobur"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": true,
@@ -1444,7 +1724,7 @@
           "dofusdbId": 2036,
           "level": 120,
           "zone": "Antre de Crocabulia - Cinquième salle",
-          "npcName": null,
+          "npcName": "Volkaragnar",
           "npcSubArea": "Antre de Crocabulia - Cinquième salle",
           "coords": {
             "x": -29,
@@ -1456,33 +1736,51 @@
             {
               "id": 20210,
               "name": "Crocobur",
-              "amount": 1,
+              "amount": 4,
               "img": "https://api.dofusdb.fr/img/items/6739.png"
+            },
+            {
+              "id": 20211,
+              "name": "Eau magificatrice",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12751.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 7,
+              "name": "Antre de Crocabulia",
+              "level": null,
+              "bossName": "Dragmatique",
+              "img": "https://api.dofusdb.fr/img/monsters/1902.png",
+              "idoleName": null
             }
           ],
           "objectives": [
             "Rencontrer un forgeron capable de réparer Crocobur",
-            "Aller voir {npc,3923}",
+            "Aller voir Volkaragnar",
             "Tremper l'épée dans le lac gelé de Frigost",
             "Tremper l'épée dans la fournaise de Feudala",
             "Tremper l'épée dans un cratère acide de la Désolation",
-            "Montrer à {npc,3923} : 1 {item,20210}",
+            "Montrer à Volkaragnar : 1 Crocobur",
             "Placer l'épée sur l'enclume de Volkaragnar",
             "Assister Volkaragnar pendant qu'il reforge la lame de l'épée",
-            "Aller voir {npc,3922}",
+            "Aller voir Volkaragnar",
             "Trouver une source de magie dans les Lacs Enchantés",
             "Remplir une fiole avec de l'eau de la source de magie",
-            "Ramener à {npc,3923} : x1 {item,20211}",
+            "Ramener à Volkaragnar : x1 Eau magificatrice",
             "Interroger la bijoutière d'Astrub",
             "Trouver Crocopale",
             "Vaincre les gardiens de l'épée",
-            "Aller voir {npc,4651}",
+            "Aller voir Crocopale",
             "Faire sertir une pierre de jade dans la garde de Crocobur",
-            "Retourner voir {npc,3923}",
+            "Retourner voir Volkaragnar",
             "Découvrir la carte : Portail du Donjon des Dragoeufs",
             "Vaincre x1 {monster,854} en un seul combat",
             "Tremper l'épée dans le sang de Crocabulia",
-            "Aller voir {npc,4634}"
+            "Montrer à Volkaragnar : 1 Crocobur",
+            "Aller voir Chef des Gardiens de l'épée",
+            "Aller voir Volkaragnar"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": true,
@@ -1498,7 +1796,7 @@
           "dofusdbId": 2037,
           "level": 130,
           "zone": "Forêt Maléfique / Crocabulia",
-          "npcName": null,
+          "npcName": "Draconiros",
           "npcSubArea": null,
           "coords": {
             "x": 0,
@@ -1507,9 +1805,10 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Entrer dans le Plan Astral",
-            "Aller voir {npc,4638}",
+            "Aller voir Draconiros",
             "Progresser si nécessaire et explorer le puits jusqu'à trouver le premier songe de Crocobur",
             "Progresser si nécessaire et explorer le puits jusqu'à trouver le deuxième songe de Crocobur",
             "Progresser si nécessaire et explorer le puits jusqu'à trouver le troisième songe de Crocobur",
@@ -1523,7 +1822,7 @@
             "Trouver le onzième songe de Crocobur dans les Abstractions chimériques d'un rêve intense (difficulté 3 ou plus)",
             "Affronter la vague de gardiens chimériques d'un rêve intense (difficulté 3 ou plus) pour trouver le dernier songe de Crocobur",
             "Montrer l'épée éveillée à Volkaragnar",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 2,
           "isSynergyCandidate": true,
@@ -1539,7 +1838,7 @@
           "dofusdbId": 2038,
           "level": 200,
           "zone": "Tour de Bethel - Cinquième salle",
-          "npcName": null,
+          "npcName": "Sramsara",
           "npcSubArea": "Tour de Bethel - Cinquième salle",
           "coords": {
             "x": -48,
@@ -1547,13 +1846,31 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 20078,
+              "name": "Coquille d'âme corrompue",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/111757.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 108,
+              "name": "Tour de Bethel",
+              "level": null,
+              "bossName": "Macrab",
+              "img": "https://api.dofusdb.fr/img/monsters/1675.png",
+              "idoleName": null
+            }
+          ],
           "objectives": [
             "Trouver Sramsara",
-            "Aller voir {npc,4566}",
+            "Aller voir Sramsara",
             "Affronter Bethel dans sa tour",
-            "Ramener à {npc,4566} : x1 {item,20078}",
+            "Ramener à Sramsara : x1 Coquille d'âme corrompue",
             "Chasser le fantôme crocodaille",
+            "Aller voir Sramsara",
             "Lire le parchemin magique",
             "Trouver l'endroit où Crocoburio s'est réincarné",
             "Découvrir des informations sur la famille de Crocoburio réincarné",
@@ -1563,15 +1880,15 @@
             "Parler à l'aîné des orphelins",
             "Trouver le plus jeune des orphelins",
             "Se débarrasser des créatures qui importunent le jeune garçon",
-            "Aller voir {npc,4615}",
-            "Retourner voir {npc,4616}",
+            "Aller voir Krobur",
+            "Retourner voir Bruce Epett",
             "Donner une bonne leçon à Bruce Epett",
             "Trouver quelqu'un qui aurait aperçu la petite fille",
             "Trouver l'endroit où s'est réfugiée la petite fille",
             "Se débarrasser des boiboites de Yan Chenap",
-            "Aller voir {npc,4617}",
+            "Aller voir Léane",
             "Escorter la petite fille jusqu'à Mériana",
-            "Aller voir {npc,2205}"
+            "Aller voir Mériana"
           ],
           "stepOrder": 3,
           "isSynergyCandidate": true,
@@ -1587,7 +1904,7 @@
           "dofusdbId": 2039,
           "level": 200,
           "zone": "Forêt Maléfique / Crocabulia",
-          "npcName": null,
+          "npcName": "Mériana",
           "npcSubArea": null,
           "coords": {
             "x": -6,
@@ -1599,40 +1916,92 @@
             {
               "id": 20162,
               "name": "Métal abyssal",
-              "amount": 10,
+              "amount": 20,
               "img": "https://api.dofusdb.fr/img/items/107737.png"
             },
             {
               "id": 17995,
               "name": "Écume de mer",
-              "amount": 10,
+              "amount": 20,
               "img": "https://api.dofusdb.fr/img/items/39399.png"
             },
             {
               "id": 7033,
               "name": "Dolomite",
-              "amount": 10,
+              "amount": 20,
               "img": "https://api.dofusdb.fr/img/items/39110.png"
             },
             {
               "id": 11110,
               "name": "Obsidienne",
-              "amount": 10,
+              "amount": 20,
               "img": "https://api.dofusdb.fr/img/items/39112.png"
+            },
+            {
+              "id": 20159,
+              "name": "Eau vive",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/15778.png"
+            },
+            {
+              "id": 20160,
+              "name": "Reste en paix",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/47101.png"
+            },
+            {
+              "id": 20161,
+              "name": "Huile immiscible et indicible",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60069.png"
+            },
+            {
+              "id": 20163,
+              "name": "Alliage abyssal",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/40658.png"
+            },
+            {
+              "id": 20165,
+              "name": "Brin des possibles",
+              "amount": 7,
+              "img": "https://api.dofusdb.fr/img/items/55120.png"
+            },
+            {
+              "id": 20167,
+              "name": "Arbre fondateur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/98674.png"
+            },
+            {
+              "id": 20164,
+              "name": "Pierre alchimique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/51500.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 98,
+              "name": "Temple de Koutoulou",
+              "level": null,
+              "bossName": "Larve de Koutoulou",
+              "img": "https://api.dofusdb.fr/img/monsters/1423.png",
+              "idoleName": null
             }
           ],
           "objectives": [
             "Consulter la page du grimoire pour obtenir des informations sur les composants",
-            "Montrer à {npc,2205} : 3 {item,20159}",
-            "Montrer à {npc,2205} : 3 {item,20160}",
-            "Montrer à {npc,2205} : 1 {item,20161}",
-            "Montrer à {npc,2205} : 1 {item,20163}",
-            "Montrer à {npc,2205} : 7 {item,20165}",
-            "Montrer à {npc,2205} : 1 {item,20167}",
+            "Montrer à Mériana : 3 Eau vive",
+            "Montrer à Mériana : 3 Reste en paix",
+            "Montrer à Mériana : 1 Huile immiscible et indicible",
+            "Montrer à Mériana : 1 Alliage abyssal",
+            "Montrer à Mériana : 7 Brin des possibles",
+            "Montrer à Mériana : 1 Arbre fondateur",
             "Trouver un alchimiste ayant accompli le Grand Œuvre",
             "Retrouver l'alchimiste et lui prouver votre détermination",
             "Parler à l'alchimiste",
-            "Montrer à {npc,2205} : 1 {item,20164}",
+            "Montrer à Mériana : 1 Pierre alchimique",
             "Placer les composants dans le creuset",
             "Montrer le résultat de la transmutation à Mériana"
           ],
@@ -1655,13 +2024,14 @@
       "isSynergyCandidate": true,
       "chainOrder": 2,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "Une douloureuse séparation",
           "dofusdbId": 2040,
           "level": 200,
           "zone": "Larmes de Grougalorasalar",
-          "npcName": null,
+          "npcName": "Roi Beldarion",
           "npcSubArea": "Larmes de Grougalorasalar",
           "coords": {
             "x": -25,
@@ -1670,6 +2040,7 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Trouver l'accès aux larmes de Grougalorasalar",
             "Descendre dans la crevasse",
@@ -1685,12 +2056,13 @@
             "Vaincre les miliciens avec l'aide de Joris",
             "Parler à Joris dans la salle de la milice",
             "Se rendre au palais du roi de Bonta en compagnie de Joris",
-            "Aller voir {npc,2933}",
+            "Aller voir Roi Beldarion",
             "Retourner dans la caverne des larmes de Grougalorasalar",
-            "Aller voir {npc,2205}",
+            "Aller voir Mériana",
             "Accomplir le rituel avec l'aide de Mériana",
             "Vaincre l'âme de Crocoburio",
-            "Aller voir {npc,4617}"
+            "Aller voir Léane",
+            "Aller voir Mériana"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": true,
@@ -1701,7 +2073,7 @@
           "dofusdbId": 2041,
           "level": 200,
           "zone": "Brasserie du roi Dazak - Sortie",
-          "npcName": null,
+          "npcName": "Ludrune l'Aveugle",
           "npcSubArea": "Brasserie du roi Dazak - Sortie",
           "coords": {
             "x": -62,
@@ -1713,14 +2085,30 @@
             {
               "id": 17205,
               "name": "Saucisse Fumée",
-              "amount": 10,
+              "amount": 20,
               "img": "https://api.dofusdb.fr/img/items/69820.png"
             },
             {
               "id": 19954,
               "name": "Barbarbe",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/37004.png"
+            },
+            {
+              "id": 20444,
+              "name": "Soupe au caillou de Graillevent",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/69775.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 110,
+              "name": "Brasserie du roi Dazak",
+              "level": null,
+              "bossName": "Dazak Martegel",
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png",
+              "idoleName": null
             }
           ],
           "objectives": [
@@ -1728,9 +2116,9 @@
             "Obtenir une entrevue avec le roi Dazak Martegel",
             "Trouver un cordonnier capable de travailler une peau de crocodaille gelée",
             "Parler à une magicienne nimbos capable de voir au-delà des apparences",
-            "Ramener à {npc,4622} : x10 {item,17205}",
-            "Ramener à {npc,4622} : x2 {item,20444}",
-            "Ramener à {npc,4622} : x5 {item,19954}",
+            "Ramener à Ludrune l'Aveugle : x10 Saucisse Fumée",
+            "Ramener à Ludrune l'Aveugle : x2 Soupe au caillou de Graillevent",
+            "Ramener à Ludrune l'Aveugle : x5 Barbarbe",
             "Découvrir la carte : Environs de la porte des marais",
             "Dissiper l'illusion qui cache la porte des marais",
             "Passer la porte des marais",
@@ -1742,7 +2130,7 @@
             "Explorer la cité de Tikoltenak",
             "Trouver un moyen d'entrer dans le temple",
             "Explorer le temple à la recherche de Grougalorasalar",
-            "Aller voir {npc,4621}"
+            "Aller voir Grougalorasalar"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": true,
@@ -1758,7 +2146,7 @@
           "dofusdbId": 2042,
           "level": 200,
           "zone": "Frigost / Xélorium",
-          "npcName": null,
+          "npcName": "Crocahualpa",
           "npcSubArea": null,
           "coords": {
             "x": -82,
@@ -1767,27 +2155,29 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [
             "Trouver d'où vient la voix sépulcrale qui murmure votre nom",
-            "Aller voir {npc,4623}",
-            "Aller voir {npc,4626}",
+            "Aller voir Crocahualpa",
+            "Aller voir Capacrascar",
             "Explorer les marécages près de la montagne des Koalaks",
             "Trouver un dictionnaire pour mieux comprendre le langage de l'étranger masqué",
-            "Aller voir {npc,4627}",
+            "Aller voir Talok",
             "Chercher des traces de l'aventurier près de la porte des marais",
             "Obtenir des informations sur l'aventurier assoiffé de sang à Brâkmar",
             "Découvrir la carte : Tour de Gisgoul",
             "Trouver les Brâkmariens",
-            "Aller voir {npc,4628}",
+            "Aller voir Prêtresse de Rushu",
             "Suivre la piste des shushus",
             "Tenter de parlementer avec les shushus",
             "Apprendre la politesse aux shushus",
             "Discuter un peu plus calmement avec les shushus",
             "Explorer la baie de Cania à la recherche du possédé",
-            "Aller voir {npc,4629}",
+            "Aller voir Iop fiévreux",
             "Vaincre Bulak",
-            "Retourner voir {npc,4626}",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Capacrascar",
+            "Aller voir Crocahualpa",
+            "Retourner voir Mériana"
           ],
           "stepOrder": 2,
           "isSynergyCandidate": true,
@@ -1803,10 +2193,12 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 3,
           "requirements": [
@@ -1821,7 +2213,7 @@
           "dofusdbId": 2044,
           "level": 200,
           "zone": "Tour de Solar - Cinquième salle",
-          "npcName": null,
+          "npcName": "Volkaragnar",
           "npcSubArea": "Tour de Solar - Cinquième salle",
           "coords": {
             "x": -29,
@@ -1830,13 +2222,23 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "level": null,
+              "bossName": "Halbardent",
+              "img": "https://api.dofusdb.fr/img/monsters/1666.png",
+              "idoleName": null
+            }
+          ],
           "objectives": [
-            "Aller voir {npc,3923}",
+            "Aller voir Volkaragnar",
             "Assouvir la soif de Crocobur en combattant des Calcinés dans les Marches Magmatiques",
             "Calmer la faim de Crocobur en lui faisant goûter à l'âme de Solar",
-            "Retourner voir {npc,3923}",
+            "Retourner voir Volkaragnar",
             "Trouver le doyen des Aigles Célestes",
-            "Aller voir {npc,4631}",
+            "Aller voir Maître Yakasi",
             "Libérer l'âme de Crocoburio pour qu'elle entre dans l'œuf de Crocabulia",
             "Déposer l'œuf dans un endroit propice à son éclosion",
             "Protéger l'œuf jusqu'à l'éclosion de Crocoburio",
@@ -1857,5 +2259,468 @@
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 49,
+    "totalItems": 65,
+    "totalDungeons": 8,
+    "items": [
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 102,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 19950,
+        "name": "Orange amère",
+        "totalAmount": 60,
+        "img": "https://api.dofusdb.fr/img/items/46468.png"
+      },
+      {
+        "id": 11510,
+        "name": "Poisskaille en Fricassée",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/49136.png"
+      },
+      {
+        "id": 11503,
+        "name": "Pain de Frostiz",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/33072.png"
+      },
+      {
+        "id": 11568,
+        "name": "Pizza au boudin de boufmouth",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/24107.png"
+      },
+      {
+        "id": 11370,
+        "name": "Friswein",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/79013.png"
+      },
+      {
+        "id": 19952,
+        "name": "Sucre glace",
+        "totalAmount": 24,
+        "img": "https://api.dofusdb.fr/img/items/48292.png"
+      },
+      {
+        "id": 19942,
+        "name": "Morceau de Brikoléreux",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/95023.png"
+      },
+      {
+        "id": 20162,
+        "name": "Métal abyssal",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/107737.png"
+      },
+      {
+        "id": 17995,
+        "name": "Écume de mer",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/39399.png"
+      },
+      {
+        "id": 7033,
+        "name": "Dolomite",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/39110.png"
+      },
+      {
+        "id": 11110,
+        "name": "Obsidienne",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/39112.png"
+      },
+      {
+        "id": 17205,
+        "name": "Saucisse Fumée",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/69820.png"
+      },
+      {
+        "id": 885,
+        "name": "Laine de Boufton Noir",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/57210.png"
+      },
+      {
+        "id": 384,
+        "name": "Laine de Bouftou",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/57056.png"
+      },
+      {
+        "id": 19948,
+        "name": "Miel de Boulglours",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/139047.png"
+      },
+      {
+        "id": 19954,
+        "name": "Barbarbe",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/37004.png"
+      },
+      {
+        "id": 19936,
+        "name": "Métal maudit",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/15994.png"
+      },
+      {
+        "id": 20165,
+        "name": "Brin des possibles",
+        "totalAmount": 7,
+        "img": "https://api.dofusdb.fr/img/items/55120.png"
+      },
+      {
+        "id": 19951,
+        "name": "Eau-de-vie vernale",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/79014.png"
+      },
+      {
+        "id": 20210,
+        "name": "Crocobur",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/6739.png"
+      },
+      {
+        "id": 13174,
+        "name": "Crottes de Milirat",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/15381.png"
+      },
+      {
+        "id": 19949,
+        "name": "Poudre de Korriandre",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/48670.png"
+      },
+      {
+        "id": 32098,
+        "name": "Limaille collante",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/48735.png"
+      },
+      {
+        "id": 20209,
+        "name": "Verre brisé",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/51010.png"
+      },
+      {
+        "id": 20159,
+        "name": "Eau vive",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/15778.png"
+      },
+      {
+        "id": 20160,
+        "name": "Reste en paix",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/47101.png"
+      },
+      {
+        "id": 289,
+        "name": "Blé",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/34009.png"
+      },
+      {
+        "id": 303,
+        "name": "Bois de Frêne",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/38017.png"
+      },
+      {
+        "id": 312,
+        "name": "Fer",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 1782,
+        "name": "Goujon",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/41294.png"
+      },
+      {
+        "id": 23038,
+        "name": "Échantillon sanguin de Sel Dawa",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 1455,
+        "name": "Ailes de Scarafeuille Bleu",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/104212.png"
+      },
+      {
+        "id": 1456,
+        "name": "Ailes de Scarafeuille Blanc",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/104213.png"
+      },
+      {
+        "id": 1458,
+        "name": "Ailes de Scarafeuille Vert",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/104215.png"
+      },
+      {
+        "id": 1457,
+        "name": "Ailes de Scarafeuille Rouge",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/104214.png"
+      },
+      {
+        "id": 19681,
+        "name": "Livre calciné",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/25144.png"
+      },
+      {
+        "id": 14278,
+        "name": "Chaînes Brisées",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15245.png"
+      },
+      {
+        "id": 746,
+        "name": "Ébonite",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/40658.png"
+      },
+      {
+        "id": 2268,
+        "name": "Scalp de Bwork Archer",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15425.png"
+      },
+      {
+        "id": 20444,
+        "name": "Soupe au caillou de Graillevent",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/69775.png"
+      },
+      {
+        "id": 19622,
+        "name": "Anneau de l'Audacieux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/9332.png"
+      },
+      {
+        "id": 23039,
+        "name": "Sérum contre la Pandrista",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 19686,
+        "name": "Écorce enchantée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25142.png"
+      },
+      {
+        "id": 19690,
+        "name": "Étui en cuir ouvragé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25141.png"
+      },
+      {
+        "id": 19934,
+        "name": "Marteau brisé de Brokke",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 19943,
+        "name": "Coffre de kamas",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/172006.png"
+      },
+      {
+        "id": 13177,
+        "name": "Poudre Révélatrice",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/48281.png"
+      },
+      {
+        "id": 15988,
+        "name": "Croquette Magique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126036.png"
+      },
+      {
+        "id": 18650,
+        "name": "Message pour Kerubim Crépin",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15951.png"
+      },
+      {
+        "id": 18819,
+        "name": "Os maudit",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/47636.png"
+      },
+      {
+        "id": 18821,
+        "name": "Souvenir d'Azrim",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164125.png"
+      },
+      {
+        "id": 18822,
+        "name": "Totem en os",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164140.png"
+      },
+      {
+        "id": 18829,
+        "name": "Onguent du forgeron",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12057.png"
+      },
+      {
+        "id": 18835,
+        "name": "Poignard inaltérable",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164141.png"
+      },
+      {
+        "id": 18854,
+        "name": "Poignard empoisonné",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164142.png"
+      },
+      {
+        "id": 19953,
+        "name": "Liqueur d'orange amère",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/79010.png"
+      },
+      {
+        "id": 20207,
+        "name": "Dessin d'une rune de signature",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24001.png"
+      },
+      {
+        "id": 20208,
+        "name": "Temps fracassé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15910.png"
+      },
+      {
+        "id": 20211,
+        "name": "Eau magificatrice",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12751.png"
+      },
+      {
+        "id": 20078,
+        "name": "Coquille d'âme corrompue",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/111757.png"
+      },
+      {
+        "id": 20161,
+        "name": "Huile immiscible et indicible",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/60069.png"
+      },
+      {
+        "id": 20163,
+        "name": "Alliage abyssal",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/40658.png"
+      },
+      {
+        "id": 20167,
+        "name": "Arbre fondateur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/98674.png"
+      },
+      {
+        "id": 20164,
+        "name": "Pierre alchimique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/51500.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 110,
+        "name": "Brasserie du roi Dazak",
+        "level": null,
+        "bossName": "Dazak Martegel",
+        "img": "https://api.dofusdb.fr/img/monsters/1771.png",
+        "idoleName": null
+      },
+      {
+        "id": 88,
+        "name": "Cache de Kankreblath",
+        "level": null,
+        "bossName": "Kankreblath",
+        "img": "https://api.dofusdb.fr/img/monsters/1245.png",
+        "idoleName": null
+      },
+      {
+        "id": 46,
+        "name": "Repaire de Skeunk",
+        "level": null,
+        "bossName": "Fauchalak",
+        "img": "https://api.dofusdb.fr/img/monsters/433.png",
+        "idoleName": null
+      },
+      {
+        "id": 85,
+        "name": "Mégalithe de Fraktale",
+        "level": null,
+        "bossName": "Segmantid",
+        "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+        "idoleName": null
+      },
+      {
+        "id": 7,
+        "name": "Antre de Crocabulia",
+        "level": null,
+        "bossName": "Dragmatique",
+        "img": "https://api.dofusdb.fr/img/monsters/1902.png",
+        "idoleName": null
+      },
+      {
+        "id": 108,
+        "name": "Tour de Bethel",
+        "level": null,
+        "bossName": "Macrab",
+        "img": "https://api.dofusdb.fr/img/monsters/1675.png",
+        "idoleName": null
+      },
+      {
+        "id": 98,
+        "name": "Temple de Koutoulou",
+        "level": null,
+        "bossName": "Larve de Koutoulou",
+        "img": "https://api.dofusdb.fr/img/monsters/1423.png",
+        "idoleName": null
+      },
+      {
+        "id": 109,
+        "name": "Tour de Solar",
+        "level": null,
+        "bossName": "Halbardent",
+        "img": "https://api.dofusdb.fr/img/monsters/1666.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

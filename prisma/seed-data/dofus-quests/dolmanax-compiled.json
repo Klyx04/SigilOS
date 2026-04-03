@@ -1,0 +1,290 @@
+{
+  "dofus": "dolmanax",
+  "displayName": "Dolmanax",
+  "color": "#1ABC9C",
+  "successName": "Le Dolmanax",
+  "recommendedLevel": 170,
+  "successDescription": "Obtenir le Dolmanax.",
+  "dofusItemId": 8774,
+  "compiledAt": "2026-04-03T08:43:42.487Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "Monde de Douze",
+      "description": "Conditions requises pour accéder aux quêtes du Dolmanax.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "L'anneau de tous les dangers",
+          "dofusdbId": 1629,
+          "level": 2,
+          "zone": "Salle des métiers",
+          "npcName": "Maître Hoboulo",
+          "npcSubArea": "Salle des métiers",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 19622,
+              "name": "Anneau de l'Audacieux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/9332.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Entrer dans la salle des métiers",
+            "Aller voir Maître Hoboulo",
+            "Récolter du blé",
+            "Cueillir de l'ortie",
+            "Couper du frêne",
+            "Extraire du fer",
+            "Pêcher un goujon",
+            "Fabriquer 1 Anneau de l'Audacieux et fermer l'interface",
+            "Aller voir Maître Hoboulo",
+            "Retourner voir Ganymède"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Destination Astrub",
+          "dofusdbId": 2004,
+          "level": 10,
+          "zone": "Incarnam - Aire de l'envol",
+          "npcName": "Maître Anemo",
+          "npcSubArea": "Incarnam - Aire de l'envol",
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Maître Anemo",
+            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
+            "Aller voir Envoyée des Douze"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1629
+            }
+          ]
+        },
+        {
+          "name": "On marche sur des œufs",
+          "dofusdbId": 1959,
+          "level": 15,
+          "zone": "Taverne d'Astrub",
+          "npcName": "Nowa",
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 6,
+            "y": -18,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Entrer dans la taverne d'Astrub",
+            "Parler avec les occupants de la taverne pour attirer l'attention d'un trafiquant",
+            "Aller voir Nowa",
+            "Vaincre x1 {monster,5240} en un seul combat",
+            "Escorter Nowa et le livrer au chef Badufron",
+            "Aller voir Conseillère Archie"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2004
+            }
+          ]
+        },
+        {
+          "name": "Conseil de classe",
+          "dofusdbId": 2009,
+          "level": 20,
+          "zone": "Taverne d'Astrub",
+          "npcName": "Allisteria",
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 4,
+            "y": -15,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Allisteria",
+            "Aller voir Abrazelon Sixgriffe",
+            "Aller voir Gasdaure",
+            "Aller voir Jim Fleps",
+            "Aller voir Montrakwartz",
+            "Aller voir Meow Moew",
+            "Aller voir Nepra Lido",
+            "Aller voir Rok Elreuss",
+            "Aller voir Setsinbol",
+            "Aller voir Sadadi Sama",
+            "Aller voir Saketsu",
+            "Aller voir Sel Dawa",
+            "Aller voir Bapapa",
+            "Aller voir Hibaba",
+            "Aller voir Alberta Borida",
+            "Aller voir Lester",
+            "Aller voir Hazel Ementaire",
+            "Aller voir Sidèle Laffie",
+            "Aller voir Yvain Dykt"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1959
+            }
+          ]
+        },
+        {
+          "name": "Quête de classe",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 4,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2009
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Dolmanax",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Monde de Douze",
+      "description": "Quête ou drop pour obtenir le Dolmanax.",
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La quête du Dolmanax",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 6,
+    "totalItems": 6,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 289,
+        "name": "Blé",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/34009.png"
+      },
+      {
+        "id": 303,
+        "name": "Bois de Frêne",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/38017.png"
+      },
+      {
+        "id": 312,
+        "name": "Fer",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 1782,
+        "name": "Goujon",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/41294.png"
+      },
+      {
+        "id": 19622,
+        "name": "Anneau de l'Audacieux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/9332.png"
+      }
+    ],
+    "dungeons": []
+  }
+}

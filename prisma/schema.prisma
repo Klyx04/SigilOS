@@ -1618,19 +1618,19 @@ model DofusItem {
   color             String?
   displayOrder      Int                   @default(0)
   description       String?
-  successName       String?  // Nom du succès associé dans le jeu
-  localImageUrl     String?  // V3: Asset WebP local (plus léger)
-  bonusSummary      String?  // V3: Résumé du bonus (+1 PA, +2 PO, etc.)
-  isSylvestreReq    Boolean               @default(false) // V3: Prérequis du Dofus Sylvestre
-  isMeta            Boolean               @default(false) // V3: true uniquement pour le Sylvestre
+  successName       String?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   filterCategory    String                @default("AUTRES")
   filterSubCategory String?
+  localImageUrl     String?
+  bonusSummary      String?
+  isMeta            Boolean               @default(false)
+  isSylvestreReq    Boolean               @default(false)
   questChains       DofusQuestChain[]
+  requirementsFrom  DofusRequirement[]    @relation("RequirementSource")
+  requirementsTo    DofusRequirement[]    @relation("RequirementTarget")
   playerProgress    PlayerDofusProgress[]
-  requirementsFrom  DofusRequirement[]    @relation("RequirementSource")  // V3: Dofus qui requiert d'autres
-  requirementsTo    DofusRequirement[]    @relation("RequirementTarget")  // V3: Dofus requis par d'autres
 
   @@index([slug])
   @@index([displayOrder])
@@ -1639,15 +1639,15 @@ model DofusItem {
 
 /// Une "section" de quêtes pour un Dofus (Prérequis, Quêtes principales, etc.)
 model DofusQuestChain {
-  id          String            @id @default(cuid())
-  dofusId     String
-  sectionType String
-  sectionName String
-  description String?
-  chainOrder  Int               @default(0)
-  coordinatesV3 Json?   // V3: { x, y, zoom } pour le layout Neural Tree global
-  dofus       DofusItem         @relation(fields: [dofusId], references: [id], onDelete: Cascade)
-  entries     DofusQuestEntry[]
+  id            String            @id @default(cuid())
+  dofusId       String
+  sectionType   String
+  sectionName   String
+  description   String?
+  chainOrder    Int               @default(0)
+  coordinatesV3 Json?
+  dofus         DofusItem         @relation(fields: [dofusId], references: [id], onDelete: Cascade)
+  entries       DofusQuestEntry[]
 
   @@index([dofusId])
   @@index([dofusId, chainOrder])
@@ -1666,9 +1666,7 @@ model DofusQuestEntry {
   dofusdbId          Int?
   requirements       Json?
   notes              String?
-  coords             Json?  // { x: number, y: number } coordonnées du PNJ de départ
-  localImageUrl      String? // V3: Asset WebP local (PNJ, monstre, etc.)
-  coordinatesV3      Json?   // V3: { x, y } pour le layout Neural Tree organique
+  coords             Json?
   mapId              Int?
   posX               Int                        @default(0)
   posY               Int                        @default(0)
@@ -1679,8 +1677,11 @@ model DofusQuestEntry {
   objectives         Json?
   npcName            String?
   isSynergyCandidate Boolean                    @default(false)
-  weight             Int                        @default(1) // V3: Poids pour le calcul de complétion pondéré
-  externalRef        String?                               // V3: Lien vers guide externe (DPLN, Next-Stage...)
+  coordinatesV3      Json?
+  localImageUrl      String?
+  externalRef        String?
+  weight             Int                        @default(1)
+  dungeonsRequired   Json?
   chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
   playerProgress     PlayerDofusQuestProgress[]
 
@@ -1697,9 +1698,9 @@ model PlayerDofusProgress {
   isObtained        Boolean     @default(false)
   obtainedAt        DateTime?
   notes             String?
-  completionPercent Int         @default(0) // V3: Cache du % de complétion (pondéré), rafraîchi à chaque update
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+  completionPercent Int         @default(0)
   dofus             DofusItem   @relation(fields: [dofusId], references: [id], onDelete: Cascade)
   profile           UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -1711,13 +1712,13 @@ model PlayerDofusProgress {
 
 /// V3: Lien de dépendance entre Dofus (ex: Sylvestre → Dom de Pin → Ocre)
 model DofusRequirement {
-  id           String    @id @default(cuid())
-  fromDofusId  String    // Le Dofus qui nécessite l'autre
-  toDofusId    String    // Le Dofus requis
-  notes        String?   // Description optionnelle de la dépendance
-  createdAt    DateTime  @default(now())
-  fromDofus    DofusItem @relation("RequirementSource", fields: [fromDofusId], references: [id], onDelete: Cascade)
-  toDofus      DofusItem @relation("RequirementTarget", fields: [toDofusId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  fromDofusId String
+  toDofusId   String
+  notes       String?
+  createdAt   DateTime  @default(now())
+  fromDofus   DofusItem @relation("RequirementSource", fields: [fromDofusId], references: [id], onDelete: Cascade)
+  toDofus     DofusItem @relation("RequirementTarget", fields: [toDofusId], references: [id], onDelete: Cascade)
 
   @@unique([fromDofusId, toDofusId])
   @@index([fromDofusId])

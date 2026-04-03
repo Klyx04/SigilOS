@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { 
     getGuildSynergyForDofus, 
     toggleQuestStatus,
@@ -13,8 +13,10 @@ import { DofusGlobalLogistics } from "./DofusGlobalLogistics";
 import { QuestChecklist } from "./QuestChecklist";
 import { GuildDofusHeatmap } from "./GuildDofusHeatmap";
 import { Button } from "@/components/ui/button";
-import { LayoutList, Network, RefreshCw, Users, LayoutGrid, Flame } from "lucide-react";
+import { LayoutList, RefreshCw, Users, LayoutGrid, Flame, Route } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { DofusQuestStatus } from "@prisma/client";
 
 interface DofusQuestManagerV3Props {
     guildId: string;
@@ -30,7 +32,58 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
     const [viewMode, setViewMode] = useState<ViewMode>("successes");
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
+    
+    // ── Optimistic State ───────────────────────────────────────────────────
+    const [localOverrides, setLocalOverrides] = useState<Map<string, DofusQuestStatus>>(new Map());
+    const router = useRouter();
     const [, startTransition] = useTransition();
+
+    // Re-sync local overrides if chains prop changes from server (refresh)
+    useEffect(() => {
+        setLocalOverrides(new Map());
+    }, [chains]);
+
+    // Computed shared completed IDs
+    const completedIds = useMemo(() => {
+        const ids = new Set<string>();
+        chains.forEach(c => {
+            (c?.entries || []).forEach((e: any) => {
+                const override = localOverrides.get(e.id);
+                const status = override ?? e.status;
+                if (status === "COMPLETED") {
+                    ids.add(e.id); // Internal UUID
+                    if (e.dofusdbId) ids.add(String(e.dofusdbId)); // Official ID
+                }
+            });
+        });
+        return ids;
+    }, [chains, localOverrides]);
+
+    async function handleToggleStatus(questId: string, newStatus: DofusQuestStatus) {
+        // 1. Optimistic Update
+        setLocalOverrides(prev => {
+            const next = new Map(prev);
+            next.set(questId, newStatus);
+            return next;
+        });
+
+        // 2. Server Action
+        startTransition(async () => {
+            const res = await toggleQuestStatus(guildId, questId, newStatus);
+            if (res.success) {
+                toast.success("Progression mise à jour");
+                router.refresh(); // This will eventually trigger useEffect above to clear overrides
+            } else {
+                toast.error(res.error || "Erreur lors de la mise à jour");
+                // Rollback
+                setLocalOverrides(prev => {
+                    const next = new Map(prev);
+                    next.delete(questId);
+                    return next;
+                });
+            }
+        });
+    }
 
     async function loadSynergy() {
         setLoadingSynergy(true);
@@ -46,17 +99,6 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dofus.id, guildId]);
 
-    async function handleToggleStatus(questId: string, newStatus: any) {
-        startTransition(async () => {
-            const res = await toggleQuestStatus(guildId, questId, newStatus);
-            if (res.success) {
-                toast.success("Progression mise à jour");
-            } else {
-                toast.error(res.error || "Erreur lors de la mise à jour");
-            }
-        });
-    }
-
     const totalMembers = Object.values(synergy).reduce((acc, members) => {
         members.forEach(m => acc.add(m.profileId));
         return acc;
@@ -65,14 +107,14 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
     const views: { id: ViewMode; label: string; Icon: any }[] = [
         { id: "successes", label: "Succès",       Icon: LayoutGrid },
         { id: "list",      label: "Liste",         Icon: LayoutList },
-        { id: "tree",      label: "Arbre Neural",  Icon: Network },
+        { id: "tree",      label: "Parcours",     Icon: Route },
         { id: "heatmap",   label: "Guilde",        Icon: Flame },
     ];
 
     return (
         <div className="space-y-4">
-            {/* Global Logistics Summary */}
-            <DofusGlobalLogistics chains={chains} dofusColor={dofus.color} />
+            {/* Global Logistics Summary — reactive to completedIds if we want, but for now prop-based */}
+            <DofusGlobalLogistics chains={chains} dofusColor={dofus.color} completedIds={completedIds} />
 
             {/* ── Toolbar ─────────────────────────────────────────────── */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-zinc-900/40 border border-white/5 rounded-2xl backdrop-blur-sm mb-8">
@@ -135,6 +177,7 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
                         synergy={synergy}
                         dofusColor={dofusColor}
                         onToggleStatus={handleToggleStatus}
+                        completedIds={completedIds}
                     />
                 )}
                 {viewMode === "tree" && (
@@ -145,11 +188,18 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
                         synergy={synergy}
                         dofusColor={dofusColor}
                         onToggleStatus={handleToggleStatus}
+                        completedIds={completedIds}
                     />
                 )}
                 {viewMode === "list" && (
                     <div className="bg-zinc-950/40 border border-white/5 rounded-3xl p-6">
-                        <QuestChecklist chains={chains} guildId={guildId} dofusColor={dofusColor} />
+                        <QuestChecklist 
+                            chains={chains} 
+                            guildId={guildId} 
+                            dofusColor={dofusColor} 
+                            completedIds={completedIds}
+                            onToggle={handleToggleStatus}
+                        />
                     </div>
                 )}
                 {viewMode === "heatmap" && (

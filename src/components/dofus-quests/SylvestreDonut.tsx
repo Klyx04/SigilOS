@@ -90,7 +90,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                 color: "#a78bfa",
                 bgColor: "rgba(167,139,250,0.15)",
                 percent: dofusReqPercent,
-                guildPercent: dofusReqPercent, // guild stat would come from server, approximate here
+                guildPercent: dofusReqPercent,
                 icon: "💎",
                 description: `${dofusReqDone}/${dofusReqTotal} Dofus obtenus`,
             },
@@ -104,21 +104,11 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                 icon: "📜",
                 description: "Silvosse, Flovoraison, Refuge",
             },
-            {
-                id: "ressources-donjons",
-                label: "Ressources & Donjons",
-                color: "#fb923c",
-                bgColor: "rgba(251,146,60,0.15)",
-                percent: resourcePercent,
-                guildPercent: resourcePercent,
-                icon: "⚔️",
-                description: "Donjons spécifiques + ressources",
-            },
         ];
     }, [sylvestreReqDofus, sylvestre]);
 
-    // Weighted overall
-    const weights = [0.35, 0.30, 0.35];
+    // Weighted overall: 50% Required Dofus, 50% Own Questline
+    const weights = [0.5, 0.5];
     const overallPercent = Math.round(
         segments.reduce((sum, seg, i) => sum + seg.percent * weights[i], 0)
     );
@@ -127,8 +117,8 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
     const radius = 45;
     const circumference = 2 * Math.PI * radius;
 
-    // Each segment occupies 1/3 of the circle
-    const arcFraction = 1 / 3;
+    // Each segment occupies 1/2 of the circle
+    const arcFraction = 1 / 2;
 
     return (
         <div

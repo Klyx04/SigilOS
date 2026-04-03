@@ -38,7 +38,7 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
     const totalObtained = dofusList.filter((d) => d.isObtained).length;
     const totalInProgress = dofusList.filter((d) => !d.isObtained && d.progressPercent > 0).length;
     const overallPercent = dofusList.length > 0
-        ? Math.round((totalObtained / dofusList.length) * 100)
+        ? Math.round(dofusList.reduce((sum, d) => sum + d.progressPercent, 0) / dofusList.length)
         : 0;
 
     // Filter + search

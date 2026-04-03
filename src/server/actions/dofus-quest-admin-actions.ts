@@ -268,13 +268,20 @@ export async function compileDofusChain(slug: string): Promise<ActionResponse<{ 
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
-        const { stdout: compileOut } = await execAsync(`npx tsx scripts/dofus-compiler.ts --dofus ${slug}`);
-        const { stdout: seedOut } = await execAsync(`npx tsx scripts/seed-argent-tree.ts --dofus ${slug}`);
+        // V3 compiler: extracts items, dungeons, NPCs, coords from DofusDB API
+        const { stdout: compileOut, stderr } = await execAsync(
+            `npx tsx scripts/dofus-compiler-v3.ts --dofus=${slug}`,
+            { cwd: process.cwd() }
+        );
+        if (stderr && stderr.length > 0) {
+            console.warn(`[compileDofusChain] stderr for ${slug}:`, stderr.slice(0, 500));
+        }
         
         revalidatePath("/god/quetes-dofus");
-        return { success: true, data: { log: compileOut + "\n" + seedOut } };
+        revalidatePath(`/dashboard`);
+        return { success: true, data: { log: compileOut || "Compilation V3 terminée ✅" } };
     } catch (error: any) {
         console.error("[compileDofusChain] Error:", error);
-        return { success: false, error: "Erreur compilation: " + (error?.message || "Inconnue") };
+        return { success: false, error: "Erreur compilation V3: " + (error?.message || "Inconnue") };
     }
 }

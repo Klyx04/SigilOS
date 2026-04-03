@@ -274,6 +274,7 @@ model GuildModules {
   chat         Boolean     @default(false)
   gallery      Boolean     @default(true)
   ladderSync   Boolean     @default(false)
+  minigames    Boolean     @default(true)
   guild        GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 

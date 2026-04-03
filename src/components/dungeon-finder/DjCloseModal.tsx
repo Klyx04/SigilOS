@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Circle, Trophy, X, Loader2, Star, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Circle, Trophy, X, Loader2, Star, ShieldCheck, UserPlus, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { closeDjPostWithContributions } from "@/server/actions/dungeon-finder-actions";
+import { closeDjPostWithContributions, getDjGuildMembersForClose } from "@/server/actions/dungeon-finder-actions";
 import { toast } from "sonner";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 
@@ -15,6 +15,8 @@ interface DjCloseModalProps {
     onClose: () => void;
     onClosed: () => void;
 }
+
+type GuildMember = { id: string; name: string; image: string | null };
 
 /** Mirror of server-side getContributionPoints */
 function getPointsFromLevel(level?: number | null): number {
@@ -28,15 +30,47 @@ function getPointsFromLevel(level?: number | null): number {
 export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjCloseModalProps) {
     const [isPending, startTransition] = useTransition();
 
-    // Only accepted participants (not the creator)
+    // ── Participants qui se sont inscrits formellement ──────────────────────
     const acceptedParticipants = post.participants.filter(
         (p) => p.status === "ACCEPTED" && p.profile.id !== post.profileId
     );
 
-    // All validated by default
+    // IDs validés (cochés) : tous les inscrits par défaut
     const [validated, setValidated] = useState<Set<string>>(
         new Set(acceptedParticipants.map((p) => p.profile.id))
     );
+
+    // ── Membres supplémentaires (hors-post) ─────────────────────────────────
+    const [allMembers, setAllMembers] = useState<GuildMember[]>([]);
+    const [extraMembers, setExtraMembers] = useState<GuildMember[]>([]);
+    const [search, setSearch] = useState("");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [loadingMembers, setLoadingMembers] = useState(false);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Ferme la dropdown si on clique en dehors
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        function handler(e: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setDropdownOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [dropdownOpen]);
+
+    // Charge la liste des membres quand la modale s'ouvre
+    useEffect(() => {
+        if (!isOpen || allMembers.length > 0) return;
+        setLoadingMembers(true);
+        getDjGuildMembersForClose(guildId).then((res) => {
+            if (res.success && res.data) setAllMembers(res.data);
+            setLoadingMembers(false);
+        });
+    }, [isOpen, guildId, allMembers.length]);
 
     function toggle(profileId: string) {
         setValidated((prev) => {
@@ -47,7 +81,34 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
         });
     }
 
-    // Contribution points based on dungeon level
+    // IDs déjà dans la liste (formels + extra) pour éviter les doublons dans la dropdown
+    const alreadyListedIds = new Set([
+        post.profileId,
+        ...acceptedParticipants.map((p) => p.profile.id),
+        ...extraMembers.map((m) => m.id),
+    ]);
+
+    const filteredSuggestions = allMembers.filter(
+        (m) => !alreadyListedIds.has(m.id) && m.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    function addExtra(member: GuildMember) {
+        setExtraMembers((prev) => [...prev, member]);
+        setValidated((prev) => new Set([...prev, member.id]));
+        setSearch("");
+        setDropdownOpen(false);
+    }
+
+    function removeExtra(id: string) {
+        setExtraMembers((prev) => prev.filter((m) => m.id !== id));
+        setValidated((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+    }
+
+    // ── Points & clôture ────────────────────────────────────────────────────
     const dungeonLevel = post.dungeon?.level ?? null;
     const pts = getPointsFromLevel(dungeonLevel);
 
@@ -68,6 +129,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
     const title = post.mode === "DONJON" ? post.dungeon?.name : post.questName;
     const validatedCount = validated.size;
+    const totalListCount = acceptedParticipants.length + extraMembers.length;
 
     return (
         <AnimatePresence>
@@ -111,7 +173,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                         </div>
 
                         {/* Body */}
-                        <div className="p-6 space-y-5">
+                        <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
                             {/* Info banner */}
                             <div className="flex items-start gap-2.5 bg-violet-500/8 border border-violet-500/20 rounded-xl px-3.5 py-3">
                                 <Trophy className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
@@ -125,17 +187,14 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                 </p>
                             </div>
 
-                            {/* Participants list */}
-                            {acceptedParticipants.length === 0 ? (
-                                <div className="text-center py-6 text-slate-600">
-                                    <Circle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                    <p className="text-sm">Aucun membre à valider.</p>
-                                </div>
-                            ) : (
+                            {/* Participants inscrits */}
+                            {totalListCount > 0 && (
                                 <div className="space-y-2">
                                     <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                                        Participants acceptés
+                                        Participants ({acceptedParticipants.length} inscrit{acceptedParticipants.length > 1 ? "s" : ""}{extraMembers.length > 0 ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}` : ""})
                                     </p>
+
+                                    {/* Inscrits formels */}
                                     {acceptedParticipants.map((p) => {
                                         const isVal = validated.has(p.profile.id);
                                         return (
@@ -147,28 +206,22 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                     : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60"
                                                     }`}
                                             >
-                                                {/* Avatar */}
-                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 shrink-0 ring-2 ring-offset-1 ring-offset-slate-900 ring-transparent">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 shrink-0">
                                                     {p.profile.user.image && (
                                                         <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />
                                                     )}
                                                 </div>
-                                                {/* Name */}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-bold text-white truncate">
                                                         {p.profile.discordNickname || p.profile.pseudoDofus || (p.profile as any).dofusPseudo || "Membre"}
                                                     </p>
-                                                    {p.classe && (
-                                                        <p className="text-[10px] text-slate-500">{p.classe}</p>
-                                                    )}
+                                                    {p.classe && <p className="text-[10px] text-slate-500">{p.classe}</p>}
                                                 </div>
-                                                {/* Point badge */}
                                                 {isVal && (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30 shadow-sm">
+                                                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
                                                         <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
-                                                {/* Checkbox */}
                                                 {isVal
                                                     ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                                                     : <Circle className="w-5 h-5 text-slate-600 shrink-0" />
@@ -176,11 +229,125 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                             </button>
                                         );
                                     })}
+
+                                    {/* Membres ajoutés manuellement */}
+                                    {extraMembers.map((m) => {
+                                        const isVal = validated.has(m.id);
+                                        return (
+                                            <div
+                                                key={m.id}
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl border bg-amber-500/10 border-amber-500/30"
+                                            >
+                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 shrink-0">
+                                                    {m.image && <img src={m.image} alt="" className="w-full h-full object-cover" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-white truncate">{m.name}</p>
+                                                    <p className="text-[10px] text-amber-400/70">Ajouté manuellement</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => toggle(m.id)}
+                                                    className="shrink-0"
+                                                >
+                                                    {isVal
+                                                        ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                                        : <Circle className="w-5 h-5 text-slate-600" />
+                                                    }
+                                                </button>
+                                                <button
+                                                    onClick={() => removeExtra(m.id)}
+                                                    className="text-slate-600 hover:text-rose-400 transition-colors shrink-0"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 
+                            {/* Empty state quand aucun inscrit */}
+                            {totalListCount === 0 && (
+                                <div className="text-center py-4 text-slate-600">
+                                    <Circle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">Aucun participant inscrit.</p>
+                                    <p className="text-xs text-slate-700 mt-1">Tu peux en ajouter ci-dessous.</p>
+                                </div>
+                            )}
+
+                            {/* ── Ajouter un membre hors-liste ─────────────────────────────── */}
+                            <div className="pt-2 border-t border-white/5" ref={dropdownRef}>
+                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <UserPlus className="w-3 h-3" />
+                                    Ajouter un participant hors-liste
+                                </p>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDropdownOpen((v) => !v);
+                                            setTimeout(() => searchRef.current?.focus(), 50);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-900/60 border border-white/10 rounded-xl text-sm text-slate-400 hover:border-violet-500/40 hover:text-white transition-all"
+                                    >
+                                        <Search className="w-4 h-4 shrink-0" />
+                                        <span className="flex-1 text-left truncate">
+                                            {loadingMembers ? "Chargement…" : "Rechercher un membre de la guilde…"}
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {dropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -4 }}
+                                                transition={{ duration: 0.15 }}
+                                                className="absolute z-10 top-full mt-1 w-full bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                                            >
+                                                <div className="p-2 border-b border-white/5">
+                                                    <div className="flex items-center gap-2 px-2">
+                                                        <Search className="w-3 h-3 text-slate-500 shrink-0" />
+                                                        <input
+                                                            ref={searchRef}
+                                                            type="text"
+                                                            value={search}
+                                                            onChange={(e) => setSearch(e.target.value)}
+                                                            placeholder="Nom du membre…"
+                                                            className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none py-1"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="max-h-48 overflow-y-auto">
+                                                    {filteredSuggestions.length === 0 ? (
+                                                        <p className="text-center text-xs text-slate-600 py-4 italic">
+                                                            {search ? "Aucun résultat" : "Tous les membres sont déjà listés"}
+                                                        </p>
+                                                    ) : (
+                                                        filteredSuggestions.map((m) => (
+                                                            <button
+                                                                key={m.id}
+                                                                type="button"
+                                                                onClick={() => addExtra(m)}
+                                                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                                                            >
+                                                                <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-700 shrink-0">
+                                                                    {m.image && <img src={m.image} alt="" className="w-full h-full object-cover" />}
+                                                                </div>
+                                                                <span className="text-sm text-white font-medium truncate">{m.name}</span>
+                                                            </button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+
                             {/* Summary */}
-                            {acceptedParticipants.length > 0 && (
+                            {validatedCount > 0 && (
                                 <p className="text-[11px] text-slate-500 text-center">
                                     <strong className="text-slate-300">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
                                     <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>
@@ -189,7 +356,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 pb-6 flex gap-3">
+                        <div className="px-6 pb-6 pt-4 flex gap-3 border-t border-white/5">
                             <Button
                                 variant="ghost"
                                 onClick={onClose}

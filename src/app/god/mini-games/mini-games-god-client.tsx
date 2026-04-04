@@ -310,14 +310,37 @@ export default function MiniGamesGodClient({
                                         reportedIds.map(id => {
                                             const details = mapDetails[id];
                                             return (
-                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between group">
+                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-amber-500/30 transition-all">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white/40">
-                                                            <Map size={16} />
+                                                        <div className="relative group/map">
+                                                            <div className="w-16 h-12 rounded-xl bg-white/5 overflow-hidden border border-white/5 flex items-center justify-center text-white/20 transition-all group-hover/map:border-amber-500/50">
+                                                                <img 
+                                                                    src={`/game-data/hd_maps/${id}.webp`}
+                                                                    alt=""
+                                                                    className="w-full h-full object-cover opacity-60 group-hover/map:opacity-100 group-hover/map:scale-110 transition-all duration-500"
+                                                                    onError={(e) => {
+                                                                        (e.currentTarget as any).style.display = 'none';
+                                                                    }}
+                                                                />
+                                                                <Map size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
+                                                            </div>
+                                                            {/* HD Preview on Hover */}
+                                                            <div className="fixed pointer-events-none z-[2000] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-95 group-hover/map:scale-100 left-full ml-4 top-0 w-80 aspect-video rounded-2xl overflow-hidden border-2 border-amber-500/50 shadow-2xl shadow-black/80 bg-zinc-950">
+                                                                <img 
+                                                                    src={`/game-data/hd_maps/${id}.webp`}
+                                                                    alt=""
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                                                <div className="absolute bottom-3 left-4 flex flex-col">
+                                                                    <span className="text-white font-black text-xs uppercase italic">Aperçu HD #{id}</span>
+                                                                    <span className="text-amber-500 text-[8px] font-bold uppercase tracking-widest">Signalement Joueur</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div>
-                                                            <div className="text-xs font-black text-white">ID: {id}</div>
-                                                            <div className="text-[10px] text-zinc-500 font-mono">
+                                                            <div className="text-xs font-black text-white group-hover:text-amber-500 transition-colors tracking-tight">ID: {id}</div>
+                                                            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
                                                                 {details ? `Pos: [${details.x}, ${details.y}] • Monde ${details.worldMap}` : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
                                                             </div>
                                                         </div>
@@ -386,14 +409,37 @@ export default function MiniGamesGodClient({
                                         blacklist.map(id => {
                                             const details = mapDetails[id];
                                             return (
-                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-red-500/30 transition-all">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
-                                                            <Ban size={16} />
+                                                        <div className="relative group/map">
+                                                            <div className="w-16 h-12 rounded-xl bg-red-500/5 overflow-hidden border border-white/5 flex items-center justify-center text-red-500/20 transition-all group-hover/map:border-red-500/50">
+                                                                <img 
+                                                                    src={`/game-data/hd_maps/${id}.webp`}
+                                                                    alt=""
+                                                                    className="w-full h-full object-cover opacity-40 group-hover/map:opacity-80 group-hover/map:scale-110 transition-all duration-500"
+                                                                    onError={(e) => {
+                                                                        (e.currentTarget as any).style.display = 'none';
+                                                                    }}
+                                                                />
+                                                                <Ban size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
+                                                            </div>
+                                                            {/* HD Preview on Hover */}
+                                                            <div className="fixed pointer-events-none z-[2000] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-95 group-hover/map:scale-100 right-full mr-4 top-0 w-80 aspect-video rounded-2xl overflow-hidden border-2 border-red-500/50 shadow-2xl shadow-black/80 bg-zinc-950">
+                                                                <img 
+                                                                    src={`/game-data/hd_maps/${id}.webp`}
+                                                                    alt=""
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                                                <div className="absolute bottom-3 left-4 flex flex-col">
+                                                                    <span className="text-white font-black text-xs uppercase italic">Blacklist #{id}</span>
+                                                                    <span className="text-red-500 text-[8px] font-bold uppercase tracking-widest">Exclusion active</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div>
-                                                            <div className="text-xs font-black text-white">ID: {id}</div>
-                                                            <div className="text-[10px] text-zinc-500 font-mono">
+                                                            <div className="text-xs font-black text-white group-hover:text-red-500 transition-colors tracking-tight">ID: {id}</div>
+                                                            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
                                                                 {details ? `Pos: [${details.x}, ${details.y}] • Monde ${details.worldMap}` : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
                                                             </div>
                                                         </div>

@@ -1,60 +1,78 @@
 {
   "dofus": "dotruche",
   "displayName": "Dotruche",
-  "color": "#DAA520",
-  "successName": null,
-  "recommendedLevel": null,
+  "color": "#F5F5DC",
+  "successName": "La Dotruche",
+  "recommendedLevel": 20,
   "description": null,
-  "dofusItemId": 7847,
+  "dofusItemId": 15132,
   "iconId": null,
-  "imageUrl": null,
-  "compiledAt": "2026-04-04T00:48:09.989Z",
+  "imageUrl": "https://api.dofusdb.fr/img/items/15132.png",
+  "compiledAt": "2026-04-04T13:40:31.184Z",
   "chains": [
     {
-      "sectionName": "Prérequis",
-      "sectionType": "PREREQUISITE",
-      "zone": "unknown",
+      "sectionName": "Dotruche",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam / Astrub",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
       "entries": [
         {
-          "name": "Scene de menage",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
+          "name": "L'histoire en mouvement",
+          "dofusdbId": 1988,
+          "level": 25,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Aller voir {npc,4341}",
+            "Aller voir {npc,730}",
+            "Récupérer le manuscrit avant qu'il ne soit détruit",
+            "Montrer à {npc,4310} : 1 {item,19681}"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
-        }
-      ]
-    },
-    {
-      "sectionName": "Les quêtes",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
-      "description": null,
-      "isSynergyCandidate": false,
-      "chainOrder": 1,
-      "requires": [],
-      "entries": [
+        },
         {
-          "name": "Un oeuf pour ecaflip",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
+          "name": "Restauration rapide",
+          "dofusdbId": 1989,
+          "level": 30,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 3,
+            "y": -21,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 0,
-          "requirements": []
+          "objectives": [
+            "Montrer à {npc,726} : 1 {item,19681}",
+            "Récupérer un morceau d'écorce centenaire",
+            "Récupérer du lailait de boufette",
+            "Rapporter le lailait et l'écorce au Mage Ax",
+            "Ramener à {npc,1574} : x1 {item,19686}",
+            "Aller voir {npc,4310}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1988
+            }
+          ]
         }
       ]
     }

@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
 import { sendGlobalStatusPing } from "@/server/actions/status-actions";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 // ---------------------------------------------------------------------------
 // DISC-2 — Discord Status Channel (Consolidated)
 // Triggers the living status update in the configured Discord channel.
+// ✅ Protégé par x-cron-secret (fail-closed si secret absent)
 // ---------------------------------------------------------------------------
 
 export async function GET(req: Request) {
-    // Security: validate cron secret header
-    const secret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get("authorization");
-    
-    if (secret && authHeader !== `Bearer ${secret}`) {
-        const url = new URL(req.url);
-        if (url.searchParams.get('key') !== secret) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+    // CRIT-02 FIX
+    if (!verifyCronSecret(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {

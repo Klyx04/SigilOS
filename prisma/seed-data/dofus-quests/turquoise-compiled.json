@@ -8,7 +8,7 @@
   "dofusItemId": 739,
   "iconId": 23003,
   "imageUrl": "https://api.dofusdb.fr/img/items/23003.png",
-  "compiledAt": "2026-04-04T00:55:38.651Z",
+  "compiledAt": "2026-04-04T13:47:36.916Z",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -20,42 +20,98 @@
       "requires": [],
       "entries": [
         {
-          "name": {
-            "name": "L'anneau de tous les dangers",
-            "id": 1629
+          "name": "L'anneau de tous les dangers",
+          "dofusdbId": 1629,
+          "level": 2,
+          "zone": "Salle des métiers",
+          "npcName": null,
+          "npcSubArea": "Salle des métiers",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            }
+          ],
+          "objectives": [
+            "Entrer dans la salle des métiers",
+            "Aller voir {npc,2895}",
+            "Récolter du blé",
+            "Cueillir de l'ortie",
+            "Couper du frêne",
+            "Extraire du fer",
+            "Pêcher un goujon",
+            "Fabriquer 1 {item,19622} et fermer l'interface",
+            "Retourner voir {npc,7581}"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": {
-            "name": "Sous le regard des dieux",
-            "id": 1630
+          "name": "Sous le regard des dieux",
+          "dofusdbId": 1630,
+          "level": 2,
+          "zone": "Salle de combat",
+          "npcName": null,
+          "npcSubArea": "Salle de combat",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Entrer dans la salle de combat",
+            "Aller voir {npc,2896}",
+            "Vaincre x2 {monster,4111} en un seul combat",
+            "Vaincre x1 {monster,4104} en un seul combat",
+            "Retourner voir {npc,2896}",
+            "Retourner voir {npc,7581}"
+          ],
           "stepOrder": 1,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1629
+            }
+          ]
         },
         {
-          "name": {
-            "name": "Réponse à tout",
-            "id": 1530
-          },
+          "name": "Réponse à tout",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -65,45 +121,77 @@
           "itemsRequired": [],
           "objectives": [],
           "stepOrder": 2,
-          "requirements": []
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1630
+            }
+          ]
         },
         {
-          "name": {
-            "name": "Le village dans les nuages",
-            "id": 1632
-          },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Le village dans les nuages",
+          "dofusdbId": 1632,
+          "level": 3,
+          "zone": "Monde de Douze",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -1,
+            "y": -3,
+            "worldId": 2
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Aller voir {npc,2905}",
+            "Aller voir {npc,2899}",
+            "Aller voir {npc,2885}",
+            "Aller voir {npc,2880}",
+            "Aller voir {npc,2910}",
+            "Retourner voir {npc,2905}",
+            "Aller voir {npc,1515}"
+          ],
           "stepOrder": 3,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1630
+            }
+          ]
         },
         {
-          "name": {
-            "name": "Espoirs et tragédies",
-            "id": 1634
+          "name": "Espoirs et tragédies",
+          "dofusdbId": 1634,
+          "level": 5,
+          "zone": "Incarnam - Rocher du Phénix",
+          "npcName": null,
+          "npcSubArea": "Incarnam - Rocher du Phénix",
+          "coords": {
+            "x": 2,
+            "y": -3,
+            "worldId": 1
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Lire le livre contant la légende de Rykke Errel",
+            "Retourner voir {npc,1515}",
+            "Parler à un vieux de la vieille",
+            "Parler à une féline pantouflarde",
+            "Parler à un voleur malchanceux"
+          ],
           "stepOrder": 4,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1632
+            }
+          ]
         },
         {
-          "name": {
-            "name": "Dans la gueule du milimulou",
-            "id": 1635
-          },
+          "name": "Dans la gueule du milimulou",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -113,495 +201,122 @@
           "itemsRequired": [],
           "objectives": [],
           "stepOrder": 5,
-          "requirements": []
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1634
+            }
+          ]
         },
         {
-          "name": {
-            "name": "Destination Astrub",
-            "id": 2004
+          "name": "Destination Astrub",
+          "dofusdbId": 2004,
+          "level": 10,
+          "zone": "Incarnam - Aire de l'envol",
+          "npcName": null,
+          "npcSubArea": "Incarnam - Aire de l'envol",
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 2
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Aller voir {npc,4360}",
+            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
+            "Aller voir {npc,4355}"
+          ],
           "stepOrder": 6,
-          "requirements": []
-        },
-        {
-          "name": {
-            "name": "Les principes d'Archie m'aident",
-            "id": 2007
-          },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 7,
-          "requirements": []
-        },
-        {
-          "name": "On marche sur des œufs",
-          "dofusdbId": 1959,
-          "level": 15,
-          "zone": "Taverne d'Astrub",
-          "npcName": null,
-          "npcSubArea": "Taverne d'Astrub",
-          "coords": {
-            "x": 6,
-            "y": -18,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Entrer dans la taverne d'Astrub",
-            "Parler avec les occupants de la taverne pour attirer l'attention d'un trafiquant",
-            "Aller voir {npc,4379}",
-            "Vaincre x1 {monster,5240} en un seul combat",
-            "Escorter Nowa et le livrer au chef Badufron",
-            "Aller voir {npc,1502}"
-          ],
-          "stepOrder": 8,
-          "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Conseil de classe",
-          "dofusdbId": 2009,
-          "level": 20,
-          "zone": "Taverne d'Astrub",
-          "npcName": null,
-          "npcSubArea": "Taverne d'Astrub",
-          "coords": {
-            "x": 4,
-            "y": -15,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,4338}",
-            "Aller voir {npc,4326}",
-            "Aller voir {npc,4324}",
-            "Aller voir {npc,4335}",
-            "Aller voir {npc,4337}",
-            "Aller voir {npc,4328}",
-            "Aller voir {npc,4334}",
-            "Aller voir {npc,4329}",
-            "Aller voir {npc,4333}",
-            "Aller voir {npc,4327}",
-            "Aller voir {npc,4347}",
-            "Aller voir {npc,4319}",
-            "Aller voir {npc,4318}",
-            "Aller voir {npc,4317}",
-            "Aller voir {npc,4315}",
-            "Aller voir {npc,4314}",
-            "Aller voir {npc,4313}",
-            "Aller voir {npc,4312}",
-            "Aller voir {npc,6839}"
-          ],
-          "stepOrder": 9,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1959
+              "dofusdbId": 1634
             }
           ]
         },
         {
-          "name": "Quête de classe",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 10,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2009
-            }
-          ]
-        },
-        {
-          "name": "Ça sent le gaz",
-          "dofusdbId": 1960,
-          "level": 25,
-          "zone": "Tour du Conseil",
-          "npcName": null,
-          "npcSubArea": "Tour du Conseil",
-          "coords": {
-            "x": 4,
-            "y": -19,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,1502}",
-            "Rencontrer Fallanster",
-            "Aller voir {npc,4356}",
-            "Se rendre dans les égouts pour rencontrer les Rats Strubiens",
-            "Vaincre x3 {monster,5248} en un seul combat",
-            "Aller voir {npc,4414}",
-            "Explorer la mine de la carrière afin de trouver ce que cachent les Sidoas",
-            "Créer une diversion dans une galerie proche des Gardoas",
-            "Espionner les Gardoas en se cachant afin de pouvoir écouter leur conversation",
-            "Découvrir ce qu'il y a derrière la porte",
-            "Libérer Rathrosk",
-            "Sortir de la salle de la machine avec Rathrosk",
-            "Affronter les Gardoas vétérans",
-            "Escorter Rathrosk jusqu'à la salle du Conseil",
-            "Présenter Rathrosk à Fallanster",
-            "Aller voir {npc,4325}",
-            "Aller voir {npc,4310}",
-            "Aller voir {npc,4420}"
-          ],
-          "stepOrder": 11,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2009
-            }
-          ]
-        },
-        {
-          "name": "Balade en forêt",
-          "dofusdbId": 1962,
-          "level": 30,
-          "zone": "Tour de la Milice",
-          "npcName": null,
-          "npcSubArea": "Tour de la Milice",
-          "coords": {
-            "x": -1,
-            "y": -23,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller au rendez-vous fixé par Badufron",
-            "Aller voir {npc,4421}",
-            "Vaincre les Pandawas dans la forêt d'Astrub",
-            "Aller voir {npc,4323}",
-            "Aller voir {npc,4325}"
-          ],
-          "stepOrder": 12,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1960
-            }
-          ]
-        },
-        {
-          "name": "Le réveil de Pandala",
-          "dofusdbId": 2149,
-          "level": 30,
-          "zone": "Taverne du Pandazaap",
-          "npcName": null,
-          "npcSubArea": "Taverne du Pandazaap",
-          "coords": {
-            "x": 12,
-            "y": -21,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 421,
-              "name": "Ortie",
-              "amount": 50,
-              "img": "https://api.dofusdb.fr/img/items/36642.png"
-            },
-            {
-              "id": 885,
-              "name": "Laine de Boufton Noir",
-              "amount": 5,
-              "img": "https://api.dofusdb.fr/img/items/57210.png"
-            },
-            {
-              "id": 23038,
-              "name": "Échantillon sanguin de Sel Dawa",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/24031.png"
-            }
-          ],
-          "objectives": [
-            "Vaincre x5 {monster,5228}",
-            "Vaincre x5 {monster,5229}",
-            "Vaincre x5 {monster,5230}",
-            "Vaincre x5 {monster,5231}",
-            "Retourner voir {npc,5604}",
-            "Trouver quelqu'un capable de vous prémunir de la Pandrista",
-            "Demander conseil à Nibé Lulle pour élaborer un sérum",
-            "Fabriquer 1 {item,23039} et fermer l'interface",
-            "Se faire administrer le sérum en retournant voir Nepra Lido",
-            "Traverser le pont de Pandala",
-            "Aller voir {npc,5605}",
-            "Boire la bière pour ouvrir votre conscience aux esprits alentours",
-            "Parler à l'esprit présent dans la pièce",
-            "Sortir de la chambre"
-          ],
-          "stepOrder": 13,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1962
-            }
-          ]
-        },
-        {
-          "name": {
-            "name": "Le réceptacle des dofus",
-            "id": 2154
-          },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 14,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2149
-            }
-          ]
-        },
-        {
-          "name": "Intrusion chez les wabbits",
-          "dofusdbId": 827,
+          "name": "Voir le Dark Vlad et mourir... ou pas",
+          "dofusdbId": 2195,
           "level": 40,
-          "zone": "Monde de Douze",
+          "zone": "Clairière de l'orme",
           "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 1455,
-              "name": "Ailes de Scarafeuille Bleu",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/104212.png"
-            },
-            {
-              "id": 1456,
-              "name": "Ailes de Scarafeuille Blanc",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/104213.png"
-            },
-            {
-              "id": 1458,
-              "name": "Ailes de Scarafeuille Vert",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/104215.png"
-            },
-            {
-              "id": 1457,
-              "name": "Ailes de Scarafeuille Rouge",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/104214.png"
-            }
-          ],
-          "objectives": [
-            "Ramener à {npc,119} : x1 {item,1455}",
-            "Ramener à {npc,119} : x1 {item,1456}",
-            "Ramener à {npc,119} : x1 {item,1458}",
-            "Ramener à {npc,119} : x1 {item,1457}"
-          ],
-          "stepOrder": 15,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2149
-            }
-          ]
-        },
-        {
-          "name": "Un sage parmi les sages",
-          "dofusdbId": 2193,
-          "level": 40,
-          "zone": "Maison des Lenalds",
-          "npcName": null,
-          "npcSubArea": "Maison des Lenalds",
-          "coords": {
-            "x": 22,
-            "y": -28,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Entrer dans la maison des Lenalds pour voir Ronald",
-            "Prouver que vous êtes folt et lusé comme un Lenald",
-            "Parler à la doyenne des Lenalds",
-            "Rencontrer la capitaine Lily au port de Madrestam",
-            "Se prémunir contre la myxomawose et prendre le bateau pour l'île des Wabbits",
-            "Trouver un sage lenald sur l'île de la Cawotte",
-            "Aller voir {npc,640}",
-            "Retrouver le sage disparu dans les souterrains des Wabbits",
-            "Vaincre les mangeuws de cawottes",
-            "Aller voir {npc,5569}",
-            "Escorter Ronald en lieu sûr",
-            "Discuter avec Ronald pour en apprendre davantage sur les six Dofus Primordiaux"
-          ],
-          "stepOrder": 16,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 827
-            }
-          ]
-        },
-        {
-          "name": "Protection divine",
-          "dofusdbId": 2194,
-          "level": 40,
-          "zone": "Monde de Douze",
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": {
-            "x": 4,
-            "y": 1,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Parler au maître de votre temple",
-            "Parler au maître des Dopeuls de votre temple",
-            "Vaincre x1 {monster,505} en un seul combat",
-            "Prier devant la statue du temple pour recevoir la bénédiction des Douze",
-            "Aller à la bibliothèque d'Amakna",
-            "Aller voir {npc,447}",
-            "Lire l'ouvrage de Wally Elconom",
-            "Se rendre à l'orée enchantée de la forêt Maléfique",
-            "Aller voir {npc,6709}"
-          ],
-          "stepOrder": 17,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2193
-            }
-          ]
-        },
-        {
-          "name": "Un pendule pour guider ses pas",
-          "dofusdbId": 2450,
-          "level": 40,
-          "zone": "Monde de Douze",
-          "npcName": null,
-          "npcSubArea": null,
+          "npcSubArea": "Clairière de l'orme",
           "coords": {
             "x": -5,
             "y": 13,
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 14278,
-              "name": "Chaînes Brisées",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/15245.png"
-            },
-            {
-              "id": 746,
-              "name": "Ébonite",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/40658.png"
-            },
-            {
-              "id": 2268,
-              "name": "Scalp de Bwork Archer",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/15425.png"
-            }
-          ],
+          "itemsRequired": [],
           "objectives": [
-            "Ramener à {npc,6709} : x1 {item,14278}",
-            "Ramener à {npc,6709} : x1 {item,746}",
-            "Ramener à {npc,6709} : x1 {item,2268}",
-            "Patienter le temps que Lanseuft de Troille confectionne le pendule",
-            "Aller voir {npc,6709}",
-            "Utiliser le pendule sous la supervision de Lanseuft pour entrer dans le dédale du Dark Vlad"
+            "Obtenir auprès de Lanseuft le droit d'entrer dans la forêt Maléfique",
+            "Découvrir la carte : Clairière du Dark Vlad",
+            "Essayer d'avoir une conversation avec le Dark Vlad",
+            "Affronter les monstres maléfiques",
+            "Parler à nouveau au Dark Vlad",
+            "Affronter les chafers invoqués par le Iop sombre",
+            "Tenter une dernière fois de discuter avec le Dark Vlad",
+            "Retourner à Madrestam pour parler au sage lenald"
           ],
-          "stepOrder": 18,
+          "stepOrder": 7,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2194
+              "dofusdbId": 2004
             }
           ]
         },
         {
-          "name": {
-            "name": "Voir le dark Vlad et mourir... ou pas",
-            "id": 1502
-          },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 19,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2450
-            }
-          ]
-        },
-        {
-          "name": "La magicienne des marécages",
-          "dofusdbId": 1462,
-          "level": 40,
-          "zone": "Monde de Douze",
+          "name": "La dernière barbe avant la fin du monde",
+          "dofusdbId": 2014,
+          "level": 200,
+          "zone": "Bateau Ivre",
           "npcName": null,
-          "npcSubArea": null,
+          "npcSubArea": "Bateau Ivre",
           "coords": {
-            "x": -6,
-            "y": -3,
+            "x": -70,
+            "y": -69,
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,2205}"
+          "itemsRequired": [
+            {
+              "id": 19950,
+              "name": "Orange amère",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/46468.png"
+            },
+            {
+              "id": 19952,
+              "name": "Sucre glace",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/48292.png"
+            },
+            {
+              "id": 19951,
+              "name": "Eau-de-vie vernale",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79014.png"
+            }
           ],
-          "stepOrder": 20,
+          "objectives": [
+            "Ramener à {npc,4504} : x10 {item,19948}",
+            "Ramener à {npc,4504} : x4 {item,19949}",
+            "Montrer à {npc,4504} : 10 {item,19950}",
+            "Montrer à {npc,4504} : 4 {item,19952}",
+            "Montrer à {npc,4504} : 1 {item,19951}",
+            "Fabriquer 1 {item,19953} et fermer l'interface",
+            "Ramener à {npc,4504} : x1 {item,19953}"
+          ],
+          "stepOrder": 8,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2450
+              "dofusdbId": 2195
             }
           ]
         }
@@ -610,8 +325,8 @@
     {
       "sectionName": "Les quêtes du Dofus Turquoise",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Monde de Douze",
-      "description": "La série principale de 10 quêtes qui compose le succès 'Bleu turquoise'.",
+      "zone": "Donjons / Monde de Douze",
+      "description": "La série principale des quêtes pour obtenir le Dofus Turquoise.",
       "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
@@ -704,7 +419,7 @@
           "name": "On dirait le Sud",
           "dofusdbId": 1656,
           "level": 140,
-          "zone": "Monde de Douze",
+          "zone": "Donjons / Monde de Douze",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -783,7 +498,7 @@
           "name": "La méchante sorcière de l'Est",
           "dofusdbId": 1657,
           "level": 150,
-          "zone": "Monde de Douze",
+          "zone": "Donjons / Monde de Douze",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -920,10 +635,7 @@
           ]
         },
         {
-          "name": {
-            "name": "Il était une foi dans l'Ouest",
-            "id": 1658
-          },
+          "name": "Il était une foi dans l'Ouest",
           "dofusdbId": null,
           "level": null,
           "zone": null,

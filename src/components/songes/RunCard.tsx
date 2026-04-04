@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+import { Users, Play, Eye, Loader2, Crown, Trash2, UserPlus, Clock, LogOut, Bell, Check, X, ChevronDown, ChevronUp, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,7 @@ import {
 import { DIFFICULTIES, OBJECTIVES, DOFUS_CLASSES, type DifficultyKey, type ObjectiveKey, type DofusClass, getEpreuve } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
+import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,6 +71,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [loading, setLoading] = useState(false); // Keep for dialog submit buttons
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [closeModalOpen, setCloseModalOpen] = useState(false);
     const [candidacyDialogOpen, setCandidacyDialogOpen] = useState(false);
     const [selectedClasse, setSelectedClasse] = useState<DofusClass>("Cra");
     const [message, setMessage] = useState("");
@@ -191,6 +193,16 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
         setLoading(false);
     };
 
+    // Leader triggers close+distribution modal for active non-épreuve runs
+    const isActiveRun = run.status === "RECRUITING" || run.status === "IN_PROGRESS";
+    const isEpreuve = !!(run as any).epreuveCode;
+    const shouldShowCloseModal = isLeader && isActiveRun && !isEpreuve;
+
+    // Build memberUserIds (excl. leader) for the close modal
+    const memberUserIdsForModal = run.members
+        .filter((m) => m.userId !== run.leaderId)
+        .map((m) => m.userId);
+
     const handleLeave = () => {
         startTransition(async () => {
             await leaveDreamRun(params.guildId as string, run.id);
@@ -279,12 +291,32 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     {(isLeader || isAdmin) && (
                         <div className="flex items-center gap-1">
                             {/* Reminder Button (Leader only) */}
-                            {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                            {isLeader && isActiveRun && (
                                 <RunLeaderActions
                                     guildId={params.guildId as string}
                                     runId={run.id}
                                     variant="minimal"
                                 />
+                            )}
+
+                            {/*
+                              Close + Contribution button (Leader, active non-épreuve run)
+                              → Opens RunCloseModal to distribute points then deletes/closes
+                            */}
+                            {shouldShowCloseModal && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setCloseModalOpen(true);
+                                    }}
+                                    className="h-8 w-8 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                    title="Clôturer la run et distribuer les points"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                </Button>
                             )}
 
                             {/* Delete Button (Leader or Admin) */}
@@ -311,6 +343,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <p className="text-sm text-white/50 leading-relaxed">
                                             Cette action est <span className="text-red-400 font-semibold">irréversible</span>. Tous les membres seront retirés et la run sera définitivement supprimée.
                                         </p>
+                                        {shouldShowCloseModal && (
+                                            <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                                                💡 Pour distribuer les points de contribution avant suppression, utilise le bouton <Sparkles className="inline w-3 h-3 mx-0.5" /> à gauche.
+                                            </p>
+                                        )}
                                         <div className="flex gap-2 justify-end">
                                             <Button
                                                 variant="outline"
@@ -324,7 +361,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                                 disabled={loading}
                                                 className="bg-red-600 hover:bg-red-500 text-white font-bold shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-all text-sm"
                                             >
-                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-3.5 h-3.5 mr-1.5" />Supprimer</>}
+                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-3.5 h-3.5 mr-1.5" />Supprimer sans points</>}
                                             </Button>
                                         </div>
                                     </div>
@@ -725,6 +762,20 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Button>
                 )}
             </div>
+
+            {/* ── Run Close Modal (contribution distribution) ──────────── */}
+            <RunCloseModal
+                isOpen={closeModalOpen}
+                runId={run.id}
+                guildId={params.guildId as string}
+                difficulty={run.difficulty}
+                memberUserIds={memberUserIdsForModal}
+                onClose={() => setCloseModalOpen(false)}
+                onClosed={() => {
+                    setCloseModalOpen(false);
+                    router.refresh();
+                }}
+            />
         </div>
     );
 }

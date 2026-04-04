@@ -195,18 +195,26 @@ export async function getPlatformStats() {
 }
 
 
-// In-memory cache for isGuildAllowed to reduce DB pressure
-const guildAllowedCache = new Map<string, { allowed: boolean; expires: number }>();
+import { redis } from "@/lib/redis";
 
 /**
  * Check if a guild is allowed (for use in layouts/middleware)
  * This replaces the ALLOWED_GUILD_IDS env check
+ * 
+ * ✅ HIGH-03 FIX: Uses Redis for multi-node consistency
  */
 export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
-    const now = Date.now();
-    const cached = guildAllowedCache.get(discordGuildId);
-    if (cached && cached.expires > now) return cached.allowed;
+    const cacheKey = `guild_allowed:${discordGuildId}`;
+    
+    // 1. Try fetching from Redis
+    try {
+        const cached = await redis.get(cacheKey);
+        if (cached !== null) return cached === 'true';
+    } catch (e) {
+        console.warn(`[Security] Redis read failed for ${cacheKey}, falling back to DB.`);
+    }
 
+    // 2. Fetch from DB if not cached
     try {
         // Parallel fetch for better performance
         const [ban, allowed, config] = await Promise.all([
@@ -218,23 +226,27 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
             })
         ]);
 
-        // 1. Check Platform Bans (Highest Priority)
+        // Priority 1: Bans
         let isAllowed = true;
         if (ban && ban.entityType === "GUILD") isAllowed = false;
 
-        // 2. Check if guild is in the AllowedGuild whitelist
+        // Priority 2: Whitelist
         if (isAllowed && (!allowed || !allowed.isActive)) isAllowed = false;
 
-        // 3. If config exists, it MUST be active
+        // Priority 3: Config state
         if (isAllowed && config && !config.isActive) isAllowed = false;
 
-        // Cache for 1 minute
-        guildAllowedCache.set(discordGuildId, { allowed: isAllowed, expires: now + 60000 });
+        // 3. Save to Redis (60 seconds TTL)
+        try {
+            await redis.setex(cacheKey, 60, isAllowed ? 'true' : 'false');
+        } catch (redisErr) {
+            console.warn(`[Security] Redis write failed for ${cacheKey}`);
+        }
+
         return isAllowed;
     } catch (e) {
         console.error(`[Security] Error checking guild status for ${discordGuildId}:`, e);
-        // Fail closed for security, but allow if we have a stale cache? 
-        // Better fail closed on DB error to be safe.
+        // Fail closed for security
         return false;
     }
 }

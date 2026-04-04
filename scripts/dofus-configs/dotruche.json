@@ -1,22 +1,19 @@
 {
   "slug": "dotruche",
   "displayName": "Dotruche",
-  "color": "#DAA520",
-  "dofusItemId": 7847,
+  "color": "#F5F5DC",
+  "dofusItemId": 15132,
+  "successName": "La Dotruche",
+  "recommendedLevel": 20,
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "unknown",
+      "name": "Dotruche",
+      "zone": "Incarnam / Astrub",
       "quests": [
-        "Scene de menage"
-      ]
-    },
-    {
-      "name": "Les quêtes",
-      "zone": "unknown",
-      "quests": [
-        "Un oeuf pour ecaflip"
+        "L'histoire en mouvement",
+        "Restauration rapide"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/15132.png"
 }

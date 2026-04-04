@@ -101,7 +101,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     
                     <CardContent className="p-6">
-                        <div className="flex items-center justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                             <div className="space-y-1">
                                 <h4 className="text-sm font-black text-white flex items-center gap-2">
                                     <Bell className="w-4 h-4 text-emerald-400" />
@@ -111,7 +111,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                                     Affiche un bouton sur chaque actualité (News, Devblog, Patch Notes) permettant aux administrateurs de poster directement l'info dans le salon système de la guilde.
                                 </p>
                             </div>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
+                            <div className="flex items-center sm:flex-col sm:items-end gap-3 shrink-0 bg-black/20 sm:bg-transparent p-3 sm:p-0 rounded-xl">
                                 <Switch 
                                     checked={newsEnabled}
                                     onCheckedChange={setNewsEnabled}
@@ -142,8 +142,8 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
 
 
             {/* ACTION FOOTER */}
-            <div className="sticky bottom-0 z-30 flex items-center justify-between p-4 rounded-2xl bg-zinc-900/80 backdrop-blur-md border border-white/10 shadow-2xl">
-                <div className="flex items-start gap-4 max-w-md">
+            <div className="sticky bottom-0 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-zinc-900/90 backdrop-blur-md border border-white/10 shadow-2xl">
+                <div className="flex items-start gap-4 max-w-md hidden sm:flex">
                     <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
                         <Sparkles className="w-4 h-4" />
                     </div>
@@ -155,7 +155,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                     onClick={handleSave}
                     disabled={isPending}
                     className={cn(
-                        "bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 h-12 shadow-lg shadow-indigo-900/20 rounded-xl transition-all",
+                        "w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 h-12 shadow-lg shadow-indigo-900/20 rounded-xl transition-all",
                         "hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
                     )}
                 >

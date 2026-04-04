@@ -34,13 +34,13 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Intelligence Focus</span>
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-tight">
-                                    {data.title}
-                                </h2>
+                                <h2 className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[1.1]">
+                                     {data.title}
+                                 </h2>
                             </div>
                         </div>
 
-                        <p className="text-zinc-400 text-base md:text-lg font-medium leading-relaxed max-w-2xl pt-2">
+                        <p className="text-zinc-400 text-sm md:text-lg font-medium leading-relaxed max-w-2xl pt-2">
                             {data.description}
                         </p>
 

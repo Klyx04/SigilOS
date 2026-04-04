@@ -56,26 +56,26 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
         <div className={cn("flex flex-col h-full bg-[#050505] border-r border-white/5", className)}>
 
             {/* 1. HEADER: BRAND */}
-            <div className="p-8 pb-4">
+            <div className="p-6 lg:p-8 pb-4">
                 <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-all">
-                    <div className="relative h-10 w-10 shrink-0">
+                    <div className="relative h-8 w-8 md:h-10 md:w-10 shrink-0">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
                             fill
                             priority
-                            sizes="(max-width: 768px) 40px, 40px"
+                            sizes="(max-width: 768px) 32px, 40px"
                             className="object-contain drop-shadow-[0_0_20px_rgba(168,85,247,0.6)] brightness-110"
                         />
                     </div>
-                    <span className="text-xl md:text-2xl font-black tracking-tight text-white leading-none font-heading truncate">
+                    <span className="text-lg md:text-2xl font-black tracking-tight text-white leading-none font-heading truncate">
                         SIGIL<span className="text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">GOD</span>
                     </span>
                 </Link>
             </div>
 
             {/* 2. NAVIGATION */}
-            <ScrollArea className="flex-1 px-4 py-8">
+            <ScrollArea className="flex-1 px-4 py-4 lg:py-8">
                 <nav className="space-y-8">
                     {/* CONSOLE SECTION */}
                     <div>

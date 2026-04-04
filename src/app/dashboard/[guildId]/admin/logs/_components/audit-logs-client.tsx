@@ -286,70 +286,72 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
             </CardHeader>
 
             {/* Filters Toolbar */}
-            <div className="px-6 py-3 border-b border-white/5 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Filtres</span>
-                </div>
+            <div className="overflow-x-auto no-scrollbar border-b border-white/5">
+                <div className="px-6 py-3 flex items-center gap-3 min-w-max">
+                    <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Filtres</span>
+                    </div>
 
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                    <SelectTrigger className="w-[180px] h-8 text-xs bg-zinc-800 border-white/10">
-                        <SelectValue placeholder="Type d'action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ACTION_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    <Select value={actionFilter} onValueChange={setActionFilter}>
+                        <SelectTrigger className="w-[180px] h-8 text-xs bg-zinc-800 border-white/10">
+                            <SelectValue placeholder="Type d'action" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ACTION_OPTIONS.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                    <Input
-                        type="text"
-                        placeholder="Rechercher..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="h-8 w-[160px] pl-7 text-xs bg-zinc-800 border-white/10"
-                    />
-                </div>
+                    <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Rechercher..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="h-8 w-[160px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                        />
+                    </div>
 
-                {hasActiveFilters && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                        <X className="h-3 w-3 mr-1" />
-                        Effacer
-                    </Button>
-                )}
+                    {hasActiveFilters && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="h-3 w-3 mr-1" />
+                            Effacer
+                        </Button>
+                    )}
 
-                <div className="ml-auto flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                        Page {page} / {totalPages || 1}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1 || loading}
-                        className="h-8 w-8 p-0"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages || loading}
-                        className="h-8 w-8 p-0"
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2 ml-4">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            Page {page} / {totalPages || 1}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1 || loading}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages || loading}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
 

@@ -132,7 +132,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
         )}>
             {/* ----------------- HEADER BAR (Full Width) ----------------- */}
             <div className={cn(
-                "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
+                "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
                 "overflow-hidden transition-all duration-500"
             )}>
                 {/* AI BACKGROUND BANNER */}
@@ -142,6 +142,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                         alt="Banner"
                         fill
                         className="object-cover opacity-60 mix-blend-luminosity grayscale-[0.2]"
+                        unoptimized={true}
                     />
                     <div className={cn(
                         "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
@@ -162,28 +163,28 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                     </div>
                 </div>
 
-                <div className="flex-1 relative z-10 break-words pr-2">
-                    <h3 className="font-black text-sm sm:text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase leading-tight">
+                <div className="min-w-0 flex-1 relative z-10 break-words pr-2">
+                    <h3 className="font-black text-xs sm:text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase leading-tight">
                         {submission.mission.title || "Mission Sans Titre"}
                     </h3>
                 </div>
 
                 {/* Rank, Level + Countdown */}
-                <div className="ml-auto flex items-center gap-2 relative z-10">
+                <div className="ml-auto flex items-center gap-2 relative z-10 shrink-0">
                     <SubmissionCountdown createdAt={submission.createdAt} />
-                    <div className="flex items-center bg-black/60 rounded px-2 h-6 border border-white/10">
+                    <div className="flex items-center bg-black/60 rounded px-2 h-6 border border-white/10 shrink-0">
                         <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider mr-1.5">RANG</span>
                         <span className="text-xs font-black text-white">{submission.mission.rank || 1}</span>
                     </div>
-                    <div className="h-4 w-[1px] bg-white/10" />
-                    <span className="text-zinc-300 font-bold italic text-xs tracking-tight">
+                    <div className="h-4 w-[1px] bg-white/10 shrink-0" />
+                    <span className="text-zinc-300 font-bold italic text-xs tracking-tight shrink-0">
                         Niv. {displayLevel}
                     </span>
                 </div>
             </div>
 
             {/* ----------------- USER INFO BAR ----------------- */}
-            <div className="relative z-10 px-4 py-2 bg-zinc-950/50 border-b border-zinc-800/50 flex items-center gap-3">
+            <div className="relative z-10 px-4 py-2 bg-zinc-950/50 border-b border-zinc-800/50 flex flex-wrap items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden relative shrink-0 border border-white/10">
                     {submission.profile.user.image ? (
                         <Image
@@ -191,6 +192,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                             alt={submission.profile.user.name || "User"}
                             fill
                             className="object-cover"
+                            unoptimized={true}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full w-full text-zinc-600">
@@ -200,7 +202,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-white truncate">
+                        <span className="text-xs font-semibold text-white truncate max-w-[120px]">
                             {submission.profile.discordNickname || submission.profile.user.name || "Membre Inconnu"}
                         </span>
                         {submission.profile.isAdmin && (
@@ -216,20 +218,20 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                             </TooltipProvider>
                         )}
                     </div>
-                    <span className="text-[10px] text-zinc-500">
-                        Soumis le {new Date(submission.createdAt).toLocaleDateString()} à {new Date(submission.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
                 </div>
-                {submission.profile.pseudoDofus && (
-                    <Badge variant="secondary" className="text-[10px] h-5 px-2 bg-zinc-800 text-zinc-400 font-normal">
-                        {submission.profile.pseudoDofus}
-                    </Badge>
-                )}
-                {submission.profile.classe && (
-                    <Badge variant="outline" className="text-[10px] h-5 px-2 border-zinc-700 text-zinc-500 font-normal">
-                        {submission.profile.classe}
-                    </Badge>
-                )}
+                
+                <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    {submission.profile.pseudoDofus && (
+                        <Badge variant="secondary" className="text-[10px] h-5 px-2 bg-zinc-800 text-zinc-400 font-normal shrink-0">
+                            {submission.profile.pseudoDofus}
+                        </Badge>
+                    )}
+                    {submission.profile.classe && (
+                        <Badge variant="outline" className="text-[10px] h-5 px-2 border-zinc-700 text-zinc-500 font-normal shrink-0">
+                            {submission.profile.classe}
+                        </Badge>
+                    )}
+                </div>
             </div>
 
             {/* ----------------- CONTENT BODY ----------------- */}

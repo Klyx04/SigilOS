@@ -4,6 +4,7 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
 import { getGodNotifications } from "@/server/actions/god-notif-actions";
+import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
     const session = await auth();
@@ -41,6 +42,18 @@ export default async function GodLayout({ children }: { children: React.ReactNod
             </Suspense>
             
             <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#0a0a0a] border-l border-white/5 relative">
+                {/* Mobile Topbar & Hamburger Menu (Visible on lg:hidden) */}
+                <div className="lg:hidden flex items-center justify-between p-4 px-6 border-b border-white/5 bg-[#050505] z-50 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl font-black tracking-tight text-white leading-none font-heading flex gap-1">
+                            SIGIL<span className="text-amber-500">GOD</span>
+                        </span>
+                    </div>
+                    <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} />
+                    </Suspense>
+                </div>
+
                 {children}
             </div>
         </div>

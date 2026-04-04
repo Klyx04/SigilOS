@@ -224,26 +224,26 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                 key={partner.username}
                                                 className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted hover:bg-accent transition-colors"
                                             >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                                         <Avatar className="h-6 w-6 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                             <AvatarImage src={partner.discordAvatar} />
                                                             <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
-                                                                {partner.characterName.substring(0, 2).toUpperCase()}
+                                                                 {partner.characterName.substring(0, 2).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                     </Link>
-                                                    <div className="flex flex-col min-w-0">
+                                                    <div className="flex flex-col min-w-0 flex-1">
                                                         <Link
                                                             href={`/dashboard/${guildId}/members/${partner.profileId}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-xs font-medium text-amber-400 truncate hover:underline cursor-pointer"
+                                                            className="text-xs font-medium text-amber-400 truncate hover:underline cursor-pointer block"
                                                         >
                                                             {partner.characterName}
                                                         </Link>
                                                         <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                                                            <span className="opacity-50">Metamob:</span> {partner.username}
+                                                            <span className="opacity-50 shrink-0">Metamob:</span> <span className="truncate">{partner.username}</span>
                                                         </span>
                                                     </div>
                                                 </div>

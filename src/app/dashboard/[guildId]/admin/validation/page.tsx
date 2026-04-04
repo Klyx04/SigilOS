@@ -66,46 +66,48 @@ export default async function UnifiedValidationPage({
             />
 
             <Tabs defaultValue={defaultTab} className="space-y-6">
-                <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-12 rounded-xl">
-                    <TabsTrigger
-                        value="missions"
-                        className="rounded-lg px-6 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 gap-2"
-                    >
-                        <ScrollText className="w-4 h-4" />
-                        Missions
-                        {(missions?.length ?? 0) > 0 && (
-                            <Badge variant="secondary" className="ml-1 bg-blue-500/20 text-blue-400 border-none h-5 px-1.5 min-w-[20px] justify-center">
-                                {missions?.length}
-                            </Badge>
-                        )}
-                    </TabsTrigger>
+                <div className="overflow-x-auto no-scrollbar pb-1">
+                    <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-12 rounded-xl inline-flex min-w-full sm:min-w-0">
+                        <TabsTrigger
+                            value="missions"
+                            className="rounded-lg px-6 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 gap-2"
+                        >
+                            <ScrollText className="w-4 h-4" />
+                            Missions
+                            {(missions?.length ?? 0) > 0 && (
+                                <Badge variant="secondary" className="ml-1 bg-blue-500/20 text-blue-400 border-none h-5 px-1.5 min-w-[20px] justify-center">
+                                    {missions?.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
 
-                    <TabsTrigger
-                        value="achievements"
-                        className="rounded-lg px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 gap-2"
-                    >
-                        <Trophy className="w-4 h-4" />
-                        Succès
-                        {(achievements?.length ?? 0) > 0 && (
-                            <Badge variant="secondary" className="ml-1 bg-amber-500/20 text-amber-400 border-none h-5 px-1.5 min-w-[20px] justify-center">
-                                {achievements?.length}
-                            </Badge>
-                        )}
-                    </TabsTrigger>
+                        <TabsTrigger
+                            value="achievements"
+                            className="rounded-lg px-6 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 gap-2"
+                        >
+                            <Trophy className="w-4 h-4" />
+                            Succès
+                            {(achievements?.length ?? 0) > 0 && (
+                                <Badge variant="secondary" className="ml-1 bg-amber-500/20 text-amber-400 border-none h-5 px-1.5 min-w-[20px] justify-center">
+                                    {achievements?.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
 
-                    <TabsTrigger
-                        value="kamas"
-                        className="rounded-lg px-6 data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-300 gap-2"
-                    >
-                        <Coins className="w-4 h-4" />
-                        Dons Kamas
-                        {kamaDonations.length > 0 && (
-                            <Badge variant="secondary" className="ml-1 bg-amber-600/20 text-amber-300 border-amber-500/20 h-5 px-1.5 min-w-[20px] justify-center">
-                                {kamaDonations.length}
-                            </Badge>
-                        )}
-                    </TabsTrigger>
-                </TabsList>
+                        <TabsTrigger
+                            value="kamas"
+                            className="rounded-lg px-6 data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-300 gap-2"
+                        >
+                            <Coins className="w-4 h-4" />
+                            Dons Kamas
+                            {kamaDonations.length > 0 && (
+                                <Badge variant="secondary" className="ml-1 bg-amber-600/20 text-amber-300 border-amber-500/20 h-5 px-1.5 min-w-[20px] justify-center">
+                                    {kamaDonations.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
                 <TabsContent value="missions" className="outline-none">
                     <MissionValidationQueue submissions={missions ?? []} guildId={guildId} />

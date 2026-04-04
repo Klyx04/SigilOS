@@ -92,9 +92,9 @@ export default async function SuperAdminPage(props: {
                         <div className="space-y-12">
                             {/* Header Area */}
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
-                                <div className="space-y-4">
+                                <div className="space-y-4 min-w-0">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                                        <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20 shrink-0">
                                             <Activity className="w-5 h-5 text-violet-400" />
                                         </div>
                                         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
@@ -103,10 +103,10 @@ export default async function SuperAdminPage(props: {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">
+                                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">
                                             Console
                                         </h1>
-                                        <p className="text-zinc-500 text-lg font-medium max-w-3xl leading-relaxed">
+                                        <p className="text-zinc-500 text-base md:text-lg font-medium max-w-3xl leading-relaxed">
                                             Gestion centrale de SigilOS : Analytics, Communication globale et Systèmes.
                                         </p>
                                     </div>
@@ -162,8 +162,8 @@ export default async function SuperAdminPage(props: {
                     {tab === "infrastructure" && (
                         <div className="space-y-12">
                             <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
-                                <p className="text-zinc-500 text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
                             </div>
 
                             {(resolvedSearchParams as any).sub === "STORAGE" ? (
@@ -189,8 +189,8 @@ export default async function SuperAdminPage(props: {
                     {tab === "security" && (
                         <div className="space-y-12">
                             <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
-                                <p className="text-zinc-500 text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -228,8 +228,8 @@ export default async function SuperAdminPage(props: {
                     {tab === "tickets" && (
                         <div className="space-y-12">
                             <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Support</h1>
-                                <p className="text-zinc-500 text-lg font-medium">Gestion centralisée des tickets discord et retours utilisateurs.</p>
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Support</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Gestion centralisée des tickets discord et retours utilisateurs.</p>
                             </div>
                             <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
                                 <TicketsServer />
@@ -240,8 +240,8 @@ export default async function SuperAdminPage(props: {
                     {tab === "notifications" && (
                         <div className="space-y-12">
                             <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Alertes</h1>
-                                <p className="text-zinc-500 text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Alertes</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
                             </div>
                             <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
                                 <NotificationsServer />
@@ -252,8 +252,8 @@ export default async function SuperAdminPage(props: {
                     {tab === "game-data" && (
                         <div className="space-y-12">
                             <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">Game Data</h1>
-                                <p className="text-zinc-500 text-lg font-medium">Synchronisez et orchestrez les données de référence du monde des Douze.</p>
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Game Data</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Synchronisez et orchestrez les données de référence du monde des Douze.</p>
                             </div>
 
                             {/* Quick Stats Grid */}

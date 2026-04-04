@@ -4,10 +4,11 @@
   "color": "#800020",
   "successName": "Pourpre profond",
   "recommendedLevel": 150,
-  "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
-  "dofusItemId": 7827,
-  "compiledAt": "2026-04-03T08:45:07.590Z",
-  "compilerVersion": "3.0",
+  "description": "Terminer la série des quêtes du Dofus Pourpre.",
+  "dofusItemId": 694,
+  "iconId": 23001,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23001.png",
+  "compiledAt": "2026-04-04T00:53:28.470Z",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -17,19 +18,16 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Dans la gueule du milimulou",
           "dofusdbId": null,
           "level": null,
           "zone": null,
-          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 0,
           "requirements": []
@@ -39,12 +37,10 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
-          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 1,
           "requirements": []
@@ -59,14 +55,13 @@
       "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Le livre des Taures",
           "dofusdbId": 1521,
           "level": 110,
           "zone": "Bibliothèque de Pandala",
-          "npcName": "Jean-Sol Patre",
+          "npcName": null,
           "npcSubArea": "Bibliothèque de Pandala",
           "coords": {
             "x": -24,
@@ -75,16 +70,15 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir Jean-Sol Patre",
-            "Aller voir Marcelle Rouste",
-            "Aller voir Narber Rihen Levihawa",
-            "Aller voir Docteur Hou",
-            "Aller voir Harry Stote",
+            "Aller voir {npc,6383}",
+            "Aller voir {npc,6405}",
+            "Aller voir {npc,704}",
+            "Aller voir {npc,1590}",
+            "Aller voir {npc,127}",
             "Trouver un bouquiniste à Astrub",
-            "Aller voir Oz Dralett",
-            "Retourner voir Mériana",
+            "Aller voir {npc,4341}",
+            "Retourner voir {npc,2205}",
             "Voler le Livre des Taures au Maître Corbac et donner le livre à Mériana"
           ],
           "stepOrder": 0,
@@ -96,7 +90,7 @@
           "dofusdbId": 1522,
           "level": 120,
           "zone": "Refuge des cent détours",
-          "npcName": "Lorkos",
+          "npcName": null,
           "npcSubArea": "Refuge des cent détours",
           "coords": {
             "x": -42,
@@ -105,26 +99,16 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 4,
-              "name": "Centre du Labyrinthe du Minotoror",
-              "level": null,
-              "bossName": "Minogolem séculaire",
-              "img": "https://api.dofusdb.fr/img/monsters/1155.png",
-              "idoleName": null
-            }
-          ],
           "objectives": [
             "Découvrir la carte : Escalier vers le labyrinthe du Minotoror",
-            "Aller voir Lorkos",
+            "Aller voir {npc,783}",
             "Découvrir la carte : Refuge des Cent Détours",
-            "Aller voir Apisaphé",
+            "Aller voir {npc,2464}",
             "Retourner voir Lorkos à l'entrée du labyrinthe",
             "Découvrir la carte : Salle du Minotoror",
             "Vaincre x1 {monster,121} en un seul combat",
             "Jeter le sortilège de vérité sur le trône de l'antichambre du Minotoror",
-            "Aller voir Minotot"
+            "Aller voir {npc,2482}"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": true,
@@ -140,7 +124,7 @@
           "dofusdbId": 1523,
           "level": 130,
           "zone": "La Malle aux Trésors",
-          "npcName": "Mériana",
+          "npcName": null,
           "npcSubArea": "La Malle aux Trésors",
           "coords": {
             "x": -6,
@@ -152,47 +136,19 @@
             {
               "id": 15391,
               "name": "Tablette de Totankama",
-              "amount": 2,
+              "amount": 1,
               "img": "https://api.dofusdb.fr/img/items/126026.png"
-            },
-            {
-              "id": 15418,
-              "name": "Perle de Lait Doré",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/15483.png"
-            },
-            {
-              "id": 15420,
-              "name": "Anneau de Tot",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/9116.png"
-            },
-            {
-              "id": 15400,
-              "name": "Masque Maudit de Totankama",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126024.png"
-            }
-          ],
-          "dungeonsRequired": [
-            {
-              "id": 4,
-              "name": "Centre du Labyrinthe du Minotoror",
-              "level": null,
-              "bossName": "Minogolem séculaire",
-              "img": "https://api.dofusdb.fr/img/monsters/1155.png",
-              "idoleName": null
             }
           ],
           "objectives": [
-            "Aller voir Mériana",
-            "Montrer à Mériana : 1 Perle de Lait Doré",
+            "Aller voir {npc,2205}",
+            "Montrer à {npc,2205} : 1 {item,15418}",
             "Montrer les 5 doses de Poudre d'Éternaile à Mériana",
-            "Montrer à Mériana : 1 Anneau de Tot",
+            "Montrer à {npc,2205} : 1 {item,15420}",
             "Se protéger contre la malédiction de Totankama",
-            "Montrer à Tatine : 1 Tablette de Totankama",
+            "Montrer à {npc,2348} : 1 {item,15391}",
             "Étudier la tablette de Totankama pour se lancer dans la chasse au trésor",
-            "Ramener à Minotot : x1 Masque Maudit de Totankama",
+            "Ramener à {npc,2482} : x1 {item,15400}",
             "Découvrir la carte : Salle du Dofus Pourpre",
             "Prendre le Dofus Pourpre"
           ],
@@ -210,7 +166,7 @@
           "dofusdbId": 1524,
           "level": 130,
           "zone": "Refuge des cent détours",
-          "npcName": "Bibiblop",
+          "npcName": null,
           "npcSubArea": "Refuge des cent détours",
           "coords": {
             "x": -42,
@@ -219,23 +175,13 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 49,
-              "name": "Antre du Blop Multicolore Royal",
-              "level": null,
-              "bossName": "Blop Multicolore Royal",
-              "img": "https://api.dofusdb.fr/img/monsters/649.png",
-              "idoleName": null
-            }
-          ],
           "objectives": [
             "Obtenir du lait doré",
-            "Aller voir Bibiblop",
+            "Aller voir {npc,1034}",
             "Vaincre la Roublarde Hoize et ses complices",
-            "Aller voir Gavroch",
+            "Aller voir {npc,2466}",
             "Vaincre x1 {monster,1188} sur la carte {map,166990850} en un seul combat",
-            "Retourner voir Mériana",
+            "Retourner voir {npc,2205}",
             "Fabriquer la Perle de Lait Doré avec l'aide de Lired et Arlo"
           ],
           "stepOrder": 3,
@@ -252,7 +198,7 @@
           "dofusdbId": 1525,
           "level": 130,
           "zone": "Minotot / Taure Céleste",
-          "npcName": "Dlime Katcheule",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": 22,
@@ -264,29 +210,16 @@
             {
               "id": 7290,
               "name": "Tige de Bambouto",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/164665.png"
-            },
-            {
-              "id": 15424,
-              "name": "Toile Spirituelle",
               "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126021.png"
-            },
-            {
-              "id": 15423,
-              "name": "Totem Firefoux",
-              "amount": 13,
-              "img": "https://api.dofusdb.fr/img/items/126022.png"
+              "img": "https://api.dofusdb.fr/img/items/164665.png"
             }
           ],
-          "dungeonsRequired": [],
           "objectives": [
             "Trouver Dlime Katcheule",
-            "Aller voir Dlime Katcheule",
-            "Ramener à Dlime Katcheule : x1 Tige de Bambouto",
-            "Ramener à Dlime Katcheule : x1 Toile Spirituelle",
-            "Ramener à Dlime Katcheule : x13 Totem Firefoux",
+            "Aller voir {npc,2484}",
+            "Ramener à {npc,2484} : x1 {item,7290}",
+            "Ramener à {npc,2484} : x1 {item,15424}",
+            "Ramener à {npc,2484} : x13 {item,15423}",
             "Utiliser l'Attrape-poussière pour obtenir 5 Poudres d'Éternaile"
           ],
           "stepOrder": 4,
@@ -303,7 +236,7 @@
           "dofusdbId": 1526,
           "level": 130,
           "zone": "Refuge des cent détours",
-          "npcName": "Nanoc Elyod",
+          "npcName": null,
           "npcSubArea": "Refuge des cent détours",
           "coords": {
             "x": 11,
@@ -312,25 +245,15 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 81,
-              "name": "Ring du Capitaine Ekarlatte",
-              "level": null,
-              "bossName": "Capitaine Ekarlatte",
-              "img": "https://api.dofusdb.fr/img/monsters/1167.png",
-              "idoleName": null
-            }
-          ],
           "objectives": [
-            "Aller voir Nanoc Elyod",
-            "Aller voir Karte",
+            "Aller voir {npc,2472}",
+            "Aller voir {npc,2332}",
             "Entrer dans Srambad, la dimension du dieu Sram",
             "Découvrir la carte : Trouver l'entrée de la taverne du Bourreau",
             "Parler au trafiquant et lui donner ce qu'il veut",
             "Obtenir le nom de l'acheteur",
             "Vaincre x1 {monster,3753} en un seul combat",
-            "Aller voir Capitaine Ekarlatte"
+            "Aller voir {npc,2449}"
           ],
           "stepOrder": 5,
           "isSynergyCandidate": true,
@@ -346,7 +269,7 @@
           "dofusdbId": 1528,
           "level": 130,
           "zone": "Labyrinthe des âmes",
-          "npcName": "Lorkos",
+          "npcName": null,
           "npcSubArea": "Labyrinthe des âmes",
           "coords": {
             "x": -39,
@@ -355,20 +278,10 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 4,
-              "name": "Centre du Labyrinthe du Minotoror",
-              "level": null,
-              "bossName": "Minogolem séculaire",
-              "img": "https://api.dofusdb.fr/img/monsters/1155.png",
-              "idoleName": null
-            }
-          ],
           "objectives": [
             "Vaincre x1 {monster,3740} en un seul combat",
-            "Aller voir Lorkos",
-            "Aller voir Apisaphé"
+            "Aller voir {npc,783}",
+            "Aller voir {npc,2464}"
           ],
           "stepOrder": 6,
           "isSynergyCandidate": true,
@@ -384,7 +297,7 @@
           "dofusdbId": 1529,
           "level": 130,
           "zone": "Clos des Blops - Entrée",
-          "npcName": "Bibiblop",
+          "npcName": null,
           "npcSubArea": "Clos des Blops - Entrée",
           "coords": {
             "x": -7,
@@ -392,40 +305,15 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [
-            {
-              "id": 15443,
-              "name": "Clef du Trône du Minotoror",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/84007.png"
-            }
-          ],
-          "dungeonsRequired": [
-            {
-              "id": 54,
-              "name": "Serre du Royalmouth",
-              "level": null,
-              "bossName": "Royalmouth",
-              "img": "https://api.dofusdb.fr/img/monsters/775.png",
-              "idoleName": null
-            },
-            {
-              "id": 4,
-              "name": "Centre du Labyrinthe du Minotoror",
-              "level": null,
-              "bossName": "Minogolem séculaire",
-              "img": "https://api.dofusdb.fr/img/monsters/1155.png",
-              "idoleName": null
-            }
-          ],
+          "itemsRequired": [],
           "objectives": [
-            "Aller voir Bibiblop",
+            "Aller voir {npc,1034}",
             "Trouver Gavroch dans la serre du Royalmouth",
             "Vaincre x1 {monster,2854} sur la carte {map,55053312} en un seul combat",
-            "Aller voir Gavroch",
-            "Montrer à Lorkos : 1 Clef du Trône du Minotoror",
+            "Aller voir {npc,2466}",
+            "Montrer à {npc,783} : 1 {item,15443}",
             "Donner la clef du trône à Gavroch",
-            "Aller voir Soun Rinos",
+            "Aller voir {npc,4331}",
             "Vaincre x1 {monster,3759} en un seul combat",
             "Prendre le Dofus Pourpre"
           ],
@@ -440,94 +328,5 @@
         }
       ]
     }
-  ],
-  "globalSummary": {
-    "totalQuests": 10,
-    "totalItems": 8,
-    "totalDungeons": 4,
-    "items": [
-      {
-        "id": 15423,
-        "name": "Totem Firefoux",
-        "totalAmount": 13,
-        "img": "https://api.dofusdb.fr/img/items/126022.png"
-      },
-      {
-        "id": 15391,
-        "name": "Tablette de Totankama",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/126026.png"
-      },
-      {
-        "id": 7290,
-        "name": "Tige de Bambouto",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/164665.png"
-      },
-      {
-        "id": 15418,
-        "name": "Perle de Lait Doré",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/15483.png"
-      },
-      {
-        "id": 15420,
-        "name": "Anneau de Tot",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/9116.png"
-      },
-      {
-        "id": 15400,
-        "name": "Masque Maudit de Totankama",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126024.png"
-      },
-      {
-        "id": 15424,
-        "name": "Toile Spirituelle",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126021.png"
-      },
-      {
-        "id": 15443,
-        "name": "Clef du Trône du Minotoror",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/84007.png"
-      }
-    ],
-    "dungeons": [
-      {
-        "id": 4,
-        "name": "Centre du Labyrinthe du Minotoror",
-        "level": null,
-        "bossName": "Minogolem séculaire",
-        "img": "https://api.dofusdb.fr/img/monsters/1155.png",
-        "idoleName": null
-      },
-      {
-        "id": 49,
-        "name": "Antre du Blop Multicolore Royal",
-        "level": null,
-        "bossName": "Blop Multicolore Royal",
-        "img": "https://api.dofusdb.fr/img/monsters/649.png",
-        "idoleName": null
-      },
-      {
-        "id": 81,
-        "name": "Ring du Capitaine Ekarlatte",
-        "level": null,
-        "bossName": "Capitaine Ekarlatte",
-        "img": "https://api.dofusdb.fr/img/monsters/1167.png",
-        "idoleName": null
-      },
-      {
-        "id": 54,
-        "name": "Serre du Royalmouth",
-        "level": null,
-        "bossName": "Royalmouth",
-        "img": "https://api.dofusdb.fr/img/monsters/775.png",
-        "idoleName": null
-      }
-    ]
-  }
+  ]
 }

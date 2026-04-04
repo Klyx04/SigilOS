@@ -1,18 +1,18 @@
 {
-  "dofus": "abyssal",
-  "displayName": "Dofus Abyssal",
-  "color": "#191970",
+  "dofus": "dotruche",
+  "displayName": "Dotruche",
+  "color": "#DAA520",
   "successName": null,
   "recommendedLevel": null,
   "description": null,
-  "dofusItemId": 18043,
+  "dofusItemId": 7847,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23023.png",
-  "compiledAt": "2026-04-04T00:40:42.479Z",
+  "imageUrl": null,
+  "compiledAt": "2026-04-04T00:48:09.989Z",
   "chains": [
     {
-      "sectionName": "Les quêtes",
-      "sectionType": "MAIN_CHAIN",
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
       "zone": "unknown",
       "description": null,
       "isSynergyCandidate": false,
@@ -20,7 +20,7 @@
       "requires": [],
       "entries": [
         {
-          "name": "Reine de beaute",
+          "name": "Scene de menage",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -31,9 +31,20 @@
           "objectives": [],
           "stepOrder": 0,
           "requirements": []
-        },
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
         {
-          "name": "Son nom est personne",
+          "name": "Un oeuf pour ecaflip",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -42,20 +53,7 @@
           "isDungeon": false,
           "itemsRequired": [],
           "objectives": [],
-          "stepOrder": 1,
-          "requirements": []
-        },
-        {
-          "name": "Le hero de sufokia",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 2,
+          "stepOrder": 0,
           "requirements": []
         }
       ]

@@ -1,0 +1,530 @@
+{
+  "dofus": "dofoozbz",
+  "displayName": "Dofoozbz",
+  "color": "#32CD32",
+  "successName": null,
+  "recommendedLevel": null,
+  "description": null,
+  "dofusItemId": 7840,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_dofoozbz.png",
+  "compiledAt": "2026-04-04T00:44:34.252Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Voyage, voyage",
+          "dofusdbId": 1484,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": null,
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Hall des Voyageurs",
+            "Aller voir {npc,2337}",
+            "Aller voir {npc,2335}",
+            "Retourner voir {npc,2337}",
+            "Aller voir {npc,2349}",
+            "Découvrir la carte : Salle de localisation",
+            "Aller voir {npc,2340}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Frappez, ami, et entrez",
+          "dofusdbId": 2010,
+          "level": 200,
+          "zone": "Porte de Ferfroid",
+          "npcName": null,
+          "npcSubArea": "Porte de Ferfroid",
+          "coords": {
+            "x": -69,
+            "y": -71,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Tenter d'ouvrir les portes du royaume des Martegel",
+            "Aller voir {npc,4491}",
+            "Rencontrer des Nimbos",
+            "Montrer aux Nimbos que vous savez vous battre",
+            "Entrer dans la taverne du Bateau ivre",
+            "Discuter avec le tavernier",
+            "Payer des tournées générales aux Nimbos",
+            "Essayer à nouveau de passer les portes du royaume des Martegel",
+            "Retourner voir {npc,4491}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1484
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Les quêtes",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Ça barde là-haut",
+          "dofusdbId": 2515,
+          "level": 170,
+          "zone": "Statue d'Osamodas",
+          "npcName": null,
+          "npcSubArea": "Statue d'Osamodas",
+          "coords": {
+            "x": 1,
+            "y": 17,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler au Capitaine Blair après être entré dans la dimension Osavora",
+            "Aller voir {npc,7641}",
+            "Rapporter à la prêtresse : x3 {{item,31480::[Lait nourricier]}} avant la fin de la saison de la Naissance",
+            "Rapporter à la prêtresse : x3 {{item,31481::[Sang brûlant]}} avant la fin de la saison de la Chasse",
+            "Rapporter à la prêtresse : x3 {{item,31482::[Lymphe régénérante]}} avant la fin de la saison du Repos",
+            "Écouter la voix du dieu Osamodas",
+            "Retourner voir {npc,7641}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Le vol des bourdons",
+          "dofusdbId": 2516,
+          "level": 170,
+          "zone": "Chambrzbz rzznzbz",
+          "npcName": null,
+          "npcSubArea": "Chambrzbz rzznzbz",
+          "coords": {
+            "x": 23,
+            "y": 27,
+            "worldId": 34
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans un nid de Kabombz",
+            "Explorer le plus grand nid à la recherche d'un élément perturbateur",
+            "Tenter de communiquer avec le Quadrabz curieux",
+            "Apprendre le langage des Kabombz",
+            "Discuter avec le Quadrabz curieux",
+            "Retourner à l'avant-poste pour tirer les choses au clair",
+            "Couper le champ protecteur de la thermosonde",
+            "Identifier l'origine du bourdonnement",
+            "Affronter les gardes Kabombz",
+            "Aller voir {npc,7666}",
+            "Convaincre les reines des Kabombz du danger potentiel représenté par la machine",
+            "Neutraliser la machine bourdonnante",
+            "Discuter avec le caporal Gobastol par l'intermédiaire de son Krosmoglob",
+            "En apprendre plus sur les constructeurs de la machine",
+            "Mettre fin aux agissements de la secte dans la dimension",
+            "Retourner voir {npc,7641}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2515
+            }
+          ]
+        },
+        {
+          "name": "La proie des vérités",
+          "dofusdbId": 2517,
+          "level": 200,
+          "zone": "Breuil du Vénérable - Sortie",
+          "npcName": null,
+          "npcSubArea": "Breuil du Vénérable - Sortie",
+          "coords": {
+            "x": 0,
+            "y": 18,
+            "worldId": 34
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,7657}",
+            "Étudier le comportement des différentes espèces de zarbivores",
+            "Continuer à chercher la cause du changement chez les zarbivores",
+            "Parler à l'esprit animal",
+            "Aller voir le Nimbos à l'avant-poste",
+            "Se procurer une pomme bleue",
+            "Montrer le trognon de pomme à l'esprit animal en espérant qu'il pourra en faire quelque chose",
+            "Prier pour qu'un miracle se produise",
+            "Pousser le Vénérable à croquer dans la pomme bleue",
+            "Aller voir {npc,6743}",
+            "Assister à la discussion entre Crâ et l'esprit animal",
+            "Aller voir {npc,7718}",
+            "Se soumettre à l'ordalie demandée par le dieu Kroketh",
+            "Retourner voir {npc,7641}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2516
+            }
+          ]
+        },
+        {
+          "name": "Trois cœurs, un roi",
+          "dofusdbId": 2518,
+          "level": 200,
+          "zone": "Pointe venteuse - Cercle des querelles",
+          "npcName": null,
+          "npcSubArea": "Pointe venteuse - Cercle des querelles",
+          "coords": {
+            "x": 10,
+            "y": 7,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Montée des Rhoarims",
+            "Gravir la montée puis se présenter officiellement à l'entrée du village",
+            "Affronter les deux gardes lors d'un duel amical mais brutal",
+            "Se voir accorder l'hospitalité après avoir versé le sang",
+            "Apprendre les coutumes des Rhoarims pour obtenir une audience avec le roi",
+            "Parler au roi Lhéoden et à son conseiller",
+            "Déranger la chamane des Rhoarims malgré l'avis de Grimaslan",
+            "Renouer les liens spirituels entre les Rhoarims et les autres créatures d'Osavora",
+            "Retourner voir le roi et la chamane pour la dernière offrande aux esprits",
+            "Assister à la discussion entre Grimaslan, Lhéoden et Sekismeth",
+            "Relever le défi imposé par Grimaslan",
+            "Parler à Grimaslan après l'avoir vaincu",
+            "Parler au roi et à la chamane",
+            "Retourner voir {npc,7641}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2517
+            }
+          ]
+        },
+        {
+          "name": "Destructeur de mondes",
+          "dofusdbId": 2519,
+          "level": 200,
+          "zone": "Statue d'Osamodas",
+          "npcName": null,
+          "npcSubArea": "Statue d'Osamodas",
+          "coords": {
+            "x": 2,
+            "y": 16,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,7641}",
+            "Interroger le Méryde des parasites",
+            "Découvrir la carte : Temple de Gargandyas",
+            "Aller voir {npc,7701}",
+            "Vaincre ou affaiblir suffisamment Gargandyas",
+            "Se confronter au parasite d'Osavora",
+            "Retourner voir {npc,7641}",
+            "Faire le bilan avec la voix d'Osamodas"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2518
+            }
+          ]
+        },
+        {
+          "name": "Un problème de taille",
+          "dofusdbId": 2520,
+          "level": 170,
+          "zone": "unknown",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 18,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Tester le réducteur dimensionnel devant Gobastol",
+            "Se débarrasser de l'eidolon résiduel et retourner voir Gobastol",
+            "Faire un relevé topographique du premier nid",
+            "Faire un relevé topographique du deuxième nid",
+            "Faire un relevé topographique du troisième nid",
+            "Attraper un Balebz dans l'Osavane et le ramener à Gobastol",
+            "Attraper un Toubibz dans l'Osavane et le ramener à Gobastol",
+            "Attraper un Kamikabz dans l'Osavane et le ramener à Gobastol",
+            "Attraper un Quadrabz dans l'Osavane et le ramener à Gobastol",
+            "Aller voir {npc,7659}",
+            "Examiner le compilateur défaillant",
+            "Réparer le compilateur à micro-ondes"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2519
+            }
+          ]
+        },
+        {
+          "name": "Des petites bêtes qui font bzzzbz",
+          "dofusdbId": 2521,
+          "level": 170,
+          "zone": "Larvzrzzbz",
+          "npcName": null,
+          "npcSubArea": "Larvzrzzbz",
+          "coords": {
+            "x": 25,
+            "y": 28,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Larvzrzzbz",
+            "Assister à une courte discussion entre deux Toubibz",
+            "Découvrir la carte : Mztroboolododobz",
+            "Échanger quelques mots avec les Kabombz voyageurs",
+            "Découvrir la carte : Przmzzrbz ztagzbz",
+            "Participer à une conversation d'ascenseur",
+            "Découvrir la carte : Boorzzbz zozzfbz",
+            "Parler aux Kabombz pour anticiper le cours de la boorzzbz sans se contredire",
+            "Écarter la menace du Krakhbz Boorzzzrbz",
+            "Retourner voir {npc,7666}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2520
+            }
+          ]
+        },
+        {
+          "name": "Têtes de ponte",
+          "dofusdbId": 2522,
+          "level": 170,
+          "zone": "Antzchambrzbz",
+          "npcName": null,
+          "npcSubArea": "Antzchambrzbz",
+          "coords": {
+            "x": 24,
+            "y": 23,
+            "worldId": 34
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler au gros Balebz pour tenter d'obtenir une audience avec les reines",
+            "Vaincre x1 {monster,8052} en un seul combat",
+            "Retourner voir {npc,7669}",
+            "Négocier avec les trois reines des Kabombz"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2521
+            }
+          ]
+        },
+        {
+          "name": "Dérive insectaire",
+          "dofusdbId": 2523,
+          "level": 170,
+          "zone": "Statue d'Osamodas",
+          "npcName": null,
+          "npcSubArea": "Statue d'Osamodas",
+          "coords": {
+            "x": 23,
+            "y": 27,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Passer inaperçu pour surprendre le propriétaire de la machine",
+            "Interroger la technomage",
+            "Vaincre x1 {monster,8068} en un seul combat",
+            "Montrer le symbole religieux à la prêtresse d'Osamodas",
+            "Aller voir {npc,7675}",
+            "Retourner voir {npc,7659}",
+            "Observer ce qui se passe dans la toorbz de la Réserve Touffue",
+            "Suivre les Kabombz influencés par la machine",
+            "Disperser les Kabombz agglutinés près du lac",
+            "Plonger dans le lac pour découvrir ce que cache la secte",
+            "Détruire l'idole technomagique de la secte"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2522
+            }
+          ]
+        },
+        {
+          "name": "Quand on la cherche, on finit par tomber dessus",
+          "dofusdbId": 2530,
+          "level": 200,
+          "zone": "unknown",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 18,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Vaincre x3 {monster,8042}",
+            "Vaincre x3 {monster,8043}",
+            "Vaincre x3 {monster,8044}",
+            "Vaincre x3 {monster,8045}",
+            "Vaincre x3 {monster,8046}",
+            "Retourner voir {npc,7657}",
+            "Prélever des crottes de zarbivores",
+            "Apporter les prélèvements à Marlyze",
+            "Poursuivre la mission confiée par Osamodas en attendant que Marlyze ait terminé ses analyses",
+            "Faire le point avec Marlyze sur le comportement des zarbivores"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2523
+            }
+          ]
+        },
+        {
+          "name": "Devoir de réserve",
+          "dofusdbId": 2531,
+          "level": 200,
+          "zone": "Breuil du Vénérable - Clairière",
+          "npcName": null,
+          "npcSubArea": "Breuil du Vénérable - Clairière",
+          "coords": {
+            "x": 6,
+            "y": 9,
+            "worldId": 34
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,7699}",
+            "Vaincre x1 {monster,8047} en un seul combat",
+            "Aller voir {npc,7700}",
+            "Se défendre contre l'attaque provoquée par la garde-chasse"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2530
+            }
+          ]
+        },
+        {
+          "name": "Un hôte de marque",
+          "dofusdbId": 2532,
+          "level": 200,
+          "zone": "unknown",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Découvrir comment les Rhoarims honorent leurs proies",
+            "Découvrir la cuisine des Rhoarims",
+            "Découvrir que la musique tribale adoucit les mœurs",
+            "Découvrir les mystères de l'ostéomancie",
+            "Découvrir le principe fondamental de la loi des Rhoarims",
+            "Découvrir le plus important rituel de chasse des Rhoarims"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2531
+            }
+          ]
+        },
+        {
+          "name": "L'union sacrée",
+          "dofusdbId": 2533,
+          "level": 200,
+          "zone": "unknown",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Renouer le lien avec les Kabombz",
+            "Renouer le lien avec les zarbivores",
+            "Renouer le lien entre les Léosas et les Léodas",
+            "Nouer un nouveau lien avec les Voyageurs et les Douziens",
+            "Renouer le lien avec Gargandyas"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2532
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

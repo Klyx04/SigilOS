@@ -2,7 +2,7 @@
   "slug": "pourpre",
   "displayName": "Dofus Pourpre",
   "color": "#800020",
-  "dofusItemId": 7827,
+  "dofusItemId": 694,
   "successName": "Pourpre profond",
   "recommendedLevel": 150,
   "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
@@ -34,5 +34,7 @@
         "Le pouvoir derrière le trône"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23001.png",
+  "iconId": 23001
 }

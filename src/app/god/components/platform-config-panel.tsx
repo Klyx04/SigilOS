@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { updatePlatformConfig, testStatusPing } from "@/server/actions/changelog-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Activity } from "lucide-react";
+import { diagnoseDiscordConnectivity } from "@/server/actions/god-discord-actions";
+import { Activity, ClipboardList, ShieldCheck, AlertCircle } from "lucide-react";
 
 interface PlatformConfigPanelProps {
     config: {
@@ -46,6 +47,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true
     });
 
+    const [diagResults, setDiagResults] = useState<any>(null);
+    const [isDiagPending, setIsDiagPending] = useState(false);
+
     const handleSave = () => {
         startTransition(async () => {
             const res = await updatePlatformConfig(formData);
@@ -59,7 +63,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
 
     const handleTestPing = () => {
         startTransition(async () => {
-            toast.promise(testStatusPing(), {
+            toast.promise(testStatusPing(formData.serviceStatusChannelId), {
                 loading: "Envoi du ping de service...",
                 success: (res) => {
                     if (res.success) return `Ping réussi ! (${res.action})`;
@@ -68,6 +72,23 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 error: (err) => `Erreur : ${err.message}`
             });
         });
+    };
+
+    const handleDiagnose = async () => {
+        setIsDiagPending(true);
+        try {
+            const res = await diagnoseDiscordConnectivity();
+            if (res.success) {
+                setDiagResults(res.results);
+                toast.success("Diagnostic terminé !");
+            } else {
+                toast.error(res.error || "Échec du diagnostic");
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsDiagPending(false);
+        }
     };
 
     return (
@@ -80,6 +101,14 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     SigilOS Platform Configuration
                 </h3>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleDiagnose}
+                        disabled={isDiagPending}
+                        className="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all"
+                    >
+                        {isDiagPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardList className="w-3.5 h-3.5" />}
+                        Diagnostic
+                    </button>
                     <button
                         onClick={handleTestPing}
                         disabled={isPending || !formData.serviceStatusChannelId}
@@ -98,6 +127,53 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </button>
                 </div>
             </div>
+
+            {/* Diagnostic Results Display */}
+            {diagResults && (
+                <div className="p-4 bg-zinc-950/80 border border-indigo-500/20 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-3 mb-4">
+                        <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Rapport de Diagnostic Bot</h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Authentification</span>
+                            <div className={cn(
+                                "flex items-center gap-2 text-[10px] font-bold",
+                                diagResults.token.status === "OK" ? "text-emerald-400" : "text-rose-400"
+                            )}>
+                                {diagResults.token.status === "OK" ? <ShieldCheck className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                                {diagResults.token.message}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Identité Bot</span>
+                            <div className="text-[10px] font-bold text-zinc-300">
+                                {diagResults.botIdentity ? `${diagResults.botIdentity.username} (${diagResults.botIdentity.id})` : "N/A"}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Serveurs Bot</span>
+                            <div className="text-[10px] font-bold text-zinc-300">
+                                {diagResults.guilds.length} serveurs actifs
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Accès Salons</span>
+                            <div className="flex flex-col gap-0.5">
+                                {Object.entries(diagResults.channels).map(([key, res]: any) => (
+                                    <div key={key} className={cn(
+                                        "text-[9px] font-bold flex items-center gap-1",
+                                        res.status === "OK" ? "text-indigo-400" : "text-zinc-500"
+                                    )}>
+                                        <span className="capitalize">{key}:</span> {res.message}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Main Configuration Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 

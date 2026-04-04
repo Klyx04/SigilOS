@@ -2,7 +2,7 @@
   "slug": "argent-scint",
   "displayName": "Dofus Argenté Scintillant",
   "color": "#E0E0FF",
-  "dofusItemId": 7838,
+  "dofusItemId": 20286,
   "successes": [
     {
       "name": "Prérequis - Quatre sur six",
@@ -16,5 +16,7 @@
         "Le destin de kalisthe"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23027.png",
+  "iconId": 23027
 }

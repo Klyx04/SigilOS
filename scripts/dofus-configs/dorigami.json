@@ -2,7 +2,7 @@
   "slug": "dorigami",
   "displayName": "Dorigami",
   "color": "#FF1493",
-  "dofusItemId": 7846,
+  "dofusItemId": 23408,
   "successes": [
     {
       "name": "Prérequis",
@@ -18,5 +18,7 @@
         "Maudite disparition"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23033.png",
+  "iconId": 23033
 }

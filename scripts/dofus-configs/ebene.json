@@ -2,85 +2,27 @@
   "slug": "ebene",
   "displayName": "Dofus Ébène",
   "color": "#2D1B00",
-  "dofusItemId": 7823,
+  "dofusItemId": 7114,
   "successName": "Noir d'ébène",
   "recommendedLevel": 200,
   "successDescription": "Terminer la série des quêtes du Dofus Ébène.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Frigost / Monde de Douze",
-      "description": "Toutes les quêtes et conditions requises avant de commencer la série du Dofus Ébène. Inclut l'accès à Frigost III (vaincre le Glourséleste au moins une fois).",
-      "isPrerequisite": true,
-      "quests": [
-        "L'anneau de tous les dangers",
-        "Sous le regard des dieux",
-        "Réponse à tout",
-        "Le village dans les nuages",
-        "Espoirs et tragédies",
-        "Dans la gueule du milimulou",
-        "Destination Astrub",
-        "Les principes d'archie m'aident",
-        "On marche sur des œufs",
-        "Conseil de classe",
-        "Quête de classe",
-        "Ça sent le gaz",
-        "Balade en forêt",
-        "Le réveil de Pandala",
-        "Le réceptacle des dofus",
-        "Intrusion chez les wabbits",
-        "Un sage parmi les sages",
-        "Protection divine",
-        "Voir le dark Vlad et mourir... ou pas",
-        "La magicienne des marécages",
-        "L'histoire en mouvement",
-        "Restauration rapide",
-        "De vrais rats de bibliothèque",
-        "Légende d'automne",
-        "Frappez, ami, et entrez",
-        "De Brikke et de Brokke",
-        "Les ennemis de mes ennemis sont mes ennemis",
-        "Les ninsoumis",
-        "La bible des rancunes",
-        "Mieux vaut ne pas se fier à la première impression",
-        "Aventure miniature",
-        "Ne tirez pas sur le messager",
-        "À la rescousse des Magypus",
-        "Dernier contact",
-        "La voix des morts",
-        "Le fléau de Burin",
-        "La colère des dieux",
-        "La dernière barbe avant la fin du monde",
-        "Un pendule pour guider ses pas"
-      ]
-    },
-    {
-      "name": "Les quêtes du Dofus Ébène — Partie 1",
-      "zone": "Forêt Maléfique / Crocabulia",
-      "description": "Les 5 premières quêtes de la série (succès Noir d'ébène). Inclut les donjons : Repaire de Skeunk, Mégalithe de Fraktale, Sanctuaire des Dragoeufs, Tour de Bethel, Temple de Koutoulou.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
+      "name": "Noir d'ébène",
+      "zone": "Pandala / Monde des Douze",
       "quests": [
         "L'épée du rocher",
         "Le forgeur de légende",
         "Jusqu'au bout du rêve",
         "À la recherche de Crocoburio",
-        "Le creuset de Mériana"
-      ]
-    },
-    {
-      "name": "Les quêtes du Dofus Ébène — Partie 2",
-      "zone": "Frigost / Xélorium",
-      "description": "Les 5 dernières quêtes de la série. Inclut les donjons : Brasserie du Roi Dazak, Salons Privés de Klime, Trône de la Cour Sombre, Tour de Solar. Nécessite Songes Infinis Rêve III+.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
-      "quests": [
+        "Le creuset de Mériana",
         "Une douloureuse séparation",
         "Le dragon noir",
         "La vengeance du dernier empereur",
-        "L'oeuf de Crocabulia",
+        "L'œuf de Crocabulia",
         "Un nouvel héritier"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23007.png"
 }

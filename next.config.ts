@@ -25,9 +25,9 @@ const nextConfig: NextConfig = {
         hostname: "api.dofusdb.fr",
       },
       {
-        // DofusDB item images CDN
+        // DofusDB item images CDN (Scoped instead of wildcard)
         protocol: "https",
-        hostname: "*.amazonaws.com",
+        hostname: "dofusdb.s3.eu-west-3.amazonaws.com",
       },
       {
         protocol: "https",

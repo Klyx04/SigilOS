@@ -1,17 +1,30 @@
 {
   "slug": "cauchemar",
-  "displayName": "Dofus Cauchemar",
+  "displayName": "Dofus du Cauchemar",
   "color": "#4B0082",
   "dofusItemId": 26066,
+  "successName": "Le cauchemar d'Hyrkul",
+  "recommendedLevel": 200,
   "successes": [
     {
-      "name": "Prérequis - Eliocalypse : Resilience",
-      "zone": "unknown",
+      "name": "Prerequisites",
+      "zone": "Sidimote / Eliocalypse",
       "quests": [
-        "Main dans la main"
+        "Jusqu'à leur dernier soupir",
+        "Pour que son cœur batte comme des ailes"
+      ]
+    },
+    {
+      "name": "Le cauchemar d'Hyrkul",
+      "zone": "Eliocalypse",
+      "quests": [
+        "Main dans la main",
+        "Deux souffles, une inspiration",
+        "En ce jardin qui nous unit",
+        "Tant de mots et si peu de temps",
+        "De l'encre spectaculaire"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23034.png",
-  "iconId": 23034
+  "imageUrl": "https://api.dofusdb.fr/img/items/23034.png"
 }

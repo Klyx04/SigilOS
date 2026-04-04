@@ -8,21 +8,8 @@
   "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Monde de Douze",
-      "description": "Quêtes à compléter avant de commencer la série principale du Dofus Pourpre.",
-      "isPrerequisite": true,
-      "quests": [
-        "Dans la gueule du milimulou",
-        "Voir le dark Vlad et mourir... ou pas"
-      ]
-    },
-    {
-      "name": "Les quêtes du Dofus Pourpre",
-      "zone": "Minotot / Taure Céleste",
-      "description": "La série de 8 quêtes pour obtenir le Dofus Pourpre. Inclut les donjons Bibliothèque du Maître Corbac, Labyrinthe du Minotoror, Serre du Royalmouth, Ring du Capitaine Ekarlatte et Antre du Blop Multicolore Royal.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
+      "name": "Pourpre profond",
+      "zone": "Minotot / Monde des Douze",
       "quests": [
         "Le livre des Taures",
         "Taures et détours",
@@ -35,6 +22,5 @@
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23001.png",
-  "iconId": 23001
+  "imageUrl": "https://api.dofusdb.fr/img/items/23001.png"
 }

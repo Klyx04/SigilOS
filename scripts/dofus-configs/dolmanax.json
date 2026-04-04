@@ -13,8 +13,8 @@
       "description": "Conditions requises pour accéder aux quêtes du Dolmanax.",
       "isPrerequisite": true,
       "quests": [
-        { "name": "L'anneau de tous les dangers", "id": 1629 },
-        { "name": "Destination Astrub", "id": 2004 },
+        "L'anneau de tous les dangers",
+        "Destination Astrub",
         "On marche sur des œufs",
         "Conseil de classe",
         "Quête de classe"
@@ -27,7 +27,7 @@
       "isPrerequisite": false,
       "isSynergyCandidate": false,
       "quests": [
-        { "name": "La quête du Dolmanax", "id": 3020, "note": "Vérifier le nom exact sur DofusDB" }
+        "La quête du Dolmanax"
       ]
     }
   ]

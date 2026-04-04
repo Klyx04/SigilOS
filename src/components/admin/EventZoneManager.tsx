@@ -255,9 +255,12 @@ export function EventZoneManager() {
                         return (
                             <div key={zone.id} className={cn('rounded-2xl border transition-all', preset?.border ?? 'border-zinc-800 bg-zinc-900/60')}>
                                 {/* Zone header */}
-                                <button
-                                    className="w-full flex items-center justify-between p-4 text-left"
+                                <div
+                                    className="w-full flex items-center justify-between p-4 cursor-pointer"
                                     onClick={() => setExpandedZone(v => v === zone.id ? null : zone.id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpandedZone(v => v === zone.id ? null : zone.id); }}
                                 >
                                     <div className="flex items-center gap-3">
                                         <span className="text-2xl">{preset?.emoji ?? '✨'}</span>
@@ -275,7 +278,7 @@ export function EventZoneManager() {
                                         </button>
                                         {isExpanded ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
                                     </div>
-                                </button>
+                                </div>
 
                                 {/* Expanded content */}
                                 {isExpanded && (

@@ -2,35 +2,77 @@
   "slug": "des-glaces",
   "displayName": "Dofus des Glaces",
   "color": "#ADD8E6",
-  "successName": "Oeuf à la neige",
   "dofusItemId": 7043,
-  "iconId": 23005,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png",
+  "successName": "Œuf à la neige",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer toutes les quêtes majeures de Frigost I, II et III.",
   "successes": [
     {
-      "name": "Bourgade (Frigost 1)",
-      "zone": "Bourgade",
+      "name": "Fri carré",
+      "zone": "Frigost",
+      "quests": [
+        "La terre banquise",
+        "La maire de glace",
+        "Full Contact"
+      ]
+    },
+    {
+      "name": "Halte au péage",
+      "zone": "Frigost",
+      "quests": [
+        "Antiroyaliste",
+        "Les joyeux de la couronne",
+        "Fais dodo, t'auras du gâteau",
+        "Lavomatique",
+        "C'est frais, mais c'est pas grave",
+        "Sans ma barbe, quelle barbe",
+        "Là-haut sur la montagne",
+        "Le pic qui glace"
+      ]
+    },
+    {
+      "name": "La maire dénie",
+      "zone": "Frigost",
       "quests": [
         "Bienvenue à Frigost",
-        "Pêche en eaux gelées",
-        "Les monologues du vaccin"
+        "L'essentiel est dans Lac Gelé",
+        "Les rescapés de Frigost",
+        "Frigost, une île pas comme les autres",
+        "Développement durable",
+        "Donjons et trouffions",
+        "Au fion du trou"
       ]
     },
     {
-      "name": "Village Enseveli (Frigost 2)",
-      "zone": "Village Enseveli",
+      "name": "L'hiver arrive",
+      "zone": "Frigost",
       "quests": [
-        "Le mal a dit",
-        "Un remède à tous les maux"
-      ]
-    },
-    {
-      "name": "Château de Harebourg (Frigost 3)",
-      "zone": "Château de Harebourg",
-      "quests": [
-        "Le givre des révélations",
+        "Les rescapés du Village Enseveli",
+        "Les derniers rescapés",
+        "La vie de château",
+        "La machine à démonter le temps",
+        "Il faut mettre un terme aux maîtres",
         "Un comte de faits divers"
       ]
+    },
+    {
+      "name": "L'âme de glace",
+      "zone": "Frigost",
+      "quests": [
+        "Prologue",
+        "Malédiction !",
+        "Mission Solution",
+        "Chaud et froid",
+        "Le givre des révélations"
+      ]
+    },
+    {
+      "name": "Fraîchement pondu",
+      "zone": "Frigost",
+      "quests": [
+        "Le Dofus des Glaces"
+      ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png"
 }

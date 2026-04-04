@@ -1003,7 +1003,7 @@ export async function seedDofusData(guildId: string): Promise<{
                     await (db as any).dofusQuestEntry.create({
                         data: {
                             chainId: chainRecord.id,
-                            name: entry.name,
+                            name: typeof entry.name === "string" ? entry.name : (entry.name?.name || String(entry.name)),
                             zone: entry.zone ?? null,
                             questType: entry.questType ?? "QUEST",
                             stepOrder: entry.stepOrder ?? 0,

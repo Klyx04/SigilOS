@@ -1,53 +1,39 @@
 {
   "dofus": "nebuleux",
   "displayName": "Dofus Nébuleux",
-  "color": "#483D8B",
-  "successName": null,
-  "recommendedLevel": null,
+  "color": "#9400D3",
+  "successName": "De fil en aiguille",
+  "recommendedLevel": 200,
   "description": null,
-  "dofusItemId": 8698,
+  "dofusItemId": 16327,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23016.png",
-  "compiledAt": "2026-04-04T00:52:16.025Z",
+  "imageUrl": "https://api.dofusdb.fr/img/items/23009.png",
+  "compiledAt": "2026-04-04T13:44:18.453Z",
   "chains": [
     {
-      "sectionName": "Prérequis",
-      "sectionType": "PREREQUISITE",
-      "zone": "unknown",
+      "sectionName": "De fil en aiguille",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Dimensions Divines",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
       "entries": [
         {
-          "name": "Voyage, voyage",
-          "dofusdbId": 1484,
-          "level": 100,
-          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
-          "npcName": null,
-          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
-          "coords": {
-            "x": -22,
-            "y": -24,
-            "worldId": 1
-          },
+          "name": "Départ en dimensions",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [
-            "Découvrir la carte : Hall des Voyageurs",
-            "Aller voir {npc,2337}",
-            "Aller voir {npc,2335}",
-            "Retourner voir {npc,2337}",
-            "Aller voir {npc,2349}",
-            "Découvrir la carte : Salle de localisation",
-            "Aller voir {npc,2340}"
-          ],
+          "objectives": [],
           "stepOrder": 0,
-          "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": "La cite de l'indicible mal",
+          "name": "Le livre des portails",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -57,50 +43,23 @@
           "itemsRequired": [],
           "objectives": [],
           "stepOrder": 1,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1484
-            }
-          ]
+          "requirements": []
         },
         {
-          "name": "Messager clandestin",
-          "dofusdbId": 1531,
-          "level": 100,
-          "zone": "unknown",
-          "npcName": null,
+          "name": "Choc de civilisations",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
           "npcSubArea": null,
-          "coords": {
-            "x": 5,
-            "y": -2,
-            "worldId": 14
-          },
+          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,2456}",
-            "Aller voir {npc,2452}",
-            "Aller voir {npc,2453}",
-            "Aller voir {npc,2455}",
-            "Aller voir {npc,2344}",
-            "Aller voir {npc,2451}",
-            "Aller voir {npc,2473}",
-            "Aller voir {npc,2541}",
-            "Parler au Bouché",
-            "Retourner voir {npc,2454}"
-          ],
+          "objectives": [],
           "stepOrder": 2,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1484
-            }
-          ]
+          "requirements": []
         },
         {
-          "name": "La voix de son maitre",
+          "name": "Renouement",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -110,258 +69,7 @@
           "itemsRequired": [],
           "objectives": [],
           "stepOrder": 3,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1531
-            }
-          ]
-        },
-        {
-          "name": "Le maitre des zaaps",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 4,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1531
-            }
-          ]
-        },
-        {
-          "name": "Energie renouvelable",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 5,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1531
-            }
-          ]
-        },
-        {
-          "name": "Traitement de choc",
-          "dofusdbId": 1573,
-          "level": 100,
-          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
-          "npcName": null,
-          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
-          "coords": {
-            "x": 4,
-            "y": 2,
-            "worldId": 15
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Utiliser l'électrofoudre sur le Maître des zaaps",
-            "Contacter le Doc Emiette Borgne via son Krosmoglob",
-            "Dissiper les doubles à coup de marteau",
-            "Taper sur la tête du maître des zaaps",
-            "Aller voir {npc,2655}",
-            "Ramener à {npc,2339} : x1 {item,15882}"
-          ],
-          "stepOrder": 6,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1531
-            }
-          ]
-        },
-        {
-          "name": "Le disparu de sufokia",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 7,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1573
-            }
-          ]
-        },
-        {
-          "name": "Rendez-vous avec la mort",
-          "dofusdbId": 1609,
-          "level": 100,
-          "zone": "Temple Sram",
-          "npcName": null,
-          "npcSubArea": "Temple Sram",
-          "coords": {
-            "x": -4,
-            "y": 0,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Se rendre au temple de Sram",
-            "Trouver la personne qui vous a donné rendez-vous",
-            "Aller voir {npc,2823}",
-            "Réunir des preuves contre Écho et les montrer à Gein"
-          ],
-          "stepOrder": 8,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1573
-            }
-          ]
-        },
-        {
-          "name": "Secret de fabrication",
-          "dofusdbId": 1610,
-          "level": 100,
-          "zone": "Tour des Voyageurs Dimensionnels - Prison",
-          "npcName": null,
-          "npcSubArea": "Tour des Voyageurs Dimensionnels - Prison",
-          "coords": {
-            "x": -22,
-            "y": -24,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Découvrir la carte : Chercher l'agent Bloude dans les sous-sols",
-            "Découvrir la carte : Chercher l'agent Bloude dans les étages",
-            "Interroger les Voyageurs de la tour",
-            "Activer le Krosmoglob de l'agent Bloude dans la prison",
-            "Aller voir {npc,2794}",
-            "Se servir de l'alambic dans le laboratoire",
-            "Aller voir {npc,2337}",
-            "Découvrir la carte : Portail de la mine Istairameur",
-            "Utiliser la Potion de transparence totale pour emprunter le portail en toute discrétion",
-            "Chercher les traces du passage du convoi",
-            "Essayer d'entrer dans la raffinerie",
-            "Chercher où le code a été caché",
-            "Essayer le code pour entrer dans la raffinerie",
-            "Découvrir où a été transporté l'orichor",
-            "Aller voir {npc,2344}",
-            "Aller voir {npc,2343}",
-            "Dérober de l'orichor raffiné",
-            "Aller voir {npc,2800}",
-            "Aller voir {npc,2369}",
-            "Aller voir {npc,2801}",
-            "Découvrir la carte : Porte de la raffinerie",
-            "Montrer à {npc,2823} : 1 {item,16059}"
-          ],
-          "stepOrder": 9,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1609
-            }
-          ]
-        },
-        {
-          "name": "S'emparer des commandes",
-          "dofusdbId": 1611,
-          "level": 100,
-          "zone": "Planque minuscule",
-          "npcName": null,
-          "npcSubArea": "Planque minuscule",
-          "coords": {
-            "x": 1,
-            "y": 6,
-            "worldId": 14
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,2809}",
-            "Enquêter sur la récente présence de Gein à Srambad",
-            "Acheter une Potion de transformation en sirène au marché de Srambad",
-            "Ramener à {npc,2617} : x1 {item,16064}",
-            "Découvrir la carte : Passage des Hauts Ténébreux",
-            "Chercher des traces du passage de Gein",
-            "Aller voir {npc,2810}",
-            "Découvrir la carte : Taverne du Bourreau",
-            "Aller voir {npc,2811}",
-            "Découvrir la carte : Prison de Srambad",
-            "Aller voir {npc,2812}",
-            "Aller voir {npc,2556}",
-            "Chercher un témoin du vol des documents dans la prison de Srambad",
-            "Chercher les hommes de main d'Al Capote récemment sortis de la prison de Srambad",
-            "Interroger les commerçants du marché de Srambad",
-            "Apporter 1 Anneau du Bandit ou 100000 kamas à Grima Fandanga",
-            "Chercher le Râtelier Gris dans les Catacombres",
-            "Chercher des traces du passage du Râtelier Gris",
-            "Chercher un moyen de passer à travers les grilles",
-            "Écouter la conversation entre le Râtelier Gris et Morora",
-            "Vaincre les Milirats et fouiller leurs cadavres",
-            "Retourner au marché pour retrouver la piste du Râtelier Gris",
-            "Chercher la personne qui vous attend",
-            "Montrer à {npc,2823} : 1 {item,16063}"
-          ],
-          "stepOrder": 10,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1610
-            }
-          ]
-        },
-        {
-          "name": "C'est dans la boite",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 11,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1611
-            }
-          ]
-        },
-        {
-          "name": "Crise d'identite",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 12,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1611
-            }
-          ]
+          "requirements": []
         }
       ]
     }

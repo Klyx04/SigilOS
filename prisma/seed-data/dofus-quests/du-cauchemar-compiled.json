@@ -1,21 +1,137 @@
 {
   "dofus": "du-cauchemar",
-  "displayName": "Dofus Cauchemar",
+  "displayName": "Dofus du Cauchemar",
   "color": "#4B0082",
-  "successName": null,
-  "recommendedLevel": null,
+  "successName": "Le cauchemar d'Hyrkul",
+  "recommendedLevel": 200,
   "successDescription": null,
-  "dofusItemId": 7833,
-  "compiledAt": "2026-04-03T08:43:56.514Z",
+  "dofusItemId": 26066,
+  "compiledAt": "2026-04-04T15:57:12.939Z",
   "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Prérequis - Eliocalypse : Resilience",
+      "sectionName": "Prerequisites",
       "sectionType": "PREREQUISITE",
-      "zone": "unknown",
+      "zone": "Sidimote / Eliocalypse",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Jusqu'à leur dernier soupir",
+          "dofusdbId": 2198,
+          "level": 170,
+          "zone": "Temple du Vent",
+          "npcName": null,
+          "npcSubArea": "Temple du Vent",
+          "coords": {
+            "x": 23,
+            "y": -36,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 131,
+              "name": "Demeure des Esprits",
+              "level": null,
+              "bossName": "Koumiho",
+              "img": "https://api.dofusdb.fr/img/monsters/2097.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Étudier les légendes de Pandala pour en apprendre davantage sur la Kitsoune à neuf queues",
+            "Trouver un samouraï qui pourrait en savoir plus sur le rōnin mentionné dans le conte",
+            "Se rendre dans la montagne, près du temple du Vent",
+            "Entrer dans le temple du Vent",
+            "Parler au vieux Kozaru",
+            "Rencontrer la descendante d'une voyageuse perdue",
+            "Débarquer sur l'île de Grobe et parler au Nocher",
+            "Boire l'élixir des Trépasseurs et se rendre au début de la route des morts",
+            "Prendre une lanterne d'Externam sur la route des morts",
+            "Suivre la route jusqu'à la taverne du cimetière",
+            "Suivre la route jusqu'au pied du Mont des Tombeaux",
+            "Suivre la route jusqu'au ponton brumeux",
+            "Payer le prix de Karon",
+            "Naviguer sur le fleuve Akeranzu",
+            "Vaincre les Lémures dans l'Éther",
+            "Reprendre le cours du voyage le long du fleuve",
+            "Saluer le visiteur qui explore les ruines",
+            "Continuer à naviguer jusqu'à la Mer de poussière",
+            "Aider le guide et l'âme aventurière",
+            "Parler au guide errant",
+            "Retourner voir le vieux Kozaru au temple du Vent",
+            "Récupérer le secret gardé par le vent de l'ouest",
+            "Récupérer le secret gardé par le vent de l'est",
+            "Récupérer le secret gardé par le vent du nord",
+            "Récupérer le secret gardé par le vent du sud",
+            "Confier les quatre secrets au vieux Kozaru",
+            "Rapporter le Hoshinotama à la Kitsoune"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Pour que son cœur batte comme des ailes",
+          "dofusdbId": 2199,
+          "level": 200,
+          "zone": "Atelier de papier",
+          "npcName": "Pandako Shazaki",
+          "npcSubArea": "Atelier de papier",
+          "coords": {
+            "x": 18,
+            "y": -34,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23936,
+              "name": "Caisse de papier wazhi",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Se rendre dans un atelier fréquenté par un maître du pliage de papier",
+            "Aller voir Pandako Shazaki",
+            "Ramener à Pandako Shazaki : x1 Caisse de papier wazhi",
+            "Remettre le diagramme et les feuilles de papier à la Pandawa",
+            "Trouver l'origine des ennuis de la Pandawa dans un lieu de mort",
+            "Vaincre les spectres des noyés sur le rivage de Grobe",
+            "Aller voir Vonbartroth",
+            "Retourner voir la Pandawa mélancolique",
+            "Aller voir Pandako Shazaki",
+            "Plier la millième cygrue et la montrer à Pandako",
+            "Découvrir la carte : Lac des cygrues",
+            "Libérer les cygrues de papier au bord du lac",
+            "Détruire l'esprit de la malédiction",
+            "Annoncer la bonne nouvelle à la Pandawa mélancolique"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2198
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Le cauchemar d'Hyrkul",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Eliocalypse",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
       "requires": [],
       "dungeons": [],
       "entries": [
@@ -108,15 +224,343 @@
           "stepOrder": 0,
           "isSynergyCandidate": false,
           "requirements": []
+        },
+        {
+          "name": "Deux souffles, une inspiration",
+          "dofusdbId": 2201,
+          "level": 200,
+          "zone": "Atelier de calligraphie",
+          "npcName": "Shufamukin",
+          "npcSubArea": "Atelier de calligraphie",
+          "coords": {
+            "x": 23,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23237,
+              "name": "Domakuro",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23032.png"
+            },
+            {
+              "id": 23408,
+              "name": "Dorigami",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23033.png"
+            },
+            {
+              "id": 24067,
+              "name": "Cordelettes nouées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164805.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 133,
+              "name": "Mémoire d'Orukam",
+              "level": null,
+              "bossName": "Roi Imagami",
+              "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+              "idoleName": null
+            },
+            {
+              "id": 134,
+              "name": "Souvenir d'Imagiro",
+              "level": null,
+              "bossName": "Reine Amirukam",
+              "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Aller voir Shufamukin",
+            "Se rendre à la bibliothèque pour parler à Chochi",
+            "Trouver le possesseur du dernier manuscrit de Myamowa Musashwan",
+            "Vaincre les spectres terrassés par Musashwan",
+            "Aller voir Tareo Dokodo",
+            "Explorer Terrdala à la recherche d'une œuvre de Tanukang Jei",
+            "Éloigner les Tsukumogami du vase antique",
+            "Examiner le vase antique",
+            "Survivre à l'embuscade des shinobi",
+            "Recopier le caractère tracé sur un vase antique",
+            "Montrer les deux caractères à Shufamukin",
+            "Aller voir Daimya Hikomi",
+            "Découvrir l'un des temples du Wukin et du Wukang sur l'île de Pandala",
+            "Parler à Daoh et quitter l'un des temples pour entrer dans les Royaumes célestes d'encre et de papier",
+            "Explorer la Mémoire d'Orukam",
+            "Vaincre x1 {monster,6472} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle de la Mémoire d'Orukam",
+            "Trouver le Yokianzhi du Wukin dans le Royaume d'encre",
+            "Survivre à l'attaque de la Paume du chtigre pour obtenir la silhouette du Wukin",
+            "Parler au dragon Orukam dans sa caverne",
+            "Explorer le Souvenir d'Imagiro",
+            "Vaincre x1 {monster,6478} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle du Souvenir d'Imagiro",
+            "Trouver le Yokianzhi du Wukang dans le royaume de papier",
+            "Parler au dragon Imagiro dans sa caverne",
+            "Se rendre au pied du Mont Noir et Blanc",
+            "Vaincre les chtigres de papier",
+            "Faire des offrandes aux éléments sur le Mont Noir et Blanc",
+            "Calmer les esprits",
+            "Parler aux trois Kozaru",
+            "Explorer le rêve du taciturne",
+            "Rompre le silence pour obtenir l'héritage de Kian Zhi",
+            "Parler au maître des rêves",
+            "Montrer à Shufamukin : 1 Cordelettes nouées",
+            "Se rendre au Palais de bambou pour s'entretenir avec la Daimya",
+            "Vaincre l'exécuteur de la Paume avec l'aide de Wulan",
+            "Aller voir Daimya Hikomi",
+            "Retourner voir le Grandapan dans le temple de la Taverne interdite"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2200
+            }
+          ]
+        },
+        {
+          "name": "En ce jardin qui nous unit",
+          "dofusdbId": 2202,
+          "level": 200,
+          "zone": "Temple Pandawa",
+          "npcName": "Pandiwan Kenobi",
+          "npcSubArea": "Temple Pandawa",
+          "coords": {
+            "x": 4,
+            "y": -2,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Se rendre au temple de Pandawa en Amakna",
+            "Aller voir Pandiwan Kenobi",
+            "Se préparer pour le rituel de la Main de Pandawa",
+            "Affronter Keltra Ekazumi et terminer vos préparatifs",
+            "Créer la Main de Pandawa grâce à la volonté de la déesse",
+            "Retourner sur Pandala et découvrir le jardin secret",
+            "Parler à Imagiro et à Orukam dans le jardin secret",
+            "Se concentrer sur le rocher et les deux Dofus",
+            "Aller voir Keltra Ekazumi",
+            "Affronter le reflet du dragon",
+            "Aller voir Imagirorukam"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2201
+            }
+          ]
+        },
+        {
+          "name": "Tant de mots et si peu de temps",
+          "dofusdbId": 2203,
+          "level": 200,
+          "zone": "Eliocalypse",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 28
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23556,
+              "name": "Transformation en Léopardo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/32159.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Donner au Kigob 5 haïkus différents arrachés aux Yokianzhi d'encre",
+            "Donner au Kigob 5 haïkus différents arrachés aux Yokianzhi de papier",
+            "Donner au Kigob 5 haïkus différents retrouvés dans les vestiges du passé d'Imagirorukam",
+            "Donner au Kigob 5 haïkus différents récoltés dans les Royaumes célestes",
+            "Donner au Kigob 5 haïkus différents créés par les esprits évanescents du Wukin",
+            "Donner au Kigob 5 haïkus différents créés par les esprits éphémères du Wukang",
+            "Donner au Kigob 7 haïkus différents typiques des régions de Pandala",
+            "Donner au Kigob 5 haïkus différents écrits par des samouraïs"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2202
+            }
+          ]
+        },
+        {
+          "name": "De l'encre spectaculaire",
+          "dofusdbId": 2204,
+          "level": 200,
+          "zone": "Bar à chacha",
+          "npcName": "Kugutsu",
+          "npcSubArea": "Bar à chacha",
+          "coords": {
+            "x": -1,
+            "y": -2,
+            "worldId": 28
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23825,
+              "name": "Pichon d'encre",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/41420.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 24,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 444,
+              "name": "Étain",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39078.png"
+            },
+            {
+              "id": 16494,
+              "name": "Planche de Toilette",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/95003.png"
+            },
+            {
+              "id": 23797,
+              "name": "Caractère du Sage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164830.png"
+            },
+            {
+              "id": 23790,
+              "name": "Silhouette de sage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164784.png"
+            },
+            {
+              "id": 23793,
+              "name": "Goutte d'encre indélébile",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/164831.png"
+            },
+            {
+              "id": 23788,
+              "name": "Silhouette de cygrue",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164780.png"
+            },
+            {
+              "id": 23791,
+              "name": "Silhouette de chacha",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164782.png"
+            },
+            {
+              "id": 23987,
+              "name": "Piège à sousouris",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164785.png"
+            },
+            {
+              "id": 23796,
+              "name": "Sousouris empoisonnée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15932.png"
+            },
+            {
+              "id": 23789,
+              "name": "Silhouette de sousouris",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164781.png"
+            },
+            {
+              "id": 23792,
+              "name": "Silhouette de chtigre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164783.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Trouver Kugutsu, la fournisseuse de silhouettes, dans le Royaume d'encre",
+            "Obtenir des indications pour savoir comment récupérer une silhouette de sage",
+            "Récupérer le caractère du Sage dans la Sigillaire des Kianzhi",
+            "Ramener à Kugutsu : x1 Caractère du Sage",
+            "Ramener à Pandawayang : x1 Silhouette de sage",
+            "Obtenir des indications pour savoir comment récupérer une silhouette de cygrue",
+            "Trouver un Yokianzhi Cygrue à transformer en silhouette pour le théâtre d'encre",
+            "Montrer à Cygrue théâtrale : 3 Goutte d'encre indélébile",
+            "Attirer le Yokianzhi Cygrue en dispersant des gouttes d'encre indélébile le long du chemin jusqu'à l'extérieur du Royaume d'encre",
+            "Ramener à Pandawayang : x1 Silhouette de cygrue",
+            "Obtenir des indications pour savoir comment récupérer une silhouette de chacha",
+            "Trouver un chacha qui accepterait de vous suivre dans la dimension du Wukin",
+            "Ramener à Chachatte comédienne : x10 Pichon d'encre",
+            "Escorter la chachatte comédienne jusqu'à Kugutsu",
+            "Regarder Kugutsu réaliser une silhouette de chacha grâce au modèle de la chachatte comédienne",
+            "Ramener à Pandawayang : x1 Silhouette de chacha",
+            "Obtenir des indications pour savoir comment récupérer une silhouette de sousouris",
+            "Fabriquer 1 Piège à sousouris et fermer l'interface",
+            "Placer le piège à sousouris dans un endroit isolé et attendre",
+            "Attendre quelques minutes avant de récupérer la sousouris empoisonnée par le piège à sousouris",
+            "Ramener à Kugutsu : x1 Sousouris empoisonnée",
+            "Ramener à Pandawayang : x1 Silhouette de sousouris",
+            "Obtenir des indications pour savoir comment récupérer une silhouette de chtigre",
+            "Obliger le Yokianzhi d'un chtigre à se manifester grâce au bloc de papier",
+            "Vaincre x1 {monster,6534} en un seul combat",
+            "Ramener à Pandawayang : x1 Silhouette de chtigre",
+            "Aller voir Pandawayang"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2203
+            }
+          ]
         }
       ]
     }
   ],
   "globalSummary": {
-    "totalQuests": 1,
-    "totalItems": 7,
-    "totalDungeons": 0,
+    "totalQuests": 7,
+    "totalItems": 23,
+    "totalDungeons": 3,
     "items": [
+      {
+        "id": 312,
+        "name": "Fer",
+        "totalAmount": 24,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 23825,
+        "name": "Pichon d'encre",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/41420.png"
+      },
+      {
+        "id": 444,
+        "name": "Étain",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/39078.png"
+      },
       {
         "id": 23179,
         "name": "Pandazahi",
@@ -142,24 +586,127 @@
         "img": "https://api.dofusdb.fr/img/items/174001.png"
       },
       {
+        "id": 16494,
+        "name": "Planche de Toilette",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/95003.png"
+      },
+      {
+        "id": 23793,
+        "name": "Goutte d'encre indélébile",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/164831.png"
+      },
+      {
         "id": 23237,
         "name": "Domakuro",
-        "totalAmount": 1,
+        "totalAmount": 2,
         "img": "https://api.dofusdb.fr/img/items/23032.png"
       },
       {
         "id": 23408,
         "name": "Dorigami",
-        "totalAmount": 1,
+        "totalAmount": 2,
         "img": "https://api.dofusdb.fr/img/items/23033.png"
+      },
+      {
+        "id": 23936,
+        "name": "Caisse de papier wazhi",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15056.png"
       },
       {
         "id": 23733,
         "name": "Bière forte",
         "totalAmount": 1,
         "img": "https://api.dofusdb.fr/img/items/164789.png"
+      },
+      {
+        "id": 24067,
+        "name": "Cordelettes nouées",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164805.png"
+      },
+      {
+        "id": 23556,
+        "name": "Transformation en Léopardo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/32159.png"
+      },
+      {
+        "id": 23797,
+        "name": "Caractère du Sage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164830.png"
+      },
+      {
+        "id": 23790,
+        "name": "Silhouette de sage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164784.png"
+      },
+      {
+        "id": 23788,
+        "name": "Silhouette de cygrue",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164780.png"
+      },
+      {
+        "id": 23791,
+        "name": "Silhouette de chacha",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164782.png"
+      },
+      {
+        "id": 23987,
+        "name": "Piège à sousouris",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164785.png"
+      },
+      {
+        "id": 23796,
+        "name": "Sousouris empoisonnée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15932.png"
+      },
+      {
+        "id": 23789,
+        "name": "Silhouette de sousouris",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164781.png"
+      },
+      {
+        "id": 23792,
+        "name": "Silhouette de chtigre",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164783.png"
       }
     ],
-    "dungeons": []
+    "dungeons": [
+      {
+        "id": 131,
+        "name": "Demeure des Esprits",
+        "level": null,
+        "bossName": "Koumiho",
+        "img": "https://api.dofusdb.fr/img/monsters/2097.png",
+        "idoleName": null
+      },
+      {
+        "id": 133,
+        "name": "Mémoire d'Orukam",
+        "level": null,
+        "bossName": "Roi Imagami",
+        "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+        "idoleName": null
+      },
+      {
+        "id": 134,
+        "name": "Souvenir d'Imagiro",
+        "level": null,
+        "bossName": "Reine Amirukam",
+        "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+        "idoleName": null
+      }
+    ]
   }
 }

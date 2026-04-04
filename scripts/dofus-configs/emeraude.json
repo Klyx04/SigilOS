@@ -1,17 +1,15 @@
 {
   "slug": "emeraude",
   "displayName": "Dofus Émeraude",
-  "color": "#00A550",
-  "dofusItemId": 737,
-  "successName": "Vert émeraude",
-  "recommendedLevel": 180,
-  "successDescription": "Terminer la série des quêtes du Dofus Émeraude.",
+  "color": "#32CD32",
+  "dofusItemId": 7041,
+  "successName": "Le vert de terre",
+  "recommendedLevel": 100,
+  "successDescription": "Obtenir le Dofus Émeraude en terminant les quêtes du Dark Vlad.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Monde de Douze",
-      "description": "Quêtes et conditions requises avant de commencer la série du Dofus Émeraude. Nécessite également le sort Apprivoisement de Monture.",
-      "isPrerequisite": true,
+      "name": "Prerequis",
+      "zone": "Pandala / Monde des Douze",
       "quests": [
         "Pandavignon",
         "La diseuse de bonne aventure"
@@ -19,67 +17,15 @@
     },
     {
       "name": "Les quêtes du Dofus Émeraude",
-      "zone": "Monde de Douze",
-      "description": "La série de 8 quêtes qui compose le succès 'Vert émeraude'.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
+      "zone": "Clairière de l'Orme / Monde des Douze",
       "quests": [
-        "Retourner voir le Dark Vlad, toujours sans mourir",
+        "Voir le Dark Vlad et mourir... ou pas",
         "Qui botte le cul des Culs Bottés ?",
-        "Le voleur d'âmes",
-        "L'amour perdu de Nabur",
-        "Naissance d'une vocation",
-        "Les bandits de Cania",
-        "Draconanthropie",
-        "Ultime réminiscence"
-      ],
-      "globalItemsRequired": [
-        {
-          "name": "Plume du Kwak de Vent",
-          "amount": 10,
-          "img": "https://api.dofusdb.fr/img/items/53113.png"
-        },
-        {
-          "name": "Graine de la Discorde",
-          "amount": 8,
-          "img": "https://api.dofusdb.fr/img/items/58472.png"
-        },
-        {
-          "name": "Ailes de Scarafeuille Blanc",
-          "amount": 6,
-          "img": "https://api.dofusdb.fr/img/items/104213.png"
-        },
-        {
-          "name": "Résine",
-          "amount": 4,
-          "img": "https://api.dofusdb.fr/img/items/15382.png"
-        },
-        {
-          "name": "Pierre d'Émeraude",
-          "amount": 2,
-          "img": "https://api.dofusdb.fr/img/items/51145.png"
-        },
-        {
-          "name": "Dragodinde Rousse",
-          "amount": 1,
-          "img": "https://api.dofusdb.fr/img/items/11252.png"
-        },
-        {
-          "name": "Dragodinde Amande",
-          "amount": 1,
-          "img": "https://api.dofusdb.fr/img/items/11253.png"
-        },
-        {
-          "name": "Dragodinde Dorée",
-          "amount": 1,
-          "img": "https://api.dofusdb.fr/img/items/11254.png"
-        }
-      ],
-      "globalDungeonsRequired": [
-        "Donjon Tanière du Meulou"
+        "À la poursuite du Dark Vlad",
+        "Le Dark Vlad entre en scène",
+        "L'Émeraude est au bout du chemin"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23002.png",
-  "iconId": 23002
+  "imageUrl": "https://api.dofusdb.fr/img/items/1.png"
 }

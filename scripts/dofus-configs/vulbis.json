@@ -1,39 +1,22 @@
 {
   "slug": "vulbis",
   "displayName": "Dofus Vulbis",
-  "color": "#9B59B6",
-  "dofusItemId": 6980,
-  "successName": "N/A",
+  "color": "#FFD700",
+  "dofusItemId": 925,
+  "successName": "Le pouvoir de l'imagination",
   "recommendedLevel": 200,
-  "successDescription": "Terminer la série des quêtes du Dofus Vulbis.",
+  "successDescription": "Obtenir le Dofus Vulbis via les quêtes de Crocabulia et la forêt Maléfique.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Monde de Douze / Xélorium",
-      "description": "Prérequis pour lancer la première quête du Dofus Vulbis. Nécessite aussi : être Alchimiste ou Paysan niveau 200, avoir accès à Songes Infinis Paradoxe I+, aller en Xélorium.",
-      "isPrerequisite": true,
+      "name": "Le pouvoir de l'imagination",
+      "zone": "Crocabulia / Pandala",
       "quests": [
-        "Ce sera mieux avant",
-        "Le sens du sacrifice",
-        "Le dragon des forêts"
-      ]
-    },
-    {
-      "name": "Les quêtes du Dofus Vulbis",
-      "zone": "Xélorium / Songes Infinis",
-      "description": "La série de 6 quêtes pour obtenir le Dofus Vulbis. Nécessite des combats solo, des drops rares (Quisnoa, Salikrone, Galet Solaire) et des passages en Xélorium.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
-      "quests": [
-        "Amaknanomalie",
-        "La mère des Dragoeufs",
-        "Cauchemar infini",
-        "La Nuit-qui-rugit",
-        "Les raisons de la colère",
-        "Le temps des secrets"
+        "Un œuf de rêve",
+        "La magicienne des marécages",
+        "Une étrange rencontre",
+        "Le mystère de l'œuf de Vulbis"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23004.png",
-  "iconId": 23004
+  "imageUrl": "https://api.dofusdb.fr/img/items/23015.png"
 }

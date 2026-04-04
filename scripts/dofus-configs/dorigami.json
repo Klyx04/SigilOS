@@ -1,24 +1,22 @@
 {
   "slug": "dorigami",
   "displayName": "Dorigami",
-  "color": "#FF1493",
-  "dofusItemId": 23408,
+  "color": "#8B0000",
+  "dofusItemId": 23146,
+  "successName": "Le destin de deux dragons",
+  "recommendedLevel": 180,
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "unknown",
+      "name": "Eliocalypse & Pandala",
+      "zone": "Pandala / Dimensions",
       "quests": [
-        "Le reveil de pandala"
-      ]
-    },
-    {
-      "name": "Les quêtes",
-      "zone": "unknown",
-      "quests": [
-        "Maudite disparition"
+        "Eliocalypse : Résonance",
+        "Eliocalypse : Prélude",
+        "Le réveil de Pandala",
+        "L'héritage de Kozuna",
+        "Le destin de deux dragons"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23033.png",
-  "iconId": 23033
+  "imageUrl": "https://api.dofusdb.fr/img/items/23031.png"
 }

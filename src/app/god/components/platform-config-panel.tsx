@@ -95,32 +95,32 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-8 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
             
-            <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-3">
-                    <Settings className="w-5 h-5 text-indigo-400" />
-                    SigilOS Platform Configuration
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-4 md:pb-0">
+                <h3 className="text-[11px] sm:text-sm font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-3 min-w-0">
+                    <Settings className="w-5 h-5 text-indigo-400 shrink-0" />
+                    <span className="truncate">SigilOS Platform Configuration</span>
                 </h3>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <button
                         onClick={handleDiagnose}
                         disabled={isDiagPending}
-                        className="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all"
+                        className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                         {isDiagPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardList className="w-3.5 h-3.5" />}
-                        Diagnostic
+                        <span className="truncate">Diagnostic</span>
                     </button>
                     <button
                         onClick={handleTestPing}
                         disabled={isPending || !formData.serviceStatusChannelId}
-                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 disabled:opacity-50 text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all"
+                        className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 disabled:opacity-50 text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                         <Activity className="w-3.5 h-3.5" />
-                        Tester le Ping
+                        <span className="truncate">Ping</span>
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all"
+                        className="w-full sm:w-auto px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         Sauvegarder

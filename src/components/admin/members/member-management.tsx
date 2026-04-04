@@ -321,7 +321,9 @@ export default function MemberManagement({
             )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl w-fit">
+                {/* Tabs with scroll on mobile */}
+                <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
+                    <TabsList className="bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl w-fit flex-nowrap whitespace-nowrap">
                     {[
                         { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
@@ -354,6 +356,7 @@ export default function MemberManagement({
                         );
                     })}
                 </TabsList>
+                </div>
 
                 {/* --- TAB 1: AUDIT --- */}
                 <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -370,7 +373,8 @@ export default function MemberManagement({
                                         className="pl-12 h-12 bg-black/40 border-white/5 text-white rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 font-medium"
                                     />
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+                                    <div className="flex gap-2 min-w-max pb-2">
                                     <Select value={roleFilter} onValueChange={setRoleFilter}>
                                         <SelectTrigger className="w-[200px] h-12 bg-black/40 border-white/5 rounded-2xl text-xs font-black text-zinc-300 uppercase tracking-widest">
                                             <SelectValue placeholder="Tous les rôles" />
@@ -421,12 +425,13 @@ export default function MemberManagement({
                                             <SelectItem value="voir" className="uppercase text-[10px] font-black tracking-widest text">À voir</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Table */}
-                            <div className="rounded-[32px] border border-white/5 bg-zinc-900/20 backdrop-blur-xl overflow-hidden shadow-2xl relative">
-                                <Table>
+                            <div className="rounded-[32px] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-x-auto no-scrollbar shadow-2xl relative group">
+                                <Table className="min-w-[800px] lg:min-w-0">
                                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
                                         <TableRow className="hover:bg-transparent border-none">
                                             <TableHead className="pl-8 py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">

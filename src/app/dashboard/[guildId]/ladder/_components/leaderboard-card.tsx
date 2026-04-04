@@ -76,7 +76,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     return (
         <div
             className={cn(
-               "group relative grid grid-cols-[auto_1fr_auto_1fr] items-center gap-4 px-4 py-3 rounded-2xl border transition-all duration-500 overflow-hidden",
+               "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-all duration-500 overflow-hidden",
                "backdrop-blur-md shadow-lg",
                colors.border,
                isTop3 ? "bg-white/[0.04] border-white/20 shadow-white/5" : "bg-zinc-900/40 border-white/5",
@@ -84,8 +84,8 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                entry.isCurrentUser && "ring-1 ring-white/20 bg-white/[0.06]"
             )}
         >
-            {/* 1. Rank & Identity Group */}
-            <div className="flex items-center gap-4 min-w-0">
+            {/* 1. Rank & Portrait */}
+            <div className="flex items-center gap-3 shrink-0">
                 <div className="w-8 flex justify-center shrink-0">
                     {entry.rank === 1 ? (
                         <Trophy className="h-5 w-5 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
@@ -118,7 +118,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             </div>
 
             {/* 2. User Info (Identity) */}
-            <div className="min-w-0 flex flex-col justify-center">
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <div className="flex items-center gap-2 flex-wrap">
                     <span 
                         className={cn("text-[15px] font-black tracking-tight truncate", isTop3 ? "text-white" : "text-zinc-100")}
@@ -134,8 +134,8 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 </div>
             </div>
 
-            {/* 3. Center Section: Perfectly Centered Level */}
-            <div className="flex justify-center items-center px-6">
+            {/* 3. Center Section: Perfectly Centered Level (Hidden on extreme mobile) */}
+            <div className="hidden sm:flex justify-center items-center px-4 shrink-0">
                 {isGeneral && entry.dofusLevel ? (
                     <div className="flex flex-col items-center">
                         <span className="text-[7px] font-black text-zinc-500 uppercase tracking-[0.3em] mb-1.5 opacity-40">Niveau</span>
@@ -154,7 +154,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             </div>
 
             {/* 4. Value Section */}
-            <div className="flex justify-end pr-2">
+            <div className="flex justify-end pr-1 sm:pr-2 shrink-0">
                 {isGeneral ? (
                     <div className="flex flex-col items-end">
                         <div className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isTop3 ? "text-white" : "text-blue-400")}>

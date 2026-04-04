@@ -1623,7 +1623,7 @@ export async function setGuildMissionXpOverride(
 
 export async function getGuildMissionXpOverride(
     guildId: string
-): Promise<ActionResponse<{ xpOverride: number | null }>> {
+): Promise<ActionResponse<{ xpOverride: number | null, realXp: number }>> {
     const session = await auth();
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
     if (!guard.allowed) return { success: false, error: guard.error };
@@ -1634,14 +1634,19 @@ export async function getGuildMissionXpOverride(
             select: { id: true, missionWeekXpOverride: true } as any
         }) as unknown as { id: string, missionWeekXpOverride: number | null } | null;
         
-        if (!guild || guild.missionWeekXpOverride === null) {
-            return { success: true, data: { xpOverride: null } };
+        if (!guild) {
+             return { success: false, error: "Guilde introuvable" };
         }
 
         const dynamicXP = await calculateDynamicXP(guild.id, guildId);
+
+        if (guild.missionWeekXpOverride === null) {
+            return { success: true, data: { xpOverride: null, realXp: dynamicXP } };
+        }
+
         const totalXP = guild.missionWeekXpOverride + dynamicXP; // Base + Generated
         
-        return { success: true, data: { xpOverride: totalXP } };
+        return { success: true, data: { xpOverride: totalXP, realXp: dynamicXP } };
     } catch (error) {
         logger.error("getGuildMissionXpOverride Error", { error, guildId });
         return { success: false, error: "Erreur serveur" };

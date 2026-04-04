@@ -5,7 +5,7 @@ import { redis } from "@/lib/redis";
 import { sendChannelMessage, updateChannelMessage } from "@/server/discord";
 import { isSuperAdmin } from "./super-admin-actions";
 
-const REDIS_STATUS_MSG_KEY = "sigilos:discord_status_message_id";
+const REDIS_STATUS_MSG_KEY = process.env.NODE_ENV === "production" ? "sigilos:discord_status_message_id_prod" : "sigilos:discord_status_message_id_beta";
 
 /**
  * 🛰️ Envoie un ping d'état des services sur Discord

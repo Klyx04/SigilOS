@@ -11,6 +11,7 @@ import { loginWithDiscord } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardDrawer } from "./dashboard-drawer";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 type NavItem = {
     label: string;
@@ -171,14 +172,54 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
 
                         {/* Mobile Menu Button - PREMIUM 2026 */}
                         <div className="lg:hidden">
-                             {/* Simple burger menu toggle button - would be connected to a mobile sheet in production */}
-                             <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
-                                 <div className="space-y-1.5">
-                                     <div className="w-5 h-0.5 bg-white rounded-full" />
-                                     <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
-                                     <div className="w-5 h-0.5 bg-white rounded-full" />
-                                 </div>
-                             </button>
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+                                        <div className="space-y-1.5">
+                                            <div className="w-5 h-0.5 bg-white rounded-full" />
+                                            <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
+                                            <div className="w-5 h-0.5 bg-white rounded-full" />
+                                        </div>
+                                    </button>
+                                </SheetTrigger>
+                                <SheetContent side="right" className="w-[300px] bg-zinc-950 border-l border-white/5 p-0 overflow-hidden flex flex-col">
+                                    <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
+                                    
+                                    <div className="p-8 pb-4 relative z-10 flex flex-col items-center gap-6 mt-10">
+                                        <div className="w-16 h-16 relative">
+                                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" fill className="object-contain" />
+                                        </div>
+                                        <div className="text-center">
+                                            <span className="text-2xl font-black tracking-tighter text-white uppercase italic">Sigil<span className="text-emerald-500">OS</span></span>
+                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] mt-1">L'excellence Gaming</p>
+                                        </div>
+                                    </div>
+
+                                    <nav className="flex-1 px-4 py-8 space-y-2 relative z-10">
+                                        {NAV_ITEMS.map((item) => (
+                                            <Link
+                                                key={item.id}
+                                                href={item.href}
+                                                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                                            >
+                                                {item.label}
+                                                <ChevronRight className="w-4 h-4" />
+                                            </Link>
+                                        ))}
+                                    </nav>
+
+                                    {!user && (
+                                        <div className="p-6 bg-white/[0.02] border-t border-white/5 relative z-10">
+                                            <form action={loginWithDiscord}>
+                                                <button className="w-full h-14 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:shadow-[0_0_25px_rgba(88,101,242,0.5)]">
+                                                    <DiscordIcon className="w-5 h-5" />
+                                                    Connexion
+                                                </button>
+                                            </form>
+                                        </div>
+                                    )}
+                                </SheetContent>
+                            </Sheet>
                         </div>
                     </div>
                 </div>

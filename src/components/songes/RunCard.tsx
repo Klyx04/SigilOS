@@ -252,29 +252,29 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             )}
 
             {/* Header */}
-            <div className="relative flex justify-between items-start mb-4">
-                <div>
-                    <div className="flex items-center gap-2">
+            <div className="relative flex flex-wrap justify-between items-start gap-3 mb-4">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <div
-                            className="w-3 h-3 rounded-full"
+                            className="w-3 h-3 rounded-full shrink-0"
                             style={{ backgroundColor: difficulty?.couleur }}
                         />
-                        <span className="text-white font-semibold">{difficulty?.label}</span>
+                        <span className="text-white font-semibold truncate">{difficulty?.label}</span>
                     </div>
                     {!epreuve && (
-                        <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1">
-                            {objective?.icon} {objective?.label}
+                        <div className="text-sm text-purple-300/70 flex items-center gap-1 mt-1 flex-wrap">
+                            {objective?.icon} <span className="truncate">{objective?.label}</span>
                         </div>
                     )}
-                    <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1">
-                        <Crown className="w-3 h-3 text-amber-400/70" />
-                        <span className="flex items-center gap-1">
-                            Run de <span className="text-white/80 font-medium">{leaderDisplayName}</span>
+                    <div className="text-xs text-purple-400/60 mt-1 flex items-center gap-1 flex-wrap">
+                        <Crown className="w-3 h-3 text-amber-400/70 shrink-0" />
+                        <span className="flex items-center gap-1 min-w-0">
+                            Run de <span className="text-white/80 font-medium truncate">{leaderDisplayName}</span>
                             {profiles.find(p => p.userId === run.leaderId)?.isAdmin && (
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <ShieldCheck className="w-3 h-3 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+                                            <ShieldCheck className="w-3 h-3 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
                                             Administration
@@ -286,7 +286,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 justify-end">
                     {/* Leader Tools */}
                     {(isLeader || isAdmin) && (
                         <div className="flex items-center gap-1">
@@ -660,14 +660,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 mt-4 pt-1">
+            <div className="flex flex-wrap gap-2 mt-4 pt-1">
                 {/* Pending Request - Click to cancel */}
                 {pendingRequest ? (
                     <Button
                         size="sm"
                         onClick={handleCancelRequest}
                         disabled={isPending}
-                        className="flex-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300"
+                        className="flex-1 min-w-[140px] bg-amber-600/30 hover:bg-amber-600/50 text-amber-300"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4 mr-1" />}
                         Annuler candidature
@@ -675,7 +675,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 ) : canApply ? (
                     <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-500">
+                            <Button size="sm" className="flex-1 min-w-[100px] bg-green-600 hover:bg-green-500">
                                 <UserPlus className="w-4 h-4 mr-1" />
                                 Postuler
                             </Button>
@@ -724,8 +724,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Dialog>
                 ) : canApplyConditions && !canJoinSonges ? (
                     /* Show message when user lacks permission to join */
-                    <div className="flex-1 px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">
-                        Permission requise pour postuler
+                    <div className="flex-1 min-w-[150px] px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center flex items-center justify-center">
+                        <ShieldCheck className="w-3 h-3 mr-1 shrink-0" />
+                        Accès restreint
                     </div>
                 ) : null}
 
@@ -735,14 +736,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         size="sm"
                         onClick={handleStart}
                         disabled={isPending}
-                        className="flex-1 bg-purple-600 hover:bg-purple-500"
+                        className="flex-1 min-w-[100px] bg-purple-600 hover:bg-purple-500"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
                         Démarrer
                     </Button>
                 )}
 
-                <Link href={`/dashboard/${params.guildId}/songes/${run.id}`} className="flex-1">
+                <Link href={`/dashboard/${params.guildId}/songes/${run.id}`} className="flex-1 min-w-[80px]">
                     <Button size="sm" variant="outline" className="w-full border-purple-500/30 text-purple-300 hover:bg-purple-900/30">
                         <Eye className="w-4 h-4 mr-1" />
                         Voir
@@ -755,7 +756,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         size="sm"
                         onClick={handleLeave}
                         disabled={isPending}
-                        className="bg-orange-600/80 hover:bg-orange-500 text-white"
+                        className="flex-1 min-w-[100px] bg-orange-600/80 hover:bg-orange-500 text-white"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 mr-1" />}
                         Quitter

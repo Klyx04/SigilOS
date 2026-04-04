@@ -354,8 +354,10 @@ async function run() {
         color: config.color,
         successName: config.successName ?? null,
         recommendedLevel: config.recommendedLevel ?? null,
-        successDescription: config.successDescription ?? null,
+        description: config.successDescription ?? null,
         dofusItemId: config.dofusItemId ?? null,
+        iconId: config.iconId ?? null,
+        imageUrl: config.imageUrl ?? null,
         compiledAt: new Date().toISOString(),
         chains: [],
     };

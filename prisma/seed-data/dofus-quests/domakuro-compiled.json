@@ -4,10 +4,11 @@
   "color": "#2F4F4F",
   "successName": null,
   "recommendedLevel": null,
-  "successDescription": null,
-  "dofusItemId": 7845,
-  "compiledAt": "2026-04-03T08:43:53.434Z",
-  "compilerVersion": "3.0",
+  "description": null,
+  "dofusItemId": 23237,
+  "iconId": 23032,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23032.png",
+  "compiledAt": "2026-04-04T00:47:00.653Z",
   "chains": [
     {
       "sectionName": "Les quêtes",
@@ -17,14 +18,13 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Sang d'encre",
           "dofusdbId": 2197,
           "level": 140,
           "zone": "Palais de bambou",
-          "npcName": "Ikunochi",
+          "npcName": null,
           "npcSubArea": "Palais de bambou",
           "coords": {
             "x": 19,
@@ -32,26 +32,18 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 23240,
-              "name": "Dofus d'encre diaphane",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/164705.png"
-            }
-          ],
-          "dungeonsRequired": [],
+          "itemsRequired": [],
           "objectives": [
             "Rencontrer quelqu'un aux environs des escaliers montant en Aerdala",
             "Suivre les instructions du message",
             "Explorer les lieux",
             "Se débarrasser des assassins pandikazes",
-            "Aller voir Ikunochi",
+            "Aller voir {npc,5690}",
             "Entrer dans la demeure fortifiée du Maître Pandore sans éveiller les soupçons",
             "Vaincre le Maître Pandore pour s'emparer du Dofus d'encre",
-            "Retourner voir Daimya Hikomi",
+            "Retourner voir {npc,5560}",
             "Faire apparaître le Grandapan et boire une chope de Pandazahi ou de Pandaporo pour retourner dans l'Éther",
-            "Montrer à Orukam : 1 Dofus d'encre diaphane"
+            "Montrer à {npc,5598} : 1 {item,23240}"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
@@ -59,19 +51,5 @@
         }
       ]
     }
-  ],
-  "globalSummary": {
-    "totalQuests": 1,
-    "totalItems": 1,
-    "totalDungeons": 0,
-    "items": [
-      {
-        "id": 23240,
-        "name": "Dofus d'encre diaphane",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/164705.png"
-      }
-    ],
-    "dungeons": []
-  }
+  ]
 }

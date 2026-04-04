@@ -2,7 +2,7 @@
   "slug": "cauchemar",
   "displayName": "Dofus Cauchemar",
   "color": "#4B0082",
-  "dofusItemId": 7833,
+  "dofusItemId": 26066,
   "successes": [
     {
       "name": "Prérequis - Eliocalypse : Resilience",
@@ -11,5 +11,7 @@
         "Main dans la main"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23034.png",
+  "iconId": 23034
 }

@@ -2,7 +2,7 @@
   "slug": "domakuro",
   "displayName": "Domakuro",
   "color": "#2F4F4F",
-  "dofusItemId": 7845,
+  "dofusItemId": 23237,
   "successes": [
     {
       "name": "Les quêtes",
@@ -11,5 +11,7 @@
         "Sang d'encre"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23032.png",
+  "iconId": 23032
 }

@@ -2,7 +2,7 @@
   "slug": "abyssal",
   "displayName": "Dofus Abyssal",
   "color": "#191970",
-  "dofusItemId": 7837,
+  "dofusItemId": 18043,
   "successes": [
     {
       "name": "Les quêtes",
@@ -13,5 +13,6 @@
         "Le hero de sufokia"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23023.png"
 }

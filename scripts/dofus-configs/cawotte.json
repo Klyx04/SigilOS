@@ -2,7 +2,7 @@
   "slug": "cawotte",
   "displayName": "Dofus Cawotte",
   "color": "#eab308",
-  "dofusItemId": 3087,
+  "dofusItemId": 972,
   "successName": "Rusé comme une Lenalde",
   "recommendedLevel": 60,
   "successDescription": "Obtenir le Dofus Cawotte en aidant les gardiens de l'île des Wabbits.",
@@ -38,8 +38,14 @@
       "description": "Succès final requérant d'affronter le Wa Wabbit dans ses deux donjons.",
       "isPrerequisite": false,
       "dungeons": [
-        { "name": "Château du Wa Wabbit", "idoleName": null },
-        { "name": "Terrier du Wa Wabbit", "idoleName": null }
+        {
+          "name": "Château du Wa Wabbit",
+          "idoleName": null
+        },
+        {
+          "name": "Terrier du Wa Wabbit",
+          "idoleName": null
+        }
       ],
       "quests": [
         "Jamais deux sans trois",
@@ -47,5 +53,6 @@
         "L'œuf ou la cawotte ?"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23006.png"
 }

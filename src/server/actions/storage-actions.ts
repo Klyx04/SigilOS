@@ -30,12 +30,14 @@ export type GuildAsset = {
     dbField?: AssetDbField; // used to clear the DB field after VPS deletion
 };
 
-export type DiskFile = {
+export interface DiskFile {
     filename: string;
     url: string;
     sizeBytes: number;
     modifiedAt: Date;
-};
+    isPending?: boolean;
+    expiresAt?: Date | string;
+}
 
 export type StorageGuildEntry = {
     guildId: string;
@@ -127,17 +129,19 @@ async function getPendingFilesForGuild(
         for (const sub of missionSubs) {
             if (!sub.proofUrl) continue;
             try {
-                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
-                const s = await stat(join(cwd, "private_uploads", physicalPath));
+                // Determine physical path from URL - Missions/Achiev are in /public/uploads/proofs/
+                const fileName = sub.proofUrl.split("/").pop();
+                const physicalPath = join(cwd, "public", "uploads", "proofs", discordGuildId, fileName || "");
+                const s = await stat(physicalPath);
                 pendingFiles.push({
-                    filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
+                    filename: fileName || sub.id,
                     url: sub.proofUrl, sizeBytes: s.size,
                     createdAt: sub.createdAt,
                     expiresAt: new Date(sub.createdAt.getTime() + EXPIRY_MS),
                     submissionId: sub.id, type: "MISSION",
                     memberName: sub.profile?.discordNickname || sub.profile?.pseudoDofus || "Membre",
                 });
-            } catch { }
+            } catch (err) { }
         }
     } catch { }
 
@@ -150,20 +154,22 @@ async function getPendingFilesForGuild(
             },
             orderBy: { createdAt: "asc" },
         });
-        for (const sub of kamaSubs) {
-            if (!sub.proofUrl) continue;
+        for (const donation of kamaSubs) {
+            if (!donation.proofUrl) continue;
             try {
-                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
-                const s = await stat(join(cwd, "private_uploads", physicalPath));
+                // Kamas are in /private_uploads/guilds/{id}/proofs/
+                const fileName = donation.proofUrl.split("/").pop();
+                const physicalPath = join(cwd, "private_uploads", "guilds", guildId, "proofs", fileName || "");
+                const s = await stat(physicalPath);
                 pendingFiles.push({
-                    filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
-                    url: sub.proofUrl, sizeBytes: s.size,
-                    createdAt: sub.createdAt,
-                    expiresAt: new Date(sub.createdAt.getTime() + EXPIRY_MS),
-                    submissionId: sub.id, type: "KAMA",
-                    memberName: sub.profile?.discordNickname || sub.profile?.pseudoDofus || "Membre",
+                    filename: fileName || donation.id,
+                    url: donation.proofUrl, sizeBytes: s.size,
+                    createdAt: donation.createdAt,
+                    expiresAt: new Date(donation.createdAt.getTime() + EXPIRY_MS),
+                    submissionId: donation.id, type: "KAMA",
+                    memberName: donation.profile?.discordNickname || donation.profile?.pseudoDofus || "Membre",
                 });
-            } catch { }
+            } catch (err) { }
         }
     } catch { }
 
@@ -235,8 +241,16 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     getPendingFilesForGuild(g.id, g.discordGuildId, cwd),
                 ]);
 
-                // Filter presentationList to only include local files (exclude subfolders scan)
-                // Actually dirList only scans files in that specific folder (no recursion)
+                // Enrich disk files with pending status and expiry info
+                const enrich = (files: DiskFile[]) => {
+                    return files.map(df => {
+                        const pending = (pendingFiles || []).find(pf => pf.filename === df.filename);
+                        if (pending) {
+                            return { ...df, isPending: true, expiresAt: pending.expiresAt };
+                        }
+                        return df;
+                    });
+                };
 
                 // Les fichiers du dossier /proofs/ sont partagés entre Kama Donations et Prêts/Coffre
                 const activeLoanProofs = await Promise.all([
@@ -278,23 +292,23 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     missionsDir: `${missionsUrlBase}/`,
                     missionsCount: missionsList.count,
                     missionsBytes: missionsList.bytes,
-                    missionsFiles: missionsList.files,
+                    missionsFiles: enrich(missionsList.files),
                     kamaDir: `${kamaUrlBase}/`,
                     kamaCount: kamaList.count,
                     kamaBytes: kamaList.bytes,
-                    kamaFiles: kamaList.files,
+                    kamaFiles: enrich(kamaList.files),
                     achievementDir: `${achievementUrlBase}/`,
                     achievementCount: achievementList.count,
                     achievementBytes: achievementList.bytes,
-                    achievementFiles: achievementList.files,
+                    achievementFiles: enrich(achievementList.files),
                     loansProofsDir: `${kamaUrlBase}/`, // share same dir as kama proofs
                     loansProofsCount: kamaList.count,
                     loansProofsBytes: kamaList.bytes,
-                    loansProofsFiles: kamaList.files,
+                    loansProofsFiles: enrich(kamaList.files),
                     presentationDir: `${presentationUrlBase}/`,
                     presentationCount: presentationList.count,
                     presentationBytes: presentationList.bytes,
-                    presentationFiles: presentationList.files,
+                    presentationFiles: enrich(presentationList.files),
                     activeLoanProofs,
                     pendingMissions,
                     pendingKamas,
@@ -431,7 +445,7 @@ export type AssetDbField = "iconUrl" | "presentationBannerUrl" | "presentationPh
 export async function godDeleteFile(
     fileUrl: string,
     dbClear?: { guildId: string; field: AssetDbField }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string; deletedPath?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
 
     if (!fileUrl.startsWith("/uploads/") && !fileUrl.startsWith("/api/storage/")) {
@@ -448,13 +462,14 @@ export async function godDeleteFile(
 
     try {
         await unlink(absolutePath);
-        logger.info(`[God] Superadmin deleted file: ${fileUrl}`);
+        logger.info(`[God] Superadmin deleted file: ${fileUrl} (target: ${absolutePath})`);
     } catch (error: any) {
         if (error.code !== "ENOENT") {
-            return { success: false, error: `Erreur suppression fichier: ${error.message}` };
+            logger.error(`[God] Failed to delete file: ${absolutePath}`, { error });
+            return { success: false, error: `Erreur suppression physique (${error.code}) sur : ${absolutePath}` };
         }
-        // ENOENT = already gone — still clear the DB field
-        logger.warn(`[God] File already missing on disk: ${fileUrl}`);
+        // ENOENT = already gone
+        logger.warn(`[God] File already missing on disk: ${absolutePath}`);
     }
 
     // Clear the DB field so the asset disappears from the panel immediately
@@ -471,5 +486,9 @@ export async function godDeleteFile(
         }
     }
 
-    return { success: true };
+    return { 
+        success: true, 
+        message: "Opération terminée", 
+        deletedPath: absolutePath 
+    };
 }

@@ -2,7 +2,7 @@
   "slug": "cacao",
   "displayName": "Dofus Cacao",
   "color": "#7B3F00",
-  "dofusItemId": 7835,
+  "dofusItemId": 20987,
   "successes": [
     {
       "name": "Les quêtes",
@@ -11,5 +11,7 @@
         "Mystère et oeuf au chocolat"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23029.png",
+  "iconId": 23029
 }

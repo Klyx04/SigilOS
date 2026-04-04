@@ -329,8 +329,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                 </div>
             </div>
 
-            <div className="rounded-xl border border-white/5 bg-zinc-900/20 overflow-hidden">
-                <Table>
+            <div className="rounded-xl border border-white/5 bg-zinc-900/20 overflow-x-auto no-scrollbar">
+                <Table className="min-w-[800px] lg:min-w-0">
                     <TableHeader className="bg-white/5 border-b border-white/5">
                         <TableRow className="hover:bg-transparent border-none">
                             <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Membre</TableHead>

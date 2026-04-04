@@ -171,8 +171,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-200 to-violet-500 bg-clip-text text-transparent">
                         Gestion des Guildes
@@ -257,10 +256,10 @@ export function GuildTable({ guilds }: GuildTableProps) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Rechercher par nom ou ID Discord..."
+                            placeholder="Recherche..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                            className="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
                         />
                     </div>
 
@@ -313,13 +312,13 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                 <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                                     Guilde
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                    Membres / Capacité
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden md:table-cell">
+                                    Membres
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">
                                     Status
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden lg:table-cell">
                                     Créée
                                 </th>
                                 <th className="p-4 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -495,14 +494,14 @@ function GuildRow({ guild, selected, onSelect }: {
                 </div>
             </td>
 
-            <td className="p-4">
-                <div className="space-y-1.5 min-w-[120px]">
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 font-medium">
-                            <Users className="w-3.5 h-3.5 text-zinc-500" />
+            <td className="p-4 hidden md:table-cell">
+                <div className="space-y-1.5 min-w-[100px]">
+                    <div className="flex items-center justify-between text-[10px]">
+                        <div className="flex items-center gap-1 font-medium">
+                            <Users className="w-3 h-3 text-zinc-500" />
                             <span>{guild._count.profiles}</span>
                         </div>
-                        <span className="text-zinc-500 font-mono text-[10px]">/{guild.maxMembers}</span>
+                        <span className="text-zinc-500 font-mono">/{guild.maxMembers}</span>
                     </div>
                     {/* Capacity Bar */}
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
@@ -517,16 +516,16 @@ function GuildRow({ guild, selected, onSelect }: {
                 </div>
             </td>
 
-            <td className="p-4">
+            <td className="p-4 hidden sm:table-cell">
                 <span
                     title={statusConfig.tooltip}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color} cursor-help`}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border ${statusConfig.color} cursor-help whitespace-nowrap`}
                 >
                     {statusConfig.label}
                 </span>
             </td>
 
-            <td className="p-4 text-sm text-zinc-400">
+            <td className="p-4 text-[10px] text-zinc-400 hidden lg:table-cell">
                 {formatDistanceToNow(new Date(guild.createdAt), { addSuffix: true, locale: fr })}
             </td>
 

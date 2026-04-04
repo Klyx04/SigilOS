@@ -184,7 +184,7 @@ export default async function DashboardPage({
                 </section>
 
                 {/* --- 2. BENTO GRID 2.0 --- */}
-                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-auto md:auto-rows-[180px] gap-4 md:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
 
                     {/* Missions (Main landscape - Priority 1) */}
                     {user.canViewMissions && (

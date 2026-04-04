@@ -17,6 +17,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
     const maxXP = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS]?.xpMax || 10000;
 
     const [currentOverride, setCurrentOverride] = useState<number | null>(null);
+    const [realXp, setRealXp] = useState<number>(0);
     const [inputValue, setInputValue] = useState<string>("");
     const [sliderValue, setSliderValue] = useState<number>(0);
     const [loading, setLoading] = useState(true);
@@ -28,10 +29,15 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
             if (cancelled) return;
             if (res.success && res.data) {
                 const val = res.data.xpOverride;
+                const rXp = res.data.realXp || 0;
+                setRealXp(rXp);
                 setCurrentOverride(val ?? null);
                 if (val !== null && val !== undefined) {
                     setInputValue(val.toString());
                     setSliderValue(val);
+                } else {
+                    setInputValue(rXp.toString());
+                    setSliderValue(rXp);
                 }
             }
             setLoading(false);
@@ -40,7 +46,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
     }, [guildId]);
 
     const syncFromSlider = (vals: number[]) => {
-        const v = vals[0];
+        const v = Math.max(vals[0], realXp);
         setSliderValue(v);
         setInputValue(v.toString());
     };
@@ -48,15 +54,15 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
     const syncFromInput = (raw: string) => {
         setInputValue(raw);
         const n = parseInt(raw, 10);
-        if (!isNaN(n) && n >= 0 && n <= maxXP) {
+        if (!isNaN(n) && n >= realXp && n <= maxXP) {
             setSliderValue(n);
         }
     };
 
     const handleSave = async () => {
         const n = parseInt(inputValue, 10);
-        if (isNaN(n) || n < 0 || n > maxXP) {
-            toast.error(`Valeur invalide. L'XP doit être entre 0 et ${maxXP.toLocaleString()}.`);
+        if (isNaN(n) || n < realXp || n > maxXP) {
+            toast.error(`Valeur invalide. Le total ne peut être inférieur à l'XP vérifié (${realXp.toLocaleString()}).`);
             return;
         }
         setSaving(true);
@@ -75,8 +81,8 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
         const res = await setGuildMissionXpOverride({ guildId, xpOverride: null });
         if (res.success) {
             setCurrentOverride(null);
-            setInputValue("");
-            setSliderValue(0);
+            setInputValue(realXp.toString());
+            setSliderValue(realXp);
             toast.success("🔄 Override supprimé — calcul automatique réactivé.");
         } else {
             toast.error(res.error || "Erreur");
@@ -119,8 +125,8 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
                 <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-blue-200/70 leading-relaxed">
-                    La barre d'activité calcule l'XP automatiquement depuis les soumissions validées.
-                    Cet override <b>s'ajoute</b> comme bonus manuel au calcul automatique (pratique pour corriger un décalage ou un don ignoré).
+                    Les membres ont actuellement vérifié <b>{realXp.toLocaleString()} XP</b>. 
+                    Le curseur détermine le total de la jauge et bloque toute pénalité non intentionnelle.
                     {currentOverride === null && <span className="text-zinc-500"> Aucun override actif — calcul automatique.</span>}
                 </p>
             </div>
@@ -128,14 +134,14 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
             {/* Slider */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                    <span>0 XP</span>
+                    <span className="text-emerald-400">{realXp.toLocaleString()} XP (Min)</span>
                     <span className="text-white">{percentage}%</span>
                     <span>{maxXP.toLocaleString()} XP (Palier {targetTier})</span>
                 </div>
 
                 <input
                     type="range"
-                    min={0}
+                    min={realXp}
                     max={maxXP}
                     step={100}
                     value={sliderValue}
@@ -158,7 +164,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                 <div className="flex-1 relative">
                     <Input
                         type="number"
-                        min={0}
+                        min={realXp}
                         max={maxXP}
                         value={inputValue}
                         onChange={e => syncFromInput(e.target.value)}

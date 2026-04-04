@@ -24,7 +24,7 @@ export function OverviewTabs({ stats, chart, communication, worker }: OverviewTa
     return (
         <div className="space-y-10">
             {/* Sub-navigation for Overview */}
-            <div className="flex gap-2 p-1 bg-white/[0.02] border border-white/5 rounded-2xl w-fit overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 p-1 bg-white/[0.02] border border-white/5 rounded-2xl w-full max-w-full overflow-x-auto no-scrollbar">
                 {TABS.map((tab) => (
                     <button
                         key={tab.id}

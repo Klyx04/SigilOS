@@ -111,6 +111,19 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
 export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscordConfigured }: CalendarDashboardProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("grid");
     const [currentDate, setCurrentDate] = useState(new Date());
+
+    // Auto-switch to list mode on small screens
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 1024) {
+                setViewMode("list");
+            }
+        };
+        handleResize(); // Initial check
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -407,18 +420,18 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                         <div className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/80 via-zinc-900/60 to-zinc-950/80 backdrop-blur-xl p-6">
                             <div className="absolute inset-0 bg-gradient-to-br from-amber-600/5 via-transparent to-purple-600/5 pointer-events-none" />
 
-                            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                                 <div className="flex items-center gap-5">
                                     <div className="relative group shrink-0">
                                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
-                                        <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20">
-                                            <CalendarIcon className="h-7 w-7 text-amber-400" />
+                                        <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20 shrink-0">
+                                            <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-400" />
                                         </div>
                                     </div>
-                                    <div>
-                                        <h2 className="text-3xl font-bold text-zinc-50 tracking-tight">Agenda</h2>
-                                        <p className="text-zinc-400 text-sm mt-1">
-                                            {filteredEvents.length} événements
+                                    <div className="min-w-0">
+                                        <h2 className="text-2xl md:text-3xl font-bold text-zinc-50 tracking-tight truncate">Agenda</h2>
+                                        <p className="text-zinc-400 text-xs md:text-sm mt-1">
+                                            {filteredEvents.length} événements programmés
                                         </p>
                                     </div>
                                 </div>

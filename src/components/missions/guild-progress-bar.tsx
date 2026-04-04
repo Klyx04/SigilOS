@@ -268,7 +268,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     </div>
 
                     {/* RIGHT: Bonus + Prochain jalon */}
-                    <div className="flex flex-col items-end gap-2 ml-auto">
+                    <div className="flex flex-col items-start md:items-end gap-2 mt-4 md:mt-0 w-full md:w-auto md:ml-auto">
                         {/* Active Bonus Tracker */}
                         <ActiveBonusBar guildId={guildId} />
 
@@ -278,8 +278,8 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                             const nextStep = steps.find(s => currentXP < s.xp);
                             if (!nextStep) {
                                 return (
-                                    <div className="bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2 w-full md:w-auto justify-center">
-                                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                                    <div className="bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+                                        <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                                         <span className="text-emerald-400 font-black">Palier {targetTier} atteint !</span>
                                     </div>
                                 );

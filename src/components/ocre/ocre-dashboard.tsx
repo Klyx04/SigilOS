@@ -367,18 +367,12 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     </div>
 
                     {/* Right Side: Progress Bars */}
-                    <div className="w-full md:w-[350px] space-y-3 bg-background/30 p-4 rounded-2xl border border-border/50">
+                    <div className="w-full md:w-[350px] space-y-4 bg-background/30 p-5 rounded-3xl border border-border/50 shadow-inner">
                         {renderProgressBar("Gardiens", data.stats.bosses)}
                         {renderProgressBar("Archimonstres", data.stats.archis)}
                     </div>
                 </div>
 
-            </div>
-
-            {/* Mobile Progress Bars (Separate) */}
-            <div className="md:hidden grid gap-4 p-4 rounded-xl bg-card/30 border border-white/5">
-                {renderProgressBar("Gardiens de Donjon", data.stats.bosses)}
-                {renderProgressBar("Archimonstres", data.stats.archis)}
             </div>
 
             {/* Main Navigation Sub-menu */}
@@ -468,26 +462,28 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
                     {/* Secondary Tabs (Grid) */}
                     <Tabs defaultValue="manquants" className="w-full">
-                        <TabsList className="inline-flex w-auto bg-muted/30 backdrop-blur-sm border border-border p-1 rounded-xl">
-                            <TabsTrigger value="manquants" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                                <span className="hidden sm:inline">Manquants</span>
-                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none">
-                                    {filteredManquants.length}
-                                </Badge>
-                            </TabsTrigger>
-                            <TabsTrigger value="possedes" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                                <span className="hidden sm:inline">Possédés</span>
-                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none">
-                                    {filteredPossedes.length}
-                                </Badge>
-                            </TabsTrigger>
-                            <TabsTrigger value="doublons" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                                <span className="hidden sm:inline">Doublons</span>
-                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none">
-                                    {filteredDoublons.length}
-                                </Badge>
-                            </TabsTrigger>
-                        </TabsList>
+                        <div className="overflow-x-auto no-scrollbar pb-1">
+                            <TabsList className="inline-flex w-auto bg-muted/30 backdrop-blur-sm border border-border p-1 rounded-xl min-w-full sm:min-w-0">
+                                <TabsTrigger value="manquants" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                    <span className="hidden sm:inline">Manquants</span>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none">
+                                        {filteredManquants.length}
+                                    </Badge>
+                                </TabsTrigger>
+                                <TabsTrigger value="possedes" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                    <span className="hidden sm:inline">Possédés</span>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none">
+                                        {filteredPossedes.length}
+                                    </Badge>
+                                </TabsTrigger>
+                                <TabsTrigger value="doublons" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                    <span className="hidden sm:inline">Doublons</span>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none">
+                                        {filteredDoublons.length}
+                                    </Badge>
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
 
                         <TabsContent value="manquants" className="mt-6 outline-none">
                             <MonsterGrid

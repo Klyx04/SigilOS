@@ -732,7 +732,7 @@ export async function getGuildatonsLadder(
 
                 const dotsByProfile = await db.$queryRaw<{ profileId: string; totalDots: number }[]>`
                     WITH MissionDots AS (
-                        SELECT s."profileId", COALESCE(SUM(m."guildatonReward"), 0)::int AS dots
+                        SELECT s."profileId", COALESCE(SUM(m."guildatonsReward"), 0)::int AS dots
                         FROM "Submission" s
                         JOIN "Mission" m ON s."missionId" = m."id"
                         JOIN "UserProfile" up ON s."profileId" = up."id"

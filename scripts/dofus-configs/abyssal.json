@@ -1,18 +1,24 @@
 {
   "slug": "abyssal",
   "displayName": "Dofus Abyssal",
-  "color": "#191970",
-  "dofusItemId": 18043,
+  "color": "#1E90FF",
+  "dofusItemId": 17355,
+  "successName": "Quand l'Abîme vous sourit",
+  "recommendedLevel": 200,
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "Abysses de Sufokia",
+      "zone": "Sufokia / Abysses",
       "quests": [
-        "Reine de beaute",
-        "Son nom est personne",
-        "Le hero de sufokia"
+        "Demain, j'arête",
+        "Le vieux gob et la mer",
+        "L'effet Paula Rice",
+        "Fhtagn !",
+        "Aux grands mots les grands remèdes",
+        "Quand les astres seront propices",
+        "Il suffira d'un signe"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23023.png"
+  "imageUrl": "https://api.dofusdb.fr/img/items/23010.png"
 }

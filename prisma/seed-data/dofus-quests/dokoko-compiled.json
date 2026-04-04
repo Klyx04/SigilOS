@@ -1,26 +1,26 @@
 {
   "dofus": "dokoko",
   "displayName": "Dokoko",
-  "color": "#FFD700",
-  "successName": null,
-  "recommendedLevel": null,
+  "color": "#D2B48C",
+  "successName": "Un œuf de Kokoko",
+  "recommendedLevel": 100,
   "description": null,
-  "dofusItemId": 17078,
+  "dofusItemId": 17006,
   "iconId": 23022,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23022.png",
-  "compiledAt": "2026-04-04T00:45:08.103Z",
+  "imageUrl": "https://api.dofusdb.fr/img/items/23013.png",
+  "compiledAt": "2026-04-04T13:37:22.682Z",
   "chains": [
     {
-      "sectionName": "Les quêtes",
+      "sectionName": "Un œuf de Kokoko",
       "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
+      "zone": "Île de Moon",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
       "entries": [
         {
-          "name": "Squelettes et amulettes",
+          "name": "L'œuf ou la carotte ?",
           "dofusdbId": null,
           "level": null,
           "zone": null,
@@ -33,27 +33,29 @@
           "requirements": []
         },
         {
-          "name": "Rendez-vous avec la lune",
-          "dofusdbId": 1670,
-          "level": 100,
-          "zone": "Arbre de Moon - Cinquième Salle",
-          "npcName": null,
-          "npcSubArea": "Arbre de Moon - Cinquième Salle",
-          "coords": {
-            "x": 31,
-            "y": 7,
-            "worldId": 1
-          },
-          "isDungeon": true,
+          "name": "Le singe qui ne mentait jamais",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [
-            "Enterrer la jeune pousse et 5 doses d'engrais de Moon au pied d'un totem",
-            "Aller voir {npc,3007}",
-            "Vaincre x1 {monster,226} en un seul combat",
-            "Aller voir {npc,160}"
-          ],
+          "objectives": [],
           "stepOrder": 1,
-          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Un œuf de Kokoko",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 2,
           "requirements": []
         }
       ]

@@ -1511,6 +1511,169 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     return result;
 }
 
+// ============================================
+// CONTRIBUTION POINTS — CLOSE RUN WITH DISTRIBUTION
+// ============================================
+
+/**
+ * Returns contribution points based on Songes difficulty.
+ * - Rêve I/II/III      → 1 pt
+ * - Paradoxe I/II/III/IV → 2 pts
+ * - Cauchemar I/II/III → 3 pts
+ * Épreuves are excluded (handled separately by caller).
+ */
+function getSongesContributionPoints(difficulty: string): number {
+    if (difficulty.startsWith("CAUCHEMAR")) return 3;
+    if (difficulty.startsWith("PARADOXE")) return 2;
+    return 1; // REVE_*
+}
+
+/**
+ * Lightweight guild member list for the Songes close modal.
+ * Returns id (profileId), name, and avatar of active guild members.
+ */
+export async function getSongesGuildMembersForClose(
+    guildId: string
+): Promise<{ success: boolean; data?: { id: string; userId: string; name: string; image: string | null }[]; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    const profiles = await db.userProfile.findMany({
+        where: { guildId: guildConfig.id, status: "ACTIVE" },
+        select: {
+            id: true,
+            userId: true,
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true, image: true } },
+        },
+        orderBy: { pseudoDofus: "asc" },
+    });
+
+    return {
+        success: true,
+        data: profiles.map((p) => ({
+            id: p.id,           // profileId (used for contribution points)
+            userId: p.userId,   // internal userId (used to match run members)
+            name: p.discordNickname || p.pseudoDofus || p.user.name || "Membre",
+            image: p.user.image,
+        })),
+    };
+}
+
+/**
+ * Close a Songes run and award contribution points to validated participants.
+ * - Only available for non-épreuve runs (caller must check epreuveCode === null)
+ * - Leader (creator) does NOT receive points
+ * - Members are identified by their internal profile ID
+ * @param validatedProfileIds - profileIds of participants to reward
+ */
+export async function closeRunWithContributions(
+    guildId: string,
+    runId: string,
+    validatedProfileIds: string[]
+): Promise<{ success: boolean; data?: { pointsAwarded: number }; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    // Load run with guildId isolation
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
+        include: { members: true },
+    });
+
+    if (!run) return { success: false, error: "Run non trouvée" };
+
+    // Only leader can close with contribution distribution
+    if (run.leaderId !== ctx.userId) {
+        return { success: false, error: "Seul le leader peut valider la clôture avec distribution" };
+    }
+
+    // Security: skip point distribution for épreuves
+    if (run.epreuveCode) {
+        return { success: false, error: "Les runs épreuve ne distribuent pas de points de contribution" };
+    }
+
+    const pts = getSongesContributionPoints(run.difficulty);
+
+    // Get internal guildConfig to resolve profile IDs
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    // Determine the leader's profile ID to exclude them from rewards
+    const leaderProfile = await db.userProfile.findFirst({
+        where: { userId: run.leaderId, guildId: guildConfig.id },
+        select: { id: true },
+    });
+    const leaderProfileId = leaderProfile?.id ?? null;
+
+    // Filter out the leader from point distribution
+    const toReward = validatedProfileIds.filter(
+        (pid) => pid !== leaderProfileId
+    );
+
+    // Mark run as COMPLETED
+    await db.dreamRun.update({
+        where: { id: runId },
+        data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+        },
+    });
+
+    // Award contribution points
+    if (toReward.length > 0) {
+        await db.userProfile.updateMany({
+            where: {
+                id: { in: toReward },
+                guildId: guildConfig.id, // guild isolation
+            },
+            data: { contributionPoints: { increment: pts } },
+        });
+    }
+
+    // Remove Discord embed (fire-and-forget)
+    try {
+        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+        await deleteDiscordRunEmbed(ctx.guildId, runId);
+    } catch (_) {
+        // Non-fatal
+    }
+
+    // Audit log
+    try {
+        await db.auditLog.create({
+            data: {
+                guildId: guildConfig.id,
+                actorUserId: ctx.userId,
+                actorName: ctx.name || "Leader",
+                action: "SONGES_RUN_CLOSED_WITH_CONTRIBUTIONS",
+                targetType: "DREAM_RUN",
+                targetId: runId,
+                metadata: {
+                    difficulty: run.difficulty,
+                    pointsAwarded: pts,
+                    rewardedCount: toReward.length,
+                } as any,
+            },
+        });
+    } catch (_) {
+        // Non-fatal audit log failure
+    }
+
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    return { success: true, data: { pointsAwarded: pts } };
+}
+
 /**
  * Fetch past dream runs for a specific member
  */

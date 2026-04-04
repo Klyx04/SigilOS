@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { sendGlobalStatusPing } from '@/server/actions/status-actions';
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 export async function GET(req: Request) {
-    const authHeader = req.headers.get('authorization');
-    
-    // Protection de la tâche CRON via SECRET ou clé d'URL (test)
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        const url = new URL(req.url);
-        if (url.searchParams.get('key') !== process.env.CRON_SECRET) {
-             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+    // CRIT-02 FIX — avant le bug : si CRON_SECRET=undefined,
+    // "Bearer undefined" ne correspondait à aucun header réel →
+    // tout le monde était autorisé car on tombait dans le fallback ?key=undefined
+    // qui lui aussi ne matche jamais → la route était OUVERTE sans secret configuré.
+    if (!verifyCronSecret(req)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {

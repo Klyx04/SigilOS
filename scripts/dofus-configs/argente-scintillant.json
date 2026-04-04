@@ -1,22 +1,24 @@
 {
-  "slug": "argent-scint",
+  "slug": "argente-scintillant",
   "displayName": "Dofus Argenté Scintillant",
-  "color": "#E0E0FF",
-  "dofusItemId": 20286,
+  "color": "#e0e0e0",
+  "dofusItemId": 23000,
+  "successName": "Argenté scintillant",
+  "recommendedLevel": 190,
+  "successDescription": "Terminer la série de quêtes du Dofus Argenté Scintillant à Pandala.",
   "successes": [
     {
-      "name": "Prérequis - Quatre sur six",
-      "zone": "unknown",
+      "name": "Quatre sur six",
+      "zone": "Pandala / Monde des Douze",
       "quests": [
-        "Les couts du sort",
+        "Les coûts du sort",
         "Une ombre au tableau",
-        "Un remede draconien",
+        "Un remède draconien",
         "Le dragon des vents",
         "Le dragon des flammes",
-        "Le destin de kalisthe"
+        "Le destin de Kalisthe"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23027.png",
-  "iconId": 23027
+  "imageUrl": "https://api.dofusdb.fr/img/items/23011.png"
 }

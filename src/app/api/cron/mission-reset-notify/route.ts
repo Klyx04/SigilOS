@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * CRON: Mission Management Reset Notification
  * Triggered every Tuesday at 08h00 (Paris Time / Dofus Reset)
- * 
- * Target: Admins with management rights
+ * ✅ Protégé par x-cron-secret (fail-closed si secret absent)
  */
 export async function GET(req: Request) {
     try {
-        // 1. Authenticate the Cron request
-        const authHeader = req.headers.get('authorization');
-        const cronSecret = process.env.CRON_SECRET;
-        
-        if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-            const backupToken = new URL(req.url).searchParams.get("token");
-            if (backupToken !== cronSecret) {
-                return new NextResponse("Unauthorized", { status: 401 });
-            }
+        // CRIT-02 FIX — suppression du fallback ?token= (secret dans l'URL = fuite dans les logs)
+        if (!verifyCronSecret(req)) {
+            return new NextResponse("Unauthorized", { status: 401 });
         }
 
         // 2. Day Check (Just in case the scheduler triggers too often)

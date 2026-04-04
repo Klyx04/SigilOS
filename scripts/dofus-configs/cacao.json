@@ -1,17 +1,20 @@
 {
   "slug": "cacao",
   "displayName": "Dofus Cacao",
-  "color": "#7B3F00",
-  "dofusItemId": 20987,
+  "color": "#4B250E",
+  "dofusItemId": 21101,
+  "successName": "Un Dofus qui a du goût",
+  "recommendedLevel": 120,
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "Un Dofus qui a du goût",
+      "zone": "Monde des Douze",
       "quests": [
-        "Mystère et oeuf au chocolat"
+        "Choco-poids",
+        "Choco-peine",
+        "Choc de cacao"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23029.png",
-  "iconId": 23029
+  "imageUrl": "https://api.dofusdb.fr/img/items/25019.png"
 }

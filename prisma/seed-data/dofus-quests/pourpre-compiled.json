@@ -6,54 +6,17 @@
   "recommendedLevel": 150,
   "description": "Terminer la série des quêtes du Dofus Pourpre.",
   "dofusItemId": 694,
-  "iconId": 23001,
+  "iconId": null,
   "imageUrl": "https://api.dofusdb.fr/img/items/23001.png",
-  "compiledAt": "2026-04-04T00:53:28.470Z",
+  "compiledAt": "2026-04-04T13:45:30.160Z",
   "chains": [
     {
-      "sectionName": "Prérequis",
-      "sectionType": "PREREQUISITE",
-      "zone": "Monde de Douze",
-      "description": "Quêtes à compléter avant de commencer la série principale du Dofus Pourpre.",
+      "sectionName": "Pourpre profond",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Minotot / Monde des Douze",
+      "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
-      "requires": [],
-      "entries": [
-        {
-          "name": "Dans la gueule du milimulou",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 0,
-          "requirements": []
-        },
-        {
-          "name": "Voir le dark Vlad et mourir... ou pas",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 1,
-          "requirements": []
-        }
-      ]
-    },
-    {
-      "sectionName": "Les quêtes du Dofus Pourpre",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Minotot / Taure Céleste",
-      "description": "La série de 8 quêtes pour obtenir le Dofus Pourpre. Inclut les donjons Bibliothèque du Maître Corbac, Labyrinthe du Minotoror, Serre du Royalmouth, Ring du Capitaine Ekarlatte et Antre du Blop Multicolore Royal.",
-      "isSynergyCandidate": true,
-      "chainOrder": 1,
       "requires": [],
       "entries": [
         {
@@ -82,7 +45,7 @@
             "Voler le Livre des Taures au Maître Corbac et donner le livre à Mériana"
           ],
           "stepOrder": 0,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": []
         },
         {
@@ -111,7 +74,7 @@
             "Aller voir {npc,2482}"
           ],
           "stepOrder": 1,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -153,7 +116,7 @@
             "Prendre le Dofus Pourpre"
           ],
           "stepOrder": 2,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -185,7 +148,7 @@
             "Fabriquer la Perle de Lait Doré avec l'aide de Lired et Arlo"
           ],
           "stepOrder": 3,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -197,7 +160,7 @@
           "name": "Regrets d'éternailes",
           "dofusdbId": 1525,
           "level": 130,
-          "zone": "Minotot / Taure Céleste",
+          "zone": "Minotot / Monde des Douze",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -223,7 +186,7 @@
             "Utiliser l'Attrape-poussière pour obtenir 5 Poudres d'Éternaile"
           ],
           "stepOrder": 4,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -256,7 +219,7 @@
             "Aller voir {npc,2449}"
           ],
           "stepOrder": 5,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -284,7 +247,7 @@
             "Aller voir {npc,2464}"
           ],
           "stepOrder": 6,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -318,7 +281,7 @@
             "Prendre le Dofus Pourpre"
           ],
           "stepOrder": 7,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",

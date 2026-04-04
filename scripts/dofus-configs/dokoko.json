@@ -1,18 +1,21 @@
 {
   "slug": "dokoko",
   "displayName": "Dokoko",
-  "color": "#FFD700",
-  "dofusItemId": 17078,
+  "color": "#D2B48C",
+  "dofusItemId": 17006,
+  "successName": "Un œuf de Kokoko",
+  "recommendedLevel": 100,
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "Un œuf de Kokoko",
+      "zone": "Île de Moon",
       "quests": [
-        "Squelettes et amulettes",
-        "Rendez-vous avec la lune"
+        "L'œuf ou la carotte ?",
+        "Le singe qui ne mentait jamais",
+        "Un œuf de Kokoko"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23022.png",
+  "imageUrl": "https://api.dofusdb.fr/img/items/23013.png",
   "iconId": 23022
 }

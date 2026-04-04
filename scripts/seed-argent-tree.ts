@@ -75,7 +75,7 @@ async function seedDofus() {
                 isPrimordial: false,
                 levelRecommended: 20,
                 color: compiled.color ?? "#aaaaaa",
-                imageUrl: compiled.dofusItemId ? `https://api.dofusdb.fr/img/items/${compiled.dofusItemId}.png` : `https://api.dofusdb.fr/img/items/${dofus_slug_to_icon(dofusSlug)}.png`,
+                imageUrl: compiled.imageUrl ? compiled.imageUrl : (compiled.iconId ? `https://api.dofusdb.fr/img/items/${compiled.iconId}.png` : (compiled.dofusItemId ? `https://api.dofusdb.fr/img/items/${compiled.dofusItemId}.png` : `https://api.dofusdb.fr/img/items/${dofus_slug_to_icon(dofusSlug)}.png`)),
                 successName: compiled.successName ?? null,
                 description: compiled.successDescription ?? null,
             },

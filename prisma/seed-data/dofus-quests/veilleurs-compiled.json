@@ -1,14 +1,14 @@
 {
-  "dofus": "cacao",
-  "displayName": "Dofus Cacao",
-  "color": "#7B3F00",
+  "dofus": "veilleurs",
+  "displayName": "Dofus des Veilleurs",
+  "color": "#1ABC9C",
   "successName": null,
   "recommendedLevel": null,
   "description": null,
-  "dofusItemId": 20987,
-  "iconId": 23029,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23029.png",
-  "compiledAt": "2026-04-04T00:42:37.201Z",
+  "dofusItemId": 16061,
+  "iconId": null,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23020.png",
+  "compiledAt": "2026-04-04T00:56:13.080Z",
   "chains": [
     {
       "sectionName": "Les quêtes",
@@ -20,7 +20,7 @@
       "requires": [],
       "entries": [
         {
-          "name": "Mystère et oeuf au chocolat",
+          "name": "Crise d'identite",
           "dofusdbId": null,
           "level": null,
           "zone": null,

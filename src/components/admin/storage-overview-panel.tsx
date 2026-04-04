@@ -8,8 +8,10 @@ import {
 import {
     HardDrive, FolderOpen, Loader2, RefreshCw,
     FileImage, Coins, Trophy, Shield, Search, Clock, Image as ImageIcon,
-    X, Trash2, ExternalLink, Handshake
+    X, Trash2, ExternalLink, Handshake,
+    LayoutGrid, List, ChevronRight, Info
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -45,22 +47,23 @@ function PathDisplay({ path, colorClass }: { path: string; colorClass: string })
     const segments = clean.split("/");
     
     return (
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2">
-            <span className="text-[10px] font-mono text-zinc-300 shrink-0 font-black tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2.5 py-1 rounded-lg border border-white/10 shadow-sm">SigilOS/</span>
+        <div className="flex flex-wrap items-center gap-1.5 py-2">
+            <span className="text-[10px] font-mono text-zinc-300 font-black tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2 py-1 rounded-lg border border-white/10 shadow-sm">SigilOS /</span>
             {segments.map((seg, i) => {
                 const isCuid = seg.length > 20 && /^[a-z0-9]+$/.test(seg);
+                if (!seg) return null;
                 return (
-                    <div key={i} className="flex items-center gap-1.5 shrink-0">
-                        {i > 0 && <span className="text-zinc-700 text-xs font-mono font-black">/</span>}
+                    <div key={i} className="flex items-center gap-1.5">
                         <span 
                             title={seg} 
                             className={cn(
-                                "text-[10px] font-mono font-black px-2.5 py-1.5 rounded-lg border shadow-sm transition-all",
-                                isCuid ? "text-zinc-400 bg-zinc-900 border-white/[0.08]" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
+                                "text-[10px] font-mono font-black px-2 py-1.5 rounded-lg border shadow-sm transition-all whitespace-nowrap",
+                                isCuid ? "text-indigo-400/80 bg-indigo-500/5 border-indigo-500/20" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
                             )}
                         >
-                            {isCuid ? seg.slice(0, 8) + "..." : seg}
+                            {seg}
                         </span>
+                        {i < segments.length - 1 && <span className="text-zinc-700 text-[10px] font-mono font-black mx-0.5">/</span>}
                     </div>
                 );
             })}
@@ -84,10 +87,24 @@ function useCountdown(expiresAt: Date) {
     return { label: `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`, urgent: ms < 2 * 3_600_000, expired: ms === 0, ms };
 }
 
-function CountdownChip({ modifiedAt, labelPrefix = "SUPPRESSION DANS : " }: { modifiedAt: Date; labelPrefix?: string }) {
-    // Grace period is 4 hours from modification
-    const expiresAt = new Date(new Date(modifiedAt).getTime() + 4 * 60 * 60 * 1000);
-    const { label, urgent, expired, ms } = useCountdown(expiresAt);
+function CountdownChip({ 
+    modifiedAt, 
+    providedExpiresAt, 
+    labelPrefix = "SUPPRESSION DANS : ",
+    durationMs = 4 * 60 * 60 * 1000 // default to 4h grace for orphans
+}: { 
+    modifiedAt?: Date; 
+    providedExpiresAt?: Date | string; 
+    labelPrefix?: string;
+    durationMs?: number;
+}) {
+    // If we have an absolute expiry date (like for pending files), use it.
+    // Otherwise calculate from modification date + duration.
+    const targetDate = providedExpiresAt 
+        ? new Date(providedExpiresAt) 
+        : new Date(new Date(modifiedAt!).getTime() + durationMs);
+        
+    const { label, urgent, expired } = useCountdown(targetDate);
 
     if (expired) return <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 uppercase">PRÊT POUR NETTOYAGE</span>;
     return (
@@ -110,6 +127,7 @@ interface LightboxItem {
     filename?: string;
     sizeBytes?: number;
     isLocal?: boolean;
+    isPending?: boolean;
     expiresAt?: Date | string;
     dbClear?: { guildId: string; field: AssetDbField };
 }
@@ -151,20 +169,30 @@ function FileExplorerDialog({
                                 <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-white/5 bg-zinc-900/50 hover:border-white/20 transition-all aspect-square">
                                     <button 
                                         className="absolute inset-0 z-10" 
-                                        onClick={() => setLightbox({ url: f.url, type, label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true })}
+                                        onClick={() => setLightbox({ url: f.url, type, label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true, isPending: f.isPending, expiresAt: f.expiresAt })}
                                     />
                                     <img src={f.url} alt="" title={f.filename} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
                                     
                                     <div className="absolute top-2 left-2 z-20">
-                                        {label.includes("Orphelin") ? (
-                                            <CountdownChip modifiedAt={f.modifiedAt} labelPrefix="" />
-                                        ) : (
-                                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1">
-                                                <Shield className="w-2 h-2" />
-                                                Permanent
-                                            </span>
-                                        )}
+                                        {(() => {
+                                            if (f.isPending && f.expiresAt) {
+                                                return <CountdownChip providedExpiresAt={f.expiresAt} labelPrefix="EXP : " />;
+                                            }
+                                            
+                                            if (label.includes("Orphelin")) {
+                                                return <CountdownChip modifiedAt={f.modifiedAt} durationMs={4 * 3600000} labelPrefix="" />;
+                                            }
+                                            if (type === "LOAN_PROOF") {
+                                                return <CountdownChip modifiedAt={f.modifiedAt} durationMs={7 * 24 * 3600000} labelPrefix="RETENTION : " />;
+                                            }
+                                            return (
+                                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1 shadow-2xl">
+                                                    <Shield className="w-2 h-2" />
+                                                    Permanent
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
 
                                     <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none drop-shadow-md">
@@ -237,12 +265,7 @@ function PendingValidationDialog({
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
                                     
                                     <div className="absolute top-2 left-2 z-20">
-                                        <div className="bg-black/80 backdrop-blur-md rounded-lg px-2 py-1 flex items-center gap-1.5 border border-white/5">
-                                            <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
-                                            <span className="text-[8px] font-mono font-black text-white uppercase">
-                                                {new Date(f.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
+                                        <CountdownChip providedExpiresAt={f.expiresAt} labelPrefix="EXP : " />
                                     </div>
 
                                     <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none">
@@ -275,6 +298,7 @@ export function StorageOverviewPanel() {
     const [searchTerm, setSearchTerm] = useState("");
     const [orphansOpen, setOrphansOpen] = useState(false);
     const [systemStatus, setSystemStatus] = useState<any>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -301,10 +325,10 @@ export function StorageOverviewPanel() {
     const diskInfo = systemStatus?.disk;
 
     return (
-        <div className="w-full space-y-12 pb-20">
+        <div className="w-full space-y-8 pb-20">
             {/* Header & Stats */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
-                <div className="xl:col-span-3 2xl:col-span-2 space-y-8">
+            <div className="flex flex-col xl:flex-row gap-8 items-start">
+                <div className="w-full xl:w-[400px] 2xl:w-[450px] space-y-6">
                     <div className="p-8 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[50px] rounded-full -mr-10 -mt-10" />
                         
@@ -315,9 +339,25 @@ export function StorageOverviewPanel() {
                                 </div>
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Stockage</h2>
                             </div>
-                            <button onClick={load} className="p-2 text-zinc-500 hover:text-white transition-colors">
-                                <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5 mr-2">
+                                    <button 
+                                        onClick={() => setViewMode('grid')}
+                                        className={cn("p-2 rounded-lg transition-all", viewMode === 'grid' ? "bg-indigo-500 text-black" : "text-zinc-500 hover:text-white")}
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        onClick={() => setViewMode('list')}
+                                        className={cn("p-2 rounded-lg transition-all", viewMode === 'list' ? "bg-indigo-500 text-black" : "text-zinc-500 hover:text-white")}
+                                    >
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <button onClick={load} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                                    <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="space-y-6 relative z-10">
@@ -359,17 +399,35 @@ export function StorageOverviewPanel() {
                     </div>
                 </div>
 
-                <div className="xl:col-span-9 2xl:col-span-10">
-                    <div className={cn(
-                        "grid gap-10",
-                        filteredGuilds.length === 1 ? "grid-cols-1" : 
-                        filteredGuilds.length === 2 ? "grid-cols-1 2xl:grid-cols-2" :
-                        "grid-cols-1 2xl:grid-cols-3"
-                    )}>
-                        {filteredGuilds.map((guild) => (
-                            <GuildCard key={guild.guildId} guild={guild} onReload={load} />
-                        ))}
-                    </div>
+                <div className="flex-1 w-full overflow-hidden">
+                    {viewMode === 'grid' ? (
+                        <div className={cn(
+                            "grid gap-10 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3"
+                        )}>
+                            {filteredGuilds.map((guild) => (
+                                <GuildCard key={guild.guildId} guild={guild} onReload={load} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-zinc-900/10 border border-white/5 rounded-[3rem] overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-white/5">
+                                    <tr>
+                                        <th className="px-8 py-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Guilde</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right font-mono">Taille Totale</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-center">Fichiers</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Répartition</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredGuilds.map((guild) => (
+                                        <GuildRow key={guild.guildId} guild={guild} onReload={load} />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                     {filteredGuilds.length === 0 && (
                         <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3rem] text-zinc-700 text-xs font-black uppercase tracking-[0.3em]">
                             Aucune correspondance physique
@@ -546,6 +604,94 @@ function DeleteButton({ fileUrl, dbClear, onDeleted, label = "Supprimer" }: { fi
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 shrink-0" />}
             {label}
         </button>
+    );
+}
+
+function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () => void }) {
+    const subTotal = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes + guild.presentationBytes;
+    const totalCount = guild.missionsCount + guild.kamaCount + guild.achievementCount + guild.presentationCount;
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <>
+            <tr className={cn(
+                "group/row hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/[0.02]",
+                isExpanded && "bg-white/[0.03]"
+            )} onClick={() => setIsExpanded(!isExpanded)}>
+                <td className="px-8 py-6">
+                    <div className="flex items-center gap-4 text-left">
+                        <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                            {guild.assets.find(a => a.type === "ICON") ? (
+                                <img src={guild.assets.find(a => a.type === "ICON")!.url} alt="" className="w-full h-full object-cover" />
+                            ) : <Shield className="w-3.5 h-3.5 text-zinc-600" />}
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-white uppercase tracking-tighter group-hover/row:text-indigo-400 transition-colors leading-tight">{guild.name}</p>
+                            <p className="text-[9px] font-mono font-bold text-zinc-600 tracking-tighter">{guild.discordGuildId}</p>
+                        </div>
+                    </div>
+                </td>
+                <td className="px-8 py-6 text-right font-mono font-black text-indigo-400">{formatBytes(subTotal)}</td>
+                <td className="px-8 py-6 text-center font-black text-zinc-400 text-xs">{totalCount}</td>
+                <td className="px-8 py-6">
+                    <div className="flex items-center gap-1.5">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 bg-rose-500/5 px-2 py-1 rounded-md border border-rose-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                        <span className="text-[10px] font-black text-rose-500/80">{guild.missionsCount}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-zinc-950 border-rose-500/20 text-rose-400 font-black text-[10px] uppercase tracking-widest">
+                                    Missions: {formatBytes(guild.missionsBytes)}
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                        <span className="text-[10px] font-black text-amber-500/80">{guild.kamaCount}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-zinc-950 border-amber-500/20 text-amber-400 font-black text-[10px] uppercase tracking-widest">
+                                    Kamas: {formatBytes(guild.kamaBytes)}
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 bg-purple-500/5 px-2 py-1 rounded-md border border-purple-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                        <span className="text-[10px] font-black text-purple-500/80">{guild.achievementCount}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-zinc-950 border-purple-500/20 text-purple-400 font-black text-[10px] uppercase tracking-widest">
+                                    Succès: {formatBytes(guild.achievementBytes)}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                </td>
+                <td className="px-8 py-6 text-right">
+                    <div className={cn("inline-flex items-center justify-center p-2 rounded-xl bg-white/5 transition-all", isExpanded && "bg-indigo-500 text-black shadow-lg shadow-indigo-500/20")}>
+                        <ChevronRight className={cn("w-4 h-4 text-zinc-500 transition-all", isExpanded ? "rotate-90 text-black" : "group-hover/row:translate-x-1")} />
+                    </div>
+                </td>
+            </tr>
+            {isExpanded && (
+                <tr className="bg-zinc-950 animate-in slide-in-from-top-2 duration-300">
+                    <td colSpan={5} className="px-8 py-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                            <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                            <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                            <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                            <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                            <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 

@@ -2,7 +2,7 @@
   "slug": "argent",
   "displayName": "Dofus Argenté",
   "color": "#C0C0C0",
-  "dofusItemId": 7822,
+  "dofusItemId": 19629,
   "successes": [
     {
       "name": "Les quêtes",
@@ -42,5 +42,6 @@
         "L'invasion des profanateurs de sepulture"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23025.png"
 }

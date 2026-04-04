@@ -2,7 +2,7 @@
   "slug": "dokoko",
   "displayName": "Dokoko",
   "color": "#FFD700",
-  "dofusItemId": 7842,
+  "dofusItemId": 17078,
   "successes": [
     {
       "name": "Les quêtes",
@@ -12,5 +12,7 @@
         "Rendez-vous avec la lune"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23022.png",
+  "iconId": 23022
 }

@@ -1,29 +1,35 @@
 {
-  "slug": "glace",
+  "slug": "des-glaces",
   "displayName": "Dofus des Glaces",
   "color": "#ADD8E6",
-  "dofusItemId": 7832,
+  "successName": "Oeuf à la neige",
+  "dofusItemId": 7043,
+  "iconId": 23005,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png",
   "successes": [
     {
-      "name": "Liste des quêtes",
-      "zone": "unknown",
+      "name": "Bourgade (Frigost 1)",
+      "zone": "Bourgade",
       "quests": [
-        "Mauvaise graine"
+        "Bienvenue à Frigost",
+        "Pêche en eaux gelées",
+        "Les monologues du vaccin"
       ]
     },
     {
-      "name": "Choix avant de commencer",
-      "zone": "unknown",
+      "name": "Village Enseveli (Frigost 2)",
+      "zone": "Village Enseveli",
       "quests": [
-        "Le champ des heros",
-        "Cent vingt trois fleurs, point comme les autres"
+        "Le mal a dit",
+        "Un remède à tous les maux"
       ]
     },
     {
-      "name": "Légende",
-      "zone": "unknown",
+      "name": "Château de Harebourg (Frigost 3)",
+      "zone": "Château de Harebourg",
       "quests": [
-        "Le nom de la mycose"
+        "Le givre des révélations",
+        "Un comte de faits divers"
       ]
     }
   ]

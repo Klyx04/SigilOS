@@ -2,14 +2,19 @@
   "slug": "veilleurs",
   "displayName": "Dofus des Veilleurs",
   "color": "#1ABC9C",
-  "dofusItemId": 7850,
+  "dofusItemId": 16061,
+  "successName": "Veilleurs, au rapport !",
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "Veilleurs, au rapport !",
+      "zone": "Dimensions Divines / Monde des Douze",
       "quests": [
-        "Crise d'identite"
+        "Crise d'identité",
+        "Choc de civilisations",
+        "Le calme après la tempête",
+        "Renouement"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23020.png"
 }

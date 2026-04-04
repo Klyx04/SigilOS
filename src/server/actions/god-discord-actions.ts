@@ -75,3 +75,53 @@ export async function diagnoseDiscordConnectivity() {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Scan for guilds where the bot is present but not on the allowlist
+ */
+export async function scanGhostGuilds() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+    try {
+        const botGuilds = await fetchBotGuilds();
+        const allowedGuilds = await db.allowedGuild.findMany({
+            where: { isActive: true },
+            select: { discordGuildId: true }
+        });
+
+        const allowedSet = new Set(allowedGuilds.map(g => g.discordGuildId));
+        const ghosts = botGuilds.filter((g: any) => !allowedSet.has(g.id));
+
+        return { success: true, ghosts };
+    } catch (error: any) {
+        console.error("[GhostScan] Failure:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Force the bot to leave a specific guild
+ */
+export async function forceBotLeaveGuild(guildId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+    try {
+        const token = process.env.DISCORD_BOT_TOKEN;
+        const res = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guildId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${token}` }
+        });
+
+        if (res.status === 204) {
+            return { success: true };
+        } else {
+            const err = await res.json().catch(() => ({}));
+            return { success: false, error: err.message || `Discord API returned ${res.status}` };
+        }
+    } catch (error: any) {
+        console.error("[ForceLeave] Failure:", error);
+        return { success: false, error: error.message };
+    }
+}

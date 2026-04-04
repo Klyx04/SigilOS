@@ -15,6 +15,10 @@ const WORLD_NAMES: Record<number, string> = {
     4: "Souterrains d'Astrub",
     19: "Mappemondes",
     29: "Ecaflip City",
+    156: "Dimension Divine",
+    157: "Dimension Divine", // Often same
+    312: "Havre-Sac",
+    150: "Nimbos",
 };
 
 interface MiniGame {
@@ -346,7 +350,10 @@ export default function MiniGamesGodClient({
                                                                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                                                                         <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Vérification HD #{id}</span>
                                                                     </div>
-                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-[0.3em] italic">Signalement Signalé par un joueur • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}</span>
+                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-[0.3em] italic">
+                                                                        Signalement par un joueur • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"} 
+                                                                        {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -455,7 +462,10 @@ export default function MiniGamesGodClient({
                                                                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                                                         <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Blacklist HD #{id}</span>
                                                                     </div>
-                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-[0.3em] italic">Exclusion active • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}</span>
+                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-[0.3em] italic">
+                                                                        Exclusion active • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}
+                                                                        {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>

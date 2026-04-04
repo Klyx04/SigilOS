@@ -2,7 +2,7 @@
   "slug": "forgelave",
   "displayName": "Dofus Forgelave",
   "color": "#FF4500",
-  "dofusItemId": 7831,
+  "dofusItemId": 19398,
   "successes": [
     {
       "name": "Les quêtes",
@@ -21,5 +21,6 @@
         "Du feu de dieu"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23024.png"
 }

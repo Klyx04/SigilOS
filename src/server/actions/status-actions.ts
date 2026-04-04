@@ -11,7 +11,12 @@ const REDIS_STATUS_MSG_KEY = "sigilos:discord_status_message_id";
  * 🛰️ Envoie un ping d'état des services sur Discord
  * Version "Premium" avec Living Status (mis à jour du même message si possible).
  */
-export async function sendGlobalStatusPing(isTestRequest = false, mode?: 'living' | 'notification', isLite?: boolean) {
+export async function sendGlobalStatusPing(
+    isTestRequest = false, 
+    mode?: 'living' | 'notification', 
+    isLite?: boolean,
+    targetChannelId?: string
+) {
     if (isTestRequest) {
         const isAdmin = await isSuperAdmin();
         if (!isAdmin) throw new Error("Accès refusé : Super-admin requis");
@@ -28,12 +33,14 @@ export async function sendGlobalStatusPing(isTestRequest = false, mode?: 'living
             }
         });
 
-        if (!config?.serviceStatusChannelId) {
+        const channelId = targetChannelId || config?.serviceStatusChannelId;
+
+        if (!channelId) {
             return { success: false, error: "Salon d'état des services non configuré." };
         }
 
-        const effectiveMode = mode || (config.statusMode as 'living' | 'notification') || 'living';
-        const effectiveLite = isLite !== undefined ? isLite : (config.statusIsLite || false);
+        const effectiveMode = mode || (config?.statusMode as 'living' | 'notification') || 'living';
+        const effectiveLite = isLite !== undefined ? isLite : (config?.statusIsLite || false);
 
         // 1. Health Checks
         const startDb = performance.now();
@@ -109,23 +116,26 @@ export async function sendGlobalStatusPing(isTestRequest = false, mode?: 'living
         };
 
         // 3. Dispatch Logic
-        const channelId = config.serviceStatusChannelId;
         const previousMessageId = await redis.get(REDIS_STATUS_MSG_KEY);
         let actionTaken = "created";
         let finalMessageId: string | null = null;
 
         // Mode 'living': try to update the old message
         if (effectiveMode === 'living' && previousMessageId) {
-            const updated = await updateChannelMessage(channelId, previousMessageId, "", embed);
-            if (updated) {
-                finalMessageId = previousMessageId;
-                actionTaken = "updated";
+            try {
+                const updated = await updateChannelMessage(channelId, previousMessageId, "", embed);
+                if (updated) {
+                    finalMessageId = previousMessageId;
+                    actionTaken = "updated";
+                }
+            } catch (e) {
+                console.warn("[Status Ping] Update failed, sending new message", e);
             }
         }
 
         // Mode 'notification' OR update failed: send a new message
         if (!finalMessageId) {
-            const mentionContent = config.statusMention === 'none' ? "" : config.statusMention;
+            const mentionContent = config?.statusMention === 'none' ? "" : (config?.statusMention || "");
             finalMessageId = await sendChannelMessage(channelId, mentionContent, embed);
             if (finalMessageId && effectiveMode === 'living') {
                 // Only save specifically for living status

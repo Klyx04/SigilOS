@@ -3,15 +3,20 @@
   "displayName": "Domakuro",
   "color": "#2F4F4F",
   "dofusItemId": 23237,
+  "successName": "Le destin de deux dragons",
+  "recommendedLevel": 180,
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "Eliocalypse & Pandala",
+      "zone": "Pandala / Dimensions",
       "quests": [
-        "Sang d'encre"
+        "Eliocalypse : Résonance",
+        "Eliocalypse : Prélude",
+        "Le réveil de Pandala",
+        "L'héritage de Tanukoui-San",
+        "Le destin de deux dragons"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23032.png",
-  "iconId": 23032
+  "imageUrl": "https://api.dofusdb.fr/img/items/23032.png"
 }

@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { sendDailySummaryReport } from "@/server/actions/daily-report-actions";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * 🛰️ API CRON pour le rapport quotidien global.
  * Parcoure toutes les guildes actives et envoie le résumé.
+ *
+ * ✅ Protégé par x-cron-secret (fail-closed si secret absent)
  */
 export async function GET(req: Request) {
-    const secret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get("authorization");
-
-    if (secret && authHeader !== `Bearer ${secret}`) {
-        const url = new URL(req.url);
-        if (url.searchParams.get('key') !== secret) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+    // CRIT-02 FIX : verifyCronSecret() refuse si CRON_SECRET absent (fail-closed)
+    if (!verifyCronSecret(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {

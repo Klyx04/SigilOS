@@ -8,7 +8,7 @@
   "dofusItemId": 8774,
   "iconId": null,
   "imageUrl": null,
-  "compiledAt": "2026-04-04T00:45:43.180Z",
+  "compiledAt": "2026-04-04T13:37:59.676Z",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -20,36 +20,92 @@
       "requires": [],
       "entries": [
         {
-          "name": {
-            "name": "L'anneau de tous les dangers",
-            "id": 1629
+          "name": "L'anneau de tous les dangers",
+          "dofusdbId": 1629,
+          "level": 2,
+          "zone": "Salle des métiers",
+          "npcName": null,
+          "npcSubArea": "Salle des métiers",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 1
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            }
+          ],
+          "objectives": [
+            "Entrer dans la salle des métiers",
+            "Aller voir {npc,2895}",
+            "Récolter du blé",
+            "Cueillir de l'ortie",
+            "Couper du frêne",
+            "Extraire du fer",
+            "Pêcher un goujon",
+            "Fabriquer 1 {item,19622} et fermer l'interface",
+            "Retourner voir {npc,7581}"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": {
-            "name": "Destination Astrub",
-            "id": 2004
+          "name": "Destination Astrub",
+          "dofusdbId": 2004,
+          "level": 10,
+          "zone": "Incarnam - Aire de l'envol",
+          "npcName": null,
+          "npcSubArea": "Incarnam - Aire de l'envol",
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 2
           },
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Aller voir {npc,4360}",
+            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
+            "Aller voir {npc,4355}"
+          ],
           "stepOrder": 1,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1629
+            }
+          ]
         },
         {
           "name": "On marche sur des œufs",
@@ -75,7 +131,12 @@
           ],
           "stepOrder": 2,
           "isSynergyCandidate": false,
-          "requirements": []
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2004
+            }
+          ]
         },
         {
           "name": "Conseil de classe",
@@ -151,11 +212,7 @@
       "requires": [],
       "entries": [
         {
-          "name": {
-            "name": "La quête du Dolmanax",
-            "id": 3020,
-            "note": "Vérifier le nom exact sur DofusDB"
-          },
+          "name": "La quête du Dolmanax",
           "dofusdbId": null,
           "level": null,
           "zone": null,

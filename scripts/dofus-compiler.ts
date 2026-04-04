@@ -380,7 +380,9 @@ async function run() {
         let lastQuestDbId: number | null = null;
         let isFirstQuest = true;
 
-        for (const { name, quest } of questResults) {
+        for (let { name, quest } of questResults) {
+            const originalName = typeof name === "string" ? name : (name as any)?.name ?? String(name);
+            name = originalName;
             if (!quest) {
                 chain.entries.push({
                     name,

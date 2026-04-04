@@ -1,28 +1,21 @@
 {
   "slug": "nebuleux",
   "displayName": "Dofus Nébuleux",
-  "color": "#483D8B",
-  "dofusItemId": 8698,
+  "color": "#9400D3",
+  "dofusItemId": 16327,
+  "successName": "De fil en aiguille",
+  "recommendedLevel": 200,
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "unknown",
+      "name": "De fil en aiguille",
+      "zone": "Dimensions Divines",
       "quests": [
-        "Voyage, voyage",
-        "La cite de l'indicible mal",
-        "Messager clandestin",
-        "La voix de son maitre",
-        "Le maitre des zaaps",
-        "Energie renouvelable",
-        "Traitement de choc",
-        "Le disparu de sufokia",
-        "Rendez-vous avec la mort",
-        "Secret de fabrication",
-        "S'emparer des commandes",
-        "C'est dans la boite",
-        "Crise d'identite"
+        "Départ en dimensions",
+        "Le livre des portails",
+        "Choc de civilisations",
+        "Renouement"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23016.png"
+  "imageUrl": "https://api.dofusdb.fr/img/items/23009.png"
 }

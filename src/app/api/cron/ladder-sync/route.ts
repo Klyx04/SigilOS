@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 // Wait function to avoid spamming the worker / Ankama
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function GET(req: Request) {
     try {
-        // 1. Authenticate the Cron request
-        const authHeader = req.headers.get('authorization');
-        const cronSecret = process.env.CRON_SECRET;
-        
-        // We ensure cronSecret exists, and that the authorization matches
-        if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-            // Check query param as fallback for easy manual testing / triggering (if needed)
-            const backupToken = new URL(req.url).searchParams.get("token");
-            if (backupToken !== cronSecret) {
-                return new NextResponse("Unauthorized", { status: 401 });
-            }
+        // CRIT-02 FIX — suppression du fallback ?token= (secret dans l'URL = fuite dans les logs)
+        if (!verifyCronSecret(req)) {
+            return new NextResponse("Unauthorized", { status: 401 });
         }
 
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;

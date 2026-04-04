@@ -1,62 +1,324 @@
 {
   "dofus": "abyssal",
   "displayName": "Dofus Abyssal",
-  "color": "#191970",
-  "successName": null,
-  "recommendedLevel": null,
+  "color": "#1E90FF",
+  "successName": "Quand l'Abîme vous sourit",
+  "recommendedLevel": 200,
   "description": null,
-  "dofusItemId": 18043,
+  "dofusItemId": 17355,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23023.png",
-  "compiledAt": "2026-04-04T00:40:42.479Z",
+  "imageUrl": "https://api.dofusdb.fr/img/items/23010.png",
+  "compiledAt": "2026-04-04T13:32:48.090Z",
   "chains": [
     {
-      "sectionName": "Les quêtes",
+      "sectionName": "Abysses de Sufokia",
       "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
+      "zone": "Sufokia / Abysses",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
       "entries": [
         {
-          "name": "Reine de beaute",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Demain, j'arête",
+          "dofusdbId": 1757,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 19,
+            "y": 32,
+            "worldId": 17
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Vaincre x2 {monster,4511} en un seul combat",
+            "Aller voir {npc,3291}",
+            "Aller voir {npc,3342}",
+            "Aller voir {npc,3343}",
+            "Découvrir la carte : Regroupement des plongeurs",
+            "Aller voir {npc,3344}",
+            "Découvrir la carte : Camp de l'Astre Noir",
+            "Aller voir {npc,3345}",
+            "Ramener à {npc,3347} : x1 {item,18105}",
+            "Ramener à {npc,3345} : x1 {item,18106}",
+            "Découvrir la carte : Vers la caverne de Neptoon",
+            "Vaincre x2 {monster,4512} en un seul combat"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": "Son nom est personne",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Le vieux gob et la mer",
+          "dofusdbId": 1764,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 22,
+            "y": 30,
+            "worldId": 17
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Montrer à {npc,3264} : 7 {item,18107}",
+            "Cacher les appâts",
+            "Retourner voir {npc,3264}",
+            "Vaincre x1 {monster,4513} en un seul combat",
+            "Aller voir {npc,3264}"
+          ],
           "stepOrder": 1,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1757
+            }
+          ]
         },
         {
-          "name": "Le hero de sufokia",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "L'effet Paula Rice",
+          "dofusdbId": 1766,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 27,
+            "y": 31,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17983,
+              "name": "Tentacule de Grofond",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            },
+            {
+              "id": 17984,
+              "name": "Tentacule de N'Yalg",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/103728.png"
+            },
+            {
+              "id": 17986,
+              "name": "Œil de Shokkoth",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/109614.png"
+            },
+            {
+              "id": 17981,
+              "name": "Peau de Trithon",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/59651.png"
+            },
+            {
+              "id": 17974,
+              "name": "Parasite Aquatique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15936.png"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Agent de l'Astre Noir égaré",
+            "Aller voir {npc,3351}",
+            "Emmener la plongeuse jusqu'à l'entrée du temple de Koutoulou",
+            "Aller voir {npc,3345}",
+            "Découvrir la carte : Plage de la Tortue",
+            "Aller voir {npc,3352}",
+            "Aller voir {npc,3350}",
+            "Découvrir la carte : Zone de nage du Li-Fo",
+            "Aller voir {npc,3305}",
+            "Fabriquer 1 {item,18113} et fermer l'interface",
+            "Appâter une mite de Koutoulou",
+            "Ramener à {npc,3305} : x1 {item,18114}",
+            "Aller voir {npc,3353}",
+            "Se protéger contre les gardes",
+            "Aller voir {npc,3354}",
+            "Sauver Markaris des griffes de Paula Rice",
+            "Aller voir {npc,3291}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1764
+            }
+          ]
+        },
+        {
+          "name": "Fhtagn !",
+          "dofusdbId": 1765,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": 34,
+            "worldId": 17
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 2,
-          "requirements": []
+          "objectives": [
+            "Bloubloup R'lyugluglu mglw'nogl",
+            "Bloubloup R'lyugluglu ph'neglb",
+            "Bloubloup R'lyugluglu wgah'ptiph",
+            "Plogplob gnk'tgeblap",
+            "Plogplob shk'golonakph",
+            "Plogplob dhol'chtitaq",
+            "Cloolooth P'Koutoulou Ch'ton",
+            "Cloolooth P'Koutoulou Zothoth",
+            "Cloolooth P'Koutoulou Glaakiph",
+            "Fhtagn ?"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1766
+            }
+          ]
+        },
+        {
+          "name": "Aux grands mots les grands remèdes",
+          "dofusdbId": 1754,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 25,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Ramener à {npc,3301} : x40 {item,18075}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1765
+            }
+          ]
+        },
+        {
+          "name": "Quand les astres seront propices",
+          "dofusdbId": 1756,
+          "level": 200,
+          "zone": "Porte du Village des Brigandins",
+          "npcName": null,
+          "npcSubArea": "Porte du Village des Brigandins",
+          "coords": {
+            "x": 13,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1601}",
+            "Consulter les archives de Sufokia",
+            "Interroger Ayuto la sorcière",
+            "Interroger le maître du temple des Osamodas",
+            "Trouver où vivait le sorcier osamodas",
+            "Explorer les profondeurs de la maison",
+            "Déverrouiller la dalle",
+            "Trouver quelqu'un qui vous indiquera comment éviter le mal des abîmes",
+            "Descendre sous la dalle en se protégeant avec une statuette de Snedon",
+            "Vaincre x1 {monster,4499} en un seul combat",
+            "Tenter de communiquer avec l'un des cerveaux",
+            "Retourner voir {npc,3246}",
+            "Montrer à {npc,3250} : 1 {item,18039}",
+            "Aller voir {npc,3261}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1754
+            }
+          ]
+        },
+        {
+          "name": "Il suffira d'un signe",
+          "dofusdbId": 1758,
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17983,
+              "name": "Tentacule de Grofond",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            },
+            {
+              "id": 17984,
+              "name": "Tentacule de N'Yalg",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/103728.png"
+            },
+            {
+              "id": 17986,
+              "name": "Œil de Shokkoth",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/109614.png"
+            },
+            {
+              "id": 17985,
+              "name": "Patte de Li-Fo",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/103727.png"
+            },
+            {
+              "id": 17987,
+              "name": "Flûte de Klûtiste",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/15938.png"
+            }
+          ],
+          "objectives": [
+            "Montrer à {npc,3261} : 5 {item,17983}",
+            "Montrer à {npc,3261} : 5 {item,17984}",
+            "Montrer à {npc,3261} : 5 {item,17986}",
+            "Montrer à {npc,3261} : 5 {item,17985}",
+            "Montrer à {npc,3261} : 5 {item,17987}",
+            "Montrer à {npc,3261} : 1 {item,18086}",
+            "Montrer à {npc,3261} : 5 {item,18087}",
+            "Vaincre x1 {monster,4500} en un seul combat",
+            "Aider Nomis à créer le Signe des Très Vieux Anciens",
+            "Aller voir {npc,3246}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1756
+            }
+          ]
         }
       ]
     }

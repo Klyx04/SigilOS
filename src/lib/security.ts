@@ -1,6 +1,17 @@
 import DOMPurify from 'isomorphic-dompurify';
 
 /**
+ * Configure DOMPurify globally to secure all anchor tags.
+ * Empêche les attaques de type "Reverse Tabnabbing" (HIGH-05).
+ */
+DOMPurify.addHook('afterSanitizeAttributes', function (node) {
+    if (node.tagName && node.tagName.toLowerCase() === 'a') {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+    }
+});
+
+/**
  * Shared Security Utilities
  */
 
@@ -19,11 +30,11 @@ export function sanitizeHtml(input: string | null, maxLength: number = 100000, s
     const truncated = input.slice(0, maxLength);
 
     // Strict mode for Presentation (Bio/Description)
-    const config = strict
+    const config: any = strict
         ? { ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br'] }
-        : {}; // Normal mode allows safe HTML (h1, img, etc.) but removes scripts/iframes.
+        : { ADD_ATTR: ['target'] }; // Normal mode allows safe HTML (h1, img, etc.)
 
-    return DOMPurify.sanitize(truncated, config);
+    return DOMPurify.sanitize(truncated, config) as unknown as string;
 }
 
 /**

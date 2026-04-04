@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gamepad2, AlertTriangle, CheckCircle2, Save, Power, MessageSquare, Ban, Flag, Trash2, Map, Plus, Loader2 } from "lucide-react";
+import { Gamepad2, AlertTriangle, CheckCircle2, Save, Power, MessageSquare, RotateCcw, Ban, Flag, Trash2, Map, Plus, Loader2 } from "lucide-react";
 import { updateMiniGameStatus, updateGeoguesserConfig, getMapsInfo } from "@/server/actions/god-mini-games-actions";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+
+const WORLD_NAMES: Record<number, string> = {
+    1: "Monde des Douze",
+    2: "Incarnam",
+    3: "Souterrains",
+    4: "Souterrains d'Astrub",
+    19: "Mappemondes",
+    29: "Ecaflip City",
+};
 
 interface MiniGame {
     gameId: string;
@@ -325,23 +334,33 @@ export default function MiniGamesGodClient({
                                                                 <Map size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
                                                             </div>
                                                             {/* HD Preview on Hover */}
-                                                            <div className="fixed pointer-events-none z-[2000] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-95 group-hover/map:scale-100 left-full ml-4 top-0 w-80 aspect-video rounded-2xl overflow-hidden border-2 border-amber-500/50 shadow-2xl shadow-black/80 bg-zinc-950">
+                                                            <div className="fixed pointer-events-none z-[9999] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-90 group-hover/map:scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] aspect-video rounded-[2.5rem] overflow-hidden border-4 border-amber-500/50 shadow-[0_50px_100px_rgba(0,0,0,0.9)] bg-zinc-950">
                                                                 <img 
                                                                     src={`/game-data/hd_maps/${id}.webp`}
                                                                     alt=""
                                                                     className="w-full h-full object-cover"
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                                                <div className="absolute bottom-3 left-4 flex flex-col">
-                                                                    <span className="text-white font-black text-xs uppercase italic">Aperçu HD #{id}</span>
-                                                                    <span className="text-amber-500 text-[8px] font-bold uppercase tracking-widest">Signalement Joueur</span>
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
+                                                                <div className="absolute bottom-8 left-10 flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                                                        <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Vérification HD #{id}</span>
+                                                                    </div>
+                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-[0.3em] italic">Signalement Signalé par un joueur • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         <div>
                                                             <div className="text-xs font-black text-white group-hover:text-amber-500 transition-colors tracking-tight">ID: {id}</div>
                                                             <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                                                                {details ? `Pos: [${details.x}, ${details.y}] • Monde ${details.worldMap}` : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
+                                                                {details ? (
+                                                                    <>
+                                                                        Pos: [{details.x}, {details.y}] • 
+                                                                        <span className="text-amber-500/60 ml-1">
+                                                                            {WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -424,23 +443,33 @@ export default function MiniGamesGodClient({
                                                                 <Ban size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
                                                             </div>
                                                             {/* HD Preview on Hover */}
-                                                            <div className="fixed pointer-events-none z-[2000] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-95 group-hover/map:scale-100 right-full mr-4 top-0 w-80 aspect-video rounded-2xl overflow-hidden border-2 border-red-500/50 shadow-2xl shadow-black/80 bg-zinc-950">
+                                                            <div className="fixed pointer-events-none z-[9999] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-90 group-hover/map:scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] aspect-video rounded-[2.5rem] overflow-hidden border-4 border-red-500/50 shadow-[0_50px_100px_rgba(0,0,0,0.9)] bg-zinc-950">
                                                                 <img 
                                                                     src={`/game-data/hd_maps/${id}.webp`}
                                                                     alt=""
                                                                     className="w-full h-full object-cover"
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                                                <div className="absolute bottom-3 left-4 flex flex-col">
-                                                                    <span className="text-white font-black text-xs uppercase italic">Blacklist #{id}</span>
-                                                                    <span className="text-red-500 text-[8px] font-bold uppercase tracking-widest">Exclusion active</span>
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
+                                                                <div className="absolute bottom-8 left-10 flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                                        <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Blacklist HD #{id}</span>
+                                                                    </div>
+                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-[0.3em] italic">Exclusion active • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         <div>
                                                             <div className="text-xs font-black text-white group-hover:text-red-500 transition-colors tracking-tight">ID: {id}</div>
                                                             <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                                                                {details ? `Pos: [${details.x}, ${details.y}] • Monde ${details.worldMap}` : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
+                                                                {details ? (
+                                                                    <>
+                                                                        Pos: [{details.x}, {details.y}] • 
+                                                                        <span className="text-red-500/60 ml-1">
+                                                                            {WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
                                                             </div>
                                                         </div>
                                                     </div>
